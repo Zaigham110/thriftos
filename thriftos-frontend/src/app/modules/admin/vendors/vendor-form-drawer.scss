@@ -1,0 +1,124 @@
+@use '../../../../styles/variables' as *;
+
+.vendor-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.form-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: $text-primary;
+
+  .required {
+    color: $status-danger;
+  }
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid $border-default;
+  border-radius: $radius-md;
+  font-size: 0.875rem;
+  color: $text-primary;
+  background-color: $bg-card;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &::placeholder {
+    color: $text-muted;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: $primary;
+    box-shadow: 0 0 0 3px rgba($primary, 0.1);
+  }
+
+  &.error {
+    border-color: $status-danger;
+
+    &:focus {
+      box-shadow: 0 0 0 3px rgba($status-danger, 0.1);
+    }
+  }
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.field-error {
+  font-size: 0.75rem;
+  color: $status-danger;
+}
+
+// Form Actions
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid $border-default;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: $radius-md;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: none;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  lucide-icon {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.btn-primary {
+  background-color: $primary;
+  color: white;
+
+  &:hover:not(:disabled) {
+    background-color: $primary-hover;
+  }
+}
+
+.btn-secondary {
+  background-color: $gray-50;
+  color: $text-primary;
+  border: 1px solid $border-default;
+
+  &:hover:not(:disabled) {
+    background-color: $gray-100;
+  }
+}
+
+.icon-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

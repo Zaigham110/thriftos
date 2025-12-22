@@ -1,0 +1,78 @@
+.dashboard-page {
+  max-width: 1200px;
+}
+
+.page-header {
+  margin-bottom: 1.5rem;
+}
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 0.25rem;
+}
+
+.welcome-message {
+  font-size: 0.9375rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.impersonation-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  background-color: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+
+  lucide-icon {
+    color: #d97706;
+    flex-shrink: 0;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #92400e;
+  }
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.card-icon {
+  color: #2563eb;
+  margin-bottom: 1rem;
+}
+
+.card-description {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0 0 1rem;
+  line-height: 1.5;
+}
+
+.coming-soon {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6366f1;
+  background-color: #eef2ff;
+  border-radius: 9999px;
+}

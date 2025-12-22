@@ -1,0 +1,183 @@
+<div class="page-container">
+  <!-- Breadcrumb -->
+  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="header-content">
+      <div class="header-icon">
+        <lucide-icon [img]="icons.Package" [size]="24"></lucide-icon>
+      </div>
+      <div>
+        <h1 class="page-title">Raw Categories</h1>
+        <p class="page-subtitle">
+          Manage raw material categories for rag/bale procurement
+        </p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <ui-button
+        variant="outline"
+        size="sm"
+        (click)="refresh()"
+        [disabled]="loading()"
+      >
+        <lucide-icon [img]="icons.RefreshCw" [size]="16"></lucide-icon>
+        Refresh
+      </ui-button>
+      <ui-button
+        variant="primary"
+        size="sm"
+        (click)="openAddDrawer()"
+        *hasPermission="'category.create'"
+      >
+        <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>
+        Add Category
+      </ui-button>
+    </div>
+  </div>
+
+  <!-- Filters & Search -->
+  <ui-card class="filters-card">
+    <div class="filters-container">
+      <div class="search-box">
+        <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+        <input
+          type="text"
+          placeholder="Search categories..."
+          [value]="searchQuery()"
+          (input)="searchQuery.set($any($event.target).value)"
+          class="search-input"
+        />
+      </div>
+      <div class="filter-group">
+        <select
+          class="filter-select"
+          [value]="typeFilter()"
+          (change)="typeFilter.set($any($event.target).value)"
+        >
+          @for (option of typeOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+      </div>
+    </div>
+  </ui-card>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <ui-card>
+      <div class="skeleton-list">
+        @for (i of [1,2,3,4,5]; track i) {
+          <ui-skeleton height="60px"></ui-skeleton>
+        }
+      </div>
+    </ui-card>
+  }
+
+  <!-- Categories Table -->
+  @if (!loading() && filteredCategories().length > 0) {
+    <ui-card>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Sort Order</th>
+              <th>Status</th>
+              <th class="actions-col" *hasPermission="'category.update'">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (category of filteredCategories(); track category.id) {
+              <tr>
+                <td>
+                  <div class="category-name">
+                    {{ category.name }}
+                  </div>
+                </td>
+                <td>
+                  <span [class]="'badge ' + getRawTypeBadgeClass(category.rawType)">
+                    {{ category.rawType }}
+                  </span>
+                </td>
+                <td>
+                  <span class="sort-order">{{ category.sortOrder }}</span>
+                </td>
+                <td>
+                  <span [class]="'badge ' + (category.isActive ? 'badge-green' : 'badge-gray')">
+                    {{ category.isActive ? 'Active' : 'Inactive' }}
+                  </span>
+                </td>
+                <td class="actions-col" *hasPermission="'category.update'">
+                  <div class="action-buttons">
+                    <button
+                      class="action-btn"
+                      (click)="openEditDrawer(category)"
+                      title="Edit"
+                    >
+                      <lucide-icon [img]="icons.Pencil" [size]="16"></lucide-icon>
+                    </button>
+                    <button
+                      class="action-btn danger"
+                      (click)="confirmDelete(category)"
+                      title="Delete"
+                      *hasPermission="'category.delete'"
+                    >
+                      <lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </ui-card>
+  }
+
+  <!-- Empty State -->
+  @if (!loading() && filteredCategories().length === 0) {
+    <ui-empty-state
+      [icon]="icons.Package"
+      title="No raw categories found"
+      [description]="searchQuery() || typeFilter() !== 'ALL' 
+        ? 'Try adjusting your search or filters' 
+        : 'Get started by creating your first raw category'"
+    >
+      @if (!searchQuery() && typeFilter() === 'ALL') {
+        <ui-button
+          variant="primary"
+          (click)="openAddDrawer()"
+          *hasPermission="'category.create'"
+        >
+          <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>
+          Add Category
+        </ui-button>
+      }
+    </ui-empty-state>
+  }
+</div>
+
+<!-- Form Drawer -->
+@if (drawerOpen()) {
+  <app-raw-category-form-drawer
+    [category]="selectedCategory()"
+    (saved)="onSaved()"
+    (closed)="closeDrawer()"
+  ></app-raw-category-form-drawer>
+}
+
+<!-- Delete Confirmation -->
+@if (confirmDeleteOpen() && categoryToDelete()) {
+  <ui-confirm-dialog
+    title="Delete Raw Category"
+    [message]="'Are you sure you want to delete ' + categoryToDelete()!.name + '? This action cannot be undone.'"
+    confirmText="Delete"
+    cancelText="Cancel"
+    variant="danger"
+    (confirmed)="deleteCategory()"
+    (cancelled)="cancelDelete()"
+  ></ui-confirm-dialog>
+}

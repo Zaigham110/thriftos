@@ -1,0 +1,21 @@
+// ThriftOS Main Stylesheet
+// ========================
+// Import order matters: Tailwind first, then our custom styles
+
+// 1. Tailwind base, components, and utilities
+@use 'tailwind';
+
+// 2. Design system variables (imported by other files)
+@use 'variables';
+
+// 3. Reusable mixins (imported by other files)
+@use 'mixins';
+
+// 4. Base/reset styles
+@use 'base';
+
+// 5. Shared component styles
+@use 'components';
+
+// Inter font import from Google Fonts
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');

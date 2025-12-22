@@ -21,6 +21,7 @@ datasource db {
 enum PurchaseOrderType {
   CONTAINER
   LOOSE_BALE
+  HYBRID
 }
 
 enum PurchaseOrderStatus {
@@ -97,6 +98,36 @@ enum SourceType {
   GRADE_OUTPUT
 }
 
+enum SequenceScope {
+  PURCHASE_ORDER
+  CONTAINER
+  RAG
+  INCOMING_BALE
+}
+
+// =============================================================
+// 🔁 RAG/BALE STATUS & SOURCE ENUMS (Phase 2.5)
+// =============================================================
+// Rag lifecycle: NOT_STARTED → IN_SORTING → SORTED
+// This ensures one-time processing per Rag/Bale
+
+enum RagStatus {
+  NOT_STARTED // Available for sorting selection
+  IN_SORTING // Currently being processed - locked
+  SORTED // Permanently closed - cannot be reopened
+}
+
+enum RagSourceType {
+  CONTAINER // Rag originated from a container
+  LOOSE_BALE // Standalone bale (containerId = null)
+}
+
+enum RagBaleType {
+  RAG
+  BALE
+  BOTH
+}
+
 // =============================================================
 // 🌍 1. SUPER ADMIN DOMAIN (No tenantId)
 // =============================================================
@@ -115,10 +146,12 @@ model Tenant {
   users           User[]
   roles           Role[]
   categories      Category[]
+  rawCategories   RawCategory[]
   grades          Grade[]
   warehouses      Warehouse[]
   vendors         Vendor[]
   purchaseOrders  PurchaseOrder[]
+  containers      Container[]
   rags            Rag[]
   incomingBales   IncomingBale[]
   sortSessions    SortSession[]
@@ -128,8 +161,24 @@ model Tenant {
   repackSessions  RepackSession[]
   repackUnits     RepackUnit[]
   inventoryItems  InventoryItem[]
+  sequences       TenantSequence[]
 
   @@index([companyCode])
+}
+
+model TenantSequence {
+  id           String        @id @default(cuid())
+  tenantId     String
+  scope        SequenceScope
+  prefix       String?
+  nextNumber   Int           @default(1)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([tenantId, scope])
+  @@index([tenantId])
 }
 
 model GlobalConfig {
@@ -174,11 +223,11 @@ model User {
   userRoles UserRole[]
 
   // Worker/Supervisor relations
-  sortSessionsAsWorker     SortSession[]    @relation("SortSessionWorker")
-  sortSessionsAsSupervisor SortSession[]    @relation("SortSessionSupervisor")
-  gradeSessionsAsWorker    GradeSession[]   @relation("GradeSessionWorker")
-  gradeSessionsAsSupervisor GradeSession[]  @relation("GradeSessionSupervisor")
-  repackSessionsAsWorker   RepackSession[]  @relation("RepackSessionWorker")
+  sortSessionsAsWorker       SortSession[]   @relation("SortSessionWorker")
+  sortSessionsAsSupervisor   SortSession[]   @relation("SortSessionSupervisor")
+  gradeSessionsAsWorker      GradeSession[]  @relation("GradeSessionWorker")
+  gradeSessionsAsSupervisor  GradeSession[]  @relation("GradeSessionSupervisor")
+  repackSessionsAsWorker     RepackSession[] @relation("RepackSessionWorker")
   repackSessionsAsSupervisor RepackSession[] @relation("RepackSessionSupervisor")
 
   @@unique([tenantId, email])
@@ -277,6 +326,26 @@ model Category {
   @@index([tenantId])
 }
 
+model RawCategory {
+  id           String      @id @default(cuid())
+  tenantId     String
+  name         String
+  rawType      RagBaleType // RAG or BALE
+  sortOrder    Int         @default(0)
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relations
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  rags          Rag[]
+  incomingBales IncomingBale[]
+
+  @@unique([tenantId, name, rawType])
+  @@index([tenantId])
+  @@index([rawType])
+}
+
 model Grade {
   id          String   @id @default(cuid())
   tenantId    String
@@ -352,9 +421,10 @@ model PurchaseOrder {
   updatedAt DateTime            @updatedAt
 
   // Relations
-  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  vendor     Vendor?        @relation(fields: [vendorId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  containers Container[]
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  vendor     Vendor?     @relation(fields: [vendorId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  containers    Container[]
+  incomingBales IncomingBale[]
 
   @@unique([tenantId, poNumber])
   @@index([tenantId])
@@ -365,24 +435,43 @@ model PurchaseOrder {
 
 model Container {
   id              String          @id @default(cuid())
+  tenantId        String
   purchaseOrderId String
   containerNumber String
   referenceNumber String?
   containerType   String?
   eta             DateTime?
+  etd             DateTime?
+  arrivedAt       DateTime?
+  clearedAt       DateTime?
+  releasedAt      DateTime?
   grossWeight     Decimal         @db.Decimal(10, 2)
   netWeight       Decimal         @db.Decimal(10, 2)
+  billOfLadingNumber String?
+  shipmentReference  String?
+  shippingLine       String?
+  vesselName         String?
+  portOfLoading      String?
+  portOfDischarge    String?
+  forwarder          String?
+  notes              String?
   status          ContainerStatus @default(IN_TRANSIT)
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
   // Relations
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   purchaseOrder    PurchaseOrder     @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   containerCharges ContainerCharge[]
   rags             Rag[]
   incomingBales    IncomingBale[]
 
-  @@unique([purchaseOrderId, containerNumber])
+  // Phase 2.5: Downstream traceability (for container-level analytics)
+  categoryOutputs CategoryOutput[] // Category outputs traced to this container
+  sortingWaste    SortingWaste[] // Waste outputs traced to this container
+
+  @@unique([tenantId, containerNumber])
+  @@index([tenantId])
   @@index([purchaseOrderId])
   @@index([containerNumber])
   @@index([status])
@@ -405,46 +494,76 @@ model ContainerCharge {
 }
 
 model Rag {
-  id            String   @id @default(cuid())
+  id            String  @id @default(cuid())
   tenantId      String
-  containerId   String
+  containerId   String? // null for loose bale (sourceType = LOOSE_BALE)
   ragCode       String
-  weightKg      Decimal  @db.Decimal(10, 2)
-  allocatedCost Decimal  @db.Decimal(12, 2)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  ragBaleType   RagBaleType @default(RAG)
+  rawCategoryId String?
+  weightKg      Decimal @db.Decimal(10, 2)
+  allocatedCost Decimal @db.Decimal(12, 2)
+
+  // =============================================================
+  // Phase 2.5: Rag/Bale Lifecycle & Source Tracking
+  // =============================================================
+  // sourceType: Indicates whether this is from a container or a loose bale
+  // status: Enforces one-time processing lifecycle
+  //         NOT_STARTED -> IN_SORTING -> SORTED
+  // =============================================================
+  sourceType RagSourceType @default(CONTAINER)
+  status     RagStatus     @default(NOT_STARTED)
+  notes      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  container    Container     @relation(fields: [containerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  sortSessions SortSession[]
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  container   Container?   @relation(fields: [containerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  rawCategory RawCategory? @relation(fields: [rawCategoryId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  // One-to-one with SortSession: Each Rag can only be sorted ONCE
+  sortSession SortSession?
+
+  // Downstream traceability relations (Phase 2.5)
+  categoryOutputs CategoryOutput[] // Category outputs from this rag
+  sortingWaste    SortingWaste[] // Waste outputs from this rag
 
   @@unique([tenantId, ragCode])
   @@index([tenantId])
   @@index([containerId])
+  @@index([rawCategoryId])
   @@index([ragCode])
+  @@index([ragBaleType])
+  @@index([status]) // Index for filtering by status (e.g., WHERE status = 'NOT_STARTED')
+  @@index([sourceType]) // Index for filtering by source type
 }
 
 model IncomingBale {
-  id            String   @id @default(cuid())
-  tenantId      String
-  containerId   String?
-  vendorId      String?
-  baleCode      String
-  categoryGuess String?
-  weightKg      Decimal  @db.Decimal(10, 2)
-  cost          Decimal  @db.Decimal(12, 2)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id              String   @id @default(cuid())
+  tenantId        String
+  rawCategoryId   String?
+  purchaseOrderId String?
+  containerId     String?
+  vendorId        String?
+  baleCode        String
+  weightKg        Decimal  @db.Decimal(10, 2)
+  cost            Decimal  @db.Decimal(12, 2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // Relations
-  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  container    Container?    @relation(fields: [containerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  vendor       Vendor?       @relation(fields: [vendorId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  rawCategory   RawCategory?   @relation(fields: [rawCategoryId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  container     Container?     @relation(fields: [containerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  vendor        Vendor?        @relation(fields: [vendorId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   sortSessions SortSession[]
 
   @@unique([tenantId, baleCode])
   @@index([tenantId])
+  @@index([rawCategoryId])
+  @@index([purchaseOrderId])
   @@index([containerId])
   @@index([vendorId])
   @@index([baleCode])
@@ -453,12 +572,25 @@ model IncomingBale {
 // =============================================================
 // 🟩 5. SORTING STAGE 1 — CATEGORY SORTING
 // =============================================================
+// Phase 2.5: Traceability Rules (LOCKED)
+// - SortSession MUST reference exactly ONE Rag/Bale
+// - ragId is UNIQUE: One Rag = One Sorting Session (one-time processing)
+// - All downstream data MUST reference source chain
+// =============================================================
 
 model SortSession {
-  id                String     @id @default(cuid())
-  tenantId          String
-  ragId             String?
-  incomingBaleId    String?
+  id       String @id @default(cuid())
+  tenantId String
+
+  // =============================================================
+  // Phase 2.5: Source Traceability (MANDATORY)
+  // =============================================================
+  // ragId is UNIQUE: Prevents multiple sessions per Rag/Bale
+  // This enforces ONE-TIME PROCESSING per Rag
+  // =============================================================
+  ragId          String  @unique // UNIQUE: One Rag can only be sorted ONCE
+  incomingBaleId String? // Legacy support for IncomingBale
+
   workerId          String
   supervisorId      String
   startTime         DateTime   @default(now())
@@ -472,11 +604,12 @@ model SortSession {
 
   // Relations
   tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  rag                 Rag?                 @relation(fields: [ragId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  rag                 Rag                  @relation(fields: [ragId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   incomingBale        IncomingBale?        @relation(fields: [incomingBaleId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   worker              User                 @relation("SortSessionWorker", fields: [workerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   supervisor          User                 @relation("SortSessionSupervisor", fields: [supervisorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   sortCategoryBuckets SortCategoryBucket[]
+  sortingWaste        SortingWaste? // One-to-one: waste output per session
 
   @@index([tenantId])
   @@index([ragId])
@@ -506,25 +639,78 @@ model SortCategoryBucket {
 }
 
 model CategoryOutput {
-  id                   String   @id @default(cuid())
+  id                   String  @id @default(cuid())
   tenantId             String
   sortCategoryBucketId String
   categoryId           String
-  weightKg             Decimal  @db.Decimal(10, 2)
-  count                Int      @default(0)
-  allocatedCost        Decimal  @db.Decimal(12, 2)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  weightKg             Decimal @db.Decimal(10, 2)
+  count                Int     @default(0)
+  allocatedCost        Decimal @db.Decimal(12, 2)
+
+  // =============================================================
+  // Phase 2.5: Traceability Chain (MANDATORY)
+  // =============================================================
+  // Every downstream entity MUST reference its source chain
+  // containerId: Optional (null for loose bale)
+  // ragId: REQUIRED - Links back to source Rag/Bale
+  // sortSessionId: REQUIRED - Links back to sorting session
+  // =============================================================
+  containerId   String? // Nullable: null for loose bale origins
+  ragId         String // REQUIRED: Source Rag/Bale traceability
+  sortSessionId String // REQUIRED: Source session traceability
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
   tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   sortCategoryBucket SortCategoryBucket @relation(fields: [sortCategoryBucketId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   category           Category           @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  rag                Rag                @relation(fields: [ragId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  container          Container?         @relation(fields: [containerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   gradeSessions      GradeSession[]
 
   @@index([tenantId])
   @@index([sortCategoryBucketId])
   @@index([categoryId])
+  @@index([ragId]) // Index for rag-level yield analytics
+  @@index([containerId]) // Index for container-level yield analytics
+  @@index([sortSessionId]) // Index for session traceability
+}
+
+// =============================================================
+// 🗑️ SORTING WASTE (Phase 2.5 - NEW)
+// =============================================================
+// Waste output from Sorting Stage 1 with full traceability
+// One-to-one relationship with SortSession
+// =============================================================
+
+model SortingWaste {
+  id            String @id @default(cuid())
+  tenantId      String
+  sortSessionId String @unique // One waste record per session
+
+  // =============================================================
+  // Phase 2.5: Traceability Chain (MANDATORY)
+  // =============================================================
+  containerId String? // Nullable: null for loose bale origins
+  ragId       String // REQUIRED: Source Rag/Bale traceability
+
+  weightKg Decimal @db.Decimal(10, 2)
+  notes    String? // Optional notes about waste
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  sortSession SortSession @relation(fields: [sortSessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  rag         Rag         @relation(fields: [ragId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  container   Container?  @relation(fields: [containerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([tenantId])
+  @@index([sortSessionId])
+  @@index([ragId])
+  @@index([containerId])
 }
 
 // =============================================================
@@ -636,8 +822,23 @@ model RepackUnit {
   pcsCount        Int          @default(0)
   totalCost       Decimal      @db.Decimal(12, 2)
   status          RepackStatus @default(READY)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+
+  // =============================================================
+  // Phase 2.5: Traceability Chain (MANDATORY)
+  // =============================================================
+  // Every downstream entity MUST reference its source chain
+  // containerId: Optional (null for loose bale origins)
+  // ragId: REQUIRED - Links back to source Rag/Bale
+  // sortSessionId: REQUIRED - Links back to Sorting Stage 1
+  // gradeSessionId: Optional - Links to Sorting Stage 2 (if graded)
+  // =============================================================
+  containerId    String? // Nullable: null for loose bale origins
+  ragId          String? // Source Rag/Bale traceability (required when items added)
+  sortSessionId  String? // Source Sorting Stage 1 session
+  gradeSessionId String? // Source Sorting Stage 2 session (optional)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -655,6 +856,9 @@ model RepackUnit {
   @@index([gradeId])
   @@index([unitCode])
   @@index([status])
+  @@index([ragId]) // Index for rag-level analytics
+  @@index([containerId]) // Index for container-level analytics
+  @@index([sortSessionId]) // Index for session traceability
 }
 
 model RepackItem {
@@ -704,8 +908,20 @@ model InventoryItem {
   avgCost      Decimal         @db.Decimal(12, 2)
   warehouseId  String
   status       InventoryStatus @default(AVAILABLE)
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+
+  // =============================================================
+  // Phase 2.5: Traceability Chain (MANDATORY)
+  // =============================================================
+  // Every downstream entity MUST reference its source chain
+  // These are denormalized for efficient querying
+  // containerId: Optional (null for loose bale origins)
+  // ragId: REQUIRED - Links back to source Rag/Bale
+  // =============================================================
+  containerId String? // Nullable: null for loose bale origins
+  ragId       String? // Source Rag/Bale traceability
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -721,6 +937,8 @@ model InventoryItem {
   @@index([gradeId])
   @@index([warehouseId])
   @@index([status])
+  @@index([ragId]) // Index for rag-level analytics
+  @@index([containerId]) // Index for container-level analytics
 }
 
 model StockMovement {
@@ -767,15 +985,14 @@ model AuditLog {
 }
 
 model RefreshToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  token     String   @unique
+  token     String    @unique
   expiresAt DateTime
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   revokedAt DateTime?
 
   @@index([userId])
   @@index([token])
   @@index([expiresAt])
 }
-

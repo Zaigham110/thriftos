@@ -5,6 +5,7 @@ import { PasswordService } from './password.service';
 import { AuditService } from '../audit/audit.service';
 import { LoginDto, LoginResponseDto } from './dto/login.dto';
 import { RefreshResponseDto } from './dto/refresh.dto';
+import { CurrentUserData } from '../common/decorators/current-user.decorator';
 export declare class AuthService {
     private prisma;
     private jwtService;
@@ -21,5 +22,6 @@ export declare class AuthService {
         accessToken: string;
         expiresIn: number;
     }>;
+    exitImpersonation(user: CurrentUserData, ipAddress?: string, userAgent?: string): Promise<void>;
     private generateTokens;
 }

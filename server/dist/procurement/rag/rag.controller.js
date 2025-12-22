@@ -19,6 +19,7 @@ const tenant_guard_1 = require("../../common/guards/tenant.guard");
 const permission_guard_1 = require("../../common/guards/permission.guard");
 const permissions_decorator_1 = require("../../common/decorators/permissions.decorator");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
+const client_1 = require("@prisma/client");
 let RagController = class RagController {
     constructor(ragService) {
         this.ragService = ragService;
@@ -27,9 +28,15 @@ let RagController = class RagController {
         const tenantId = req.tenantId || user.tenantId;
         return this.ragService.create(tenantId, { ...dto, containerId }, user.userId);
     }
-    async findAll(containerId, page, limit, user, req) {
+    async findAll(containerId, status, sortableOnly, page, limit, user, req) {
         const tenantId = req.tenantId || user.tenantId;
-        return this.ragService.findAll(tenantId, { containerId, page, limit });
+        return this.ragService.findAll(tenantId, {
+            containerId,
+            status,
+            sortableOnly: sortableOnly === 'true',
+            page,
+            limit,
+        });
     }
     async findOne(id, user, req) {
         const tenantId = req.tenantId || user.tenantId;
@@ -57,12 +64,14 @@ __decorate([
     (0, common_1.Get)('rags'),
     (0, permissions_decorator_1.RequirePermissions)('rag.read'),
     __param(0, (0, common_1.Query)('containerId')),
-    __param(1, (0, common_1.Query)('page')),
-    __param(2, (0, common_1.Query)('limit')),
-    __param(3, (0, current_user_decorator_1.CurrentUser)()),
-    __param(4, (0, common_1.Req)()),
+    __param(1, (0, common_1.Query)('status')),
+    __param(2, (0, common_1.Query)('sortableOnly')),
+    __param(3, (0, common_1.Query)('page')),
+    __param(4, (0, common_1.Query)('limit')),
+    __param(5, (0, current_user_decorator_1.CurrentUser)()),
+    __param(6, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Number, Number, Object, Object]),
+    __metadata("design:paramtypes", [String, String, String, Number, Number, Object, Object]),
     __metadata("design:returntype", Promise)
 ], RagController.prototype, "findAll", null);
 __decorate([

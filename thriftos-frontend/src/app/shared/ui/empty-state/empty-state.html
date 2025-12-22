@@ -1,0 +1,12 @@
+<div class="empty-state">
+  <div class="empty-state-icon">
+    <lucide-icon [img]="icon()" [size]="48"></lucide-icon>
+  </div>
+  <h3 class="empty-state-title">{{ title() }}</h3>
+  @if (description()) {
+    <p class="empty-state-description">{{ description() }}</p>
+  }
+  <div class="empty-state-actions">
+    <ng-content></ng-content>
+  </div>
+</div>

@@ -1,0 +1,180 @@
+@use '../../../../../styles/variables' as *;
+
+.incoming-bale-list {
+  padding: $spacing-page;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+  }
+
+  &__info {
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: $gray-900;
+      margin: 0;
+    }
+  }
+
+  &__subtitle {
+    font-size: 0.875rem;
+    color: $gray-500;
+    margin: 0.25rem 0 0 0;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 0.75rem;
+
+    a {
+      text-decoration: none;
+    }
+  }
+}
+
+ui-card.filters-card {
+  display: block;
+  margin-bottom: 1.5rem;
+}
+
+.filters-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.search-input {
+  position: relative;
+  flex: 1;
+  max-width: 320px;
+
+  @media (max-width: 640px) {
+    max-width: none;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: $gray-400;
+    pointer-events: none;
+  }
+
+  input {
+    padding-left: 2.5rem;
+    width: 100%;
+  }
+}
+
+.error-alert {
+  margin-bottom: 1.5rem;
+}
+
+ui-card.table-card {
+  display: block;
+  overflow: hidden;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: $gray-500;
+    padding: 0.875rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid $gray-200;
+    background-color: $gray-50;
+
+    &.text-right {
+      text-align: right;
+    }
+  }
+
+  td {
+    font-size: 0.875rem;
+    color: $gray-700;
+    padding: 1rem;
+    border-bottom: 1px solid $gray-100;
+
+    &.text-right {
+      text-align: right;
+    }
+  }
+
+  tbody tr {
+    transition: background-color 0.15s ease;
+
+    &:hover {
+      background-color: $gray-50;
+    }
+
+    &:last-child td {
+      border-bottom: none;
+    }
+  }
+}
+
+.bale-id {
+  font-weight: 500;
+  color: $gray-900;
+}
+
+.font-mono {
+  font-family: $font-family-mono;
+}
+
+.actions-cell {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  color: $gray-400;
+
+  h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: $gray-900;
+    margin: 1rem 0 0.5rem 0;
+  }
+
+  p {
+    font-size: 0.875rem;
+    color: $gray-500;
+    margin: 0 0 1.5rem 0;
+  }
+}
+
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}

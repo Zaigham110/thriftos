@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CategoryOutputService = void 0;
 const common_1 = require("@nestjs/common");
+const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../../prisma/prisma.service");
 let CategoryOutputService = class CategoryOutputService {
     constructor(prisma) {
@@ -43,6 +44,60 @@ let CategoryOutputService = class CategoryOutputService {
             this.prisma.categoryOutput.count({ where }),
         ]);
         return { data, total, page, limit };
+    }
+    async findAvailableForGrading(tenantId, options) {
+        const page = options?.page || 1;
+        const limit = options?.limit || 20;
+        const skip = (page - 1) * limit;
+        const where = {
+            tenantId,
+            gradeSessions: {
+                none: {},
+            },
+            sortCategoryBucket: {
+                is: {
+                    sortSession: {
+                        is: {
+                            status: client_1.SortStatus.CLOSED,
+                        },
+                    },
+                },
+            },
+        };
+        const [data, total] = await Promise.all([
+            this.prisma.categoryOutput.findMany({
+                where,
+                skip,
+                take: limit,
+                orderBy: { createdAt: 'desc' },
+                include: {
+                    category: { select: { id: true, name: true } },
+                    container: { select: { id: true, containerNumber: true } },
+                    rag: { select: { id: true, ragCode: true } },
+                    sortCategoryBucket: {
+                        include: {
+                            sortSession: {
+                                select: {
+                                    id: true,
+                                    status: true,
+                                    startTime: true,
+                                    endTime: true,
+                                    worker: { select: { id: true, name: true } },
+                                }
+                            },
+                        },
+                    },
+                },
+            }),
+            this.prisma.categoryOutput.count({ where }),
+        ]);
+        return {
+            data,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        };
     }
     async findOne(tenantId, id) {
         const output = await this.prisma.categoryOutput.findFirst({

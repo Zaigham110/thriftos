@@ -77,48 +77,14 @@ In this phase you MUST:
 
 # ---------------------------------------------------------
 
-You MUST define and enforce permissions in this structured format:
+Permission codes MUST match the seeded permission registry in `prisma/seed.ts`.
 
-```
-<DOMAIN>_<ACTION>
-```
+Two naming patterns currently exist and are both in use by implemented controllers:
 
-### Examples:
+* Dot-style (common for CRUD): `tenant.read`, `user.update`, `po.create`, `container.read`, `report.procurement`
+* Uppercase phase-style (used by sorting/repack/inventory/reports controllers): `SORTING_STAGE1_VIEW`, `REPACK_CREATE`, `INVENTORY_VIEW`, `REPORTS_EXPORT`
 
-```
-PROCUREMENT_VIEW
-PROCUREMENT_CREATE
-PROCUREMENT_EDIT
-PROCUREMENT_CLOSE
-
-SORTING_STAGE1_VIEW
-SORTING_STAGE1_CREATE
-SORTING_STAGE1_EDIT
-SORTING_STAGE1_CLOSE
-
-SORTING_STAGE2_VIEW
-SORTING_STAGE2_CREATE
-SORTING_STAGE2_EDIT
-SORTING_STAGE2_CLOSE
-
-REPACK_VIEW
-REPACK_CREATE
-REPACK_EDIT
-REPACK_CLOSE
-
-INVENTORY_VIEW
-INVENTORY_INTAKE
-INVENTORY_ADJUST
-INVENTORY_RESERVE
-
-REPORTS_VIEW
-REPORTS_EXPORT
-
-ADMIN_TENANT_CREATE
-ADMIN_TENANT_UPDATE
-ADMIN_USER_MANAGE
-ADMIN_ROLE_MANAGE
-```
+If you choose to standardize naming in Phase 8, you MUST keep backward compatibility (or provide a safe migration), because existing controllers and seeded roles depend on these codes.
 
 Permissions MUST be seeded and immutable in production.
 
@@ -137,17 +103,21 @@ Permissions MUST be seeded and immutable in production.
   * Expired tokens
   * Revoked refresh tokens
   * Inactive users
-* Must attach:
+* Must attach (aligned with current backend contract):
 
   ```
   req.user = {
-    id,
-    tenantId,
-    roles[],
-    permissions[],
-    isSuperAdmin
+    userId,
+    tenantId: string | null,
+    isSuperAdmin: boolean,
+    impersonatedTenantId?: string
   }
   ```
+
+  Notes:
+
+  * Super Admin users are stored under the SYSTEM tenant in the DB, but their JWT `tenantId` is treated as `null` (tenant-less context) unless explicitly impersonating.
+  * Do NOT embed `permissions[]` in JWT; `PermissionGuard` should resolve effective permissions from DB roles.
 
 ---
 
@@ -155,21 +125,18 @@ Permissions MUST be seeded and immutable in production.
 
 TenantGuard MUST:
 
-1. Extract tenantId from:
+1. Use tenant context from:
 
-   * JWT
-   * Route params (if applicable)
-2. Validate:
-
-   ```
-   req.user.tenantId === resource.tenantId
-   ```
+  * `req.user.tenantId` for regular tenant users
+  * `req.user.impersonatedTenantId` for Super Admin impersonation tokens
+2. Ensure request-scoped tenant context is set (e.g. `request.tenantId`) and used consistently by services.
 3. Block:
 
-   * Cross-tenant access
+  * Cross-tenant access
+  * Super Admin access to tenant routes without explicit impersonation (except for explicitly marked Super Admin routes)
 4. Allow:
 
-   * Super Admin ONLY when explicitly flagged
+  * Super Admin routes only when explicitly flagged
 
 ❌ No silent bypass
 ✔ Explicit impersonation only
@@ -181,11 +148,7 @@ TenantGuard MUST:
 PermissionGuard MUST:
 
 * Accept **one or more permissions**
-* Validate:
-
-  ```
-  user.permissions.includes(requiredPermission)
-  ```
+* Validate by resolving effective permissions from DB roles (not JWT).
 * Reject if:
 
   * Permission missing

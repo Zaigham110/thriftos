@@ -1,0 +1,179 @@
+<div class="tenants-page">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="page-title-section">
+      <h1 class="page-title">Tenants</h1>
+      <p class="page-subtitle">Manage all tenant organizations in the system</p>
+    </div>
+    <div class="page-actions">
+      <ui-button
+        variant="secondary"
+        size="sm"
+        (clicked)="loadTenants()"
+        [disabled]="tenantsService.loading()"
+      >
+        <lucide-icon [img]="icons.RefreshCw" [size]="16"></lucide-icon>
+        Refresh
+      </ui-button>
+      <ui-button variant="primary" size="sm" (clicked)="openCreateDrawer()">
+        <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>
+        Add Tenant
+      </ui-button>
+    </div>
+  </div>
+
+  <!-- Error Alert -->
+  @if (tenantsService.error()) {
+    <ui-alert
+      variant="danger"
+      [dismissible]="true"
+      (dismissed)="tenantsService.clearError()"
+    >{{ tenantsService.error() }}</ui-alert>
+  }
+
+  <!-- Loading State -->
+  @if (tenantsService.loading() && tenantsService.tenants().length === 0) {
+    <ui-card>
+      <div class="loading-skeleton">
+        @for (i of [1, 2, 3, 4, 5]; track i) {
+          <div class="skeleton-row">
+            <ui-skeleton width="150px" height="16px"></ui-skeleton>
+            <ui-skeleton width="80px" height="16px"></ui-skeleton>
+            <ui-skeleton width="60px" height="16px"></ui-skeleton>
+            <ui-skeleton width="70px" height="24px"></ui-skeleton>
+            <ui-skeleton width="100px" height="16px"></ui-skeleton>
+            <ui-skeleton width="120px" height="32px"></ui-skeleton>
+          </div>
+        }
+      </div>
+    </ui-card>
+  }
+
+  <!-- Tenants Table -->
+  @if (!tenantsService.loading() || tenantsService.tenants().length > 0) {
+    <ui-card [padding]="false">
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Company Name</th>
+              <th>Company Code</th>
+              <th>Currency</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th class="actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (tenant of tenantsService.tenants(); track tenant.id) {
+              <tr>
+                <td class="company-name">{{ tenant.name }}</td>
+                <td class="company-code">{{ tenant.companyCode }}</td>
+                <td>{{ tenant.currency }}</td>
+                <td>
+                  <ui-badge [variant]="getStatusBadgeType(tenant.status)">
+                    {{ tenant.status }}
+                  </ui-badge>
+                </td>
+                <td class="date-col">{{ tenant.createdAt | date:'mediumDate' }}</td>
+                <td class="actions-col">
+                  <div class="action-buttons">
+                    <button
+                      type="button"
+                      class="action-btn"
+                      title="View Details"
+                      [routerLink]="['/admin/super/tenants', tenant.id]"
+                    >
+                      <lucide-icon [img]="icons.Eye" [size]="16"></lucide-icon>
+                    </button>
+                    <button
+                      type="button"
+                      class="action-btn"
+                      title="Edit Tenant"
+                      (click)="openEditDrawer(tenant)"
+                    >
+                      <lucide-icon [img]="icons.Pencil" [size]="16"></lucide-icon>
+                    </button>
+                    @if (tenant.status === 'ACTIVE') {
+                      <button
+                        type="button"
+                        class="action-btn action-btn--warning"
+                        title="Deactivate Tenant"
+                        (click)="confirmToggleStatus(tenant)"
+                      >
+                        <lucide-icon [img]="icons.PowerOff" [size]="16"></lucide-icon>
+                      </button>
+                    } @else {
+                      <button
+                        type="button"
+                        class="action-btn action-btn--success"
+                        title="Activate Tenant"
+                        (click)="confirmToggleStatus(tenant)"
+                      >
+                        <lucide-icon [img]="icons.Power" [size]="16"></lucide-icon>
+                      </button>
+                    }
+                    <button
+                      type="button"
+                      class="action-btn action-btn--danger"
+                      title="Impersonate Tenant"
+                      (click)="confirmImpersonate(tenant)"
+                      [disabled]="tenant.status !== 'ACTIVE'"
+                    >
+                      <lucide-icon [img]="icons.UserCog" [size]="16"></lucide-icon>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="6" class="empty-state">
+                  <p>No tenants found. Click "Add Tenant" to create one.</p>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Info -->
+      @if (tenantsService.totalCount() > 0) {
+        <div class="table-footer">
+          <span class="pagination-info">
+            Showing {{ tenantsService.tenants().length }} of {{ tenantsService.totalCount() }} tenants
+          </span>
+        </div>
+      }
+    </ui-card>
+  }
+
+  <!-- Create/Edit Drawer -->
+  @if (showDrawer()) {
+    <app-tenant-form-drawer
+      [tenant]="editingTenant()"
+      (closed)="closeDrawer()"
+      (saved)="onDrawerSaved()"
+    ></app-tenant-form-drawer>
+  }
+
+  <!-- Confirmation Modal -->
+  @if (showConfirmModal()) {
+    <ui-modal
+      [title]="getConfirmTitle()"
+      [isOpen]="true"
+      (closed)="closeConfirmModal()"
+    >
+      <p class="confirm-message">{{ getConfirmMessage() }}</p>
+      <div class="modal-footer" slot="footer">
+        <ui-button variant="ghost" (clicked)="closeConfirmModal()">Cancel</ui-button>
+        <ui-button
+          [variant]="getConfirmButtonVariant()"
+          [loading]="isActionLoading()"
+          (clicked)="executeConfirmedAction()"
+        >
+          {{ getConfirmButtonText() }}
+        </ui-button>
+      </div>
+    </ui-modal>
+  }
+</div>

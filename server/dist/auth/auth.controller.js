@@ -14,12 +14,15 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthController = void 0;
 const common_1 = require("@nestjs/common");
+const swagger_1 = require("@nestjs/swagger");
 const throttler_1 = require("@nestjs/throttler");
 const auth_service_1 = require("./auth.service");
 const login_dto_1 = require("./dto/login.dto");
 const refresh_dto_1 = require("./dto/refresh.dto");
 const public_decorator_1 = require("../common/decorators/public.decorator");
 const current_user_decorator_1 = require("../common/decorators/current-user.decorator");
+const permission_guard_1 = require("../common/guards/permission.guard");
+const permissions_decorator_1 = require("../common/decorators/permissions.decorator");
 let AuthController = class AuthController {
     constructor(authService) {
         this.authService = authService;
@@ -39,6 +42,11 @@ let AuthController = class AuthController {
         const userAgent = req.headers['user-agent'];
         return this.authService.refreshTokens(dto.refreshToken, ipAddress, userAgent);
     }
+    async exitImpersonation(user, req) {
+        const ipAddress = req.ip || req.socket.remoteAddress;
+        const userAgent = req.headers['user-agent'];
+        await this.authService.exitImpersonation(user, ipAddress, userAgent);
+    }
 };
 exports.AuthController = AuthController;
 __decorate([
@@ -46,6 +54,10 @@ __decorate([
     (0, common_1.Post)('login'),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),
     (0, throttler_1.Throttle)({ short: { limit: 5, ttl: 60000 } }),
+    (0, swagger_1.ApiOperation)({ summary: 'User login', description: 'Authenticate with email and password' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Login successful, returns JWT tokens' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Invalid credentials' }),
+    (0, swagger_1.ApiResponse)({ status: 429, description: 'Too many login attempts' }),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
@@ -55,6 +67,11 @@ __decorate([
 __decorate([
     (0, common_1.Post)('logout'),
     (0, common_1.HttpCode)(common_1.HttpStatus.NO_CONTENT),
+    (0, permissions_decorator_1.SkipPermissionCheck)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'User logout', description: 'Invalidate refresh token and end session' }),
+    (0, swagger_1.ApiResponse)({ status: 204, description: 'Logout successful' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, common_1.Req)()),
@@ -66,14 +83,33 @@ __decorate([
     (0, public_decorator_1.Public)(),
     (0, common_1.Post)('refresh'),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'Refresh tokens', description: 'Get new access token using refresh token' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'New tokens issued' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Invalid or expired refresh token' }),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [refresh_dto_1.RefreshTokenDto, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "refresh", null);
+__decorate([
+    (0, common_1.Post)('exit-impersonation'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.NO_CONTENT),
+    (0, permissions_decorator_1.SkipPermissionCheck)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Exit impersonation', description: 'Super Admin exits tenant impersonation mode' }),
+    (0, swagger_1.ApiResponse)({ status: 204, description: 'Impersonation ended' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "exitImpersonation", null);
 exports.AuthController = AuthController = __decorate([
+    (0, swagger_1.ApiTags)('Auth'),
     (0, common_1.Controller)('auth'),
+    (0, common_1.UseGuards)(permission_guard_1.PermissionGuard),
     __metadata("design:paramtypes", [auth_service_1.AuthService])
 ], AuthController);
 //# sourceMappingURL=auth.controller.js.map

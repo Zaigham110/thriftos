@@ -1,0 +1,171 @@
+<ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
+
+<div class="rag-sortable-list">
+  <header class="page-header">
+    <div class="header-content">
+      <h1>
+        <lucide-icon [img]="icons.package" [size]="28"></lucide-icon>
+        Available Rags & Bales
+      </h1>
+      <p class="subtitle">Select a rag or bale to start sorting</p>
+    </div>
+    <div class="header-actions">
+      <ui-button variant="outline" size="sm" (clicked)="refresh()" [loading]="loading()">
+        <lucide-icon [img]="icons.refresh" [size]="18"></lucide-icon>
+        Refresh
+      </ui-button>
+    </div>
+  </header>
+
+  @if (error()) {
+    <ui-alert variant="danger" [dismissible]="true" (dismissed)="error.set(null)">
+      {{ error() }}
+    </ui-alert>
+  }
+
+  <!-- Stats Cards -->
+  <div class="stats-grid">
+    <ui-card class="stat-card">
+      <div class="stat-label">Total Rags</div>
+      <div class="stat-value">{{ ragCount() }}</div>
+    </ui-card>
+    <ui-card class="stat-card">
+      <div class="stat-label">Total Bales</div>
+      <div class="stat-value">{{ baleCount() }}</div>
+    </ui-card>
+    <ui-card class="stat-card">
+      <div class="stat-label">Total Weight</div>
+      <div class="stat-value">{{ formatWeight(totalWeight()) }} kg</div>
+    </ui-card>
+    <ui-card class="stat-card">
+      <div class="stat-label">Available Items</div>
+      <div class="stat-value">{{ rags().length }}</div>
+    </ui-card>
+  </div>
+
+  <!-- Filters -->
+  <ui-card class="filters-card">
+    <div class="filters">
+      <div class="filter-item search-filter">
+        <div class="search-input-wrapper">
+          <lucide-icon [img]="icons.search" [size]="18" class="search-icon"></lucide-icon>
+          <input
+            type="text"
+            class="search-input"
+            [(ngModel)]="searchQuery"
+            placeholder="Search by code, container, or category..."
+          />
+        </div>
+      </div>
+      <div class="filter-item">
+        <label class="filter-label">Type</label>
+        <select 
+          class="filter-select"
+          [(ngModel)]="typeFilter"
+        >
+          @for (option of typeOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+      </div>
+    </div>
+  </ui-card>
+
+  <!-- Rags List -->
+  <ui-card class="list-card">
+    @if (loading()) {
+      <div class="skeleton-list">
+        @for (i of [1, 2, 3, 4, 5]; track i) {
+          <div class="skeleton-item">
+            <ui-skeleton variant="text"></ui-skeleton>
+          </div>
+        }
+      </div>
+    } @else if (filteredRags().length === 0) {
+      <ui-empty-state
+        [icon]="icons.package"
+        title="No rags or bales available"
+        [description]="searchQuery() || typeFilter() !== 'ALL' 
+          ? 'No items match your search criteria' 
+          : 'All rags and bales have been sorted'"
+      >
+        @if (searchQuery() || typeFilter() !== 'ALL') {
+          <ui-button variant="outline" (clicked)="searchQuery.set(''); typeFilter.set('ALL')">
+            Clear Filters
+          </ui-button>
+        }
+      </ui-empty-state>
+    } @else {
+      <div class="rags-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Type</th>
+              <th>PO#</th>
+              <th>Container</th>
+              <th>Category</th>
+              <th>Weight (kg)</th>
+              <th>Status</th>
+              <th class="actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of filteredRags(); track item.id) {
+              <tr class="rag-row">
+                <td class="code-cell">
+                  <span class="rag-code">{{ item.code }}</span>
+                </td>
+                <td>
+                  <ui-badge [variant]="getTypeVariant(item.type)" size="sm">
+                    {{ item.type }}
+                  </ui-badge>
+                </td>
+                <td>
+                    <span>{{ item.poNumber || '-'}}</span>
+                </td>
+                <td>
+                  <span class="container-number">{{ item.containerNumber || '—' }}</span>
+                </td>
+                <td>
+                  <span class="category-name">{{ item.categoryName || 'Uncategorized' }}</span>
+                </td>
+                <td class="weight-cell">
+                  {{ formatWeight(item.weightKg) }}
+                </td>
+                <td>
+                  <ui-badge variant="default" size="sm">
+                    {{ item.source === 'CONTAINER' ? 'Container' : 'Loose Bale' }}
+                  </ui-badge>
+                </td>
+                <td class="actions-cell">
+                  <div class="action-buttons">
+                    <ui-button
+                      variant="ghost"
+                      size="sm"
+                      (clicked)="viewDetails(item)"
+                      title="View Details"
+                    >
+                      <lucide-icon [img]="icons.eye" [size]="16"></lucide-icon>
+                    </ui-button>
+                    <ui-button
+                      variant="primary"
+                      size="sm"
+                      (clicked)="startSorting(item)"
+                      [loading]="actionLoading()"
+                      [disabled]="actionLoading()"
+                      title="Start Sorting"
+                    >
+                      <lucide-icon [img]="icons.play" [size]="16"></lucide-icon>
+                      Sort
+                    </ui-button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </ui-card>
+</div>

@@ -1,0 +1,31 @@
+@if (isOpen()) {
+  <div class="modal-overlay" (click)="onBackdropClick()">
+    <div
+      [class]="modalClasses"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-labelledby]="title() ? 'modal-title' : null"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="modal-header">
+        @if (title()) {
+          <h2 id="modal-title" class="modal-title">{{ title() }}</h2>
+        }
+        @if (closable()) {
+          <button
+            type="button"
+            class="modal-close"
+            aria-label="Close modal"
+            (click)="close()"
+          >
+            <lucide-icon [img]="closeIcon" [size]="20"></lucide-icon>
+          </button>
+        }
+      </div>
+      <div class="modal-body">
+        <ng-content></ng-content>
+      </div>
+      <ng-content select="[modal-footer]"></ng-content>
+    </div>
+  </div>
+}

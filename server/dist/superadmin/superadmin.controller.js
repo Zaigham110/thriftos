@@ -28,7 +28,15 @@ let SuperAdminController = class SuperAdminController {
         this.authService = authService;
     }
     async create(dto, user) {
-        return this.superAdminService.createTenant(dto, user.userId, dto.adminEmail, dto.adminName);
+        try {
+            const result = await this.superAdminService.createTenant(dto, user.userId);
+            console.log('Tenant created successfully:', result);
+            return result;
+        }
+        catch (error) {
+            console.error('Error creating tenant:', error);
+            throw error;
+        }
     }
     async findAll(page, limit, status) {
         return this.superAdminService.findAll(page || 1, limit || 20, status);

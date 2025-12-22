@@ -32,6 +32,26 @@ __decorate([
     __metadata("design:type", String)
 ], UpdateContainerDto.prototype, "eta", void 0);
 __decorate([
+    (0, class_validator_1.IsDateString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], UpdateContainerDto.prototype, "etd", void 0);
+__decorate([
+    (0, class_validator_1.IsDateString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], UpdateContainerDto.prototype, "arrivedAt", void 0);
+__decorate([
+    (0, class_validator_1.IsDateString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], UpdateContainerDto.prototype, "clearedAt", void 0);
+__decorate([
+    (0, class_validator_1.IsDateString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], UpdateContainerDto.prototype, "releasedAt", void 0);
+__decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.Min)(0),
     (0, class_validator_1.IsOptional)(),
@@ -43,4 +63,52 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], UpdateContainerDto.prototype, "netWeight", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(50),
+    __metadata("design:type", String)
+], UpdateContainerDto.prototype, "billOfLadingNumber", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(50),
+    __metadata("design:type", String)
+], UpdateContainerDto.prototype, "shipmentReference", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(50),
+    __metadata("design:type", String)
+], UpdateContainerDto.prototype, "shippingLine", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(50),
+    __metadata("design:type", String)
+], UpdateContainerDto.prototype, "vesselName", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(50),
+    __metadata("design:type", String)
+], UpdateContainerDto.prototype, "portOfLoading", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(50),
+    __metadata("design:type", String)
+], UpdateContainerDto.prototype, "portOfDischarge", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(50),
+    __metadata("design:type", String)
+], UpdateContainerDto.prototype, "forwarder", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(500),
+    __metadata("design:type", String)
+], UpdateContainerDto.prototype, "notes", void 0);
 //# sourceMappingURL=update-container.dto.js.map

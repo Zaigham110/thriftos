@@ -1,0 +1,120 @@
+<ui-drawer [isOpen]="true" (closed)="close()" [title]="isEditMode() ? 'Edit Tenant' : 'Create Tenant'">
+  <!-- Error Alert -->
+  @if (errorMessage()) {
+    <ui-alert
+      variant="danger"
+      [dismissible]="true"
+      (dismissed)="dismissError()"
+    >{{ errorMessage() }}</ui-alert>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="onSubmit()" class="tenant-form">
+    <!-- Company Information Section -->
+    <div class="form-section">
+      <h3 class="section-title">Company Information</h3>
+
+      <div class="form-row">
+        <ui-input
+          formControlName="name"
+          label="Company Name"
+          placeholder="Enter company name"
+          [required]="true"
+          hint="The display name for this tenant organization"
+        ></ui-input>
+      </div>
+
+      <div class="form-row">
+        <ui-input
+          formControlName="companyCode"
+          label="Company Code"
+          placeholder="COMPANY_CODE"
+          [required]="true"
+          [readonly]="isEditMode()"
+          hint="Unique identifier (uppercase letters, numbers, underscores only)"
+        ></ui-input>
+      </div>
+
+      <div class="form-row form-row--half">
+        <ui-select
+          formControlName="currency"
+          label="Currency"
+          [options]="currencies"
+          [required]="true"
+        ></ui-select>
+
+        <ui-select
+          formControlName="locale"
+          label="Locale"
+          [options]="locales"
+          [required]="true"
+        ></ui-select>
+      </div>
+
+      @if (isEditMode()) {
+        <div class="form-row">
+          <ui-select
+            formControlName="status"
+            label="Status"
+            [options]="statuses"
+            [required]="true"
+          ></ui-select>
+        </div>
+      }
+    </div>
+
+    <!-- Admin Account Section (Create Only) -->
+    @if (!isEditMode()) {
+      <div class="form-section">
+        <h3 class="section-title">Initial Admin Account</h3>
+        <p class="section-description">
+          An admin user will be created with full access to this tenant.
+        </p>
+
+        <div class="form-row">
+          <ui-input
+            formControlName="adminName"
+            label="Admin Name"
+            placeholder="Enter admin full name"
+            [required]="true"
+          ></ui-input>
+        </div>
+
+        <div class="form-row">
+          <ui-input
+            formControlName="adminEmail"
+            label="Admin Email"
+            type="email"
+            placeholder="admin@company.com"
+            [required]="true"
+          ></ui-input>
+        </div>
+
+        <div class="form-row">
+          <ui-input
+            formControlName="adminPassword"
+            label="Admin Password"
+            type="password"
+            placeholder="Enter admin password"
+            [required]="true"
+            hint="Minimum 8 characters"
+          ></ui-input>
+        </div>
+      </div>
+    }
+
+    <!-- Form Actions -->
+    <div class="form-actions">
+      <ui-button variant="ghost" type="button" (clicked)="close()">
+        Cancel
+      </ui-button>
+      <ui-button
+        variant="primary"
+        type="submit"
+        [loading]="isLoading()"
+        [disabled]="form.invalid && form.touched"
+      >
+        {{ isEditMode() ? 'Save Changes' : 'Create Tenant' }}
+      </ui-button>
+    </div>
+  </form>
+</ui-drawer>

@@ -9,12 +9,11 @@ export interface BootstrapResult {
     adminUser?: {
         id: string;
         email: string;
-        temporaryPassword: string;
     };
 }
 export declare class TenantBootstrapService {
     private prisma;
     private passwordService;
     constructor(prisma: PrismaService, passwordService: PasswordService);
-    bootstrapTenant(tenantId: string, adminEmail?: string, adminName?: string): Promise<BootstrapResult>;
+    bootstrapTenant(tenantId: string, adminEmail?: string, adminName?: string, adminPassword?: string): Promise<BootstrapResult>;
 }

@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../audit/audit.service';
+import { Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
@@ -62,6 +63,8 @@ export class CostAllocationService {
         });
       }
 
+      await this.syncPurchaseOrderTotals(container.purchaseOrderId, tx);
+
       // Log the allocation
       if (userId) {
         await this.auditService.log({
@@ -82,14 +85,65 @@ export class CostAllocationService {
     });
   }
 
+  async syncPurchaseOrderTotals(
+    purchaseOrderId: string,
+    prismaClient?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const client = prismaClient ?? this.prisma;
+
+    const po = await client.purchaseOrder.findUnique({
+      where: { id: purchaseOrderId },
+      select: {
+        id: true,
+        containers: {
+          select: {
+            containerCharges: {
+              select: { amount: true },
+            },
+          },
+        },
+        incomingBales: {
+          where: { containerId: null },
+          select: { cost: true },
+        },
+      },
+    });
+
+    if (!po) {
+      return;
+    }
+
+    const containerTotals = po.containers.reduce((sum, container) => {
+      const chargesTotal = container.containerCharges.reduce(
+        (chargeSum, charge) => chargeSum.add(charge.amount),
+        new Decimal(0),
+      );
+      return sum.add(chargesTotal);
+    }, new Decimal(0));
+
+    const looseBaleTotals = po.incomingBales.reduce(
+      (sum, bale) => sum.add(bale.cost ?? new Decimal(0)),
+      new Decimal(0),
+    );
+
+    await client.purchaseOrder.update({
+      where: { id: purchaseOrderId },
+      data: { totalCost: containerTotals.add(looseBaleTotals) },
+    });
+  }
+
   /**
    * Get cost breakdown for a container
+   * Returns structure matching frontend CostBreakdown interface
    */
   async getContainerCostBreakdown(containerId: string) {
     const container = await this.prisma.container.findUnique({
       where: { id: containerId },
       include: {
         containerCharges: true,
+        purchaseOrder: {
+          select: { currency: true },
+        },
         rags: {
           select: {
             id: true,
@@ -118,42 +172,40 @@ export class CostAllocationService {
       new Decimal(0),
     );
 
-    const totalAllocatedToRags = container.rags.reduce(
-      (sum, rag) => sum.add(rag.allocatedCost),
-      new Decimal(0),
-    );
+    const totalWeight = Number(container.netWeight) || 0;
+    const totalCost = Number(totalCharges);
+    const costPerKg = totalWeight > 0 ? totalCost / totalWeight : 0;
 
-    const totalAllocatedToBales = container.incomingBales.reduce(
-      (sum, bale) => sum.add(bale.cost),
-      new Decimal(0),
-    );
-
+    // Return structure matching frontend CostBreakdown interface
     return {
       containerId,
       containerNumber: container.containerNumber,
-      grossWeight: container.grossWeight,
-      netWeight: container.netWeight,
-      totalCharges: totalCharges.toString(),
-      chargeBreakdown: container.containerCharges.map((c) => ({
-        type: c.chargeType,
+      totalCost,
+      costPerKg,
+      totalWeight,
+      currency: container.purchaseOrder?.currency ?? 'USD',
+      charges: container.containerCharges.map((c) => ({
+        id: c.id,
+        containerId: c.containerId,
+        chargeType: c.chargeType,
         description: c.description,
-        amount: c.amount.toString(),
+        amount: Number(c.amount),
+        createdAt: c.createdAt.toISOString(),
+        updatedAt: c.updatedAt.toISOString(),
       })),
+      // Additional data for detailed breakdown (optional)
       rags: container.rags.map((r) => ({
         id: r.id,
         code: r.ragCode,
-        weightKg: r.weightKg.toString(),
-        allocatedCost: r.allocatedCost.toString(),
+        weightKg: Number(r.weightKg),
+        allocatedCost: Number(r.allocatedCost),
       })),
       incomingBales: container.incomingBales.map((b) => ({
         id: b.id,
         code: b.baleCode,
-        weightKg: b.weightKg.toString(),
-        allocatedCost: b.cost.toString(),
+        weightKg: Number(b.weightKg),
+        allocatedCost: Number(b.cost),
       })),
-      totalAllocatedToRags: totalAllocatedToRags.toString(),
-      totalAllocatedToBales: totalAllocatedToBales.toString(),
-      totalAllocated: totalAllocatedToRags.add(totalAllocatedToBales).toString(),
     };
   }
 }

@@ -1,0 +1,205 @@
+@use '../../../../styles/variables' as *;
+
+.tenant-settings {
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+
+  &__title {
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: $gray-900;
+      margin: 0;
+    }
+  }
+
+  &__subtitle {
+    font-size: 0.875rem;
+    color: $gray-500;
+    margin: 0.25rem 0 0 0;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.profile-card {
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid $gray-200;
+
+    lucide-icon {
+      color: $primary;
+    }
+
+    h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: $gray-900;
+      margin: 0;
+    }
+  }
+}
+
+.profile-details {
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid $gray-100;
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  .detail-label {
+    font-size: 0.875rem;
+    color: $gray-500;
+  }
+
+  .detail-value {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: $gray-900;
+
+    &.font-mono {
+      font-family: $font-family-mono;
+    }
+
+    &.text-muted {
+      color: $gray-500;
+      font-weight: 400;
+    }
+  }
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem !important;
+}
+
+.stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: $radius-lg;
+  flex-shrink: 0;
+
+  &.users {
+    background-color: rgba($primary, 0.1);
+    color: $primary;
+  }
+
+  &.roles {
+    background-color: rgba($status-success, 0.1);
+    color: $status-success;
+  }
+
+  &.categories {
+    background-color: rgba($status-warning, 0.1);
+    color: $status-warning;
+  }
+
+  &.grades {
+    background-color: rgba($status-info, 0.1);
+    color: $status-info;
+  }
+
+  &.warehouses {
+    background-color: rgba($gray-500, 0.1);
+    color: $gray-600;
+  }
+}
+
+.stat-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: $gray-900;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: $gray-500;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.stat-skeleton {
+  width: 40px;
+  height: 24px;
+}
+
+.loading-state {
+  .skeleton-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid $gray-100;
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  .skeleton-label {
+    width: 100px;
+  }
+
+  .skeleton-value {
+    width: 150px;
+  }
+}
+
+.info-notice {
+  margin-top: 1.5rem;
+}

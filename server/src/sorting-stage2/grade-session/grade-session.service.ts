@@ -79,7 +79,21 @@ export class GradeSessionService {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          categoryOutput: { select: { id: true, weightKg: true, count: true, allocatedCost: true, categoryId: true } },
+          categoryOutput: {
+            select: {
+              id: true,
+              weightKg: true,
+              count: true,
+              allocatedCost: true,
+              categoryId: true,
+              containerId: true,
+              ragId: true,
+              sortSessionId: true,
+              category: { select: { id: true, name: true } },
+              container: { select: { id: true, containerNumber: true } },
+              rag: { select: { id: true, ragCode: true } },
+            },
+          },
           worker: { select: { id: true, name: true, email: true } },
           supervisor: { select: { id: true, name: true, email: true } },
           _count: { select: { gradeBuckets: true } },
@@ -98,6 +112,8 @@ export class GradeSessionService {
         categoryOutput: {
           include: {
             category: { select: { id: true, name: true } },
+            container: { select: { id: true, containerNumber: true } },
+            rag: { select: { id: true, ragCode: true } },
           },
         },
         worker: { select: { id: true, name: true, email: true } },

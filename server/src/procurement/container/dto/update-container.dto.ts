@@ -15,6 +15,22 @@ export class UpdateContainerDto {
   @IsOptional()
   eta?: string;
 
+  @IsDateString()
+  @IsOptional()
+  etd?: string;
+
+  @IsDateString()
+  @IsOptional()
+  arrivedAt?: string;
+
+  @IsDateString()
+  @IsOptional()
+  clearedAt?: string;
+
+  @IsDateString()
+  @IsOptional()
+  releasedAt?: string;
+
   @IsNumber()
   @Min(0)
   @IsOptional()
@@ -24,5 +40,45 @@ export class UpdateContainerDto {
   @Min(0)
   @IsOptional()
   netWeight?: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  billOfLadingNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  shipmentReference?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  shippingLine?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  vesselName?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  portOfLoading?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  portOfDischarge?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  forwarder?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  notes?: string;
 }
 

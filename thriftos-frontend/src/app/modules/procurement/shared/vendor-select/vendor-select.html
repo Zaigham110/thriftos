@@ -1,0 +1,77 @@
+<div class="vendor-select">
+  <div class="vendor-select__row">
+    <ui-select
+      [options]="vendorOptions()"
+      [label]="label()"
+      [hint]="hint()"
+      [disabled]="disabled()"
+      [required]="required()"
+      (selectionChange)="onVendorChange($event)"
+    ></ui-select>
+
+    @if (showAddButton() && !disabled()) {
+      <button
+        type="button"
+        class="vendor-select__add-btn"
+        (click)="openAddVendorDrawer()"
+        title="Add new vendor"
+      >
+        <lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>
+      </button>
+    }
+  </div>
+</div>
+
+<!-- Add Vendor Drawer -->
+<ui-drawer [isOpen]="isDrawerOpen()" (closed)="closeDrawer()" title="Add New Vendor">
+  @if (createError()) {
+    <ui-alert variant="danger" [dismissible]="true" (dismissed)="createError.set(null)">
+      {{ createError() }}
+    </ui-alert>
+  }
+
+  <form [formGroup]="vendorForm" (ngSubmit)="onSubmitVendor()" class="vendor-form">
+    <div class="form-row">
+      <ui-input
+        formControlName="name"
+        label="Vendor Name"
+        placeholder="Enter vendor name"
+        [required]="true"
+        hint="Company or individual name"
+      ></ui-input>
+    </div>
+
+    <div class="form-row">
+      <ui-input
+        formControlName="country"
+        label="Country"
+        placeholder="e.g., France, USA, UK"
+        hint="Country of origin"
+      ></ui-input>
+    </div>
+
+    <div class="form-row">
+      <ui-textarea
+        formControlName="contactInfo"
+        label="Contact Information"
+        placeholder="Phone, email, address..."
+        hint="Optional contact details"
+        [rows]="3"
+      ></ui-textarea>
+    </div>
+
+    <div class="form-actions">
+      <ui-button variant="ghost" type="button" (clicked)="closeDrawer()">
+        Cancel
+      </ui-button>
+      <ui-button
+        variant="primary"
+        type="submit"
+        [loading]="isCreating()"
+        [disabled]="vendorForm.invalid"
+      >
+        Create Vendor
+      </ui-button>
+    </div>
+  </form>
+</ui-drawer>

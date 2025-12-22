@@ -21,7 +21,7 @@ let SuperAdminService = class SuperAdminService {
         this.auditService = auditService;
         this.bootstrapService = bootstrapService;
     }
-    async createTenant(dto, userId, adminEmail, adminName) {
+    async createTenant(dto, userId) {
         const existing = await this.prisma.tenant.findUnique({
             where: { companyCode: dto.companyCode },
         });
@@ -37,24 +37,29 @@ let SuperAdminService = class SuperAdminService {
                 status: dto.status || client_1.TenantStatus.ACTIVE,
             },
         });
-        const bootstrap = await this.bootstrapService.bootstrapTenant(tenant.id, adminEmail, adminName);
-        await this.auditService.log({
-            userId,
-            tenantId: tenant.id,
-            action: 'TENANT_CREATED',
-            entityType: 'Tenant',
-            entityId: tenant.id,
-            metadataJson: {
-                tenantName: tenant.name,
-                companyCode: tenant.companyCode,
-                bootstrapResult: {
-                    roles: bootstrap.roles,
-                    categories: bootstrap.categories,
-                    grades: bootstrap.grades,
-                    warehouses: bootstrap.warehouses,
+        const bootstrap = await this.bootstrapService.bootstrapTenant(tenant.id, dto.adminEmail, dto.adminName, dto.adminPassword);
+        try {
+            await this.auditService.log({
+                userId,
+                tenantId: tenant.id,
+                action: 'TENANT_CREATED',
+                entityType: 'Tenant',
+                entityId: tenant.id,
+                metadataJson: {
+                    tenantName: tenant.name,
+                    companyCode: tenant.companyCode,
+                    bootstrapResult: {
+                        roles: bootstrap.roles,
+                        categories: bootstrap.categories,
+                        grades: bootstrap.grades,
+                        warehouses: bootstrap.warehouses,
+                    },
                 },
-            },
-        });
+            });
+        }
+        catch (auditError) {
+            console.error('Failed to log audit for tenant creation:', auditError);
+        }
         return {
             ...tenant,
             bootstrap,

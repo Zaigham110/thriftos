@@ -1,0 +1,34 @@
+<fieldset class="radio-group">
+  @if (label()) {
+    <legend class="radio-legend">{{ label() }}</legend>
+  }
+
+  <div class="radio-options" [class.radio-horizontal]="orientation() === 'horizontal'">
+    @for (option of options(); track option.value) {
+      <label
+        class="radio-option"
+        [class.radio-disabled]="option.disabled || disabled() || isDisabled()"
+        [class.radio-selected]="isSelected(option.value)"
+      >
+        <input
+          type="radio"
+          class="radio-input"
+          [name]="name()"
+          [value]="option.value"
+          [checked]="isSelected(option.value)"
+          [disabled]="option.disabled || disabled() || isDisabled()"
+          (change)="selectOption(option.value)"
+        />
+        <span class="radio-circle">
+          <span class="radio-dot"></span>
+        </span>
+        <span class="radio-label-text">
+          {{ option.label }}
+          @if (option.hint) {
+            <span class="radio-hint">{{ option.hint }}</span>
+          }
+        </span>
+      </label>
+    }
+  </div>
+</fieldset>

@@ -256,7 +256,9 @@ REPORTS_EXPORT
 All endpoints must enforce:
 
 ```
-@UseGuards(JwtAuthGuard, TenantGuard, PermissionGuard)
+@UseGuards(TenantGuard, PermissionGuard)
+
+Note: `JwtAuthGuard` is applied globally in the backend, so controllers typically only declare tenant + permission guards.
 ```
 
 ---

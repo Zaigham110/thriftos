@@ -15,11 +15,13 @@ const prisma_service_1 = require("../../prisma/prisma.service");
 const audit_service_1 = require("../../audit/audit.service");
 const cost_allocation_service_1 = require("../cost-allocation/cost-allocation.service");
 const client_1 = require("@prisma/client");
+const tenant_sequence_service_1 = require("../shared/tenant-sequence.service");
 let RagService = class RagService {
-    constructor(prisma, auditService, costAllocationService) {
+    constructor(prisma, auditService, costAllocationService, tenantSequenceService) {
         this.prisma = prisma;
         this.auditService = auditService;
         this.costAllocationService = costAllocationService;
+        this.tenantSequenceService = tenantSequenceService;
     }
     async create(tenantId, dto, userId) {
         const container = await this.prisma.container.findFirst({
@@ -31,6 +33,9 @@ let RagService = class RagService {
                 purchaseOrder: {
                     select: { id: true, poNumber: true },
                 },
+                rags: {
+                    select: { weightKg: true },
+                },
             },
         });
         if (!container) {
@@ -39,23 +44,43 @@ let RagService = class RagService {
         if (container.status === client_1.ContainerStatus.CLOSED) {
             throw new common_1.ConflictException('Cannot add rags to a closed container');
         }
-        const existing = await this.prisma.rag.findFirst({
-            where: { tenantId, ragCode: dto.ragCode },
+        const rawCategory = await this.prisma.rawCategory.findFirst({
+            where: { id: dto.rawCategoryId, tenantId, isActive: true },
         });
-        if (existing) {
-            throw new common_1.BadRequestException(`Rag code "${dto.ragCode}" already exists`);
+        if (!rawCategory) {
+            throw new common_1.BadRequestException('Raw category not found or inactive');
         }
+        const currentTotalWeight = container.rags.reduce((sum, rag) => sum + Number(rag.weightKg), 0);
+        const newTotalWeight = Number(currentTotalWeight) + Number(dto.weightKg);
+        const grossWeight = Number(container.grossWeight);
+        if (newTotalWeight > grossWeight) {
+            throw new common_1.BadRequestException(`Total weight (${newTotalWeight} kg) would exceed container gross weight (${grossWeight} kg). Available: ${grossWeight - currentTotalWeight} kg`);
+        }
+        const prefix = dto.ragBaleType === 'BALE' ? 'BALE' : 'RAG';
+        const { code: ragCode } = await this.tenantSequenceService.generateCode(tenantId, client_1.SequenceScope.RAG, { prefix, padSize: 3 }, async (candidate) => {
+            const collision = await this.prisma.rag.findFirst({
+                where: { tenantId, ragCode: candidate },
+                select: { id: true },
+            });
+            return !collision;
+        });
         const rag = await this.prisma.rag.create({
             data: {
                 tenantId,
                 containerId: dto.containerId,
-                ragCode: dto.ragCode,
+                ragCode,
+                ragBaleType: dto.ragBaleType,
+                rawCategoryId: dto.rawCategoryId,
                 weightKg: dto.weightKg,
                 allocatedCost: 0,
+                notes: dto.notes,
             },
             include: {
                 container: {
                     select: { containerNumber: true },
+                },
+                rawCategory: {
+                    select: { id: true, name: true, rawType: true },
                 },
             },
         });
@@ -86,9 +111,14 @@ let RagService = class RagService {
         const page = options?.page || 1;
         const limit = options?.limit || 20;
         const skip = (page - 1) * limit;
+        let statusFilter = options?.status;
+        if (options?.sortableOnly) {
+            statusFilter = client_1.RagStatus.NOT_STARTED;
+        }
         const where = {
             tenantId,
             ...(options?.containerId && { containerId: options.containerId }),
+            ...(statusFilter && { status: statusFilter }),
         };
         const [data, total] = await Promise.all([
             this.prisma.rag.findMany({
@@ -105,6 +135,9 @@ let RagService = class RagService {
                                 select: { id: true, poNumber: true },
                             },
                         },
+                    },
+                    rawCategory: {
+                        select: { id: true, name: true, rawType: true },
                     },
                 },
             }),
@@ -125,7 +158,10 @@ let RagService = class RagService {
                         },
                     },
                 },
-                sortSessions: {
+                rawCategory: {
+                    select: { id: true, name: true, rawType: true },
+                },
+                sortSession: {
                     select: { id: true, status: true },
                 },
             },
@@ -137,8 +173,11 @@ let RagService = class RagService {
     }
     async delete(tenantId, id, userId) {
         const rag = await this.findOne(tenantId, id);
-        if (rag.sortSessions.length > 0) {
+        if (rag.sortSession) {
             throw new common_1.ConflictException('Cannot delete rag that has been used in sorting');
+        }
+        if (rag.status !== client_1.RagStatus.NOT_STARTED) {
+            throw new common_1.ConflictException(`Cannot delete rag with status ${rag.status}`);
         }
         const container = rag.container;
         await this.prisma.rag.delete({
@@ -164,6 +203,7 @@ exports.RagService = RagService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         audit_service_1.AuditService,
-        cost_allocation_service_1.CostAllocationService])
+        cost_allocation_service_1.CostAllocationService,
+        tenant_sequence_service_1.TenantSequenceService])
 ], RagService);
 //# sourceMappingURL=rag.service.js.map

@@ -21,9 +21,24 @@ export declare class GradeSessionController {
     findAll(status: GradeStatus, page: number, limit: number, user: CurrentUserData, req: Request): Promise<{
         data: ({
             categoryOutput: {
+                category: {
+                    id: string;
+                    name: string;
+                };
+                container: {
+                    id: string;
+                    containerNumber: string;
+                };
+                rag: {
+                    id: string;
+                    ragCode: string;
+                };
                 id: string;
+                containerId: string;
                 weightKg: import("@prisma/client/runtime/library").Decimal;
                 allocatedCost: import("@prisma/client/runtime/library").Decimal;
+                ragId: string;
+                sortSessionId: string;
                 categoryId: string;
                 count: number;
             };
@@ -65,13 +80,24 @@ export declare class GradeSessionController {
                 id: string;
                 name: string;
             };
+            container: {
+                id: string;
+                containerNumber: string;
+            };
+            rag: {
+                id: string;
+                ragCode: string;
+            };
         } & {
             id: string;
             tenantId: string;
             createdAt: Date;
             updatedAt: Date;
+            containerId: string | null;
             weightKg: import("@prisma/client/runtime/library").Decimal;
             allocatedCost: import("@prisma/client/runtime/library").Decimal;
+            ragId: string;
+            sortSessionId: string;
             categoryId: string;
             count: number;
             sortCategoryBucketId: string;

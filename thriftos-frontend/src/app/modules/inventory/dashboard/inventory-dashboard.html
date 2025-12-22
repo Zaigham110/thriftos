@@ -1,0 +1,180 @@
+<div class="inventory-dashboard">
+  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
+
+  <header class="page-header">
+    <div class="page-header__title">
+      <h1>Inventory</h1>
+      <p class="page-header__subtitle">Track and manage stock from sealed repack units</p>
+    </div>
+
+    <div class="page-header__actions">
+      <a routerLink="items">
+        <ui-button variant="primary">
+          <lucide-icon [img]="icons.Package" [size]="18"></lucide-icon>
+          View All Items
+        </ui-button>
+      </a>
+    </div>
+  </header>
+
+  @if (error()) {
+    <ui-alert variant="danger" [dismissible]="true" (dismissed)="error.set(null)">
+      {{ error() }}
+      <button type="button" class="retry-btn" (click)="loadStats()">Retry</button>
+    </ui-alert>
+  }
+
+  <!-- Stats Grid -->
+  <div class="stats-grid">
+    <!-- Total Inventory Units Card -->
+    <ui-card class="stat-card">
+      <div class="stat-card__icon stat-card__icon--primary">
+        <lucide-icon [img]="icons.Package" [size]="24"></lucide-icon>
+      </div>
+      <div class="stat-card__content">
+        <h3 class="stat-card__label">Total Inventory Units</h3>
+        @if (loading()) {
+          <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
+        } @else {
+          <p class="stat-card__value">{{ stats()?.totalItems ?? 0 }}</p>
+        }
+      </div>
+      <a routerLink="items" class="stat-card__link">View All →</a>
+    </ui-card>
+
+    <!-- Total Weight Card -->
+    <ui-card class="stat-card">
+      <div class="stat-card__icon stat-card__icon--blue">
+        <lucide-icon [img]="icons.Scale" [size]="24"></lucide-icon>
+      </div>
+      <div class="stat-card__content">
+        <h3 class="stat-card__label">Total Weight</h3>
+        @if (loading()) {
+          <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
+        } @else {
+          <p class="stat-card__value">{{ formatWeight(stats()?.totalWeightKg ?? 0) }}</p>
+        }
+      </div>
+    </ui-card>
+
+    <!-- Total Pieces Card -->
+    <ui-card class="stat-card">
+      <div class="stat-card__icon stat-card__icon--green">
+        <lucide-icon [img]="icons.Layers" [size]="24"></lucide-icon>
+      </div>
+      <div class="stat-card__content">
+        <h3 class="stat-card__label">Total Pieces</h3>
+        @if (loading()) {
+          <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
+        } @else {
+          <p class="stat-card__value">{{ stats()?.totalPcsCount ?? 0 }}</p>
+        }
+      </div>
+    </ui-card>
+  </div>
+
+  <!-- Breakdown Sections -->
+  <div class="breakdown-grid">
+    <!-- By Category -->
+    <ui-card class="breakdown-card">
+      <div class="breakdown-header">
+        <lucide-icon [img]="icons.Tag" [size]="18"></lucide-icon>
+        <h3>By Category</h3>
+      </div>
+      @if (loading()) {
+        <div class="breakdown-loading">
+          <ui-skeleton variant="text"></ui-skeleton>
+          <ui-skeleton variant="text"></ui-skeleton>
+          <ui-skeleton variant="text"></ui-skeleton>
+        </div>
+      } @else if (!stats()?.byCategory?.length) {
+        <p class="breakdown-empty">No category breakdown available</p>
+      } @else {
+        <div class="breakdown-list">
+          @for (cat of stats()?.byCategory; track cat.categoryId) {
+            <div class="breakdown-item">
+              <span class="breakdown-name">{{ cat.categoryName }}</span>
+              <div class="breakdown-values">
+                <span class="breakdown-count">{{ cat.count }} units</span>
+                <span class="breakdown-weight">{{ formatWeight(cat.weightKg) }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </ui-card>
+
+    <!-- By Warehouse -->
+    <ui-card class="breakdown-card">
+      <div class="breakdown-header">
+        <lucide-icon [img]="icons.Warehouse" [size]="18"></lucide-icon>
+        <h3>By Warehouse</h3>
+      </div>
+      @if (loading()) {
+        <div class="breakdown-loading">
+          <ui-skeleton variant="text"></ui-skeleton>
+          <ui-skeleton variant="text"></ui-skeleton>
+          <ui-skeleton variant="text"></ui-skeleton>
+        </div>
+      } @else if (!stats()?.byWarehouse?.length) {
+        <p class="breakdown-empty">No warehouse breakdown available</p>
+      } @else {
+        <div class="breakdown-list">
+          @for (wh of stats()?.byWarehouse; track wh.warehouseId) {
+            <div class="breakdown-item">
+              <div class="breakdown-name">
+                @if (wh.warehouseCode) {
+                  <code class="warehouse-code">{{ wh.warehouseCode }}</code>
+                }
+                <span>{{ wh.warehouseName }}</span>
+              </div>
+              <div class="breakdown-values">
+                <span class="breakdown-count">{{ wh.count }} units</span>
+                <span class="breakdown-weight">{{ formatWeight(wh.weightKg) }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </ui-card>
+
+    <!-- By Status -->
+    <ui-card class="breakdown-card">
+      <div class="breakdown-header">
+        <lucide-icon [img]="icons.CheckCircle" [size]="18"></lucide-icon>
+        <h3>By Status</h3>
+      </div>
+      @if (loading()) {
+        <div class="breakdown-loading">
+          <ui-skeleton variant="text"></ui-skeleton>
+          <ui-skeleton variant="text"></ui-skeleton>
+        </div>
+      } @else if (!stats()?.byStatus?.length) {
+        <p class="breakdown-empty">No status breakdown available</p>
+      } @else {
+        <div class="breakdown-list">
+          @for (st of stats()?.byStatus; track st.status) {
+            <div class="breakdown-item">
+              <div class="breakdown-name status-name">
+                <lucide-icon [img]="getStatusIcon(st.status)" [size]="14" [class]="'status-icon--' + st.status.toLowerCase()"></lucide-icon>
+                <span>{{ getStatusLabel(st.status) }}</span>
+              </div>
+              <div class="breakdown-values">
+                <span class="breakdown-count">{{ st.count }} units</span>
+                <span class="breakdown-weight">{{ formatWeight(st.weightKg) }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </ui-card>
+  </div>
+
+  <!-- Info Notice -->
+  <div class="info-notice">
+    <p>
+      <strong>Note:</strong> Inventory items are automatically created when repack units are sealed and intaked. 
+      Manual inventory creation is not allowed to ensure full traceability.
+    </p>
+  </div>
+</div>

@@ -1,0 +1,60 @@
+@use '../../../../styles/variables' as *;
+@use '../../../../styles/mixins' as *;
+
+.checkbox-wrapper {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.checkbox-disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.checkbox-input {
+  @include sr-only;
+}
+
+.checkbox-box {
+  flex-shrink: 0;
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 1px solid $border-default;
+  border-radius: $radius-sm;
+  background-color: $bg-card;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-fast;
+  color: white;
+
+  &:hover:not(.checkbox-disabled &) {
+    border-color: $primary;
+  }
+
+  .checkbox-input:focus-visible + & {
+    outline: 2px solid $primary;
+    outline-offset: 2px;
+  }
+}
+
+.checkbox-checked {
+  background-color: $primary;
+  border-color: $primary;
+}
+
+.checkbox-label {
+  font-size: 0.875rem;
+  color: $text-primary;
+  line-height: 1.25;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.checkbox-hint {
+  font-size: 0.75rem;
+  color: $text-muted;
+}

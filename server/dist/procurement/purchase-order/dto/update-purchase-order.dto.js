@@ -19,16 +19,4 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdatePurchaseOrderDto.prototype, "vendorId", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.MaxLength)(3),
-    __metadata("design:type", String)
-], UpdatePurchaseOrderDto.prototype, "currency", void 0);
-__decorate([
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.Min)(0),
-    (0, class_validator_1.IsOptional)(),
-    __metadata("design:type", Number)
-], UpdatePurchaseOrderDto.prototype, "totalCost", void 0);
 //# sourceMappingURL=update-purchase-order.dto.js.map

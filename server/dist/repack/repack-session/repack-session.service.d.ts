@@ -79,8 +79,12 @@ export declare class RepackSessionService {
             updatedAt: Date;
             status: import("@prisma/client").$Enums.RepackStatus;
             totalCost: import("@prisma/client/runtime/library").Decimal;
+            containerId: string | null;
             weightKg: import("@prisma/client/runtime/library").Decimal;
+            ragId: string | null;
+            sortSessionId: string | null;
             categoryId: string | null;
+            gradeSessionId: string | null;
             gradeId: string | null;
             repackSessionId: string;
             unitCode: string;

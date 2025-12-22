@@ -20,6 +20,35 @@ let GradingReportsService = class GradingReportsService {
     }
     async gradeDistribution(tenantId, filters) {
         const { start, end } = (0, report_utils_1.parseDateRange)(filters);
+        const conditions = ['go."tenantId" = $1', 'gs."status" = \'CLOSED\''];
+        const params = [tenantId];
+        let paramIndex = 2;
+        if (start) {
+            conditions.push(`gs."startTime" >= $${paramIndex}`);
+            params.push(start);
+            paramIndex++;
+        }
+        if (end) {
+            conditions.push(`gs."startTime" <= $${paramIndex}`);
+            params.push(end);
+            paramIndex++;
+        }
+        if (filters.categoryId) {
+            conditions.push(`co."categoryId" = $${paramIndex}`);
+            params.push(filters.categoryId);
+            paramIndex++;
+        }
+        if (filters.gradeId) {
+            conditions.push(`go."gradeId" = $${paramIndex}`);
+            params.push(filters.gradeId);
+            paramIndex++;
+        }
+        if (filters.workerId) {
+            conditions.push(`gs."workerId" = $${paramIndex}`);
+            params.push(filters.workerId);
+            paramIndex++;
+        }
+        const whereClause = conditions.join(' AND ');
         const rows = await this.prisma.$queryRawUnsafe(`
       WITH base AS (
         SELECT
@@ -31,13 +60,7 @@ let GradingReportsService = class GradingReportsService {
         JOIN "GradeBucket" gb ON gb."id" = go."gradeBucketId"
         JOIN "GradeSession" gs ON gs."id" = gb."gradeSessionId"
         JOIN "CategoryOutput" co ON co."id" = gs."categoryOutputId"
-        WHERE go."tenantId" = $1
-          AND gs."status" = 'CLOSED'
-          ${start ? `AND gs."startTime" >= $2` : ``}
-          ${end ? `AND gs."startTime" <= $3` : ``}
-          ${filters.categoryId ? `AND co."categoryId" = $4` : ``}
-          ${filters.gradeId ? `AND go."gradeId" = $5` : ``}
-          ${filters.workerId ? `AND gs."workerId" = $6` : ``}
+        WHERE ${whereClause}
         GROUP BY co."categoryId", go."gradeId"
       ),
       totals AS (
@@ -55,7 +78,7 @@ let GradingReportsService = class GradingReportsService {
       FROM base
       JOIN totals ON totals."categoryId" = base."categoryId"
       ORDER BY base."categoryId" ASC, base."gradeId" ASC
-      `, tenantId, start ?? new Date(0), end ?? new Date(), filters.categoryId ?? null, filters.gradeId ?? null, filters.workerId ?? null);
+      `, ...params);
         return rows.map((r) => ({
             categoryId: r.categoryId,
             gradeId: r.gradeId,
@@ -67,6 +90,30 @@ let GradingReportsService = class GradingReportsService {
     }
     async gradingLoss(tenantId, filters) {
         const { start, end } = (0, report_utils_1.parseDateRange)(filters);
+        const conditions = ['gs."tenantId" = $1', 'gs."status" = \'CLOSED\''];
+        const params = [tenantId];
+        let paramIndex = 2;
+        if (start) {
+            conditions.push(`gs."startTime" >= $${paramIndex}`);
+            params.push(start);
+            paramIndex++;
+        }
+        if (end) {
+            conditions.push(`gs."startTime" <= $${paramIndex}`);
+            params.push(end);
+            paramIndex++;
+        }
+        if (filters.categoryId) {
+            conditions.push(`co."categoryId" = $${paramIndex}`);
+            params.push(filters.categoryId);
+            paramIndex++;
+        }
+        if (filters.workerId) {
+            conditions.push(`gs."workerId" = $${paramIndex}`);
+            params.push(filters.workerId);
+            paramIndex++;
+        }
+        const whereClause = conditions.join(' AND ');
         const rows = await this.prisma.$queryRawUnsafe(`
       WITH session_out AS (
         SELECT
@@ -80,12 +127,7 @@ let GradingReportsService = class GradingReportsService {
         JOIN "CategoryOutput" co ON co."id" = gs."categoryOutputId"
         LEFT JOIN "GradeBucket" gb ON gb."gradeSessionId" = gs."id"
         LEFT JOIN "GradeOutput" go ON go."gradeBucketId" = gb."id"
-        WHERE gs."tenantId" = $1
-          AND gs."status" = 'CLOSED'
-          ${start ? `AND gs."startTime" >= $2` : ``}
-          ${end ? `AND gs."startTime" <= $3` : ``}
-          ${filters.categoryId ? `AND co."categoryId" = $4` : ``}
-          ${filters.workerId ? `AND gs."workerId" = $5` : ``}
+        WHERE ${whereClause}
         GROUP BY co."categoryId", gs."id", co."weightKg", co."allocatedCost"
       )
       SELECT
@@ -96,7 +138,7 @@ let GradingReportsService = class GradingReportsService {
       FROM session_out
       GROUP BY "categoryId"
       ORDER BY "categoryId" ASC
-      `, tenantId, start ?? new Date(0), end ?? new Date(), filters.categoryId ?? null, filters.workerId ?? null);
+      `, ...params);
         return rows.map((r) => {
             const input = new library_1.Decimal(r.inputWeightKg);
             const waste = new library_1.Decimal(r.wasteWeightKg);

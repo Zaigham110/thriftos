@@ -1,0 +1,51 @@
+@use 'sass:color';
+@use '../../../../styles/variables' as *;
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 500;
+  border-radius: 9999px;
+
+  // Sizes
+  &-sm {
+    padding: 0.125rem 0.5rem;
+    font-size: 0.625rem;
+  }
+
+  &-md {
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+  }
+
+  // Variants
+  &-default {
+    background-color: $bg-section;
+    color: $text-secondary;
+  }
+
+  &-primary {
+    background-color: $primary-soft;
+    color: $primary;
+  }
+
+  &-success {
+    background-color: rgba($status-success, 0.1);
+    color: $status-success;
+  }
+
+  &-warning {
+    background-color: rgba($status-warning, 0.1);
+    color: color.adjust($status-warning, $lightness: -10%);
+  }
+
+  &-danger {
+    background-color: rgba($status-danger, 0.1);
+    color: $status-danger;
+  }
+
+  &-info {
+    background-color: rgba($status-info, 0.1);
+    color: $status-info;
+  }
+}

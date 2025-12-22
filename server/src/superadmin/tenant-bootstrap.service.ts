@@ -12,7 +12,6 @@ export interface BootstrapResult {
   adminUser?: {
     id: string;
     email: string;
-    temporaryPassword: string;
   };
 }
 
@@ -27,6 +26,7 @@ export class TenantBootstrapService {
     tenantId: string,
     adminEmail?: string,
     adminName?: string,
+    adminPassword?: string,
   ): Promise<BootstrapResult> {
     const result: BootstrapResult = {
       roles: 0,
@@ -187,10 +187,9 @@ export class TenantBootstrapService {
       });
       result.warehouses = 1;
 
-      // 9. Create admin user if email provided
-      if (adminEmail && adminRole) {
-        const temporaryPassword = this.passwordService.generateTemporaryPassword();
-        const passwordHash = await this.passwordService.hash(temporaryPassword);
+      // 9. Create admin user if email and password provided
+      if (adminEmail && adminPassword && adminRole) {
+        const passwordHash = await this.passwordService.hash(adminPassword);
 
         const adminUser = await tx.user.create({
           data: {
@@ -213,7 +212,6 @@ export class TenantBootstrapService {
         result.adminUser = {
           id: adminUser.id,
           email: adminUser.email,
-          temporaryPassword,
         };
       }
     });

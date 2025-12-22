@@ -27,6 +27,10 @@ let CategoryOutputController = class CategoryOutputController {
         const tenantId = req.tenantId || user.tenantId;
         return this.service.findAll(tenantId, { sortSessionId, categoryId, page, limit });
     }
+    async findAvailableForGrading(page, limit, user, req) {
+        const tenantId = req.tenantId || user.tenantId;
+        return this.service.findAvailableForGrading(tenantId, { page, limit });
+    }
     async findOne(id, user, req) {
         const tenantId = req.tenantId || user.tenantId;
         return this.service.findOne(tenantId, id);
@@ -46,6 +50,17 @@ __decorate([
     __metadata("design:paramtypes", [String, String, Number, Number, Object, Object]),
     __metadata("design:returntype", Promise)
 ], CategoryOutputController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('available-for-grading'),
+    (0, permissions_decorator_1.RequirePermissions)('SORTING_STAGE1_VIEW'),
+    __param(0, (0, common_1.Query)('page')),
+    __param(1, (0, common_1.Query)('limit')),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __param(3, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Number, Object, Object]),
+    __metadata("design:returntype", Promise)
+], CategoryOutputController.prototype, "findAvailableForGrading", null);
 __decorate([
     (0, common_1.Get)(':id'),
     (0, permissions_decorator_1.RequirePermissions)('SORTING_STAGE1_VIEW'),

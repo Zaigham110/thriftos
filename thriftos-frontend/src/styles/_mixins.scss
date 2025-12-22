@@ -1,0 +1,177 @@
+// ThriftOS SCSS Mixins
+// ====================
+
+@use 'sass:color';
+@use 'variables' as *;
+
+// Flexbox utilities
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@mixin flex-start {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+@mixin flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+// Card mixin
+@mixin card {
+  background-color: $bg-card;
+  border: 1px solid $border-default;
+  border-radius: $radius-lg;
+  padding: $spacing-card;
+}
+
+@mixin card-shadow {
+  @include card;
+  box-shadow: $shadow-sm;
+}
+
+// Focus ring for accessibility
+@mixin focus-ring {
+  &:focus-visible {
+    outline: 2px solid $primary;
+    outline-offset: 2px;
+  }
+}
+
+// Truncate text
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Screen reader only
+@mixin sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+// Interactive element base
+@mixin interactive {
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+// Form input base
+@mixin form-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: $text-primary;
+  background-color: $bg-card;
+  border: 1px solid $border-default;
+  border-radius: $radius-md;
+  transition: border-color $transition-fast, box-shadow $transition-fast;
+
+  &::placeholder {
+    color: $text-muted;
+  }
+
+  &:hover:not(:disabled) {
+    border-color: color.adjust($border-default, $lightness: -10%);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: $primary;
+    box-shadow: 0 0 0 3px $primary-soft;
+  }
+
+  &:disabled {
+    background-color: $bg-section;
+    cursor: not-allowed;
+  }
+}
+
+// Button base
+@mixin button-base {
+  @include interactive;
+  @include focus-ring;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  border-radius: $radius-md;
+  padding: 0.5rem 1rem;
+  border: 1px solid transparent;
+}
+
+// Table styles
+@mixin table-base {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+@mixin table-header {
+  position: sticky;
+  top: 0;
+  background-color: $bg-section;
+  font-weight: 600;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid $border-default;
+}
+
+@mixin table-cell {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid $border-default;
+  vertical-align: middle;
+}
+
+// Responsive breakpoints
+@mixin breakpoint-sm {
+  @media (min-width: 640px) {
+    @content;
+  }
+}
+
+@mixin breakpoint-md {
+  @media (min-width: 768px) {
+    @content;
+  }
+}
+
+@mixin breakpoint-lg {
+  @media (min-width: 1024px) {
+    @content;
+  }
+}
+
+@mixin breakpoint-xl {
+  @media (min-width: 1280px) {
+    @content;
+  }
+}

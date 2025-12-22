@@ -280,7 +280,9 @@ SORTING_STAGE1_CLOSE
 Use:
 
 ```
-@UseGuards(JwtAuthGuard, TenantGuard, PermissionGuard)
+@UseGuards(TenantGuard, PermissionGuard)
+
+Note: `JwtAuthGuard` is applied globally in the backend, so controllers typically only declare tenant + permission guards.
 ```
 
 ---

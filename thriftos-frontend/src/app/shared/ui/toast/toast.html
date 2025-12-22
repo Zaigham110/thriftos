@@ -1,0 +1,21 @@
+<div [class]="toastClasses" role="alert">
+  <div class="toast-icon">
+    <lucide-icon [img]="icon" [size]="20"></lucide-icon>
+  </div>
+  <div class="toast-content">
+    <h4 class="toast-title">{{ title() }}</h4>
+    @if (message()) {
+      <p class="toast-message">{{ message() }}</p>
+    }
+  </div>
+  @if (dismissible()) {
+    <button
+      type="button"
+      class="toast-dismiss"
+      aria-label="Dismiss"
+      (click)="dismiss()"
+    >
+      <lucide-icon [img]="icons.close" [size]="16"></lucide-icon>
+    </button>
+  }
+</div>

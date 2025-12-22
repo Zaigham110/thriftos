@@ -4,7 +4,7 @@
 // Run with: npx prisma db seed
 // =============================================================
 
-import { PrismaClient, TenantStatus } from '@prisma/client';
+import { PrismaClient, TenantStatus, RagStatus, RagSourceType } from '../server/node_modules/.prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -106,10 +106,14 @@ async function main() {
   ];
 
   for (const template of categoryTemplates) {
+    const id = template.categoryName.toLowerCase().replace(/\s+/g, '-');
     await prisma.globalCategoryTemplate.upsert({
-      where: { id: template.categoryName.toLowerCase().replace(/\s+/g, '-') },
+      where: { id },
       update: {},
-      create: template,
+      create: {
+        id,
+        ...template,
+      },
     });
   }
 
@@ -289,6 +293,39 @@ async function main() {
   }
 
   // =========================================================
+  // 5.5. SEED DEMO RAW CATEGORIES
+  // =========================================================
+  console.log('📦 Seeding Demo Raw Categories...');
+
+  const demoRawCategories = [
+    { name: 'Mixed Clothing - RAG', rawType: 'RAG', sortOrder: 1 },
+    { name: 'Mixed Clothing - BALE', rawType: 'BALE', sortOrder: 2 },
+    { name: 'Mixed Shoes', rawType: 'BOTH', sortOrder: 3 },
+    { name: 'Mixed Accessories', rawType: 'BOTH', sortOrder: 4 },
+    { name: 'Unsorted Textiles', rawType: 'RAG', sortOrder: 5 },
+  ];
+
+  for (const rawCategory of demoRawCategories) {
+    await prisma.rawCategory.upsert({
+      where: { 
+        tenantId_name_rawType: { 
+          tenantId: demoTenant.id, 
+          name: rawCategory.name,
+          rawType: rawCategory.rawType as any
+        } 
+      },
+      update: {},
+      create: {
+        tenantId: demoTenant.id,
+        name: rawCategory.name,
+        rawType: rawCategory.rawType as any,
+        sortOrder: rawCategory.sortOrder,
+        isActive: true,
+      },
+    });
+  }
+
+  // =========================================================
   // 6. SEED DEMO GRADES
   // =========================================================
   console.log('📦 Seeding Demo Grades...');
@@ -408,6 +445,134 @@ async function main() {
     }
   }
 
+  // =========================================================
+  // 10. SEED DEMO VENDOR (Phase 2.5)
+  // =========================================================
+  console.log('📦 Seeding Demo Vendor...');
+
+  const demoVendor = await prisma.vendor.upsert({
+    where: { tenantId_name: { tenantId: demoTenant.id, name: 'Global Thrift Suppliers' } },
+    update: {},
+    create: {
+      tenantId: demoTenant.id,
+      name: 'Global Thrift Suppliers',
+      country: 'USA',
+      contactInfo: 'contact@globalthrift.com',
+      isActive: true,
+    },
+  });
+
+  // =========================================================
+  // 11. SEED DEMO PURCHASE ORDER (Phase 2.5)
+  // =========================================================
+  console.log('📦 Seeding Demo Purchase Order...');
+
+  const demoPO = await prisma.purchaseOrder.upsert({
+    where: { tenantId_poNumber: { tenantId: demoTenant.id, poNumber: 'PO-2025-001' } },
+    update: {},
+    create: {
+      tenantId: demoTenant.id,
+      vendorId: demoVendor.id,
+      poNumber: 'PO-2025-001',
+      poType: 'CONTAINER',
+      currency: 'USD',
+      totalCost: 0,
+      status: 'RECEIVED',
+    },
+  });
+
+  // =========================================================
+  // 12. SEED DEMO CONTAINER (Phase 2.5)
+  // =========================================================
+  console.log('📦 Seeding Demo Container...');
+
+  const demoContainer = await prisma.container.upsert({
+    where: { tenantId_containerNumber: { tenantId: demoTenant.id, containerNumber: 'CONT-2025-001' } },
+    update: {},
+    create: {
+      tenantId: demoTenant.id,
+      purchaseOrderId: demoPO.id,
+      containerNumber: 'CONT-2025-001',
+      referenceNumber: 'REF-001',
+      containerType: '40ft',
+      eta: new Date('2025-01-10T00:00:00.000Z'),
+      etd: new Date('2024-12-28T00:00:00.000Z'),
+      arrivedAt: new Date('2025-01-14T00:00:00.000Z'),
+      grossWeight: 5500.0,
+      netWeight: 5000.0,
+      billOfLadingNumber: 'BL-0001',
+      shipmentReference: 'SHIP-0001',
+      shippingLine: 'Maersk',
+      vesselName: 'Ocean Spirit',
+      portOfLoading: 'Hamburg',
+      portOfDischarge: 'New York',
+      forwarder: 'Global Forwarders',
+      notes: 'Demo container for procurement tests',
+      status: 'ARRIVED',
+    },
+  });
+
+  // =========================================================
+  // 13. SEED DEMO RAGS (Phase 2.5 - Rag/Bale Breakdown)
+  // =========================================================
+  // Phase 2.5 LOCKED RULES:
+  // - Sorting MUST operate on a single Rag/Bale
+  // - Each Rag can only be sorted ONCE (status lifecycle)
+  // - Seed with NOT_STARTED status for sorting selection
+  // =========================================================
+  console.log('📦 Seeding Demo Rags (Phase 2.5)...');
+
+  // Rag 1: From Container (NOT_STARTED - ready for sorting)
+  await prisma.rag.upsert({
+    where: { tenantId_ragCode: { tenantId: demoTenant.id, ragCode: 'RAG-2025-001' } },
+    update: { status: RagStatus.NOT_STARTED },
+    create: {
+      tenantId: demoTenant.id,
+      containerId: demoContainer.id,
+      ragCode: 'RAG-2025-001',
+      weightKg: 250.00,
+      allocatedCost: 750.00,
+      sourceType: RagSourceType.CONTAINER,
+      status: RagStatus.NOT_STARTED,  // Available for sorting
+      notes: 'First rag from demo container',
+    },
+  });
+
+  // Rag 2: From Container (NOT_STARTED - ready for sorting)
+  await prisma.rag.upsert({
+    where: { tenantId_ragCode: { tenantId: demoTenant.id, ragCode: 'RAG-2025-002' } },
+    update: { status: RagStatus.NOT_STARTED },
+    create: {
+      tenantId: demoTenant.id,
+      containerId: demoContainer.id,
+      ragCode: 'RAG-2025-002',
+      weightKg: 300.00,
+      allocatedCost: 900.00,
+      sourceType: RagSourceType.CONTAINER,
+      status: RagStatus.NOT_STARTED,  // Available for sorting
+      notes: 'Second rag from demo container',
+    },
+  });
+
+  // Rag 3: Loose Bale (NOT_STARTED - no container)
+  // Phase 2.5: Loose bale = Rag with containerId = null
+  await prisma.rag.upsert({
+    where: { tenantId_ragCode: { tenantId: demoTenant.id, ragCode: 'LOOSE-2025-001' } },
+    update: { status: RagStatus.NOT_STARTED },
+    create: {
+      tenantId: demoTenant.id,
+      containerId: null,              // Loose bale - no container
+      ragCode: 'LOOSE-2025-001',
+      weightKg: 150.00,
+      allocatedCost: 400.00,
+      sourceType: RagSourceType.LOOSE_BALE,
+      status: RagStatus.NOT_STARTED,  // Available for sorting
+      notes: 'Standalone loose bale (not from container)',
+    },
+  });
+
+  console.log('   ✅ 2 Container Rags + 1 Loose Bale created (all NOT_STARTED)');
+
   console.log('\n✅ Database seeding completed successfully!');
   console.log('\n📋 Summary:');
   console.log('   - GlobalConfig entries created');
@@ -419,6 +584,10 @@ async function main() {
   console.log('   - Demo Warehouse: Main Warehouse (WH-001)');
   console.log('   - Demo Roles: Admin, Manager, Supervisor, etc.');
   console.log('   - Demo Admin User: admin@demo.thriftos.com');
+  console.log('   - Demo Vendor: Global Thrift Suppliers');
+  console.log('   - Demo PO: PO-2025-001');
+  console.log('   - Demo Container: CONT-2025-001');
+  console.log('   - Demo Rags: RAG-2025-001, RAG-2025-002 (container), LOOSE-2025-001 (loose)');
 }
 
 main()

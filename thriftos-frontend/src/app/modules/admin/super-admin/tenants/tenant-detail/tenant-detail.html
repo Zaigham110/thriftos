@@ -1,0 +1,131 @@
+<div class="tenant-detail-page">
+  <!-- Back Link -->
+  <a routerLink="/admin/super/tenants" class="back-link">
+    <lucide-icon [img]="icons.ArrowLeft" [size]="16"></lucide-icon>
+    Back to Tenants
+  </a>
+
+  <!-- Error State -->
+  @if (error()) {
+    <ui-alert variant="danger">{{ error() }}</ui-alert>
+  }
+
+  <!-- Loading State -->
+  @if (isLoading()) {
+    <ui-card>
+      <div class="loading-content">
+        <ui-skeleton width="200px" height="24px"></ui-skeleton>
+        <ui-skeleton width="100px" height="20px"></ui-skeleton>
+        <div class="loading-grid">
+          <ui-skeleton width="100%" height="60px"></ui-skeleton>
+          <ui-skeleton width="100%" height="60px"></ui-skeleton>
+          <ui-skeleton width="100%" height="60px"></ui-skeleton>
+          <ui-skeleton width="100%" height="60px"></ui-skeleton>
+        </div>
+      </div>
+    </ui-card>
+  }
+
+  <!-- Tenant Details -->
+  @if (!isLoading() && tenant()) {
+    <div class="page-header">
+      <div class="page-title-section">
+        <div class="title-row">
+          <h1 class="page-title">{{ tenant()!.name }}</h1>
+          <ui-badge [variant]="getStatusBadgeType(tenant()!.status)">
+            {{ tenant()!.status }}
+          </ui-badge>
+        </div>
+        <p class="company-code">{{ tenant()!.companyCode }}</p>
+      </div>
+      <div class="page-actions">
+        <ui-button variant="secondary" size="sm" (clicked)="openEditDrawer()">
+          <lucide-icon [img]="icons.Pencil" [size]="16"></lucide-icon>
+          Edit
+        </ui-button>
+        @if (tenant()!.status === 'ACTIVE') {
+          <ui-button variant="secondary" size="sm" (clicked)="confirmToggleStatus()">
+            <lucide-icon [img]="icons.PowerOff" [size]="16"></lucide-icon>
+            Deactivate
+          </ui-button>
+          <ui-button variant="danger" size="sm" (clicked)="confirmImpersonate()">
+            <lucide-icon [img]="icons.UserCog" [size]="16"></lucide-icon>
+            Impersonate
+          </ui-button>
+        } @else {
+          <ui-button variant="primary" size="sm" (clicked)="confirmToggleStatus()">
+            <lucide-icon [img]="icons.Power" [size]="16"></lucide-icon>
+            Activate
+          </ui-button>
+        }
+      </div>
+    </div>
+
+    <ui-card title="Tenant Information">
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label">Company Name</span>
+          <span class="detail-value">{{ tenant()!.name }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Company Code</span>
+          <span class="detail-value code">{{ tenant()!.companyCode }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Currency</span>
+          <span class="detail-value">{{ tenant()!.currency }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Locale</span>
+          <span class="detail-value">{{ tenant()!.locale }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Status</span>
+          <span class="detail-value">
+            <ui-badge [variant]="getStatusBadgeType(tenant()!.status)" size="sm">
+              {{ tenant()!.status }}
+            </ui-badge>
+          </span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Created</span>
+          <span class="detail-value">{{ tenant()!.createdAt | date:'medium' }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Last Updated</span>
+          <span class="detail-value">{{ tenant()!.updatedAt | date:'medium' }}</span>
+        </div>
+      </div>
+    </ui-card>
+  }
+
+  <!-- Edit Drawer -->
+  @if (showEditDrawer()) {
+    <app-tenant-form-drawer
+      [tenant]="tenant()"
+      (closed)="closeEditDrawer()"
+      (saved)="onDrawerSaved()"
+    ></app-tenant-form-drawer>
+  }
+
+  <!-- Confirmation Modal -->
+  @if (showConfirmModal()) {
+    <ui-modal
+      [title]="getConfirmTitle()"
+      [isOpen]="true"
+      (closed)="closeConfirmModal()"
+    >
+      <p class="confirm-message">{{ getConfirmMessage() }}</p>
+      <div class="modal-footer" slot="footer">
+        <ui-button variant="ghost" (clicked)="closeConfirmModal()">Cancel</ui-button>
+        <ui-button
+          [variant]="getConfirmButtonVariant()"
+          [loading]="isActionLoading()"
+          (clicked)="executeConfirmedAction()"
+        >
+          {{ getConfirmButtonText() }}
+        </ui-button>
+      </div>
+    </ui-modal>
+  }
+</div>

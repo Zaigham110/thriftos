@@ -65,6 +65,34 @@ export class ProcurementReportsService {
   ) {
     const { start, end } = parseDateRange(filters);
 
+    // Build dynamic query with proper parameter positions
+    const ragConditions: string[] = ['po."tenantId" = $1', 'po."vendorId" IS NOT NULL'];
+    const looseConditions: string[] = ['b."tenantId" = $1', 'b."vendorId" IS NOT NULL', 'b."containerId" IS NULL'];
+    const ragParams: any[] = [tenantId];
+    const looseParams: any[] = [tenantId];
+    let ragIdx = 2;
+    let looseIdx = 2;
+
+    if (start) {
+      ragConditions.push(`r."createdAt" >= $${ragIdx}`);
+      ragParams.push(start);
+      ragIdx++;
+      looseConditions.push(`b."createdAt" >= $${looseIdx}`);
+      looseParams.push(start);
+      looseIdx++;
+    }
+    if (end) {
+      ragConditions.push(`r."createdAt" <= $${ragIdx}`);
+      ragParams.push(end);
+      ragIdx++;
+      looseConditions.push(`b."createdAt" <= $${looseIdx}`);
+      looseParams.push(end);
+      looseIdx++;
+    }
+
+    const ragWhere = ragConditions.join(' AND ');
+    const looseWhere = looseConditions.join(' AND ');
+
     // Raw SQL for performance and correctness across joins.
     const rows = await this.prisma.$queryRawUnsafe<
       Array<{
@@ -83,10 +111,7 @@ export class ProcurementReportsService {
         FROM "Container" c
         JOIN "PurchaseOrder" po ON po."id" = c."purchaseOrderId"
         JOIN "Rag" r ON r."containerId" = c."id"
-        WHERE po."tenantId" = $1
-          AND po."vendorId" IS NOT NULL
-          ${start ? `AND r."createdAt" >= $2` : ``}
-          ${end ? `AND r."createdAt" <= $3` : ``}
+        WHERE ${ragWhere}
         GROUP BY po."vendorId"
       ),
       loose_bales AS (
@@ -95,11 +120,7 @@ export class ProcurementReportsService {
           SUM(b."weightKg") AS "weightKg",
           SUM(b."cost") AS "cost"
         FROM "IncomingBale" b
-        WHERE b."tenantId" = $1
-          AND b."vendorId" IS NOT NULL
-          AND b."containerId" IS NULL
-          ${start ? `AND b."createdAt" >= $2` : ``}
-          ${end ? `AND b."createdAt" <= $3` : ``}
+        WHERE ${looseWhere}
         GROUP BY b."vendorId"
       ),
       combined AS (
@@ -118,9 +139,7 @@ export class ProcurementReportsService {
       GROUP BY v."id", v."name"
       ORDER BY v."name" ASC
       `,
-      tenantId,
-      start ?? new Date(0),
-      end ?? new Date(),
+      ...ragParams, // Note: we use ragParams since both have same params
     );
 
     return rows.map((r) => {

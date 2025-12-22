@@ -1,8 +1,8 @@
 export declare class CreateIncomingBaleDto {
     containerId?: string;
+    purchaseOrderId?: string;
     vendorId?: string;
-    baleCode: string;
-    categoryGuess?: string;
+    rawCategoryId: string;
     weightKg: number;
     cost?: number;
 }

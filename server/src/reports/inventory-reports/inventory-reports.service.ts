@@ -13,6 +13,39 @@ export class InventoryReportsService {
   ) {
     const { start, end } = parseDateRange(filters);
 
+    // Build dynamic query with proper parameter positions
+    const conditions: string[] = ['i."tenantId" = $1'];
+    const params: any[] = [tenantId];
+    let paramIndex = 2;
+
+    if (start) {
+      conditions.push(`i."createdAt" >= $${paramIndex}`);
+      params.push(start);
+      paramIndex++;
+    }
+    if (end) {
+      conditions.push(`i."createdAt" <= $${paramIndex}`);
+      params.push(end);
+      paramIndex++;
+    }
+    if (filters.warehouseId) {
+      conditions.push(`i."warehouseId" = $${paramIndex}`);
+      params.push(filters.warehouseId);
+      paramIndex++;
+    }
+    if (filters.categoryId) {
+      conditions.push(`i."categoryId" = $${paramIndex}`);
+      params.push(filters.categoryId);
+      paramIndex++;
+    }
+    if (filters.gradeId) {
+      conditions.push(`i."gradeId" = $${paramIndex}`);
+      params.push(filters.gradeId);
+      paramIndex++;
+    }
+
+    const whereClause = conditions.join(' AND ');
+
     const rows = await this.prisma.$queryRawUnsafe<
       Array<{
         warehouseId: string;
@@ -36,21 +69,11 @@ export class InventoryReportsService {
         COALESCE(SUM(i."pcsCount"), 0)::int AS "pcsCount",
         COALESCE(SUM(i."avgCost" * (CASE WHEN i."pcsCount" > 0 THEN i."pcsCount" ELSE i."weightKg" END)), 0) AS "costLocked"
       FROM "InventoryItem" i
-      WHERE i."tenantId" = $1
-        ${start ? `AND i."createdAt" >= $2` : ``}
-        ${end ? `AND i."createdAt" <= $3` : ``}
-        ${filters.warehouseId ? `AND i."warehouseId" = $4` : ``}
-        ${filters.categoryId ? `AND i."categoryId" = $5` : ``}
-        ${filters.gradeId ? `AND i."gradeId" = $6` : ``}
+      WHERE ${whereClause}
       GROUP BY i."warehouseId", i."categoryId", i."gradeId", i."status"
       ORDER BY i."warehouseId" ASC, i."categoryId" ASC, i."gradeId" ASC, i."status" ASC
       `,
-      tenantId,
-      start ?? new Date(0),
-      end ?? new Date(),
-      filters.warehouseId ?? null,
-      filters.categoryId ?? null,
-      filters.gradeId ?? null,
+      ...params,
     );
 
     return rows.map((r) => ({
@@ -72,6 +95,29 @@ export class InventoryReportsService {
     const asOf = filters.asOfDate ? new Date(filters.asOfDate) : new Date();
     if (isNaN(asOf.getTime())) throw new Error('Invalid asOfDate');
 
+    // Build dynamic query with proper parameter positions
+    const conditions: string[] = ['i."tenantId" = $1'];
+    const params: any[] = [tenantId, asOf]; // $2 is always asOf
+    let paramIndex = 3;
+
+    if (filters.warehouseId) {
+      conditions.push(`i."warehouseId" = $${paramIndex}`);
+      params.push(filters.warehouseId);
+      paramIndex++;
+    }
+    if (filters.categoryId) {
+      conditions.push(`i."categoryId" = $${paramIndex}`);
+      params.push(filters.categoryId);
+      paramIndex++;
+    }
+    if (filters.gradeId) {
+      conditions.push(`i."gradeId" = $${paramIndex}`);
+      params.push(filters.gradeId);
+      paramIndex++;
+    }
+
+    const whereClause = conditions.join(' AND ');
+
     const rows = await this.prisma.$queryRawUnsafe<
       Array<{
         bucket: string;
@@ -88,10 +134,7 @@ export class InventoryReportsService {
           EXTRACT(DAY FROM ($2::timestamptz - i."createdAt"))::int AS "ageDays",
           (i."avgCost" * (CASE WHEN i."pcsCount" > 0 THEN i."pcsCount" ELSE i."weightKg" END)) AS "lockedCost"
         FROM "InventoryItem" i
-        WHERE i."tenantId" = $1
-          ${filters.warehouseId ? `AND i."warehouseId" = $3` : ``}
-          ${filters.categoryId ? `AND i."categoryId" = $4` : ``}
-          ${filters.gradeId ? `AND i."gradeId" = $5` : ``}
+        WHERE ${whereClause}
       )
       SELECT
         CASE
@@ -109,11 +152,7 @@ export class InventoryReportsService {
       GROUP BY 1
       ORDER BY 1 ASC
       `,
-      tenantId,
-      asOf,
-      filters.warehouseId ?? null,
-      filters.categoryId ?? null,
-      filters.gradeId ?? null,
+      ...params,
     );
 
     return rows.map((r) => ({

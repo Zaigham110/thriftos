@@ -7,6 +7,7 @@ import { SuperAdminModule } from './superadmin/superadmin.module';
 import { RolesModule } from './roles/roles.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { UsersModule } from './users/users.module';
+import { MeModule } from './me/me.module';
 import { AuditModule } from './audit/audit.module';
 import { TenantModule } from './tenant/tenant.module';
 import { ProcurementModule } from './procurement/procurement.module';
@@ -15,6 +16,7 @@ import { SortingStage2Module } from './sorting-stage2/sorting-stage2.module';
 import { RepackModule } from './repack/repack.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { ReportsModule } from './reports/reports.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -46,12 +48,14 @@ import { ReportsModule } from './reports/reports.module';
     // Core modules
     PrismaModule,
     AuditModule,
+    HealthModule,
 
     // Auth & RBAC
     AuthModule,
     RolesModule,
     PermissionsModule,
     UsersModule,
+    MeModule,
 
     // Admin modules
     SuperAdminModule,

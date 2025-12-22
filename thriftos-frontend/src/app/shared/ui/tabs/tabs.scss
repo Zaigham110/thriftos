@@ -1,0 +1,42 @@
+@use '../../../../styles/variables' as *;
+@use '../../../../styles/mixins' as *;
+
+.tabs {
+  display: flex;
+  flex-direction: column;
+}
+
+.tabs-list {
+  display: flex;
+  border-bottom: 1px solid $border-default;
+  gap: 0.5rem;
+}
+
+.tabs-trigger {
+  @include interactive;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: $text-secondary;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all $transition-fast;
+
+  &:hover:not(:disabled) {
+    color: $text-primary;
+  }
+
+  &-active {
+    color: $primary;
+    border-bottom-color: $primary;
+  }
+
+  &-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.tabs-content {
+  padding-top: 1rem;
+}

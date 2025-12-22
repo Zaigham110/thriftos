@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateRagDto = void 0;
 const class_validator_1 = require("class-validator");
+const client_1 = require("@prisma/client");
 class CreateRagDto {
 }
 exports.CreateRagDto = CreateRagDto;
@@ -20,14 +21,24 @@ __decorate([
     __metadata("design:type", String)
 ], CreateRagDto.prototype, "containerId", void 0);
 __decorate([
+    (0, class_validator_1.IsEnum)(client_1.RagBaleType),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateRagDto.prototype, "ragBaleType", void 0);
+__decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
-    (0, class_validator_1.MaxLength)(50),
     __metadata("design:type", String)
-], CreateRagDto.prototype, "ragCode", void 0);
+], CreateRagDto.prototype, "rawCategoryId", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.Min)(0.01),
     __metadata("design:type", Number)
 ], CreateRagDto.prototype, "weightKg", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(500),
+    __metadata("design:type", String)
+], CreateRagDto.prototype, "notes", void 0);
 //# sourceMappingURL=create-rag.dto.js.map

@@ -1,0 +1,280 @@
+<!-- Grading Session List Template - Phase 4 -->
+<div class="grading-session-list">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="header-content">
+      <h1 class="page-title">
+        <lucide-icon [img]="icons.star" size="24"></lucide-icon>
+        Stage 2: Grading
+      </h1>
+      <p class="page-subtitle">
+        Grade sorted category outputs into G1/G2/G3 quality levels.
+      </p>
+    </div>
+  </div>
+
+  <!-- Error Alert -->
+  @if (error()) {
+    <div class="error-alert">
+      <lucide-icon [img]="icons.alert" size="18"></lucide-icon>
+      <span>{{ error() }}</span>
+    </div>
+  }
+
+  <!-- Available for Grading Section -->
+  <ui-card class="available-card">
+    <div class="section-header">
+      <h2 class="section-title">
+        <lucide-icon [img]="icons.inbox" size="20"></lucide-icon>
+        Ready for Grading
+        @if (availableTotal() > 0) {
+          <ui-badge variant="primary">{{ availableTotal() }}</ui-badge>
+        }
+      </h2>
+      <p class="section-subtitle">
+        Category outputs from closed Stage 1 sessions waiting to be graded
+      </p>
+    </div>
+
+    @if (loading()) {
+      <div class="loading-inline">
+        <div class="spinner-small"></div>
+        <span>Loading...</span>
+      </div>
+    } @else if (availableForGrading().length === 0) {
+      <div class="empty-available">
+        <lucide-icon [img]="icons.checkCircle" size="24" class="empty-icon-success"></lucide-icon>
+        <span>All caught up! No items waiting for grading.</span>
+      </div>
+    } @else {
+      <div class="available-grid">
+        @for (item of availableForGrading(); track item.id) {
+          <div class="available-item">
+            <div class="available-item-header">
+              <span class="category-badge">
+                <lucide-icon [img]="icons.package" size="14"></lucide-icon>
+                {{ getAvailableCategoryName(item) }}
+              </span>
+              <span class="weight-badge">{{ formatWeight(item.weightKg) }} kg</span>
+            </div>
+            
+            <div class="available-item-details">
+              <div class="detail-row">
+                <span class="detail-label">Container:</span>
+                <span class="detail-value">{{ getAvailableContainerRef(item) }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Rag/Bale:</span>
+                <span class="detail-value">{{ getAvailableRagCode(item) }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Stage 1 Session:</span>
+                <code class="detail-code">{{ getAvailableSessionId(item) }}</code>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Sorted:</span>
+                <span class="detail-value">{{ formatDate(item.createdAt) }}</span>
+              </div>
+            </div>
+
+            <div class="available-item-actions">
+              <ui-button
+                variant="primary"
+                size="sm"
+                [disabled]="startingGrading() === item.id"
+                (clicked)="startGrading(item)"
+              >
+                @if (startingGrading() === item.id) {
+                  <span>Starting...</span>
+                } @else {
+                  <lucide-icon [img]="icons.play" size="14"></lucide-icon>
+                  Start Grading
+                }
+              </ui-button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </ui-card>
+
+  <!-- Grading Sessions Section -->
+  <ui-card class="sessions-card">
+    <div class="section-header">
+      <h2 class="section-title">
+        <lucide-icon [img]="icons.layers" size="20"></lucide-icon>
+        Grading Sessions
+      </h2>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-row">
+      <!-- Search -->
+      <div class="search-field">
+        <lucide-icon [img]="icons.search" size="16" class="search-icon"></lucide-icon>
+        <input
+          type="text"
+          class="search-input"
+          placeholder="Search sessions..."
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)"
+        />
+      </div>
+
+      <!-- Status Filter -->
+      <div class="filter-field">
+        <lucide-icon [img]="icons.filter" size="16" class="filter-icon"></lucide-icon>
+        <select
+          class="filter-select"
+          [ngModel]="statusFilter()"
+          (ngModelChange)="statusFilter.set($event); onStatusChange()"
+        >
+          @for (option of statusOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- Results count -->
+      <div class="results-count">
+        {{ totalCount() }} session{{ totalCount() !== 1 ? 's' : '' }}
+      </div>
+    </div>
+
+    @if (filteredSessions().length === 0) {
+      <div class="empty-state">
+        <lucide-icon [img]="icons.layers" size="48" class="empty-icon"></lucide-icon>
+        <h3>No Grading Sessions</h3>
+        <p>
+          Start grading from the "Ready for Grading" section above.
+        </p>
+      </div>
+    } @else {
+      <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Session ID</th>
+                <th>Category</th>
+                <th>Input Weight</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th class="actions-col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (session of filteredSessions(); track session.id) {
+                <tr 
+                  class="table-row"
+                  [class.row-closed]="session.status === 'CLOSED'"
+                  (click)="navigateToSession(session)"
+                >
+                  <td class="cell-id">
+                    <code class="session-code">{{ truncateId(session.id) }}</code>
+                  </td>
+                  <td class="cell-category">
+                    <div class="category-info">
+                      <lucide-icon [img]="icons.package" size="14"></lucide-icon>
+                      <span>{{ getCategoryName(session) }}</span>
+                    </div>
+                  </td>
+                  <td class="cell-weight">
+                    <span class="weight-value">{{ getInputWeight(session) }}</span>
+                    <span class="weight-unit">kg</span>
+                  </td>
+                  <td class="cell-status">
+                    <ui-badge [variant]="getStatusBadgeVariant(session.status)">
+                      @if (session.status === 'OPEN') {
+                        <lucide-icon [img]="icons.clock" size="12"></lucide-icon>
+                      } @else {
+                        <lucide-icon [img]="icons.checkCircle" size="12"></lucide-icon>
+                      }
+                      {{ session.status }}
+                    </ui-badge>
+                  </td>
+                  <td class="cell-date">
+                    {{ formatDate(session.createdAt) }}
+                  </td>
+                  <td class="cell-actions" (click)="$event.stopPropagation()">
+                    @if (session.status === 'OPEN') {
+                      <ui-button
+                        variant="primary"
+                        size="sm"
+                        (click)="navigateToSession(session)"
+                      >
+                        <lucide-icon [img]="icons.play" size="14"></lucide-icon>
+                        Continue
+                      </ui-button>
+                    } @else {
+                      <div class="action-buttons">
+                        <ui-button
+                          variant="outline"
+                          size="sm"
+                          (click)="navigateToSession(session)"
+                        >
+                          <lucide-icon [img]="icons.eye" size="14"></lucide-icon>
+                          View
+                        </ui-button>
+                        <ui-button
+                          variant="primary"
+                          size="sm"
+                          [disabled]="startingRepack() === session.id"
+                          (click)="startRepack(session)"
+                        >
+                          @if (startingRepack() === session.id) {
+                            <span>Starting...</span>
+                          } @else {
+                            <lucide-icon [img]="icons.packagePlus" size="14"></lucide-icon>
+                            Repack
+                          }
+                        </ui-button>
+                      </div>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        @if (totalPages() > 1) {
+          <div class="pagination">
+            <ui-button
+              variant="outline"
+              size="sm"
+              [disabled]="currentPage() === 1"
+              (click)="onPageChange(currentPage() - 1)"
+            >
+              <lucide-icon [img]="icons.chevronLeft" size="16"></lucide-icon>
+              Previous
+            </ui-button>
+            <span class="page-info">
+              Page {{ currentPage() }} of {{ totalPages() }}
+            </span>
+            <ui-button
+              variant="outline"
+              size="sm"
+              [disabled]="currentPage() === totalPages()"
+              (click)="onPageChange(currentPage() + 1)"
+            >
+              Next
+              <lucide-icon [img]="icons.chevronRight" size="16"></lucide-icon>
+            </ui-button>
+          </div>
+        }
+    }
+  </ui-card>
+
+  <!-- Info Banner -->
+  <div class="info-banner">
+    <lucide-icon [img]="icons.arrowRight" size="16"></lucide-icon>
+    <span>
+      <strong>Workflow:</strong> Stage 1 (Category Sorting) 
+      <lucide-icon [img]="icons.arrowRight" size="12"></lucide-icon>
+      Stage 2 (Grading: G1/G2/G3)
+      <lucide-icon [img]="icons.arrowRight" size="12"></lucide-icon>
+      Repack
+    </span>
+  </div>
+</div>

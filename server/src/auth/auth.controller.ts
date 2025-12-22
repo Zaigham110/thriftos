@@ -1,4 +1,5 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Req } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Req, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
@@ -6,8 +7,22 @@ import { LoginDto, LoginResponseDto } from './dto/login.dto';
 import { RefreshTokenDto, RefreshResponseDto } from './dto/refresh.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
+import { PermissionGuard } from '../common/guards/permission.guard';
+import { SkipPermissionCheck } from '../common/decorators/permissions.decorator';
 
+/**
+ * AuthController - Handles authentication (login, logout, refresh, impersonation).
+ * 
+ * Security Notes:
+ * - @Public() routes (login, refresh): Skip auth entirely - required for unauthenticated access
+ * - logout/exit-impersonation: Protected by global JwtAuthGuard, use @SkipPermissionCheck
+ *   because any authenticated user can manage their own session
+ * - TenantGuard NOT applied: These routes operate on user's own session,
+ *   SuperAdmins may not have a tenant context, and impersonating users need to exit
+ */
+@ApiTags('Auth')
 @Controller('auth')
+@UseGuards(PermissionGuard)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
@@ -15,6 +30,10 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ short: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
+  @ApiOperation({ summary: 'User login', description: 'Authenticate with email and password' })
+  @ApiResponse({ status: 200, description: 'Login successful, returns JWT tokens' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiResponse({ status: 429, description: 'Too many login attempts' })
   async login(@Body() dto: LoginDto, @Req() req: Request): Promise<LoginResponseDto> {
     const ipAddress = req.ip || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'];
@@ -23,6 +42,11 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @SkipPermissionCheck()
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'User logout', description: 'Invalidate refresh token and end session' })
+  @ApiResponse({ status: 204, description: 'Logout successful' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async logout(
     @CurrentUser() user: CurrentUserData,
     @Body() body: { refreshToken?: string },
@@ -36,10 +60,29 @@ export class AuthController {
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Refresh tokens', description: 'Get new access token using refresh token' })
+  @ApiResponse({ status: 200, description: 'New tokens issued' })
+  @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
   async refresh(@Body() dto: RefreshTokenDto, @Req() req: Request): Promise<RefreshResponseDto> {
     const ipAddress = req.ip || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'];
     return this.authService.refreshTokens(dto.refreshToken, ipAddress, userAgent);
+  }
+
+  @Post('exit-impersonation')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @SkipPermissionCheck()
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Exit impersonation', description: 'Super Admin exits tenant impersonation mode' })
+  @ApiResponse({ status: 204, description: 'Impersonation ended' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async exitImpersonation(
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+  ): Promise<void> {
+    const ipAddress = req.ip || req.socket.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+    await this.authService.exitImpersonation(user, ipAddress, userAgent);
   }
 }
 

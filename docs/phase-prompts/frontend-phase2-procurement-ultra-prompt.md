@@ -1,330 +1,345 @@
-You are an **expert Angular 21 enterprise ERP frontend engineer**.
+You are an **elite Angular 21 enterprise ERP frontend engineer**.
 
-Your task is to implement **Frontend Phase 2: Procurement UI** for **ThriftOS V3**, strictly aligned with:
+You are implementing **Frontend Phase 2** for **ThriftOS**, a **multi-tenant thrift ERP SaaS**.
 
-```
-docs/architecture/thriftos-v3-architecture.md
-docs/phase-prompts/phase2-procurement-ultra-prompt.md
-docs/phase-prompts/frontend-phase0-ultra-prompt.md
-docs/phase-prompts/frontend-phase1-auth-shell-ultra-prompt.md
-```
+This phase implements the **Procurement module UI**, covering **all procurement workflows supported by the backend**, including:
 
-Backend APIs are **frozen and authoritative**.
+* Container-level procurement
+* Loose bale procurement
+* Shipment & reference tracking
+* Weight-based costing
+* Automated cost allocation (visualized)
+* Multi-stage procurement lifecycle
 
-NO guessing
-NO backend logic
-NO schema assumptions
-
----
-
-# ---------------------------------------------------------
-
-# 🧠 1. PHASE 2 SCOPE (LOCKED)
-
-# ---------------------------------------------------------
-
-In this phase you MUST implement:
-
-✔ Purchase Orders UI
-✔ Container management UI
-✔ Container charges UI
-✔ Rag intake UI
-✔ Incoming bale UI (loose & container-linked)
-✔ Status-driven workflows
-✔ Cost visibility (read-only)
-✔ RBAC-aware actions
-
-🚫 No sorting
-🚫 No grading
-🚫 No repack
-🚫 No inventory
+🚫 NO sorting
+🚫 NO grading
+🚫 NO inventory intake
+🚫 NO sales / POS
+🚫 NO backend assumptions
 
 ---
 
-# ---------------------------------------------------------
+## 🔒 BACKEND COVERAGE RULE (MANDATORY)
 
-# 🧱 2. MODULE STRUCTURE
+Before implementing this phase, the AI agent MUST:
 
-# ---------------------------------------------------------
+1. Read:
 
-Create under:
+   * `docs/architecture/backend-feature-register.md`
+   * `docs/architecture/frontend-backend-coverage-matrix.md`
+   * `docs/security/frontend-permissions-map.md`
+2. Identify **Procurement backend features**:
+
+   * Container procurement
+   * Loose bale procurement
+   * Vendors
+   * Shipment details
+   * Cost allocation
+   * Procurement states
+3. Confirm **each backend feature has UI coverage**
+4. Fail execution if **any feature is missing or partially implemented**
+
+---
+
+## 🧠 PHASE 2 SCOPE (LOCKED)
+
+### This phase MUST implement:
+
+✔ Procurement dashboard
+✔ Container procurement create / view / update
+✔ Loose bale procurement create / view / update
+✔ Vendor selection & creation (inline)
+✔ Shipment details capture
+✔ Cost breakdown & allocation visualization
+✔ Procurement status lifecycle
+✔ Read-only views for closed procurement
+
+### This phase MUST NOT implement:
+
+❌ Sorting (Stage 1 / 2)
+❌ Repack
+❌ Inventory intake
+❌ Reports
+❌ Tenant admin configs
+
+---
+
+## 🧱 TECH & STYLE CONSTRAINTS (INHERITED)
+
+* Angular 21
+* Angular CLI ONLY
+* Standalone components
+* SCSS + Tailwind layering
+* Inter font
+* Lucide icons
+* Light ERP theme
+* OnPush change detection
+* Signals for derived UI state
+
+🚫 No dark UI
+🚫 No inline styles
+🚫 No manual file creation
+
+---
+
+## ⚙️ ROUTING & MODULE STRUCTURE
+
+### Procurement Module
 
 ```
 src/app/modules/procurement/
- ├── purchase-orders/
+ ├── dashboard/
+ │   └── procurement-dashboard.page.ts
  ├── containers/
- ├── container-charges/
- ├── rags/
- ├── incoming-bales/
- ├── vendors/
+ │   ├── container-list.page.ts
+ │   ├── container-create.page.ts
+ │   ├── container-detail.page.ts
+ ├── loose-bales/
+ │   ├── loose-bale-list.page.ts
+ │   ├── loose-bale-create.page.ts
+ │   ├── loose-bale-detail.page.ts
+ ├── shared/
+ │   ├── vendor-select.component.ts
+ │   ├── shipment-details.form.ts
+ │   ├── cost-breakdown.panel.ts
  ├── procurement.routes.ts
+ └── procurement.service.ts
 ```
 
-Each submodule MUST include:
+Lazy loaded at:
 
-* list page
-* detail page
-* drawer-based create/edit forms
-* service.ts
-* typed DTOs
+```
+/procurement
+```
 
 ---
 
-# ---------------------------------------------------------
+## 🔐 RBAC & ACCESS RULES
 
-# 🧾 3. PURCHASE ORDERS UI
-
-# ---------------------------------------------------------
-
-## 📄 List Page — Purchase Orders
-
-Table columns:
-
-* PO Number
-* Type (Container / Loose Bale)
-* Vendor
-* Currency
-* Total Cost
-* Status
-* Created Date
-
-Actions:
-
-* View
-* Edit (if OPEN)
-* Receive
-* Close
-
-Filters:
-
-* PO Type
-* Status
-* Date Range
-
-RBAC:
+Permissions required (from permissions map):
 
 ```
 PROCUREMENT_VIEW
 PROCUREMENT_CREATE
-PROCUREMENT_EDIT
-PROCUREMENT_CLOSE
+PROCUREMENT_UPDATE
 ```
 
----
+### Tenant Status Rule (MANDATORY)
 
-## 📄 Detail Page — Purchase Order
-
-Tabs:
+If:
 
 ```
-Overview | Containers | Incoming Bales | Activity
+tenant.status !== ACTIVE
 ```
 
-Overview shows:
+Then:
 
-* Vendor
-* Currency
-* Status
-* Total Cost (read-only)
-
----
-
-# ---------------------------------------------------------
-
-# 📦 4. CONTAINERS UI
-
-# ---------------------------------------------------------
-
-## 📄 Containers List
-
-Columns:
-
-* Container Number
-* Reference
-* Type
-* ETA
-* Net Weight
-* Status
-
-Actions:
-
-* View
-* Edit
-* Change Status
+* All create/edit actions disabled
+* UI becomes read-only
+* Warning banner displayed
 
 ---
 
-## 📄 Container Detail
+## 📊 PROCUREMENT DASHBOARD
 
-Tabs:
+### Route
 
 ```
-Overview | Charges | Rags | Incoming Bales | Activity
+/procurement
 ```
 
-Overview:
+### Widgets (Lightweight, ERP-safe)
 
-* Shipment metadata
-* Weight
-* Status
+* Total active procurements
+* Containers vs Loose Bales
+* Total weight procured
+* Total cost (currency aware)
 
----
-
-# ---------------------------------------------------------
-
-# 💰 5. CONTAINER CHARGES UI
-
-# ---------------------------------------------------------
-
-Drawer form:
-
-* Charge Type
-* Description
-* Amount
-
-Rules:
-
-* Editable only if container not CLOSED
-* After save → refresh container cost
-
-Display:
-
-* Charges table
-* Total container cost (computed backend)
+No charts — numeric summary only.
 
 ---
 
-# ---------------------------------------------------------
+## 📦 CONTAINER PROCUREMENT FLOW
 
-# 🧺 6. RAGS UI
+### Create Container Procurement
 
-# ---------------------------------------------------------
+Route:
 
-Rags List (scoped to container):
-
-Columns:
-
-* Rag Code
-* Weight (KG)
-* Allocated Cost (read-only)
-* Created Date
-
-Actions:
-
-* Add Rag
-* View
-
-Rules:
-
-* Cannot edit once created
-* Cost always read-only
-
----
-
-# ---------------------------------------------------------
-
-# 🧾 7. INCOMING BALES UI
-
-# ---------------------------------------------------------
-
-Supports:
-✔ Loose procurement
-✔ Container-linked bales
+```
+/procurement/containers/create
+```
 
 Fields:
 
-* Bale Code
 * Vendor
+* Container Number
+* Reference Number
+* Container Type (e.g., France DC)
+* Expected Weight
+* Total Cost
+* Currency
+* Arrival Date
+* Notes
+
+Shipment Section:
+
+* Bill of Lading
+* Port
+* Arrival date
+* Shipment ref
+
+Behavior:
+
+* Draft by default
+* Validation on required fields
+* Save → DRAFT
+* Mark Received → RECEIVED
+* Close → CLOSED (read-only)
+
+---
+
+## 🧺 LOOSE BALE PROCUREMENT FLOW
+
+### Create Loose Bale Procurement
+
+Route:
+
+```
+/procurement/loose-bales/create
+```
+
+Fields:
+
+* Vendor
+* Bale type (single / mixed)
 * Weight
-* Cost (if loose)
-* Category Guess (optional)
+* Cost
+* Currency
+* Reference
+* Notes
 
-Rules:
+Supports:
 
-* If linked to container → cost auto-allocated
-* If loose → cost entered manually
+* Mixed categories
+* Multiple vendors over time
 
 ---
 
-# ---------------------------------------------------------
+## 🧾 COST BREAKDOWN & ALLOCATION (VISUAL ONLY)
 
-# 🎛 8. UI PATTERNS (MANDATORY)
+Component:
 
-# ---------------------------------------------------------
+```
+cost-breakdown.panel.ts
+```
 
-✔ List → Drawer → Save
-✔ No modal CRUD
+Displays:
+
+* Total cost
+* Cost per KG
+* Cost per bale (if applicable)
+
+🚫 No calculations on frontend
+✔ Backend values only
+
+---
+
+## 🧑‍💼 VENDOR MANAGEMENT (INLINE)
+
+* Vendor select dropdown
+* Inline “Add Vendor” drawer
+* Tenant-scoped vendors only
+
+Permissions:
+
+```
+PROCUREMENT_CREATE
+```
+
+---
+
+## 🔁 PROCUREMENT STATUS LIFECYCLE (UI RULES)
+
+States (from backend enums):
+
+* DRAFT
+* RECEIVED
+* CLOSED
+
+UI Behavior:
+
+* DRAFT → editable
+* RECEIVED → limited edits
+* CLOSED → fully read-only
+
+All transitions require confirmation dialog.
+
+---
+
+## 🧪 ERROR & EDGE CASE HANDLING
+
+Handle explicitly:
+
+* 403 → Access denied
+* 400 → Validation errors
+* 409 → Duplicate reference/container
+* Network failure → Retry UI
+
+---
+
+## 🧱 UI / UX RULES (PROCUREMENT-SPECIFIC)
+
+✔ Clear numeric formatting
+✔ Weight units visible (KG)
+✔ Currency symbols explicit
+✔ Dense ERP tables
 ✔ Status badges
-✔ Skeleton loaders
-✔ Empty states
-✔ Confirmation dialogs for status changes
+
+No charts.
+No animations masking state.
 
 ---
 
-# ---------------------------------------------------------
+## 🛠️ ANGULAR CLI GENERATION RULES
 
-# 🔐 9. PERMISSIONS & VISIBILITY
+All files MUST be generated via Angular CLI:
 
-# ---------------------------------------------------------
+```bash
+ng generate component modules/procurement/containers/container-create \
+  --standalone \
+  --change-detection=OnPush \
+  --style=scss
+```
 
-Buttons & routes must be permission-aware:
-
-* Hide Create/Edit buttons if permission missing
-* Disable Receive/Close if not allowed
-* Read-only view fallback
-
-Frontend permissions DO NOT replace backend enforcement.
-
----
-
-# ---------------------------------------------------------
-
-# 🧪 10. ERROR & EDGE CASE HANDLING
-
-# ---------------------------------------------------------
-
-Handle:
-
-* 403 → Access Denied page
-* 409 → Show backend conflict message
-* 400 → Validation feedback
-* Network failures → retry option
+Same rule for services & shared components.
 
 ---
 
-# ---------------------------------------------------------
+## 🧪 QUALITY & AI-SAFETY RULES
 
-# 🧱 11. CODE QUALITY RULES (LOCKED)
-
-# ---------------------------------------------------------
-
-✔ Standalone components
-✔ Typed reactive forms
-✔ Services for API only
-✔ No business logic in UI
-✔ ThriftUI components only
-✔ Tailwind utilities only
+* No mock data
+* No TODOs
+* No backend logic
+* No missing backend feature mapping
+* Fail if coverage incomplete
 
 ---
 
-# ---------------------------------------------------------
-
-# 🚀 12. FINAL CURSOR INSTRUCTIONS
-
-# ---------------------------------------------------------
+## 🚀 FINAL AI / CURSOR INSTRUCTIONS
 
 Generate **complete Frontend Phase 2 (Procurement UI)** including:
 
-✔ Routes
-✔ Pages
-✔ Drawer forms
-✔ Services
-✔ Permission guards
-✔ Status workflows
-✔ Cost visibility
+✔ Dashboard
+✔ Container procurement flows
+✔ Loose bale procurement flows
+✔ Vendor selection & inline creation
+✔ Shipment details UI
+✔ Cost breakdown visualization
+✔ Status lifecycle enforcement
+✔ RBAC enforcement
 
-❌ Do NOT mock data
-❌ Do NOT add sorting/grading UI
-❌ Do NOT bypass permissions
+❌ Do NOT implement sorting
+❌ Do NOT implement inventory
+❌ Do NOT implement reports
 
-Output code directly into project files.
+Output **real Angular 21 code**, fully compliant with Phase 0 & Phase 1.

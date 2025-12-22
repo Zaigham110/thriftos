@@ -1,0 +1,23 @@
+<label class="checkbox-wrapper" [class.checkbox-disabled]="disabled() || isDisabled()">
+  <input
+    type="checkbox"
+    class="checkbox-input"
+    [id]="id()"
+    [checked]="checked()"
+    [disabled]="disabled() || isDisabled()"
+    (change)="toggle()"
+  />
+  <span class="checkbox-box" [class.checkbox-checked]="checked()">
+    @if (checked()) {
+      <lucide-icon [img]="checkIcon" [size]="14"></lucide-icon>
+    }
+  </span>
+  @if (label()) {
+    <span class="checkbox-label">
+      {{ label() }}
+      @if (hint()) {
+        <span class="checkbox-hint">{{ hint() }}</span>
+      }
+    </span>
+  }
+</label>

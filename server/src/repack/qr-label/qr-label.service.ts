@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import QRCode from 'qrcode';
+import * as QRCode from 'qrcode';
 
 @Injectable()
 export class QrLabelService {

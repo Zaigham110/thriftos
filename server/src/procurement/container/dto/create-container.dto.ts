@@ -6,11 +6,6 @@ export class CreateContainerDto {
   purchaseOrderId: string;
 
   @IsString()
-  @IsNotEmpty()
-  @MaxLength(50)
-  containerNumber: string;
-
-  @IsString()
   @IsOptional()
   @MaxLength(50)
   referenceNumber?: string;
@@ -24,6 +19,22 @@ export class CreateContainerDto {
   @IsOptional()
   eta?: string;
 
+  @IsDateString()
+  @IsOptional()
+  etd?: string;
+
+  @IsDateString()
+  @IsOptional()
+  arrivedAt?: string;
+
+  @IsDateString()
+  @IsOptional()
+  clearedAt?: string;
+
+  @IsDateString()
+  @IsOptional()
+  releasedAt?: string;
+
   @IsNumber()
   @Min(0)
   grossWeight: number;
@@ -31,5 +42,45 @@ export class CreateContainerDto {
   @IsNumber()
   @Min(0)
   netWeight: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  billOfLadingNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  shipmentReference?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  shippingLine?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  vesselName?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  portOfLoading?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  portOfDischarge?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  forwarder?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  notes?: string;
 }
 

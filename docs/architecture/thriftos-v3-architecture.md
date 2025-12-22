@@ -653,24 +653,23 @@ Key reports:
 
 # ------------------------------------------------------------
 
-# ⭐ 9. FRONTEND ARCHITECTURE (Angular 20 + Tailwind)
+# ⭐ 9. FRONTEND ARCHITECTURE (Angular 21 + Tailwind)
 
 # ------------------------------------------------------------
 
-Feature modules:
+Frontend structure (standalone + lazy routes):
 
 ```
-/app
-  /core
-  /shared
-  /layout
-  /procurement
-  /sorting
-  /grading
-  /repack
-  /inventory
-  /reports
-  /admin
+src/app
+  core/
+    layout/
+    auth/
+    services/
+  shared/
+  modules/
+    auth/
+    admin/
+    errors/
 ```
 
 UI components from ThriftUI.

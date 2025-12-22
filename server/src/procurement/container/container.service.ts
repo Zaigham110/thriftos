@@ -6,7 +6,8 @@ import { CreateContainerDto } from './dto/create-container.dto';
 import { UpdateContainerDto } from './dto/update-container.dto';
 import { UpdateContainerStatusDto } from './dto/update-container-status.dto';
 import { CreateContainerChargeDto } from './dto/create-container-charge.dto';
-import { ContainerStatus, PurchaseOrderType, PurchaseOrderStatus } from '@prisma/client';
+import { ContainerStatus, PurchaseOrderType, PurchaseOrderStatus, SequenceScope } from '@prisma/client';
+import { TenantSequenceService } from '../shared/tenant-sequence.service';
 
 @Injectable()
 export class ContainerService {
@@ -14,7 +15,12 @@ export class ContainerService {
     private prisma: PrismaService,
     private auditService: AuditService,
     private costAllocationService: CostAllocationService,
+    private tenantSequenceService: TenantSequenceService,
   ) {}
+
+  private toDate(value?: string) {
+    return value ? new Date(value) : null;
+  }
 
   async create(tenantId: string, dto: CreateContainerDto, userId: string) {
     // Validate purchase order
@@ -26,32 +32,49 @@ export class ContainerService {
       throw new BadRequestException('Purchase order not found');
     }
 
-    if (po.poType !== PurchaseOrderType.CONTAINER) {
-      throw new BadRequestException('Purchase order type must be CONTAINER to add containers');
+    if (po.poType !== PurchaseOrderType.CONTAINER && po.poType !== PurchaseOrderType.HYBRID) {
+      throw new BadRequestException('Purchase order type must allow containers');
     }
 
     if (po.status === PurchaseOrderStatus.CLOSED) {
       throw new ConflictException('Cannot add container to a closed purchase order');
     }
 
-    // Check for duplicate container number within the PO
-    const existing = await this.prisma.container.findFirst({
-      where: { purchaseOrderId: dto.purchaseOrderId, containerNumber: dto.containerNumber },
-    });
-
-    if (existing) {
-      throw new BadRequestException(`Container "${dto.containerNumber}" already exists in this PO`);
-    }
+    const { code: containerNumber } = await this.tenantSequenceService.generateCode(
+      tenantId,
+      SequenceScope.CONTAINER,
+      { prefix: 'CONT', padSize: 3 },
+      async (code) => {
+        const existing = await this.prisma.container.findFirst({
+          where: { tenantId, containerNumber: code },
+          select: { id: true },
+        });
+        return !existing;
+      },
+    );
 
     const container = await this.prisma.container.create({
       data: {
+        tenantId,
         purchaseOrderId: dto.purchaseOrderId,
-        containerNumber: dto.containerNumber,
+        containerNumber,
         referenceNumber: dto.referenceNumber,
         containerType: dto.containerType,
-        eta: dto.eta ? new Date(dto.eta) : null,
+        eta: this.toDate(dto.eta),
+        etd: this.toDate(dto.etd),
+        arrivedAt: this.toDate(dto.arrivedAt),
+        clearedAt: this.toDate(dto.clearedAt),
+        releasedAt: this.toDate(dto.releasedAt),
         grossWeight: dto.grossWeight,
         netWeight: dto.netWeight,
+        billOfLadingNumber: dto.billOfLadingNumber,
+        shipmentReference: dto.shipmentReference,
+        shippingLine: dto.shippingLine,
+        vesselName: dto.vesselName,
+        portOfLoading: dto.portOfLoading,
+        portOfDischarge: dto.portOfDischarge,
+        forwarder: dto.forwarder,
+        notes: dto.notes,
         status: ContainerStatus.IN_TRANSIT,
       },
       include: {
@@ -91,7 +114,7 @@ export class ContainerService {
     const skip = (page - 1) * limit;
 
     const where: any = {
-      purchaseOrder: { tenantId },
+      tenantId,
       ...(options?.purchaseOrderId && { purchaseOrderId: options.purchaseOrderId }),
       ...(options?.status && { status: options.status }),
     };
@@ -125,7 +148,7 @@ export class ContainerService {
     const container = await this.prisma.container.findFirst({
       where: {
         id,
-        purchaseOrder: { tenantId },
+        tenantId,
       },
       include: {
         purchaseOrder: {
@@ -154,8 +177,23 @@ export class ContainerService {
     const updated = await this.prisma.container.update({
       where: { id },
       data: {
-        ...dto,
-        ...(dto.eta && { eta: new Date(dto.eta) }),
+        ...(dto.referenceNumber !== undefined && { referenceNumber: dto.referenceNumber }),
+        ...(dto.containerType !== undefined && { containerType: dto.containerType }),
+        ...(dto.grossWeight !== undefined && { grossWeight: dto.grossWeight }),
+        ...(dto.netWeight !== undefined && { netWeight: dto.netWeight }),
+        ...(dto.billOfLadingNumber !== undefined && { billOfLadingNumber: dto.billOfLadingNumber }),
+        ...(dto.shipmentReference !== undefined && { shipmentReference: dto.shipmentReference }),
+        ...(dto.shippingLine !== undefined && { shippingLine: dto.shippingLine }),
+        ...(dto.vesselName !== undefined && { vesselName: dto.vesselName }),
+        ...(dto.portOfLoading !== undefined && { portOfLoading: dto.portOfLoading }),
+        ...(dto.portOfDischarge !== undefined && { portOfDischarge: dto.portOfDischarge }),
+        ...(dto.forwarder !== undefined && { forwarder: dto.forwarder }),
+        ...(dto.notes !== undefined && { notes: dto.notes }),
+        ...(dto.eta !== undefined && { eta: this.toDate(dto.eta) }),
+        ...(dto.etd !== undefined && { etd: this.toDate(dto.etd) }),
+        ...(dto.arrivedAt !== undefined && { arrivedAt: this.toDate(dto.arrivedAt) }),
+        ...(dto.clearedAt !== undefined && { clearedAt: this.toDate(dto.clearedAt) }),
+        ...(dto.releasedAt !== undefined && { releasedAt: this.toDate(dto.releasedAt) }),
       },
       include: {
         purchaseOrder: {
@@ -245,6 +283,7 @@ export class ContainerService {
 
     // Recalculate cost allocation
     await this.costAllocationService.allocateContainerCosts(containerId, userId);
+    await this.costAllocationService.syncPurchaseOrderTotals(container.purchaseOrder.id);
 
     await this.auditService.log({
       userId,
@@ -292,6 +331,7 @@ export class ContainerService {
 
     // Recalculate cost allocation
     await this.costAllocationService.allocateContainerCosts(containerId, userId);
+    await this.costAllocationService.syncPurchaseOrderTotals(container.purchaseOrder.id);
 
     await this.auditService.log({
       userId,

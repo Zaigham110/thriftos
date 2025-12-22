@@ -20,8 +20,12 @@ export declare class RepackUnitService {
         updatedAt: Date;
         status: import("@prisma/client").$Enums.RepackStatus;
         totalCost: Decimal;
+        containerId: string | null;
         weightKg: Decimal;
+        ragId: string | null;
+        sortSessionId: string | null;
         categoryId: string | null;
+        gradeSessionId: string | null;
         gradeId: string | null;
         repackSessionId: string;
         unitCode: string;
@@ -64,8 +68,12 @@ export declare class RepackUnitService {
             updatedAt: Date;
             status: import("@prisma/client").$Enums.RepackStatus;
             totalCost: Decimal;
+            containerId: string | null;
             weightKg: Decimal;
+            ragId: string | null;
+            sortSessionId: string | null;
             categoryId: string | null;
+            gradeSessionId: string | null;
             gradeId: string | null;
             repackSessionId: string;
             unitCode: string;
@@ -94,9 +102,9 @@ export declare class RepackUnitService {
             createdAt: Date;
             updatedAt: Date;
             weightKg: Decimal;
+            sourceType: import("@prisma/client").$Enums.SourceType;
             pcsCount: number;
             repackUnitId: string;
-            sourceType: import("@prisma/client").$Enums.SourceType;
             sourceId: string;
         }[];
         qrLabel: {
@@ -114,8 +122,12 @@ export declare class RepackUnitService {
         updatedAt: Date;
         status: import("@prisma/client").$Enums.RepackStatus;
         totalCost: Decimal;
+        containerId: string | null;
         weightKg: Decimal;
+        ragId: string | null;
+        sortSessionId: string | null;
         categoryId: string | null;
+        gradeSessionId: string | null;
         gradeId: string | null;
         repackSessionId: string;
         unitCode: string;

@@ -11,4 +11,5 @@ export declare class AuthController {
         refreshToken?: string;
     }, req: Request): Promise<void>;
     refresh(dto: RefreshTokenDto, req: Request): Promise<RefreshResponseDto>;
+    exitImpersonation(user: CurrentUserData, req: Request): Promise<void>;
 }

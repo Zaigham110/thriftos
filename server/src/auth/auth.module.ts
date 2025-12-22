@@ -10,6 +10,7 @@ import { PasswordService } from './password.service';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AuditModule } from '../audit/audit.module';
+import { CommonModule } from '../common/common.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { AuditModule } from '../audit/audit.module';
       inject: [ConfigService],
     }),
     AuditModule,
+    CommonModule,
   ],
   controllers: [AuthController],
   providers: [

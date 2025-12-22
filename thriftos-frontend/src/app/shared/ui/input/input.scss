@@ -1,0 +1,42 @@
+@use '../../../../styles/variables' as *;
+@use '../../../../styles/mixins' as *;
+
+.input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.input-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: $text-primary;
+}
+
+.input-required {
+  color: $status-danger;
+  margin-left: 0.125rem;
+}
+
+.input {
+  @include form-input;
+
+  &-error {
+    border-color: $status-danger;
+
+    &:focus {
+      border-color: $status-danger;
+      box-shadow: 0 0 0 3px rgba($status-danger, 0.15);
+    }
+  }
+}
+
+.input-hint {
+  font-size: 0.75rem;
+  color: $text-muted;
+}
+
+.input-error-text {
+  font-size: 0.75rem;
+  color: $status-danger;
+}

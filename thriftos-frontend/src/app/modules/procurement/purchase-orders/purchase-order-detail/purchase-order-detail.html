@@ -1,0 +1,407 @@
+<div class="purchase-order-detail">
+  <ui-breadcrumb [items]="breadcrumbs()"></ui-breadcrumb>
+
+  @if (error()) {
+    <ui-alert variant="danger" [dismissible]="true" (dismissed)="error.set(null)">
+      {{ error() }}
+    </ui-alert>
+  }
+
+  @if (loading()) {
+    <div class="loading-state">
+      <ui-card>
+        <div class="skeleton-header">
+          <ui-skeleton variant="text" class="skeleton-title"></ui-skeleton>
+          <ui-skeleton variant="text" class="skeleton-badge"></ui-skeleton>
+        </div>
+        <div class="skeleton-grid">
+          <ui-skeleton variant="text"></ui-skeleton>
+          <ui-skeleton variant="text"></ui-skeleton>
+          <ui-skeleton variant="text"></ui-skeleton>
+          <ui-skeleton variant="text"></ui-skeleton>
+        </div>
+      </ui-card>
+    </div>
+  } @else if (purchaseOrder(); as po) {
+    <!-- Read-Only Banner for Closed PO -->
+    @if (isReadOnly()) {
+      <ui-alert variant="warning" class="readonly-banner">
+        This purchase order is closed and cannot be modified.
+      </ui-alert>
+    }
+
+    <!-- Header -->
+    <header class="page-header">
+      <div class="page-header__info">
+        <h1>{{ po.poNumber }}</h1>
+        <div class="page-header__meta">
+          <ui-badge [variant]="getStatusVariant(po.status)" size="md">
+            {{ po.status }}
+          </ui-badge>
+          <span class="type-badge type-badge--{{ po.poType.toLowerCase() }}">
+            {{ getPoTypeLabel(po.poType) }}
+          </span>
+        </div>
+      </div>
+
+      @if (!isReadOnly() && canEdit()) {
+        <div class="page-header__actions">
+          @if (po.status === 'OPEN') {
+            <ui-button variant="ghost" (clicked)="openConfirmModal('receive')" [loading]="actionLoading()">
+              <lucide-icon [img]="icons.Check" [size]="16"></lucide-icon>
+              Mark Received
+            </ui-button>
+          }
+          @if (po.status === 'RECEIVED') {
+            <ui-button variant="ghost" (clicked)="openConfirmModal('close')" [loading]="actionLoading()">
+              <lucide-icon [img]="icons.Lock" [size]="16"></lucide-icon>
+              Close PO
+            </ui-button>
+          }
+        </div>
+      }
+    </header>
+
+    <!-- Details Card -->
+    <ui-card class="details-card">
+      <div class="card-header">
+        <h2>Details</h2>
+      </div>
+
+      <div class="details-grid">
+        <div class="detail-item">
+          <span class="detail-label">Vendor</span>
+          <span class="detail-value">{{ po.vendor?.name || '—' }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Currency</span>
+          <span class="detail-value">{{ po.currency }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Total Cost</span>
+          <span class="detail-value detail-value--highlight">
+            {{ po.totalCost | currency:po.currency:'symbol':'1.2-2' }}
+          </span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Created</span>
+          <span class="detail-value">{{ po.createdAt | date:'medium' }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Last Updated</span>
+          <span class="detail-value">{{ po.updatedAt | date:'medium' }}</span>
+        </div>
+      </div>
+    </ui-card>
+
+    <ui-card class="bales-card">
+      <div class="card-header">
+        <h2>Loose Bales</h2>
+        @if (isEditable() && canUpdate()) {
+          <ui-button variant="primary" size="sm" (clicked)="openBaleDrawer()">
+            <lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon>
+            Add Loose Bale
+          </ui-button>
+        }
+      </div>
+
+      @if (incomingBales().length === 0) {
+        <div class="empty-bales">
+          <lucide-icon [img]="icons.Package" [size]="40"></lucide-icon>
+          <p>No loose bales linked to this PO yet</p>
+          @if (isEditable() && canUpdate()) {
+            <ui-button variant="ghost" size="sm" (clicked)="openBaleDrawer()">
+              Add First Bale
+            </ui-button>
+          }
+        </div>
+      } @else {
+        <div class="bales-list">
+          @for (bale of incomingBales(); track bale.id) {
+            <a class="bale-item" [routerLink]="['/app/procurement/incoming-bales', bale.id]">
+              <div class="bale-item__info">
+                <span class="bale-code">{{ bale.baleCode }}</span>
+                <span class="bale-meta">{{ bale.rawCategory?.name || bale.categoryGuess || 'Uncategorized' }}</span>
+              </div>
+              <div class="bale-item__stats">
+                <span class="bale-weight">{{ bale.weightKg | number:'1.2-2' }} kg</span>
+                <span class="bale-cost">{{ bale.cost | currency:po.currency:'symbol':'1.2-2' }}</span>
+              </div>
+              <lucide-icon [img]="icons.ChevronRight" [size]="16" class="bale-item__arrow"></lucide-icon>
+            </a>
+          }
+        </div>
+      }
+    </ui-card>
+
+    <ui-card class="containers-card">
+      <div class="card-header">
+        <h2>Containers</h2>
+        @if (isEditable() && canUpdate()) {
+          <ui-button variant="primary" size="sm" (clicked)="openContainerDrawer()">
+            <lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon>
+            Add Container
+          </ui-button>
+        }
+      </div>
+
+      @if (containers().length === 0) {
+        <div class="empty-containers">
+          <lucide-icon [img]="icons.Box" [size]="40"></lucide-icon>
+          <p>No containers added yet</p>
+          @if (isEditable() && canUpdate()) {
+            <ui-button variant="ghost" size="sm" (clicked)="openContainerDrawer()">
+              Add First Container
+            </ui-button>
+          }
+        </div>
+      } @else {
+        <div class="containers-list">
+          @for (container of containers(); track container.id) {
+            <div class="container-item" (click)="navigateToContainer(container.id)">
+              <div class="container-item__info">
+                <span class="container-number">{{ container.containerNumber }}</span>
+                @if (container.containerType) {
+                  <span class="container-type">{{ container.containerType }}</span>
+                }
+              </div>
+              <div class="container-item__weight">
+                <span class="weight-label">Net:</span>
+                <span class="weight-value">{{ container.netWeight | number:'1.2-2' }} KG</span>
+              </div>
+              <ui-badge [variant]="getContainerStatusVariant(container.status)" size="sm">
+                {{ container.status.replace('_', ' ') }}
+              </ui-badge>
+              <lucide-icon [img]="icons.ChevronRight" [size]="16" class="container-item__arrow"></lucide-icon>
+            </div>
+          }
+        </div>
+      }
+    </ui-card>
+  }
+</div>
+
+<!-- Confirm Modal -->
+<ui-modal [isOpen]="showConfirmModal()" (closed)="closeConfirmModal()" size="sm">
+  <div class="confirm-modal">
+    <h3>
+      @if (confirmAction() === 'receive') {
+        Mark as Received?
+      } @else {
+        Close Purchase Order?
+      }
+    </h3>
+    <p>
+      @if (confirmAction() === 'receive') {
+        This will mark the purchase order as received. You can still make changes.
+      } @else {
+        Closing this purchase order will make it read-only. This action cannot be undone.
+      }
+    </p>
+    <div class="confirm-actions">
+      <ui-button variant="ghost" (clicked)="closeConfirmModal()">Cancel</ui-button>
+      <ui-button
+        [variant]="confirmAction() === 'close' ? 'danger' : 'primary'"
+        (clicked)="confirmStatusChange()"
+        [loading]="actionLoading()"
+      >
+        @if (confirmAction() === 'receive') {
+          Mark Received
+        } @else {
+          Close PO
+        }
+      </ui-button>
+    </div>
+  </div>
+</ui-modal>
+
+<!-- Add Container Drawer -->
+<ui-drawer [isOpen]="showContainerDrawer()" (closed)="closeContainerDrawer()" title="Add Container">
+  <form [formGroup]="containerForm" (ngSubmit)="createContainer()">
+    <div class="drawer-form">
+      <div class="form-field auto-number-info">
+        <p>Container numbers are generated automatically when you save.</p>
+      </div>
+
+      <div class="form-field">
+        <ui-input
+          formControlName="referenceNumber"
+          label="Reference Number"
+          placeholder="Optional reference"
+        ></ui-input>
+      </div>
+
+      <div class="form-field">
+        <ui-select
+          formControlName="containerType"
+          label="Container Type"
+          [options]="containerTypeOptions"
+        ></ui-select>
+      </div>
+
+      <div class="form-field">
+        <label class="form-label">ETA</label>
+        <input type="date" formControlName="eta" class="date-input" />
+        <span class="form-hint">Expected time of arrival</span>
+      </div>
+
+      <div class="form-field">
+        <label class="form-label">ETD</label>
+        <input type="date" formControlName="etd" class="date-input" />
+      </div>
+
+      <div class="form-grid">
+        <div class="form-field">
+          <label class="form-label">Arrived</label>
+          <input type="date" formControlName="arrivedAt" class="date-input" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">Cleared</label>
+          <input type="date" formControlName="clearedAt" class="date-input" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">Released</label>
+          <input type="date" formControlName="releasedAt" class="date-input" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-field">
+          <ui-input
+            formControlName="grossWeight"
+            type="number"
+            label="Gross Weight (KG)"
+            [required]="true"
+          ></ui-input>
+        </div>
+        <div class="form-field">
+          <ui-input
+            formControlName="netWeight"
+            type="number"
+            label="Net Weight (KG)"
+            [required]="true"
+          ></ui-input>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-field">
+          <ui-input
+            formControlName="billOfLadingNumber"
+            label="Bill of Lading #"
+            placeholder="e.g., BOL123456"
+          ></ui-input>
+        </div>
+        <div class="form-field">
+          <ui-input
+            formControlName="shipmentReference"
+            label="Shipment Reference"
+            placeholder="Forwarder reference"
+          ></ui-input>
+        </div>
+        <div class="form-field">
+          <ui-input
+            formControlName="forwarder"
+            label="Forwarder"
+            placeholder="Logistics partner"
+          ></ui-input>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-field">
+          <ui-input
+            formControlName="shippingLine"
+            label="Shipping Line"
+            placeholder="e.g., Maersk"
+          ></ui-input>
+        </div>
+        <div class="form-field">
+          <ui-input
+            formControlName="vesselName"
+            label="Vessel"
+            placeholder="Vessel or flight"
+          ></ui-input>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-field">
+          <ui-input
+            formControlName="portOfLoading"
+            label="Port of Loading"
+          ></ui-input>
+        </div>
+        <div class="form-field">
+          <ui-input
+            formControlName="portOfDischarge"
+            label="Port of Discharge"
+          ></ui-input>
+        </div>
+      </div>
+
+      <div class="form-field">
+        <label class="form-label">Notes</label>
+        <textarea formControlName="notes" rows="3" placeholder="Add logistics notes"></textarea>
+      </div>
+    </div>
+
+    <div class="drawer-actions">
+      <ui-button variant="ghost" type="button" (clicked)="closeContainerDrawer()">Cancel</ui-button>
+      <ui-button variant="primary" type="submit" [loading]="actionLoading()" [disabled]="containerForm.invalid">
+        Add Container
+      </ui-button>
+    </div>
+  </form>
+</ui-drawer>
+
+<!-- Add Loose Bale Drawer -->
+<ui-drawer [isOpen]="showBaleDrawer()" (closed)="closeBaleDrawer()" title="Add Loose Bale">
+  <form [formGroup]="baleForm" (ngSubmit)="createLooseBale()">
+    <div class="drawer-form">
+      <div class="form-field auto-number-info">
+        <p>Bale codes are assigned automatically based on tenant sequences.</p>
+      </div>
+
+      <div class="form-field">
+        <ui-select
+          formControlName="rawCategoryId"
+          label="Raw Category"
+          [options]="categoryOptions()"
+          [required]="true"
+          placeholder="Select raw category"
+        ></ui-select>
+        @if (categoryOptions().length === 0) {
+          <span class="form-hint">No active raw categories available for bales. Configure them under Administration → Raw Categories.</span>
+        }
+      </div>
+
+      <div class="form-field">
+        <ui-input
+          formControlName="weightKg"
+          type="number"
+          label="Weight (KG)"
+          [required]="true"
+          min="0.01"
+        ></ui-input>
+      </div>
+
+      <div class="form-field">
+        <ui-input
+          formControlName="cost"
+          type="number"
+          label="Cost"
+          [required]="true"
+          min="0"
+        ></ui-input>
+      </div>
+    </div>
+
+    <div class="drawer-actions">
+      <ui-button variant="ghost" type="button" (clicked)="closeBaleDrawer()">Cancel</ui-button>
+      <ui-button variant="primary" type="submit" [loading]="actionLoading()" [disabled]="baleForm.invalid">
+        Add Loose Bale
+      </ui-button>
+    </div>
+  </form>
+</ui-drawer>

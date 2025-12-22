@@ -1,0 +1,125 @@
+<div class="reports-dashboard">
+  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
+
+  <header class="page-header">
+    <div class="page-header__title">
+      <h1>Reports & Analytics</h1>
+      <p class="page-header__subtitle">Analyze operational data across all stages</p>
+    </div>
+
+    <div class="page-header__actions">
+      <ui-button variant="outline" (click)="loadSummary()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="18"></lucide-icon>
+        Refresh
+      </ui-button>
+    </div>
+  </header>
+
+  @if (error()) {
+    <ui-alert variant="danger" [dismissible]="true" (dismissed)="error.set(null)">
+      {{ error() }}
+      <button type="button" class="retry-btn" (click)="loadSummary()">Retry</button>
+    </ui-alert>
+  }
+
+  <!-- Summary Stats -->
+  <div class="stats-grid">
+    <!-- Total Yield -->
+    <ui-card class="stat-card">
+      <div class="stat-card__icon stat-card__icon--green">
+        <lucide-icon [img]="icons.TrendingUp" [size]="24"></lucide-icon>
+      </div>
+      <div class="stat-card__content">
+        <h3 class="stat-card__label">Overall Yield</h3>
+        @if (loading()) {
+          <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
+        } @else {
+          <p class="stat-card__value">{{ formatPercent(summary()?.totalYieldPct ?? 0) }}</p>
+        }
+      </div>
+      <a routerLink="yield" class="stat-card__link">View Details →</a>
+    </ui-card>
+
+    <!-- Total Waste -->
+    <ui-card class="stat-card">
+      <div class="stat-card__icon stat-card__icon--red">
+        <lucide-icon [img]="icons.Trash2" [size]="24"></lucide-icon>
+      </div>
+      <div class="stat-card__content">
+        <h3 class="stat-card__label">Total Waste</h3>
+        @if (loading()) {
+          <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
+        } @else {
+          <p class="stat-card__value">{{ formatWeight(summary()?.totalWasteKg ?? 0) }}</p>
+          <p class="stat-card__subvalue">{{ formatCurrency(summary()?.totalWasteCost ?? 0) }} cost impact</p>
+        }
+      </div>
+      <a routerLink="waste" class="stat-card__link">View Details →</a>
+    </ui-card>
+
+    <!-- Inventory -->
+    <ui-card class="stat-card">
+      <div class="stat-card__icon stat-card__icon--blue">
+        <lucide-icon [img]="icons.Package" [size]="24"></lucide-icon>
+      </div>
+      <div class="stat-card__content">
+        <h3 class="stat-card__label">Inventory Units</h3>
+        @if (loading()) {
+          <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
+        } @else {
+          <p class="stat-card__value">{{ summary()?.inventoryUnits ?? 0 }}</p>
+          <p class="stat-card__subvalue">{{ formatWeight(summary()?.inventoryWeightKg ?? 0) }}</p>
+        }
+      </div>
+      <a routerLink="inventory" class="stat-card__link">View Details →</a>
+    </ui-card>
+
+    <!-- Procurement Cost -->
+    <ui-card class="stat-card">
+      <div class="stat-card__icon stat-card__icon--amber">
+        <lucide-icon [img]="icons.DollarSign" [size]="24"></lucide-icon>
+      </div>
+      <div class="stat-card__content">
+        <h3 class="stat-card__label">Procurement Cost</h3>
+        @if (loading()) {
+          <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
+        } @else {
+          <p class="stat-card__value">{{ formatCurrency(summary()?.procurementCostTotal ?? 0) }}</p>
+          <p class="stat-card__subvalue">{{ formatCurrency(summary()?.avgCostPerKg ?? 0) }}/kg avg</p>
+        }
+      </div>
+      <a routerLink="procurement" class="stat-card__link">View Details →</a>
+    </ui-card>
+  </div>
+
+  <!-- Report Links Grid -->
+  <section class="reports-section">
+    <h2 class="section-title">Available Reports</h2>
+
+    <div class="reports-grid">
+      @for (report of reportLinks; track report.id) {
+        <a [routerLink]="report.route" class="report-card report-card--{{ report.color }}">
+          <div class="report-card__icon">
+            <lucide-icon [img]="report.icon" [size]="24"></lucide-icon>
+          </div>
+          <div class="report-card__content">
+            <h3 class="report-card__title">{{ report.title }}</h3>
+            <p class="report-card__description">{{ report.description }}</p>
+          </div>
+          <div class="report-card__arrow">→</div>
+        </a>
+      }
+    </div>
+  </section>
+
+  <!-- Info Box -->
+  <ui-card class="info-box">
+    <div class="info-box__icon">
+      <lucide-icon [img]="icons.FileBarChart" [size]="24"></lucide-icon>
+    </div>
+    <div class="info-box__content">
+      <h3>Reports are Read-Only</h3>
+      <p>All report data is calculated from operational records. Reports cannot modify any data and are safe for audit purposes. Export functionality requires the REPORTS_EXPORT permission.</p>
+    </div>
+  </ui-card>
+</div>

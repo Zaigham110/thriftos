@@ -11,11 +11,13 @@ const common_1 = require("@nestjs/common");
 const rag_controller_1 = require("./rag.controller");
 const rag_service_1 = require("./rag.service");
 const cost_allocation_service_1 = require("../cost-allocation/cost-allocation.service");
+const tenant_sequence_module_1 = require("../shared/tenant-sequence.module");
 let RagModule = class RagModule {
 };
 exports.RagModule = RagModule;
 exports.RagModule = RagModule = __decorate([
     (0, common_1.Module)({
+        imports: [tenant_sequence_module_1.TenantSequenceModule],
         controllers: [rag_controller_1.RagController],
         providers: [rag_service_1.RagService, cost_allocation_service_1.CostAllocationService],
         exports: [rag_service_1.RagService],

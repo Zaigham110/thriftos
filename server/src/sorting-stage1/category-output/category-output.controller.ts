@@ -25,6 +25,22 @@ export class CategoryOutputController {
     return this.service.findAll(tenantId, { sortSessionId, categoryId, page, limit });
   }
 
+  /**
+   * Get category outputs available for grading (no GradeSession exists yet)
+   * Used by Stage 2 dashboard to show items ready to grade
+   */
+  @Get('available-for-grading')
+  @RequirePermissions('SORTING_STAGE1_VIEW')
+  async findAvailableForGrading(
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+  ) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    return this.service.findAvailableForGrading(tenantId, { page, limit });
+  }
+
   @Get(':id')
   @RequirePermissions('SORTING_STAGE1_VIEW')
   async findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserData, @Req() req: Request) {

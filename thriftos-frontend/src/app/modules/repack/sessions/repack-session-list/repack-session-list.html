@@ -1,0 +1,202 @@
+<!-- Repack Session List Template - Phase 5 -->
+<div class="repack-session-list">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="header-content">
+      <h1 class="page-title">
+        <lucide-icon [img]="icons.package" size="24"></lucide-icon>
+        Repack Sessions
+      </h1>
+      <p class="page-subtitle">
+        Repack graded outputs into sellable units with QR codes.
+      </p>
+    </div>
+    <!-- NO Create button - sessions created from Stage 2 outputs -->
+  </div>
+
+  <!-- Error Alert -->
+  @if (error()) {
+    <div class="error-alert">
+      <lucide-icon [img]="icons.alert" size="18"></lucide-icon>
+      <span>{{ error() }}</span>
+    </div>
+  }
+
+  <!-- Filters Card -->
+  <ui-card class="filters-card">
+    <div class="filters-row">
+      <!-- Search -->
+      <div class="search-field">
+        <lucide-icon [img]="icons.search" size="16" class="search-icon"></lucide-icon>
+        <input
+          type="text"
+          class="search-input"
+          placeholder="Search sessions..."
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)"
+        />
+      </div>
+
+      <!-- Status Filter -->
+      <div class="filter-field">
+        <lucide-icon [img]="icons.filter" size="16" class="filter-icon"></lucide-icon>
+        <select
+          class="filter-select"
+          [ngModel]="statusFilter()"
+          (ngModelChange)="statusFilter.set($event); onStatusChange()"
+        >
+          @for (option of statusOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- Results count -->
+      <div class="results-count">
+        {{ totalCount() }} session{{ totalCount() !== 1 ? 's' : '' }}
+      </div>
+    </div>
+  </ui-card>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <ui-card class="loading-card">
+      <div class="loading-content">
+        <div class="spinner"></div>
+        <span>Loading repack sessions...</span>
+      </div>
+    </ui-card>
+  } @else {
+    <!-- Sessions Table -->
+    <ui-card class="table-card">
+      @if (filteredSessions().length === 0) {
+        <div class="empty-state">
+          <lucide-icon [img]="icons.package" size="48" class="empty-icon"></lucide-icon>
+          <h3>No Repack Sessions</h3>
+          <p>
+            Repack sessions are created from Stage 2 graded outputs.<br/>
+            Go to <strong>Sorting Stage 2</strong> → <strong>Grading Session</strong> → <strong>Grade Output</strong> → <strong>Start Repack</strong>
+          </p>
+        </div>
+      } @else {
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Session ID</th>
+                <th>Worker</th>
+                <th>Units</th>
+                <th>Status</th>
+                <th>Start Time</th>
+                <th>End Time</th>
+                <th class="actions-col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (session of filteredSessions(); track session.id) {
+                <tr 
+                  class="table-row"
+                  [class.row-closed]="session.status === 'CLOSED'"
+                  (click)="navigateToSession(session)"
+                >
+                  <td class="cell-id">
+                    <code class="session-code">{{ truncateId(session.id) }}</code>
+                  </td>
+                  <td class="cell-worker">
+                    <div class="worker-info">
+                      <span>{{ getWorkerName(session) }}</span>
+                    </div>
+                  </td>
+                  <td class="cell-units">
+                    <div class="unit-count">
+                      <lucide-icon [img]="icons.qrCode" size="14"></lucide-icon>
+                      <span>{{ getUnitCount(session) }}</span>
+                    </div>
+                  </td>
+                  <td class="cell-status">
+                    <ui-badge [variant]="getStatusBadgeVariant(session.status)">
+                      @if (session.status === 'OPEN') {
+                        <lucide-icon [img]="icons.clock" size="12"></lucide-icon>
+                      } @else {
+                        <lucide-icon [img]="icons.lock" size="12"></lucide-icon>
+                      }
+                      {{ session.status }}
+                    </ui-badge>
+                  </td>
+                  <td class="cell-date">
+                    {{ formatDate(session.startTime) }}
+                  </td>
+                  <td class="cell-date">
+                    @if (session.endTime) {
+                      {{ formatDate(session.endTime) }}
+                    } @else {
+                      <span class="text-muted">—</span>
+                    }
+                  </td>
+                  <td class="cell-actions" (click)="$event.stopPropagation()">
+                    @if (session.status === 'OPEN') {
+                      <ui-button
+                        variant="primary"
+                        size="sm"
+                        (click)="navigateToSession(session)"
+                      >
+                        <lucide-icon [img]="icons.play" size="14"></lucide-icon>
+                        Continue
+                      </ui-button>
+                    } @else {
+                      <ui-button
+                        variant="outline"
+                        size="sm"
+                        (click)="navigateToSession(session)"
+                      >
+                        <lucide-icon [img]="icons.eye" size="14"></lucide-icon>
+                        View
+                      </ui-button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        @if (totalPages() > 1) {
+          <div class="pagination">
+            <ui-button
+              variant="outline"
+              size="sm"
+              [disabled]="currentPage() === 1"
+              (click)="onPageChange(currentPage() - 1)"
+            >
+              <lucide-icon [img]="icons.chevronLeft" size="16"></lucide-icon>
+              Previous
+            </ui-button>
+            <span class="page-info">
+              Page {{ currentPage() }} of {{ totalPages() }}
+            </span>
+            <ui-button
+              variant="outline"
+              size="sm"
+              [disabled]="currentPage() === totalPages()"
+              (click)="onPageChange(currentPage() + 1)"
+            >
+              Next
+              <lucide-icon [img]="icons.chevronRight" size="16"></lucide-icon>
+            </ui-button>
+          </div>
+        }
+      }
+    </ui-card>
+  }
+
+  <!-- Info Banner -->
+  <div class="info-banner">
+    <lucide-icon [img]="icons.qrCode" size="16"></lucide-icon>
+    <span>
+      <strong>Workflow:</strong> Stage 2 (Grading)
+      → Repack (Create Units + QR)
+      → Inventory
+    </span>
+  </div>
+</div>

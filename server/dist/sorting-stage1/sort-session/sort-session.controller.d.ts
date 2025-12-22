@@ -12,7 +12,7 @@ export declare class SortSessionController {
         createdAt: Date;
         updatedAt: Date;
         status: import("@prisma/client").$Enums.SortStatus;
-        ragId: string | null;
+        ragId: string;
         incomingBaleId: string | null;
         workerId: string;
         supervisorId: string;
@@ -26,14 +26,14 @@ export declare class SortSessionController {
         data: ({
             rag: {
                 id: string;
-                ragCode: string;
                 weightKg: import("@prisma/client/runtime/library").Decimal;
+                ragCode: string;
                 allocatedCost: import("@prisma/client/runtime/library").Decimal;
             };
             incomingBale: {
                 id: string;
-                weightKg: import("@prisma/client/runtime/library").Decimal;
                 baleCode: string;
+                weightKg: import("@prisma/client/runtime/library").Decimal;
                 cost: import("@prisma/client/runtime/library").Decimal;
             };
             _count: {
@@ -55,7 +55,7 @@ export declare class SortSessionController {
             createdAt: Date;
             updatedAt: Date;
             status: import("@prisma/client").$Enums.SortStatus;
-            ragId: string | null;
+            ragId: string;
             incomingBaleId: string | null;
             workerId: string;
             supervisorId: string;
@@ -73,14 +73,14 @@ export declare class SortSessionController {
         yieldPercent: number;
         rag: {
             id: string;
-            ragCode: string;
             weightKg: import("@prisma/client/runtime/library").Decimal;
+            ragCode: string;
             allocatedCost: import("@prisma/client/runtime/library").Decimal;
         };
         incomingBale: {
             id: string;
-            weightKg: import("@prisma/client/runtime/library").Decimal;
             baleCode: string;
+            weightKg: import("@prisma/client/runtime/library").Decimal;
             cost: import("@prisma/client/runtime/library").Decimal;
         };
         sortCategoryBuckets: ({
@@ -93,8 +93,11 @@ export declare class SortSessionController {
                 tenantId: string;
                 createdAt: Date;
                 updatedAt: Date;
+                containerId: string | null;
                 weightKg: import("@prisma/client/runtime/library").Decimal;
                 allocatedCost: import("@prisma/client/runtime/library").Decimal;
+                ragId: string;
+                sortSessionId: string;
                 categoryId: string;
                 count: number;
                 sortCategoryBucketId: string;
@@ -123,7 +126,7 @@ export declare class SortSessionController {
         createdAt: Date;
         updatedAt: Date;
         status: import("@prisma/client").$Enums.SortStatus;
-        ragId: string | null;
+        ragId: string;
         incomingBaleId: string | null;
         workerId: string;
         supervisorId: string;
@@ -139,7 +142,7 @@ export declare class SortSessionController {
         createdAt: Date;
         updatedAt: Date;
         status: import("@prisma/client").$Enums.SortStatus;
-        ragId: string | null;
+        ragId: string;
         incomingBaleId: string | null;
         workerId: string;
         supervisorId: string;
@@ -156,7 +159,7 @@ export declare class SortSessionController {
             createdAt: Date;
             updatedAt: Date;
             status: import("@prisma/client").$Enums.SortStatus;
-            ragId: string | null;
+            ragId: string;
             incomingBaleId: string | null;
             workerId: string;
             supervisorId: string;
@@ -168,5 +171,6 @@ export declare class SortSessionController {
         };
         outputs: any[];
         yieldPercent: number;
+        wasteWeight: import("@prisma/client/runtime/library").Decimal;
     }>;
 }

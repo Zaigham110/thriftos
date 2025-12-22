@@ -11,12 +11,13 @@ const common_1 = require("@nestjs/common");
 const grade_session_module_1 = require("./grade-session/grade-session.module");
 const grade_bucket_module_1 = require("./grade-bucket/grade-bucket.module");
 const grade_output_module_1 = require("./grade-output/grade-output.module");
+const grades_module_1 = require("./grades/grades.module");
 let SortingStage2Module = class SortingStage2Module {
 };
 exports.SortingStage2Module = SortingStage2Module;
 exports.SortingStage2Module = SortingStage2Module = __decorate([
     (0, common_1.Module)({
-        imports: [grade_session_module_1.GradeSessionModule, grade_bucket_module_1.GradeBucketModule, grade_output_module_1.GradeOutputModule],
+        imports: [grade_session_module_1.GradeSessionModule, grade_bucket_module_1.GradeBucketModule, grade_output_module_1.GradeOutputModule, grades_module_1.GradesModule],
     })
 ], SortingStage2Module);
 //# sourceMappingURL=sorting-stage2.module.js.map

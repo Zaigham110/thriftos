@@ -3,7 +3,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../audit/audit.service';
 import { CostAllocationService } from '../cost-allocation/cost-allocation.service';
 import { CreateRagDto } from './dto/create-rag.dto';
-import { ContainerStatus } from '@prisma/client';
+import { ContainerStatus, RagStatus, RagSourceType, SequenceScope } from '@prisma/client';
+import { TenantSequenceService } from '../shared/tenant-sequence.service';
 
 @Injectable()
 export class RagService {
@@ -11,6 +12,7 @@ export class RagService {
     private prisma: PrismaService,
     private auditService: AuditService,
     private costAllocationService: CostAllocationService,
+    private tenantSequenceService: TenantSequenceService,
   ) {}
 
   async create(tenantId: string, dto: CreateRagDto, userId: string) {
@@ -24,6 +26,9 @@ export class RagService {
         purchaseOrder: {
           select: { id: true, poNumber: true },
         },
+        rags: {
+          select: { weightKg: true },
+        },
       },
     });
 
@@ -35,26 +40,59 @@ export class RagService {
       throw new ConflictException('Cannot add rags to a closed container');
     }
 
-    // Check for duplicate rag code within tenant
-    const existing = await this.prisma.rag.findFirst({
-      where: { tenantId, ragCode: dto.ragCode },
+    // Validate raw category exists and is active
+    const rawCategory = await this.prisma.rawCategory.findFirst({
+      where: { id: dto.rawCategoryId, tenantId, isActive: true },
     });
 
-    if (existing) {
-      throw new BadRequestException(`Rag code "${dto.ragCode}" already exists`);
+    if (!rawCategory) {
+      throw new BadRequestException('Raw category not found or inactive');
     }
+
+    // Validate total weight doesn't exceed container gross weight
+    const currentTotalWeight = container.rags.reduce((sum, rag) => sum + Number(rag.weightKg), 0);
+    const newTotalWeight = Number(currentTotalWeight) + Number(dto.weightKg);
+    const grossWeight = Number(container.grossWeight);
+
+    if (newTotalWeight > grossWeight) {
+      throw new BadRequestException(
+        `Total weight (${newTotalWeight} kg) would exceed container gross weight (${grossWeight} kg). Available: ${grossWeight - currentTotalWeight} kg`,
+      );
+    }
+
+    // Determine prefix based on type
+    const prefix = dto.ragBaleType === 'BALE' ? 'BALE' : 'RAG';
+
+    const { code: ragCode } = await this.tenantSequenceService.generateCode(
+      tenantId,
+      SequenceScope.RAG,
+      { prefix, padSize: 3 },
+      async (candidate) => {
+        const collision = await this.prisma.rag.findFirst({
+          where: { tenantId, ragCode: candidate },
+          select: { id: true },
+        });
+        return !collision;
+      },
+    );
 
     const rag = await this.prisma.rag.create({
       data: {
         tenantId,
         containerId: dto.containerId,
-        ragCode: dto.ragCode,
+        ragCode,
+        ragBaleType: dto.ragBaleType,
+        rawCategoryId: dto.rawCategoryId,
         weightKg: dto.weightKg,
         allocatedCost: 0, // Will be calculated
+        notes: dto.notes,
       },
       include: {
         container: {
           select: { containerNumber: true },
+        },
+        rawCategory: {
+          select: { id: true, name: true, rawType: true },
         },
       },
     });
@@ -88,10 +126,19 @@ export class RagService {
     return updatedRag;
   }
 
+  /**
+   * Find all rags for a tenant.
+   * 
+   * Phase 2.5 Domain Rules:
+   * - status filter allows filtering by RagStatus (NOT_STARTED, IN_SORTING, SORTED)
+   * - sortableOnly = true filters to only NOT_STARTED rags (available for sorting)
+   */
   async findAll(
     tenantId: string,
     options?: {
       containerId?: string;
+      status?: RagStatus;
+      sortableOnly?: boolean;
       page?: number;
       limit?: number;
     },
@@ -100,9 +147,17 @@ export class RagService {
     const limit = options?.limit || 20;
     const skip = (page - 1) * limit;
 
+    // Phase 2.5: Status-based filtering
+    // sortableOnly = true filters to only NOT_STARTED rags
+    let statusFilter: RagStatus | undefined = options?.status;
+    if (options?.sortableOnly) {
+      statusFilter = RagStatus.NOT_STARTED;
+    }
+
     const where = {
       tenantId,
       ...(options?.containerId && { containerId: options.containerId }),
+      ...(statusFilter && { status: statusFilter }),
     };
 
     const [data, total] = await Promise.all([
@@ -120,6 +175,9 @@ export class RagService {
                 select: { id: true, poNumber: true },
               },
             },
+          },
+          rawCategory: {
+            select: { id: true, name: true, rawType: true },
           },
         },
       }),
@@ -142,7 +200,11 @@ export class RagService {
             },
           },
         },
-        sortSessions: {
+        rawCategory: {
+          select: { id: true, name: true, rawType: true },
+        },
+        // Phase 2.5: One-to-one relation (Rag can only have one SortSession)
+        sortSession: {
           select: { id: true, status: true },
         },
       },
@@ -158,9 +220,14 @@ export class RagService {
   async delete(tenantId: string, id: string, userId: string) {
     const rag = await this.findOne(tenantId, id);
 
-    // Check if rag has been used in sorting
-    if (rag.sortSessions.length > 0) {
+    // Phase 2.5: Check if rag has been used in sorting (one-to-one relation)
+    if (rag.sortSession) {
       throw new ConflictException('Cannot delete rag that has been used in sorting');
+    }
+
+    // Phase 2.5: Additional check - only NOT_STARTED rags can be deleted
+    if (rag.status !== RagStatus.NOT_STARTED) {
+      throw new ConflictException(`Cannot delete rag with status ${rag.status}`);
     }
 
     const container = rag.container;

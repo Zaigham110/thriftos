@@ -40,6 +40,8 @@ Auth routes:
 POST /auth/login
 POST /auth/logout
 POST /auth/refresh
+POST /auth/exit-impersonation
+GET  /me
 ```
 
 ---
@@ -63,6 +65,12 @@ GET    /superadmin/tenants
 GET    /superadmin/tenants/:id
 PATCH  /superadmin/tenants/:id
 POST   /superadmin/tenants/:id/impersonate
+```
+
+Impersonation response:
+
+```json
+{ "accessToken": "...", "expiresIn": 900 }
 ```
 
 Tenant model fields:
@@ -185,13 +193,14 @@ Guards needed:
 
 ### `TenantGuard`
 
-### `PermissionGuard(permissionCode)`
+### `PermissionGuard` + `@RequirePermissions(...)`
 
 Example usage:
 
 ```
 @Get()
-@UseGuards(JwtAuthGuard, TenantGuard, PermissionGuard('TENANT_LIST'))
+@UseGuards(TenantGuard, PermissionGuard)
+@RequirePermissions('tenant.read')
 ```
 
 ---
@@ -293,6 +302,8 @@ where: { tenantId: currentTenantId }
 ```
 
 ### RULE 2 — Super Admin operations DO NOT require tenantId (global scope)
+
+Super Admin requests operate without an effective tenant context unless impersonating.
 
 ### RULE 3 — Tenant bootstrap MUST be atomic transaction
 

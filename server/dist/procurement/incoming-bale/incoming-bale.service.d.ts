@@ -2,14 +2,25 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../audit/audit.service';
 import { CostAllocationService } from '../cost-allocation/cost-allocation.service';
 import { CreateIncomingBaleDto } from './dto/create-incoming-bale.dto';
+import { TenantSequenceService } from '../shared/tenant-sequence.service';
 export declare class IncomingBaleService {
     private prisma;
     private auditService;
     private costAllocationService;
-    constructor(prisma: PrismaService, auditService: AuditService, costAllocationService: CostAllocationService);
+    private tenantSequenceService;
+    constructor(prisma: PrismaService, auditService: AuditService, costAllocationService: CostAllocationService, tenantSequenceService: TenantSequenceService);
     create(tenantId: string, dto: CreateIncomingBaleDto, userId: string): Promise<{
+        rawCategory: {
+            id: string;
+            name: string;
+            rawType: import("@prisma/client").$Enums.RagBaleType;
+        };
         vendor: {
             name: string;
+        };
+        purchaseOrder: {
+            id: string;
+            poNumber: string;
         };
         container: {
             containerNumber: string;
@@ -20,23 +31,34 @@ export declare class IncomingBaleService {
         createdAt: Date;
         updatedAt: Date;
         vendorId: string | null;
+        purchaseOrderId: string | null;
         containerId: string | null;
-        weightKg: import("@prisma/client/runtime/library").Decimal;
+        rawCategoryId: string | null;
         baleCode: string;
-        categoryGuess: string | null;
+        weightKg: import("@prisma/client/runtime/library").Decimal;
         cost: import("@prisma/client/runtime/library").Decimal;
     }>;
     findAll(tenantId: string, options?: {
         containerId?: string;
         vendorId?: string;
+        purchaseOrderId?: string;
         standalone?: boolean;
         page?: number;
         limit?: number;
     }): Promise<{
         data: ({
+            rawCategory: {
+                id: string;
+                name: string;
+                rawType: import("@prisma/client").$Enums.RagBaleType;
+            };
             vendor: {
                 id: string;
                 name: string;
+            };
+            purchaseOrder: {
+                id: string;
+                poNumber: string;
             };
             container: {
                 purchaseOrder: {
@@ -52,10 +74,11 @@ export declare class IncomingBaleService {
             createdAt: Date;
             updatedAt: Date;
             vendorId: string | null;
+            purchaseOrderId: string | null;
             containerId: string | null;
-            weightKg: import("@prisma/client/runtime/library").Decimal;
+            rawCategoryId: string | null;
             baleCode: string;
-            categoryGuess: string | null;
+            weightKg: import("@prisma/client/runtime/library").Decimal;
             cost: import("@prisma/client/runtime/library").Decimal;
         })[];
         total: number;
@@ -63,6 +86,11 @@ export declare class IncomingBaleService {
         limit: number;
     }>;
     findOne(tenantId: string, id: string): Promise<{
+        rawCategory: {
+            id: string;
+            name: string;
+            rawType: import("@prisma/client").$Enums.RagBaleType;
+        };
         vendor: {
             id: string;
             tenantId: string;
@@ -72,6 +100,20 @@ export declare class IncomingBaleService {
             updatedAt: Date;
             country: string | null;
             contactInfo: string | null;
+        };
+        purchaseOrder: {
+            vendor: {
+                id: string;
+                tenantId: string;
+                createdAt: Date;
+                name: string;
+                isActive: boolean;
+                updatedAt: Date;
+                country: string | null;
+                contactInfo: string | null;
+            };
+            id: string;
+            poNumber: string;
         };
         container: {
             purchaseOrder: {
@@ -101,15 +143,25 @@ export declare class IncomingBaleService {
         createdAt: Date;
         updatedAt: Date;
         vendorId: string | null;
+        purchaseOrderId: string | null;
         containerId: string | null;
-        weightKg: import("@prisma/client/runtime/library").Decimal;
+        rawCategoryId: string | null;
         baleCode: string;
-        categoryGuess: string | null;
+        weightKg: import("@prisma/client/runtime/library").Decimal;
         cost: import("@prisma/client/runtime/library").Decimal;
     }>;
     update(tenantId: string, id: string, dto: Partial<CreateIncomingBaleDto>, userId: string): Promise<{
+        rawCategory: {
+            id: string;
+            name: string;
+            rawType: import("@prisma/client").$Enums.RagBaleType;
+        };
         vendor: {
             name: string;
+        };
+        purchaseOrder: {
+            id: string;
+            poNumber: string;
         };
         container: {
             containerNumber: string;
@@ -120,10 +172,11 @@ export declare class IncomingBaleService {
         createdAt: Date;
         updatedAt: Date;
         vendorId: string | null;
+        purchaseOrderId: string | null;
         containerId: string | null;
-        weightKg: import("@prisma/client/runtime/library").Decimal;
+        rawCategoryId: string | null;
         baleCode: string;
-        categoryGuess: string | null;
+        weightKg: import("@prisma/client/runtime/library").Decimal;
         cost: import("@prisma/client/runtime/library").Decimal;
     }>;
     delete(tenantId: string, id: string, userId: string): Promise<{

@@ -1,0 +1,9 @@
+<div class="skeleton-wrapper">
+  @for (line of lineArray; track line) {
+    <div
+      [class]="skeletonClasses"
+      [style]="skeletonStyle"
+      aria-hidden="true"
+    ></div>
+  }
+</div>

@@ -7,17 +7,16 @@ export class CreateIncomingBaleDto {
 
   @IsString()
   @IsOptional()
+  purchaseOrderId?: string;
+
+  @IsString()
+  @IsOptional()
   vendorId?: string;
 
   @IsString()
   @IsNotEmpty()
   @MaxLength(50)
-  baleCode: string;
-
-  @IsString()
-  @IsOptional()
-  @MaxLength(100)
-  categoryGuess?: string;
+  rawCategoryId: string;
 
   @IsNumber()
   @Min(0.01)

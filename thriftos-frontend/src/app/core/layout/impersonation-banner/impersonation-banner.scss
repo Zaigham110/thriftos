@@ -1,0 +1,65 @@
+@use 'sass:color';
+
+.impersonation-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 1rem;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-bottom: 2px solid #f59e0b;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+
+.banner-content {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.banner-icon {
+  color: #d97706;
+  flex-shrink: 0;
+}
+
+.banner-text {
+  font-size: 0.875rem;
+  color: #92400e;
+
+  strong {
+    font-weight: 600;
+  }
+}
+
+.exit-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: #dc2626;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+
+  &:hover:not(:disabled) {
+    background-color: #b91c1c;
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  lucide-icon {
+    flex-shrink: 0;
+  }
+}

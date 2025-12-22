@@ -10,11 +10,13 @@ exports.CommonModule = void 0;
 const common_1 = require("@nestjs/common");
 const permission_guard_1 = require("./guards/permission.guard");
 const tenant_guard_1 = require("./guards/tenant.guard");
+const audit_module_1 = require("../audit/audit.module");
 let CommonModule = class CommonModule {
 };
 exports.CommonModule = CommonModule;
 exports.CommonModule = CommonModule = __decorate([
     (0, common_1.Module)({
+        imports: [audit_module_1.AuditModule],
         providers: [permission_guard_1.PermissionGuard, tenant_guard_1.TenantGuard],
         exports: [permission_guard_1.PermissionGuard, tenant_guard_1.TenantGuard],
     })

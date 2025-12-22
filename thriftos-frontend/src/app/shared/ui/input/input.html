@@ -1,0 +1,34 @@
+<div class="input-wrapper">
+  @if (label()) {
+    <label [for]="id()" class="input-label">
+      {{ label() }}
+      @if (required()) {
+        <span class="input-required" aria-hidden="true">*</span>
+      }
+    </label>
+  }
+
+  <input
+    [id]="id()"
+    [type]="type()"
+    [class]="inputClasses"
+    [placeholder]="placeholder()"
+    [disabled]="disabled() || isDisabled()"
+    [readonly]="readonly()"
+    [required]="required()"
+    [attr.aria-invalid]="!!error()"
+    [attr.aria-describedby]="error() ? id() + '-error' : hint() ? id() + '-hint' : null"
+    [value]="value()"
+    (input)="onInputChange($event)"
+    (blur)="onBlur($event)"
+    (focus)="onFocus($event)"
+  />
+
+  @if (hint() && !error()) {
+    <span [id]="id() + '-hint'" class="input-hint">{{ hint() }}</span>
+  }
+
+  @if (error()) {
+    <span [id]="id() + '-error'" class="input-error-text" role="alert">{{ error() }}</span>
+  }
+</div>

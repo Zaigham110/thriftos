@@ -1,0 +1,140 @@
+// ThriftOS Base Styles
+// ====================
+
+@use 'variables' as *;
+
+// CSS Reset additions
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+// Root element
+html {
+  font-family: $font-family-base;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: $bg-app;
+  color: $text-primary;
+  min-height: 100vh;
+}
+
+// Typography base
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.25;
+  color: $text-primary;
+}
+
+h1 {
+  font-size: 1.5rem; // text-2xl
+}
+
+h2 {
+  font-size: 1.125rem; // text-lg
+}
+
+h3 {
+  font-size: 1rem; // text-base
+  font-weight: 500;
+}
+
+p {
+  margin: 0;
+  font-size: 0.875rem; // text-sm
+  color: $text-secondary;
+}
+
+small {
+  font-size: 0.75rem; // text-xs
+  color: $text-muted;
+}
+
+// Links
+a {
+  color: $primary;
+  text-decoration: none;
+  transition: color $transition-fast;
+
+  &:hover {
+    color: $primary-hover;
+  }
+}
+
+// Lists
+ul, ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+// Buttons reset
+button {
+  font-family: inherit;
+  font-size: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+// Form elements reset
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+// Images
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+// Focus visible for accessibility
+:focus-visible {
+  outline: 2px solid $primary;
+  outline-offset: 2px;
+}
+
+// Selection styling
+::selection {
+  background-color: $primary-soft;
+  color: $text-primary;
+}
+
+// Scrollbar styling (webkit)
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: $bg-section;
+}
+
+::-webkit-scrollbar-thumb {
+  background: $border-default;
+  border-radius: 4px;
+
+  &:hover {
+    background: $text-muted;
+  }
+}
+
+// Firefox scrollbar
+* {
+  scrollbar-width: thin;
+  scrollbar-color: $border-default $bg-section;
+}

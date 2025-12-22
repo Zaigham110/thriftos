@@ -1,0 +1,366 @@
+<!-- Grading Session Detail Template - Phase 4 -->
+<div class="grading-session-detail">
+  @if (loading()) {
+    <div class="loading-overlay">
+      <div class="spinner"></div>
+      <span>Loading grading session...</span>
+    </div>
+  } @else if (!session()) {
+    <div class="error-state">
+      <lucide-icon [img]="icons.alertTriangle" size="48"></lucide-icon>
+      <h2>Session Not Found</h2>
+      <p>The grading session could not be loaded.</p>
+      <ui-button variant="outline" routerLink="/app/sorting/stage2">
+        <lucide-icon [img]="icons.arrowLeft" size="16"></lucide-icon>
+        Back to List
+      </ui-button>
+    </div>
+  } @else {
+    <!-- Page Header -->
+    <div class="page-header">
+      <div class="header-left">
+        <ui-button variant="ghost" size="sm" routerLink="/app/sorting/stage2">
+          <lucide-icon [img]="icons.arrowLeft" size="16"></lucide-icon>
+          Back
+        </ui-button>
+        <div class="header-info">
+          <h1 class="page-title">
+            <lucide-icon [img]="icons.award" size="24"></lucide-icon>
+            Grading Session
+          </h1>
+          <ui-badge [variant]="session()!.status === 'CLOSED' ? 'success' : 'warning'">
+            @if (session()!.status === 'CLOSED') {
+              <lucide-icon [img]="icons.lock" size="12"></lucide-icon>
+            }
+            {{ session()!.status }}
+          </ui-badge>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        @if (isEditable()) {
+          <ui-button
+            variant="primary"
+            [disabled]="!canClose() || saving()"
+            (click)="promptClose()"
+          >
+            <lucide-icon [img]="icons.lock" size="16"></lucide-icon>
+            Close Session
+          </ui-button>
+        } @else if (session()!.status === 'CLOSED') {
+          <ui-button
+            variant="primary"
+            [disabled]="saving()"
+            (click)="startRepack()"
+          >
+            <lucide-icon [img]="icons.packagePlus" size="16"></lucide-icon>
+            Start Repack
+          </ui-button>
+        }
+      </div>
+    </div>
+
+    <!-- Traceability Header (MANDATORY) -->
+    <ui-card class="traceability-card">
+      <div class="traceability-header">
+        <lucide-icon [img]="icons.link" size="18"></lucide-icon>
+        <span class="traceability-title">Lineage & Traceability</span>
+      </div>
+      <div class="traceability-grid">
+        <div class="trace-item">
+          <span class="trace-label">Container</span>
+          <span class="trace-value">
+            @if (lineage().containerNumber) {
+              <lucide-icon [img]="icons.box" size="14"></lucide-icon>
+              {{ lineage().containerNumber }}
+            } @else {
+              <span class="trace-na">N/A</span>
+            }
+          </span>
+        </div>
+        <div class="trace-item">
+          <span class="trace-label">Rag/Bale</span>
+          <span class="trace-value">
+            @if (lineage().ragCode) {
+              <lucide-icon [img]="icons.package" size="14"></lucide-icon>
+              {{ lineage().ragCode }}
+            } @else {
+              <span class="trace-na">N/A</span>
+            }
+          </span>
+        </div>
+        <div class="trace-item">
+          <span class="trace-label">Stage 1 Session</span>
+          <span class="trace-value">
+            @if (lineage().stage1SessionId) {
+              <lucide-icon [img]="icons.fileText" size="14"></lucide-icon>
+              <code>{{ lineage().stage1SessionId | slice:0:8 }}...</code>
+            } @else {
+              <span class="trace-na">N/A</span>
+            }
+          </span>
+        </div>
+        <div class="trace-item">
+          <span class="trace-label">Category</span>
+          <span class="trace-value trace-value--highlight">
+            <lucide-icon [img]="icons.layers" size="14"></lucide-icon>
+            {{ lineage().categoryName || 'Unknown' }}
+          </span>
+        </div>
+        <div class="trace-item">
+          <span class="trace-label">Original Weight</span>
+          <span class="trace-value trace-value--weight">
+            <lucide-icon [img]="icons.scale" size="14"></lucide-icon>
+            {{ formatWeight(lineage().originalWeight) }} kg
+          </span>
+        </div>
+      </div>
+    </ui-card>
+
+    <!-- Error Alert -->
+    @if (error()) {
+      <div class="error-alert">
+        <lucide-icon [img]="icons.alertTriangle" size="18"></lucide-icon>
+        <span>{{ error() }}</span>
+      </div>
+    }
+
+    <!-- Workspace Grid -->
+    <div class="workspace-grid">
+      <!-- Left Column: Grade Buckets -->
+      <div class="workspace-column workspace-column--buckets">
+        <ui-card class="buckets-card">
+          <div class="card-header">
+            <h2 class="card-title">
+              <lucide-icon [img]="icons.award" size="18"></lucide-icon>
+              Grade Buckets
+            </h2>
+            @if (isEditable() && availableGrades().length > 0) {
+              <ui-button
+                variant="outline"
+                size="sm"
+                (click)="startAddBucket()"
+                [disabled]="showAddBucket()"
+              >
+                <lucide-icon [img]="icons.plus" size="14"></lucide-icon>
+                Add Grade
+              </ui-button>
+            }
+          </div>
+
+          <!-- Add New Bucket Form -->
+          @if (showAddBucket() && newBucket()) {
+            <div class="add-bucket-form">
+              <div class="form-row">
+                <div class="form-field">
+                  <label>Grade</label>
+                  <select
+                    class="form-select"
+                    [ngModel]="newBucket()!.gradeId"
+                    (ngModelChange)="updateNewBucketGrade($event)"
+                  >
+                    @for (grade of availableGrades(); track grade.id) {
+                      <option [value]="grade.id">{{ grade.name }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="form-field">
+                  <label>Weight (kg)</label>
+                  <input
+                    type="number"
+                    class="form-input"
+                    [ngModel]="newBucket()!.weightKg"
+                    (ngModelChange)="updateNewBucketWeight($event)"
+                    min="0.01"
+                    step="0.01"
+                    [max]="remainingWeight()"
+                  />
+                  <span class="field-hint">Available: {{ formatWeight(remainingWeight()) }} kg</span>
+                </div>
+                <div class="form-field">
+                  <label>Count</label>
+                  <input
+                    type="number"
+                    class="form-input"
+                    [ngModel]="newBucket()!.count"
+                    (ngModelChange)="updateNewBucketCount($event)"
+                    min="0"
+                    step="1"
+                  />
+                </div>
+              </div>
+              @if (!canAddWeight()) {
+                <div class="validation-warning">
+                  <lucide-icon [img]="icons.alertTriangle" size="14"></lucide-icon>
+                  Weight exceeds available remaining weight
+                </div>
+              }
+              <div class="form-actions">
+                <ui-button variant="ghost" size="sm" (click)="cancelAddBucket()">
+                  Cancel
+                </ui-button>
+                <ui-button
+                  variant="primary"
+                  size="sm"
+                  [disabled]="!canAddWeight() || saving() || newBucket()!.weightKg <= 0"
+                  (click)="saveNewBucket()"
+                >
+                  <lucide-icon [img]="icons.plus" size="14"></lucide-icon>
+                  Add Bucket
+                </ui-button>
+              </div>
+            </div>
+          }
+
+          <!-- Existing Buckets -->
+          <div class="buckets-list">
+            @for (bucket of session()!.gradeBuckets; track bucket.id) {
+              <app-grade-bucket
+                [bucket]="bucket"
+                [grade]="getGradeForBucket(bucket)"
+                [editable]="isEditable()"
+                [maxWeight]="getBucketMaxWeight(bucket)"
+                (bucketUpdated)="onBucketUpdated($event)"
+                (bucketDeleted)="onBucketDeleted($event)"
+              ></app-grade-bucket>
+            } @empty {
+              @if (!showAddBucket()) {
+                <div class="empty-buckets">
+                  <lucide-icon [img]="icons.award" size="32"></lucide-icon>
+                  <p>No grade buckets yet</p>
+                  @if (isEditable()) {
+                    <ui-button variant="outline" size="sm" (click)="startAddBucket()">
+                      <lucide-icon [img]="icons.plus" size="14"></lucide-icon>
+                      Add First Grade
+                    </ui-button>
+                  }
+                </div>
+              }
+            }
+          </div>
+        </ui-card>
+
+        <!-- Waste Display (Calculated) -->
+        <ui-card class="waste-card">
+          <div class="waste-header">
+            <lucide-icon [img]="icons.trash" size="18" class="waste-icon"></lucide-icon>
+            <span class="waste-title">Waste (Remaining)</span>
+          </div>
+          <div class="waste-stats">
+            <div class="waste-stat">
+              <lucide-icon [img]="icons.scale" size="14"></lucide-icon>
+              <span class="waste-value">{{ formatWeight(gradingTotals().wasteWeight) }} kg</span>
+            </div>
+          </div>
+          <p class="waste-note">Waste = Input Weight - Total Graded</p>
+        </ui-card>
+      </div>
+
+      <!-- Right Column: Totals -->
+      <div class="workspace-column">
+        <!-- Totals Panel -->
+        <ui-card class="totals-card">
+          <div class="card-header">
+            <h2 class="card-title">
+              <lucide-icon [img]="icons.checkCircle" size="18"></lucide-icon>
+              Session Totals
+            </h2>
+          </div>
+
+          <div class="totals-grid">
+            <div class="total-item">
+              <span class="total-label">Input Weight</span>
+              <span class="total-value font-mono">{{ formatWeight(gradingTotals().totalInputWeight) }} kg</span>
+            </div>
+            
+            <div class="total-item">
+              <span class="total-label">Total Graded</span>
+              <span class="total-value font-mono">{{ formatWeight(gradingTotals().totalGradedWeight) }} kg</span>
+            </div>
+
+            <div class="total-item">
+              <span class="total-label">Waste</span>
+              <span class="total-value font-mono total-value--waste">{{ formatWeight(gradingTotals().wasteWeight) }} kg</span>
+            </div>
+
+            <div class="total-item">
+              <span class="total-label">Total Items</span>
+              <span class="total-value font-mono">{{ gradingTotals().totalItemCount }}</span>
+            </div>
+
+            <div class="total-item total-item--highlight">
+              <span class="total-label">Yield %</span>
+              <span class="total-value font-mono">{{ gradingTotals().yieldPercentage.toFixed(1) }}%</span>
+            </div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="progress-section">
+            <div class="progress-label">
+              <span>Grading Progress</span>
+              <span>{{ gradingTotals().yieldPercentage.toFixed(0) }}%</span>
+            </div>
+            <div class="progress-bar">
+              <div 
+                class="progress-fill"
+                [style.width.%]="gradingTotals().yieldPercentage"
+              ></div>
+            </div>
+          </div>
+        </ui-card>
+
+        <!-- Grade Breakdown -->
+        @if ((session()!.gradeBuckets || []).length > 0) {
+          <ui-card class="breakdown-card">
+            <div class="card-header">
+              <h2 class="card-title">Grade Breakdown</h2>
+            </div>
+            <div class="breakdown-list">
+              @for (bucket of session()!.gradeBuckets; track bucket.id) {
+                <div class="breakdown-item">
+                  <span class="breakdown-grade">{{ bucket.grade?.name || getGradeName(bucket.gradeId) }}</span>
+                  <div class="breakdown-stats">
+                    <span class="breakdown-weight">{{ formatWeight(bucket.outputWeightKg) }} kg</span>
+                    <span class="breakdown-percent">
+                      {{ (toNum(bucket.outputWeightKg) / gradingTotals().totalInputWeight * 100).toFixed(1) }}%
+                    </span>
+                  </div>
+                </div>
+              }
+            </div>
+          </ui-card>
+        }
+      </div>
+    </div>
+
+    <!-- Close Confirmation Modal -->
+    @if (showCloseConfirm()) {
+      <div class="modal-overlay" (click)="cancelClose()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <lucide-icon [img]="icons.alertTriangle" size="24" class="modal-icon"></lucide-icon>
+            <h3>Close Grading Session?</h3>
+          </div>
+          <div class="modal-body">
+            <p>This action will:</p>
+            <ul>
+              <li>Lock all grade allocations permanently</li>
+              <li>Create immutable grade output records</li>
+              <li>Calculate final waste and yield</li>
+            </ul>
+            <p class="modal-warning">This cannot be undone.</p>
+          </div>
+          <div class="modal-actions">
+            <ui-button variant="outline" (click)="cancelClose()">
+              Cancel
+            </ui-button>
+            <ui-button variant="primary" (click)="confirmClose()" [disabled]="saving()">
+              <lucide-icon [img]="icons.lock" size="16"></lucide-icon>
+              Close Session
+            </ui-button>
+          </div>
+        </div>
+      </div>
+    }
+  }
+</div>

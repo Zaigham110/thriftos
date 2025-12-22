@@ -1,0 +1,23 @@
+<div class="tabs">
+  <div class="tabs-list" role="tablist">
+    @for (tab of tabs(); track tab.id) {
+      <button
+        type="button"
+        class="tabs-trigger"
+        [class.tabs-trigger-active]="isActive(tab.id)"
+        [class.tabs-trigger-disabled]="tab.disabled"
+        [disabled]="tab.disabled"
+        role="tab"
+        [attr.aria-selected]="isActive(tab.id)"
+        [attr.aria-controls]="'panel-' + tab.id"
+        [id]="'tab-' + tab.id"
+        (click)="selectTab(tab.id)"
+      >
+        {{ tab.label }}
+      </button>
+    }
+  </div>
+  <div class="tabs-content">
+    <ng-content></ng-content>
+  </div>
+</div>

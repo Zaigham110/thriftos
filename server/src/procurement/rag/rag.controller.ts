@@ -18,6 +18,7 @@ import { TenantGuard } from '../../common/guards/tenant.guard';
 import { PermissionGuard } from '../../common/guards/permission.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
+import { RagStatus } from '@prisma/client';
 
 @Controller('procurement')
 @UseGuards(TenantGuard, PermissionGuard)
@@ -37,17 +38,32 @@ export class RagController {
     return this.ragService.create(tenantId, { ...dto, containerId }, user.userId);
   }
 
+  /**
+   * Get all rags for a tenant.
+   * 
+   * Phase 2.5: Supports status filtering for sorting workflow.
+   * - status: Filter by RagStatus (NOT_STARTED, IN_SORTING, SORTED)
+   * - sortableOnly: When 'true', returns only NOT_STARTED rags available for sorting
+   */
   @Get('rags')
   @RequirePermissions('rag.read')
   async findAll(
     @Query('containerId') containerId: string,
+    @Query('status') status: RagStatus,
+    @Query('sortableOnly') sortableOnly: string,
     @Query('page') page: number,
     @Query('limit') limit: number,
     @CurrentUser() user: CurrentUserData,
     @Req() req: Request,
   ) {
     const tenantId = (req as any).tenantId || user.tenantId;
-    return this.ragService.findAll(tenantId, { containerId, page, limit });
+    return this.ragService.findAll(tenantId, {
+      containerId,
+      status,
+      sortableOnly: sortableOnly === 'true',
+      page,
+      limit,
+    });
   }
 
   @Get('rags/:id')

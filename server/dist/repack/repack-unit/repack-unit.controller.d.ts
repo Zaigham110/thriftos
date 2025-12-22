@@ -19,8 +19,12 @@ export declare class RepackUnitController {
         updatedAt: Date;
         status: import("@prisma/client").$Enums.RepackStatus;
         totalCost: import("@prisma/client/runtime/library").Decimal;
+        containerId: string | null;
         weightKg: import("@prisma/client/runtime/library").Decimal;
+        ragId: string | null;
+        sortSessionId: string | null;
         categoryId: string | null;
+        gradeSessionId: string | null;
         gradeId: string | null;
         repackSessionId: string;
         unitCode: string;
@@ -59,8 +63,12 @@ export declare class RepackUnitController {
             updatedAt: Date;
             status: import("@prisma/client").$Enums.RepackStatus;
             totalCost: import("@prisma/client/runtime/library").Decimal;
+            containerId: string | null;
             weightKg: import("@prisma/client/runtime/library").Decimal;
+            ragId: string | null;
+            sortSessionId: string | null;
             categoryId: string | null;
+            gradeSessionId: string | null;
             gradeId: string | null;
             repackSessionId: string;
             unitCode: string;
@@ -89,9 +97,9 @@ export declare class RepackUnitController {
             createdAt: Date;
             updatedAt: Date;
             weightKg: import("@prisma/client/runtime/library").Decimal;
+            sourceType: import("@prisma/client").$Enums.SourceType;
             pcsCount: number;
             repackUnitId: string;
-            sourceType: import("@prisma/client").$Enums.SourceType;
             sourceId: string;
         }[];
         qrLabel: {
@@ -109,8 +117,12 @@ export declare class RepackUnitController {
         updatedAt: Date;
         status: import("@prisma/client").$Enums.RepackStatus;
         totalCost: import("@prisma/client/runtime/library").Decimal;
+        containerId: string | null;
         weightKg: import("@prisma/client/runtime/library").Decimal;
+        ragId: string | null;
+        sortSessionId: string | null;
         categoryId: string | null;
+        gradeSessionId: string | null;
         gradeId: string | null;
         repackSessionId: string;
         unitCode: string;

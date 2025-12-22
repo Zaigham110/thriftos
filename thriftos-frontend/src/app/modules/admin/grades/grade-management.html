@@ -1,0 +1,144 @@
+<div class="page-container">
+  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
+
+  <div class="page-header">
+    <div class="header-left">
+      <lucide-icon [img]="icons.Star" class="header-icon"></lucide-icon>
+      <div class="header-text">
+        <h1 class="page-title">Grades</h1>
+        <p class="page-subtitle">Quality grades for sorting and inventory classification</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary" (click)="refresh()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [class.spinning]="loading()"></lucide-icon>
+        Refresh
+      </button>
+      <button 
+        class="btn btn-primary" 
+        (click)="openAddDrawer()"
+        *hasPermission="'grade.create'"
+      >
+        <lucide-icon [img]="icons.Plus"></lucide-icon>
+        Add Grade
+      </button>
+    </div>
+  </div>
+
+  <!-- Search Bar -->
+  <div class="search-bar">
+    <div class="search-input-wrapper">
+      <lucide-icon [img]="icons.Search" class="search-icon"></lucide-icon>
+      <input
+        type="text"
+        class="search-input"
+        placeholder="Search grades..."
+        [value]="searchQuery()"
+        (input)="searchQuery.set($any($event.target).value)"
+      />
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <ui-card>
+      <div class="skeleton-table">
+        @for (i of [1, 2, 3, 4]; track i) {
+          <div class="skeleton-row">
+            <ui-skeleton width="80px" height="28px"></ui-skeleton>
+            <ui-skeleton width="300px" height="16px"></ui-skeleton>
+            <ui-skeleton width="120px" height="32px"></ui-skeleton>
+          </div>
+        }
+      </div>
+    </ui-card>
+  } @else if (filteredGrades().length === 0) {
+    <ui-card>
+      @if (searchQuery()) {
+        <ui-empty-state
+          title="No grades found"
+          description="No grades match your search criteria."
+          [icon]="icons.Star"
+        ></ui-empty-state>
+      } @else {
+        <ui-empty-state
+          title="No grades yet"
+          description="Create your first grade to start classifying inventory."
+          [icon]="icons.Star"
+        >
+          <button 
+            class="btn btn-primary" 
+            (click)="openAddDrawer()"
+            *hasPermission="'grade.create'"
+          >
+            <lucide-icon [img]="icons.Plus"></lucide-icon>
+            Add Grade
+          </button>
+        </ui-empty-state>
+      }
+    </ui-card>
+  } @else {
+    <ui-card [padding]="false">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Grade</th>
+            <th>Description</th>
+            <th class="actions-column">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (grade of filteredGrades(); track grade.id) {
+            <tr>
+              <td>
+                <span class="grade-badge" [ngClass]="getGradeBadgeClass(grade)">
+                  {{ grade.name }}
+                </span>
+              </td>
+              <td>
+                <span class="description-text">{{ grade.description || '—' }}</span>
+              </td>
+              <td class="actions-cell">
+                <button 
+                  class="btn btn-icon" 
+                  title="Edit Grade"
+                  (click)="openEditDrawer(grade)"
+                  *hasPermission="'grade.update'"
+                >
+                  <lucide-icon [img]="icons.Pencil"></lucide-icon>
+                </button>
+                <button 
+                  class="btn btn-icon btn-danger" 
+                  title="Delete Grade"
+                  (click)="confirmDelete(grade)"
+                  *hasPermission="'grade.delete'"
+                >
+                  <lucide-icon [img]="icons.Trash2"></lucide-icon>
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </ui-card>
+  }
+</div>
+
+<!-- Grade Form Drawer -->
+<app-grade-form-drawer
+  [isOpen]="drawerOpen()"
+  [grade]="selectedGrade()"
+  (closed)="closeDrawer()"
+  (saved)="onSaved()"
+></app-grade-form-drawer>
+
+<!-- Delete Confirmation Dialog -->
+<ui-confirm-dialog
+  [open]="confirmDeleteOpen()"
+  title="Delete Grade"
+  [message]="'Are you sure you want to delete the grade \'' + (gradeToDelete()?.name || '') + '\'? This action cannot be undone.'"
+  confirmText="Delete"
+  confirmVariant="danger"
+  (confirmed)="deleteGrade()"
+  (cancelled)="cancelDelete()"
+></ui-confirm-dialog>

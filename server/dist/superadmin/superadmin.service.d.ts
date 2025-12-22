@@ -10,7 +10,7 @@ export declare class SuperAdminService {
     private auditService;
     private bootstrapService;
     constructor(prisma: PrismaService, auditService: AuditService, bootstrapService: TenantBootstrapService);
-    createTenant(dto: CreateTenantDto, userId: string, adminEmail?: string, adminName?: string): Promise<TenantResponseDto & {
+    createTenant(dto: CreateTenantDto, userId: string): Promise<TenantResponseDto & {
         bootstrap: BootstrapResult;
     }>;
     findAll(page?: number, limit?: number, status?: TenantStatus): Promise<TenantListResponseDto>;

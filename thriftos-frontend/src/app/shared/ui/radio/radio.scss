@@ -1,0 +1,96 @@
+@use '../../../../styles/variables' as *;
+@use '../../../../styles/mixins' as *;
+
+.radio-group {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.radio-legend {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: $text-primary;
+  margin-bottom: 0.75rem;
+}
+
+.radio-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.radio-horizontal {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.radio-option {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.radio-disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.radio-input {
+  @include sr-only;
+}
+
+.radio-circle {
+  flex-shrink: 0;
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 1px solid $border-default;
+  border-radius: 9999px;
+  background-color: $bg-card;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-fast;
+
+  .radio-option:hover:not(.radio-disabled) & {
+    border-color: $primary;
+  }
+
+  .radio-input:focus-visible + & {
+    outline: 2px solid $primary;
+    outline-offset: 2px;
+  }
+
+  .radio-selected & {
+    border-color: $primary;
+  }
+}
+
+.radio-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background-color: $primary;
+  transform: scale(0);
+  transition: transform $transition-fast;
+
+  .radio-selected & {
+    transform: scale(1);
+  }
+}
+
+.radio-label-text {
+  font-size: 0.875rem;
+  color: $text-primary;
+  line-height: 1.25;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.radio-hint {
+  font-size: 0.75rem;
+  color: $text-muted;
+}

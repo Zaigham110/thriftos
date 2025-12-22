@@ -7,4 +7,5 @@ export declare class CreateTenantDto {
     status?: TenantStatus;
     adminEmail?: string;
     adminName?: string;
+    adminPassword?: string;
 }

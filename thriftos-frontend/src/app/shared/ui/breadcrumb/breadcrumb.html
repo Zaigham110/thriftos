@@ -1,0 +1,20 @@
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <ol class="breadcrumb-list">
+    @for (item of items(); track item.label; let i = $index) {
+      <li class="breadcrumb-item">
+        @if (item.link && !isLast(i)) {
+          <a [routerLink]="item.link" class="breadcrumb-link">{{ item.label }}</a>
+        } @else {
+          <span class="breadcrumb-current" [attr.aria-current]="isLast(i) ? 'page' : null">
+            {{ item.label }}
+          </span>
+        }
+        @if (!isLast(i)) {
+          <span class="breadcrumb-separator" aria-hidden="true">
+            <lucide-icon [img]="separatorIcon" [size]="14"></lucide-icon>
+          </span>
+        }
+      </li>
+    }
+  </ol>
+</nav>

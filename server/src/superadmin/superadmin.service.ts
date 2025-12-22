@@ -18,8 +18,6 @@ export class SuperAdminService {
   async createTenant(
     dto: CreateTenantDto,
     userId: string,
-    adminEmail?: string,
-    adminName?: string,
   ): Promise<TenantResponseDto & { bootstrap: BootstrapResult }> {
     // Check for duplicate company code
     const existing = await this.prisma.tenant.findUnique({
@@ -42,26 +40,35 @@ export class SuperAdminService {
     });
 
     // Bootstrap the tenant
-    const bootstrap = await this.bootstrapService.bootstrapTenant(tenant.id, adminEmail, adminName);
+    const bootstrap = await this.bootstrapService.bootstrapTenant(
+      tenant.id,
+      dto.adminEmail,
+      dto.adminName,
+      dto.adminPassword,
+    );
 
-    // Log the action
-    await this.auditService.log({
-      userId,
-      tenantId: tenant.id,
-      action: 'TENANT_CREATED',
-      entityType: 'Tenant',
-      entityId: tenant.id,
-      metadataJson: {
-        tenantName: tenant.name,
-        companyCode: tenant.companyCode,
-        bootstrapResult: {
-          roles: bootstrap.roles,
-          categories: bootstrap.categories,
-          grades: bootstrap.grades,
-          warehouses: bootstrap.warehouses,
+    // Log the action (non-blocking - don't fail tenant creation if audit fails)
+    try {
+      await this.auditService.log({
+        userId,
+        tenantId: tenant.id,
+        action: 'TENANT_CREATED',
+        entityType: 'Tenant',
+        entityId: tenant.id,
+        metadataJson: {
+          tenantName: tenant.name,
+          companyCode: tenant.companyCode,
+          bootstrapResult: {
+            roles: bootstrap.roles,
+            categories: bootstrap.categories,
+            grades: bootstrap.grades,
+            warehouses: bootstrap.warehouses,
+          },
         },
-      },
-    });
+      });
+    } catch (auditError) {
+      console.error('Failed to log audit for tenant creation:', auditError);
+    }
 
     return {
       ...tenant,

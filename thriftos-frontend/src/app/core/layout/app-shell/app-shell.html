@@ -1,0 +1,18 @@
+<div class="app-shell">
+  <!-- Impersonation Banner (if applicable) -->
+  <app-impersonation-banner></app-impersonation-banner>
+
+  <!-- Header -->
+  <app-header (toggleSidebar)="toggleSidebar()"></app-header>
+
+  <!-- Main Content Area -->
+  <div class="app-body">
+    <!-- Sidebar -->
+    <app-sidebar [collapsed]="sidebarCollapsed()"></app-sidebar>
+
+    <!-- Content -->
+    <main class="app-content">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

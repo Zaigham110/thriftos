@@ -1,160 +1,97 @@
-You are an **elite Angular 21 enterprise SaaS frontend engineer**.
+You are an **elite Angular 21 enterprise ERP frontend engineer**.
 
 You are implementing **Frontend Phase 1** for **ThriftOS**, a **multi-tenant ERP SaaS**.
 
-This phase establishes the **entire SaaS control plane**:
+This phase establishes the **SaaS control plane UI**:
 
 * Authentication
 * Application shell
 * Permission-based navigation
 * **Super Admin tenant lifecycle**
 * **Tenant impersonation**
+* Backend feature coverage validation
 
-Backend APIs are **frozen and authoritative**.
-
-🚫 NO backend logic
-🚫 NO API guessing
-🚫 NO ERP business workflows
-🚫 NO skipping RBAC
+🚫 NO business ERP workflows
+🚫 NO procurement / sorting / inventory
+🚫 NO guessing backend behavior
 
 ---
 
-# ---------------------------------------------------------
+## 🔒 BACKEND COVERAGE RULE (MANDATORY)
 
-# 🧠 1. PHASE 1 SCOPE (LOCKED)
+Before writing code, the AI agent MUST:
 
-# ---------------------------------------------------------
+1. Read:
 
-You MUST implement:
+   * `docs/architecture/backend-feature-register.md`
+   * `docs/architecture/frontend-backend-coverage-matrix.md`
+   * `docs/security/frontend-permissions-map.md`
+2. Identify **Phase 1 backend features**:
 
-✔ Authentication flows (login, logout)
-✔ Application shell (layout, navigation)
-✔ Permission-based routing & menus
-✔ **Super Admin Tenant Management UI**
-✔ **Super Admin Tenant Impersonation UI**
-✔ Impersonation safety UX
-✔ Auth guards & error handling
+   * Super Admin tenant management
+   * Impersonation
+   * Auth session handling
+3. Confirm **100% UI coverage** for those features
+4. Fail execution if **any Phase 1 backend feature lacks UI**
 
-You MUST NOT implement:
-
-* Procurement
-* Sorting
-* Inventory
-* Reports
-* Tenant admin configs (Phase 8)
+This rule is **non-optional**.
 
 ---
 
-# ---------------------------------------------------------
+## 🧠 PHASE 1 SCOPE (LOCKED)
 
-# 🧱 2. APP SHELL STRUCTURE
+### This phase MUST implement:
 
-# ---------------------------------------------------------
+✔ Login UI (visual + logic)
+✔ Logout
+✔ Auth guards
+✔ App shell (header + sidebar)
+✔ Permission-driven navigation
+✔ **Super Admin tenant CRUD**
+✔ **Tenant impersonation with safety UX**
+✔ Error handling & access denial states
 
-Create core layout under:
+### This phase MUST NOT implement:
+
+❌ Procurement
+❌ Sorting
+❌ Inventory
+❌ Reports
+❌ Tenant admin configs (Phase 8)
+
+---
+
+## 🧱 TECH & STYLE CONSTRAINTS (INHERITED FROM PHASE 0)
+
+* Angular 21
+* Angular CLI only
+* Standalone components
+* SCSS + Tailwind
+* Inter font
+* Lucide icons
+* Light ERP theme only
+* OnPush change detection
+* Signals for derived state
+
+🚫 No dark UI
+🚫 No inline styles
+🚫 No manual file creation
+
+---
+
+## ⚙️ ROUTING & MODULE STRUCTURE
+
+### App Shell
 
 ```
-src/app/core/
- ├── layout/
- │   ├── app-shell.component.ts
- │   ├── header.component.ts
- │   ├── sidebar.component.ts
- │   ├── impersonation-banner.component.ts
- ├── guards/
- ├── services/
+src/app/core/layout/
+ ├── app-shell.component.ts
+ ├── header.component.ts
+ ├── sidebar.component.ts
+ ├── impersonation-banner.component.ts
 ```
 
-Shell rules:
-
-* Sidebar driven by permissions
-* Lazy-loaded modules
-* Impersonation banner always visible when active
-
----
-
-# ---------------------------------------------------------
-
-# 🔐 3. AUTHENTICATION FLOW
-
-# ---------------------------------------------------------
-
-## Login Page
-
-Route:
-
-```
-/login
-```
-
-Features:
-
-* Email + password
-* Error handling
-* Loading state
-
-On success:
-
-* Store JWT securely
-* Load user profile & permissions
-* Redirect based on role:
-
-  * Super Admin → `/admin/super/tenants`
-  * Tenant User → `/app/dashboard`
-
----
-
-## Logout
-
-* Clears token
-* Clears impersonation state
-* Redirects to `/login`
-
----
-
-# ---------------------------------------------------------
-
-# 🛡️ 4. AUTH & PERMISSION GUARDS
-
-# ---------------------------------------------------------
-
-Implement:
-
-* `AuthGuard`
-* `SuperAdminGuard`
-* `PermissionGuard`
-
-Rules:
-
-* Super Admin routes require SuperAdminGuard
-* Tenant users **must never** access super admin routes
-* Unauthorized access → 403 page
-
----
-
-# ---------------------------------------------------------
-
-# 🧑‍💼 5. SUPER ADMIN — TENANT MANAGEMENT (CRITICAL)
-
-# ---------------------------------------------------------
-
-## API CONTRACT (AUTHORITATIVE)
-
-Frontend MUST integrate exactly:
-
-```http
-POST   /superadmin/tenants
-GET    /superadmin/tenants
-GET    /superadmin/tenants/:id
-PATCH  /superadmin/tenants/:id
-POST   /superadmin/tenants/:id/impersonate
-```
-
-🚫 No alternatives
-🚫 No mock APIs
-
----
-
-## MODULE STRUCTURE
+### Super Admin Module
 
 ```
 src/app/modules/admin/super-admin/
@@ -166,7 +103,7 @@ src/app/modules/admin/super-admin/
  │   └── tenants.routes.ts
 ```
 
-Lazy-loaded under:
+Lazy loaded at:
 
 ```
 /admin/super
@@ -174,39 +111,112 @@ Lazy-loaded under:
 
 ---
 
-## 🧾 TENANTS LIST PAGE
+## 🔐 AUTHENTICATION UI
 
-### Route
+### Login Page
+
+Route:
+
+```
+/login
+```
+
+Layout:
+
+* Uses Phase 0 login foundation
+* Left: Brand panel (logo, tagline)
+* Right: Login form
+
+Fields:
+
+* Email
+* Password
+
+Behavior:
+
+1. POST `/auth/login`
+2. Store JWT securely
+3. Load user profile + permissions
+4. Redirect:
+
+   * Super Admin → `/admin/super/tenants`
+   * Tenant User → `/app/dashboard`
+
+Error states:
+
+* Invalid credentials
+* Network failure
+* Disabled user
+
+---
+
+## 🛡️ AUTH & PERMISSION GUARDS
+
+Generate via Angular CLI:
+
+* `AuthGuard`
+* `SuperAdminGuard`
+* `PermissionGuard`
+
+Rules:
+
+* Super Admin routes require `SUPER_ADMIN` role
+* Tenant users cannot access `/admin/super/*`
+* Unauthorized → 403 page (not silent redirect)
+
+---
+
+## 🧑‍💼 SUPER ADMIN — TENANT MANAGEMENT UI
+
+### Backend APIs (AUTHORITATIVE)
+
+```http
+POST   /superadmin/tenants
+GET    /superadmin/tenants
+GET    /superadmin/tenants/:id
+PATCH  /superadmin/tenants/:id
+POST   /superadmin/tenants/:id/impersonate
+```
+
+🚫 No alternate endpoints
+🚫 No mock APIs
+
+---
+
+### Tenants List Page
+
+Route:
 
 ```
 /admin/super/tenants
 ```
 
-### Table Columns
+Table:
 
 * Company Name
 * Company Code
 * Currency
-* Status (ACTIVE / INACTIVE)
+* Status (Active / Inactive)
 * Created Date
 
-### Actions
+Actions:
 
 * View
 * Edit
 * Activate / Deactivate
 * Impersonate
 
-### Filters
+Design:
 
-* Status
-* Search (Name / Code)
+* Dense ERP table
+* Status badges
+* Confirmation dialogs for destructive actions
 
 ---
 
-## ➕ CREATE / UPDATE TENANT (DRAWER)
+### Create / Edit Tenant (Drawer)
 
-### Fields
+Fields:
 
 * Company Name
 * Company Code (immutable after create)
@@ -216,53 +226,44 @@ Lazy-loaded under:
 
 Rules:
 
-* Company Code must be unique
-* Deactivation requires confirmation
-* Inline validation errors
+* Company Code unique
+* Inline validation
+* Deactivation confirmation required
 
 ---
 
-# ---------------------------------------------------------
+## 🧑‍💻 TENANT IMPERSONATION (CRITICAL)
 
-# 🧑‍💻 6. TENANT IMPERSONATION (MANDATORY & STRICT)
-
-# ---------------------------------------------------------
-
-## Trigger
+### Trigger
 
 ```
 POST /superadmin/tenants/:id/impersonate
 ```
 
-Backend returns:
+### Frontend Behavior
 
-* Impersonation token
-* Tenant metadata
+1. Receive impersonation token
+2. Replace auth context
+3. Redirect to:
 
-Frontend MUST:
-
-1. Replace auth context with impersonation token
-2. Redirect user to:
-
-   ```
-   https://{tenant}.thriftos.com/app
-   ```
+```
+https://{tenant}.thriftos.com/app
+```
 
 ---
 
-## ⚠️ IMPERSONATION UX RULES (NON-NEGOTIABLE)
+### Impersonation UX RULES (NON-NEGOTIABLE)
 
 While impersonating:
 
-* 🔴 Persistent **impersonation banner**
-* 🔴 Banner text:
+* Persistent banner at top
+* Text:
 
   > “You are impersonating {Tenant Name}”
-* 🔴 “Exit Impersonation” button
-* 🔴 High-visibility color (amber/red)
-* 🔴 Banner shown on **every screen**
+* High-visibility warning style
+* “Exit Impersonation” button
 
-Exit flow:
+Exit:
 
 ```
 POST /auth/exit-impersonation
@@ -270,18 +271,14 @@ POST /auth/exit-impersonation
 
 On exit:
 
-* Restore original Super Admin session
-* Redirect back to `/admin/super/tenants`
+* Restore Super Admin session
+* Redirect to tenant list
 
 ---
 
-# ---------------------------------------------------------
+## 🧭 MENU & NAVIGATION RULES
 
-# 🔐 7. MENU & NAVIGATION RULES
-
-# ---------------------------------------------------------
-
-### Super Admin sees:
+### Super Admin Menu
 
 ```
 Admin
@@ -289,84 +286,78 @@ Admin
      └── Tenants
 ```
 
-### Tenant users:
+### Tenant Users
 
-* Must never see Super Admin menu
-* Must never hit Super Admin routes
+* Must NEVER see Super Admin menu
+* Must NEVER reach Super Admin routes
 
-Menu is driven entirely by:
-
-* User role
-* Permissions
-* Impersonation state
+Menus driven entirely by permissions.
 
 ---
 
-# ---------------------------------------------------------
-
-# 🧪 8. ERROR HANDLING & EDGE CASES
-
-# ---------------------------------------------------------
+## 🧪 ERROR & EDGE CASE HANDLING
 
 Handle explicitly:
 
-* 401 → Redirect to login
-* 403 → Access denied page
-* 409 → Duplicate company code
-* 400 → Validation errors
-* Network failure → Retry UI
+* 401 → redirect to login
+* 403 → access denied page
+* 409 → company code conflict
+* 400 → validation errors
+* Network failure → retry option
 
 ---
 
-# ---------------------------------------------------------
+## 🧱 UI / UX RULES (ERP-SAFE)
 
-# 🧱 9. UI / UX RULES (ENTERPRISE)
+✔ Calm, light UI
+✔ Dense tables
+✔ Clear confirmations
+✔ No hidden state
+✔ No animations masking actions
 
-# ---------------------------------------------------------
-
-✔ Clean, dense SaaS UI
-✔ Clear confirmations for destructive actions
-✔ No animations that hide state
-✔ Immediate visual feedback
-✔ Accessible contrast
-
-Super Admin UI must feel **powerful but safe**.
+This UI must feel **authoritative and safe**.
 
 ---
 
-# ---------------------------------------------------------
+## 🛠️ ANGULAR CLI GENERATION RULES
 
-# 🧱 10. CODE QUALITY RULES
+All code MUST be generated via Angular CLI:
 
-# ---------------------------------------------------------
+```bash
+ng generate component modules/admin/super-admin/tenants/tenants-list \
+  --standalone \
+  --change-detection=OnPush \
+  --style=scss
+```
 
-✔ Angular 21 standalone components
-✔ Typed services & DTOs
-✔ Strict typing
-✔ No inline API calls
-✔ No business logic
-✔ No shortcuts
+Same rule for services, guards, banners.
 
 ---
 
-# ---------------------------------------------------------
+## 🧪 QUALITY & AI-SAFETY RULES
 
-# 🚀 11. FINAL CURSOR INSTRUCTIONS
+* No TODOs
+* No placeholder logic
+* No UI without backend feature mapping
+* No permissions not in permissions map
+* Fail if backend coverage incomplete
 
-# ---------------------------------------------------------
+---
 
-Generate the **complete Frontend Phase 1 implementation**, including:
+## 🚀 FINAL AI / CURSOR INSTRUCTIONS
 
-✔ Auth pages
+Generate **complete Frontend Phase 1**, including:
+
+✔ Login UI & logic
 ✔ App shell
 ✔ Guards
+✔ Permission-driven navigation
 ✔ Super Admin tenant management
-✔ Impersonation flow & banner
-✔ Permission-based navigation
+✔ Impersonation UX
 ✔ Error handling
 
-❌ Do NOT implement business modules
-❌ Do NOT mock APIs
+❌ Do NOT implement business ERP modules
+❌ Do NOT add tenant admin configs
 ❌ Do NOT bypass RBAC
 
-Output **real Angular code** into correct project folders.
+Output **real Angular 21 code**, fully compliant with Phase 0.

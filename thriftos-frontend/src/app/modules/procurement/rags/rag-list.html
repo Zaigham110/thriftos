@@ -1,0 +1,237 @@
+<!-- Rag List Component Template -->
+<!-- Phase 2.5: Container Breakdown -->
+
+<div class="rag-list">
+  <!-- Error Alert -->
+  @if (error()) {
+    <ui-alert variant="danger" [dismissible]="true" (dismissed)="clearError()">
+      {{ error() }}
+    </ui-alert>
+  }
+
+  <!-- Header -->
+  <div class="rag-list__header">
+    <div class="rag-list__header-left">
+      <h3 class="rag-list__title">Rags / Bales</h3>
+      <span class="rag-list__count">
+        {{ filteredRags().length }}
+        @if (sortedCount() > 0 && !showSorted()) {
+          <span class="text-muted">({{ sortedCount() }} sorted hidden)</span>
+        }
+      </span>
+    </div>
+
+    <div class="rag-list__header-actions">
+      <!-- Toggle Show Sorted -->
+      <ui-button
+        variant="ghost"
+        size="sm"
+        (clicked)="toggleShowSorted()"
+        [title]="showSorted() ? 'Hide sorted rags' : 'Show sorted rags'"
+      >
+        @if (showSorted()) {
+          <lucide-icon [img]="icons.eyeOff" [size]="16"></lucide-icon>
+          Hide Sorted
+        } @else {
+          <lucide-icon [img]="icons.eye" [size]="16"></lucide-icon>
+          Show Sorted
+        }
+      </ui-button>
+
+      <!-- Add Rag Button -->
+      @if (canAddRags() && !isContainerClosed()) {
+        <ui-button
+          variant="primary"
+          size="sm"
+          (clicked)="openCreateDrawer()"
+          [disabled]="actionLoading()"
+        >
+          <lucide-icon [img]="icons.plus" [size]="16"></lucide-icon>
+          Add Rag / Bale
+        </ui-button>
+      }
+    </div>
+  </div>
+
+  <!-- Container Status Warning -->
+  @if (!canAddRags() && !isContainerClosed()) {
+    <ui-alert variant="info" class="mb-4">
+      <lucide-icon [img]="icons.alertCircle" [size]="16"></lucide-icon>
+      Container must be "Arrived" or "Cleared" to add rags.
+    </ui-alert>
+  }
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="rag-list__loading">
+      @for (i of [1, 2, 3]; track i) {
+        <div class="rag-list__skeleton-row">
+          <ui-skeleton variant="text" class="skeleton-code"></ui-skeleton>
+          <ui-skeleton variant="text" class="skeleton-weight"></ui-skeleton>
+          <ui-skeleton variant="text" class="skeleton-status"></ui-skeleton>
+          <ui-skeleton variant="text" class="skeleton-actions"></ui-skeleton>
+        </div>
+      }
+    </div>
+  } @else if (filteredRags().length === 0) {
+    <!-- Empty State -->
+    <ui-empty-state
+      title="No Rags / Bales"
+      [description]="showSorted() 
+        ? 'This container has no rags yet.' 
+        : 'No active rags. All rags may be sorted.'"
+      [icon]="icons.package"
+    >
+      @if (canAddRags() && !isContainerClosed()) {
+        <ui-button variant="primary" (clicked)="openCreateDrawer()">
+          <lucide-icon [img]="icons.plus" [size]="16"></lucide-icon>
+          Add First Rag / Bale
+        </ui-button>
+      }
+    </ui-empty-state>
+  } @else {
+    <!-- Rags Table -->
+    <div class="rag-table-wrapper">
+      <table class="rag-table">
+        <thead>
+          <tr>
+            <th class="col-code">Rag Code</th>
+            <th class="col-weight">Weight (KG)</th>
+            <th class="col-cost">Allocated Cost</th>
+            <th class="col-status">Status</th>
+            <th class="col-created">Created</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (rag of filteredRags(); track trackByRagId($index, rag)) {
+            <tr [class.row-sorted]="rag.status === 'SORTED'"
+                [class.row-in-sorting]="rag.status === 'IN_SORTING'">
+              <td class="col-code">
+                <span class="rag-code">{{ rag.ragCode }}</span>
+                @if (rag.notes) {
+                  <span class="rag-notes" [title]="rag.notes">📝</span>
+                }
+              </td>
+              <td class="col-weight">
+                <span class="weight-value">{{ rag.weightKg | number:'1.2-2' }}</span>
+              </td>
+              <td class="col-cost">
+                <span class="cost-value">${{ rag.allocatedCost | number:'1.2-2' }}</span>
+              </td>
+              <td class="col-status">
+                <ui-badge [variant]="getStatusBadgeVariant(rag.status)" size="sm">
+                  {{ getStatusLabel(rag.status) }}
+                </ui-badge>
+              </td>
+              <td class="col-created">
+                {{ rag.createdAt | date:'short' }}
+              </td>
+              <td class="col-actions">
+                <div class="actions-group">
+                  <!-- Start Sorting Button (NOT_STARTED only) -->
+                  @if (canStartSorting(rag)) {
+                    <ui-button
+                      variant="primary"
+                      size="sm"
+                      (clicked)="confirmStartSorting(rag)"
+                      [disabled]="actionLoading()"
+                      title="Start Sorting Stage 1"
+                    >
+                      <lucide-icon [img]="icons.play" [size]="14"></lucide-icon>
+                      Start Sorting
+                    </ui-button>
+                  }
+
+                  <!-- Edit Button (NOT_STARTED only) -->
+                  @if (isEditable(rag)) {
+                    <ui-button
+                      variant="ghost"
+                      size="sm"
+                      (clicked)="openEditDrawer(rag)"
+                      [disabled]="actionLoading()"
+                      title="Edit Rag"
+                    >
+                      <lucide-icon [img]="icons.edit" [size]="14"></lucide-icon>
+                    </ui-button>
+                  }
+
+                  <!-- Delete Button (NOT_STARTED only) -->
+                  @if (isEditable(rag)) {
+                    <ui-button
+                      variant="ghost"
+                      size="sm"
+                      (clicked)="confirmDelete(rag)"
+                      [disabled]="actionLoading()"
+                      title="Delete Rag"
+                      class="btn-danger-ghost"
+                    >
+                      <lucide-icon [img]="icons.trash" [size]="14"></lucide-icon>
+                    </ui-button>
+                  }
+
+                  <!-- View Sorting Session (IN_SORTING / SORTED) -->
+                  @if (rag.status !== 'NOT_STARTED' && rag.sortSession) {
+                    <ui-button
+                      variant="ghost"
+                      size="sm"
+                      [routerLink]="['/app/sorting/stage1', rag.sortSession.id]"
+                      title="View Sorting Session"
+                    >
+                      View Session
+                    </ui-button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<!-- Create Rag Drawer -->
+@if (showCreateDrawer()) {
+  <app-rag-create-drawer
+    [containerId]="container().id"
+    [containerNumber]="container().containerNumber"
+    [containerGrossWeight]="container().grossWeight"
+    [containerCurrentWeight]="currentTotalWeight()"
+    (created)="onRagCreated($event)"
+    (closed)="closeCreateDrawer()"
+  ></app-rag-create-drawer>
+}
+
+<!-- Edit Rag Drawer -->
+@if (showEditDrawer() && editingRag()) {
+  <app-rag-edit-drawer
+    [rag]="editingRag()!"
+    (updated)="onRagUpdated($event)"
+    (closed)="closeEditDrawer()"
+  ></app-rag-edit-drawer>
+}
+
+<!-- Delete Confirmation Dialog -->
+<ui-confirm-dialog
+  [open]="showDeleteConfirm()"
+  title="Delete Rag"
+  [message]="deleteConfirmMessage()"
+  confirmText="Delete"
+  confirmVariant="danger"
+  [loading]="actionLoading()"
+  (confirmed)="executeDelete()"
+  (cancelled)="cancelDelete()">
+</ui-confirm-dialog>
+
+<!-- Start Sorting Confirmation Dialog -->
+<ui-confirm-dialog
+  [open]="showSortingConfirm()"
+  title="Start Sorting"
+  [message]="sortingConfirmMessage()"
+  confirmText="Start Sorting"
+  confirmVariant="primary"
+  [loading]="actionLoading()"
+  (confirmed)="executeStartSorting()"
+  (cancelled)="cancelStartSorting()">
+</ui-confirm-dialog>

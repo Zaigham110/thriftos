@@ -1,0 +1,40 @@
+<div class="dashboard-page">
+  <div class="page-header">
+    <h1 class="page-title">Dashboard</h1>
+    <p class="welcome-message">Welcome back, {{ userName() }}!</p>
+  </div>
+
+  @if (isImpersonating()) {
+    <div class="impersonation-notice">
+      <lucide-icon [img]="icons.LayoutDashboard" [size]="20"></lucide-icon>
+      <p>You are viewing this tenant's dashboard as a Super Admin.</p>
+    </div>
+  }
+
+  <!-- Placeholder cards for future modules -->
+  <div class="dashboard-grid">
+    <ui-card title="Procurement">
+      <div class="card-content">
+        <lucide-icon [img]="icons.Package" [size]="40" class="card-icon"></lucide-icon>
+        <p class="card-description">Manage vendors, purchase orders, and incoming inventory.</p>
+        <span class="coming-soon">Coming in Phase 2</span>
+      </div>
+    </ui-card>
+
+    <ui-card title="Sorting">
+      <div class="card-content">
+        <lucide-icon [img]="icons.ArrowRightLeft" [size]="40" class="card-icon"></lucide-icon>
+        <p class="card-description">Sort and categorize incoming items by category and grade.</p>
+        <span class="coming-soon">Coming in Phase 3-4</span>
+      </div>
+    </ui-card>
+
+    <ui-card title="Reports">
+      <div class="card-content">
+        <lucide-icon [img]="icons.BarChart3" [size]="40" class="card-icon"></lucide-icon>
+        <p class="card-description">View procurement, sorting, and inventory reports.</p>
+        <span class="coming-soon">Coming in Phase 7</span>
+      </div>
+    </ui-card>
+  </div>
+</div>

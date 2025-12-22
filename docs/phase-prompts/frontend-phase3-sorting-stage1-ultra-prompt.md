@@ -1,305 +1,328 @@
-You are an **expert Angular 21 ERP frontend engineer**.
+You are an **elite Angular 21 enterprise ERP frontend engineer**.
 
-Your task is to implement **Frontend Phase 3: Sorting Stage 1 UI**, strictly aligned with:
+You are implementing **Frontend Phase 3** of **ThriftOS**, where **physical rags/bales are unpacked and sorted into categories**.
 
-```
-docs/architecture/thriftos-v3-architecture.md
-docs/phase-prompts/phase3-sorting-stage1-ultra-prompt.md
-docs/phase-prompts/frontend-phase0-ultra-prompt.md
-docs/phase-prompts/frontend-phase1-auth-shell-ultra-prompt.md
-```
+This phase is **factory-floor critical** and must be:
 
-Backend APIs are **frozen and authoritative**.
+* Fast
+* Accurate
+* Impossible to misuse
+* Visually calm and consistent
 
-🚫 NO backend logic
-🚫 NO assumptions
-🚫 NO grading or repack UI
+🚫 Containers are NOT sorted here
+🚫 Loose logic is NOT allowed
 
 ---
 
-# ---------------------------------------------------------
+## 🔒 ABSOLUTE DOMAIN RULE (READ FIRST)
 
-# 🧠 1. PHASE 3 SCOPE (LOCKED)
+> **Sorting Stage 1 can ONLY be started from a Rag/Bale created in Phase 2.5.**
 
-# ---------------------------------------------------------
+Hard rules:
 
-In this phase you MUST implement:
+* ❌ Sorting directly from Container is FORBIDDEN
+* ❌ Sorting a Rag/Bale more than once is FORBIDDEN
+* ❌ Rag with status `SORTED` or `IN_SORTING` MUST NEVER appear
+* ❌ UI must not offer bypasses
 
-✔ Sorting session creation (Rag / Incoming Bale)
-✔ Category bucket workspace (live input)
-✔ Weight + count capture
-✔ Real-time totals & waste calculation
-✔ Session close workflow
-✔ Read-only category output view
-✔ RBAC-aware actions
-
-🚫 No grading
-🚫 No inventory
-🚫 No reports
+If violated → **FAIL implementation**
 
 ---
 
-# ---------------------------------------------------------
+## 🔒 BACKEND COVERAGE RULE (MANDATORY)
 
-# 🧱 2. MODULE STRUCTURE
+Before implementing this phase, AI MUST read:
 
-# ---------------------------------------------------------
+* `docs/architecture/domain-update-container-rag-sorting.md`
+* `docs/architecture/backend-feature-register.md`
+* `docs/architecture/frontend-backend-coverage-matrix.md`
+* `docs/security/frontend-permissions-map.md`
 
-Create under:
+AI must confirm:
+
+* SortingSessionStage1 references **ragBaleId**
+* Rag status lifecycle is enforced
+* Traceability fields exist
+
+---
+
+## 🧠 PHASE 3 SCOPE (LOCKED)
+
+### MUST IMPLEMENT
+
+✔ Sorting Session list
+✔ Sorting Session detail (workspace)
+✔ Category input (weight / qty)
+✔ Waste capture
+✔ Live totals
+✔ Session lifecycle (OPEN → CLOSED)
+✔ Read-only mode after close
+✔ Full source display (income source)
+
+### MUST NOT IMPLEMENT
+
+❌ Grading (Stage 2)
+❌ Repack
+❌ Inventory
+❌ Reports
+❌ Rag creation
+
+---
+
+## 🎨 UI CONSISTENCY RULES (CRITICAL)
+
+🚨 **NO NEW UI PATTERNS ALLOWED**
+
+This phase MUST reuse:
+
+* ThriftUI `Card`
+* ThriftUI `Table`
+* ThriftUI `Input`
+* ThriftUI `Badge`
+* ThriftUI spacing & typography
+
+🚫 No custom grids
+🚫 No redesign
+🚫 No experimental UI
+
+If something feels missing → **extend ThriftUI only**
+
+---
+
+## 🧱 TECH & STYLE (INHERITED)
+
+* Angular 21
+* Angular CLI ONLY
+* Standalone components
+* SCSS + Tailwind layering
+* Inter font
+* Lucide icons
+* Light ERP theme
+* OnPush change detection
+* Signals for derived state
+
+🚫 Inline styles
+🚫 Manual files
+🚫 Dark UI
+
+---
+
+## ⚙️ ROUTING & MODULE STRUCTURE
 
 ```
 src/app/modules/sorting-stage1/
  ├── sessions/
- ├── buckets/
- ├── category-outputs/
+ │   ├── sorting-session-list.page.ts
+ │   └── sorting-session-detail.page.ts
+ ├── workspace/
+ │   ├── category-bucket.component.ts
+ │   ├── waste-bucket.component.ts
+ │   ├── totals-panel.component.ts
+ ├── shared/
+ │   ├── weight-input.component.ts
+ │   └── quantity-input.component.ts
  ├── sorting-stage1.routes.ts
+ └── sorting-stage1.service.ts
 ```
 
-Each sub-module MUST include:
+Lazy-loaded at:
 
-* list page
-* workflow/detail page
-* drawer-based forms
-* service.ts
-* typed DTOs
+```
+/sorting/stage1
+```
 
 ---
 
-# ---------------------------------------------------------
+## 📄 SORTING SESSION LIST
 
-# 🧾 3. SORT SESSION UI
+### Route
 
-# ---------------------------------------------------------
+```
+/sorting/stage1
+```
 
-## 📄 List Page — Sort Sessions
-
-Table columns:
+Table (dense ERP):
 
 * Session ID
-* Source Type (Rag / Incoming Bale)
-* Source Code
-* Input Weight
-* Output Weight
-* Waste
-* Yield %
+* Container Ref (if exists)
+* Rag/Bale ID
+* Rag Weight
 * Status
-* Worker
-* Date
+* Started At
+* Closed At
 
 Actions:
 
-* View / Continue (OPEN)
-* View (CLOSED)
+* Continue (OPEN)
+* View Summary (CLOSED)
 
-Filters:
-
-* Status
-* Source Type
-* Date range
-
-RBAC:
-
-```
-SORTING_STAGE1_VIEW
-SORTING_STAGE1_CREATE
-SORTING_STAGE1_CLOSE
-```
+🚫 Create button here
+(creation happens ONLY in Phase 2.5)
 
 ---
 
-## ➕ Create Sort Session (Drawer)
+## 🧺 SORTING WORKSPACE (CORE SCREEN)
 
-Fields:
+### Route
 
-* Source Type (radio)
-* Rag OR Incoming Bale selector
-* Worker
-* Supervisor (optional)
+```
+/sorting/stage1/:sessionId
+```
+
+### HEADER (MANDATORY — TRACEABILITY)
+
+Display prominently:
+
+```
+Container: C-2024-09 (if applicable)
+Rag/Bale: RAG-004
+Source: Container / Loose Bale
+Original Weight: 92 KG
+```
+
+This header must ALWAYS be visible.
+
+---
+
+## 📐 WORKSPACE LAYOUT (LOCKED)
+
+```
+┌───────────────┬──────────────────────────────┐
+│ Categories    │ Sorting Input Area            │
+│ (Left Panel)  │                              │
+├───────────────┼──────────────────────────────┤
+│ Waste Bucket  │ Totals Panel (Right)          │
+└───────────────┴──────────────────────────────┘
+```
+
+No deviation allowed.
+
+---
+
+## 🧺 CATEGORY BUCKETS
+
+Each category:
+
+* Is a ThriftUI Card
+* Shows:
+
+  * Category name
+  * Total weight / qty
+* Accepts:
+
+  * Weight OR quantity (category config driven)
 
 Rules:
 
-* Exactly one source required
-* Input weight auto-loaded
-* Cannot create duplicate session for same source
+* Numeric-only inputs
+* Immediate validation
+* No free-text categories
 
 ---
 
-# ---------------------------------------------------------
+## 🗑️ WASTE BUCKET
 
-# 🧺 4. SORTING WORKSPACE (CORE SCREEN)
-
-# ---------------------------------------------------------
-
-### ⚙️ Layout (MANDATORY)
-
-```
-┌───────────────┬─────────────────────┬──────────────┐
-│ Categories    │ Active Buckets       │ Summary      │
-│ (reference)   │ (editable table)     │ (live)       │
-└───────────────┴─────────────────────┴──────────────┘
-```
+* Mandatory
+* Same UI as category bucket
+* Muted danger accent
+* Included in totals
 
 ---
 
-### 🟦 Active Buckets Panel
+## 📊 TOTALS PANEL
 
-Editable table:
+Read-only values:
 
-* Category
-* Weight (KG)
-* Count (optional)
-* Remove
-
-Rules:
-
-* Inline editing
-* Keyboard-friendly
-* Real-time validation
-
----
-
-### 🟨 Summary Panel (LIVE)
-
-Display:
-
-* Input Weight
-* Total Output Weight
-* Waste Weight
+* Input weight
+* Sorted weight
+* Waste
 * Yield %
-* Session Status
 
-Waste = Input − Output
-Yield = (Output / Input) × 100
-
-🚫 No manual waste entry
+🚫 No charts
+🚫 No animations
 
 ---
 
-# ---------------------------------------------------------
+## 🔁 SESSION STATE RULES (HARD)
 
-# 🔒 5. SESSION CLOSE WORKFLOW
+### OPEN
 
-# ---------------------------------------------------------
+* Inputs enabled
+* Buckets editable
 
-## Close Button (Primary)
+### CLOSED
 
-On click:
+* Entire UI read-only
+* No edits
+* Summary mode only
 
-1. Validate at least one bucket
-2. Confirm dialog:
+Closing session:
 
-   * “This will lock the session”
-3. Call backend close API
-4. Redirect to read-only view
-
-After close:
-
-* UI becomes read-only
-* Buckets locked
-* Show Category Outputs tab
+* Requires confirmation
+* Backend sets RagStatus → SORTED
 
 ---
 
-# ---------------------------------------------------------
+## 🚫 VISIBILITY & SAFETY RULES
 
-# 📦 6. CATEGORY OUTPUT VIEW (READ-ONLY)
-
-# ---------------------------------------------------------
-
-Table columns:
-
-* Category
-* Weight
-* Count
-* Allocated Cost (read-only)
-
-Purpose:
-
-* Verification
-* Input for Grading (Phase 4)
+* Sorted Rag/Bale MUST NOT appear anywhere else
+* Session list shows history only
+* No reopen
+* No duplicate session creation
 
 ---
 
-# ---------------------------------------------------------
+## 🧪 ERROR & EDGE CASE HANDLING
 
-# 🔐 7. RBAC & VISIBILITY
+Handle explicitly:
 
-# ---------------------------------------------------------
-
-Rules:
-
-* Hide Create button if no CREATE permission
-* Disable Close if no CLOSE permission
-* Read-only fallback if VIEW only
-
-Never rely on frontend permissions for security.
+* Over-allocation warning
+* Missing totals
+* Network failure
+* Concurrent lock notice
 
 ---
 
-# ---------------------------------------------------------
+## 🛠️ ANGULAR CLI RULE (MANDATORY)
 
-# 🧪 8. ERROR & EDGE CASE HANDLING
+All files MUST be generated via CLI:
 
-# ---------------------------------------------------------
-
-Handle:
-
-* Over-allocation (output > input)
-* Backend validation errors
-* Session already closed
-* Cross-tenant access → 403 page
-* Network failure → retry
+```bash
+ng generate component modules/sorting-stage1/workspace/category-bucket \
+  --standalone \
+  --change-detection=OnPush \
+  --style=scss
+```
 
 ---
 
-# ---------------------------------------------------------
+## 🧪 AI-SAFETY & QUALITY GATES
 
-# 🧱 9. UX & PERFORMANCE RULES (VERY IMPORTANT)
+AI MUST FAIL if:
 
-# ---------------------------------------------------------
-
-✔ Dense UI (factory-floor friendly)
-✔ No unnecessary animations
-✔ Keyboard-first data entry
-✔ Large numeric inputs
-✔ Instant feedback
-✔ No page reloads
+* Sorting session created without Rag/Bale
+* Rag appears selectable twice
+* Container sorting is possible
+* Source header missing
+* ThriftUI is bypassed
 
 ---
 
-# ---------------------------------------------------------
+## 🚀 FINAL AI / CURSOR INSTRUCTIONS
 
-# 🧱 10. CODE QUALITY RULES
+Generate **complete Frontend Phase 3**, including:
 
-# ---------------------------------------------------------
-
-✔ Standalone components
-✔ Typed reactive forms
-✔ Services only for API
-✔ Signals for live totals
-✔ ThriftUI components only
-✔ Tailwind utilities only
-
----
-
-# ---------------------------------------------------------
-
-# 🚀 11. FINAL CURSOR INSTRUCTIONS
-
-# ---------------------------------------------------------
-
-Generate **complete Frontend Phase 3 (Sorting Stage 1 UI)** including:
-
-✔ Routes
-✔ Session list
+✔ Sorting session list
 ✔ Sorting workspace
-✔ Drawer forms
-✔ Read-only output view
-✔ Permission handling
-✔ Error handling
+✔ Category & waste buckets
+✔ Totals panel
+✔ Rag-only enforcement
+✔ Status lifecycle enforcement
+✔ Full source traceability
+✔ UI consistency
 
 ❌ Do NOT implement grading
-❌ Do NOT mock data
-❌ Do NOT bypass backend rules
+❌ Do NOT implement repack
+❌ Do NOT implement inventory
 
-Output code directly into project files.
+Output **real Angular 21 code**, production-ready.

@@ -1,0 +1,148 @@
+<div class="user-list">
+  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
+
+  <header class="page-header">
+    <div class="page-header__title">
+      <h1>User Management</h1>
+      <p class="page-header__count">
+        @if (!loading()) {
+          {{ filteredUsers.length }} users
+        }
+      </p>
+    </div>
+    <div class="page-header__actions">
+      <ui-button variant="outline" (click)="refresh()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="16"></lucide-icon>
+        Refresh
+      </ui-button>
+      <ui-button variant="primary" (click)="openCreateDrawer()">
+        <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>
+        Add User
+      </ui-button>
+    </div>
+  </header>
+
+  <!-- Filters -->
+  <div class="filters">
+    <div class="search-box">
+      <lucide-icon [img]="icons.Search" [size]="16" class="search-icon"></lucide-icon>
+      <input
+        type="text"
+        placeholder="Search users..."
+        [value]="searchQuery()"
+        (input)="onSearchChange($event)"
+        class="search-input"
+      />
+    </div>
+    <label class="filter-checkbox">
+      <input
+        type="checkbox"
+        [checked]="showInactive()"
+        (change)="toggleShowInactive()"
+      />
+      Show inactive users
+    </label>
+  </div>
+
+  @if (error()) {
+    <ui-alert variant="danger" [dismissible]="true" (dismissed)="clearError()">
+      {{ error() }}
+    </ui-alert>
+  }
+
+  <ui-card class="table-card">
+    @if (loading()) {
+      <div class="loading-state">
+        @for (i of [1, 2, 3, 4, 5]; track i) {
+          <div class="skeleton-row">
+            <ui-skeleton variant="text"></ui-skeleton>
+          </div>
+        }
+      </div>
+    } @else if (filteredUsers.length === 0) {
+      <ui-empty-state
+        [icon]="icons.Users"
+        title="No Users Found"
+        [description]="searchQuery() ? 'No users match your search criteria' : 'No users have been added yet'"
+      >
+        @if (!searchQuery()) {
+          <ui-button variant="primary" (click)="openCreateDrawer()">
+            <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>
+            Add First User
+          </ui-button>
+        }
+      </ui-empty-state>
+    } @else {
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Roles</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (user of filteredUsers; track user.id) {
+              <tr [class.inactive-row]="!user.isActive">
+                <td class="font-medium">{{ user.name }}</td>
+                <td class="text-muted">{{ user.email }}</td>
+                <td class="roles-cell">{{ getUserRoles(user) }}</td>
+                <td>
+                  <ui-badge [variant]="getStatusVariant(user.isActive)" size="sm">
+                    {{ getStatusLabel(user.isActive) }}
+                  </ui-badge>
+                </td>
+                <td class="text-muted">{{ user.createdAt | date:'mediumDate' }}</td>
+                <td class="text-right actions-cell">
+                  <button
+                    type="button"
+                    class="action-btn"
+                    title="Edit user"
+                    (click)="openEditDrawer(user)"
+                  >
+                    <lucide-icon [img]="icons.Settings" [size]="16"></lucide-icon>
+                  </button>
+                  <button
+                    type="button"
+                    class="action-btn"
+                    [class.danger]="user.isActive"
+                    [title]="user.isActive ? 'Block user' : 'Unblock user'"
+                    (click)="confirmToggleStatus(user)"
+                  >
+                    <lucide-icon [img]="user.isActive ? icons.UserX : icons.UserCheck" [size]="16"></lucide-icon>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </ui-card>
+</div>
+
+<!-- User Form Drawer -->
+<app-user-form-drawer
+  [isOpen]="drawerOpen()"
+  [user]="selectedUser()"
+  [roles]="roles()"
+  (closed)="closeDrawer()"
+  (saved)="onUserSaved()"
+></app-user-form-drawer>
+
+<!-- Confirm Dialog -->
+<ui-confirm-dialog
+  [open]="confirmDialogOpen()"
+  [title]="userToToggle()?.isActive ? 'Block User' : 'Unblock User'"
+  [message]="userToToggle()?.isActive
+    ? 'Are you sure you want to block ' + userToToggle()?.name + '? They will no longer be able to log in.'
+    : 'Are you sure you want to unblock ' + userToToggle()?.name + '? They will be able to log in again.'"
+  [confirmText]="userToToggle()?.isActive ? 'Block' : 'Unblock'"
+  [confirmVariant]="userToToggle()?.isActive ? 'danger' : 'primary'"
+  (confirmed)="executeToggleStatus()"
+  (cancelled)="cancelToggle()"
+></ui-confirm-dialog>

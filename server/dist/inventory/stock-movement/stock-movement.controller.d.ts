@@ -68,7 +68,9 @@ export declare class StockMovementController {
             createdAt: Date;
             updatedAt: Date;
             status: import("@prisma/client").$Enums.InventoryStatus;
+            containerId: string | null;
             weightKg: import("@prisma/client/runtime/library").Decimal;
+            ragId: string | null;
             categoryId: string;
             gradeId: string;
             pcsCount: number;

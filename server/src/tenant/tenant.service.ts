@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RagBaleType } from '@prisma/client';
+import { CreateRawCategoryDto, UpdateRawCategoryDto } from './dto/raw-category.dto';
 
 @Injectable()
 export class TenantService {
@@ -32,6 +34,60 @@ export class TenantService {
     return this.prisma.category.findMany({
       where: { tenantId, isActive: true },
       orderBy: { sortOrder: 'asc' },
+    });
+  }
+
+  async getRawCategories(tenantId: string, type?: RagBaleType) {
+    return this.prisma.rawCategory.findMany({
+      where: {
+        tenantId,
+        isActive: true,
+        ...(type && { rawType: type }),
+      },
+      orderBy: { sortOrder: 'asc' },
+    });
+  }
+
+  async createRawCategory(tenantId: string, dto: CreateRawCategoryDto) {
+    return this.prisma.rawCategory.create({
+      data: {
+        tenantId,
+        name: dto.name,
+        rawType: dto.rawType,
+        sortOrder: dto.sortOrder ?? 0,
+      },
+    });
+  }
+
+  async updateRawCategory(tenantId: string, id: string, dto: UpdateRawCategoryDto) {
+    const category = await this.prisma.rawCategory.findFirst({
+      where: { id, tenantId },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Raw category not found');
+    }
+
+    return this.prisma.rawCategory.update({
+      where: { id },
+      data: {
+        ...(dto.name && { name: dto.name }),
+        ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
+      },
+    });
+  }
+
+  async deleteRawCategory(tenantId: string, id: string) {
+    const category = await this.prisma.rawCategory.findFirst({
+      where: { id, tenantId },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Raw category not found');
+    }
+
+    return this.prisma.rawCategory.delete({
+      where: { id },
     });
   }
 

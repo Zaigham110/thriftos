@@ -6,8 +6,17 @@ export declare class IncomingBaleController {
     private readonly incomingBaleService;
     constructor(incomingBaleService: IncomingBaleService);
     create(dto: CreateIncomingBaleDto, user: CurrentUserData, req: Request): Promise<{
+        rawCategory: {
+            id: string;
+            name: string;
+            rawType: import("@prisma/client").$Enums.RagBaleType;
+        };
         vendor: {
             name: string;
+        };
+        purchaseOrder: {
+            id: string;
+            poNumber: string;
         };
         container: {
             containerNumber: string;
@@ -18,17 +27,27 @@ export declare class IncomingBaleController {
         createdAt: Date;
         updatedAt: Date;
         vendorId: string | null;
+        purchaseOrderId: string | null;
         containerId: string | null;
-        weightKg: import("@prisma/client/runtime/library").Decimal;
+        rawCategoryId: string | null;
         baleCode: string;
-        categoryGuess: string | null;
+        weightKg: import("@prisma/client/runtime/library").Decimal;
         cost: import("@prisma/client/runtime/library").Decimal;
     }>;
-    findAll(containerId: string, vendorId: string, standalone: boolean, page: number, limit: number, user: CurrentUserData, req: Request): Promise<{
+    findAll(containerId: string, vendorId: string, purchaseOrderId: string, standalone: boolean, page: number, limit: number, user: CurrentUserData, req: Request): Promise<{
         data: ({
+            rawCategory: {
+                id: string;
+                name: string;
+                rawType: import("@prisma/client").$Enums.RagBaleType;
+            };
             vendor: {
                 id: string;
                 name: string;
+            };
+            purchaseOrder: {
+                id: string;
+                poNumber: string;
             };
             container: {
                 purchaseOrder: {
@@ -44,10 +63,11 @@ export declare class IncomingBaleController {
             createdAt: Date;
             updatedAt: Date;
             vendorId: string | null;
+            purchaseOrderId: string | null;
             containerId: string | null;
-            weightKg: import("@prisma/client/runtime/library").Decimal;
+            rawCategoryId: string | null;
             baleCode: string;
-            categoryGuess: string | null;
+            weightKg: import("@prisma/client/runtime/library").Decimal;
             cost: import("@prisma/client/runtime/library").Decimal;
         })[];
         total: number;
@@ -55,6 +75,11 @@ export declare class IncomingBaleController {
         limit: number;
     }>;
     findOne(id: string, user: CurrentUserData, req: Request): Promise<{
+        rawCategory: {
+            id: string;
+            name: string;
+            rawType: import("@prisma/client").$Enums.RagBaleType;
+        };
         vendor: {
             id: string;
             tenantId: string;
@@ -64,6 +89,20 @@ export declare class IncomingBaleController {
             updatedAt: Date;
             country: string | null;
             contactInfo: string | null;
+        };
+        purchaseOrder: {
+            vendor: {
+                id: string;
+                tenantId: string;
+                createdAt: Date;
+                name: string;
+                isActive: boolean;
+                updatedAt: Date;
+                country: string | null;
+                contactInfo: string | null;
+            };
+            id: string;
+            poNumber: string;
         };
         container: {
             purchaseOrder: {
@@ -93,15 +132,25 @@ export declare class IncomingBaleController {
         createdAt: Date;
         updatedAt: Date;
         vendorId: string | null;
+        purchaseOrderId: string | null;
         containerId: string | null;
-        weightKg: import("@prisma/client/runtime/library").Decimal;
+        rawCategoryId: string | null;
         baleCode: string;
-        categoryGuess: string | null;
+        weightKg: import("@prisma/client/runtime/library").Decimal;
         cost: import("@prisma/client/runtime/library").Decimal;
     }>;
     update(id: string, dto: Partial<CreateIncomingBaleDto>, user: CurrentUserData, req: Request): Promise<{
+        rawCategory: {
+            id: string;
+            name: string;
+            rawType: import("@prisma/client").$Enums.RagBaleType;
+        };
         vendor: {
             name: string;
+        };
+        purchaseOrder: {
+            id: string;
+            poNumber: string;
         };
         container: {
             containerNumber: string;
@@ -112,10 +161,11 @@ export declare class IncomingBaleController {
         createdAt: Date;
         updatedAt: Date;
         vendorId: string | null;
+        purchaseOrderId: string | null;
         containerId: string | null;
-        weightKg: import("@prisma/client/runtime/library").Decimal;
+        rawCategoryId: string | null;
         baleCode: string;
-        categoryGuess: string | null;
+        weightKg: import("@prisma/client/runtime/library").Decimal;
         cost: import("@prisma/client/runtime/library").Decimal;
     }>;
     delete(id: string, user: CurrentUserData, req: Request): Promise<{

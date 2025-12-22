@@ -16,6 +16,7 @@ const superadmin_module_1 = require("./superadmin/superadmin.module");
 const roles_module_1 = require("./roles/roles.module");
 const permissions_module_1 = require("./permissions/permissions.module");
 const users_module_1 = require("./users/users.module");
+const me_module_1 = require("./me/me.module");
 const audit_module_1 = require("./audit/audit.module");
 const tenant_module_1 = require("./tenant/tenant.module");
 const procurement_module_1 = require("./procurement/procurement.module");
@@ -24,6 +25,7 @@ const sorting_stage2_module_1 = require("./sorting-stage2/sorting-stage2.module"
 const repack_module_1 = require("./repack/repack.module");
 const inventory_module_1 = require("./inventory/inventory.module");
 const reports_module_1 = require("./reports/reports.module");
+const health_module_1 = require("./health/health.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -53,10 +55,12 @@ exports.AppModule = AppModule = __decorate([
             ]),
             prisma_module_1.PrismaModule,
             audit_module_1.AuditModule,
+            health_module_1.HealthModule,
             auth_module_1.AuthModule,
             roles_module_1.RolesModule,
             permissions_module_1.PermissionsModule,
             users_module_1.UsersModule,
+            me_module_1.MeModule,
             superadmin_module_1.SuperAdminModule,
             tenant_module_1.TenantModule,
             procurement_module_1.ProcurementModule,

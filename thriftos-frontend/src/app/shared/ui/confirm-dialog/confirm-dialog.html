@@ -1,0 +1,32 @@
+<ui-modal
+  [isOpen]="open()"
+  [title]="title()"
+  size="sm"
+  [closable]="!loading()"
+  (closed)="onCancel()"
+>
+  <div class="confirm-dialog-content">
+    <div class="confirm-icon" [class.confirm-icon--danger]="confirmVariant() === 'danger'">
+      <lucide-icon [img]="warningIcon" size="24"></lucide-icon>
+    </div>
+    
+    <p class="confirm-message">{{ message() }}</p>
+    
+    <div class="confirm-actions">
+      <ui-button
+        variant="secondary"
+        [disabled]="loading()"
+        (click)="onCancel()"
+      >
+        {{ cancelText() }}
+      </ui-button>
+      <ui-button
+        [variant]="confirmVariant() === 'danger' ? 'danger' : 'primary'"
+        [disabled]="loading()"
+        (click)="onConfirm()"
+      >
+        {{ confirmText() }}
+      </ui-button>
+    </div>
+  </div>
+</ui-modal>

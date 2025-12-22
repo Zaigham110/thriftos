@@ -18,7 +18,7 @@ let TenantBootstrapService = class TenantBootstrapService {
         this.prisma = prisma;
         this.passwordService = passwordService;
     }
-    async bootstrapTenant(tenantId, adminEmail, adminName) {
+    async bootstrapTenant(tenantId, adminEmail, adminName, adminPassword) {
         const result = {
             roles: 0,
             permissions: 0,
@@ -147,9 +147,8 @@ let TenantBootstrapService = class TenantBootstrapService {
                 },
             });
             result.warehouses = 1;
-            if (adminEmail && adminRole) {
-                const temporaryPassword = this.passwordService.generateTemporaryPassword();
-                const passwordHash = await this.passwordService.hash(temporaryPassword);
+            if (adminEmail && adminPassword && adminRole) {
+                const passwordHash = await this.passwordService.hash(adminPassword);
                 const adminUser = await tx.user.create({
                     data: {
                         tenantId,
@@ -168,7 +167,6 @@ let TenantBootstrapService = class TenantBootstrapService {
                 result.adminUser = {
                     id: adminUser.id,
                     email: adminUser.email,
-                    temporaryPassword,
                 };
             }
         });

@@ -1,0 +1,57 @@
+@use '../../../../styles/variables' as *;
+@use '../../../../styles/mixins' as *;
+
+.textarea-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.textarea-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: $text-primary;
+}
+
+.textarea-required {
+  color: $status-danger;
+  margin-left: 0.125rem;
+}
+
+.textarea {
+  @include form-input;
+  resize: vertical;
+  min-height: 6rem;
+
+  &-error {
+    border-color: $status-danger;
+
+    &:focus {
+      border-color: $status-danger;
+      box-shadow: 0 0 0 3px rgba($status-danger, 0.15);
+    }
+  }
+}
+
+.textarea-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.textarea-hint {
+  font-size: 0.75rem;
+  color: $text-muted;
+}
+
+.textarea-error-text {
+  font-size: 0.75rem;
+  color: $status-danger;
+}
+
+.textarea-counter {
+  font-size: 0.75rem;
+  color: $text-muted;
+  margin-left: auto;
+}

@@ -37,6 +37,11 @@ Do NOT add new fields unless explicitly required by schema consistency.
    * Permission
    * Role (global roles only if defined)
 
+   Notes:
+
+   * `User` always has `tenantId` (required). Super Admin users are stored under the SYSTEM tenant in the DB.
+   * Super Admins are treated as tenant-less in API responses/JWT (`tenantId: null`) unless explicitly impersonating.
+
 3. **Use Prisma naming conventions:**
 
    * camelCase fields

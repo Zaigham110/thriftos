@@ -38,7 +38,14 @@ export class SuperAdminController {
     @Body() dto: CreateTenantDto,
     @CurrentUser() user: CurrentUserData,
   ): Promise<TenantResponseDto & { bootstrap: BootstrapResult }> {
-    return this.superAdminService.createTenant(dto, user.userId, dto.adminEmail, dto.adminName);
+    try {
+      const result = await this.superAdminService.createTenant(dto, user.userId);
+      console.log('Tenant created successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('Error creating tenant:', error);
+      throw error;
+    }
   }
 
   @Get()

@@ -14,6 +14,7 @@ const common_1 = require("@nestjs/common");
 const permissions_service_1 = require("./permissions.service");
 const tenant_guard_1 = require("../common/guards/tenant.guard");
 const permission_guard_1 = require("../common/guards/permission.guard");
+const permissions_decorator_1 = require("../common/decorators/permissions.decorator");
 let PermissionsController = class PermissionsController {
     constructor(permissionsService) {
         this.permissionsService = permissionsService;
@@ -28,12 +29,14 @@ let PermissionsController = class PermissionsController {
 exports.PermissionsController = PermissionsController;
 __decorate([
     (0, common_1.Get)(),
+    (0, permissions_decorator_1.RequirePermissions)('role.read'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], PermissionsController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)('grouped'),
+    (0, permissions_decorator_1.RequirePermissions)('role.read'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)

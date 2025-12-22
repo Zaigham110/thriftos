@@ -1,0 +1,88 @@
+@use '../../../../styles/variables' as *;
+
+.tooltip-wrapper {
+  position: relative;
+  display: inline-block;
+
+  &:hover .tooltip {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 1000;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  color: white;
+  background-color: $text-primary;
+  border-radius: $radius-md;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity $transition-fast, visibility $transition-fast;
+  pointer-events: none;
+
+  &::after {
+    content: '';
+    position: absolute;
+    border: 5px solid transparent;
+  }
+
+  &-top {
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 0.5rem;
+
+    &::after {
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border-top-color: $text-primary;
+    }
+  }
+
+  &-bottom {
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 0.5rem;
+
+    &::after {
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border-bottom-color: $text-primary;
+    }
+  }
+
+  &-left {
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-right: 0.5rem;
+
+    &::after {
+      left: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      border-left-color: $text-primary;
+    }
+  }
+
+  &-right {
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 0.5rem;
+
+    &::after {
+      right: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      border-right-color: $text-primary;
+    }
+  }
+}

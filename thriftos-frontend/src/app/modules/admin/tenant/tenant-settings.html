@@ -1,0 +1,161 @@
+<div class="tenant-settings">
+  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
+
+  <header class="page-header">
+    <div class="page-header__title">
+      <h1>Tenant Settings</h1>
+      <p class="page-header__subtitle">Company profile and configuration</p>
+    </div>
+    <div class="page-header__actions">
+      <ui-button variant="outline" (click)="refresh()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="16"></lucide-icon>
+        Refresh
+      </ui-button>
+    </div>
+  </header>
+
+  @if (error()) {
+    <ui-alert variant="danger" [dismissible]="true" (dismissed)="clearError()">
+      {{ error() }}
+    </ui-alert>
+  }
+
+  <div class="settings-grid">
+    <!-- Company Profile Card -->
+    <ui-card class="profile-card">
+      <div class="card-header">
+        <lucide-icon [img]="icons.Building2" [size]="20"></lucide-icon>
+        <h2>Company Profile</h2>
+      </div>
+      
+      @if (loading() && !tenant()) {
+        <div class="loading-state">
+          @for (i of [1, 2, 3, 4]; track i) {
+            <div class="skeleton-row">
+              <ui-skeleton variant="text" class="skeleton-label"></ui-skeleton>
+              <ui-skeleton variant="text" class="skeleton-value"></ui-skeleton>
+            </div>
+          }
+        </div>
+      } @else if (tenant()) {
+        <div class="profile-details">
+          <div class="detail-row">
+            <span class="detail-label">Company Name</span>
+            <span class="detail-value">{{ tenant()!.name }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Company Code</span>
+            <span class="detail-value font-mono">{{ tenant()!.companyCode }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Currency</span>
+            <span class="detail-value">{{ tenant()!.currency }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Locale</span>
+            <span class="detail-value">{{ tenant()!.locale }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Status</span>
+            <ui-badge [variant]="getStatusVariant(tenant()!.status)" size="sm">
+              {{ tenant()!.status }}
+            </ui-badge>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Created</span>
+            <span class="detail-value text-muted">{{ tenant()!.createdAt | date:'mediumDate' }}</span>
+          </div>
+        </div>
+      }
+    </ui-card>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <ui-card class="stat-card">
+        <div class="stat-icon users">
+          <lucide-icon [img]="icons.Users" [size]="24"></lucide-icon>
+        </div>
+        <div class="stat-content">
+          <span class="stat-value">
+            @if (tenantStats()) {
+              {{ tenantStats()!.users }}
+            } @else {
+              <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
+            }
+          </span>
+          <span class="stat-label">Users</span>
+        </div>
+      </ui-card>
+
+      <ui-card class="stat-card">
+        <div class="stat-icon roles">
+          <lucide-icon [img]="icons.Shield" [size]="24"></lucide-icon>
+        </div>
+        <div class="stat-content">
+          <span class="stat-value">
+            @if (tenantStats()) {
+              {{ tenantStats()!.roles }}
+            } @else {
+              <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
+            }
+          </span>
+          <span class="stat-label">Roles</span>
+        </div>
+      </ui-card>
+
+      <ui-card class="stat-card">
+        <div class="stat-icon categories">
+          <lucide-icon [img]="icons.Layers" [size]="24"></lucide-icon>
+        </div>
+        <div class="stat-content">
+          <span class="stat-value">
+            @if (tenantStats()) {
+              {{ tenantStats()!.categories }}
+            } @else {
+              <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
+            }
+          </span>
+          <span class="stat-label">Categories</span>
+        </div>
+      </ui-card>
+
+      <ui-card class="stat-card">
+        <div class="stat-icon grades">
+          <lucide-icon [img]="icons.Package" [size]="24"></lucide-icon>
+        </div>
+        <div class="stat-content">
+          <span class="stat-value">
+            @if (tenantStats()) {
+              {{ tenantStats()!.grades }}
+            } @else {
+              <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
+            }
+          </span>
+          <span class="stat-label">Grades</span>
+        </div>
+      </ui-card>
+
+      <ui-card class="stat-card">
+        <div class="stat-icon warehouses">
+          <lucide-icon [img]="icons.Warehouse" [size]="24"></lucide-icon>
+        </div>
+        <div class="stat-content">
+          <span class="stat-value">
+            @if (tenantStats()) {
+              {{ tenantStats()!.warehouses }}
+            } @else {
+              <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
+            }
+          </span>
+          <span class="stat-label">Warehouses</span>
+        </div>
+      </ui-card>
+    </div>
+  </div>
+
+  <!-- Info Notice -->
+  <ui-alert variant="info" class="info-notice">
+    <strong>Note:</strong> Tenant profile changes (company name, billing, plan) require Super Admin access. 
+    Contact your system administrator for changes.
+  </ui-alert>
+</div>

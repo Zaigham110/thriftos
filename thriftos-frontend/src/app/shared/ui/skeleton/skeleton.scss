@@ -1,0 +1,39 @@
+@use '../../../../styles/variables' as *;
+
+.skeleton-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    $bg-section 25%,
+    $bg-app 50%,
+    $bg-section 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+
+  &-text {
+    border-radius: $radius-sm;
+  }
+
+  &-circular {
+    border-radius: 9999px;
+  }
+
+  &-rectangular {
+    border-radius: $radius-md;
+  }
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

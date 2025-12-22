@@ -1,0 +1,135 @@
+<div class="purchase-order-list">
+  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
+
+  <header class="page-header">
+    <div class="page-header__title">
+      <h1>Purchase Orders</h1>
+      <p class="page-header__count">
+        @if (!loading()) {
+          {{ totalCount() }} total
+        }
+      </p>
+    </div>
+
+    <div class="page-header__actions">
+      @if (canCreate()) {
+        <a routerLink="create">
+          <ui-button variant="primary">
+            <lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>
+            New Purchase Order
+          </ui-button>
+        </a>
+      }
+    </div>
+  </header>
+
+  <!-- Filters -->
+  <div class="filters">
+    <ui-select
+      [options]="statusOptions"
+      label=""
+      (selectionChange)="onStatusFilterChange($event)"
+    ></ui-select>
+  </div>
+
+  @if (error()) {
+    <ui-alert variant="danger" [dismissible]="true">
+      {{ error() }}
+    </ui-alert>
+  }
+
+  <!-- Data Table -->
+  <ui-card class="table-card">
+    @if (loading()) {
+      <div class="loading-state">
+        @for (i of [1, 2, 3, 4, 5]; track i) {
+          <div class="skeleton-row">
+            <ui-skeleton variant="text"></ui-skeleton>
+          </div>
+        }
+      </div>
+    } @else if (purchaseOrders().length === 0) {
+      <ui-empty-state
+        [icon]="icons.FileText"
+        title="No Purchase Orders"
+        description="Create your first purchase order to start procurement"
+      >
+        @if (canCreate()) {
+          <a routerLink="create">
+            <ui-button variant="primary">Create Purchase Order</ui-button>
+          </a>
+        }
+      </ui-empty-state>
+    } @else {
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>PO Number</th>
+              <th>Type</th>
+              <th>Vendor</th>
+              <th class="text-right">Total Cost</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (po of purchaseOrders(); track po.id) {
+              <tr (click)="onRowClick(po)" class="clickable-row">
+                <td class="font-medium">{{ po.poNumber }}</td>
+                <td>
+                  <span class="type-badge type-badge--{{ po.poType.toLowerCase() }}">
+                    {{ getPoTypeLabel(po.poType) }}
+                  </span>
+                </td>
+                <td>{{ po.vendor?.name || '—' }}</td>
+                <td class="text-right font-mono">
+                  {{ po.totalCost | currency:po.currency:'symbol':'1.2-2' }}
+                </td>
+                <td>
+                  <ui-badge [variant]="getStatusVariant(po.status)" size="sm">
+                    {{ po.status }}
+                  </ui-badge>
+                </td>
+                <td class="text-muted">{{ po.createdAt | date:'mediumDate' }}</td>
+                <td class="text-right">
+                  <a [routerLink]="[po.id]" class="view-link" (click)="$event.stopPropagation()">
+                    View
+                  </a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      @if (totalPages() > 1) {
+        <div class="pagination">
+          <button
+            type="button"
+            class="pagination__btn"
+            [disabled]="currentPage() <= 1"
+            (click)="onPageChange(currentPage() - 1)"
+          >
+            <lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon>
+            Previous
+          </button>
+          <span class="pagination__info">
+            Page {{ currentPage() }} of {{ totalPages() }}
+          </span>
+          <button
+            type="button"
+            class="pagination__btn"
+            [disabled]="currentPage() >= totalPages()"
+            (click)="onPageChange(currentPage() + 1)"
+          >
+            Next
+            <lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon>
+          </button>
+        </div>
+      }
+    }
+  </ui-card>
+</div>

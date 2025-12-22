@@ -1,0 +1,151 @@
+<div class="login-container">
+  <!-- Brand Panel -->
+  <div class="brand-panel">
+    <div class="brand-content">
+      <!-- Logo Placeholder -->
+      <div class="brand-logo">
+        <svg
+          class="logo-icon"
+          viewBox="0 0 48 48"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <rect width="48" height="48" rx="12" fill="#2563EB" />
+          <path
+            d="M14 16h20v4H14v-4zm4 8h12v4H18v-4zm-4 8h20v4H14v-4z"
+            fill="white"
+          />
+        </svg>
+        <h1 class="brand-name">ThriftOS</h1>
+      </div>
+
+      <!-- Tagline -->
+      <p class="brand-tagline">ERP built for the thrift industry</p>
+
+      <!-- Abstract Illustration -->
+      <div class="brand-illustration">
+        <svg
+          viewBox="0 0 400 300"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          class="illustration-svg"
+        >
+          <!-- Abstract shapes representing data/inventory -->
+          <rect x="40" y="80" width="80" height="60" rx="8" fill="#DBEAFE" opacity="0.8" />
+          <rect x="60" y="100" width="80" height="60" rx="8" fill="#BFDBFE" opacity="0.8" />
+          <rect x="80" y="120" width="80" height="60" rx="8" fill="#93C5FD" opacity="0.8" />
+
+          <!-- Connecting lines -->
+          <path d="M180 100 L220 80 L260 100" stroke="#2563EB" stroke-width="2" opacity="0.5" />
+          <path d="M180 140 L220 160 L260 140" stroke="#2563EB" stroke-width="2" opacity="0.5" />
+
+          <!-- Circle accents -->
+          <circle cx="280" cy="90" r="30" fill="#DBEAFE" opacity="0.6" />
+          <circle cx="300" cy="140" r="40" fill="#BFDBFE" opacity="0.6" />
+          <circle cx="320" cy="100" r="20" fill="#93C5FD" opacity="0.6" />
+
+          <!-- Grid pattern -->
+          <path
+            d="M40 220 H360 M40 240 H360 M40 260 H360"
+            stroke="#E2E8F0"
+            stroke-width="1"
+            opacity="0.5"
+          />
+          <path
+            d="M80 200 V280 M160 200 V280 M240 200 V280 M320 200 V280"
+            stroke="#E2E8F0"
+            stroke-width="1"
+            opacity="0.5"
+          />
+        </svg>
+      </div>
+
+      <!-- Footer text -->
+      <p class="brand-footer">
+        Streamline your thrift operations with powerful inventory management,
+        sorting workflows, and comprehensive reporting.
+      </p>
+    </div>
+  </div>
+
+  <!-- Login Form Panel -->
+  <div class="form-panel">
+    <div class="form-container">
+      @if (isCheckingAuth()) {
+        <!-- Show loading spinner while checking auth state -->
+        <div class="auth-check-loading">
+          <div class="spinner"></div>
+          <p>Checking authentication...</p>
+        </div>
+      } @else {
+        <div class="form-header">
+          <h2 class="form-title">Welcome back</h2>
+          <p class="form-subtitle">Sign in to your account to continue</p>
+        </div>
+
+        <!-- Error Alert -->
+        @if (errorMessage()) {
+          <ui-alert 
+            variant="danger" 
+            [dismissible]="true"
+            (dismissed)="dismissError()"
+          >{{ errorMessage() }}</ui-alert>
+        }
+
+        <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
+          <div class="form-fields">
+            <ui-input
+              formControlName="email"
+              label="Email address"
+              type="email"
+              placeholder="Enter your email"
+              [required]="true"
+            ></ui-input>
+
+            <div class="password-field">
+              <ui-input
+                formControlName="password"
+                label="Password"
+                [type]="showPassword() ? 'text' : 'password'"
+                placeholder="Enter your password"
+                [required]="true"
+              ></ui-input>
+              <button
+                type="button"
+                class="password-toggle"
+                (click)="togglePasswordVisibility()"
+                aria-label="Toggle password visibility"
+              >
+                {{ showPassword() ? 'Hide' : 'Show' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="form-options">
+            <ui-checkbox
+              formControlName="rememberMe"
+              label="Remember me"
+            ></ui-checkbox>
+
+            <a href="#" class="forgot-link">Forgot password?</a>
+          </div>
+
+          <ui-button
+            type="submit"
+            [fullWidth]="true"
+            [loading]="isLoading()"
+            [disabled]="loginForm.invalid"
+          >
+            Sign in
+          </ui-button>
+        </form>
+
+        <div class="form-footer">
+          <p class="help-text">
+            Need help? Contact your administrator
+          </p>
+        </div>
+      }
+    </div>
+  </div>
+</div>

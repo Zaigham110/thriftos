@@ -8,6 +8,7 @@ import { LoginDto, LoginResponseDto } from './dto/login.dto';
 import { RefreshResponseDto } from './dto/refresh.dto';
 import { JwtPayload } from './jwt.strategy';
 import { randomBytes } from 'crypto';
+import { CurrentUserData } from '../common/decorators/current-user.decorator';
 
 @Injectable()
 export class AuthService {
@@ -82,7 +83,12 @@ export class AuthService {
     const isSuperAdmin = user.tenantId === superAdminTenantId;
 
     // Generate tokens
-    const tokens = await this.generateTokens(user.id, user.email, user.tenantId, isSuperAdmin);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      isSuperAdmin ? null : user.tenantId,
+      isSuperAdmin,
+    );
 
     // Log successful login
     await this.auditService.log({
@@ -99,7 +105,7 @@ export class AuthService {
         id: user.id,
         email: user.email,
         name: user.name,
-        tenantId: user.tenantId,
+        tenantId: isSuperAdmin ? null : user.tenantId,
         isSuperAdmin,
       },
     };
@@ -182,7 +188,12 @@ export class AuthService {
     const isSuperAdmin = user.tenantId === superAdminTenantId;
 
     // Generate new tokens
-    const tokens = await this.generateTokens(user.id, user.email, user.tenantId, isSuperAdmin);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      isSuperAdmin ? null : user.tenantId,
+      isSuperAdmin,
+    );
 
     await this.auditService.log({
       userId: user.id,
@@ -206,7 +217,16 @@ export class AuthService {
       select: { tenantId: true, email: true },
     });
 
-    if (!superAdmin || superAdmin.tenantId !== null) {
+    if (!superAdmin) {
+      throw new BadRequestException('Only super admins can impersonate tenants');
+    }
+
+    const superAdminConfig = await this.prisma.globalConfig.findUnique({
+      where: { key: 'system.superAdminTenantId' },
+    });
+    const superAdminTenantId = (superAdminConfig?.valueJson as any)?.tenantId;
+    const isSuperAdmin = Boolean(superAdminTenantId) && superAdmin.tenantId === superAdminTenantId;
+    if (!isSuperAdmin) {
       throw new BadRequestException('Only super admins can impersonate tenants');
     }
 
@@ -245,6 +265,25 @@ export class AuthService {
       accessToken,
       expiresIn: this.accessTokenExpiresIn,
     };
+  }
+
+  async exitImpersonation(user: CurrentUserData, ipAddress?: string, userAgent?: string): Promise<void> {
+    if (!user.isSuperAdmin) {
+      throw new BadRequestException('Only super admins can exit impersonation');
+    }
+
+    if (!user.impersonatedTenantId) {
+      // Idempotent: allow calling exit even if not impersonating.
+      return;
+    }
+
+    await this.auditService.log({
+      userId: user.userId,
+      tenantId: user.impersonatedTenantId,
+      action: 'SUPERADMIN_EXIT_IMPERSONATION',
+      ipAddress,
+      userAgent,
+    });
   }
 
   private async generateTokens(

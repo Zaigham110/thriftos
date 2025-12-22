@@ -1,0 +1,76 @@
+<ui-card class="totals-panel" title="Sorting Totals">
+  <div class="totals-grid">
+    <!-- Input Weight -->
+    <div class="stat-item">
+      <div class="stat-icon">
+        <lucide-icon [img]="icons.scale" [size]="18"></lucide-icon>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">Input Weight</span>
+        <span class="stat-value">{{ formatWeight(inputWeight()) }} kg</span>
+      </div>
+    </div>
+
+    <!-- Sorted Weight -->
+    <div class="stat-item">
+      <div class="stat-icon sorted">
+        <lucide-icon [img]="icons.package" [size]="18"></lucide-icon>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">Sorted Weight</span>
+        <span class="stat-value">{{ formatWeight(totals().totalSortedWeight) }} kg</span>
+      </div>
+    </div>
+
+    <!-- Total Items -->
+    <div class="stat-item">
+      <div class="stat-icon items">
+        <lucide-icon [img]="icons.package" [size]="18"></lucide-icon>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">Total Items</span>
+        <span class="stat-value">{{ totals().totalItemCount }}</span>
+      </div>
+    </div>
+
+    <!-- Remaining -->
+    <div class="stat-item">
+      <div class="stat-icon remaining">
+        <lucide-icon [img]="icons.scale" [size]="18"></lucide-icon>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">Remaining</span>
+        <span class="stat-value">{{ formatWeight(remainingWeight()) }} kg</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Yield Progress -->
+  <div class="yield-section">
+    <div class="yield-header">
+      <span class="yield-label">
+        <lucide-icon [img]="icons.trending" [size]="16"></lucide-icon>
+        Yield
+      </span>
+      <span 
+        class="yield-value"
+        [class.over-allocated]="isOverAllocated()"
+      >
+        {{ formatPercentage(totals().yieldPercentage) }}%
+      </span>
+    </div>
+    <div class="yield-progress">
+      <div 
+        class="yield-bar"
+        [class.over-allocated]="isOverAllocated()"
+        [style.width.%]="yieldBarWidth()"
+      ></div>
+    </div>
+    @if (isOverAllocated()) {
+      <div class="over-warning">
+        <lucide-icon [img]="icons.warning" [size]="14"></lucide-icon>
+        <span>Output exceeds input weight</span>
+      </div>
+    }
+  </div>
+</ui-card>

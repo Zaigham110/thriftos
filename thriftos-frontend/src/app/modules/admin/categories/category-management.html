@@ -1,0 +1,85 @@
+<div class="page-container">
+  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
+
+  <div class="page-header">
+    <div class="header-left">
+      <lucide-icon [img]="icons.Layers" class="header-icon"></lucide-icon>
+      <div class="header-text">
+        <h1 class="page-title">Categories</h1>
+        <p class="page-subtitle">Product categories for sorting and inventory</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary" (click)="refresh()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [class.spinning]="loading()"></lucide-icon>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Info Notice -->
+  <ui-alert variant="info" class="info-notice">
+    <lucide-icon [img]="icons.Info"></lucide-icon>
+    Categories are configured at the platform level and managed by Super Admin. Contact your administrator to request changes.
+  </ui-alert>
+
+  <!-- Search Bar -->
+  <div class="search-bar">
+    <div class="search-input-wrapper">
+      <lucide-icon [img]="icons.Search" class="search-icon"></lucide-icon>
+      <input
+        type="text"
+        class="search-input"
+        placeholder="Search categories..."
+        [value]="searchQuery()"
+        (input)="searchQuery.set($any($event.target).value)"
+      />
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <ui-card>
+      <div class="skeleton-grid">
+        @for (i of [1, 2, 3, 4, 5, 6]; track i) {
+          <div class="skeleton-card">
+            <ui-skeleton width="100%" height="24px"></ui-skeleton>
+            <ui-skeleton width="80%" height="16px"></ui-skeleton>
+          </div>
+        }
+      </div>
+    </ui-card>
+  } @else if (filteredCategories.length === 0) {
+    <ui-card>
+      @if (searchQuery()) {
+        <ui-empty-state
+          title="No categories found"
+          description="No categories match your search criteria."
+          [icon]="icons.Layers"
+        ></ui-empty-state>
+      } @else {
+        <ui-empty-state
+          title="No categories configured"
+          description="Categories have not been set up yet. Contact Super Admin."
+          [icon]="icons.Layers"
+        ></ui-empty-state>
+      }
+    </ui-card>
+  } @else {
+    <div class="categories-grid">
+      @for (category of filteredCategories; track category.id) {
+        <ui-card class="category-card">
+          <div class="category-header">
+            <lucide-icon [img]="icons.Layers" class="category-icon"></lucide-icon>
+            <h3 class="category-name">{{ category.name }}</h3>
+          </div>
+          @if (category.description) {
+            <p class="category-description">{{ category.description }}</p>
+          } @else {
+            <p class="category-description empty">No description</p>
+          }
+        </ui-card>
+      }
+    </div>
+  }
+</div>

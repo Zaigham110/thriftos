@@ -13,6 +13,34 @@ export class SortingReportsService {
   ) {
     const { start, end } = parseDateRange(filters);
 
+    // Build dynamic query with proper parameter positions
+    const conditions: string[] = ['s."tenantId" = $1', 's."status" = \'CLOSED\''];
+    const params: any[] = [tenantId];
+    let paramIndex = 2;
+
+    if (start) {
+      conditions.push(`s."startTime" >= $${paramIndex}`);
+      params.push(start);
+      paramIndex++;
+    }
+    if (end) {
+      conditions.push(`s."startTime" <= $${paramIndex}`);
+      params.push(end);
+      paramIndex++;
+    }
+    if (filters.categoryId) {
+      conditions.push(`b."categoryId" = $${paramIndex}`);
+      params.push(filters.categoryId);
+      paramIndex++;
+    }
+    if (filters.workerId) {
+      conditions.push(`s."workerId" = $${paramIndex}`);
+      params.push(filters.workerId);
+      paramIndex++;
+    }
+
+    const whereClause = conditions.join(' AND ');
+
     const rows = await this.prisma.$queryRawUnsafe<
       Array<{
         categoryId: string;
@@ -31,12 +59,7 @@ export class SortingReportsService {
           s."totalOutputWeight" AS "totalOutput"
         FROM "SortCategoryBucket" b
         JOIN "SortSession" s ON s."id" = b."sortSessionId"
-        WHERE s."tenantId" = $1
-          AND s."status" = 'CLOSED'
-          ${start ? `AND s."startTime" >= $2` : ``}
-          ${end ? `AND s."startTime" <= $3` : ``}
-          ${filters.categoryId ? `AND b."categoryId" = $4` : ``}
-          ${filters.workerId ? `AND s."workerId" = $5` : ``}
+        WHERE ${whereClause}
       )
       SELECT
         "categoryId",
@@ -47,11 +70,7 @@ export class SortingReportsService {
       GROUP BY "categoryId"
       ORDER BY "categoryId" ASC
       `,
-      tenantId,
-      start ?? new Date(0),
-      end ?? new Date(),
-      filters.categoryId ?? null,
-      filters.workerId ?? null,
+      ...params,
     );
 
     return rows.map((r) => {

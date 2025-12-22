@@ -24,6 +24,7 @@ export declare class ContainerController {
         }[];
     } & {
         id: string;
+        tenantId: string;
         createdAt: Date;
         updatedAt: Date;
         status: import("@prisma/client").$Enums.ContainerStatus;
@@ -32,8 +33,20 @@ export declare class ContainerController {
         referenceNumber: string | null;
         containerType: string | null;
         eta: Date | null;
+        etd: Date | null;
+        arrivedAt: Date | null;
+        clearedAt: Date | null;
+        releasedAt: Date | null;
         grossWeight: import("@prisma/client/runtime/library").Decimal;
         netWeight: import("@prisma/client/runtime/library").Decimal;
+        billOfLadingNumber: string | null;
+        shipmentReference: string | null;
+        shippingLine: string | null;
+        vesselName: string | null;
+        portOfLoading: string | null;
+        portOfDischarge: string | null;
+        forwarder: string | null;
+        notes: string | null;
     }>;
     findAll(purchaseOrderId: string, status: ContainerStatus, page: number, limit: number, user: CurrentUserData, req: Request): Promise<{
         data: ({
@@ -57,6 +70,7 @@ export declare class ContainerController {
             }[];
         } & {
             id: string;
+            tenantId: string;
             createdAt: Date;
             updatedAt: Date;
             status: import("@prisma/client").$Enums.ContainerStatus;
@@ -65,8 +79,20 @@ export declare class ContainerController {
             referenceNumber: string | null;
             containerType: string | null;
             eta: Date | null;
+            etd: Date | null;
+            arrivedAt: Date | null;
+            clearedAt: Date | null;
+            releasedAt: Date | null;
             grossWeight: import("@prisma/client/runtime/library").Decimal;
             netWeight: import("@prisma/client/runtime/library").Decimal;
+            billOfLadingNumber: string | null;
+            shipmentReference: string | null;
+            shippingLine: string | null;
+            vesselName: string | null;
+            portOfLoading: string | null;
+            portOfDischarge: string | null;
+            forwarder: string | null;
+            notes: string | null;
         })[];
         total: number;
         page: number;
@@ -93,10 +119,15 @@ export declare class ContainerController {
             tenantId: string;
             createdAt: Date;
             updatedAt: Date;
-            containerId: string;
-            ragCode: string;
+            status: import("@prisma/client").$Enums.RagStatus;
+            notes: string | null;
+            containerId: string | null;
+            rawCategoryId: string | null;
             weightKg: import("@prisma/client/runtime/library").Decimal;
+            ragCode: string;
+            ragBaleType: import("@prisma/client").$Enums.RagBaleType;
             allocatedCost: import("@prisma/client/runtime/library").Decimal;
+            sourceType: import("@prisma/client").$Enums.RagSourceType;
         }[];
         incomingBales: {
             id: string;
@@ -104,10 +135,11 @@ export declare class ContainerController {
             createdAt: Date;
             updatedAt: Date;
             vendorId: string | null;
+            purchaseOrderId: string | null;
             containerId: string | null;
-            weightKg: import("@prisma/client/runtime/library").Decimal;
+            rawCategoryId: string | null;
             baleCode: string;
-            categoryGuess: string | null;
+            weightKg: import("@prisma/client/runtime/library").Decimal;
             cost: import("@prisma/client/runtime/library").Decimal;
         }[];
         containerCharges: {
@@ -121,6 +153,7 @@ export declare class ContainerController {
         }[];
     } & {
         id: string;
+        tenantId: string;
         createdAt: Date;
         updatedAt: Date;
         status: import("@prisma/client").$Enums.ContainerStatus;
@@ -129,8 +162,20 @@ export declare class ContainerController {
         referenceNumber: string | null;
         containerType: string | null;
         eta: Date | null;
+        etd: Date | null;
+        arrivedAt: Date | null;
+        clearedAt: Date | null;
+        releasedAt: Date | null;
         grossWeight: import("@prisma/client/runtime/library").Decimal;
         netWeight: import("@prisma/client/runtime/library").Decimal;
+        billOfLadingNumber: string | null;
+        shipmentReference: string | null;
+        shippingLine: string | null;
+        vesselName: string | null;
+        portOfLoading: string | null;
+        portOfDischarge: string | null;
+        forwarder: string | null;
+        notes: string | null;
     }>;
     update(id: string, dto: UpdateContainerDto, user: CurrentUserData, req: Request): Promise<{
         purchaseOrder: {
@@ -147,6 +192,7 @@ export declare class ContainerController {
         }[];
     } & {
         id: string;
+        tenantId: string;
         createdAt: Date;
         updatedAt: Date;
         status: import("@prisma/client").$Enums.ContainerStatus;
@@ -155,8 +201,20 @@ export declare class ContainerController {
         referenceNumber: string | null;
         containerType: string | null;
         eta: Date | null;
+        etd: Date | null;
+        arrivedAt: Date | null;
+        clearedAt: Date | null;
+        releasedAt: Date | null;
         grossWeight: import("@prisma/client/runtime/library").Decimal;
         netWeight: import("@prisma/client/runtime/library").Decimal;
+        billOfLadingNumber: string | null;
+        shipmentReference: string | null;
+        shippingLine: string | null;
+        vesselName: string | null;
+        portOfLoading: string | null;
+        portOfDischarge: string | null;
+        forwarder: string | null;
+        notes: string | null;
     }>;
     updateStatus(id: string, dto: UpdateContainerStatusDto, user: CurrentUserData, req: Request): Promise<{
         purchaseOrder: {
@@ -173,6 +231,7 @@ export declare class ContainerController {
         }[];
     } & {
         id: string;
+        tenantId: string;
         createdAt: Date;
         updatedAt: Date;
         status: import("@prisma/client").$Enums.ContainerStatus;
@@ -181,35 +240,49 @@ export declare class ContainerController {
         referenceNumber: string | null;
         containerType: string | null;
         eta: Date | null;
+        etd: Date | null;
+        arrivedAt: Date | null;
+        clearedAt: Date | null;
+        releasedAt: Date | null;
         grossWeight: import("@prisma/client/runtime/library").Decimal;
         netWeight: import("@prisma/client/runtime/library").Decimal;
+        billOfLadingNumber: string | null;
+        shipmentReference: string | null;
+        shippingLine: string | null;
+        vesselName: string | null;
+        portOfLoading: string | null;
+        portOfDischarge: string | null;
+        forwarder: string | null;
+        notes: string | null;
     }>;
     getCostBreakdown(id: string, user: CurrentUserData, req: Request): Promise<{
         containerId: string;
         containerNumber: string;
-        grossWeight: import("@prisma/client/runtime/library").Decimal;
-        netWeight: import("@prisma/client/runtime/library").Decimal;
-        totalCharges: string;
-        chargeBreakdown: {
-            type: import("@prisma/client").$Enums.ChargeType;
+        totalCost: number;
+        costPerKg: number;
+        totalWeight: number;
+        currency: string;
+        charges: {
+            id: string;
+            containerId: string;
+            chargeType: import("@prisma/client").$Enums.ChargeType;
             description: string;
-            amount: string;
+            amount: number;
+            createdAt: string;
+            updatedAt: string;
         }[];
         rags: {
             id: string;
             code: string;
-            weightKg: string;
-            allocatedCost: string;
+            weightKg: number;
+            allocatedCost: number;
         }[];
         incomingBales: {
             id: string;
             code: string;
-            weightKg: string;
-            allocatedCost: string;
+            weightKg: number;
+            allocatedCost: number;
         }[];
-        totalAllocatedToRags: string;
-        totalAllocatedToBales: string;
-        totalAllocated: string;
     }>;
     addCharge(id: string, dto: CreateContainerChargeDto, user: CurrentUserData, req: Request): Promise<{
         id: string;

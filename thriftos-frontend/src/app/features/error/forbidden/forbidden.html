@@ -1,0 +1,19 @@
+<div class="error-page">
+  <div class="error-content">
+    <div class="error-icon">
+      <lucide-icon [img]="icons.ShieldX" [size]="64"></lucide-icon>
+    </div>
+    <h1 class="error-code">403</h1>
+    <h2 class="error-title">Access Denied</h2>
+    <p class="error-message">
+      You don't have permission to access this page. If you believe this is an error,
+      please contact your administrator.
+    </p>
+    <div class="error-actions">
+      <ui-button variant="primary" routerLink="/">
+        <lucide-icon [img]="icons.ArrowLeft" [size]="16"></lucide-icon>
+        Go to Home
+      </ui-button>
+    </div>
+  </div>
+</div>

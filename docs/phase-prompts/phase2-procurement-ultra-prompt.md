@@ -301,18 +301,32 @@ Each endpoint MUST enforce permissions.
 ### Suggested permissions:
 
 ```
-PROCUREMENT_VIEW
-PROCUREMENT_CREATE
-PROCUREMENT_EDIT
-PROCUREMENT_RECEIVE
-PROCUREMENT_CLOSE
+po.create
+po.read
+po.update
+po.delete
+
+container.create
+container.read
+container.update
+container.delete
+
+rag.create
+rag.read
+rag.delete
+
+vendor.create
+vendor.read
+vendor.update
 ```
 
 Use:
 
 ```
-@UseGuards(JwtAuthGuard, TenantGuard, PermissionGuard)
+@UseGuards(TenantGuard, PermissionGuard)
 ```
+
+Note: `JwtAuthGuard` is applied globally in the backend, so controllers typically only declare tenant + permission guards.
 
 ---
 

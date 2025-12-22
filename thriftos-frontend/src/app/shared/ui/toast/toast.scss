@@ -1,0 +1,85 @@
+@use '../../../../styles/variables' as *;
+@use '../../../../styles/mixins' as *;
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: $radius-lg;
+  background-color: $bg-card;
+  box-shadow: $shadow-md;
+  border-left: 4px solid;
+  min-width: 20rem;
+  max-width: 28rem;
+
+  &-success {
+    border-left-color: $status-success;
+
+    .toast-icon {
+      color: $status-success;
+    }
+  }
+
+  &-danger {
+    border-left-color: $status-danger;
+
+    .toast-icon {
+      color: $status-danger;
+    }
+  }
+
+  &-warning {
+    border-left-color: $status-warning;
+
+    .toast-icon {
+      color: $status-warning;
+    }
+  }
+
+  &-info {
+    border-left-color: $status-info;
+
+    .toast-icon {
+      color: $status-info;
+    }
+  }
+}
+
+.toast-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toast-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: $text-primary;
+  margin: 0;
+}
+
+.toast-message {
+  font-size: 0.875rem;
+  color: $text-secondary;
+  margin: 0.25rem 0 0;
+}
+
+.toast-dismiss {
+  @include interactive;
+  flex-shrink: 0;
+  padding: 0.25rem;
+  color: $text-muted;
+  border-radius: $radius-md;
+
+  &:hover {
+    background-color: $bg-section;
+    color: $text-primary;
+  }
+}

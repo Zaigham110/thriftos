@@ -15,11 +15,16 @@ const prisma_service_1 = require("../../prisma/prisma.service");
 const audit_service_1 = require("../../audit/audit.service");
 const cost_allocation_service_1 = require("../cost-allocation/cost-allocation.service");
 const client_1 = require("@prisma/client");
+const tenant_sequence_service_1 = require("../shared/tenant-sequence.service");
 let ContainerService = class ContainerService {
-    constructor(prisma, auditService, costAllocationService) {
+    constructor(prisma, auditService, costAllocationService, tenantSequenceService) {
         this.prisma = prisma;
         this.auditService = auditService;
         this.costAllocationService = costAllocationService;
+        this.tenantSequenceService = tenantSequenceService;
+    }
+    toDate(value) {
+        return value ? new Date(value) : null;
     }
     async create(tenantId, dto, userId) {
         const po = await this.prisma.purchaseOrder.findFirst({
@@ -28,27 +33,41 @@ let ContainerService = class ContainerService {
         if (!po) {
             throw new common_1.BadRequestException('Purchase order not found');
         }
-        if (po.poType !== client_1.PurchaseOrderType.CONTAINER) {
-            throw new common_1.BadRequestException('Purchase order type must be CONTAINER to add containers');
+        if (po.poType !== client_1.PurchaseOrderType.CONTAINER && po.poType !== client_1.PurchaseOrderType.HYBRID) {
+            throw new common_1.BadRequestException('Purchase order type must allow containers');
         }
         if (po.status === client_1.PurchaseOrderStatus.CLOSED) {
             throw new common_1.ConflictException('Cannot add container to a closed purchase order');
         }
-        const existing = await this.prisma.container.findFirst({
-            where: { purchaseOrderId: dto.purchaseOrderId, containerNumber: dto.containerNumber },
+        const { code: containerNumber } = await this.tenantSequenceService.generateCode(tenantId, client_1.SequenceScope.CONTAINER, { prefix: 'CONT', padSize: 3 }, async (code) => {
+            const existing = await this.prisma.container.findFirst({
+                where: { tenantId, containerNumber: code },
+                select: { id: true },
+            });
+            return !existing;
         });
-        if (existing) {
-            throw new common_1.BadRequestException(`Container "${dto.containerNumber}" already exists in this PO`);
-        }
         const container = await this.prisma.container.create({
             data: {
+                tenantId,
                 purchaseOrderId: dto.purchaseOrderId,
-                containerNumber: dto.containerNumber,
+                containerNumber,
                 referenceNumber: dto.referenceNumber,
                 containerType: dto.containerType,
-                eta: dto.eta ? new Date(dto.eta) : null,
+                eta: this.toDate(dto.eta),
+                etd: this.toDate(dto.etd),
+                arrivedAt: this.toDate(dto.arrivedAt),
+                clearedAt: this.toDate(dto.clearedAt),
+                releasedAt: this.toDate(dto.releasedAt),
                 grossWeight: dto.grossWeight,
                 netWeight: dto.netWeight,
+                billOfLadingNumber: dto.billOfLadingNumber,
+                shipmentReference: dto.shipmentReference,
+                shippingLine: dto.shippingLine,
+                vesselName: dto.vesselName,
+                portOfLoading: dto.portOfLoading,
+                portOfDischarge: dto.portOfDischarge,
+                forwarder: dto.forwarder,
+                notes: dto.notes,
                 status: client_1.ContainerStatus.IN_TRANSIT,
             },
             include: {
@@ -76,7 +95,7 @@ let ContainerService = class ContainerService {
         const limit = options?.limit || 20;
         const skip = (page - 1) * limit;
         const where = {
-            purchaseOrder: { tenantId },
+            tenantId,
             ...(options?.purchaseOrderId && { purchaseOrderId: options.purchaseOrderId }),
             ...(options?.status && { status: options.status }),
         };
@@ -107,7 +126,7 @@ let ContainerService = class ContainerService {
         const container = await this.prisma.container.findFirst({
             where: {
                 id,
-                purchaseOrder: { tenantId },
+                tenantId,
             },
             include: {
                 purchaseOrder: {
@@ -131,8 +150,23 @@ let ContainerService = class ContainerService {
         const updated = await this.prisma.container.update({
             where: { id },
             data: {
-                ...dto,
-                ...(dto.eta && { eta: new Date(dto.eta) }),
+                ...(dto.referenceNumber !== undefined && { referenceNumber: dto.referenceNumber }),
+                ...(dto.containerType !== undefined && { containerType: dto.containerType }),
+                ...(dto.grossWeight !== undefined && { grossWeight: dto.grossWeight }),
+                ...(dto.netWeight !== undefined && { netWeight: dto.netWeight }),
+                ...(dto.billOfLadingNumber !== undefined && { billOfLadingNumber: dto.billOfLadingNumber }),
+                ...(dto.shipmentReference !== undefined && { shipmentReference: dto.shipmentReference }),
+                ...(dto.shippingLine !== undefined && { shippingLine: dto.shippingLine }),
+                ...(dto.vesselName !== undefined && { vesselName: dto.vesselName }),
+                ...(dto.portOfLoading !== undefined && { portOfLoading: dto.portOfLoading }),
+                ...(dto.portOfDischarge !== undefined && { portOfDischarge: dto.portOfDischarge }),
+                ...(dto.forwarder !== undefined && { forwarder: dto.forwarder }),
+                ...(dto.notes !== undefined && { notes: dto.notes }),
+                ...(dto.eta !== undefined && { eta: this.toDate(dto.eta) }),
+                ...(dto.etd !== undefined && { etd: this.toDate(dto.etd) }),
+                ...(dto.arrivedAt !== undefined && { arrivedAt: this.toDate(dto.arrivedAt) }),
+                ...(dto.clearedAt !== undefined && { clearedAt: this.toDate(dto.clearedAt) }),
+                ...(dto.releasedAt !== undefined && { releasedAt: this.toDate(dto.releasedAt) }),
             },
             include: {
                 purchaseOrder: {
@@ -203,6 +237,7 @@ let ContainerService = class ContainerService {
             },
         });
         await this.costAllocationService.allocateContainerCosts(containerId, userId);
+        await this.costAllocationService.syncPurchaseOrderTotals(container.purchaseOrder.id);
         await this.auditService.log({
             userId,
             tenantId,
@@ -239,6 +274,7 @@ let ContainerService = class ContainerService {
             where: { id: chargeId },
         });
         await this.costAllocationService.allocateContainerCosts(containerId, userId);
+        await this.costAllocationService.syncPurchaseOrderTotals(container.purchaseOrder.id);
         await this.auditService.log({
             userId,
             tenantId,
@@ -263,6 +299,7 @@ exports.ContainerService = ContainerService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         audit_service_1.AuditService,
-        cost_allocation_service_1.CostAllocationService])
+        cost_allocation_service_1.CostAllocationService,
+        tenant_sequence_service_1.TenantSequenceService])
 ], ContainerService);
 //# sourceMappingURL=container.service.js.map

@@ -28,47 +28,72 @@ let SortSessionService = class SortSessionService {
         }
         const workerId = dto.workerId || currentUserId;
         const supervisorId = dto.supervisorId || currentUserId;
-        const inputWeight = await this.getInputWeight(tenantId, { ragId, incomingBaleId });
-        const existingOpen = await this.prisma.sortSession.findFirst({
-            where: {
-                tenantId,
-                status: client_1.SortStatus.OPEN,
-                ...(ragId ? { ragId } : {}),
-                ...(incomingBaleId ? { incomingBaleId } : {}),
-            },
-            select: { id: true },
-        });
-        if (existingOpen) {
-            throw new common_1.ConflictException('An OPEN sort session already exists for this source');
-        }
-        const session = await this.prisma.sortSession.create({
-            data: {
-                tenantId,
-                ragId: ragId || null,
-                incomingBaleId: incomingBaleId || null,
-                workerId,
-                supervisorId,
-                totalInputWeight: inputWeight,
-                totalOutputWeight: new library_1.Decimal(0),
-                wasteWeight: new library_1.Decimal(0),
-                status: client_1.SortStatus.OPEN,
-            },
+        const result = await this.prisma.$transaction(async (tx) => {
+            let inputWeight;
+            let containerId = null;
+            if (ragId) {
+                const rag = await tx.rag.findFirst({
+                    where: { id: ragId, tenantId },
+                    select: { id: true, weightKg: true, status: true, containerId: true },
+                });
+                if (!rag) {
+                    throw new common_1.BadRequestException('Source not found: ragId');
+                }
+                if (rag.status !== client_1.RagStatus.NOT_STARTED) {
+                    throw new common_1.ConflictException(`Rag cannot be sorted: status is ${rag.status}. Only NOT_STARTED rags can be sorted.`);
+                }
+                inputWeight = rag.weightKg;
+                containerId = rag.containerId;
+                await tx.rag.update({
+                    where: { id: ragId },
+                    data: { status: client_1.RagStatus.IN_SORTING },
+                });
+            }
+            else if (incomingBaleId) {
+                const bale = await tx.incomingBale.findFirst({
+                    where: { id: incomingBaleId, tenantId },
+                    select: { weightKg: true, containerId: true },
+                });
+                if (!bale) {
+                    throw new common_1.BadRequestException('Source not found: incomingBaleId');
+                }
+                inputWeight = bale.weightKg;
+                containerId = bale.containerId;
+            }
+            else {
+                throw new common_1.BadRequestException('Missing source');
+            }
+            const session = await tx.sortSession.create({
+                data: {
+                    tenantId,
+                    ragId: ragId || undefined,
+                    incomingBaleId: incomingBaleId || undefined,
+                    workerId,
+                    supervisorId,
+                    totalInputWeight: inputWeight,
+                    totalOutputWeight: new library_1.Decimal(0),
+                    wasteWeight: new library_1.Decimal(0),
+                    status: client_1.SortStatus.OPEN,
+                },
+            });
+            return { session, containerId };
         });
         await this.auditService.log({
             tenantId,
             userId: currentUserId,
             action: 'SORT_SESSION_CREATED',
             entityType: 'SortSession',
-            entityId: session.id,
+            entityId: result.session.id,
             metadataJson: {
                 ragId,
                 incomingBaleId,
                 workerId,
                 supervisorId,
-                totalInputWeight: inputWeight.toString(),
+                totalInputWeight: result.session.totalInputWeight.toString(),
+                ragStatusTransition: ragId ? 'NOT_STARTED → IN_SORTING' : null,
             },
         });
-        return session;
+        return result.session;
     }
     async findAll(tenantId, options) {
         const page = options?.page || 1;
@@ -149,8 +174,8 @@ let SortSessionService = class SortSessionService {
             const session = await tx.sortSession.findFirst({
                 where: { id: sessionId, tenantId },
                 include: {
-                    rag: { select: { allocatedCost: true } },
-                    incomingBale: { select: { cost: true } },
+                    rag: { select: { id: true, allocatedCost: true, containerId: true } },
+                    incomingBale: { select: { cost: true, containerId: true } },
                     sortCategoryBuckets: true,
                 },
             });
@@ -174,6 +199,8 @@ let SortSessionService = class SortSessionService {
                 ? new library_1.Decimal(0)
                 : totalOutputWeight.div(session.totalInputWeight).mul(new library_1.Decimal(100));
             const sourceCost = session.rag?.allocatedCost ?? session.incomingBale?.cost ?? new library_1.Decimal(0);
+            const containerId = session.rag?.containerId ?? session.incomingBale?.containerId ?? null;
+            const ragId = session.ragId;
             const outputs = [];
             for (const bucket of buckets) {
                 if (bucket.outputWeightKg.equals(new library_1.Decimal(0)) && bucket.outputCount === 0)
@@ -187,8 +214,28 @@ let SortSessionService = class SortSessionService {
                         weightKg: bucket.outputWeightKg,
                         count: bucket.outputCount,
                         allocatedCost,
+                        containerId,
+                        ragId: ragId,
+                        sortSessionId: sessionId,
                     },
                 }));
+            }
+            if (wasteWeight.greaterThan(new library_1.Decimal(0))) {
+                await tx.sortingWaste.create({
+                    data: {
+                        tenantId,
+                        sortSessionId: sessionId,
+                        containerId,
+                        ragId: ragId,
+                        weightKg: wasteWeight,
+                    },
+                });
+            }
+            if (ragId) {
+                await tx.rag.update({
+                    where: { id: ragId },
+                    data: { status: client_1.RagStatus.SORTED },
+                });
             }
             const updatedSession = await tx.sortSession.update({
                 where: { id: sessionId },
@@ -199,7 +246,7 @@ let SortSessionService = class SortSessionService {
                     wasteWeight,
                 },
             });
-            return { session: updatedSession, outputs, yieldPercent: yieldPercent.toNumber() };
+            return { session: updatedSession, outputs, yieldPercent: yieldPercent.toNumber(), wasteWeight };
         });
         await this.auditService.log({
             tenantId,
@@ -210,31 +257,11 @@ let SortSessionService = class SortSessionService {
             metadataJson: {
                 outputsCreated: result.outputs.length,
                 yieldPercent: result.yieldPercent,
-                wasteWeight: result.session.wasteWeight?.toString(),
+                wasteWeight: result.wasteWeight?.toString(),
+                ragStatusTransition: 'IN_SORTING → SORTED',
             },
         });
         return result;
-    }
-    async getInputWeight(tenantId, ids) {
-        if (ids.ragId) {
-            const rag = await this.prisma.rag.findFirst({
-                where: { id: ids.ragId, tenantId },
-                select: { weightKg: true },
-            });
-            if (!rag)
-                throw new common_1.BadRequestException('Source not found: ragId');
-            return rag.weightKg;
-        }
-        if (ids.incomingBaleId) {
-            const bale = await this.prisma.incomingBale.findFirst({
-                where: { id: ids.incomingBaleId, tenantId },
-                select: { weightKg: true },
-            });
-            if (!bale)
-                throw new common_1.BadRequestException('Source not found: incomingBaleId');
-            return bale.weightKg;
-        }
-        throw new common_1.BadRequestException('Missing source');
     }
 };
 exports.SortSessionService = SortSessionService;

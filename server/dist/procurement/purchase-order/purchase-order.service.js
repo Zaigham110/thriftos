@@ -14,18 +14,32 @@ const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const audit_service_1 = require("../../audit/audit.service");
 const client_1 = require("@prisma/client");
+const tenant_sequence_service_1 = require("../shared/tenant-sequence.service");
 let PurchaseOrderService = class PurchaseOrderService {
-    constructor(prisma, auditService) {
+    constructor(prisma, auditService, tenantSequenceService) {
         this.prisma = prisma;
         this.auditService = auditService;
+        this.tenantSequenceService = tenantSequenceService;
+    }
+    async generatePoNumber(tenantId) {
+        const { code } = await this.tenantSequenceService.generateCode(tenantId, client_1.SequenceScope.PURCHASE_ORDER, { prefix: 'PO', padSize: 3 }, async (poNumber) => {
+            const existing = await this.prisma.purchaseOrder.findFirst({
+                where: { tenantId, poNumber },
+                select: { id: true },
+            });
+            return !existing;
+        });
+        return code;
     }
     async create(tenantId, dto, userId) {
-        const existing = await this.prisma.purchaseOrder.findFirst({
-            where: { tenantId, poNumber: dto.poNumber },
+        const tenant = await this.prisma.tenant.findUnique({
+            where: { id: tenantId },
+            select: { currency: true },
         });
-        if (existing) {
-            throw new common_1.BadRequestException(`Purchase order "${dto.poNumber}" already exists`);
+        if (!tenant) {
+            throw new common_1.BadRequestException('Tenant not found');
         }
+        const poNumber = await this.generatePoNumber(tenantId);
         if (dto.vendorId) {
             const vendor = await this.prisma.vendor.findFirst({
                 where: { id: dto.vendorId, tenantId },
@@ -37,11 +51,11 @@ let PurchaseOrderService = class PurchaseOrderService {
         const po = await this.prisma.purchaseOrder.create({
             data: {
                 tenantId,
-                poNumber: dto.poNumber,
+                poNumber,
                 poType: dto.poType,
                 vendorId: dto.vendorId,
-                currency: dto.currency || 'USD',
-                totalCost: dto.totalCost || 0,
+                currency: tenant.currency,
+                totalCost: 0,
                 status: client_1.PurchaseOrderStatus.OPEN,
             },
             include: {
@@ -78,6 +92,7 @@ let PurchaseOrderService = class PurchaseOrderService {
                     _count: {
                         select: {
                             containers: true,
+                            incomingBales: true,
                         },
                     },
                 },
@@ -124,7 +139,9 @@ let PurchaseOrderService = class PurchaseOrderService {
         }
         const updated = await this.prisma.purchaseOrder.update({
             where: { id },
-            data: dto,
+            data: {
+                ...(dto.vendorId !== undefined && { vendorId: dto.vendorId }),
+            },
             include: {
                 vendor: true,
                 containers: true,
@@ -195,6 +212,7 @@ exports.PurchaseOrderService = PurchaseOrderService;
 exports.PurchaseOrderService = PurchaseOrderService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        audit_service_1.AuditService])
+        audit_service_1.AuditService,
+        tenant_sequence_service_1.TenantSequenceService])
 ], PurchaseOrderService);
 //# sourceMappingURL=purchase-order.service.js.map

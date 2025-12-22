@@ -42,6 +42,7 @@ export class IncomingBaleController {
   async findAll(
     @Query('containerId') containerId: string,
     @Query('vendorId') vendorId: string,
+    @Query('purchaseOrderId') purchaseOrderId: string,
     @Query('standalone') standalone: boolean,
     @Query('page') page: number,
     @Query('limit') limit: number,
@@ -52,6 +53,7 @@ export class IncomingBaleController {
     return this.incomingBaleService.findAll(tenantId, {
       containerId,
       vendorId,
+      purchaseOrderId,
       standalone,
       page,
       limit,

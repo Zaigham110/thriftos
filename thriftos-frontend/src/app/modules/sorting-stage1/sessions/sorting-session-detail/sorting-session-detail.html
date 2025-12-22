@@ -1,0 +1,434 @@
+<div class="sorting-session-detail">
+  <!-- Breadcrumb -->
+  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
+
+  <!-- Error Alert -->
+  @if (error()) {
+    <ui-alert type="error" [dismissible]="true" (dismissed)="error.set(null)">
+      {{ error() }}
+    </ui-alert>
+  }
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="loading-state">
+      <ui-skeleton height="60px" class="mb-4"></ui-skeleton>
+      <div class="grid grid-2">
+        <ui-skeleton height="300px"></ui-skeleton>
+        <ui-skeleton height="300px"></ui-skeleton>
+      </div>
+    </div>
+  } @else if (session()) {
+    <!-- Page Header with Back Link -->
+    <div class="page-header">
+      <a routerLink="/app/sorting/stage1" class="back-link">
+        <lucide-icon [img]="icons.arrowLeft" size="16"></lucide-icon>
+        Back to Sessions
+      </a>
+      
+      <div class="header-row">
+        <div class="header-content">
+          <div class="title-row">
+            <h1>Sorting Workspace</h1>
+            <ui-badge [variant]="getStatusVariant(session()!.status)">
+              {{ session()!.status }}
+            </ui-badge>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          @if (isEditable()) {
+            <ui-button
+              variant="primary"
+              [disabled]="saving()"
+              (clicked)="confirmCloseSession()"
+            >
+              <lucide-icon [img]="icons.lock" size="16"></lucide-icon>
+              Close Session
+            </ui-button>
+          } @else {
+            <div class="closed-badge">
+              <lucide-icon [img]="icons.lock" size="14"></lucide-icon>
+              Session Closed
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- TRACEABILITY HEADER (MANDATORY) -->
+    <ui-card class="traceability-card">
+      <div class="traceability-grid">
+        <!-- Container Reference (if applicable) -->
+        <div class="traceability-item">
+          <span class="traceability-label">Container</span>
+          <span class="traceability-value">
+            @if (session()!.rag?.container) {
+              <a [routerLink]="['/app/procurement/containers', session()!.rag!.container!.id]" class="traceability-link">
+                {{ session()!.rag!.container!.containerNumber }}
+              </a>
+            } @else {
+              <span class="text-muted">N/A (Loose Bale)</span>
+            }
+          </span>
+        </div>
+
+        <!-- Rag/Bale Code -->
+        <div class="traceability-item">
+          <span class="traceability-label">Rag / Bale</span>
+          <span class="traceability-value traceability-value--highlight">
+            @if (session()!.rag) {
+              {{ session()!.rag!.ragCode }}
+            } @else if (session()!.incomingBale) {
+              {{ session()!.incomingBale!.baleCode }}
+            }
+          </span>
+        </div>
+
+        <!-- Source Type -->
+        <div class="traceability-item">
+          <span class="traceability-label">Source Type</span>
+          <span class="traceability-value">
+            @if (session()!.rag?.container) {
+              <ui-badge variant="primary" size="sm">Container</ui-badge>
+            } @else {
+              <ui-badge variant="default" size="sm">Loose Bale</ui-badge>
+            }
+          </span>
+        </div>
+
+        <!-- Original Weight -->
+        <div class="traceability-item">
+          <span class="traceability-label">Original Weight</span>
+          <span class="traceability-value traceability-value--mono">
+            {{ formatWeight(session()!.totalInputWeight) }} kg
+          </span>
+        </div>
+      </div>
+    </ui-card>
+
+    <!-- Main Workspace Grid -->
+    <div class="workspace-grid">
+      <!-- Left Column: Category Buckets -->
+      <div class="workspace-column">
+        <ui-card class="category-buckets-card">
+          <div class="card-header">
+            <h2 class="card-title">
+              <lucide-icon [img]="icons.box" size="18"></lucide-icon>
+              Category Buckets
+            </h2>
+            @if (isEditable()) {
+              <ui-button
+                variant="secondary"
+                size="sm"
+                [disabled]="availableCategories().length === 0 || newBucket() !== null"
+                (click)="startAddCategory()"
+              >
+                Add Category
+              </ui-button>
+            }
+          </div>
+
+          <!-- Add New Category Form -->
+          @if (newBucket()) {
+            <div class="bucket-form">
+              <div class="form-header">
+                <span class="form-title">Add Category</span>
+                <button class="icon-btn" (click)="cancelAddCategory()">×</button>
+              </div>
+              
+              <div class="form-row">
+                <label>Category</label>
+                <select 
+                  class="form-select"
+                  [value]="newBucket()!.categoryId"
+                  (change)="selectNewCategory($any($event.target).value)"
+                >
+                  @for (cat of availableCategories(); track cat.id) {
+                    <option [value]="cat.id">{{ cat.name }}</option>
+                  }
+                </select>
+              </div>
+
+              <div class="form-row-inline">
+                <div class="form-field">
+                  <label>Weight (kg)</label>
+                  <input 
+                    type="number" 
+                    class="form-input"
+                    [class.input-error]="!canAddWeight()"
+                    [value]="newBucket()!.weightKg"
+                    (input)="updateNewBucketWeight($event)"
+                    min="0"
+                    [max]="remainingWeight()"
+                    step="0.01"
+                  />
+                  <span class="field-hint">Available: {{ formatWeight(remainingWeight()) }} kg</span>
+                </div>
+                <div class="form-field">
+                  <label>Count</label>
+                  <input 
+                    type="number" 
+                    class="form-input"
+                    [value]="newBucket()!.count"
+                    (input)="updateNewBucketCount($event)"
+                    min="0"
+                    step="1"
+                  />
+                </div>
+              </div>
+
+              @if (!canAddWeight()) {
+                <div class="validation-error">
+                  <lucide-icon [img]="icons.alertCircle" size="14"></lucide-icon>
+                  {{ weightValidationError() }}
+                </div>
+              }
+
+              <div class="form-actions">
+                <ui-button variant="ghost" size="sm" (click)="cancelAddCategory()">
+                  Cancel
+                </ui-button>
+                <ui-button 
+                  variant="primary" 
+                  size="sm" 
+                  [disabled]="saving() || !canAddWeight()"
+                  (click)="saveNewBucket()"
+                >
+                  <lucide-icon [img]="icons.save" size="14"></lucide-icon>
+                  Save
+                </ui-button>
+              </div>
+            </div>
+          }
+
+          <!-- Category Buckets List -->
+          <div class="buckets-list">
+            @if (categoryBuckets().length === 0 && !newBucket()) {
+              <div class="empty-buckets">
+                <lucide-icon [img]="icons.box" size="32"></lucide-icon>
+                <p>No categories sorted yet</p>
+                @if (isEditable()) {
+                  <span class="hint">Click "Add Category" to start sorting</span>
+                }
+              </div>
+            }
+
+            @for (bucket of categoryBuckets(); track bucket.id) {
+              <div class="bucket-item" [class.bucket-item--editing]="editingBucket()?.bucketId === bucket.id">
+                @if (editingBucket()?.bucketId === bucket.id) {
+                  <!-- Edit Mode -->
+                  <div class="bucket-edit-form">
+                    <div class="bucket-edit-header">
+                      <span class="category-name">{{ getCategoryName(bucket) }}</span>
+                    </div>
+                    
+                    <div class="form-row-inline">
+                      <div class="form-field">
+                        <label>Weight (kg)</label>
+                        <input 
+                          type="number" 
+                          class="form-input"
+                          [class.input-error]="!canSaveEditWeight()"
+                          [value]="editingBucket()!.weightKg"
+                          (input)="updateEditingWeight($event)"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                      <div class="form-field">
+                        <label>Count</label>
+                        <input 
+                          type="number" 
+                          class="form-input"
+                          [value]="editingBucket()!.count"
+                          (input)="updateEditingCount($event)"
+                          min="0"
+                          step="1"
+                        />
+                      </div>
+                    </div>
+
+                    @if (!canSaveEditWeight()) {
+                      <div class="validation-error">
+                        <lucide-icon [img]="icons.alertCircle" size="14"></lucide-icon>
+                        {{ weightValidationError() }}
+                      </div>
+                    }
+
+                    <div class="form-actions">
+                      <ui-button variant="ghost" size="sm" (click)="cancelEditBucket()">
+                        Cancel
+                      </ui-button>
+                      <ui-button 
+                        variant="primary" 
+                        size="sm" 
+                        [disabled]="saving() || !canSaveEditWeight()"
+                        (click)="saveEditBucket()"
+                      >
+                        <lucide-icon [img]="icons.save" size="14"></lucide-icon>
+                        Save
+                      </ui-button>
+                    </div>
+                  </div>
+                } @else {
+                  <!-- View Mode -->
+                  <div class="bucket-info">
+                    <span class="category-name">{{ getCategoryName(bucket) }}</span>
+                    <div class="bucket-stats">
+                      <span class="stat">
+                        <lucide-icon [img]="icons.scale" size="14"></lucide-icon>
+                        {{ formatWeight(bucket.outputWeightKg) }} kg
+                      </span>
+                      <span class="stat">
+                        <lucide-icon [img]="icons.hash" size="14"></lucide-icon>
+                        {{ bucket.outputCount }} items
+                      </span>
+                    </div>
+                  </div>
+                  
+                  @if (isEditable()) {
+                    <div class="bucket-actions">
+                      <button class="icon-btn" (click)="startEditBucket(bucket)" title="Edit">
+                        <lucide-icon [img]="icons.save" size="14"></lucide-icon>
+                      </button>
+                      <button class="icon-btn icon-btn--danger" (click)="confirmDeleteBucket(bucket.id)" title="Delete">
+                        <lucide-icon [img]="icons.trash" size="14"></lucide-icon>
+                      </button>
+                    </div>
+                  } @else if (canStartGrading(bucket)) {
+                    <!-- Session is CLOSED - show Start Grading button -->
+                    <div class="bucket-actions">
+                      <ui-button
+                        variant="primary"
+                        size="sm"
+                        [disabled]="startingGrading() === bucket.id"
+                        (clicked)="startGrading(bucket)"
+                        title="Start Grading (Stage 2)"
+                      >
+                        @if (startingGrading() === bucket.id) {
+                          <span>Starting...</span>
+                        } @else {
+                          <lucide-icon [img]="icons.play" size="14"></lucide-icon>
+                          <span>Start Grading</span>
+                        }
+                      </ui-button>
+                    </div>
+                  }
+                }
+              </div>
+            }
+          </div>
+        </ui-card>
+
+        <!-- Waste Bucket (Display-only - shows remaining weight) -->
+        <app-waste-bucket
+          [wasteWeight]="calculatedWaste()"
+          [wasteCount]="wasteCount()"
+          [editable]="false"
+          [maxWeight]="0"
+        ></app-waste-bucket>
+      </div>
+
+      <!-- Right Column: Totals -->
+      <div class="workspace-column">
+        <!-- Totals Panel -->
+        <ui-card class="totals-card">
+          <div class="card-header">
+            <h2 class="card-title">
+              <lucide-icon [img]="icons.checkCircle" size="18"></lucide-icon>
+              Session Totals
+            </h2>
+          </div>
+
+          <div class="totals-grid">
+            <div class="total-item">
+              <span class="total-label">Input Weight</span>
+              <span class="total-value font-mono">{{ formatWeight(session()!.totalInputWeight) }} kg</span>
+            </div>
+            
+            <div class="total-item">
+              <span class="total-label">Total Sorted</span>
+              <span class="total-value font-mono">{{ formatWeight(sortingTotals().totalSortedWeight) }} kg</span>
+            </div>
+
+            <div class="total-item">
+              <span class="total-label">Waste</span>
+              <span class="total-value font-mono total-value--waste">{{ formatWeight(calculatedWaste()) }} kg</span>
+            </div>
+
+            <div class="total-item">
+              <span class="total-label">Total Items</span>
+              <span class="total-value font-mono">{{ sortingTotals().totalItemCount }}</span>
+            </div>
+
+            <div class="total-item total-item--highlight">
+              <span class="total-label">Yield %</span>
+              <span class="total-value font-mono">{{ sortingTotals().yieldPercentage.toFixed(1) }}%</span>
+            </div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="progress-section">
+            <div class="progress-header">
+              <span class="progress-label">Sorted Progress</span>
+              <span class="progress-value font-mono">{{ sortingTotals().yieldPercentage.toFixed(1) }}%</span>
+            </div>
+            <div class="progress-bar">
+              <div 
+                class="progress-fill" 
+                [class.progress-fill--complete]="sortingTotals().yieldPercentage >= 100"
+                [class.progress-fill--over]="sortingTotals().yieldPercentage > 100"
+                [style.width.%]="Math.min(sortingTotals().yieldPercentage, 100)"
+              ></div>
+            </div>
+            @if (sortingTotals().yieldPercentage > 100) {
+              <div class="progress-warning">
+                <lucide-icon [img]="icons.alertCircle" size="14"></lucide-icon>
+                Output exceeds input by {{ formatWeight(sortingTotals().totalSortedWeight - session()!.totalInputWeight) }} kg
+              </div>
+            }
+          </div>
+        </ui-card>
+
+        <!-- Session Info -->
+        <ui-card class="info-card">
+          <div class="info-rows">
+            <div class="info-row">
+              <span class="info-label">Created</span>
+              <span class="info-value">{{ session()!.createdAt | date:'medium' }}</span>
+            </div>
+            @if (session()!.endTime) {
+              <div class="info-row">
+                <span class="info-label">Closed</span>
+                <span class="info-value">{{ session()!.endTime | date:'medium' }}</span>
+              </div>
+            }
+          </div>
+        </ui-card>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Close Session Confirmation -->
+<ui-confirm-dialog
+  [open]="showCloseConfirm()"
+  title="Close Sorting Session"
+  message="Are you sure you want to close this session? This action cannot be undone. The session will become read-only."
+  confirmText="Close Session"
+  confirmVariant="primary"
+  (confirmed)="closeSession()"
+  (cancelled)="showCloseConfirm.set(false)"
+></ui-confirm-dialog>
+
+<!-- Delete Bucket Confirmation -->
+<ui-confirm-dialog
+  [open]="showDeleteConfirm()"
+  title="Delete Category Bucket"
+  message="Are you sure you want to delete this category bucket? This action cannot be undone."
+  confirmText="Delete"
+  confirmVariant="danger"
+  (confirmed)="deleteBucket()"
+  (cancelled)="showDeleteConfirm.set(false)"
+></ui-confirm-dialog>

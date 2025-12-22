@@ -1,0 +1,23 @@
+<div [class]="alertClasses" role="alert">
+  <div class="alert-icon">
+    <lucide-icon [img]="icon" [size]="20"></lucide-icon>
+  </div>
+  <div class="alert-content">
+    @if (title()) {
+      <h4 class="alert-title">{{ title() }}</h4>
+    }
+    <div class="alert-message">
+      <ng-content></ng-content>
+    </div>
+  </div>
+  @if (dismissible()) {
+    <button
+      type="button"
+      class="alert-dismiss"
+      aria-label="Dismiss alert"
+      (click)="dismiss()"
+    >
+      <lucide-icon [img]="icons.close" [size]="16"></lucide-icon>
+    </button>
+  }
+</div>

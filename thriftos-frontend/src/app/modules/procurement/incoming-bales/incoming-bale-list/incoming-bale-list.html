@@ -1,0 +1,90 @@
+<ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
+
+<div class="incoming-bale-list">
+  <header class="page-header">
+    <div class="header-content">
+      <h1>Incoming Bales</h1>
+      <p class="subtitle">Manage loose bale purchases (not part of containers)</p>
+    </div>
+    @if (canCreate) {
+      <a routerLink="create" ui-button variant="primary">
+        <lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>
+        New Bale
+      </a>
+    }
+  </header>
+
+  @if (error()) {
+    <ui-alert variant="danger">
+      {{ error() }}
+    </ui-alert>
+  }
+
+  @if (loading()) {
+    <ui-card>
+      <div class="skeleton-list">
+        @for (i of [1, 2, 3, 4, 5]; track i) {
+          <ui-skeleton height="60px"></ui-skeleton>
+        }
+      </div>
+    </ui-card>
+  } @else if (incomingBales().length === 0) {
+    <ui-empty-state
+      title="No Incoming Bales"
+      description="No loose bale purchases have been recorded yet."
+      [icon]="icons.Package"
+    >
+      @if (canCreate) {
+        <a routerLink="create" ui-button variant="primary">
+          <lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>
+          Create First Bale
+        </a>
+      }
+    </ui-empty-state>
+  } @else {
+    <ui-card>
+      <div class="bale-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Bale Code</th>
+              <th>Category Guess</th>
+              <th>Weight (kg)</th>
+              <th>Cost</th>
+              <th>Cost/kg</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (bale of incomingBales(); track bale.id) {
+              <tr>
+                <td class="bale-code">
+                  <lucide-icon [img]="icons.Package" [size]="16"></lucide-icon>
+                  {{ bale.baleCode }}
+                </td>
+                <td>
+                  @if (bale.categoryGuess) {
+                    <ui-badge variant="default">{{ bale.categoryGuess }}</ui-badge>
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+                <td>{{ formatWeight(bale.weightKg) }}</td>
+                <td>{{ formatCurrency(bale.cost) }}</td>
+                <td class="text-muted">{{ formatCurrency(bale.cost / bale.weightKg) }}</td>
+                <td>{{ formatDate(bale.createdAt) }}</td>
+                <td>
+                  <a [routerLink]="[bale.id]" ui-button variant="ghost" size="sm">
+                    <lucide-icon [img]="icons.Eye" [size]="16"></lucide-icon>
+                    View
+                  </a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </ui-card>
+  }
+</div>

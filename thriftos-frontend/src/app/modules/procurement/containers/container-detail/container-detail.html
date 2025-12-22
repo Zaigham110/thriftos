@@ -1,0 +1,393 @@
+<div class="container-detail">
+  <ui-breadcrumb [items]="breadcrumbs()"></ui-breadcrumb>
+
+  @if (error()) {
+    <ui-alert variant="danger" [dismissible]="true" (dismissed)="error.set(null)">
+      {{ error() }}
+    </ui-alert>
+  }
+
+  @if (loading()) {
+    <div class="loading-state">
+      <ui-card>
+        <div class="skeleton-header">
+          <ui-skeleton variant="text" class="skeleton-title"></ui-skeleton>
+          <ui-skeleton variant="text" class="skeleton-badge"></ui-skeleton>
+        </div>
+        <div class="skeleton-grid">
+          <ui-skeleton variant="text"></ui-skeleton>
+          <ui-skeleton variant="text"></ui-skeleton>
+          <ui-skeleton variant="text"></ui-skeleton>
+          <ui-skeleton variant="text"></ui-skeleton>
+        </div>
+      </ui-card>
+    </div>
+  } @else if (container(); as cont) {
+    <!-- Read-Only Banner -->
+    @if (isReadOnly()) {
+      <ui-alert variant="warning" class="readonly-banner">
+        This container is closed and cannot be modified.
+      </ui-alert>
+    }
+
+    <!-- Header -->
+    <header class="page-header">
+      <div class="page-header__info">
+        <h1>{{ cont.containerNumber }}</h1>
+        <div class="page-header__meta">
+          <ui-badge [variant]="getStatusVariant(cont.status)" size="md">
+            {{ getStatusLabel(cont.status) }}
+          </ui-badge>
+          @if (cont.containerType) {
+            <span class="container-type">{{ cont.containerType }}</span>
+          }
+        </div>
+      </div>
+
+      @if (!isReadOnly() && canEdit()) {
+        <div class="page-header__actions">
+          @if (getNextStatus(); as nextStatus) {
+            <ui-button variant="ghost" (clicked)="openStatusModal(nextStatus)" [loading]="actionLoading()">
+              <lucide-icon [img]="icons.ArrowRight" [size]="16"></lucide-icon>
+              Mark {{ getStatusLabel(nextStatus) }}
+            </ui-button>
+          }
+        </div>
+      }
+    </header>
+
+    <!-- Phase 2.5: Tabs -->
+    <ui-tabs 
+      [tabs]="tabs" 
+      [activeTab]="activeTab()" 
+      (tabChange)="onTabChange($event)"
+    ></ui-tabs>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+      <!-- Overview Tab -->
+      @if (activeTab() === 'overview') {
+        <div class="content-grid">
+          <!-- Left Column: Details -->
+          <div class="main-column">
+            <!-- Details Card -->
+            <ui-card class="details-card">
+              <div class="card-header">
+                <h2>Details</h2>
+                @if (isEditable() && canEdit() && !isEditMode()) {
+                  <ui-button variant="ghost" size="sm" (clicked)="toggleEditMode()">
+                    <lucide-icon [img]="icons.Edit2" [size]="14"></lucide-icon>
+                    Edit
+                  </ui-button>
+                }
+              </div>
+
+              @if (isEditMode()) {
+                <form [formGroup]="editForm" (ngSubmit)="saveChanges()">
+                  <div class="edit-form">
+                    <div class="form-grid">
+                      <div class="form-field">
+                        <ui-input formControlName="referenceNumber" label="Reference Number"></ui-input>
+                      </div>
+                      <div class="form-field">
+                        <ui-select
+                          formControlName="containerType"
+                          label="Container Type"
+                          [options]="[
+                            { value: '', label: 'Select type' },
+                            { value: '20ft', label: '20ft Standard' },
+                            { value: '40ft', label: '40ft Standard' },
+                            { value: '40HC', label: '40ft High Cube' }
+                          ]"
+                        ></ui-select>
+                      </div>
+                      <div class="form-field">
+                        <label class="form-label">ETA</label>
+                        <input type="date" formControlName="eta" class="date-input" />
+                      </div>
+                      <div class="form-field">
+                        <label class="form-label">ETD</label>
+                        <input type="date" formControlName="etd" class="date-input" />
+                      </div>
+                    </div>
+                    <div class="form-grid">
+                      <div class="form-field">
+                        <label class="form-label">Arrived</label>
+                        <input type="date" formControlName="arrivedAt" class="date-input" />
+                      </div>
+                      <div class="form-field">
+                        <label class="form-label">Cleared</label>
+                        <input type="date" formControlName="clearedAt" class="date-input" />
+                      </div>
+                      <div class="form-field">
+                        <label class="form-label">Released</label>
+                        <input type="date" formControlName="releasedAt" class="date-input" />
+                      </div>
+                    </div>
+                    <div class="form-grid">
+                      <div class="form-field">
+                        <ui-input formControlName="grossWeight" type="number" label="Gross Weight (KG)" [required]="true"></ui-input>
+                      </div>
+                      <div class="form-field">
+                        <ui-input formControlName="netWeight" type="number" label="Net Weight (KG)" [required]="true"></ui-input>
+                      </div>
+                    </div>
+                    <div class="form-grid">
+                      <div class="form-field">
+                        <ui-input formControlName="billOfLadingNumber" label="Bill of Lading #"></ui-input>
+                      </div>
+                      <div class="form-field">
+                        <ui-input formControlName="shipmentReference" label="Shipment Reference"></ui-input>
+                      </div>
+                      <div class="form-field">
+                        <ui-input formControlName="forwarder" label="Forwarder"></ui-input>
+                      </div>
+                    </div>
+                    <div class="form-grid">
+                      <div class="form-field">
+                        <ui-input formControlName="shippingLine" label="Shipping Line"></ui-input>
+                      </div>
+                      <div class="form-field">
+                        <ui-input formControlName="vesselName" label="Vessel"></ui-input>
+                      </div>
+                    </div>
+                    <div class="form-grid">
+                      <div class="form-field">
+                        <ui-input formControlName="portOfLoading" label="Port of Loading"></ui-input>
+                      </div>
+                      <div class="form-field">
+                        <ui-input formControlName="portOfDischarge" label="Port of Discharge"></ui-input>
+                      </div>
+                    </div>
+                    <div class="form-field">
+                      <label class="form-label">Notes</label>
+                      <textarea formControlName="notes" rows="3" placeholder="Add logistics notes"></textarea>
+                    </div>
+                    <div class="edit-actions">
+                      <ui-button variant="ghost" type="button" (clicked)="toggleEditMode()">Cancel</ui-button>
+                      <ui-button variant="primary" type="submit" [loading]="actionLoading()">Save Changes</ui-button>
+                    </div>
+                  </div>
+                </form>
+              } @else {
+                <div class="details-grid">
+                  <div class="detail-item">
+                    <span class="detail-label">Reference Number</span>
+                    <span class="detail-value">{{ cont.referenceNumber || '—' }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Container Type</span>
+                    <span class="detail-value">{{ cont.containerType || '—' }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">ETA / ETD</span>
+                    <span class="detail-value">
+                      {{ cont.eta ? (cont.eta | date:'mediumDate') : '—' }} /
+                      {{ cont.etd ? (cont.etd | date:'mediumDate') : '—' }}
+                    </span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Arrived / Cleared / Released</span>
+                    <span class="detail-value">
+                      {{ cont.arrivedAt ? (cont.arrivedAt | date:'mediumDate') : '—' }} /
+                      {{ cont.clearedAt ? (cont.clearedAt | date:'mediumDate') : '—' }} /
+                      {{ cont.releasedAt ? (cont.releasedAt | date:'mediumDate') : '—' }}
+                    </span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Ports</span>
+                    <span class="detail-value">{{ cont.portOfLoading || '—' }} → {{ cont.portOfDischarge || '—' }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Gross Weight</span>
+                    <span class="detail-value font-mono">{{ cont.grossWeight | number:'1.2-2' }} KG</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Net Weight</span>
+                    <span class="detail-value font-mono">{{ cont.netWeight | number:'1.2-2' }} KG</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Bill of Lading</span>
+                    <span class="detail-value">{{ cont.billOfLadingNumber || '—' }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Shipment Reference</span>
+                    <span class="detail-value">{{ cont.shipmentReference || '—' }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Shipping Line / Vessel</span>
+                    <span class="detail-value">{{ cont.shippingLine || '—' }} / {{ cont.vesselName || '—' }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Forwarder</span>
+                    <span class="detail-value">{{ cont.forwarder || '—' }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Notes</span>
+                    <span class="detail-value">{{ cont.notes || '—' }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Created</span>
+                    <span class="detail-value">{{ cont.createdAt | date:'medium' }}</span>
+                  </div>
+                </div>
+
+                @if (cont.purchaseOrder) {
+                  <div class="po-link">
+                    <span class="po-link__label">Purchase Order:</span>
+                    <a [routerLink]="['/app/procurement/purchase-orders', cont.purchaseOrderId]" class="po-link__value">
+                      {{ cont.purchaseOrder.poNumber }}
+                      <lucide-icon [img]="icons.ExternalLink" [size]="14"></lucide-icon>
+                    </a>
+                  </div>
+                }
+              }
+            </ui-card>
+          </div>
+
+          <!-- Right Column: Cost Summary -->
+          <div class="side-column">
+            <app-cost-breakdown-panel
+              [costBreakdown]="costBreakdown()"
+              [loading]="costLoading()"
+              [currency]="currencyCode()"
+            ></app-cost-breakdown-panel>
+          </div>
+        </div>
+      }
+
+      <!-- Rags / Bales Tab (Phase 2.5) -->
+      @if (activeTab() === 'rags') {
+        <ui-card class="rags-card">
+          <app-rag-list [container]="cont"></app-rag-list>
+        </ui-card>
+      }
+
+      <!-- Costs Tab -->
+      @if (activeTab() === 'costs') {
+        <div class="content-grid">
+          <div class="main-column">
+            <!-- Charges Card -->
+            <ui-card class="charges-card">
+              <div class="card-header">
+                <h2>Charges</h2>
+                @if (isEditable() && canEdit()) {
+                  <ui-button variant="primary" size="sm" (clicked)="openChargeDrawer()">
+                    <lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon>
+                    Add Charge
+                  </ui-button>
+                }
+              </div>
+
+              @if (charges().length === 0) {
+                <div class="empty-charges">
+                  <lucide-icon [img]="icons.Receipt" [size]="32"></lucide-icon>
+                  <p>No charges recorded</p>
+                </div>
+              } @else {
+                <div class="charges-list">
+                  @for (charge of charges(); track charge.id) {
+                    <div class="charge-item">
+                      <div class="charge-item__info">
+                        <ui-badge [variant]="'default'" size="sm">{{ charge.chargeType }}</ui-badge>
+                        <span class="charge-item__description">{{ charge.description }}</span>
+                      </div>
+                      <div class="charge-item__amount">
+                        {{ charge.amount | currency:currencyCode():'symbol':'1.2-2' }}
+                      </div>
+                      @if (isEditable() && canEdit()) {
+                        <button 
+                          type="button" 
+                          class="charge-item__delete" 
+                          (click)="deleteCharge(charge.id)"
+                          title="Delete charge"
+                        >
+                          <lucide-icon [img]="icons.Trash2" [size]="14"></lucide-icon>
+                        </button>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </ui-card>
+          </div>
+
+          <!-- Right Column: Cost Breakdown -->
+          <div class="side-column">
+            <app-cost-breakdown-panel
+              [costBreakdown]="costBreakdown()"
+              [loading]="costLoading()"
+              [currency]="currencyCode()"
+            ></app-cost-breakdown-panel>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
+
+<!-- Status Change Modal -->
+<ui-modal [isOpen]="showStatusModal()" (closed)="closeStatusModal()" size="sm">
+  <div class="confirm-modal">
+    <h3>Update Container Status?</h3>
+    <p>
+      Change status to <strong>{{ getStatusLabel(selectedStatus()!) }}</strong>?
+      @if (selectedStatus() === 'CLOSED') {
+        <br><span class="warning-text">This will make the container read-only.</span>
+      }
+    </p>
+    <div class="confirm-actions">
+      <ui-button variant="ghost" (clicked)="closeStatusModal()">Cancel</ui-button>
+      <ui-button
+        [variant]="selectedStatus() === 'CLOSED' ? 'danger' : 'primary'"
+        (clicked)="confirmStatusChange()"
+        [loading]="actionLoading()"
+      >
+        Confirm
+      </ui-button>
+    </div>
+  </div>
+</ui-modal>
+
+<!-- Add Charge Drawer -->
+<ui-drawer
+  [isOpen]="showChargeDrawer()"
+  (closed)="closeChargeDrawer()"
+  title="Add Charge"
+  position="right"
+>
+  <form [formGroup]="chargeForm" (ngSubmit)="createCharge()">
+    <div class="drawer-form">
+      <div class="form-field">
+        <ui-select
+          formControlName="chargeType"
+          label="Charge Type"
+          [options]="chargeTypeOptions"
+        ></ui-select>
+      </div>
+      <div class="form-field">
+        <ui-input
+          formControlName="description"
+          label="Description"
+          placeholder="Enter charge description"
+        ></ui-input>
+      </div>
+      <div class="form-field">
+        <ui-input
+          formControlName="amount"
+          type="number"
+          [label]="'Amount (' + currencyCode() + ')'"
+          placeholder="0.00"
+        ></ui-input>
+      </div>
+      <div class="drawer-actions">
+        <ui-button variant="ghost" type="button" (clicked)="closeChargeDrawer()">
+          Cancel
+        </ui-button>
+        <ui-button variant="primary" type="submit" [loading]="actionLoading()">
+          Add Charge
+        </ui-button>
+      </div>
+    </div>
+  </form>
+</ui-drawer>

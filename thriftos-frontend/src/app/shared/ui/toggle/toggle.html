@@ -1,0 +1,23 @@
+<label class="toggle-wrapper" [class.toggle-disabled]="disabled() || isDisabled()">
+  <input
+    type="checkbox"
+    class="toggle-input"
+    [id]="id()"
+    [checked]="checked()"
+    [disabled]="disabled() || isDisabled()"
+    (change)="toggle()"
+    role="switch"
+    [attr.aria-checked]="checked()"
+  />
+  <span class="toggle-track" [class.toggle-active]="checked()">
+    <span class="toggle-thumb"></span>
+  </span>
+  @if (label()) {
+    <span class="toggle-label">
+      {{ label() }}
+      @if (hint()) {
+        <span class="toggle-hint">{{ hint() }}</span>
+      }
+    </span>
+  }
+</label>

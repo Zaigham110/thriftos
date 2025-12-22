@@ -16,12 +16,6 @@ class CreatePurchaseOrderDto {
 }
 exports.CreatePurchaseOrderDto = CreatePurchaseOrderDto;
 __decorate([
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
-    (0, class_validator_1.MaxLength)(50),
-    __metadata("design:type", String)
-], CreatePurchaseOrderDto.prototype, "poNumber", void 0);
-__decorate([
     (0, class_validator_1.IsEnum)(client_1.PurchaseOrderType),
     __metadata("design:type", String)
 ], CreatePurchaseOrderDto.prototype, "poType", void 0);
@@ -30,16 +24,4 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreatePurchaseOrderDto.prototype, "vendorId", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.MaxLength)(3),
-    __metadata("design:type", String)
-], CreatePurchaseOrderDto.prototype, "currency", void 0);
-__decorate([
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.Min)(0),
-    (0, class_validator_1.IsOptional)(),
-    __metadata("design:type", Number)
-], CreatePurchaseOrderDto.prototype, "totalCost", void 0);
 //# sourceMappingURL=create-purchase-order.dto.js.map

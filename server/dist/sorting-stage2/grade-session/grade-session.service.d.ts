@@ -26,9 +26,24 @@ export declare class GradeSessionService {
     }): Promise<{
         data: ({
             categoryOutput: {
+                category: {
+                    id: string;
+                    name: string;
+                };
+                container: {
+                    id: string;
+                    containerNumber: string;
+                };
+                rag: {
+                    id: string;
+                    ragCode: string;
+                };
                 id: string;
+                containerId: string;
                 weightKg: Decimal;
                 allocatedCost: Decimal;
+                ragId: string;
+                sortSessionId: string;
                 categoryId: string;
                 count: number;
             };
@@ -70,13 +85,24 @@ export declare class GradeSessionService {
                 id: string;
                 name: string;
             };
+            container: {
+                id: string;
+                containerNumber: string;
+            };
+            rag: {
+                id: string;
+                ragCode: string;
+            };
         } & {
             id: string;
             tenantId: string;
             createdAt: Date;
             updatedAt: Date;
+            containerId: string | null;
             weightKg: Decimal;
             allocatedCost: Decimal;
+            ragId: string;
+            sortSessionId: string;
             categoryId: string;
             count: number;
             sortCategoryBucketId: string;

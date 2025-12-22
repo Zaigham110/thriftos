@@ -1,0 +1,130 @@
+<div class="sorting-session-create">
+  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
+
+  <header class="page-header">
+    <a routerLink="/app/sorting/stage1" class="back-link">
+      <lucide-icon [img]="icons.ArrowLeft" [size]="18"></lucide-icon>
+      Back to Sessions
+    </a>
+    <div class="header-content">
+      <h1>Create Sorting Session</h1>
+      <p class="subtitle">Select a procurement source to start category sorting</p>
+    </div>
+  </header>
+
+  @if (error()) {
+    <ui-alert variant="danger" [dismissible]="true" (dismissed)="dismissError()">
+      {{ error() }}
+    </ui-alert>
+  }
+
+  <!-- Source Selection -->
+  <ui-card class="source-card">
+    <h2 class="card-title">Select Source Material</h2>
+
+    @if (loading()) {
+      <div class="loading-state">
+        @for (i of [1, 2, 3]; track i) {
+          <div class="skeleton-row">
+            <ui-skeleton variant="text"></ui-skeleton>
+          </div>
+        }
+      </div>
+    } @else if (sortableSources().length === 0) {
+      <div class="empty-state">
+        <lucide-icon [img]="icons.AlertCircle" [size]="32"></lucide-icon>
+        <p>No materials available for sorting</p>
+        <span class="hint">Ensure there are received RAGs or incoming bales without open sessions</span>
+      </div>
+    } @else {
+      <div class="source-list">
+        @for (source of sortableSources(); track source.id) {
+          <div
+            class="source-item"
+            [class.source-item--selected]="selectedSourceId() === source.id"
+            [class.source-item--disabled]="source.hasOpenSession"
+            (click)="!source.hasOpenSession && onSourceSelect(source.id)"
+          >
+            <div class="source-item__radio">
+              <input
+                type="radio"
+                name="source"
+                [value]="source.id"
+                [checked]="selectedSourceId() === source.id"
+                [disabled]="source.hasOpenSession"
+                (change)="onSourceSelect(source.id)"
+              />
+            </div>
+            <div class="source-item__icon">
+              @if (source.type === 'rag') {
+                <lucide-icon [img]="icons.Box" [size]="20"></lucide-icon>
+              } @else {
+                <lucide-icon [img]="icons.Package" [size]="20"></lucide-icon>
+              }
+            </div>
+            <div class="source-item__content">
+              <span class="source-item__code">{{ source.code }}</span>
+              <span class="source-item__description">{{ source.description }}</span>
+            </div>
+            <div class="source-item__weight font-mono">
+              {{ formatWeight(source.weightKg) }}
+            </div>
+            @if (source.hasOpenSession) {
+              <ui-badge variant="warning" size="sm">In Progress</ui-badge>
+            }
+          </div>
+        }
+      </div>
+    }
+  </ui-card>
+
+  <!-- Selected Source Confirmation -->
+  @if (selectedSource) {
+    <ui-card class="confirm-card">
+      <h2 class="card-title">Confirm Selection</h2>
+      
+      <div class="confirm-details">
+        <div class="detail-row">
+          <span class="detail-label">Source Type</span>
+          <span class="detail-value">
+            @if (selectedSource.type === 'rag') {
+              <lucide-icon [img]="icons.Box" [size]="16"></lucide-icon>
+              RAG (Container Material)
+            } @else {
+              <lucide-icon [img]="icons.Package" [size]="16"></lucide-icon>
+              Incoming Bale
+            }
+          </span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Code</span>
+          <span class="detail-value font-mono">{{ selectedSource.code }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Input Weight</span>
+          <span class="detail-value font-mono">{{ formatWeight(selectedSource.weightKg) }}</span>
+        </div>
+      </div>
+
+      <div class="info-banner">
+        <lucide-icon [img]="icons.CheckCircle" [size]="18"></lucide-icon>
+        <span>A new sorting session will be created in OPEN status. You can add category buckets and record weights in the workspace.</span>
+      </div>
+    </ui-card>
+  }
+
+  <!-- Form Actions -->
+  <div class="form-actions">
+    <ui-button variant="ghost" (clicked)="onCancel()">
+      Cancel
+    </ui-button>
+    <ui-button
+      variant="primary"
+      [disabled]="!selectedSourceId() || isSubmitting()"
+      [loading]="isSubmitting()"
+      (clicked)="onSubmit()"
+    >
+      Create Session
+    </ui-button>
+  </div>
+</div>

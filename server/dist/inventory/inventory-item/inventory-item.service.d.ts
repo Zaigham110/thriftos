@@ -26,7 +26,9 @@ export declare class InventoryItemService {
         createdAt: Date;
         updatedAt: Date;
         status: import("@prisma/client").$Enums.InventoryStatus;
+        containerId: string | null;
         weightKg: Decimal;
+        ragId: string | null;
         categoryId: string;
         gradeId: string;
         pcsCount: number;
@@ -70,7 +72,9 @@ export declare class InventoryItemService {
             createdAt: Date;
             updatedAt: Date;
             status: import("@prisma/client").$Enums.InventoryStatus;
+            containerId: string | null;
             weightKg: Decimal;
+            ragId: string | null;
             categoryId: string;
             gradeId: string;
             pcsCount: number;
@@ -121,7 +125,9 @@ export declare class InventoryItemService {
         createdAt: Date;
         updatedAt: Date;
         status: import("@prisma/client").$Enums.InventoryStatus;
+        containerId: string | null;
         weightKg: Decimal;
+        ragId: string | null;
         categoryId: string;
         gradeId: string;
         pcsCount: number;
@@ -135,7 +141,9 @@ export declare class InventoryItemService {
         createdAt: Date;
         updatedAt: Date;
         status: import("@prisma/client").$Enums.InventoryStatus;
+        containerId: string | null;
         weightKg: Decimal;
+        ragId: string | null;
         categoryId: string;
         gradeId: string;
         pcsCount: number;
@@ -149,7 +157,9 @@ export declare class InventoryItemService {
         createdAt: Date;
         updatedAt: Date;
         status: import("@prisma/client").$Enums.InventoryStatus;
+        containerId: string | null;
         weightKg: Decimal;
+        ragId: string | null;
         categoryId: string;
         gradeId: string;
         pcsCount: number;
@@ -163,7 +173,9 @@ export declare class InventoryItemService {
         createdAt: Date;
         updatedAt: Date;
         status: import("@prisma/client").$Enums.InventoryStatus;
+        containerId: string | null;
         weightKg: Decimal;
+        ragId: string | null;
         categoryId: string;
         gradeId: string;
         pcsCount: number;

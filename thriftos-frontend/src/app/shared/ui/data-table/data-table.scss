@@ -1,0 +1,97 @@
+@use '../../../../styles/variables' as *;
+@use '../../../../styles/mixins' as *;
+
+.table-wrapper {
+  overflow-x: auto;
+  border: 1px solid $border-default;
+  border-radius: $radius-lg;
+}
+
+.data-table {
+  @include table-base;
+  background-color: $bg-card;
+}
+
+.data-table-head {
+  background-color: $bg-section;
+}
+
+.data-table-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.data-table-th {
+  @include table-header;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: $text-secondary;
+}
+
+.data-table-body {
+  .data-table-striped & {
+    tr:nth-child(odd) {
+      background-color: $bg-card;
+    }
+
+    tr:nth-child(even) {
+      background-color: $bg-app;
+    }
+  }
+}
+
+.data-table-row {
+  transition: background-color $transition-fast;
+
+  .data-table-hoverable & {
+    &:hover {
+      background-color: $bg-section;
+    }
+  }
+}
+
+.data-table-td {
+  @include table-cell;
+  font-size: 0.875rem;
+  color: $text-primary;
+}
+
+.data-table-empty {
+  padding: 0;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.skeleton {
+  height: 1rem;
+  background: linear-gradient(
+    90deg,
+    $bg-section 25%,
+    $bg-app 50%,
+    $bg-section 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+  border-radius: $radius-sm;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

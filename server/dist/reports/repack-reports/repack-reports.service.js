@@ -20,6 +20,35 @@ let RepackReportsService = class RepackReportsService {
     }
     async repackEfficiency(tenantId, filters) {
         const { start, end } = (0, report_utils_1.parseDateRange)(filters);
+        const conditions = ['u."tenantId" = $1', 'rs."status" = \'CLOSED\''];
+        const params = [tenantId];
+        let paramIndex = 2;
+        if (start) {
+            conditions.push(`rs."startTime" >= $${paramIndex}`);
+            params.push(start);
+            paramIndex++;
+        }
+        if (end) {
+            conditions.push(`rs."startTime" <= $${paramIndex}`);
+            params.push(end);
+            paramIndex++;
+        }
+        if (filters.categoryId) {
+            conditions.push(`u."categoryId" = $${paramIndex}`);
+            params.push(filters.categoryId);
+            paramIndex++;
+        }
+        if (filters.gradeId) {
+            conditions.push(`u."gradeId" = $${paramIndex}`);
+            params.push(filters.gradeId);
+            paramIndex++;
+        }
+        if (filters.workerId) {
+            conditions.push(`rs."workerId" = $${paramIndex}`);
+            params.push(filters.workerId);
+            paramIndex++;
+        }
+        const whereClause = conditions.join(' AND ');
         const rows = await this.prisma.$queryRawUnsafe(`
       WITH units AS (
         SELECT
@@ -29,13 +58,7 @@ let RepackReportsService = class RepackReportsService {
           AVG(u."weightKg") AS "avgUnitWeightKg"
         FROM "RepackUnit" u
         JOIN "RepackSession" rs ON rs."id" = u."repackSessionId"
-        WHERE u."tenantId" = $1
-          AND rs."status" = 'CLOSED'
-          ${start ? `AND rs."startTime" >= $2` : ``}
-          ${end ? `AND rs."startTime" <= $3` : ``}
-          ${filters.categoryId ? `AND u."categoryId" = $4` : ``}
-          ${filters.gradeId ? `AND u."gradeId" = $5` : ``}
-          ${filters.workerId ? `AND rs."workerId" = $6` : ``}
+        WHERE ${whereClause}
         GROUP BY 1
       ),
       inputs AS (
@@ -45,14 +68,8 @@ let RepackReportsService = class RepackReportsService {
         FROM "RepackItem" ri
         JOIN "RepackUnit" u ON u."id" = ri."repackUnitId"
         JOIN "RepackSession" rs ON rs."id" = u."repackSessionId"
-        WHERE u."tenantId" = $1
-          AND rs."status" = 'CLOSED'
+        WHERE ${whereClause}
           AND ri."sourceType" = 'GRADE_OUTPUT'
-          ${start ? `AND rs."startTime" >= $2` : ``}
-          ${end ? `AND rs."startTime" <= $3` : ``}
-          ${filters.categoryId ? `AND u."categoryId" = $4` : ``}
-          ${filters.gradeId ? `AND u."gradeId" = $5` : ``}
-          ${filters.workerId ? `AND rs."workerId" = $6` : ``}
         GROUP BY 1
       )
       SELECT
@@ -64,7 +81,7 @@ let RepackReportsService = class RepackReportsService {
       FROM units
       FULL OUTER JOIN inputs ON inputs."day" = units."day"
       ORDER BY "day" ASC
-      `, tenantId, start ?? new Date(0), end ?? new Date(), filters.categoryId ?? null, filters.gradeId ?? null, filters.workerId ?? null);
+      `, ...params);
         return rows.map((r) => ({
             day: r.day,
             gradeInputWeightKg: new library_1.Decimal(r.gradeInputWeightKg).toString(),

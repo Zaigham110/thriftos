@@ -1,17 +1,26 @@
-import { IsString, IsNotEmpty, IsNumber, Min, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, Min, MaxLength, IsOptional, IsEnum } from 'class-validator';
+import { RagBaleType } from '@prisma/client';
 
 export class CreateRagDto {
   @IsString()
   @IsNotEmpty()
   containerId: string;
 
+  @IsEnum(RagBaleType)
+  @IsNotEmpty()
+  ragBaleType: RagBaleType;
+
   @IsString()
   @IsNotEmpty()
-  @MaxLength(50)
-  ragCode: string;
+  rawCategoryId: string;
 
   @IsNumber()
   @Min(0.01)
   weightKg: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  notes?: string;
 }
 

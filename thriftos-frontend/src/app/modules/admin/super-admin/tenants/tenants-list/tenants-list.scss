@@ -1,0 +1,213 @@
+@use 'sass:color';
+
+.tenants-page {
+  max-width: 1400px;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.page-title-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+}
+
+.page-subtitle {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.page-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.loading-skeleton {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f1f5f9;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+
+  th,
+  td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  th {
+    background-color: #f8fafc;
+    font-weight: 600;
+    color: #475569;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid #f1f5f9;
+    transition: background-color 0.15s ease;
+
+    &:hover {
+      background-color: #f8fafc;
+    }
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  td {
+    color: #334155;
+  }
+}
+
+.company-name {
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.company-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.date-col {
+  color: #64748b;
+}
+
+.actions-col {
+  width: 160px;
+  text-align: right !important;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: flex-end;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: #64748b;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background-color: #f1f5f9;
+    color: #334155;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &--warning {
+    &:hover:not(:disabled) {
+      background-color: #fef3c7;
+      color: #d97706;
+    }
+  }
+
+  &--success {
+    &:hover:not(:disabled) {
+      background-color: #dcfce7;
+      color: #16a34a;
+    }
+  }
+
+  &--danger {
+    &:hover:not(:disabled) {
+      background-color: #fee2e2;
+      color: #dc2626;
+    }
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem !important;
+  color: #64748b;
+
+  p {
+    margin: 0;
+  }
+}
+
+.table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+}
+
+.pagination-info {
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.confirm-message {
+  font-size: 0.9375rem;
+  color: #475569;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  margin-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}

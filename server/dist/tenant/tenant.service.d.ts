@@ -1,4 +1,6 @@
 import { PrismaService } from '../prisma/prisma.service';
+import { RagBaleType } from '@prisma/client';
+import { CreateRawCategoryDto, UpdateRawCategoryDto } from './dto/raw-category.dto';
 export declare class TenantService {
     private prisma;
     constructor(prisma: PrismaService);
@@ -29,6 +31,46 @@ export declare class TenantService {
         updatedAt: Date;
         sortOrder: number;
     }[]>;
+    getRawCategories(tenantId: string, type?: RagBaleType): Promise<{
+        id: string;
+        tenantId: string;
+        createdAt: Date;
+        name: string;
+        isActive: boolean;
+        updatedAt: Date;
+        rawType: import("@prisma/client").$Enums.RagBaleType;
+        sortOrder: number;
+    }[]>;
+    createRawCategory(tenantId: string, dto: CreateRawCategoryDto): Promise<{
+        id: string;
+        tenantId: string;
+        createdAt: Date;
+        name: string;
+        isActive: boolean;
+        updatedAt: Date;
+        rawType: import("@prisma/client").$Enums.RagBaleType;
+        sortOrder: number;
+    }>;
+    updateRawCategory(tenantId: string, id: string, dto: UpdateRawCategoryDto): Promise<{
+        id: string;
+        tenantId: string;
+        createdAt: Date;
+        name: string;
+        isActive: boolean;
+        updatedAt: Date;
+        rawType: import("@prisma/client").$Enums.RagBaleType;
+        sortOrder: number;
+    }>;
+    deleteRawCategory(tenantId: string, id: string): Promise<{
+        id: string;
+        tenantId: string;
+        createdAt: Date;
+        name: string;
+        isActive: boolean;
+        updatedAt: Date;
+        rawType: import("@prisma/client").$Enums.RagBaleType;
+        sortOrder: number;
+    }>;
     getGrades(tenantId: string): Promise<{
         id: string;
         tenantId: string;

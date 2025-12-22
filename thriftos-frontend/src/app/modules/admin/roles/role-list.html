@@ -1,0 +1,167 @@
+<div class="page-container">
+  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
+
+  <div class="page-header">
+    <div class="header-left">
+      <lucide-icon [img]="icons.Shield" class="header-icon"></lucide-icon>
+      <div class="header-text">
+        <h1 class="page-title">Roles</h1>
+        <p class="page-subtitle">Manage user roles and their permissions</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary" (click)="refresh()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [class.spinning]="loading()"></lucide-icon>
+        Refresh
+      </button>
+      <button 
+        class="btn btn-primary" 
+        (click)="openAddDrawer()"
+        *hasPermission="'role.create'"
+      >
+        <lucide-icon [img]="icons.Plus"></lucide-icon>
+        Add Role
+      </button>
+    </div>
+  </div>
+
+  <!-- Search Bar -->
+  <div class="search-bar">
+    <div class="search-input-wrapper">
+      <lucide-icon [img]="icons.Search" class="search-icon"></lucide-icon>
+      <input
+        type="text"
+        class="search-input"
+        placeholder="Search roles..."
+        [value]="searchQuery()"
+        (input)="searchQuery.set($any($event.target).value)"
+      />
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <ui-card>
+      <div class="skeleton-table">
+        @for (i of [1, 2, 3, 4]; track i) {
+          <div class="skeleton-row">
+            <ui-skeleton width="200px" height="20px"></ui-skeleton>
+            <ui-skeleton width="300px" height="16px"></ui-skeleton>
+            <ui-skeleton width="80px" height="24px"></ui-skeleton>
+            <ui-skeleton width="120px" height="32px"></ui-skeleton>
+          </div>
+        }
+      </div>
+    </ui-card>
+  } @else if (filteredRoles().length === 0) {
+    <ui-card>
+      @if (searchQuery()) {
+        <ui-empty-state
+          title="No roles found"
+          description="No roles match your search criteria."
+          [icon]="icons.Shield"
+        ></ui-empty-state>
+      } @else {
+        <ui-empty-state
+          title="No roles yet"
+          description="Create your first role to start organizing permissions."
+          [icon]="icons.Shield"
+        >
+          <button 
+            class="btn btn-primary" 
+            (click)="openAddDrawer()"
+            *hasPermission="'role.create'"
+          >
+            <lucide-icon [img]="icons.Plus"></lucide-icon>
+            Add Role
+          </button>
+        </ui-empty-state>
+      }
+    </ui-card>
+  } @else {
+    <ui-card [padding]="false">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Permissions</th>
+            <th class="actions-column">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (role of filteredRoles(); track role.id) {
+            <tr>
+              <td>
+                <div class="role-name">
+                  <lucide-icon [img]="icons.Shield" class="role-icon"></lucide-icon>
+                  {{ role.name }}
+                </div>
+              </td>
+              <td>
+                <span class="description-text">{{ role.description || '—' }}</span>
+              </td>
+              <td>
+                <span class="permission-count">{{ getPermissionCount(role) }} permissions</span>
+              </td>
+              <td class="actions-cell">
+                <button 
+                  class="btn btn-icon" 
+                  title="Manage Permissions"
+                  (click)="openPermissionsDrawer(role)"
+                  *hasPermission="'role.update'"
+                >
+                  <lucide-icon [img]="icons.Key"></lucide-icon>
+                </button>
+                <button 
+                  class="btn btn-icon" 
+                  title="Edit Role"
+                  (click)="openEditDrawer(role)"
+                  *hasPermission="'role.update'"
+                >
+                  <lucide-icon [img]="icons.Pencil"></lucide-icon>
+                </button>
+                <button 
+                  class="btn btn-icon btn-danger" 
+                  title="Delete Role"
+                  (click)="confirmDelete(role)"
+                  *hasPermission="'role.delete'"
+                >
+                  <lucide-icon [img]="icons.Trash2"></lucide-icon>
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </ui-card>
+  }
+</div>
+
+<!-- Role Form Drawer -->
+<app-role-form-drawer
+  [isOpen]="formDrawerOpen()"
+  [role]="selectedRole()"
+  (closed)="closeFormDrawer()"
+  (saved)="onFormSaved()"
+></app-role-form-drawer>
+
+<!-- Role Permissions Drawer -->
+<app-role-permissions-drawer
+  [isOpen]="permissionsDrawerOpen()"
+  [role]="selectedRole()"
+  [permissionGroups]="permissionGroups()"
+  (closed)="closePermissionsDrawer()"
+  (saved)="onPermissionsSaved()"
+></app-role-permissions-drawer>
+
+<!-- Delete Confirmation Dialog -->
+<ui-confirm-dialog
+  [open]="confirmDeleteOpen()"
+  title="Delete Role"
+  [message]="'Are you sure you want to delete the role \'' + (roleToDelete()?.name || '') + '\'? This action cannot be undone.'"
+  confirmText="Delete"
+  confirmVariant="danger"
+  (confirmed)="deleteRole()"
+  (cancelled)="cancelDelete()"
+></ui-confirm-dialog>

@@ -1,0 +1,330 @@
+@use '../../../../../styles/variables' as *;
+
+.inventory-report {
+  padding: $spacing-page;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 1.5rem;
+
+  &__back {
+    margin-bottom: 1rem;
+  }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: $gray-900;
+      margin: 0;
+    }
+  }
+
+  &__subtitle {
+    font-size: 0.875rem;
+    color: $gray-500;
+    margin: 0.25rem 0 0 0;
+  }
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: $radius-lg;
+
+    &--blue {
+      background-color: $blue-100;
+      color: $blue-600;
+    }
+  }
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: $gray-600;
+  text-decoration: none;
+
+  &:hover {
+    color: $primary;
+  }
+}
+
+.retry-btn {
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: $radius-md;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+// Stats Row
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.mini-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: $radius-md;
+    flex-shrink: 0;
+
+    &--blue {
+      background-color: $blue-100;
+      color: $blue-600;
+    }
+
+    &--green {
+      background-color: $green-100;
+      color: $green-600;
+    }
+
+    &--amber {
+      background-color: $amber-100;
+      color: $amber-600;
+    }
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+
+  &__label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: $gray-500;
+  }
+
+  &__value {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: $gray-900;
+  }
+}
+
+.mini-skeleton {
+  width: 80px;
+  height: 24px;
+}
+
+// View Toggle
+.view-toggle {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: $gray-600;
+  background: $bg-card;
+  border: 1px solid $border-default;
+  border-radius: $radius-md;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: $gray-300;
+  }
+
+  &--active {
+    color: $primary;
+    background: $primary-soft;
+    border-color: $primary;
+  }
+}
+
+// Table Card
+.table-card {
+  overflow: hidden;
+}
+
+.table-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid $border-default;
+
+  h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: $gray-900;
+    margin: 0;
+  }
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th, td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid $border-default;
+  }
+
+  th {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: $gray-500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: $gray-50;
+  }
+
+  td {
+    font-size: 0.875rem;
+    color: $gray-700;
+  }
+
+  tbody tr:hover {
+    background-color: $gray-50;
+  }
+
+  .align-right {
+    text-align: right;
+  }
+
+  .text-muted {
+    color: $gray-500;
+  }
+}
+
+.category-name {
+  font-weight: 500;
+  color: $gray-900;
+}
+
+.warehouse-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: $gray-600;
+  background: $gray-100;
+  border-radius: $radius-sm;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: $radius-full;
+
+  &.status--available {
+    background-color: $green-100;
+    color: $green-700;
+  }
+
+  &.status--reserved {
+    background-color: $amber-100;
+    color: $amber-700;
+  }
+
+  &.status--sold {
+    background-color: $blue-100;
+    color: $blue-700;
+  }
+
+  &.status--default {
+    background-color: $gray-100;
+    color: $gray-700;
+  }
+}
+
+.aging-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: $radius-full;
+
+  &.aging--fresh {
+    background-color: $green-100;
+    color: $green-700;
+  }
+
+  &.aging--normal {
+    background-color: $blue-100;
+    color: $blue-700;
+  }
+
+  &.aging--warning {
+    background-color: $amber-100;
+    color: $amber-700;
+  }
+
+  &.aging--old {
+    background-color: $red-100;
+    color: $red-700;
+  }
+}
+
+// Loading & Empty States
+.table-loading {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.table-row-skeleton {
+  height: 48px;
+}
+
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: $gray-400;
+
+  p {
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    color: $gray-500;
+  }
+}

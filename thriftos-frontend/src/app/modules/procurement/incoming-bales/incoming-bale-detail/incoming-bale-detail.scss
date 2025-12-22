@@ -1,0 +1,271 @@
+@use '../../../../../styles/variables' as *;
+
+.incoming-bale-detail {
+  padding: $spacing-page;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.loading-state {
+  margin-top: 1.5rem;
+
+  .skeleton-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .skeleton-title {
+    width: 200px;
+    height: 2rem;
+  }
+
+  .skeleton-badge {
+    width: 80px;
+    height: 1.5rem;
+  }
+
+  .skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+    padding: 1.5rem;
+  }
+}
+
+.error-alert {
+  margin-bottom: 1rem;
+}
+
+.page-header {
+  margin-bottom: 1.5rem;
+
+  .back-button {
+    margin-bottom: 0.75rem;
+  }
+
+  &__info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: $gray-900;
+      margin: 0;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    gap: 0.75rem;
+
+    a {
+      text-decoration: none;
+    }
+  }
+}
+
+ui-card.details-card {
+  display: block;
+  margin-bottom: 1.5rem;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid $gray-200;
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: $gray-700;
+
+    h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: $gray-900;
+      margin: 0;
+    }
+  }
+
+  .edit-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.5rem;
+}
+
+.detail-item {
+  display: flex;
+  gap: 0.75rem;
+
+  .detail-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background-color: $gray-100;
+    border-radius: $radius-md;
+    color: $gray-500;
+    flex-shrink: 0;
+  }
+
+  .detail-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .detail-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: $gray-500;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+  }
+
+  .detail-value {
+    font-size: 0.875rem;
+    color: $gray-900;
+
+    &.font-mono {
+      font-family: $font-family-mono;
+    }
+
+    &.total-cost {
+      font-weight: 600;
+      color: $blue-600;
+    }
+  }
+}
+
+.notes-section {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid $gray-200;
+
+  h3 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: $gray-700;
+    margin: 0 0 0.5rem 0;
+  }
+
+  p {
+    font-size: 0.875rem;
+    color: $gray-600;
+    margin: 0;
+    line-height: 1.5;
+  }
+}
+
+// Edit Form
+.edit-form {
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+
+    @media (max-width: 640px) {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  &.full-width {
+    grid-column: 1 / -1;
+  }
+}
+
+.form-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: $gray-700;
+
+  &.required::after {
+    content: ' *';
+    color: $red-600;
+  }
+}
+
+input,
+textarea {
+  &.has-error {
+    border-color: $red-600;
+    
+    &:focus {
+      border-color: $red-600;
+      box-shadow: 0 0 0 3px $red-100;
+    }
+  }
+}
+
+.error-text {
+  font-size: 0.75rem;
+  color: $red-600;
+}
+
+// Confirm Modal
+.confirm-modal {
+  p {
+    font-size: 0.875rem;
+    color: $gray-600;
+    margin: 0 0 1.5rem 0;
+    line-height: 1.5;
+
+    strong {
+      color: $gray-900;
+    }
+
+    .warning-text {
+      display: block;
+      margin-top: 0.5rem;
+      color: $orange-600;
+    }
+  }
+
+  .modal-error {
+    margin-bottom: 1rem;
+  }
+
+  .confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+  }
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

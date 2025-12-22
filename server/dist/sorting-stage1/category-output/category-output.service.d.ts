@@ -34,8 +34,11 @@ export declare class CategoryOutputService {
             tenantId: string;
             createdAt: Date;
             updatedAt: Date;
+            containerId: string | null;
             weightKg: import("@prisma/client/runtime/library").Decimal;
             allocatedCost: import("@prisma/client/runtime/library").Decimal;
+            ragId: string;
+            sortSessionId: string;
             categoryId: string;
             count: number;
             sortCategoryBucketId: string;
@@ -43,6 +46,62 @@ export declare class CategoryOutputService {
         total: number;
         page: number;
         limit: number;
+    }>;
+    findAvailableForGrading(tenantId: string, options?: {
+        page?: number;
+        limit?: number;
+    }): Promise<{
+        data: ({
+            category: {
+                id: string;
+                name: string;
+            };
+            container: {
+                id: string;
+                containerNumber: string;
+            };
+            rag: {
+                id: string;
+                ragCode: string;
+            };
+            sortCategoryBucket: {
+                sortSession: {
+                    id: string;
+                    status: import("@prisma/client").$Enums.SortStatus;
+                    startTime: Date;
+                    endTime: Date;
+                    worker: {
+                        id: string;
+                        name: string;
+                    };
+                };
+            } & {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                sortSessionId: string;
+                categoryId: string;
+                outputWeightKg: import("@prisma/client/runtime/library").Decimal;
+                outputCount: number;
+            };
+        } & {
+            id: string;
+            tenantId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            containerId: string | null;
+            weightKg: import("@prisma/client/runtime/library").Decimal;
+            allocatedCost: import("@prisma/client/runtime/library").Decimal;
+            ragId: string;
+            sortSessionId: string;
+            categoryId: string;
+            count: number;
+            sortCategoryBucketId: string;
+        })[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
     }>;
     findOne(tenantId: string, id: string): Promise<{
         category: {
@@ -74,8 +133,11 @@ export declare class CategoryOutputService {
         tenantId: string;
         createdAt: Date;
         updatedAt: Date;
+        containerId: string | null;
         weightKg: import("@prisma/client/runtime/library").Decimal;
         allocatedCost: import("@prisma/client/runtime/library").Decimal;
+        ragId: string;
+        sortSessionId: string;
         categoryId: string;
         count: number;
         sortCategoryBucketId: string;

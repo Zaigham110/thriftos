@@ -12,7 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.QrLabelService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
-const qrcode_1 = require("qrcode");
+const QRCode = require("qrcode");
 let QrLabelService = class QrLabelService {
     constructor(prisma) {
         this.prisma = prisma;
@@ -31,7 +31,7 @@ let QrLabelService = class QrLabelService {
         if (!unit.qrLabel)
             throw new common_1.NotFoundException('QR label not found');
         const qrData = unit.qrLabel.qrCode;
-        const qrPngDataUrl = await qrcode_1.default.toDataURL(qrData, { margin: 1, width: 300 });
+        const qrPngDataUrl = await QRCode.toDataURL(qrData, { margin: 1, width: 300 });
         return {
             qr: {
                 encoded: qrData,

@@ -11,11 +11,13 @@ const common_1 = require("@nestjs/common");
 const container_controller_1 = require("./container.controller");
 const container_service_1 = require("./container.service");
 const cost_allocation_service_1 = require("../cost-allocation/cost-allocation.service");
+const tenant_sequence_module_1 = require("../shared/tenant-sequence.module");
 let ContainerModule = class ContainerModule {
 };
 exports.ContainerModule = ContainerModule;
 exports.ContainerModule = ContainerModule = __decorate([
     (0, common_1.Module)({
+        imports: [tenant_sequence_module_1.TenantSequenceModule],
         controllers: [container_controller_1.ContainerController],
         providers: [container_service_1.ContainerService, cost_allocation_service_1.CostAllocationService],
         exports: [container_service_1.ContainerService],

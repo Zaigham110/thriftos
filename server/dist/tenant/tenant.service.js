@@ -42,6 +42,52 @@ let TenantService = class TenantService {
             orderBy: { sortOrder: 'asc' },
         });
     }
+    async getRawCategories(tenantId, type) {
+        return this.prisma.rawCategory.findMany({
+            where: {
+                tenantId,
+                isActive: true,
+                ...(type && { rawType: type }),
+            },
+            orderBy: { sortOrder: 'asc' },
+        });
+    }
+    async createRawCategory(tenantId, dto) {
+        return this.prisma.rawCategory.create({
+            data: {
+                tenantId,
+                name: dto.name,
+                rawType: dto.rawType,
+                sortOrder: dto.sortOrder ?? 0,
+            },
+        });
+    }
+    async updateRawCategory(tenantId, id, dto) {
+        const category = await this.prisma.rawCategory.findFirst({
+            where: { id, tenantId },
+        });
+        if (!category) {
+            throw new common_1.NotFoundException('Raw category not found');
+        }
+        return this.prisma.rawCategory.update({
+            where: { id },
+            data: {
+                ...(dto.name && { name: dto.name }),
+                ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
+            },
+        });
+    }
+    async deleteRawCategory(tenantId, id) {
+        const category = await this.prisma.rawCategory.findFirst({
+            where: { id, tenantId },
+        });
+        if (!category) {
+            throw new common_1.NotFoundException('Raw category not found');
+        }
+        return this.prisma.rawCategory.delete({
+            where: { id },
+        });
+    }
     async getGrades(tenantId) {
         return this.prisma.grade.findMany({
             where: { tenantId, isActive: true },

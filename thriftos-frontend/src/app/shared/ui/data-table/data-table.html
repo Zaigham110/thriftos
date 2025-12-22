@@ -1,0 +1,53 @@
+<div class="table-wrapper">
+  <table class="data-table" [class.data-table-striped]="striped()" [class.data-table-hoverable]="hoverable()">
+    <thead class="data-table-head" [class.data-table-sticky]="stickyHeader()">
+      <tr>
+        @for (column of columns(); track column.key) {
+          <th
+            class="data-table-th"
+            [class]="getAlignClass(column)"
+            [style.width]="column.width"
+          >
+            {{ column.label }}
+          </th>
+        }
+      </tr>
+    </thead>
+    <tbody class="data-table-body">
+      @if (loading()) {
+        @for (i of [1,2,3,4,5]; track i) {
+          <tr class="data-table-row">
+            @for (column of columns(); track column.key) {
+              <td class="data-table-td">
+                <div class="skeleton skeleton-text"></div>
+              </td>
+            }
+          </tr>
+        }
+      } @else {
+        @for (row of data(); track $index) {
+          <tr class="data-table-row" (click)="onRowClick(row)">
+            @for (column of columns(); track column.key) {
+              <td class="data-table-td" [class]="getAlignClass(column)">
+                @if (cellTemplate) {
+                  <ng-container
+                    [ngTemplateOutlet]="cellTemplate"
+                    [ngTemplateOutletContext]="{ $implicit: row, column: column }"
+                  ></ng-container>
+                } @else {
+                  {{ getCellValue(row, column) }}
+                }
+              </td>
+            }
+          </tr>
+        } @empty {
+          <tr>
+            <td [attr.colspan]="columns().length" class="data-table-empty">
+              <ng-content select="[emptyState]"></ng-content>
+            </td>
+          </tr>
+        }
+      }
+    </tbody>
+  </table>
+</div>

@@ -10,6 +10,22 @@ export class WasteReportsService {
   async wasteByStage(tenantId: string, filters: { startDate?: string; endDate?: string }) {
     const { start, end } = parseDateRange(filters);
 
+    // Build dynamic query with proper parameter positions for procurement
+    const procConditions: string[] = ['po."tenantId" = $1'];
+    const procParams: any[] = [tenantId];
+    let procIdx = 2;
+    if (start) {
+      procConditions.push(`c."createdAt" >= $${procIdx}`);
+      procParams.push(start);
+      procIdx++;
+    }
+    if (end) {
+      procConditions.push(`c."createdAt" <= $${procIdx}`);
+      procParams.push(end);
+      procIdx++;
+    }
+    const procWhere = procConditions.join(' AND ');
+
     // Procurement waste: container netWeight - sum(rag weights), only where both exist.
     const procurement = await this.prisma.$queryRawUnsafe<
       Array<{ wasteKg: string }>
@@ -23,17 +39,13 @@ export class WasteReportsService {
         FROM "Container" c
         JOIN "PurchaseOrder" po ON po."id" = c."purchaseOrderId"
         LEFT JOIN "Rag" r ON r."containerId" = c."id"
-        WHERE po."tenantId" = $1
-          ${start ? `AND c."createdAt" >= $2` : ``}
-          ${end ? `AND c."createdAt" <= $3` : ``}
+        WHERE ${procWhere}
         GROUP BY c."id", c."netWeight"
       )
       SELECT COALESCE(SUM(("netWeight" - "ragWeight")), 0) AS "wasteKg"
       FROM per_container
       `,
-      tenantId,
-      start ?? new Date(0),
-      end ?? new Date(),
+      ...procParams,
     );
 
     const stage1 = await this.prisma.sortSession.aggregate({
@@ -52,6 +64,21 @@ export class WasteReportsService {
       _sum: { wasteWeight: true },
     });
 
+    const stage2Conditions: string[] = ['gs."tenantId" = $1', 'gs."status" = \'CLOSED\''];
+    const stage2Params: any[] = [tenantId];
+    let stage2Idx = 2;
+    if (start) {
+      stage2Conditions.push(`gs."startTime" >= $${stage2Idx}`);
+      stage2Params.push(start);
+      stage2Idx++;
+    }
+    if (end) {
+      stage2Conditions.push(`gs."startTime" <= $${stage2Idx}`);
+      stage2Params.push(end);
+      stage2Idx++;
+    }
+    const stage2Where = stage2Conditions.join(' AND ');
+
     const stage2 = await this.prisma.$queryRawUnsafe<Array<{ wasteKg: string }>>(
       `
       WITH session_out AS (
@@ -63,18 +90,13 @@ export class WasteReportsService {
         JOIN "CategoryOutput" co ON co."id" = gs."categoryOutputId"
         LEFT JOIN "GradeBucket" gb ON gb."gradeSessionId" = gs."id"
         LEFT JOIN "GradeOutput" go ON go."gradeBucketId" = gb."id"
-        WHERE gs."tenantId" = $1
-          AND gs."status" = 'CLOSED'
-          ${start ? `AND gs."startTime" >= $2` : ``}
-          ${end ? `AND gs."startTime" <= $3` : ``}
+        WHERE ${stage2Where}
         GROUP BY gs."id", co."weightKg"
       )
       SELECT COALESCE(SUM(("inputWeight" - "outputWeight")), 0) AS "wasteKg"
       FROM session_out
       `,
-      tenantId,
-      start ?? new Date(0),
-      end ?? new Date(),
+      ...stage2Params,
     );
 
     return {
@@ -86,6 +108,22 @@ export class WasteReportsService {
 
   async wasteCostImpact(tenantId: string, filters: { startDate?: string; endDate?: string }) {
     const { start, end } = parseDateRange(filters);
+
+    // Build dynamic params for procurement
+    const procConditions: string[] = ['po."tenantId" = $1'];
+    const procParams: any[] = [tenantId];
+    let procIdx = 2;
+    if (start) {
+      procConditions.push(`c."createdAt" >= $${procIdx}`);
+      procParams.push(start);
+      procIdx++;
+    }
+    if (end) {
+      procConditions.push(`c."createdAt" <= $${procIdx}`);
+      procParams.push(end);
+      procIdx++;
+    }
+    const procWhere = procConditions.join(' AND ');
 
     // Procurement waste cost: per container wasteKg * (totalCharges / netWeight)
     const procurement = await this.prisma.$queryRawUnsafe<
@@ -102,9 +140,7 @@ export class WasteReportsService {
         JOIN "PurchaseOrder" po ON po."id" = c."purchaseOrderId"
         LEFT JOIN "Rag" r ON r."containerId" = c."id"
         LEFT JOIN "ContainerCharge" ch ON ch."containerId" = c."id"
-        WHERE po."tenantId" = $1
-          ${start ? `AND c."createdAt" >= $2` : ``}
-          ${end ? `AND c."createdAt" <= $3` : ``}
+        WHERE ${procWhere}
         GROUP BY c."id", c."netWeight"
       ),
       calc AS (
@@ -118,10 +154,24 @@ export class WasteReportsService {
         COALESCE(SUM("wasteKg" * "costPerKg"), 0) AS "wasteCost"
       FROM calc
       `,
-      tenantId,
-      start ?? new Date(0),
-      end ?? new Date(),
+      ...procParams,
     );
+
+    // Build dynamic params for stage1
+    const s1Conditions: string[] = ['s."tenantId" = $1', 's."status" = \'CLOSED\''];
+    const s1Params: any[] = [tenantId];
+    let s1Idx = 2;
+    if (start) {
+      s1Conditions.push(`s."startTime" >= $${s1Idx}`);
+      s1Params.push(start);
+      s1Idx++;
+    }
+    if (end) {
+      s1Conditions.push(`s."startTime" <= $${s1Idx}`);
+      s1Params.push(end);
+      s1Idx++;
+    }
+    const s1Where = s1Conditions.join(' AND ');
 
     // Stage 1 waste cost: inputCost (rag allocatedCost or incoming bale cost) - sum(categoryOutput allocatedCost)
     const stage1 = await this.prisma.$queryRawUnsafe<
@@ -143,10 +193,7 @@ export class WasteReportsService {
         LEFT JOIN "IncomingBale" b ON b."id" = s."incomingBaleId"
         LEFT JOIN "SortCategoryBucket" scb ON scb."sortSessionId" = s."id"
         LEFT JOIN "CategoryOutput" co ON co."sortCategoryBucketId" = scb."id"
-        WHERE s."tenantId" = $1
-          AND s."status" = 'CLOSED'
-          ${start ? `AND s."startTime" >= $2` : ``}
-          ${end ? `AND s."startTime" <= $3` : ``}
+        WHERE ${s1Where}
         GROUP BY s."id", s."wasteWeight", s."ragId", s."incomingBaleId", r."allocatedCost", b."cost"
       )
       SELECT
@@ -154,10 +201,24 @@ export class WasteReportsService {
         COALESCE(SUM(("inputCost" - "outputCost")), 0) AS "wasteCost"
       FROM per_session
       `,
-      tenantId,
-      start ?? new Date(0),
-      end ?? new Date(),
+      ...s1Params,
     );
+
+    // Build dynamic params for stage2
+    const s2Conditions: string[] = ['gs."tenantId" = $1', 'gs."status" = \'CLOSED\''];
+    const s2Params: any[] = [tenantId];
+    let s2Idx = 2;
+    if (start) {
+      s2Conditions.push(`gs."startTime" >= $${s2Idx}`);
+      s2Params.push(start);
+      s2Idx++;
+    }
+    if (end) {
+      s2Conditions.push(`gs."startTime" <= $${s2Idx}`);
+      s2Params.push(end);
+      s2Idx++;
+    }
+    const s2Where = s2Conditions.join(' AND ');
 
     // Stage 2 waste cost: categoryOutput allocatedCost - sum(gradeOutput allocatedCost)
     const stage2 = await this.prisma.$queryRawUnsafe<
@@ -175,10 +236,7 @@ export class WasteReportsService {
         JOIN "CategoryOutput" co ON co."id" = gs."categoryOutputId"
         LEFT JOIN "GradeBucket" gb ON gb."gradeSessionId" = gs."id"
         LEFT JOIN "GradeOutput" go ON go."gradeBucketId" = gb."id"
-        WHERE gs."tenantId" = $1
-          AND gs."status" = 'CLOSED'
-          ${start ? `AND gs."startTime" >= $2` : ``}
-          ${end ? `AND gs."startTime" <= $3` : ``}
+        WHERE ${s2Where}
         GROUP BY gs."id", co."weightKg", co."allocatedCost"
       )
       SELECT
@@ -186,9 +244,7 @@ export class WasteReportsService {
         COALESCE(SUM(("inputCost" - "outputCost")), 0) AS "wasteCost"
       FROM per_session
       `,
-      tenantId,
-      start ?? new Date(0),
-      end ?? new Date(),
+      ...s2Params,
     );
 
     return {

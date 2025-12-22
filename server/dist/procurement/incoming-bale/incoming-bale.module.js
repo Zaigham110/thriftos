@@ -11,11 +11,13 @@ const common_1 = require("@nestjs/common");
 const incoming_bale_controller_1 = require("./incoming-bale.controller");
 const incoming_bale_service_1 = require("./incoming-bale.service");
 const cost_allocation_service_1 = require("../cost-allocation/cost-allocation.service");
+const tenant_sequence_module_1 = require("../shared/tenant-sequence.module");
 let IncomingBaleModule = class IncomingBaleModule {
 };
 exports.IncomingBaleModule = IncomingBaleModule;
 exports.IncomingBaleModule = IncomingBaleModule = __decorate([
     (0, common_1.Module)({
+        imports: [tenant_sequence_module_1.TenantSequenceModule],
         controllers: [incoming_bale_controller_1.IncomingBaleController],
         providers: [incoming_bale_service_1.IncomingBaleService, cost_allocation_service_1.CostAllocationService],
         exports: [incoming_bale_service_1.IncomingBaleService],

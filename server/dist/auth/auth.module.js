@@ -19,6 +19,7 @@ const password_service_1 = require("./password.service");
 const jwt_strategy_1 = require("./jwt.strategy");
 const jwt_auth_guard_1 = require("../common/guards/jwt-auth.guard");
 const audit_module_1 = require("../audit/audit.module");
+const common_module_1 = require("../common/common.module");
 let AuthModule = class AuthModule {
 };
 exports.AuthModule = AuthModule;
@@ -37,6 +38,7 @@ exports.AuthModule = AuthModule = __decorate([
                 inject: [config_1.ConfigService],
             }),
             audit_module_1.AuditModule,
+            common_module_1.CommonModule,
         ],
         controllers: [auth_controller_1.AuthController],
         providers: [

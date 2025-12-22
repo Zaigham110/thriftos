@@ -28,11 +28,12 @@ let IncomingBaleController = class IncomingBaleController {
         const tenantId = req.tenantId || user.tenantId;
         return this.incomingBaleService.create(tenantId, dto, user.userId);
     }
-    async findAll(containerId, vendorId, standalone, page, limit, user, req) {
+    async findAll(containerId, vendorId, purchaseOrderId, standalone, page, limit, user, req) {
         const tenantId = req.tenantId || user.tenantId;
         return this.incomingBaleService.findAll(tenantId, {
             containerId,
             vendorId,
+            purchaseOrderId,
             standalone,
             page,
             limit,
@@ -68,13 +69,14 @@ __decorate([
     (0, permissions_decorator_1.RequirePermissions)('po.read'),
     __param(0, (0, common_1.Query)('containerId')),
     __param(1, (0, common_1.Query)('vendorId')),
-    __param(2, (0, common_1.Query)('standalone')),
-    __param(3, (0, common_1.Query)('page')),
-    __param(4, (0, common_1.Query)('limit')),
-    __param(5, (0, current_user_decorator_1.CurrentUser)()),
-    __param(6, (0, common_1.Req)()),
+    __param(2, (0, common_1.Query)('purchaseOrderId')),
+    __param(3, (0, common_1.Query)('standalone')),
+    __param(4, (0, common_1.Query)('page')),
+    __param(5, (0, common_1.Query)('limit')),
+    __param(6, (0, current_user_decorator_1.CurrentUser)()),
+    __param(7, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, Boolean, Number, Number, Object, Object]),
+    __metadata("design:paramtypes", [String, String, String, Boolean, Number, Number, Object, Object]),
     __metadata("design:returntype", Promise)
 ], IncomingBaleController.prototype, "findAll", null);
 __decorate([
