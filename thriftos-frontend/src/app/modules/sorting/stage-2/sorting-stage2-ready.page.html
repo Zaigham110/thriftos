@@ -1,0 +1,80 @@
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs" />
+      <h1 class="page-title">Sorting — Stage 2</h1>
+      <p class="page-subtitle">{{ total() }} Stage 1 outputs ready to grade</p>
+    </app-stack>
+
+    <div class="actions">
+      <app-button variant="secondary" (click)="load()" [disabled]="loading()">Refresh</app-button>
+    </div>
+  </app-page-header>
+
+  <app-page-body>
+    @if (error()) {
+      <app-error-state title="Failed to load" [message]="error()!" [action]="true">
+        <app-button action variant="secondary" (click)="clearError()">Dismiss</app-button>
+      </app-error-state>
+    }
+
+    @if (loading()) {
+      <app-loading message="Loading outputs…" />
+    } @else {
+      <app-section>
+        <app-section-header>
+          <h2 class="section-title">Ready to Grade</h2>
+        </app-section-header>
+        <app-section-body>
+          @if (rows().length === 0) {
+            <app-empty-state title="No outputs ready" message="All Stage 1 outputs already have grading sessions." />
+          } @else {
+            <app-data-table
+              title="Stage 1 outputs"
+              subtitle="Start grading from a single Stage 1 output"
+              [columns]="columns"
+              [data]="rows()"
+              [loading]="loading()"
+              [serverSide]="true"
+              [totalCount]="total()"
+              [externalPageIndex]="page()"
+              [externalPageSize]="pageSize()"
+              (stateChange)="onTableStateChange($event)"
+            >
+              <ng-template #cellTemplate let-row let-column="column">
+                @switch (column.key) {
+                  @case ('category') {
+                    <strong>{{ row.category?.name || '—' }}</strong>
+                  }
+                  @case ('rag') {
+                    {{ row.rag?.ragCode || '—' }}
+                  }
+                  @case ('container') {
+                    {{ row.container?.containerNumber || '—' }}
+                  }
+                  @case ('weightKg') {
+                    <span class="tabular-nums">{{ row.weightKg | number:'1.2-2' }}</span>
+                  }
+                  @case ('createdAt') {
+                    {{ row.createdAt | date:'short' }}
+                  }
+                  @default {
+                    {{ column.getValue ? column.getValue(row) : row[column.key] }}
+                  }
+                }
+              </ng-template>
+
+              <ng-template #rowActions let-row>
+                @if (row.gradeStatus === 'IN_PROGRESS') {
+                  <app-button variant="primary" size="sm" (click)="grade(row)">Resume</app-button>
+                } @else {
+                  <app-button variant="primary" size="sm" (click)="grade(row)">Start</app-button>
+                }
+              </ng-template>
+            </app-data-table>
+          }
+        </app-section-body>
+      </app-section>
+    }
+  </app-page-body>
+</app-page>

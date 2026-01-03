@@ -1,0 +1,101 @@
+<!-- REPACK NEW PAGE — CREATE DRAFT -->
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs" />
+      <h1 class="page-title">Create Repack Unit</h1>
+      <p class="page-subtitle">Define the target for your new repack unit</p>
+    </app-stack>
+  </app-page-header>
+
+  <app-page-body>
+    @if (loadingRef()) {
+      <app-loading message="Loading..." />
+    } @else {
+      <div class="form-container">
+        @if (error()) {
+          <div class="error-banner">
+            <p>{{ error() }}</p>
+          </div>
+        }
+
+        <form class="create-form" (ngSubmit)="createDraft()">
+          <!-- Category -->
+          <div class="form-field">
+            <label for="category">Category <span class="required">*</span></label>
+            <app-select
+              id="category"
+              [ngModel]="selectedCategoryId()"
+              (ngModelChange)="onCategoryChange($event)"
+              [options]="categoryOptions()"
+              placeholder="Select category"
+              name="category"
+            />
+            <p class="hint">The product category for this repack unit</p>
+          </div>
+
+          <!-- Grade -->
+          <div class="form-field">
+            <label for="grade">Grade <span class="required">*</span></label>
+            <app-select
+              id="grade"
+              [ngModel]="selectedGradeId()"
+              (ngModelChange)="onGradeChange($event)"
+              [options]="gradeOptions()"
+              placeholder="Select grade"
+              name="grade"
+            />
+            <p class="hint">The quality grade for this repack unit</p>
+          </div>
+
+          <!-- Target Amount -->
+          <div class="form-field">
+            <label for="target">Target Amount <span class="required">*</span></label>
+            <input
+              id="target"
+              type="number"
+              class="form-input"
+              [value]="targetAmount()"
+              (input)="onTargetChange($any($event.target).value)"
+              placeholder="0.00"
+              min="0.01"
+              step="0.01"
+            />
+            <p class="hint">The total amount to pack into this unit</p>
+          </div>
+
+          <!-- Measurement Type -->
+          <div class="form-field">
+            <label for="measurement">Measurement Type <span class="required">*</span></label>
+            <app-select
+              id="measurement"
+              [ngModel]="measurementType()"
+              (ngModelChange)="onMeasurementChange($event)"
+              [options]="measurementOptions"
+              name="measurement"
+            />
+            <p class="hint">How the amount is measured (weight or quantity)</p>
+          </div>
+
+          <!-- Actions -->
+          <div class="form-actions">
+            <app-button 
+              type="button" 
+              variant="secondary" 
+              (click)="cancel()"
+            >
+              Cancel
+            </app-button>
+            <app-button 
+              type="submit" 
+              variant="primary" 
+              [disabled]="!canCreate()"
+            >
+              {{ creating() ? 'Creating...' : 'Create Draft' }}
+            </app-button>
+          </div>
+        </form>
+      </div>
+    }
+  </app-page-body>
+</app-page>

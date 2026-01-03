@@ -78,18 +78,22 @@ export declare class RepackSessionService {
             createdAt: Date;
             updatedAt: Date;
             status: import("@prisma/client").$Enums.RepackStatus;
+            unitType: import("@prisma/client").$Enums.UnitType;
             totalCost: import("@prisma/client/runtime/library").Decimal;
             containerId: string | null;
             weightKg: import("@prisma/client/runtime/library").Decimal;
             ragId: string | null;
-            sortSessionId: string | null;
             categoryId: string | null;
-            gradeSessionId: string | null;
             gradeId: string | null;
+            sortSessionId: string | null;
+            gradeSessionId: string | null;
+            measurementType: import("@prisma/client").$Enums.MeasurementType;
             repackSessionId: string;
             unitCode: string;
-            unitType: import("@prisma/client").$Enums.UnitType;
             pcsCount: number;
+            targetAmount: import("@prisma/client/runtime/library").Decimal;
+            allocationMode: import("@prisma/client").$Enums.AllocationMode;
+            createdBy: string | null;
         })[];
         worker: {
             id: string;

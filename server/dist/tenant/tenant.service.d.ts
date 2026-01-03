@@ -1,6 +1,7 @@
 import { PrismaService } from '../prisma/prisma.service';
 import { RagBaleType } from '@prisma/client';
 import { CreateRawCategoryDto, UpdateRawCategoryDto } from './dto/raw-category.dto';
+import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 export declare class TenantService {
     private prisma;
     constructor(prisma: PrismaService);
@@ -31,6 +32,42 @@ export declare class TenantService {
         updatedAt: Date;
         sortOrder: number;
     }[]>;
+    getAllCategories(tenantId: string): Promise<{
+        id: string;
+        tenantId: string;
+        createdAt: Date;
+        name: string;
+        isActive: boolean;
+        updatedAt: Date;
+        sortOrder: number;
+    }[]>;
+    createCategory(tenantId: string, dto: CreateCategoryDto): Promise<{
+        id: string;
+        tenantId: string;
+        createdAt: Date;
+        name: string;
+        isActive: boolean;
+        updatedAt: Date;
+        sortOrder: number;
+    }>;
+    updateCategory(tenantId: string, id: string, dto: UpdateCategoryDto): Promise<{
+        id: string;
+        tenantId: string;
+        createdAt: Date;
+        name: string;
+        isActive: boolean;
+        updatedAt: Date;
+        sortOrder: number;
+    }>;
+    deleteCategory(tenantId: string, id: string): Promise<{
+        id: string;
+        tenantId: string;
+        createdAt: Date;
+        name: string;
+        isActive: boolean;
+        updatedAt: Date;
+        sortOrder: number;
+    }>;
     getRawCategories(tenantId: string, type?: RagBaleType): Promise<{
         id: string;
         tenantId: string;

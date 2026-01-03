@@ -13,10 +13,25 @@ export declare class GradeOutputController {
             gradeBucket: {
                 gradeSession: {
                     categoryOutput: {
+                        category: {
+                            id: string;
+                            name: string;
+                        };
+                        container: {
+                            id: string;
+                            containerNumber: string;
+                        };
+                        rag: {
+                            id: string;
+                            ragCode: string;
+                        };
                         id: string;
+                        containerId: string;
                         weightKg: import("@prisma/client/runtime/library").Decimal;
                         allocatedCost: import("@prisma/client/runtime/library").Decimal;
+                        ragId: string;
                         categoryId: string;
+                        sortSessionId: string;
                     };
                 } & {
                     id: string;
@@ -34,21 +49,26 @@ export declare class GradeOutputController {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                gradeId: string;
                 outputWeightKg: import("@prisma/client/runtime/library").Decimal;
                 outputCount: number;
                 gradeSessionId: string;
-                gradeId: string;
             };
         } & {
             id: string;
             tenantId: string;
             createdAt: Date;
             updatedAt: Date;
+            status: import("@prisma/client").$Enums.GradingOutputStatus;
             weightKg: import("@prisma/client/runtime/library").Decimal;
             allocatedCost: import("@prisma/client/runtime/library").Decimal;
-            count: number;
             gradeId: string;
+            count: number;
             gradeBucketId: string;
+            totalAmount: import("@prisma/client/runtime/library").Decimal;
+            usedAmount: import("@prisma/client/runtime/library").Decimal;
+            remainingAmount: import("@prisma/client/runtime/library").Decimal;
+            measurementType: import("@prisma/client").$Enums.MeasurementType;
         })[];
         total: number;
         page: number;
@@ -66,10 +86,25 @@ export declare class GradeOutputController {
             };
             gradeSession: {
                 categoryOutput: {
+                    category: {
+                        id: string;
+                        name: string;
+                    };
+                    container: {
+                        id: string;
+                        containerNumber: string;
+                    };
+                    rag: {
+                        id: string;
+                        ragCode: string;
+                    };
                     id: string;
+                    containerId: string;
                     weightKg: import("@prisma/client/runtime/library").Decimal;
                     allocatedCost: import("@prisma/client/runtime/library").Decimal;
+                    ragId: string;
                     categoryId: string;
+                    sortSessionId: string;
                 };
             } & {
                 id: string;
@@ -87,20 +122,25 @@ export declare class GradeOutputController {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            gradeId: string;
             outputWeightKg: import("@prisma/client/runtime/library").Decimal;
             outputCount: number;
             gradeSessionId: string;
-            gradeId: string;
         };
     } & {
         id: string;
         tenantId: string;
         createdAt: Date;
         updatedAt: Date;
+        status: import("@prisma/client").$Enums.GradingOutputStatus;
         weightKg: import("@prisma/client/runtime/library").Decimal;
         allocatedCost: import("@prisma/client/runtime/library").Decimal;
-        count: number;
         gradeId: string;
+        count: number;
         gradeBucketId: string;
+        totalAmount: import("@prisma/client/runtime/library").Decimal;
+        usedAmount: import("@prisma/client/runtime/library").Decimal;
+        remainingAmount: import("@prisma/client/runtime/library").Decimal;
+        measurementType: import("@prisma/client").$Enums.MeasurementType;
     }>;
 }

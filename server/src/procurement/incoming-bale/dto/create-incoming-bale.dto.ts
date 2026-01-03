@@ -6,8 +6,8 @@ export class CreateIncomingBaleDto {
   containerId?: string;
 
   @IsString()
-  @IsOptional()
-  purchaseOrderId?: string;
+  @IsNotEmpty()
+  purchaseOrderId: string;
 
   @IsString()
   @IsOptional()

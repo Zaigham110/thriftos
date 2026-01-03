@@ -1,0 +1,86 @@
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs" />
+      <h1 class="page-title">Sorting — Stage 1</h1>
+      <p class="page-subtitle">{{ total() }} rags/bales with status NOT_STARTED</p>
+    </app-stack>
+
+    <div class="actions">
+      <app-button variant="secondary" (click)="load()" [disabled]="loading()">Refresh</app-button>
+    </div>
+  </app-page-header>
+
+  <app-page-body>
+    @if (error()) {
+      <app-error-state title="Failed to load" [message]="error()!" [action]="true">
+        <app-button action variant="secondary" (click)="clearError()">Dismiss</app-button>
+      </app-error-state>
+    }
+
+    @if (loading()) {
+      <app-loading message="Loading ready rags/bales…" />
+    } @else {
+      <app-section>
+        <app-section-header>
+          <h2 class="section-title">Ready Rags / Bales</h2>
+        </app-section-header>
+
+        <app-section-body>
+          @if (rows().length === 0) {
+            <app-empty-state title="No rags/bales ready" message="Nothing with status NOT_STARTED is available for sorting." />
+          } @else {
+            <app-data-table
+              title="Ready for sorting"
+              subtitle="Start Sorting Stage 1 from a single rag/bale"
+              [columns]="columns"
+              [data]="rows()"
+              [loading]="loading()"
+              [serverSide]="false"
+              [externalPageSize]="20"
+            >
+              <ng-template #cellTemplate let-row let-column="column">
+                @switch (column.key) {
+                  @case ('code') {
+                    <app-stack direction="vertical" spacing="xs">
+                      <strong>{{ row.sourceType === 'LOOSE_BALE' ? row.baleCode : row.ragCode }}</strong>
+                      @if (row.rawCategory?.name) {
+                        <span class="muted">{{ row.rawCategory?.name }}</span>
+                      }
+                    </app-stack>
+                  }
+                  @case ('sourceType') {
+                    <app-badge [variant]="row.sourceType === 'LOOSE_BALE' ? 'primary' : 'default'">
+                      {{ row.sourceType == 'RAG' ? ('RAG - '+row.ragBaleType) : row.sourceType == 'LOOSE_BALE' ? 'LOOSE BALE' : '—' }}
+                    </app-badge>
+                  }
+                  @case ('container') {
+                    <app-link [routerLink]="['/procurement/containers', row.container?.id]">{{ row.container?.containerNumber || '—' }}</app-link>
+                  }
+                  @case ('purchaseOrder') {
+                    <app-link [routerLink]="['/procurement/pos', row.container?.purchaseOrder?.id ?? row.purchaseOrder?.id]">{{ row.container?.purchaseOrder?.poNumber ?? row.purchaseOrder?.poNumber ?? '—' }}</app-link>
+                  }
+                  @case ('weightKg') {
+                    <span class="tabular-nums">{{ row.weightKg | number:'1.2-2' }}</span>
+                  }
+                  @case ('status') {
+                    <app-badge variant="primary">{{ row.status }}</app-badge>
+                  }
+                  @default {
+                    {{ column.getValue ? column.getValue(row) : row[column.key] }}
+                  }
+                }
+              </ng-template>
+
+              <ng-template #rowActions let-row>
+                <app-button variant="primary" size="sm" (click)="start(row)">
+                  {{ row.status === 'IN_SORTING' ? 'Resume' : 'Start' }}
+                </app-button>
+              </ng-template>
+            </app-data-table>
+          }
+        </app-section-body>
+      </app-section>
+    }
+  </app-page-body>
+</app-page>

@@ -9,25 +9,25 @@ export declare class WasteReportsController {
     constructor(service: WasteReportsService, audit: ReportsAuditService);
     byStage(filters: ReportFiltersDto, user: CurrentUserData, req: Request): Promise<{
         data: {
-            procurementWasteKg: string;
-            sortingStage1WasteKg: string;
-            gradingStage2WasteKg: string;
+            procurementWasteKg: number;
+            sortingStage1WasteKg: number;
+            gradingStage2WasteKg: number;
         };
     }>;
     byStageExport(filters: ReportFiltersDto, user: CurrentUserData, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     costImpact(filters: ReportFiltersDto, user: CurrentUserData, req: Request): Promise<{
         data: {
             procurement: {
-                wasteKg: string;
-                wasteCost: string;
+                wasteKg: number;
+                wasteCost: number;
             };
             sortingStage1: {
-                wasteKg: string;
-                wasteCost: string;
+                wasteKg: number;
+                wasteCost: number;
             };
             gradingStage2: {
-                wasteKg: string;
-                wasteCost: string;
+                wasteKg: number;
+                wasteCost: number;
             };
         };
     }>;

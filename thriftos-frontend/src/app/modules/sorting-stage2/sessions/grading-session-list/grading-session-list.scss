@@ -90,7 +90,7 @@
   &:focus {
     outline: none;
     border-color: $primary;
-    box-shadow: 0 0 0 2px rgba($primary, 0.1);
+    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
   }
 }
 
@@ -124,7 +124,7 @@
   &:focus {
     outline: none;
     border-color: $primary;
-    box-shadow: 0 0 0 2px rgba($primary, 0.1);
+    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
   }
 }
 
@@ -221,10 +221,10 @@
   }
 
   &.row-closed {
-    background-color: rgba($green-50, 0.3);
+    background-color: hsl(var(--secondary) / 0.08);
 
     &:hover {
-      background-color: rgba($green-50, 0.5);
+      background-color: hsl(var(--secondary) / 0.12);
     }
   }
 }
@@ -428,7 +428,7 @@
 
   &:hover {
     border-color: $primary;
-    box-shadow: 0 2px 8px rgba($primary, 0.1);
+    box-shadow: 0 2px 8px hsl(var(--ring) / 0.18);
   }
 }
 

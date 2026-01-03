@@ -38,6 +38,32 @@ let RepackReportsController = class RepackReportsController {
         });
         return { data: await this.service.repackEfficiency(tenantId, filters) };
     }
+    async summary(filters, user, req) {
+        const tenantId = req.tenantId || user.tenantId;
+        await this.audit.logAccess({
+            tenantId,
+            userId: user.userId,
+            report: 'repack.summary',
+            exported: false,
+            params: { ...filters },
+        });
+        return await this.service.repackSummary(tenantId, filters);
+    }
+    async summaryExport(filters, user, req, res) {
+        const tenantId = req.tenantId || user.tenantId;
+        await this.audit.logAccess({
+            tenantId,
+            userId: user.userId,
+            report: 'repack.summary',
+            exported: true,
+            params: { ...filters },
+        });
+        const result = await this.service.repackSummary(tenantId, filters);
+        const csv = (0, report_utils_1.toCsv)(result.data, ['status', 'units', 'totalWeightKg', 'totalPcs', 'totalCost']);
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename="repack-summary.csv"');
+        return res.status(200).send(csv);
+    }
     async efficiencyExport(filters, user, req, res) {
         const tenantId = req.tenantId || user.tenantId;
         await this.audit.logAccess({
@@ -102,6 +128,27 @@ __decorate([
     __metadata("design:paramtypes", [report_filters_dto_1.ReportFiltersDto, Object, Object]),
     __metadata("design:returntype", Promise)
 ], RepackReportsController.prototype, "efficiency", null);
+__decorate([
+    (0, common_1.Get)('summary'),
+    (0, permissions_decorator_1.RequirePermissions)('REPORTS_VIEW'),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [report_filters_dto_1.ReportFiltersDto, Object, Object]),
+    __metadata("design:returntype", Promise)
+], RepackReportsController.prototype, "summary", null);
+__decorate([
+    (0, common_1.Get)('summary/export'),
+    (0, permissions_decorator_1.RequirePermissions)('REPORTS_EXPORT'),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Req)()),
+    __param(3, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [report_filters_dto_1.ReportFiltersDto, Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], RepackReportsController.prototype, "summaryExport", null);
 __decorate([
     (0, common_1.Get)('efficiency/export'),
     (0, permissions_decorator_1.RequirePermissions)('REPORTS_EXPORT'),

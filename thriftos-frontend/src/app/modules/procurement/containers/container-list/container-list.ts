@@ -1,14 +1,6 @@
-/**
- * Container List Component
- * Phase 2: Procurement UI
- * 
- * Route: /app/procurement/containers
- */
-
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
 import { Router, RouterLink, ActivatedRoute } from '@angular/router';
-import { LucideAngularModule, ChevronLeft, ChevronRight, Box } from 'lucide-angular';
 import { ProcurementService } from '../../procurement.service';
 import {
   Container,
@@ -16,16 +8,23 @@ import {
   ContainerFilters,
 } from '../../procurement.models';
 import {
-  CardComponent,
-  ButtonComponent,
-  AlertComponent,
-  BreadcrumbComponent,
-  BreadcrumbItem,
-  BadgeComponent,
-  SelectComponent,
-  SelectOption,
-  SkeletonComponent,
-  EmptyStateComponent,
+  AppBadgeComponent,
+  AppBreadcrumbComponent,
+  AppButtonComponent,
+  AppDataTableComponent,
+  AppEmptyStateComponent,
+  AppErrorStateComponent,
+  AppLoadingComponent,
+  AppPageBodyComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppSectionBodyComponent,
+  AppSectionComponent,
+  AppSectionHeaderComponent,
+  AppStackComponent,
+  type DataTableColumn,
+  type DataTableState,
+  type BreadcrumbItem,
 } from '../../../../shared/ui';
 
 @Component({
@@ -34,17 +33,22 @@ import {
   imports: [
     CommonModule,
     RouterLink,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppSectionComponent,
+    AppSectionHeaderComponent,
+    AppSectionBodyComponent,
+    AppStackComponent,
+    AppBreadcrumbComponent,
+    AppButtonComponent,
+    AppDataTableComponent,
+    AppBadgeComponent,
+    AppLoadingComponent,
+    AppErrorStateComponent,
+    AppEmptyStateComponent,
     DatePipe,
     DecimalPipe,
-    LucideAngularModule,
-    CardComponent,
-    ButtonComponent,
-    AlertComponent,
-    BreadcrumbComponent,
-    BadgeComponent,
-    SelectComponent,
-    SkeletonComponent,
-    EmptyStateComponent,
   ],
   templateUrl: './container-list.html',
   styleUrl: './container-list.scss',
@@ -55,12 +59,6 @@ export class ContainerListComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
-  readonly icons = {
-    ChevronLeft,
-    ChevronRight,
-    Box,
-  };
-
   readonly containers = this.procurementService.containers;
   readonly loading = this.procurementService.loading;
   readonly error = this.procurementService.error;
@@ -68,20 +66,38 @@ export class ContainerListComponent implements OnInit {
   readonly currentPage = this.procurementService.containerCurrentPage;
   readonly totalPages = this.procurementService.containerTotalPages;
 
-  readonly statusFilter = signal<ContainerStatus | ''>('');
+  private readonly lastRequestKey = signal<string>('');
 
-  readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Home', link: '/app/dashboard' },
-    { label: 'Procurement', link: '/app/procurement' },
-    { label: 'Containers' },
+  readonly tableColumns: DataTableColumn[] = [
+    { key: 'containerNumber', label: 'Container #', sortable: true, filterable: true },
+    {
+      key: 'status',
+      label: 'Status',
+      sortable: true,
+      filterable: true,
+      filterType: 'select',
+      filterOptions: [
+        { value: '', label: 'All' },
+        { value: 'IN_TRANSIT', label: 'In Transit' },
+        { value: 'ARRIVED', label: 'Arrived' },
+        { value: 'CLEARED', label: 'Cleared' },
+        { value: 'CLOSED', label: 'Closed' },
+      ],
+    },
+    {
+      key: 'netWeight',
+      label: 'Net Weight (kg)',
+      align: 'right',
+      sortable: true,
+      getValue: (row) => (row as Container).netWeight,
+    },
+    { key: 'eta', label: 'ETA', sortable: true },
   ];
 
-  readonly statusOptions: SelectOption[] = [
-    { value: '', label: 'All Statuses' },
-    { value: 'IN_TRANSIT', label: 'In Transit' },
-    { value: 'ARRIVED', label: 'Arrived' },
-    { value: 'CLEARED', label: 'Cleared' },
-    { value: 'CLOSED', label: 'Closed' },
+  readonly breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Home', route: '/dashboard' },
+    { label: 'Procurement', route: '/procurement/dashboard' },
+    { label: 'Containers', route: '/procurement/containers' },
   ];
 
   clearError(): void {
@@ -93,10 +109,6 @@ export class ContainerListComponent implements OnInit {
   }
 
   private loadFromQueryParams(): void {
-    const status = this.route.snapshot.queryParamMap.get('status') as ContainerStatus | null;
-    if (status) {
-      this.statusFilter.set(status);
-    }
     this.loadContainers();
   }
 
@@ -106,20 +118,26 @@ export class ContainerListComponent implements OnInit {
       limit: 20,
     };
 
-    if (this.statusFilter()) {
-      filters.status = this.statusFilter() as ContainerStatus;
-    }
-
     this.procurementService.loadContainers(filters).subscribe();
   }
 
-  onStatusFilterChange(status: string | number): void {
-    this.statusFilter.set(String(status) as ContainerStatus | '');
-    this.loadContainers(1);
+  onTableStateChange(state: DataTableState): void {
+    const status = String(state.filters['status'] ?? '').trim();
+    const requestKey = [state.pageIndex, state.pageSize, status].join('|');
+    if (requestKey === this.lastRequestKey()) return;
+    this.lastRequestKey.set(requestKey);
+
+    this.procurementService
+      .loadContainers({
+        page: state.pageIndex,
+        limit: state.pageSize,
+        status: status ? (status as ContainerStatus) : undefined,
+      })
+      .subscribe();
   }
 
   onRowClick(container: Container): void {
-    this.router.navigate(['/app/procurement/containers', container.id]);
+    this.router.navigate(['/procurement/containers', container.id]);
   }
 
   onPageChange(page: number): void {

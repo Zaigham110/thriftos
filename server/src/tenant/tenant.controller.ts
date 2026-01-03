@@ -1,12 +1,13 @@
-import { Controller, Get, Post, Put, Delete, UseGuards, Req, Query, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, UseGuards, Req, Query, Body, Param } from '@nestjs/common';
 import { Request } from 'express';
 import { TenantService } from './tenant.service';
 import { TenantGuard } from '../common/guards/tenant.guard';
 import { PermissionGuard } from '../common/guards/permission.guard';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
-import { SkipPermissionCheck } from '../common/decorators/permissions.decorator';
+import { RequirePermissions, SkipPermissionCheck } from '../common/decorators/permissions.decorator';
 import { RagBaleType } from '@prisma/client';
 import { CreateRawCategoryDto, UpdateRawCategoryDto } from './dto/raw-category.dto';
+import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 
 /**
  * TenantController - Returns current tenant information and lookup data.
@@ -33,6 +34,47 @@ export class TenantController {
   async getCategories(@CurrentUser() user: CurrentUserData, @Req() req: Request) {
     const tenantId = (req as any).tenantId || user.tenantId;
     return this.tenantService.getCategories(tenantId);
+  }
+
+  @Get('categories/all')
+  @RequirePermissions('category.read')
+  async getAllCategories(@CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    return this.tenantService.getAllCategories(tenantId);
+  }
+
+  @Post('categories')
+  @RequirePermissions('category.create')
+  async createCategory(
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+    @Body() dto: CreateCategoryDto,
+  ) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    return this.tenantService.createCategory(tenantId, dto);
+  }
+
+  @Patch('categories/:id')
+  @RequirePermissions('category.update')
+  async updateCategory(
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() dto: UpdateCategoryDto,
+  ) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    return this.tenantService.updateCategory(tenantId, id, dto);
+  }
+
+  @Delete('categories/:id')
+  @RequirePermissions('category.delete')
+  async deleteCategory(
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+    @Param('id') id: string,
+  ) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    return this.tenantService.deleteCategory(tenantId, id);
   }
 
   @Get('raw-categories')

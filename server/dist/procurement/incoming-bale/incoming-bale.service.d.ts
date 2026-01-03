@@ -57,7 +57,18 @@ export declare class IncomingBaleService {
                 name: string;
             };
             purchaseOrder: {
+                vendor: {
+                    id: string;
+                    tenantId: string;
+                    createdAt: Date;
+                    name: string;
+                    isActive: boolean;
+                    updatedAt: Date;
+                    country: string | null;
+                    contactInfo: string | null;
+                };
                 id: string;
+                currency: string;
                 poNumber: string;
             };
             container: {
@@ -113,6 +124,8 @@ export declare class IncomingBaleService {
                 contactInfo: string | null;
             };
             id: string;
+            currency: string;
+            status: import("@prisma/client").$Enums.PurchaseOrderStatus;
             poNumber: string;
         };
         container: {

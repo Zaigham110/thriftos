@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RagBaleType } from '@prisma/client';
 import { CreateRawCategoryDto, UpdateRawCategoryDto } from './dto/raw-category.dto';
+import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 
 @Injectable()
 export class TenantService {
@@ -34,6 +35,127 @@ export class TenantService {
     return this.prisma.category.findMany({
       where: { tenantId, isActive: true },
       orderBy: { sortOrder: 'asc' },
+    });
+  }
+
+  async getAllCategories(tenantId: string) {
+    return this.prisma.category.findMany({
+      where: { tenantId },
+      orderBy: { sortOrder: 'asc' },
+    });
+  }
+
+  /**
+   * Create Category with automatic WasteCategory generation.
+   * ATOMIC: Both Category and WasteCategory created in same transaction.
+   */
+  async createCategory(tenantId: string, dto: CreateCategoryDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const category = await tx.category.create({
+        data: {
+          tenantId,
+          name: dto.name,
+          sortOrder: dto.sortOrder ?? 0,
+        },
+      });
+
+      // AUTO-CREATE linked waste category
+      await tx.wasteCategory.create({
+        data: {
+          tenantId,
+          name: `${dto.name} Waste`,
+          linkedCategoryId: category.id,
+          unitType: 'KG', // Default to KG for categories
+          defaultResalePrice: 0,
+          isSystemGenerated: true,
+          isActive: true,
+        },
+      });
+
+      return category;
+    });
+  }
+
+  /**
+   * Update Category with cascading updates to linked WasteCategory.
+   * ATOMIC: Both Category and WasteCategory updated in same transaction.
+   */
+  async updateCategory(tenantId: string, id: string, dto: UpdateCategoryDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const category = await tx.category.findFirst({
+        where: { id, tenantId },
+        include: { linkedWasteCategory: true },
+      });
+
+      if (!category) {
+        throw new NotFoundException('Category not found');
+      }
+
+      const updated = await tx.category.update({
+        where: { id },
+        data: {
+          ...(dto.name && { name: dto.name }),
+          ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
+          ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+        },
+      });
+
+      // CASCADE: Update linked waste category if exists
+      if (category.linkedWasteCategory) {
+        await tx.wasteCategory.update({
+          where: { id: category.linkedWasteCategory.id },
+          data: {
+            ...(dto.name && { name: `${dto.name} Waste` }),
+            ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+          },
+        });
+      }
+
+      return updated;
+    });
+  }
+
+  /**
+   * Delete Category only if not referenced in sorting history.
+   * ATOMIC: Check references, delete Category + linked WasteCategory.
+   */
+  async deleteCategory(tenantId: string, id: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const category = await tx.category.findFirst({
+        where: { id, tenantId },
+        include: {
+          linkedWasteCategory: true,
+          _count: {
+            select: {
+              sortCategoryBuckets: true,
+              categoryOutputs: true,
+            },
+          },
+        },
+      });
+
+      if (!category) {
+        throw new NotFoundException('Category not found');
+      }
+
+      const hasHistory =
+        category._count.sortCategoryBuckets > 0 ||
+        category._count.categoryOutputs > 0;
+
+      if (hasHistory) {
+        throw new BadRequestException(
+          'Cannot delete category: already used in sorting history. Deactivate instead.'
+        );
+      }
+
+      // Delete linked waste category first (if exists)
+      if (category.linkedWasteCategory) {
+        await tx.wasteCategory.delete({
+          where: { id: category.linkedWasteCategory.id },
+        });
+      }
+
+      return tx.category.delete({ where: { id } });
     });
   }
 

@@ -107,20 +107,47 @@
 
 .yield-progress {
   height: 8px;
-  background: $gray-200;
   border-radius: 9999px;
   overflow: hidden;
 }
 
 .yield-bar {
+  width: 100%;
   height: 100%;
-  background: $status-success;
+  display: block;
+  border: none;
   border-radius: 9999px;
-  transition: width $transition-normal, background $transition-normal;
+  background: transparent;
+  appearance: none;
 
   &.over-allocated {
-    background: $status-danger;
+    background: transparent;
   }
+}
+
+.yield-bar::-webkit-progress-bar {
+  background: $gray-200;
+  border-radius: 9999px;
+}
+
+.yield-bar::-webkit-progress-value {
+  background: $status-success;
+  border-radius: 9999px;
+  transition: background $transition-normal;
+}
+
+.yield-bar.over-allocated::-webkit-progress-value {
+  background: $status-danger;
+}
+
+.yield-bar::-moz-progress-bar {
+  background: $status-success;
+  border-radius: 9999px;
+  transition: background $transition-normal;
+}
+
+.yield-bar.over-allocated::-moz-progress-bar {
+  background: $status-danger;
 }
 
 .over-warning {

@@ -1,1 +1,4 @@
 node_modules
+
+# Legacy backup artifacts (never commit)
+*.bak

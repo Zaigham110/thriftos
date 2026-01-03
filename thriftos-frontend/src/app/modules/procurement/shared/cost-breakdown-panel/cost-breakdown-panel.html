@@ -1,78 +1,46 @@
-<ui-card class="cost-breakdown-panel">
-  <div class="cost-breakdown-panel__header">
-    <h3 class="cost-breakdown-panel__title">Cost Breakdown</h3>
-  </div>
+<app-card>
+  <app-stack direction="vertical" spacing="sm">
+    <strong>Cost Breakdown</strong>
 
-  @if (loading()) {
-    <div class="cost-breakdown-panel__loading">
-      <div class="skeleton skeleton--text"></div>
-      <div class="skeleton skeleton--text"></div>
-      <div class="skeleton skeleton--text"></div>
-    </div>
-  } @else if (costBreakdown(); as breakdown) {
-    <div class="cost-breakdown-panel__content">
-      <!-- Summary Stats -->
-      <div class="cost-breakdown-panel__summary">
-        <div class="stat-item">
-          <span class="stat-label">Total Cost</span>
-          <span class="stat-value stat-value--primary">
-            {{ breakdown.totalCost | currency:currency():'symbol':'1.2-2' }}
-          </span>
-        </div>
+    @if (loading()) {
+      <app-loading message="Loading cost breakdown…" />
+    } @else if (costBreakdown(); as breakdown) {
+      <app-stack direction="vertical" spacing="xs">
+        <div><strong>Total Cost:</strong> {{ breakdown.totalCost | currency:currency():'symbol':'1.2-2' }}</div>
+        <div><strong>Total Weight:</strong> {{ breakdown.totalWeight | number:'1.2-2' }} kg</div>
+        <div><strong>Cost per kg:</strong> {{ breakdown.costPerKg | currency:currency():'symbol':'1.4-4' }}</div>
+      </app-stack>
 
-        <div class="stat-item">
-          <span class="stat-label">Total Weight</span>
-          <span class="stat-value">
-            {{ breakdown.totalWeight | number:'1.2-2' }} KG
-          </span>
-        </div>
-
-        <div class="stat-item">
-          <span class="stat-label">Cost per KG</span>
-          <span class="stat-value stat-value--highlight">
-            {{ breakdown.costPerKg | currency:currency():'symbol':'1.4-4' }}
-          </span>
-        </div>
-      </div>
-
-      <!-- Charges Breakdown -->
       @if (hasCharges()) {
-        <div class="cost-breakdown-panel__charges">
-          <h4 class="charges-title">Charges Detail</h4>
-
-          <div class="charges-list">
-            @for (group of chargesByType(); track group.type) {
-              <div class="charge-group">
-                <div class="charge-group__header">
-                  <ui-badge [variant]="getChargeTypeBadgeVariant(group.type)" size="sm">
-                    {{ getChargeTypeLabel(group.type) }}
-                  </ui-badge>
-                  <span class="charge-group__total">
-                    {{ group.total | currency:currency():'symbol':'1.2-2' }}
-                  </span>
-                </div>
-
-                @for (charge of group.charges; track charge.id) {
-                  <div class="charge-item">
-                    <span class="charge-item__description">{{ charge.description }}</span>
-                    <span class="charge-item__amount">
-                      {{ charge.amount | currency:currency():'symbol':'1.2-2' }}
-                    </span>
-                  </div>
-                }
-              </div>
+        <app-data-table
+          title="Charges"
+          [columns]="chargeColumns"
+          [data]="breakdown.charges"
+          [serverSide]="false"
+          [enableSearch]="false"
+          [enableColumnFilters]="false"
+        >
+          <ng-template #cellTemplate let-row let-column="column">
+            @switch (column.key) {
+              @case ('chargeType') {
+                <app-badge [variant]="getChargeTypeBadgeVariant(row.chargeType)">
+                  {{ getChargeTypeLabel(row.chargeType) }}
+                </app-badge>
+              }
+              @case ('amount') {
+                <span class="tabular-nums">{{ row.amount | currency:currency():'symbol':'1.2-2' }}</span>
+              }
+              @default {
+                {{ row[column.key] }}
+              }
             }
-          </div>
-        </div>
+          </ng-template>
+        </app-data-table>
       } @else {
-        <div class="cost-breakdown-panel__no-charges">
-          <p>No additional charges recorded</p>
-        </div>
+        <app-empty-state title="No charges" message="No additional charges recorded." />
       }
-    </div>
-  } @else {
-    <div class="cost-breakdown-panel__empty">
-      <p>No cost breakdown available</p>
-    </div>
-  }
-</ui-card>
+    } @else {
+      <app-empty-state title="No cost breakdown" message="No cost breakdown available." />
+    }
+  </app-stack>
+</app-card>

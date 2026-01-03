@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { GradeStatus } from '@prisma/client';
+import { GradeStatus, WasteStage } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { AuditService } from '../../audit/audit.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -24,13 +24,22 @@ export class GradeSessionService {
       throw new BadRequestException('CategoryOutput not found');
     }
 
-    // Logical lock: if any grade session exists for this CategoryOutput, it's already in progress/graded
+    // Check if any grade session exists for this CategoryOutput
     const existing = await this.prisma.gradeSession.findFirst({
       where: { tenantId, categoryOutputId: dto.categoryOutputId },
       select: { id: true, status: true },
     });
-    if (existing) {
-      throw new ConflictException('CategoryOutput already graded (or grading in progress)');
+    
+    // If session exists and is OPEN, return it (resume behavior)
+    if (existing && existing.status === GradeStatus.OPEN) {
+      return this.prisma.gradeSession.findFirst({
+        where: { id: existing.id },
+      });
+    }
+    
+    // If session exists and is CLOSED, block (already fully graded)
+    if (existing && existing.status === GradeStatus.CLOSED) {
+      throw new ConflictException('CategoryOutput already fully graded');
     }
 
     const session = await this.prisma.gradeSession.create({
@@ -175,13 +184,23 @@ export class GradeSessionService {
    * - compute waste + yield (must be non-negative waste)
    * - create immutable GradeOutput records (Level-3 cost allocation)
    * - lock session (CLOSED) and mark CategoryOutput graded logically (via session existence)
+   *
+   * Waste Rules (LOCKED):
+   * - Waste is recorded explicitly via categorized WasteLineItem entries
+   * - At seal, declaredWaste must exactly equal computed waste
+   * - If remaining waste > 0 at seal, wasteCategoryId must be provided to create the final remainder line
    */
-  async close(tenantId: string, sessionId: string, currentUserId: string) {
+  async close(
+    tenantId: string,
+    sessionId: string,
+    currentUserId: string,
+    options?: { wasteCategoryId?: string },
+  ) {
     const result = await this.prisma.$transaction(async (tx) => {
       const session = await tx.gradeSession.findFirst({
         where: { id: sessionId, tenantId },
         include: {
-          categoryOutput: { select: { id: true, weightKg: true, count: true, allocatedCost: true } },
+          categoryOutput: { select: { id: true, weightKg: true, count: true, allocatedCost: true, containerId: true, ragId: true } },
           gradeBuckets: true,
         },
       });
@@ -205,6 +224,45 @@ export class GradeSessionService {
         throw new BadRequestException('wasteWeight cannot be negative (output exceeds input)');
       }
 
+      const existingWasteAgg = await tx.wasteLineItem.aggregate({
+        where: { tenantId, stage: WasteStage.STAGE_2, gradeSessionId: sessionId },
+        _sum: { amount: true },
+      });
+      const declaredWasteAmount = existingWasteAgg._sum.amount || new Decimal(0);
+
+      if (declaredWasteAmount.greaterThan(wasteWeight)) {
+        throw new BadRequestException('Declared waste exceeds computed waste');
+      }
+
+      const remainingWasteAmount = wasteWeight.sub(declaredWasteAmount);
+      if (remainingWasteAmount.greaterThan(new Decimal(0))) {
+        if (!options?.wasteCategoryId) {
+          throw new BadRequestException('wasteCategoryId is required to seal when remaining waste > 0');
+        }
+
+        const category = await tx.wasteCategory.findFirst({
+          where: { id: options.wasteCategoryId, tenantId, isActive: true },
+        });
+        if (!category) {
+          throw new BadRequestException('Invalid waste category');
+        }
+
+        await tx.wasteLineItem.create({
+          data: {
+            tenantId,
+            stage: WasteStage.STAGE_2,
+            wasteCategoryId: category.id,
+            amount: remainingWasteAmount,
+            unitType: category.unitType,
+            estimatedValue: remainingWasteAmount.mul(category.defaultResalePrice),
+            gradeSessionId: sessionId,
+            containerId: session.categoryOutput.containerId ?? null,
+            ragId: session.categoryOutput.ragId ?? null,
+            categoryOutputId: session.categoryOutput.id,
+          },
+        });
+      }
+
       const gradeYieldPercent = inputWeight.equals(new Decimal(0))
         ? new Decimal(0)
         : totalGradeOutputWeight.div(inputWeight).mul(new Decimal(100));
@@ -223,6 +281,11 @@ export class GradeSessionService {
               weightKg: bucket.outputWeightKg,
               count: bucket.outputCount,
               allocatedCost,
+              totalAmount: bucket.outputWeightKg, // Initialize with output weight
+              usedAmount: new Decimal(0), // No allocation yet
+              remainingAmount: bucket.outputWeightKg, // All available initially
+              measurementType: 'WEIGHT', // Default to weight-based
+              status: 'READY_FOR_REPACK', // FIX-2: Explicit ready state for repack
             },
           }),
         );

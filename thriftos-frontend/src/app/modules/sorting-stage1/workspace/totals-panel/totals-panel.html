@@ -60,11 +60,12 @@
       </span>
     </div>
     <div class="yield-progress">
-      <div 
+      <progress
         class="yield-bar"
         [class.over-allocated]="isOverAllocated()"
-        [style.width.%]="yieldBarWidth()"
-      ></div>
+        [value]="yieldBarWidth()"
+        max="100"
+      ></progress>
     </div>
     @if (isOverAllocated()) {
       <div class="over-warning">

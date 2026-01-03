@@ -9,216 +9,95 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { LucideAngularModule, Filter, X, Calendar, Download } from 'lucide-angular';
 import { ReportFilters } from '../reports.models';
-import { ButtonComponent, CardComponent } from '../../../shared/ui';
+import { 
+  AppButtonComponent, 
+  AppGridComponent,
+  AppStackComponent,
+  AppInputComponent,
+  AppSelectComponent,
+  type SelectOption
+} from '../../../shared/ui';
 
 @Component({
   selector: 'app-report-filters',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule, ButtonComponent, CardComponent],
+  imports: [
+    CommonModule, 
+    FormsModule, 
+    AppButtonComponent, 
+    AppGridComponent,
+    AppStackComponent,
+    AppInputComponent,
+    AppSelectComponent
+  ],
   template: `
-    <ui-card class="filters-panel">
-      <div class="filters-header">
-        <div class="filters-title">
-          <lucide-icon [img]="icons.Filter" [size]="18"></lucide-icon>
-          <span>Filters</span>
-        </div>
-        @if (hasActiveFilters()) {
-          <button type="button" class="clear-btn" (click)="clearFilters()">
-            <lucide-icon [img]="icons.X" [size]="14"></lucide-icon>
-            Clear
-          </button>
+    <app-stack direction="vertical" spacing="md">
+      <div class="flex items-center justify-between">
+        <div class="text-sm font-semibold">Filters</div>
+        @if (hasActiveFilters() || (showSearch && searchText())) {
+          <app-button variant="secondary" (click)="clearAll()">Clear</app-button>
         }
       </div>
 
-      <div class="filters-grid">
-        <!-- Date Range -->
-        <div class="filter-group">
-          <label class="filter-label">
-            <lucide-icon [img]="icons.Calendar" [size]="14"></lucide-icon>
-            Start Date
-          </label>
-          <input
-            type="date"
-            class="filter-input"
-            [ngModel]="filters().startDate"
-            (ngModelChange)="updateFilter('startDate', $event)"
-          />
+      <app-grid [columns]="4" gap="md">
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-medium">Start Date</label>
+          <app-input type="date" [(ngModel)]="filtersModel.startDate" />
         </div>
 
-        <div class="filter-group">
-          <label class="filter-label">
-            <lucide-icon [img]="icons.Calendar" [size]="14"></lucide-icon>
-            End Date
-          </label>
-          <input
-            type="date"
-            class="filter-input"
-            [ngModel]="filters().endDate"
-            (ngModelChange)="updateFilter('endDate', $event)"
-          />
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-medium">End Date</label>
+          <app-input type="date" [(ngModel)]="filtersModel.endDate" />
         </div>
 
-        <!-- Category Filter -->
+        @if (showSearch) {
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-medium">Search</label>
+            <app-input placeholder="Search..." [(ngModel)]="searchModel" (ngModelChange)="emitSearch($event)" />
+          </div>
+        }
+
         @if (showCategory) {
-          <div class="filter-group">
-            <label class="filter-label">Category</label>
-            <select
-              class="filter-input"
-              [ngModel]="filters().categoryId"
-              (ngModelChange)="updateFilter('categoryId', $event)"
-            >
-              <option value="">All Categories</option>
-              @for (cat of categories; track cat.id) {
-                <option [value]="cat.id">{{ cat.name }}</option>
-              }
-            </select>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-medium">Category</label>
+            <app-select [options]="categoryOptions" (ngModelChange)="updateFilter('categoryId', $event)" [(ngModel)]="filtersModel.categoryId" />
           </div>
         }
 
-        <!-- Grade Filter -->
         @if (showGrade) {
-          <div class="filter-group">
-            <label class="filter-label">Grade</label>
-            <select
-              class="filter-input"
-              [ngModel]="filters().gradeId"
-              (ngModelChange)="updateFilter('gradeId', $event)"
-            >
-              <option value="">All Grades</option>
-              @for (grade of grades; track grade.id) {
-                <option [value]="grade.id">{{ grade.name }}</option>
-              }
-            </select>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-medium">Grade</label>
+            <app-select [options]="gradeOptions" (ngModelChange)="updateFilter('gradeId', $event)" [(ngModel)]="filtersModel.gradeId" />
           </div>
         }
 
-        <!-- Warehouse Filter -->
         @if (showWarehouse) {
-          <div class="filter-group">
-            <label class="filter-label">Warehouse</label>
-            <select
-              class="filter-input"
-              [ngModel]="filters().warehouseId"
-              (ngModelChange)="updateFilter('warehouseId', $event)"
-            >
-              <option value="">All Warehouses</option>
-              @for (wh of warehouses; track wh.id) {
-                <option [value]="wh.id">{{ wh.name }}</option>
-              }
-            </select>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-medium">Warehouse</label>
+            <app-select [options]="warehouseOptions" (ngModelChange)="updateFilter('warehouseId', $event)" [(ngModel)]="filtersModel.warehouseId" />
           </div>
         }
-      </div>
+      </app-grid>
 
-      <div class="filters-actions">
-        <ui-button variant="primary" (click)="applyFilters()">
-          Apply Filters
-        </ui-button>
+      <div class="flex items-center gap-3">
+        <app-button variant="primary" (click)="applyFilters()">Apply Filters</app-button>
 
         @if (showExport) {
-          <ui-button variant="outline" [disabled]="exporting" (click)="onExport.emit()">
-            <lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>
+          <app-button variant="secondary" [disabled]="exporting" (click)="onExport.emit()">
             {{ exporting ? 'Exporting...' : 'Export CSV' }}
-          </ui-button>
+          </app-button>
         }
       </div>
-    </ui-card>
+    </app-stack>
   `,
-  styles: [`
-    @use '../../../../styles/variables' as *;
-
-    .filters-panel {
-      margin-bottom: 1.5rem;
-    }
-
-    .filters-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 1rem;
-    }
-
-    .filters-title {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 0.875rem;
-      font-weight: 600;
-      color: $gray-700;
-    }
-
-    .clear-btn {
-      display: flex;
-      align-items: center;
-      gap: 0.25rem;
-      padding: 0.25rem 0.5rem;
-      font-size: 0.75rem;
-      font-weight: 500;
-      color: $gray-500;
-      background: transparent;
-      border: 1px solid $gray-300;
-      border-radius: $radius-sm;
-      cursor: pointer;
-
-      &:hover {
-        background: $gray-50;
-        color: $gray-700;
-      }
-    }
-
-    .filters-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 1rem;
-      margin-bottom: 1rem;
-    }
-
-    .filter-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0.375rem;
-    }
-
-    .filter-label {
-      display: flex;
-      align-items: center;
-      gap: 0.375rem;
-      font-size: 0.75rem;
-      font-weight: 500;
-      color: $gray-600;
-    }
-
-    .filter-input {
-      padding: 0.5rem 0.75rem;
-      font-size: 0.875rem;
-      color: $gray-900;
-      background: $bg-card;
-      border: 1px solid $border-default;
-      border-radius: $radius-md;
-
-      &:focus {
-        outline: none;
-        border-color: $primary;
-        box-shadow: 0 0 0 3px $primary-soft;
-      }
-    }
-
-    .filters-actions {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding-top: 1rem;
-      border-top: 1px solid $border-default;
-    }
-  `],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReportFiltersComponent {
   @Input() showCategory = false;
   @Input() showGrade = false;
   @Input() showWarehouse = false;
+  @Input() showSearch = true;
   @Input() showExport = true;
   @Input() exporting = false;
   @Input() categories: { id: string; name: string }[] = [];
@@ -227,10 +106,26 @@ export class ReportFiltersComponent {
 
   @Output() filtersChange = new EventEmitter<ReportFilters>();
   @Output() onExport = new EventEmitter<void>();
-
-  readonly icons = { Filter, X, Calendar, Download };
+  @Output() searchChange = new EventEmitter<string>();
 
   readonly filters = signal<ReportFilters>({});
+  readonly searchText = signal<string>('');
+
+  // For ngModel binding in template (kept in sync with signal)
+  filtersModel: ReportFilters = {};
+  searchModel: string = '';
+
+  get categoryOptions(): SelectOption[] {
+    return [{ value: '', label: 'All Categories' }, ...this.categories.map((c) => ({ value: c.id, label: c.name }))];
+  }
+
+  get gradeOptions(): SelectOption[] {
+    return [{ value: '', label: 'All Grades' }, ...this.grades.map((g) => ({ value: g.id, label: g.name }))];
+  }
+
+  get warehouseOptions(): SelectOption[] {
+    return [{ value: '', label: 'All Warehouses' }, ...this.warehouses.map((w) => ({ value: w.id, label: w.name }))];
+  }
 
   hasActiveFilters(): boolean {
     const f = this.filters();
@@ -242,14 +137,35 @@ export class ReportFiltersComponent {
       ...f,
       [key]: value || undefined,
     }));
+
+    this.filtersModel = this.filters();
   }
 
   applyFilters(): void {
+    // Pull from the ngModel binding first
+    this.filters.set({
+      startDate: this.filtersModel.startDate || undefined,
+      endDate: this.filtersModel.endDate || undefined,
+      categoryId: this.filtersModel.categoryId || undefined,
+      gradeId: this.filtersModel.gradeId || undefined,
+      warehouseId: this.filtersModel.warehouseId || undefined,
+      workerId: this.filtersModel.workerId || undefined,
+    });
     this.filtersChange.emit(this.filters());
   }
 
-  clearFilters(): void {
+  emitSearch(value: string): void {
+    this.searchText.set(value || '');
+    this.searchModel = this.searchText();
+    this.searchChange.emit(this.searchText());
+  }
+
+  clearAll(): void {
     this.filters.set({});
+    this.filtersModel = {};
+    this.searchText.set('');
+    this.searchModel = '';
     this.filtersChange.emit({});
+    this.searchChange.emit('');
   }
 }

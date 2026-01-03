@@ -1,14 +1,14 @@
-<div class="error-page">
-  <div class="error-content">
-    <div class="error-icon">
-      <lucide-icon [img]="icons.FileQuestion" [size]="64"></lucide-icon>
+<div class="min-h-screen flex items-center justify-center px-4 py-10 bg-background">
+  <div class="w-full max-w-lg text-center">
+    <div class="mx-auto mb-6 inline-flex h-24 w-24 items-center justify-center rounded-full bg-muted text-muted-foreground">
+      <lucide-icon [img]="icons.FileQuestion" [size]="48"></lucide-icon>
     </div>
-    <h1 class="error-code">404</h1>
-    <h2 class="error-title">Page Not Found</h2>
-    <p class="error-message">
+    <h1 class="text-5xl font-bold tracking-tight text-foreground m-0">404</h1>
+    <h2 class="mt-3 text-xl font-semibold text-foreground">Page Not Found</h2>
+    <p class="mt-3 text-sm sm:text-base text-muted-foreground leading-relaxed">
       The page you're looking for doesn't exist or has been moved.
     </p>
-    <div class="error-actions">
+    <div class="mt-6 flex justify-center">
       <ui-button variant="primary" routerLink="/">
         <lucide-icon [img]="icons.ArrowLeft" [size]="16"></lucide-icon>
         Go to Home

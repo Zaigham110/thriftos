@@ -1,0 +1,53 @@
+@use '../../../../styles/variables' as *;
+
+.app-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 50;
+}
+
+.app-dialog {
+  width: 100%;
+  max-width: 520px;
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid $border-default;
+}
+
+.dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.dialog-icon {
+  color: $text-secondary;
+}
+
+.dialog-body {
+  padding-top: 0.75rem;
+  font-size: 0.875rem;
+  color: $text-secondary;
+  line-height: 1.35;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-top: 1rem;
+}

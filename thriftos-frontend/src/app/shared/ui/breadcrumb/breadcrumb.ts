@@ -9,7 +9,7 @@ export interface BreadcrumbItem {
 }
 
 @Component({
-  selector: 'ui-breadcrumb',
+  selector: 'ui-breadcrumb, app-breadcrumb',
   standalone: true,
   imports: [CommonModule, RouterModule, LucideAngularModule],
   templateUrl: './breadcrumb.html',

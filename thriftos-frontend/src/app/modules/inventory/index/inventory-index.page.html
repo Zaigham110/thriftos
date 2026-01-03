@@ -1,0 +1,125 @@
+<!-- INVENTORY INDEX - DENSE ERP TABLE -->
+<app-page>
+  <app-page-header>
+    <h1>Inventory</h1>
+    <p class="subtitle">Finalized goods from sealed repack units</p>
+  </app-page-header>
+
+  <app-page-body>
+    @if (!hasPermission()) {
+      <app-error-state message="You do not have permission to view inventory" />
+    } @else {
+      <app-section>
+        <app-section-header>
+          <h2>Inventory Items</h2>
+
+          <!-- FILTER BAR -->
+          <div class="filter-bar">
+            <app-form-field label="Category">
+              <app-select
+                [formControl]="categoryFilter"
+                [options]="categories()"
+                placeholder="All Categories"
+              ></app-select>
+            </app-form-field>
+
+            <app-form-field label="Grade">
+              <app-select
+                [formControl]="gradeFilter"
+                [options]="grades()"
+                placeholder="All Grades"
+              ></app-select>
+            </app-form-field>
+
+            <app-form-field label="Warehouse">
+              <app-select
+                [formControl]="warehouseFilter"
+                [options]="warehouses()"
+                placeholder="All Warehouses"
+              ></app-select>
+            </app-form-field>
+
+            <app-form-field label="Status">
+              <app-select
+                [formControl]="statusFilter"
+                [options]="statusOptions"
+                placeholder="All Statuses"
+              ></app-select>
+            </app-form-field>
+
+            <div class="filter-actions">
+              <app-button variant="primary" (clickEvent)="applyFilters()">
+                Apply Filters
+              </app-button>
+              <app-button variant="secondary" (clickEvent)="clearFilters()">
+                Clear
+              </app-button>
+            </div>
+          </div>
+        </app-section-header>
+
+        <app-section-body>
+          @if (loading()) {
+            <app-loading message="Loading inventory..." />
+          } @else if (error()) {
+            <app-error-state [message]="error()!" [action]="true">
+              <app-button action variant="secondary" (clickEvent)="loadItems()">Retry</app-button>
+            </app-error-state>
+          } @else if (items().length === 0) {
+            <app-empty-state
+              title="No Inventory Items"
+              message="No inventory items found. Inventory is created automatically when repack units are sealed."
+            />
+          } @else {
+            <!-- DENSE TABLE -->
+            <app-data-table
+              title="All Inventory"
+              [columns]="tableColumns"
+              [data]="items()"
+              [loading]="loading()"
+              [serverSide]="true"
+              [totalCount]="totalCount()"
+              [externalPageIndex]="currentPage()"
+              [externalPageSize]="pageSize()"
+              [enableSearch]="false"
+              [enableColumnFilters]="false"
+              [stickyHeader]="true"
+              (stateChange)="onTableStateChange($event)"
+              (rowClick)="onRowClick($event)"
+            >
+              <ng-template #cellTemplate let-row let-column="column">
+                @switch (column.key) {
+                  @case ('status') {
+                    <app-badge [variant]="getStatusVariant(row.status)">
+                      {{ row.status }}
+                    </app-badge>
+                  }
+                  @case ('amount') {
+                    <span class="tabular-nums">
+                      {{ row.measurementType === 'WEIGHT' ? (row.weightKg | number:'1.2-2') + ' kg' : row.pcsCount + ' pcs' }}
+                    </span>
+                  }
+                  @case ('warehouse') {
+                    {{ row.warehouseName || '—' }}
+                  }
+                  @case ('createdAt') {
+                    {{ row.createdAt | date:'medium' }}
+                  }
+                  @default {
+                    {{ column.getValue ? column.getValue(row) : row[column.key] }}
+                  }
+                }
+              </ng-template>
+
+              <ng-template #rowActions let-row>
+                <app-button variant="secondary" size="sm" [routerLink]="['/inventory', row.id]">
+                  View
+                </app-button>
+              </ng-template>
+            </app-data-table>
+          }
+        </app-section-body>
+      </app-section>
+    }
+  </app-page-body>
+</app-page>

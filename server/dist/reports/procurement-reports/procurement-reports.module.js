@@ -13,6 +13,7 @@ const procurement_reports_service_1 = require("./procurement-reports.service");
 const prisma_module_1 = require("../../prisma/prisma.module");
 const audit_module_1 = require("../../audit/audit.module");
 const reports_audit_service_1 = require("../common/reports-audit.service");
+const reports_consistency_service_1 = require("../common/reports-consistency.service");
 let ProcurementReportsModule = class ProcurementReportsModule {
 };
 exports.ProcurementReportsModule = ProcurementReportsModule;
@@ -20,7 +21,7 @@ exports.ProcurementReportsModule = ProcurementReportsModule = __decorate([
     (0, common_1.Module)({
         imports: [prisma_module_1.PrismaModule, audit_module_1.AuditModule],
         controllers: [procurement_reports_controller_1.ProcurementReportsController],
-        providers: [procurement_reports_service_1.ProcurementReportsService, reports_audit_service_1.ReportsAuditService],
+        providers: [procurement_reports_service_1.ProcurementReportsService, reports_audit_service_1.ReportsAuditService, reports_consistency_service_1.ReportsConsistencyService],
     })
 ], ProcurementReportsModule);
 //# sourceMappingURL=procurement-reports.module.js.map

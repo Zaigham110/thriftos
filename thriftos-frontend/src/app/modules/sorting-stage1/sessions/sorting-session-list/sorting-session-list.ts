@@ -6,22 +6,28 @@
  */
 
 import { Component, OnInit, ChangeDetectionStrategy, signal, computed, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { CommonModule, DatePipe } from '@angular/common';
+import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { LucideAngularModule, Plus, Eye, Play, FileText, Package, Box, Filter, ClipboardList } from 'lucide-angular';
 
 import {
-  CardComponent,
-  ButtonComponent,
-  SelectComponent,
-  BadgeComponent,
-  BreadcrumbComponent,
-  SkeletonComponent,
-  AlertComponent,
-  EmptyStateComponent,
-  SelectOption,
-  BreadcrumbItem,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppPageBodyComponent,
+  AppStackComponent,
+  AppBreadcrumbComponent,
+  AppButtonComponent,
+  AppDataTableComponent,
+  AppBadgeComponent,
+  AppErrorStateComponent,
+  AppSelectComponent,
+  AppSectionComponent,
+  AppSectionHeaderComponent,
+  AppSectionBodyComponent,
+  type DataTableColumn,
+  type DataTableState,
+  type BreadcrumbItem,
+  type SelectOption,
 } from '../../../../shared/ui';
 import { AuthService } from '../../../../core/auth/auth';
 import { SortingStage1Service } from '../../sorting-stage1.service';
@@ -32,17 +38,21 @@ import { SortSession, SortStatus } from '../../sorting-stage1.models';
   standalone: true,
   imports: [
     CommonModule,
-    RouterLink,
     FormsModule,
-    LucideAngularModule,
-    CardComponent,
-    ButtonComponent,
-    SelectComponent,
-    BadgeComponent,
-    BreadcrumbComponent,
-    SkeletonComponent,
-    AlertComponent,
-    EmptyStateComponent,
+    DatePipe,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppStackComponent,
+    AppBreadcrumbComponent,
+    AppButtonComponent,
+    AppDataTableComponent,
+    AppBadgeComponent,
+    AppErrorStateComponent,
+    AppSelectComponent,
+    AppSectionComponent,
+    AppSectionHeaderComponent,
+    AppSectionBodyComponent,
   ],
   templateUrl: './sorting-session-list.html',
   styleUrl: './sorting-session-list.scss',
@@ -51,18 +61,7 @@ import { SortSession, SortStatus } from '../../sorting-stage1.models';
 export class SortingSessionListComponent implements OnInit {
   private readonly sortingService = inject(SortingStage1Service);
   private readonly authService = inject(AuthService);
-
-  // Icons
-  readonly icons = {
-    Plus,
-    Eye,
-    Play,
-    FileText,
-    Package,
-    Box,
-    Filter,
-    ClipboardList,
-  };
+  private readonly router = inject(Router);
 
   // Breadcrumbs
   readonly breadcrumbs: BreadcrumbItem[] = [
@@ -86,6 +85,18 @@ export class SortingSessionListComponent implements OnInit {
     { value: '', label: 'All Statuses' },
     { value: 'OPEN', label: 'Open' },
     { value: 'CLOSED', label: 'Closed' },
+  ];
+
+  // Table Columns
+  readonly tableColumns: DataTableColumn[] = [
+    { key: 'id', label: 'Session ID', sortable: true },
+    { key: 'source', label: 'Source' },
+    { key: 'status', label: 'Status', sortable: true },
+    { key: 'inputWeight', label: 'Input Weight', align: 'right' },
+    { key: 'outputWeight', label: 'Output Weight', align: 'right' },
+    { key: 'wastePct', label: 'Waste %', align: 'right' },
+    { key: 'createdAt', label: 'Created', sortable: true },
+    { key: 'actions', label: '', align: 'right' },
   ];
 
   // Permission checks
@@ -112,11 +123,15 @@ export class SortingSessionListComponent implements OnInit {
     this.loadSessions(1);
   }
 
-  onPageChange(page: number): void {
-    this.loadSessions(page);
+  onTableStateChange(state: DataTableState): void {
+    this.loadSessions(state.pageIndex);
   }
 
-  getStatusBadgeVariant(status: SortStatus): 'primary' | 'success' | 'default' {
+  onRowClick(session: SortSession): void {
+    this.router.navigate(['/sorting/stage-1', session.id]);
+  }
+
+  getStatusVariant(status: SortStatus): 'primary' | 'success' | 'default' {
     switch (status) {
       case 'OPEN':
         return 'primary';
@@ -135,30 +150,6 @@ export class SortingSessionListComponent implements OnInit {
       return `Bale: ${session.incomingBale.baleCode}`;
     }
     return 'Unknown';
-  }
-
-  getSourceType(session: SortSession): 'rag' | 'bale' {
-    return session.rag ? 'rag' : 'bale';
-  }
-
-  formatWeight(weight: number | string): string {
-    const num = typeof weight === 'string' ? parseFloat(weight) : weight;
-    return `${(num || 0).toFixed(2)} kg`;
-  }
-
-  formatPercentage(value: number, total: number): string {
-    if (total === 0) return '0%';
-    return `${((value / total) * 100).toFixed(1)}%`;
-  }
-
-  formatDate(dateString: string): string {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   }
 
   dismissError(): void {

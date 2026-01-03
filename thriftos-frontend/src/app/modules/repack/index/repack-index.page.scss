@@ -1,0 +1,64 @@
+/**
+ * REPACK INDEX STYLES — ALIGNED WITH PROCUREMENT PATTERN
+ * Table-based layout. Minimal custom styles needed.
+ */
+
+// Variables
+$border-color: #e5e7eb;
+$text-primary: #111827;
+$text-secondary: #6b7280;
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.page-subtitle {
+  font-size: 0.875rem;
+  color: $text-secondary;
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: $text-primary;
+  margin: 0;
+}
+
+// Filter select — matches Procurement style
+.filter-select {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border: 1px solid $border-color;
+  border-radius: 6px;
+  background: white;
+  color: $text-primary;
+  cursor: pointer;
+  min-width: 140px;
+
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  }
+}
+
+// Tabular numbers for data
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+// Warning text for dialogs
+.warning-text {
+  color: #b91c1c;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}

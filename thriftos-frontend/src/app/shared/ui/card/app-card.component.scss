@@ -1,0 +1,23 @@
+// ===============================
+// APP-CARD STYLES (LOCKED)
+// ===============================
+
+.app-card {
+  background-color: var(--app-bg-surface);
+  border: 1px solid var(--app-border-subtle);
+  border-radius: var(--border-radius);
+  padding: var(--card-padding);
+  box-shadow: var(--shadow-sm);
+
+  // Data variant (default) - for tables, forms
+  &[data-variant='data'] {
+    // No additional styling
+  }
+
+  // Info variant - for informational content
+  &[data-variant='info'] {
+    background-color: var(--app-primary-light);
+    border-color: var(--app-primary);
+    border-left-width: 3px;
+  }
+}

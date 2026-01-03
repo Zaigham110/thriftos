@@ -34,8 +34,13 @@ let GradeSessionService = class GradeSessionService {
             where: { tenantId, categoryOutputId: dto.categoryOutputId },
             select: { id: true, status: true },
         });
-        if (existing) {
-            throw new common_1.ConflictException('CategoryOutput already graded (or grading in progress)');
+        if (existing && existing.status === client_1.GradeStatus.OPEN) {
+            return this.prisma.gradeSession.findFirst({
+                where: { id: existing.id },
+            });
+        }
+        if (existing && existing.status === client_1.GradeStatus.CLOSED) {
+            throw new common_1.ConflictException('CategoryOutput already fully graded');
         }
         const session = await this.prisma.gradeSession.create({
             data: {
@@ -162,12 +167,12 @@ let GradeSessionService = class GradeSessionService {
         });
         return updated;
     }
-    async close(tenantId, sessionId, currentUserId) {
+    async close(tenantId, sessionId, currentUserId, options) {
         const result = await this.prisma.$transaction(async (tx) => {
             const session = await tx.gradeSession.findFirst({
                 where: { id: sessionId, tenantId },
                 include: {
-                    categoryOutput: { select: { id: true, weightKg: true, count: true, allocatedCost: true } },
+                    categoryOutput: { select: { id: true, weightKg: true, count: true, allocatedCost: true, containerId: true, ragId: true } },
                     gradeBuckets: true,
                 },
             });
@@ -188,6 +193,40 @@ let GradeSessionService = class GradeSessionService {
             if (wasteWeight.lessThan(new library_1.Decimal(0))) {
                 throw new common_1.BadRequestException('wasteWeight cannot be negative (output exceeds input)');
             }
+            const existingWasteAgg = await tx.wasteLineItem.aggregate({
+                where: { tenantId, stage: client_1.WasteStage.STAGE_2, gradeSessionId: sessionId },
+                _sum: { amount: true },
+            });
+            const declaredWasteAmount = existingWasteAgg._sum.amount || new library_1.Decimal(0);
+            if (declaredWasteAmount.greaterThan(wasteWeight)) {
+                throw new common_1.BadRequestException('Declared waste exceeds computed waste');
+            }
+            const remainingWasteAmount = wasteWeight.sub(declaredWasteAmount);
+            if (remainingWasteAmount.greaterThan(new library_1.Decimal(0))) {
+                if (!options?.wasteCategoryId) {
+                    throw new common_1.BadRequestException('wasteCategoryId is required to seal when remaining waste > 0');
+                }
+                const category = await tx.wasteCategory.findFirst({
+                    where: { id: options.wasteCategoryId, tenantId, isActive: true },
+                });
+                if (!category) {
+                    throw new common_1.BadRequestException('Invalid waste category');
+                }
+                await tx.wasteLineItem.create({
+                    data: {
+                        tenantId,
+                        stage: client_1.WasteStage.STAGE_2,
+                        wasteCategoryId: category.id,
+                        amount: remainingWasteAmount,
+                        unitType: category.unitType,
+                        estimatedValue: remainingWasteAmount.mul(category.defaultResalePrice),
+                        gradeSessionId: sessionId,
+                        containerId: session.categoryOutput.containerId ?? null,
+                        ragId: session.categoryOutput.ragId ?? null,
+                        categoryOutputId: session.categoryOutput.id,
+                    },
+                });
+            }
             const gradeYieldPercent = inputWeight.equals(new library_1.Decimal(0))
                 ? new library_1.Decimal(0)
                 : totalGradeOutputWeight.div(inputWeight).mul(new library_1.Decimal(100));
@@ -204,6 +243,11 @@ let GradeSessionService = class GradeSessionService {
                         weightKg: bucket.outputWeightKg,
                         count: bucket.outputCount,
                         allocatedCost,
+                        totalAmount: bucket.outputWeightKg,
+                        usedAmount: new library_1.Decimal(0),
+                        remainingAmount: bucket.outputWeightKg,
+                        measurementType: 'WEIGHT',
+                        status: 'READY_FOR_REPACK',
                     },
                 }));
             }

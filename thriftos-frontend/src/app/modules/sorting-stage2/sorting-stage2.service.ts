@@ -225,7 +225,8 @@ export class SortingStage2Service {
     this._loading.set(true);
     this._error.set(null);
 
-    return this.http.post<GradeSession>(`${API_BASE}/sessions/${id}/close`, {}).pipe(
+    return this.http.post<any>(`${API_BASE}/sessions/${id}/close`, {}).pipe(
+      map((resp) => (resp && resp.session ? resp.session : resp) as GradeSession),
       tap((session) => {
         this._currentSession.set(session);
         this._loading.set(false);
@@ -355,5 +356,21 @@ export class SortingStage2Service {
     this._error.set(message);
     this._loading.set(false);
     return throwError(() => new Error(message));
+  }
+
+  // =============================================================
+  // COMPONENT COMPATIBILITY METHODS
+  // =============================================================
+
+  loadSessions(filters?: GradeSessionFilters): Observable<GradeSessionListResponse> {
+    return this.getSessions(filters);
+  }
+
+  loadAvailableForGrading(options?: { page?: number; limit?: number }): Observable<AvailableForGradingResponse> {
+    return this.getAvailableForGrading(options);
+  }
+
+  startSession(categoryOutputId: string): Observable<GradeSession> {
+    return this.createSession({ categoryOutputId });
   }
 }

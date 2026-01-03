@@ -1,147 +1,72 @@
-<div class="yield-report">
-  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
-
-  <header class="page-header">
-    <div class="page-header__back">
-      <a routerLink="/app/reports" class="back-link">
-        <lucide-icon [img]="icons.ArrowLeft" [size]="18"></lucide-icon>
-        Back to Reports
-      </a>
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs" />
+      <h1 class="page-title">Yield Report</h1>
+      <p class="page-subtitle">Category yield analysis from sorting operations</p>
+    </app-stack>
+    <div class="actions">
+      <app-button variant="secondary" (click)="loadData()">
+        Refresh
+      </app-button>
     </div>
-    <div class="page-header__title">
-      <div class="page-header__icon page-header__icon--green">
-        <lucide-icon [img]="icons.TrendingUp" [size]="24"></lucide-icon>
-      </div>
-      <div>
-        <h1>Yield Report</h1>
-        <p class="page-header__subtitle">Category yield analysis from sorting operations</p>
-      </div>
-    </div>
-  </header>
+  </app-page-header>
 
-  @if (error()) {
-    <ui-alert variant="danger" [dismissible]="true" (dismissed)="error.set(null)">
-      {{ error() }}
-      <button type="button" class="retry-btn" (click)="loadData()">Retry</button>
-    </ui-alert>
-  }
-
-  <!-- Filters Panel -->
-  <app-report-filters
-    [showCategory]="true"
-    [showExport]="true"
-    [exporting]="exporting"
-    (filtersChange)="onFiltersChange($event)"
-    (onExport)="exportReport()"
-  ></app-report-filters>
-
-  <!-- Summary Stats -->
-  <div class="stats-row">
-    <ui-card class="mini-stat">
-      <div class="mini-stat__icon mini-stat__icon--blue">
-        <lucide-icon [img]="icons.Scale" [size]="18"></lucide-icon>
-      </div>
-      <div class="mini-stat__content">
-        <span class="mini-stat__label">Total Input</span>
-        @if (loading()) {
-          <ui-skeleton variant="text" class="mini-skeleton"></ui-skeleton>
-        } @else {
-          <span class="mini-stat__value">{{ formatWeight(totalInput) }}</span>
-        }
-      </div>
-    </ui-card>
-
-    <ui-card class="mini-stat">
-      <div class="mini-stat__icon mini-stat__icon--green">
-        <lucide-icon [img]="icons.Package" [size]="18"></lucide-icon>
-      </div>
-      <div class="mini-stat__content">
-        <span class="mini-stat__label">Total Output</span>
-        @if (loading()) {
-          <ui-skeleton variant="text" class="mini-skeleton"></ui-skeleton>
-        } @else {
-          <span class="mini-stat__value">{{ formatWeight(totalOutput) }}</span>
-        }
-      </div>
-    </ui-card>
-
-    <ui-card class="mini-stat">
-      <div class="mini-stat__icon mini-stat__icon--red">
-        <lucide-icon [img]="icons.Trash2" [size]="18"></lucide-icon>
-      </div>
-      <div class="mini-stat__content">
-        <span class="mini-stat__label">Total Waste</span>
-        @if (loading()) {
-          <ui-skeleton variant="text" class="mini-skeleton"></ui-skeleton>
-        } @else {
-          <span class="mini-stat__value">{{ formatWeight(totalWaste) }}</span>
-        }
-      </div>
-    </ui-card>
-
-    <ui-card class="mini-stat">
-      <div class="mini-stat__icon mini-stat__icon--primary">
-        <lucide-icon [img]="icons.TrendingUp" [size]="18"></lucide-icon>
-      </div>
-      <div class="mini-stat__content">
-        <span class="mini-stat__label">Avg Yield</span>
-        @if (loading()) {
-          <ui-skeleton variant="text" class="mini-skeleton"></ui-skeleton>
-        } @else {
-          <span class="mini-stat__value mini-stat__value--highlight">{{ formatPercent(avgYield) }}</span>
-        }
-      </div>
-    </ui-card>
-  </div>
-
-  <!-- Data Table -->
-  <ui-card class="table-card">
-    <div class="table-header">
-      <h2>Yield by Category</h2>
-    </div>
-
-    @if (loading()) {
-      <div class="table-loading">
-        @for (i of [1, 2, 3, 4, 5]; track i) {
-          <ui-skeleton variant="text" class="table-row-skeleton"></ui-skeleton>
-        }
-      </div>
-    } @else if (!data().length) {
-      <div class="table-empty">
-        <lucide-icon [img]="icons.TrendingUp" [size]="48"></lucide-icon>
-        <p>No yield data available for the selected filters</p>
-      </div>
-    } @else {
-      <div class="table-wrapper">
-        <table class="report-table">
-          <thead>
-            <tr>
-              <th>Category</th>
-              <th class="align-right">Input (KG)</th>
-              <th class="align-right">Output (KG)</th>
-              <th class="align-right">Waste (KG)</th>
-              <th class="align-right">Yield %</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (row of data(); track row.categoryId) {
-              <tr>
-                <td>
-                  <span class="category-name">{{ row.categoryName || row.categoryId }}</span>
-                </td>
-                <td class="align-right">{{ formatWeight(row.inputWeightKg) }}</td>
-                <td class="align-right">{{ formatWeight(row.outputWeightKg) }}</td>
-                <td class="align-right text-muted">{{ formatWeight(row.wasteWeightKg) }}</td>
-                <td class="align-right">
-                  <span class="yield-badge {{ getYieldClass(row.yieldPct) }}">
-                    {{ formatPercent(row.yieldPct) }}
-                  </span>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
+  <app-page-body>
+    @if (error()) {
+      <app-error-state title="Failed to load report" [message]="error()!" [action]="true">
+        <app-button action variant="secondary" (click)="loadData()">Retry</app-button>
+      </app-error-state>
     }
-  </ui-card>
-</div>
+
+    <!-- Filters -->
+    <app-section>
+      <app-section-body>
+        <app-report-filters
+          [showCategory]="true"
+          [showExport]="true"
+          [exporting]="exporting"
+          (filtersChange)="onFiltersChange($event)"
+          (searchChange)="onSearchChange($event)"
+          (onExport)="exportReport()"
+        />
+      </app-section-body>
+    </app-section>
+
+    <!-- Data Table -->
+    <app-section>
+      <app-section-header>
+        <h2 class="section-title">Yield by Category</h2>
+      </app-section-header>
+      <app-section-body>
+        <app-data-table
+          [data]="data()"
+          [columns]="columns"
+          [loading]="loading()"
+          [enableSearch]="false"
+          [externalSearch]="searchText()"
+        >
+          <ng-template #cellTemplate let-row let-column="column">
+            @switch (column.key) {
+              @case ('inputWeightKg') {
+                {{ formatWeight(row.inputWeightKg) }}
+              }
+              @case ('outputWeightKg') {
+                {{ formatWeight(row.outputWeightKg) }}
+              }
+              @case ('wasteWeightKg') {
+                {{ formatWeight(row.wasteWeightKg) }}
+              }
+              @case ('yieldPct') {
+                {{ formatPercent(row.yieldPct) }}
+              }
+              @default {
+                {{ row[column.key] }}
+              }
+            }
+          </ng-template>
+        </app-data-table>
+      </app-section-body>
+    </app-section>
+  </app-page-body>
+</app-page>

@@ -46,14 +46,14 @@
   &:focus {
     outline: none;
     border-color: $primary;
-    box-shadow: 0 0 0 3px rgba($primary, 0.1);
+    box-shadow: 0 0 0 3px hsl(var(--ring) / 0.2);
   }
 
   &.error {
     border-color: $status-danger;
 
     &:focus {
-      box-shadow: 0 0 0 3px rgba($status-danger, 0.1);
+      box-shadow: 0 0 0 3px hsl(var(--destructive) / 0.2);
     }
   }
 }
@@ -90,8 +90,8 @@
   }
 
   &.selected {
-    background-color: rgba($primary, 0.1);
-    border: 1px solid rgba($primary, 0.3);
+    background-color: hsl(var(--primary) / 0.12);
+    border: 1px solid hsl(var(--primary) / 0.3);
   }
 }
 

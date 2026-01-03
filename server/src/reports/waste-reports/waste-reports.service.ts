@@ -2,12 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { parseDateRange } from '../common/report-utils';
+import { ReportsConsistencyService } from '../common/reports-consistency.service';
 
 @Injectable()
 export class WasteReportsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly consistency: ReportsConsistencyService,
+  ) {}
 
   async wasteByStage(tenantId: string, filters: { startDate?: string; endDate?: string }) {
+    await this.consistency.assertTenantIsReportable(tenantId);
     const { start, end } = parseDateRange(filters);
 
     // Build dynamic query with proper parameter positions for procurement
@@ -100,13 +105,14 @@ export class WasteReportsService {
     );
 
     return {
-      procurementWasteKg: new Decimal(procurement?.[0]?.wasteKg as any).toString(),
-      sortingStage1WasteKg: (stage1._sum.wasteWeight ?? new Decimal(0)).toString(),
-      gradingStage2WasteKg: new Decimal(stage2?.[0]?.wasteKg as any).toString(),
+      procurementWasteKg: new Decimal(procurement?.[0]?.wasteKg as any).toNumber(),
+      sortingStage1WasteKg: (stage1._sum.wasteWeight ?? new Decimal(0)).toNumber(),
+      gradingStage2WasteKg: new Decimal(stage2?.[0]?.wasteKg as any).toNumber(),
     };
   }
 
   async wasteCostImpact(tenantId: string, filters: { startDate?: string; endDate?: string }) {
+    await this.consistency.assertTenantIsReportable(tenantId);
     const { start, end } = parseDateRange(filters);
 
     // Build dynamic params for procurement
@@ -249,16 +255,16 @@ export class WasteReportsService {
 
     return {
       procurement: {
-        wasteKg: new Decimal(procurement?.[0]?.wasteKg as any).toString(),
-        wasteCost: new Decimal(procurement?.[0]?.wasteCost as any).toString(),
+        wasteKg: new Decimal(procurement?.[0]?.wasteKg as any).toNumber(),
+        wasteCost: new Decimal(procurement?.[0]?.wasteCost as any).toNumber(),
       },
       sortingStage1: {
-        wasteKg: new Decimal(stage1?.[0]?.wasteKg as any).toString(),
-        wasteCost: new Decimal(stage1?.[0]?.wasteCost as any).toString(),
+        wasteKg: new Decimal(stage1?.[0]?.wasteKg as any).toNumber(),
+        wasteCost: new Decimal(stage1?.[0]?.wasteCost as any).toNumber(),
       },
       gradingStage2: {
-        wasteKg: new Decimal(stage2?.[0]?.wasteKg as any).toString(),
-        wasteCost: new Decimal(stage2?.[0]?.wasteCost as any).toString(),
+        wasteKg: new Decimal(stage2?.[0]?.wasteKg as any).toNumber(),
+        wasteCost: new Decimal(stage2?.[0]?.wasteCost as any).toNumber(),
       },
     };
   }

@@ -9,61 +9,72 @@ export declare class CostReportsController {
     constructor(service: CostReportsService, audit: ReportsAuditService);
     cascade(filters: ReportFiltersDto, user: CurrentUserData, req: Request): Promise<{
         data: {
-            steps: ({
-                stage: string;
-                totalCost: string;
-                totalWeightKg: string;
-                avgCostPerKg: string;
-                totalPcs?: undefined;
-                lockedCost?: undefined;
-                totalKg?: undefined;
-            } | {
-                stage: string;
-                totalCost: string;
-                totalWeightKg: string;
-                totalPcs: number;
-                avgCostPerKg: string;
-                lockedCost?: undefined;
-                totalKg?: undefined;
-            } | {
-                stage: string;
-                lockedCost: string;
-                totalKg: string;
-                totalPcs: number;
-                totalCost?: undefined;
-                totalWeightKg?: undefined;
-                avgCostPerKg?: undefined;
-            })[];
+            procurement: {
+                totalCost: number;
+                weightKg: number;
+                costPerKg: number;
+            };
+            sorting: {
+                totalCost: number;
+                weightKg: number;
+                costPerKg: number;
+            };
+            grading: {
+                totalCost: number;
+                weightKg: number;
+                costPerKg: number;
+            };
+            repack: {
+                totalCost: number;
+                weightKg: number;
+                costPerKg: number;
+            };
+            final: {
+                totalCost: number;
+                weightKg: number;
+                costPerKg: number;
+            };
         };
     }>;
     cascadeExport(filters: ReportFiltersDto, user: CurrentUserData, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     readiness(filters: ReportFiltersDto, user: CurrentUserData, req: Request): Promise<{
         data: {
-            perKg: {
-                categoryId: string;
-                gradeId: string;
-                totalKg: string;
-                totalCost: string;
-                avgCostPerKg: string;
-            }[];
-            perPcs: {
-                categoryId: string;
-                gradeId: string;
-                totalPcs: number;
-                totalCost: string;
-                avgCostPerPcs: string;
-            }[];
-            perSku: {
-                skuKey: string;
-                unitType: string;
-                categoryId: string;
-                gradeId: string;
-                units: number;
-                totalCost: string;
-                totalWeightKg: string;
-                totalPcs: number;
-            }[];
-        };
+            categoryId: string;
+            categoryName: string;
+            gradeId: string;
+            gradeName: string;
+            unitsReady: number;
+            totalWeightKg: number;
+            totalCost: number;
+            avgCostPerKg: number;
+        }[];
     }>;
     readinessExport(filters: ReportFiltersDto, user: CurrentUserData, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    finalProducts(filters: ReportFiltersDto, user: CurrentUserData, req: Request): Promise<{
+        data: {
+            repackUnitId: string;
+            productCode: string;
+            unitType: string;
+            categoryId: string;
+            category: string;
+            gradeId: string;
+            grade: string;
+            totalWeightKg: number;
+            totalQty: number;
+            totalCost: number;
+            repackUnitTotalCost: number;
+            costPerKg: number;
+            costPerUnit: number;
+            sourceContainers: number;
+            sourceBales: number;
+            allocationsCount: number;
+            dateSealed: string;
+        }[];
+        summary: {
+            totalUnits: number;
+            totalWeightKg: number;
+            totalCost: number;
+        };
+    }>;
+    finalProductsExport(filters: ReportFiltersDto, user: CurrentUserData, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
 }

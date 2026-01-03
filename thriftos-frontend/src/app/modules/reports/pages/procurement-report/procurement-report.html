@@ -1,199 +1,76 @@
-<div class="procurement-report">
-  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
-
-  <header class="page-header">
-    <div class="page-header__back">
-      <a routerLink="/app/reports" class="back-link">
-        <lucide-icon [img]="icons.ArrowLeft" [size]="18"></lucide-icon>
-        Back to Reports
-      </a>
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs" />
+      <h1 class="page-title">Procurement Report</h1>
+      <p class="page-subtitle">Vendor summary and cost analysis</p>
+    </app-stack>
+    <div class="actions">
+      <app-button variant="secondary" (click)="loadData()">
+        Refresh
+      </app-button>
     </div>
-    <div class="page-header__title">
-      <div class="page-header__icon page-header__icon--amber">
-        <lucide-icon [img]="icons.DollarSign" [size]="24"></lucide-icon>
-      </div>
-      <div>
-        <h1>Procurement Report</h1>
-        <p class="page-header__subtitle">Vendor summary and cost analysis</p>
-      </div>
-    </div>
-  </header>
+  </app-page-header>
 
-  @if (error()) {
-    <ui-alert variant="danger" [dismissible]="true" (dismissed)="error.set(null)">
-      {{ error() }}
-      <button type="button" class="retry-btn" (click)="loadData()">Retry</button>
-    </ui-alert>
-  }
+  <app-page-body>
+    @if (error()) {
+      <app-error-state title="Failed to load report" [message]="error()!" [action]="true">
+        <app-button action variant="secondary" (click)="loadData()">Retry</app-button>
+      </app-error-state>
+    }
 
-  <!-- Filters Panel -->
-  <app-report-filters
-    [showExport]="true"
-    [exporting]="exporting"
-    (filtersChange)="onFiltersChange($event)"
-    (onExport)="exportReport()"
-  ></app-report-filters>
+    <!-- Filters -->
+    <app-section>
+      <app-section-body>
+        <app-report-filters
+          [showExport]="true"
+          [exporting]="exporting"
+          (filtersChange)="onFiltersChange($event)"
+          (searchChange)="onSearchChange($event)"
+          (onExport)="exportReport()"
+        />
+      </app-section-body>
+    </app-section>
 
-  <!-- Summary Stats -->
-  <div class="stats-row">
-    <ui-card class="mini-stat">
-      <div class="mini-stat__icon mini-stat__icon--blue">
-        <lucide-icon [img]="icons.Users" [size]="18"></lucide-icon>
-      </div>
-      <div class="mini-stat__content">
-        <span class="mini-stat__label">Vendors</span>
-        @if (loading()) {
-          <ui-skeleton variant="text" class="mini-skeleton"></ui-skeleton>
-        } @else {
-          <span class="mini-stat__value">{{ totalVendors }}</span>
-        }
-      </div>
-    </ui-card>
-
-    <ui-card class="mini-stat">
-      <div class="mini-stat__icon mini-stat__icon--green">
-        <lucide-icon [img]="icons.Package" [size]="18"></lucide-icon>
-      </div>
-      <div class="mini-stat__content">
-        <span class="mini-stat__label">Containers</span>
-        @if (loading()) {
-          <ui-skeleton variant="text" class="mini-skeleton"></ui-skeleton>
-        } @else {
-          <span class="mini-stat__value">{{ totalContainers }}</span>
-        }
-      </div>
-    </ui-card>
-
-    <ui-card class="mini-stat">
-      <div class="mini-stat__icon mini-stat__icon--amber">
-        <lucide-icon [img]="icons.DollarSign" [size]="18"></lucide-icon>
-      </div>
-      <div class="mini-stat__content">
-        <span class="mini-stat__label">Total Cost</span>
-        @if (loading()) {
-          <ui-skeleton variant="text" class="mini-skeleton"></ui-skeleton>
-        } @else {
-          <span class="mini-stat__value">{{ formatCurrency(totalCost) }}</span>
-        }
-      </div>
-    </ui-card>
-
-    <ui-card class="mini-stat">
-      <div class="mini-stat__icon mini-stat__icon--primary">
-        <lucide-icon [img]="icons.TrendingDown" [size]="18"></lucide-icon>
-      </div>
-      <div class="mini-stat__content">
-        <span class="mini-stat__label">Avg Cost/KG</span>
-        @if (loading()) {
-          <ui-skeleton variant="text" class="mini-skeleton"></ui-skeleton>
-        } @else {
-          <span class="mini-stat__value">{{ formatCurrency(avgCostPerKg) }}</span>
-        }
-      </div>
-    </ui-card>
-  </div>
-
-  <!-- Vendor Share Chart -->
-  <ui-card class="chart-card">
-    <div class="chart-header">
-      <h2>Vendor Cost Distribution</h2>
-    </div>
-
-    @if (loading()) {
-      <div class="chart-loading">
-        @for (i of [1, 2, 3]; track i) {
-          <ui-skeleton variant="text" class="bar-skeleton"></ui-skeleton>
-        }
-      </div>
-    } @else if (!vendors().length) {
-      <div class="chart-empty">
-        <lucide-icon [img]="icons.Users" [size]="48"></lucide-icon>
-        <p>No vendor data available for the selected filters</p>
-      </div>
-    } @else {
-      <div class="horizontal-bars">
-        @for (vendor of vendors(); track vendor.vendorId) {
-          <div class="bar-row">
-            <div class="bar-label">
-              <span class="vendor-name">{{ vendor.vendorName }}</span>
-              @if (vendor.vendorCode) {
-                <span class="vendor-code">{{ vendor.vendorCode }}</span>
+    <!-- Data Table -->
+    <app-section>
+      <app-section-header>
+        <h2 class="section-title">Vendor Summary</h2>
+      </app-section-header>
+      <app-section-body>
+        <app-data-table
+          [data]="vendors()"
+          [columns]="vendorColumns"
+          [loading]="loading()"
+          [enableSearch]="false"
+          [externalSearch]="searchText()"
+        >
+          <ng-template #cellTemplate let-row let-column="column">
+            @switch (column.key) {
+              @case ('vendorName') {
+                <div class="flex flex-col">
+                  <span class="font-medium text-gray-900">{{ row.vendorName }}</span>
+                  @if (row.vendorCode) {
+                    <span class="text-xs text-gray-500">{{ row.vendorCode }}</span>
+                  }
+                </div>
               }
-            </div>
-            <div class="bar-container">
-              <div class="bar" [style.width]="getVendorShareWidth(vendor.totalCost)"></div>
-            </div>
-            <div class="bar-values">
-              <span class="bar-cost">{{ formatCurrency(vendor.totalCost) }}</span>
-            </div>
-          </div>
-        }
-      </div>
-    }
-  </ui-card>
-
-  <!-- Data Table -->
-  <ui-card class="table-card">
-    <div class="table-header">
-      <h2>Vendor Summary</h2>
-    </div>
-
-    @if (loading()) {
-      <div class="table-loading">
-        @for (i of [1, 2, 3, 4, 5]; track i) {
-          <ui-skeleton variant="text" class="table-row-skeleton"></ui-skeleton>
-        }
-      </div>
-    } @else if (!vendors().length) {
-      <div class="table-empty">
-        <lucide-icon [img]="icons.Users" [size]="48"></lucide-icon>
-        <p>No vendor data available for the selected filters</p>
-      </div>
-    } @else {
-      <div class="table-wrapper">
-        <table class="report-table">
-          <thead>
-            <tr>
-              <th>Vendor</th>
-              <th class="align-right">Containers</th>
-              <th class="align-right">Weight (KG)</th>
-              <th class="align-right">Total Cost</th>
-              <th class="align-right">Cost/KG</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (vendor of vendors(); track vendor.vendorId) {
-              <tr>
-                <td>
-                  <div class="vendor-cell">
-                    <span class="vendor-name">{{ vendor.vendorName }}</span>
-                    @if (vendor.vendorCode) {
-                      <span class="vendor-code">{{ vendor.vendorCode }}</span>
-                    }
-                  </div>
-                </td>
-                <td class="align-right">{{ vendor.totalContainers }}</td>
-                <td class="align-right">{{ formatWeight(vendor.totalWeightKg) }}</td>
-                <td class="align-right">{{ formatCurrency(vendor.totalCost) }}</td>
-                <td class="align-right">
-                  <span class="cost-badge {{ getCostClass(vendor.avgCostPerKg) }}">
-                    {{ formatCurrency(vendor.avgCostPerKg) }}
-                  </span>
-                </td>
-              </tr>
+              @case ('totalWeightKg') {
+                {{ formatWeight(row.totalWeightKg) }}
+              }
+              @case ('totalCost') {
+                {{ formatCurrency(row.totalCost) }}
+              }
+              @case ('avgCostPerKg') {
+                {{ formatCurrency(row.avgCostPerKg) }}
+              }
+              @default {
+                {{ row[column.key] }}
+              }
             }
-          </tbody>
-          <tfoot>
-            <tr class="total-row">
-              <td><strong>Total</strong></td>
-              <td class="align-right"><strong>{{ totalContainers }}</strong></td>
-              <td class="align-right"><strong>{{ formatWeight(totalWeight) }}</strong></td>
-              <td class="align-right"><strong>{{ formatCurrency(totalCost) }}</strong></td>
-              <td class="align-right"><strong>{{ formatCurrency(avgCostPerKg) }}</strong></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    }
-  </ui-card>
-</div>
+          </ng-template>
+        </app-data-table>
+      </app-section-body>
+    </app-section>
+  </app-page-body>
+</app-page>

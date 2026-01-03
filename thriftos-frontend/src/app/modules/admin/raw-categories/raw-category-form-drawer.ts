@@ -49,17 +49,21 @@ export interface RawCategory {
   ],
   template: `
     <ui-drawer [isOpen]="true" position="right" size="md" (closed)="onClose()">
-      <div class="drawer-content">
+      <div class="p-6 flex h-full flex-col gap-4">
         <!-- Header -->
-        <div class="drawer-header">
-          <div class="drawer-header__info">
-            <lucide-icon [img]="icons.package" [size]="20"></lucide-icon>
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex items-start gap-3">
+            <lucide-icon [img]="icons.package" [size]="20" class="text-muted-foreground"></lucide-icon>
             <div>
-              <h2 class="drawer-title">{{ isEditMode() ? 'Edit' : 'Add' }} Raw Category</h2>
-              <p class="drawer-subtitle">{{ isEditMode() ? 'Update category details' : 'Create a new raw material category' }}</p>
+              <h2 class="m-0 text-lg font-semibold text-foreground">{{ isEditMode() ? 'Edit' : 'Add' }} Raw Category</h2>
+              <p class="m-0 mt-1 text-sm text-muted-foreground">{{ isEditMode() ? 'Update category details' : 'Create a new raw material category' }}</p>
             </div>
           </div>
-          <button class="drawer-close" (click)="onClose()" type="button">
+          <button
+            class="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-muted"
+            (click)="onClose()"
+            type="button"
+          >
             <lucide-icon [img]="icons.close" [size]="20"></lucide-icon>
           </button>
         </div>
@@ -72,8 +76,8 @@ export interface RawCategory {
         }
 
         <!-- Form -->
-        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="drawer-form">
-          <div class="form-field">
+        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex flex-1 flex-col gap-4">
+          <div class="flex flex-col gap-1">
             <ui-input
               formControlName="name"
               label="Category Name"
@@ -81,11 +85,11 @@ export interface RawCategory {
               [required]="true"
             ></ui-input>
             @if (form.get('name')?.touched && form.get('name')?.errors?.['required']) {
-              <span class="field-error">Category name is required</span>
+              <span class="text-xs text-destructive">Category name is required</span>
             }
           </div>
 
-          <div class="form-field">
+          <div class="flex flex-col gap-1">
             <ui-select
               formControlName="rawType"
               label="Type"
@@ -95,27 +99,27 @@ export interface RawCategory {
               [disabled]="isEditMode()"
             ></ui-select>
             @if (form.get('rawType')?.touched && form.get('rawType')?.errors?.['required']) {
-              <span class="field-error">Type is required</span>
+              <span class="text-xs text-destructive">Type is required</span>
             }
             @if (isEditMode()) {
-              <span class="field-hint">Type cannot be changed after creation</span>
+              <span class="text-xs text-muted-foreground">Type cannot be changed after creation</span>
             } @else {
-              <span class="field-hint">RAG: Container rags only | BALE: Loose bales only | BOTH: Applicable to both</span>
+              <span class="text-xs text-muted-foreground">RAG: Container rags only | BALE: Loose bales only | BOTH: Applicable to both</span>
             }
           </div>
 
-          <div class="form-field">
+          <div class="flex flex-col gap-1">
             <ui-input
               formControlName="sortOrder"
               label="Sort Order"
               type="number"
               placeholder="0"
             ></ui-input>
-            <span class="field-hint">Lower numbers appear first in lists</span>
+            <span class="text-xs text-muted-foreground">Lower numbers appear first in lists</span>
           </div>
 
           <!-- Actions -->
-          <div class="drawer-actions">
+          <div class="mt-auto flex justify-end gap-2 border-t border-border pt-4">
             <ui-button
               type="button"
               variant="outline"
@@ -137,86 +141,6 @@ export interface RawCategory {
       </div>
     </ui-drawer>
   `,
-  styles: [`
-    .drawer-content {
-      padding: 1.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      height: 100%;
-    }
-
-    .drawer-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-
-      &__info {
-        display: flex;
-        align-items: flex-start;
-        gap: 0.75rem;
-      }
-    }
-
-    .drawer-title {
-      font-size: 1.125rem;
-      font-weight: 600;
-      color: var(--text-primary, #111827);
-      margin: 0;
-    }
-
-    .drawer-subtitle {
-      font-size: 0.875rem;
-      color: var(--text-secondary, #6b7280);
-      margin: 0.25rem 0 0 0;
-    }
-
-    .drawer-close {
-      background: none;
-      border: none;
-      padding: 0.25rem;
-      cursor: pointer;
-      color: var(--text-secondary, #6b7280);
-      border-radius: 0.25rem;
-      transition: background-color 0.15s ease;
-
-      &:hover {
-        background: var(--bg-hover, #f3f4f6);
-      }
-    }
-
-    .drawer-form {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      flex: 1;
-    }
-
-    .form-field {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-
-    .field-error {
-      font-size: 0.75rem;
-      color: var(--color-danger, #dc2626);
-    }
-
-    .field-hint {
-      font-size: 0.75rem;
-      color: var(--text-secondary, #6b7280);
-    }
-
-    .drawer-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 0.5rem;
-      margin-top: auto;
-      padding-top: 1rem;
-      border-top: 1px solid var(--border-color, #e5e7eb);
-    }
-  `],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RawCategoryFormDrawerComponent implements OnInit {

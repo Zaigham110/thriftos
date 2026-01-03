@@ -215,6 +215,7 @@ export interface IncomingBale {
   baleCode: string;
   categoryId: string | null;
   categoryGuess: string | null;
+  rawCategoryId?: string | null;
   weightKg: number;
   cost: number;
   createdAt: string;
@@ -226,10 +227,14 @@ export interface IncomingBale {
     id: string;
     name: string;
   } | null;
+  sortSessions?: Array<{
+    id: string;
+    status: string;
+  }>;
 }
 
 export interface CreateIncomingBaleRequest {
-  purchaseOrderId?: string;
+  purchaseOrderId: string;
   containerId?: string;
   vendorId?: string;
   rawCategoryId: string;
@@ -258,19 +263,36 @@ export interface IncomingBaleListResponse {
 // DASHBOARD STATS
 // =============================================================
 
-export interface ProcurementStats {
-  totalPurchaseOrders: number;
-  openPurchaseOrders: number;
-  receivedPurchaseOrders: number;
-  closedPurchaseOrders: number;
-  totalContainers: number;
-  containersInTransit: number;
-  containersArrived: number;
-  totalIncomingBales: number;
-  standaloneIncomingBales: number;
-  totalWeightKg: number;
-  totalCost: number;
+export interface ProcurementChartPoint {
+  label: string;
+  value: number;
+}
+
+export interface ProcurementVendorDistributionRow {
+  vendorId: string | null;
+  vendorName: string;
+  totalCost: string;
+  sharePct: number;
+}
+
+export interface ProcurementDashboardSummary {
+  range: { startDate: string; endDate: string };
   currency: string;
+  kpis: {
+    activePos: number;
+    remainingBudget: string;
+    containersInTransit: number;
+    looseBalesReceived: number;
+  };
+  charts: {
+    poSpendVsAllocated: ProcurementChartPoint[];
+    vendorDistribution: ProcurementVendorDistributionRow[];
+  };
+  generatedAt: string;
+}
+
+export interface ProcurementDashboardSummaryResponse {
+  data: ProcurementDashboardSummary;
 }
 
 // =============================================================

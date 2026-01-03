@@ -10,19 +10,19 @@ export declare class GradeBucketService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        gradeId: string;
         outputWeightKg: Decimal;
         outputCount: number;
         gradeSessionId: string;
-        gradeId: string;
     }>;
     update(tenantId: string, bucketId: string, dto: UpdateGradeBucketDto, userId: string): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        gradeId: string;
         outputWeightKg: Decimal;
         outputCount: number;
         gradeSessionId: string;
-        gradeId: string;
     }>;
     delete(tenantId: string, bucketId: string, userId: string): Promise<{
         success: boolean;

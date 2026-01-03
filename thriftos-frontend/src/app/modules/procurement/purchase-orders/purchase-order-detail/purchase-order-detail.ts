@@ -1,39 +1,33 @@
-/**
- * Purchase Order Detail Component
- * Phase 2: Procurement UI
- * 
- * Route: /app/procurement/purchase-orders/:id
- */
-
 import { ChangeDetectionStrategy, Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { LucideAngularModule, Check, Lock, Edit2, Plus, Box, ChevronRight, ArrowLeft, Package } from 'lucide-angular';
 import { ProcurementService } from '../../procurement.service';
 import {
   PurchaseOrder,
   PurchaseOrderStatus,
   Container,
-  CreateContainerRequest,
   IncomingBale,
-  CreateIncomingBaleRequest,
 } from '../../procurement.models';
 import { AuthService } from '../../../../core/auth/auth';
-import { TenantService } from '../../../../core/tenant/tenant.service';
 import {
-  CardComponent,
-  ButtonComponent,
-  AlertComponent,
-  BreadcrumbComponent,
-  BreadcrumbItem,
-  BadgeComponent,
-  ModalComponent,
-  DrawerComponent,
-  InputComponent,
-  SelectComponent,
-  SelectOption,
-  SkeletonComponent,
+  AppBadgeComponent,
+  AppBreadcrumbComponent,
+  AppButtonComponent,
+  AppCardComponent,
+  AppDataTableComponent,
+  AppDialogComponent,
+  AppEmptyStateComponent,
+  AppErrorStateComponent,
+  AppLoadingComponent,
+  AppPageBodyComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppSectionBodyComponent,
+  AppSectionComponent,
+  AppSectionHeaderComponent,
+  AppStackComponent,
+  type DataTableColumn,
+  type BreadcrumbItem,
 } from '../../../../shared/ui';
 
 @Component({
@@ -42,20 +36,24 @@ import {
   imports: [
     CommonModule,
     RouterLink,
-    ReactiveFormsModule,
     CurrencyPipe,
     DatePipe,
-    LucideAngularModule,
-    CardComponent,
-    ButtonComponent,
-    AlertComponent,
-    BreadcrumbComponent,
-    BadgeComponent,
-    ModalComponent,
-    DrawerComponent,
-    InputComponent,
-    SelectComponent,
-    SkeletonComponent,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppSectionComponent,
+    AppSectionHeaderComponent,
+    AppSectionBodyComponent,
+    AppStackComponent,
+    AppBreadcrumbComponent,
+    AppCardComponent,
+    AppBadgeComponent,
+    AppButtonComponent,
+    AppDialogComponent,
+    AppDataTableComponent,
+    AppLoadingComponent,
+    AppErrorStateComponent,
+    AppEmptyStateComponent,
   ],
   templateUrl: './purchase-order-detail.html',
   styleUrl: './purchase-order-detail.scss',
@@ -64,21 +62,8 @@ import {
 export class PurchaseOrderDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
-  private fb = inject(FormBuilder);
   private procurementService = inject(ProcurementService);
   private authService = inject(AuthService);
-  private tenantService = inject(TenantService);
-
-  readonly icons = {
-    Check,
-    Lock,
-    Edit2,
-    Plus,
-    Box,
-    ChevronRight,
-    ArrowLeft,
-    Package,
-  };
 
   readonly purchaseOrder = signal<PurchaseOrder | null>(null);
   readonly containers = signal<Container[]>([]);
@@ -86,21 +71,35 @@ export class PurchaseOrderDetailComponent implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly actionLoading = signal(false);
-
-  readonly showContainerDrawer = signal(false);
-  readonly showBaleDrawer = signal(false);
   readonly showConfirmModal = signal(false);
   readonly confirmAction = signal<'receive' | 'close' | null>(null);
 
   readonly canEdit = signal(false);
   readonly canUpdate = signal(false);
 
-  readonly breadcrumbs = computed<BreadcrumbItem[]>(() => [
-    { label: 'Home', link: '/app/dashboard' },
-    { label: 'Procurement', link: '/app/procurement' },
-    { label: 'Purchase Orders', link: '/app/procurement/purchase-orders' },
-    { label: this.purchaseOrder()?.poNumber || 'Loading...' },
-  ]);
+  // Visibility rules based on procurement type
+  readonly showContainerSection = computed(() => {
+    const po = this.purchaseOrder();
+    if (!po) return false;
+    return po.poType === 'CONTAINER' || po.poType === 'HYBRID';
+  });
+
+  readonly showLooseBaleSection = computed(() => {
+    const po = this.purchaseOrder();
+    if (!po) return false;
+    return po.poType === 'LOOSE_BALE' || po.poType === 'HYBRID';
+  });
+
+  readonly breadcrumbs = computed<BreadcrumbItem[]>(() => {
+    const poNumber = this.purchaseOrder()?.poNumber || 'Loading…';
+    const id = this.purchaseOrder()?.id;
+    return [
+      { label: 'Home', route: '/dashboard' },
+      { label: 'Procurement', route: '/procurement/dashboard' },
+      { label: 'Purchase Orders', route: '/procurement/pos' },
+      { label: poNumber, route: id ? `/procurement/pos/${id}` : '/procurement/pos' },
+    ];
+  });
 
   readonly isEditable = computed(() => {
     const po = this.purchaseOrder();
@@ -112,59 +111,48 @@ export class PurchaseOrderDetailComponent implements OnInit {
     return po?.status === 'CLOSED';
   });
 
-  readonly containerTypeOptions: SelectOption[] = [
+  canEditBale(bale: IncomingBale): boolean {
+    // Cannot edit if bale has been sorted
+    if (bale.sortSessions && bale.sortSessions.length > 0) return false;
+    // Cannot edit if PO is closed
+    const po = this.purchaseOrder();
+    if (po?.status === 'CLOSED') return false;
+    return true;
+  }
+
+  readonly containerTypeOptions = [
     { value: '20ft', label: '20ft Standard' },
     { value: '40ft', label: '40ft Standard' },
     { value: '40HC', label: '40ft High Cube' },
     { value: '45HC', label: '45ft High Cube' },
   ];
 
-  containerForm!: FormGroup;
-  baleForm!: FormGroup;
-  readonly rawCategoriesSignal = signal<any[]>([]);
-  readonly categoryOptions = computed<SelectOption[]>(() =>
-    this.rawCategoriesSignal()
-      .filter((category: any) => category.isActive && (category.rawType === 'BALE' || category.rawType === 'BOTH'))
-      .map((category: any) => ({ value: category.id, label: category.name })),
-  );
-  readonly currencyCode = computed(() => this.purchaseOrder()?.currency || this.tenantService.tenant()?.currency || 'USD');
+  readonly baleColumns: DataTableColumn[] = [
+    { key: 'baleCode', label: 'Bale Code', sortable: true, filterable: true },
+    {
+      key: 'category',
+      label: 'Category',
+      sortable: true,
+      filterable: true,
+      getValue: (row) => {
+        const b = row as IncomingBale;
+        return b.rawCategory?.name || b.categoryGuess || 'Uncategorized';
+      },
+    },
+    { key: 'weightKg', label: 'Weight (kg)', align: 'right', sortable: true, getValue: (row) => (row as IncomingBale).weightKg },
+    { key: 'cost', label: 'Cost', align: 'right', sortable: true, getValue: (row) => (row as IncomingBale).cost },
+  ];
+
+  readonly containerColumns: DataTableColumn[] = [
+    { key: 'containerNumber', label: 'Container #', sortable: true, filterable: true },
+    { key: 'containerType', label: 'Type', sortable: true, filterable: true, getValue: (row) => (row as Container).containerType || '—' },
+    { key: 'status', label: 'Status', sortable: true, filterable: true, getValue: (row) => (row as Container).status },
+    { key: 'netWeight', label: 'Net Weight (kg)', align: 'right', sortable: true, getValue: (row) => (row as Container).netWeight },
+  ];
 
   ngOnInit(): void {
-    this.initForms();
     this.checkPermissions();
     this.loadPurchaseOrder();
-    this.tenantService.loadRawCategories().subscribe((categories) => {
-      this.rawCategoriesSignal.set(categories);
-    });
-    this.tenantService.loadTenant().subscribe();
-  }
-
-  private initForms(): void {
-    this.containerForm = this.fb.group({
-      referenceNumber: ['', Validators.maxLength(50)],
-      containerType: ['40ft'],
-      eta: [''],
-      etd: [''],
-      arrivedAt: [''],
-      clearedAt: [''],
-      releasedAt: [''],
-      grossWeight: [0, [Validators.required, Validators.min(0)]],
-      netWeight: [0, [Validators.required, Validators.min(0)]],
-      billOfLadingNumber: ['', Validators.maxLength(50)],
-      shipmentReference: ['', Validators.maxLength(50)],
-      shippingLine: ['', Validators.maxLength(50)],
-      vesselName: ['', Validators.maxLength(50)],
-      portOfLoading: ['', Validators.maxLength(50)],
-      portOfDischarge: ['', Validators.maxLength(50)],
-      forwarder: ['', Validators.maxLength(50)],
-      notes: ['', Validators.maxLength(500)],
-    });
-
-    this.baleForm = this.fb.group({
-      rawCategoryId: ['', Validators.required],
-      weightKg: [0, [Validators.required, Validators.min(0.01)]],
-      cost: [0, [Validators.required, Validators.min(0)]],
-    });
   }
 
   private checkPermissions(): void {
@@ -252,103 +240,12 @@ export class PurchaseOrderDetailComponent implements OnInit {
     });
   }
 
-  openContainerDrawer(): void {
-    this.containerForm.reset({
-      containerType: '40ft',
-      grossWeight: 0,
-      netWeight: 0,
-    });
-    this.showContainerDrawer.set(true);
-  }
-
-  closeContainerDrawer(): void {
-    this.showContainerDrawer.set(false);
-  }
-
-  openBaleDrawer(): void {
-    this.baleForm.reset({
-      weightKg: 0,
-      cost: 0,
-    });
-    this.showBaleDrawer.set(true);
-  }
-
-  closeBaleDrawer(): void {
-    this.showBaleDrawer.set(false);
-  }
-
-  createContainer(): void {
-    const po = this.purchaseOrder();
-    if (!po || this.containerForm.invalid) return;
-
-    this.actionLoading.set(true);
-
-    const data: CreateContainerRequest = {
-      purchaseOrderId: po.id,
-      referenceNumber: this.containerForm.value.referenceNumber?.trim() || undefined,
-      containerType: this.containerForm.value.containerType || undefined,
-      eta: this.normalizeDate(this.containerForm.value.eta),
-      etd: this.normalizeDate(this.containerForm.value.etd),
-      arrivedAt: this.normalizeDate(this.containerForm.value.arrivedAt),
-      clearedAt: this.normalizeDate(this.containerForm.value.clearedAt),
-      releasedAt: this.normalizeDate(this.containerForm.value.releasedAt),
-      grossWeight: Number(this.containerForm.value.grossWeight),
-      netWeight: Number(this.containerForm.value.netWeight),
-      billOfLadingNumber: this.containerForm.value.billOfLadingNumber?.trim() || undefined,
-      shipmentReference: this.containerForm.value.shipmentReference?.trim() || undefined,
-      shippingLine: this.containerForm.value.shippingLine?.trim() || undefined,
-      vesselName: this.containerForm.value.vesselName?.trim() || undefined,
-      portOfLoading: this.containerForm.value.portOfLoading?.trim() || undefined,
-      portOfDischarge: this.containerForm.value.portOfDischarge?.trim() || undefined,
-      forwarder: this.containerForm.value.forwarder?.trim() || undefined,
-      notes: this.containerForm.value.notes?.trim() || undefined,
-    };
-
-    this.procurementService.createContainer(data).subscribe({
-      next: () => {
-        this.showContainerDrawer.set(false);
-        this.actionLoading.set(false);
-        this.loadContainers(po.id);
-      },
-      error: (err) => {
-        this.error.set(err.message || 'Failed to create container');
-        this.actionLoading.set(false);
-      },
-    });
-  }
-
-  createLooseBale(): void {
-    const po = this.purchaseOrder();
-    if (!po || this.baleForm.invalid) return;
-
-    this.actionLoading.set(true);
-
-    const data: CreateIncomingBaleRequest = {
-      purchaseOrderId: po.id,
-      vendorId: po.vendorId || undefined,
-      rawCategoryId: this.baleForm.value.rawCategoryId,
-      weightKg: Number(this.baleForm.value.weightKg),
-      cost: Number(this.baleForm.value.cost),
-    };
-
-    this.procurementService.createIncomingBale(data).subscribe({
-      next: () => {
-        this.showBaleDrawer.set(false);
-        this.actionLoading.set(false);
-        this.loadIncomingBales(po.id);
-      },
-      error: (err) => {
-        this.error.set(err.message || 'Failed to create loose bale');
-        this.actionLoading.set(false);
-      },
-    });
-  }
 
   getStatusVariant(status: PurchaseOrderStatus): 'default' | 'primary' | 'success' | 'warning' | 'danger' {
     const variants: Record<PurchaseOrderStatus, 'default' | 'primary' | 'success' | 'warning' | 'danger'> = {
       OPEN: 'primary',
-      RECEIVED: 'warning',
-      CLOSED: 'success',
+      RECEIVED: 'success',
+      CLOSED: 'default',
     };
     return variants[status] || 'default';
   }
@@ -364,7 +261,7 @@ export class PurchaseOrderDetailComponent implements OnInit {
   }
 
   navigateToContainer(containerId: string): void {
-    this.router.navigate(['/app/procurement/containers', containerId]);
+    this.router.navigate(['/procurement/containers', containerId]);
   }
 
   getPoTypeLabel(type: string): string {
@@ -374,7 +271,4 @@ export class PurchaseOrderDetailComponent implements OnInit {
     return type;
   }
 
-  private normalizeDate(value?: string | null): string | undefined {
-    return value ? value : undefined;
-  }
 }

@@ -16,12 +16,14 @@ const inventory_reports_module_1 = require("./inventory-reports/inventory-report
 const waste_reports_module_1 = require("./waste-reports/waste-reports.module");
 const worker_reports_module_1 = require("./worker-reports/worker-reports.module");
 const cost_reports_module_1 = require("./cost-reports/cost-reports.module");
+const dashboard_reports_module_1 = require("./dashboard-reports/dashboard-reports.module");
 let ReportsModule = class ReportsModule {
 };
 exports.ReportsModule = ReportsModule;
 exports.ReportsModule = ReportsModule = __decorate([
     (0, common_1.Module)({
         imports: [
+            dashboard_reports_module_1.DashboardReportsModule,
             procurement_reports_module_1.ProcurementReportsModule,
             sorting_reports_module_1.SortingReportsModule,
             grading_reports_module_1.GradingReportsModule,

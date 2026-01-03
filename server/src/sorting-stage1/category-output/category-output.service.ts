@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { SortStatus } from '@prisma/client';
+import { GradeStatus, SortStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -42,8 +42,10 @@ export class CategoryOutputService {
   }
 
   /**
-   * Get category outputs that are available for grading (no GradeSession exists yet)
-   * These are outputs from CLOSED Stage 1 sessions that haven't been graded
+   * Get category outputs that are available for grading OR have in-progress grading
+   * These are outputs from CLOSED Stage 1 sessions that:
+   * - Haven't been graded yet (no GradeSession), OR
+   * - Have an OPEN GradeSession (in-progress)
    */
   async findAvailableForGrading(
     tenantId: string,
@@ -53,12 +55,11 @@ export class CategoryOutputService {
     const limit = options?.limit || 20;
     const skip = (page - 1) * limit;
 
-    // Find category outputs from CLOSED Stage 1 sessions that don't have a grading session
+    // Find category outputs from CLOSED Stage 1 sessions that:
+    // - Have no grade sessions (NOT_STARTED), OR
+    // - Have an OPEN grade session (IN_PROGRESS)
     const where = {
       tenantId,
-      gradeSessions: {
-        none: {}, // No grade sessions exist for this output
-      },
       sortCategoryBucket: {
         is: {
           sortSession: {
@@ -68,6 +69,10 @@ export class CategoryOutputService {
           },
         },
       },
+      OR: [
+        { gradeSessions: { none: {} } }, // No grade sessions
+        { gradeSessions: { some: { status: GradeStatus.OPEN } } }, // Has OPEN grade session
+      ],
     };
 
     const [data, total] = await Promise.all([
@@ -80,6 +85,11 @@ export class CategoryOutputService {
           category: { select: { id: true, name: true } },
           container: { select: { id: true, containerNumber: true } },
           rag: { select: { id: true, ragCode: true } },
+          gradeSessions: {
+            select: { id: true, status: true },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
           sortCategoryBucket: {
             include: {
               sortSession: { 
@@ -98,8 +108,24 @@ export class CategoryOutputService {
       this.prisma.categoryOutput.count({ where }),
     ]);
 
+    // Add gradeStatus field to each item
+    const dataWithStatus = data.map((item) => {
+      let gradeStatus = 'NOT_STARTED';
+      if (item.gradeSessions && item.gradeSessions.length > 0) {
+        gradeStatus = item.gradeSessions[0].status === 'OPEN' ? 'IN_PROGRESS' : 'GRADED';
+      }
+      return { ...item, gradeStatus };
+    });
+
+    // Sort by gradeStatus (IN_PROGRESS first, then NOT_STARTED)
+    dataWithStatus.sort((a, b) => {
+      if (a.gradeStatus === 'IN_PROGRESS' && b.gradeStatus !== 'IN_PROGRESS') return -1;
+      if (a.gradeStatus !== 'IN_PROGRESS' && b.gradeStatus === 'IN_PROGRESS') return 1;
+      return 0;
+    });
+
     return { 
-      data, 
+      data: dataWithStatus, 
       total, 
       page, 
       limit,

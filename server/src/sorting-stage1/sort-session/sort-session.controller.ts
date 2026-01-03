@@ -56,9 +56,14 @@ export class SortSessionController {
   @Post(':id/close')
   @RequirePermissions('SORTING_STAGE1_CLOSE')
   @HttpCode(HttpStatus.OK)
-  async close(@Param('id') id: string, @CurrentUser() user: CurrentUserData, @Req() req: Request) {
+  async close(
+    @Param('id') id: string,
+    @Body() body: { wasteCategoryId?: string },
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+  ) {
     const tenantId = (req as any).tenantId || user.tenantId;
-    return this.sortSessionService.close(tenantId, id, user.userId);
+    return this.sortSessionService.close(tenantId, id, user.userId, { wasteCategoryId: body?.wasteCategoryId });
   }
 }
 

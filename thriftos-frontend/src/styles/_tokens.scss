@@ -1,0 +1,174 @@
+// ===============================
+// THRIFTOS DESIGN SYSTEM TOKENS
+// ===============================
+// ⚠️ LOCKED - DO NOT MODIFY WITHOUT DESIGN SYSTEM APPROVAL
+// ⚠️ NO AD-HOC COLORS, SPACING, OR FONTS IN COMPONENTS
+// ⚠️ LIGHT ERP AESTHETIC ONLY - NO DARK THEME
+
+@layer base {
+  :root {
+    // ===========================
+    // BACKGROUNDS (ODOO-STYLE)
+    // ===========================
+    --app-bg-page: #f9fafb;         // Odoo-style light background
+    --app-bg-surface: #ffffff;      // Pure white - Cards, modals, surfaces
+    
+    // ===========================
+    // BORDERS & DIVIDERS (ODOO-STYLE)
+    // ===========================
+    --app-border-subtle: #e5e7eb;   // Subtle borders
+    --app-border-strong: #d1d5db;   // Emphasized borders
+    
+    // ===========================
+    // TEXT HIERARCHY (ODOO-STYLE)
+    // ===========================
+    --app-text-primary: #111827;    // Primary text (darker)
+    --app-text-secondary: #6b7280;  // Secondary text
+    --app-text-muted: #9ca3af;      // Muted text, hints
+    
+    // ===========================
+    // ACCENT COLORS (ODOO-STYLE)
+    // ===========================
+    --app-primary: #714b67;         // Odoo-style purple primary
+    --app-primary-hover: #5e3e56;   // Darker purple hover
+    --app-primary-light: #f3e8f0;   // Light purple tint
+    
+    --app-success: #16a34a;         // Success states
+    --app-success-light: #dcfce7;   // Light green
+    
+    --app-warning: #d97706;         // Warning states
+    --app-warning-light: #fef3c7;   // Light amber
+    
+    --app-danger: #dc2626;          // Danger/destructive actions
+    --app-danger-hover: #b91c1c;    // Darker red hover
+    --app-danger-light: #fee2e2;    // Light red
+    
+    // ===========================
+    // SPACING SCALE (ABSOLUTE)
+    // ===========================
+    // ONLY THESE VALUES MAY BE USED:
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 12px;
+    --space-lg: 16px;
+    --space-xl: 24px;
+    --space-2xl: 32px;
+    
+    // ===========================
+    // TYPOGRAPHY SCALE (LOCKED)
+    // ===========================
+    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    
+    // Page Title
+    --font-size-page-title: 20px;
+    --font-weight-page-title: 600;
+    
+    // Section Title
+    --font-size-section-title: 16px;
+    --font-weight-section-title: 600;
+    
+    // Body
+    --font-size-body: 14px;
+    --font-weight-body: 400;
+    
+    // Table Header
+    --font-size-table-header: 13px;
+    --font-weight-table-header: 500;
+    
+    // Table Cell
+    --font-size-table-cell: 13px;
+    --font-weight-table-cell: 400;
+    
+    // Meta / Hint
+    --font-size-meta: 12px;
+    --font-weight-meta: 400;
+    
+    // ===========================
+    // LAYOUT CONSTANTS (LOCKED)
+    // ===========================
+    --page-padding: var(--space-xl);
+    --section-gap: var(--space-xl);
+    --card-padding: var(--space-lg);
+    --border-radius: 8px;
+    --border-radius-sm: 4px;
+    
+    // ===========================
+    // SHADOWS (MINIMAL)
+    // ===========================
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    
+    // ===========================
+    // LEGACY COMPATIBILITY
+    // ===========================
+    // Keep existing tokens for gradual migration
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+
+    --primary: 199 89% 48%;
+    --primary-foreground: 211 100% 99%;
+
+    --secondary: 84 81% 44%;
+    --secondary-foreground: 0 0% 100%;
+
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --ring: 199 89% 48%;
+    --radius: 0.5rem;
+
+    --module-yellow: 217 91% 60%;
+    --module-yellow-light: 222 84% 5%;
+    --module-yellow-border: 215 25% 27%;
+
+    --module-orange: 217 91% 60%;
+    --module-orange-light: 222 84% 5%;
+    --module-orange-border: 215 25% 27%;
+
+    --module-dark-orange: 217 78% 51%;
+    --module-dark-orange-light: 222 84% 5%;
+    --module-dark-orange-border: 215 25% 27%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}

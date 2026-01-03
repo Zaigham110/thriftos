@@ -8,6 +8,7 @@
 
 // Enum from Prisma
 export type GradeStatus = 'OPEN' | 'CLOSED';
+export type GradingOutputStatus = 'AVAILABLE' | 'PARTIALLY_USED' | 'DEPLETED' | 'READY_FOR_REPACK';
 
 // =============================================================
 // GRADE (System-defined grades: G1, G2, G3)
@@ -122,6 +123,19 @@ export interface GradeBucket {
   updatedAt: string;
   grade?: Grade;
   gradeOutputs?: GradeOutput[];
+  gradeSession?: {
+    id: string;
+    status: string;
+    categoryOutput?: {
+      id: string;
+      categoryId: string;
+      ragId?: string;
+      containerId?: string;
+      category?: { id: string; name: string };
+      rag?: { id: string; ragCode: string };
+      container?: { id: string; containerNumber: string };
+    };
+  };
 }
 
 export interface CreateGradeBucketRequest {
@@ -147,8 +161,10 @@ export interface GradeOutput {
   weightKg: number | string;
   count: number;
   allocatedCost: number | string;
+  status: GradingOutputStatus;
   createdAt: string;
   grade?: Grade;
+  gradeBucket?: GradeBucket;
 }
 
 // =============================================================
@@ -193,6 +209,7 @@ export interface AvailableForGrading {
   ragId?: string;
   sortSessionId?: string;
   createdAt: string;
+  gradeStatus?: 'NOT_STARTED' | 'IN_PROGRESS' | 'GRADED';
   category?: {
     id: string;
     name: string;
@@ -205,6 +222,10 @@ export interface AvailableForGrading {
     id: string;
     ragCode: string;
   };
+  gradeSessions?: Array<{
+    id: string;
+    status: string;
+  }>;
   sortCategoryBucket?: {
     id: string;
     sortSession?: {
@@ -227,3 +248,17 @@ export interface AvailableForGradingResponse {
   limit: number;
   totalPages: number;
 }
+
+// =============================================================
+// STATUS BADGE CONFIGURATION
+// =============================================================
+
+export const GRADING_OUTPUT_STATUS_CONFIG: Record<GradingOutputStatus, {
+  label: string;
+  variant: 'default' | 'success' | 'warning' | 'danger' | 'primary';
+}> = {
+  AVAILABLE: { label: 'Available', variant: 'success' },
+  PARTIALLY_USED: { label: 'Partially Used', variant: 'warning' },
+  DEPLETED: { label: 'Depleted', variant: 'danger' },
+  READY_FOR_REPACK: { label: 'Ready for Repack', variant: 'primary' },
+};

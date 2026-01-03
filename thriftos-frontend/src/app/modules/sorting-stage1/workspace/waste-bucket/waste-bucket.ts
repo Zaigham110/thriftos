@@ -114,7 +114,7 @@ export interface WasteData {
 
     .waste-bucket {
       border: 2px solid $red-100;
-      background-color: rgba($status-danger, 0.03);
+      background-color: hsl(var(--destructive) / 0.06);
 
       &--readonly {
         opacity: 0.8;
@@ -196,7 +196,7 @@ export interface WasteData {
             &:focus {
               outline: none;
               border-color: $status-danger;
-              box-shadow: 0 0 0 2px rgba($status-danger, 0.1);
+              box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);
             }
           }
 

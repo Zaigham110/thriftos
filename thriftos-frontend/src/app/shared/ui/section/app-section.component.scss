@@ -1,0 +1,9 @@
+// ===============================
+// APP-SECTION STYLES (LOCKED)
+// ===============================
+
+.app-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}

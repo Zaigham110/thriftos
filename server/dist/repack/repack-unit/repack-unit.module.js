@@ -10,13 +10,15 @@ exports.RepackUnitModule = void 0;
 const common_1 = require("@nestjs/common");
 const repack_unit_controller_1 = require("./repack-unit.controller");
 const repack_unit_service_1 = require("./repack-unit.service");
+const repack_allocation_service_1 = require("../shared/repack-allocation.service");
+const repack_v3_service_1 = require("../v3/repack-v3.service");
 let RepackUnitModule = class RepackUnitModule {
 };
 exports.RepackUnitModule = RepackUnitModule;
 exports.RepackUnitModule = RepackUnitModule = __decorate([
     (0, common_1.Module)({
         controllers: [repack_unit_controller_1.RepackUnitController],
-        providers: [repack_unit_service_1.RepackUnitService],
+        providers: [repack_unit_service_1.RepackUnitService, repack_allocation_service_1.RepackAllocationService, repack_v3_service_1.RepackV3Service],
         exports: [repack_unit_service_1.RepackUnitService],
     })
 ], RepackUnitModule);

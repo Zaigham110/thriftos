@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
-  selector: 'ui-card',
+  selector: 'ui-card, app-card',
   standalone: true,
   imports: [CommonModule],
   templateUrl: './card.html',

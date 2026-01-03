@@ -169,7 +169,7 @@ let SortSessionService = class SortSessionService {
         });
         return updated;
     }
-    async close(tenantId, sessionId, currentUserId) {
+    async close(tenantId, sessionId, currentUserId, options) {
         const result = await this.prisma.$transaction(async (tx) => {
             const session = await tx.sortSession.findFirst({
                 where: { id: sessionId, tenantId },
@@ -194,7 +194,43 @@ let SortSessionService = class SortSessionService {
             if (totalOutputWeight.greaterThan(session.totalInputWeight)) {
                 throw new common_1.BadRequestException('wasteWeight cannot be negative (output exceeds input)');
             }
-            const wasteWeight = session.totalInputWeight.sub(totalOutputWeight);
+            const computedWasteWeight = session.totalInputWeight.sub(totalOutputWeight);
+            const existingWasteAgg = await tx.wasteLineItem.aggregate({
+                where: { tenantId, stage: client_1.WasteStage.STAGE_1, sortSessionId: sessionId },
+                _sum: { amount: true },
+            });
+            const declaredWasteAmount = existingWasteAgg._sum.amount || new library_1.Decimal(0);
+            if (declaredWasteAmount.greaterThan(computedWasteWeight)) {
+                throw new common_1.BadRequestException('Declared waste exceeds computed waste');
+            }
+            const remainingWasteAmount = computedWasteWeight.sub(declaredWasteAmount);
+            if (remainingWasteAmount.greaterThan(new library_1.Decimal(0))) {
+                if (!options?.wasteCategoryId) {
+                    throw new common_1.BadRequestException('wasteCategoryId is required to seal when remaining waste > 0');
+                }
+                const category = await tx.wasteCategory.findFirst({
+                    where: { id: options.wasteCategoryId, tenantId, isActive: true },
+                });
+                if (!category) {
+                    throw new common_1.BadRequestException('Invalid waste category');
+                }
+                const containerId = session.rag?.containerId ?? session.incomingBale?.containerId ?? null;
+                const ragId = session.ragId;
+                await tx.wasteLineItem.create({
+                    data: {
+                        tenantId,
+                        stage: client_1.WasteStage.STAGE_1,
+                        wasteCategoryId: category.id,
+                        amount: remainingWasteAmount,
+                        unitType: category.unitType,
+                        estimatedValue: remainingWasteAmount.mul(category.defaultResalePrice),
+                        sortSessionId: sessionId,
+                        containerId,
+                        ragId: ragId || null,
+                        categoryOutputId: null,
+                    },
+                });
+            }
             const yieldPercent = session.totalInputWeight.equals(new library_1.Decimal(0))
                 ? new library_1.Decimal(0)
                 : totalOutputWeight.div(session.totalInputWeight).mul(new library_1.Decimal(100));
@@ -220,17 +256,6 @@ let SortSessionService = class SortSessionService {
                     },
                 }));
             }
-            if (wasteWeight.greaterThan(new library_1.Decimal(0))) {
-                await tx.sortingWaste.create({
-                    data: {
-                        tenantId,
-                        sortSessionId: sessionId,
-                        containerId,
-                        ragId: ragId,
-                        weightKg: wasteWeight,
-                    },
-                });
-            }
             if (ragId) {
                 await tx.rag.update({
                     where: { id: ragId },
@@ -243,10 +268,15 @@ let SortSessionService = class SortSessionService {
                     status: client_1.SortStatus.CLOSED,
                     endTime: new Date(),
                     totalOutputWeight,
-                    wasteWeight,
+                    wasteWeight: computedWasteWeight,
                 },
             });
-            return { session: updatedSession, outputs, yieldPercent: yieldPercent.toNumber(), wasteWeight };
+            return {
+                session: updatedSession,
+                outputs,
+                yieldPercent: yieldPercent.toNumber(),
+                wasteWeight: computedWasteWeight,
+            };
         });
         await this.auditService.log({
             tenantId,

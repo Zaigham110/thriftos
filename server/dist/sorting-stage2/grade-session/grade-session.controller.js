@@ -41,9 +41,9 @@ let GradeSessionController = class GradeSessionController {
         const tenantId = req.tenantId || user.tenantId;
         return this.service.update(tenantId, id, dto, user.userId);
     }
-    async close(id, user, req) {
+    async close(id, body, user, req) {
         const tenantId = req.tenantId || user.tenantId;
-        return this.service.close(tenantId, id, user.userId);
+        return this.service.close(tenantId, id, user.userId, { wasteCategoryId: body?.wasteCategoryId });
     }
 };
 exports.GradeSessionController = GradeSessionController;
@@ -96,10 +96,11 @@ __decorate([
     (0, permissions_decorator_1.RequirePermissions)('SORTING_STAGE2_CLOSE'),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),
     __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, current_user_decorator_1.CurrentUser)()),
-    __param(2, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __param(3, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:paramtypes", [String, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], GradeSessionController.prototype, "close", null);
 exports.GradeSessionController = GradeSessionController = __decorate([

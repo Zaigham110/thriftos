@@ -56,6 +56,7 @@ let PurchaseOrderService = class PurchaseOrderService {
                 vendorId: dto.vendorId,
                 currency: tenant.currency,
                 totalCost: 0,
+                ...(dto.budgetCap !== undefined && { budgetCap: dto.budgetCap }),
                 status: client_1.PurchaseOrderStatus.OPEN,
             },
             include: {
@@ -141,6 +142,7 @@ let PurchaseOrderService = class PurchaseOrderService {
             where: { id },
             data: {
                 ...(dto.vendorId !== undefined && { vendorId: dto.vendorId }),
+                ...(dto.budgetCap !== undefined && { budgetCap: dto.budgetCap }),
             },
             include: {
                 vendor: true,

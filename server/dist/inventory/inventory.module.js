@@ -8,15 +8,18 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.InventoryModule = void 0;
 const common_1 = require("@nestjs/common");
-const inventory_item_module_1 = require("./inventory-item/inventory-item.module");
-const stock_movement_module_1 = require("./stock-movement/stock-movement.module");
-const warehouse_module_1 = require("./warehouse/warehouse.module");
+const prisma_module_1 = require("../prisma/prisma.module");
+const inventory_service_1 = require("./inventory.service");
+const inventory_controller_1 = require("./inventory.controller");
 let InventoryModule = class InventoryModule {
 };
 exports.InventoryModule = InventoryModule;
 exports.InventoryModule = InventoryModule = __decorate([
     (0, common_1.Module)({
-        imports: [inventory_item_module_1.InventoryItemModule, stock_movement_module_1.StockMovementModule, warehouse_module_1.InventoryWarehouseModule],
+        imports: [prisma_module_1.PrismaModule],
+        controllers: [inventory_controller_1.InventoryController],
+        providers: [inventory_service_1.InventoryService],
+        exports: [inventory_service_1.InventoryService],
     })
 ], InventoryModule);
 //# sourceMappingURL=inventory.module.js.map

@@ -13,6 +13,7 @@ const audit_module_1 = require("../../audit/audit.module");
 const reports_audit_service_1 = require("../common/reports-audit.service");
 const cost_reports_controller_1 = require("./cost-reports.controller");
 const cost_reports_service_1 = require("./cost-reports.service");
+const reports_consistency_service_1 = require("../common/reports-consistency.service");
 let CostReportsModule = class CostReportsModule {
 };
 exports.CostReportsModule = CostReportsModule;
@@ -20,7 +21,7 @@ exports.CostReportsModule = CostReportsModule = __decorate([
     (0, common_1.Module)({
         imports: [prisma_module_1.PrismaModule, audit_module_1.AuditModule],
         controllers: [cost_reports_controller_1.CostReportsController],
-        providers: [cost_reports_service_1.CostReportsService, reports_audit_service_1.ReportsAuditService],
+        providers: [cost_reports_service_1.CostReportsService, reports_audit_service_1.ReportsAuditService, reports_consistency_service_1.ReportsConsistencyService],
     })
 ], CostReportsModule);
 //# sourceMappingURL=cost-reports.module.js.map

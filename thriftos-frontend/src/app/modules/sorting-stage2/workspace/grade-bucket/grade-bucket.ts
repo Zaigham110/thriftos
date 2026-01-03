@@ -142,7 +142,7 @@ export interface GradeBucketUpdate {
       // Grade-specific colors
       &--g1 {
         border-color: $green-100;
-        background: linear-gradient(135deg, rgba($status-success, 0.03), transparent);
+        background: linear-gradient(135deg, hsl(var(--secondary) / 0.06), transparent);
 
         .grade-icon {
           color: $status-success;
@@ -155,7 +155,7 @@ export interface GradeBucketUpdate {
 
       &--g2 {
         border-color: $yellow-100;
-        background: linear-gradient(135deg, rgba($status-warning, 0.03), transparent);
+        background: linear-gradient(135deg, hsl(var(--module-yellow) / 0.06), transparent);
 
         .grade-icon {
           color: $status-warning;
@@ -168,7 +168,7 @@ export interface GradeBucketUpdate {
 
       &--g3 {
         border-color: $orange-100;
-        background: linear-gradient(135deg, rgba($orange-600, 0.03), transparent);
+        background: linear-gradient(135deg, hsl(var(--module-orange) / 0.06), transparent);
 
         .grade-icon {
           color: $orange-600;
@@ -264,7 +264,7 @@ export interface GradeBucketUpdate {
             &:focus {
               outline: none;
               border-color: $primary;
-              box-shadow: 0 0 0 2px rgba($primary, 0.1);
+              box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
             }
           }
 

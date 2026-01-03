@@ -104,4 +104,14 @@ export const ADMIN_ROUTES: Routes = [
     canActivate: [permissionGuard],
     data: { permissions: ['vendor.read'] },
   },
+  {
+    path: 'waste-categories',
+    loadComponent: () =>
+      import('./waste-categories/waste-category-list.component').then(
+        (m) => m.WasteCategoryListComponent
+      ),
+    title: 'Waste Category Management - ThriftOS',
+    canActivate: [permissionGuard],
+    data: { permissions: ['category.read'] },
+  },
 ];

@@ -33,7 +33,7 @@
 
     &:focus {
       border-color: $status-danger;
-      box-shadow: 0 0 0 3px rgba($status-danger, 0.15);
+      box-shadow: 0 0 0 3px hsl(var(--destructive) / 0.2);
     }
   }
 

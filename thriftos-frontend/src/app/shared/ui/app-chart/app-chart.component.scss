@@ -1,0 +1,73 @@
+.app-chart {
+  position: relative;
+  width: 100%;
+}
+
+.app-chart[data-variant='panel'] {
+  background: var(--app-bg-surface);
+}
+
+.chart-svg {
+  width: 100%;
+  height: 240px;
+  display: block;
+}
+
+.chart-empty {
+  min-height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-chart[data-variant='sparkline'] .chart-svg {
+  height: 28px;
+}
+
+.app-chart[data-variant='sparkline'] .chart-empty {
+  min-height: 28px;
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--app-primary);
+  stroke-width: 2;
+}
+
+.app-chart[data-variant='sparkline'] .chart-line {
+  stroke-width: 2;
+}
+
+.chart-dot {
+  fill: var(--app-primary);
+  opacity: 0.9;
+}
+
+.chart-bar {
+  fill: var(--app-primary-light);
+  stroke: var(--app-primary);
+  stroke-width: 1;
+}
+
+.chart-tooltip {
+  position: absolute;
+  min-width: 120px;
+  padding: var(--space-sm);
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--app-border-subtle);
+  background: var(--app-bg-surface);
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+}
+
+.tt-label {
+  font-size: var(--font-size-meta);
+  font-weight: var(--font-weight-meta);
+  color: var(--app-text-muted);
+}
+
+.tt-value {
+  font-size: var(--font-size-table-cell);
+  font-weight: 600;
+  color: var(--app-text-primary);
+}

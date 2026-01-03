@@ -1,0 +1,90 @@
+// ===============================
+// APP-TABLE STYLES (LOCKED)
+// ===============================
+
+.app-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+
+  .app-table {
+    width: 100%;
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--font-size-table-cell);
+
+      thead {
+        background-color: var(--app-bg-page);
+        border-bottom: 2px solid var(--app-border-strong);
+
+        th {
+          position: sticky;
+          top: 0;
+          z-index: 1;
+          background-color: var(--app-bg-page);
+          padding: var(--space-md) var(--space-lg);
+          text-align: left;
+          font-size: var(--font-size-table-header);
+          font-weight: var(--font-weight-table-header);
+          color: var(--app-text-secondary);
+          white-space: nowrap;
+
+          &.actions {
+            text-align: right;
+            width: 120px;
+          }
+        }
+      }
+
+      tbody {
+        tr {
+          border-bottom: 1px solid var(--app-border-subtle);
+          transition: background-color 0.15s ease;
+
+          &:hover {
+            background-color: var(--app-bg-page);
+          }
+
+          &:last-child {
+            border-bottom: none;
+          }
+
+          td {
+            padding: var(--space-md) var(--space-lg);
+            font-size: var(--font-size-table-cell);
+            font-weight: var(--font-weight-table-cell);
+            color: var(--app-text-primary);
+            height: 48px;
+            vertical-align: middle;
+
+            &.actions {
+              text-align: right;
+              display: flex;
+              justify-content: flex-end;
+              align-items: center;
+              gap: var(--space-sm);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .table-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-2xl);
+    color: var(--app-text-muted);
+    font-size: var(--font-size-body);
+
+    &.loading {
+      // Optional: add loading spinner
+    }
+
+    &.empty {
+      // Empty state styling
+    }
+  }
+}

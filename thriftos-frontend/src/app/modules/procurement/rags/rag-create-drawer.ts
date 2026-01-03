@@ -1,10 +1,3 @@
-/**
- * Rag Create Drawer Component
- * Phase 2.5: Container Breakdown
- * 
- * Drawer form to create a new Rag/Bale for a container.
- */
-
 import {
   Component,
   inject,
@@ -17,20 +10,21 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { LucideAngularModule, Package, X } from 'lucide-angular';
 
 import { RagService } from './rag.service';
 import { Rag } from './rag.models';
 import { TenantService } from '../../../core/tenant/tenant.service';
 
 import {
-  DrawerComponent,
-  ButtonComponent,
-  InputComponent,
-  TextareaComponent,
-  AlertComponent,
-  SelectComponent,
-  SelectOption,
+  AppBadgeComponent,
+  AppButtonComponent,
+  AppCardComponent,
+  AppFormComponent,
+  AppFormFieldComponent,
+  AppInputComponent,
+  AppSelectComponent,
+  AppStackComponent,
+  AppTextareaComponent,
 } from '../../../shared/ui';
 
 @Component({
@@ -39,198 +33,70 @@ import {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    LucideAngularModule,
-    DrawerComponent,
-    ButtonComponent,
-    InputComponent,
-    TextareaComponent,
-    AlertComponent,
-    SelectComponent,
+    AppCardComponent,
+    AppStackComponent,
+    AppBadgeComponent,
+    AppButtonComponent,
+    AppFormComponent,
+    AppFormFieldComponent,
+    AppInputComponent,
+    AppSelectComponent,
+    AppTextareaComponent,
   ],
   template: `
-    <ui-drawer [isOpen]="true" position="right" size="md" (closed)="onClose()">
-      <div class="drawer-content">
-        <!-- Header -->
-        <div class="drawer-header">
-          <div class="drawer-header__info">
-            <lucide-icon [img]="icons.package" [size]="20"></lucide-icon>
-            <div>
-              <h2 class="drawer-title">Add Rag / Bale</h2>
-              <p class="drawer-subtitle">Container: {{ containerNumber() }}</p>
-            </div>
-          </div>
-          <button class="drawer-close" (click)="onClose()" type="button">
-            <lucide-icon [img]="icons.close" [size]="20"></lucide-icon>
-          </button>
+    <app-card>
+      <app-stack direction="vertical" spacing="sm">
+        <app-stack direction="horizontal" spacing="sm">
+          <strong>Add Rag / Bale</strong>
+          <app-badge variant="default">{{ containerNumber() }}</app-badge>
+        </app-stack>
+
+        <div>
+          <app-badge variant="default">Rag code is auto-generated</app-badge>
         </div>
 
-        <!-- Error Alert -->
         @if (error()) {
-          <ui-alert variant="danger" [dismissible]="true" (dismissed)="clearError()">
-            {{ error() }}
-          </ui-alert>
+          <div>
+            <app-badge variant="danger">{{ error() }}</app-badge>
+          </div>
         }
 
-        <!-- Form -->
-        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="drawer-form">
-          <ui-alert variant="info" class="mb-3">
-            Rag code will be automatically generated (e.g., RAG-2025-001)
-          </ui-alert>
+        <app-form
+          [formGroup]="form"
+          (submitted)="onSubmit()"
+          title="Create Rag / Bale"
+          subtitle="Fill in type, category, weight."
+        >
+          <app-form-field label="Type" [required]="true">
+            <app-select formControlName="ragBaleType" [options]="typeOptions" />
+          </app-form-field>
 
-          <div class="form-field">
-            <ui-select
-              formControlName="ragBaleType"
-              label="Type"
-              placeholder="Select type..."
-              [options]="typeOptions"
-              [required]="true"
-            ></ui-select>
-            @if (form.get('ragBaleType')?.touched && form.get('ragBaleType')?.errors?.['required']) {
-              <span class="field-error">Type is required</span>
-            }
-          </div>
-
-          <div class="form-field">
-            <ui-select
-              formControlName="rawCategoryId"
-              label="Category"
-              placeholder="Select category..."
-              [options]="filteredCategoryOptions()"
-              [required]="true"
-            ></ui-select>
-            @if (form.get('rawCategoryId')?.touched && form.get('rawCategoryId')?.errors?.['required']) {
-              <span class="field-error">Category is required</span>
-            }
+          <app-form-field label="Category" [required]="true">
+            <app-select formControlName="rawCategoryId" [options]="filteredCategoryOptions()" />
             @if (!form.get('ragBaleType')?.value) {
-              <span class="field-hint">Select type first</span>
+              <div class="muted">Select type first</div>
             }
-          </div>
+          </app-form-field>
 
-          <div class="form-field">
-            <ui-input
-              formControlName="weightKg"
-              label="Weight (KG)"
-              type="number"
-              placeholder="e.g., 500"
-              [required]="true"
-            ></ui-input>
+          <app-form-field label="Weight (kg)" [required]="true">
+            <app-input type="number" formControlName="weightKg" placeholder="0.00" />
             @if (availableWeight() !== null) {
-              <span class="field-hint">Available capacity: {{ availableWeight() | number:'1.2-2' }} kg</span>
+              <div class="muted">Available capacity: {{ availableWeight() | number:'1.2-2' }} kg</div>
             }
-            @if (form.get('weightKg')?.touched && form.get('weightKg')?.errors?.['required']) {
-              <span class="field-error">Weight is required</span>
-            }
-            @if (form.get('weightKg')?.touched && form.get('weightKg')?.errors?.['min']) {
-              <span class="field-error">Weight must be greater than 0</span>
-            }
-          </div>
+          </app-form-field>
 
-          <div class="form-field">
-            <ui-textarea
-              formControlName="notes"
-              label="Notes"
-              placeholder="Optional notes about this rag/bale..."
-              [rows]="3"
-            ></ui-textarea>
-          </div>
+          <app-form-field label="Notes" hint="Optional">
+            <app-textarea formControlName="notes" />
+          </app-form-field>
 
-          <!-- Actions -->
-          <div class="drawer-actions">
-            <ui-button variant="ghost" type="button" (clicked)="onClose()">
-              Cancel
-            </ui-button>
-            <ui-button
-              variant="primary"
-              type="submit"
-              [disabled]="form.invalid || loading()"
-              [loading]="loading()"
-            >
-              Create Rag
-            </ui-button>
-          </div>
-        </form>
-      </div>
-    </ui-drawer>
+          <app-stack direction="horizontal" spacing="sm">
+            <app-button variant="secondary" type="button" (click)="onClose()" [disabled]="loading()">Cancel</app-button>
+            <app-button variant="primary" type="submit" [disabled]="form.invalid || loading()">Create</app-button>
+          </app-stack>
+        </app-form>
+      </app-stack>
+    </app-card>
   `,
-  styles: [`
-    .drawer-content {
-      padding: 1.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .drawer-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-
-      &__info {
-        display: flex;
-        align-items: flex-start;
-        gap: 0.75rem;
-      }
-    }
-
-    .drawer-title {
-      font-size: 1.125rem;
-      font-weight: 600;
-      color: var(--text-primary, #111827);
-      margin: 0;
-    }
-
-    .drawer-subtitle {
-      font-size: 0.875rem;
-      color: var(--text-secondary, #6b7280);
-      margin: 0.25rem 0 0 0;
-    }
-
-    .drawer-close {
-      background: none;
-      border: none;
-      padding: 0.25rem;
-      cursor: pointer;
-      color: var(--text-secondary, #6b7280);
-      border-radius: 0.25rem;
-      transition: background-color 0.15s ease;
-
-      &:hover {
-        background: var(--bg-hover, #f3f4f6);
-      }
-    }
-
-    .drawer-form {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      flex: 1;
-    }
-
-    .form-field {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-
-    .field-error {
-      font-size: 0.75rem;
-      color: var(--color-danger, #dc2626);
-    }
-
-    .field-hint {
-      font-size: 0.75rem;
-      color: var(--text-secondary, #6b7280);
-    }
-
-    .drawer-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 0.5rem;
-      margin-top: auto;
-      padding-top: 1rem;
-      border-top: 1px solid var(--border-color, #e5e7eb);
-    }
-  `],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RagCreateDrawerComponent implements OnInit {
@@ -248,20 +114,17 @@ export class RagCreateDrawerComponent implements OnInit {
   readonly created = output<Rag>();
   readonly closed = output<void>();
 
-  // Icons
-  readonly icons = { package: Package, close: X };
-
   // State
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly allRawCategories = signal<any[]>([]);
-  
-  readonly typeOptions: SelectOption[] = [
+
+  readonly typeOptions = [
     { value: 'RAG', label: 'Rag' },
     { value: 'BALE', label: 'Bale' },
   ];
 
-  readonly filteredCategoryOptions = signal<SelectOption[]>([]);
+  readonly filteredCategoryOptions = signal<{ value: string, label: string }[]>([]);
 
   // Computed
   readonly availableWeight = computed(() => {
@@ -325,14 +188,14 @@ export class RagCreateDrawerComponent implements OnInit {
         value: c.id,
         label: c.name + (c.rawType === 'BOTH' ? ' (Both)' : ''),
       }));
-    
+
     this.filteredCategoryOptions.set(filtered);
   }
 
   onSubmit(): void {
     // Mark all fields as touched to show validation errors
     this.form.markAllAsTouched();
-    
+
     // Check if form is valid (note: disabled controls are excluded from validation)
     if (this.form.invalid) {
       return;
@@ -340,7 +203,7 @@ export class RagCreateDrawerComponent implements OnInit {
 
     // Get raw values to include disabled fields (though they should be enabled when valid)
     const formData = this.form.getRawValue();
-    
+
     this.loading.set(true);
     this.error.set(null);
 

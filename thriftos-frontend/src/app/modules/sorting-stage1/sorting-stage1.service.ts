@@ -39,7 +39,7 @@ import {
   Category,
   SortStatus,
 } from './sorting-stage1.models';
-import { API_ENDPOINTS } from '../../core/config/api.config';
+import { API_BASE_URL, API_ENDPOINTS } from '../../core/config/api.config';
 
 const API_BASE = API_ENDPOINTS.sortingStage1;
 const PROCUREMENT_API = API_ENDPOINTS.procurement;
@@ -237,7 +237,8 @@ export class SortingStage1Service {
     this._loading.set(true);
     this._error.set(null);
 
-    return this.http.post<SortSession>(`${API_BASE}/sessions/${id}/close`, {}).pipe(
+    return this.http.post<any>(`${API_BASE}/sessions/${id}/close`, {}).pipe(
+      map((resp) => (resp && resp.session ? resp.session : resp) as SortSession),
       tap((session) => {
         this._currentSession.set(session);
         // Update in list
@@ -325,7 +326,7 @@ export class SortingStage1Service {
    */
   loadCategories(): Observable<Category[]> {
     // Categories come from the tenant endpoint
-    return this.http.get<Category[]>('http://localhost:3000/api/tenant/categories').pipe(
+    return this.http.get<Category[]>(`${API_BASE_URL}/tenant/categories`).pipe(
       tap((categories) => {
         this._categories.set(categories);
       }),

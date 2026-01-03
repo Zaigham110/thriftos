@@ -1,0 +1,22 @@
+// ===============================
+// APP-SECTION-HEADER STYLES (LOCKED)
+// ===============================
+
+.app-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  .section-title {
+    font-size: var(--font-size-section-title);
+    font-weight: var(--font-weight-section-title);
+    color: var(--app-text-primary);
+    margin: 0;
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+  }
+}

@@ -9,8 +9,8 @@ export declare class SortCategoryBucketController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        sortSessionId: string;
         categoryId: string;
+        sortSessionId: string;
         outputWeightKg: import("@prisma/client/runtime/library").Decimal;
         outputCount: number;
     }>;
@@ -18,8 +18,8 @@ export declare class SortCategoryBucketController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        sortSessionId: string;
         categoryId: string;
+        sortSessionId: string;
         outputWeightKg: import("@prisma/client/runtime/library").Decimal;
         outputCount: number;
     }>;

@@ -97,8 +97,8 @@ export declare class SortSessionController {
                 weightKg: import("@prisma/client/runtime/library").Decimal;
                 allocatedCost: import("@prisma/client/runtime/library").Decimal;
                 ragId: string;
-                sortSessionId: string;
                 categoryId: string;
+                sortSessionId: string;
                 count: number;
                 sortCategoryBucketId: string;
             }[];
@@ -106,8 +106,8 @@ export declare class SortSessionController {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            sortSessionId: string;
             categoryId: string;
+            sortSessionId: string;
             outputWeightKg: import("@prisma/client/runtime/library").Decimal;
             outputCount: number;
         })[];
@@ -152,7 +152,9 @@ export declare class SortSessionController {
         totalOutputWeight: import("@prisma/client/runtime/library").Decimal;
         wasteWeight: import("@prisma/client/runtime/library").Decimal;
     }>;
-    close(id: string, user: CurrentUserData, req: Request): Promise<{
+    close(id: string, body: {
+        wasteCategoryId?: string;
+    }, user: CurrentUserData, req: Request): Promise<{
         session: {
             id: string;
             tenantId: string;

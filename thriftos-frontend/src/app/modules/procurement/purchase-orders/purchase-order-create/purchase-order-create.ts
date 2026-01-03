@@ -1,26 +1,28 @@
-/**
- * Purchase Order Create Component
- * Phase 2: Procurement UI
- * 
- * Route: /app/procurement/purchase-orders/create
- */
-
-import { ChangeDetectionStrategy, Component, OnInit, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ProcurementService } from '../../procurement.service';
-import { CreatePurchaseOrderRequest, PurchaseOrderType, Vendor } from '../../procurement.models';
-import { VendorSelectComponent } from '../../shared/vendor-select/vendor-select';
+import { CreatePurchaseOrderRequest, PurchaseOrderType } from '../../procurement.models';
 import { TenantService } from '../../../../core/tenant/tenant.service';
 import {
-  CardComponent,
-  ButtonComponent,
-  AlertComponent,
-  BreadcrumbComponent,
-  BreadcrumbItem,
-  SelectComponent,
-  SelectOption,
+  AppBreadcrumbComponent,
+  AppButtonComponent,
+  AppCardComponent,
+  AppErrorStateComponent,
+  AppFormComponent,
+  AppFormFieldComponent,
+  AppInputComponent,
+  AppPageBodyComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppSectionBodyComponent,
+  AppSectionComponent,
+  AppSectionHeaderComponent,
+  AppSelectComponent,
+  AppStackComponent,
+  type BreadcrumbItem,
+  type SelectOption,
 } from '../../../../shared/ui';
 
 @Component({
@@ -29,32 +31,53 @@ import {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    CardComponent,
-    ButtonComponent,
-    AlertComponent,
-    BreadcrumbComponent,
-    SelectComponent,
-    VendorSelectComponent,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppSectionComponent,
+    AppSectionHeaderComponent,
+    AppSectionBodyComponent,
+    AppStackComponent,
+    AppBreadcrumbComponent,
+    AppCardComponent,
+    AppFormComponent,
+    AppFormFieldComponent,
+    AppSelectComponent,
+    AppButtonComponent,
+    AppErrorStateComponent,
   ],
   templateUrl: './purchase-order-create.html',
   styleUrl: './purchase-order-create.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseOrderCreateComponent implements OnInit {
+  private readonly procurementService = inject(ProcurementService);
+  private readonly tenantService = inject(TenantService);
+  private readonly router = inject(Router);
+  private readonly fb = inject(FormBuilder);
+
   readonly isSubmitting = signal(false);
   readonly error = signal<string | null>(null);
-  readonly selectedVendorId = signal<string | null>(null);
   readonly tenant = signal<{ currency: string } | null>(null);
   readonly tenantCurrency = computed(() => this.tenant()?.currency ?? null);
 
+  readonly vendors = this.procurementService.activeVendors;
+  readonly vendorOptions = computed<SelectOption[]>(() => {
+    const vs = this.vendors();
+    return [
+      { value: '', label: 'No vendor' },
+      ...vs.map((v) => ({ value: v.id, label: v.name })),
+    ];
+  });
+
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Home', link: '/app/dashboard' },
-    { label: 'Procurement', link: '/app/procurement' },
-    { label: 'Purchase Orders', link: '/app/procurement/purchase-orders' },
-    { label: 'Create' },
+    { label: 'Home', route: '/dashboard' },
+    { label: 'Procurement', route: '/procurement/dashboard' },
+    { label: 'Purchase Orders', route: '/procurement/pos' },
+    { label: 'Create', route: '/procurement/pos/create' },
   ];
 
-  readonly poTypeOptions: SelectOption[] = [
+  readonly poTypeOptions = [
     { value: 'CONTAINER', label: 'Container Procurement' },
     { value: 'LOOSE_BALE', label: 'Loose Bale Procurement' },
     { value: 'HYBRID', label: 'Mixed (Containers + Loose Bales)' },
@@ -62,28 +85,19 @@ export class PurchaseOrderCreateComponent implements OnInit {
 
   form!: FormGroup;
 
-  constructor(
-    private readonly fb: FormBuilder,
-    private readonly procurementService: ProcurementService,
-    private readonly router: Router,
-    private readonly tenantService: TenantService,
-  ) {}
-
   ngOnInit(): void {
     this.initForm();
-    this.tenantService.loadTenant().subscribe();
-    // Sync tenant signal from service
-    this.tenant.set(this.tenantService.tenant());
+    this.tenantService.loadTenant().subscribe(() => {
+      this.tenant.set(this.tenantService.tenant());
+    });
+    this.procurementService.loadVendors().subscribe();
   }
 
   private initForm(): void {
     this.form = this.fb.group({
       poType: ['CONTAINER', Validators.required],
+      vendorId: [''],
     });
-  }
-
-  onVendorSelected(vendor: Vendor | null): void {
-    this.selectedVendorId.set(vendor?.id || null);
   }
 
   onSubmit(): void {
@@ -95,15 +109,17 @@ export class PurchaseOrderCreateComponent implements OnInit {
     this.isSubmitting.set(true);
     this.error.set(null);
 
+    const vendorId = (this.form.value.vendorId as string) || '';
+
     const data: CreatePurchaseOrderRequest = {
       poType: this.form.value.poType as PurchaseOrderType,
-      vendorId: this.selectedVendorId() || undefined,
+      vendorId: vendorId ? vendorId : undefined,
     };
 
     this.procurementService.createPurchaseOrder(data).subscribe({
       next: (po) => {
         this.isSubmitting.set(false);
-        this.router.navigate(['/app/procurement/purchase-orders', po.id]);
+        this.router.navigate(['/procurement/pos', po.id]);
       },
       error: (err) => {
         this.isSubmitting.set(false);
@@ -113,6 +129,6 @@ export class PurchaseOrderCreateComponent implements OnInit {
   }
 
   cancel(): void {
-    this.router.navigate(['/app/procurement/purchase-orders']);
+    this.router.navigate(['/procurement/pos']);
   }
 }

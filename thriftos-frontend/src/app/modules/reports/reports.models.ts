@@ -80,7 +80,7 @@ export interface WasteCostImpactData {
 
 export interface WasteReportRow {
   stage: string;
-  wasteKg: number;
+  wasteKg?: number;
   wasteCost?: number;
   wastePct?: number;
 }
@@ -111,6 +111,10 @@ export interface InventorySnapshotResponse {
     totalPcs: number;
   };
 }
+
+// Required alias endpoint: /reports/inventory/stock returns the same shape as snapshot
+export type InventoryStockRow = InventorySnapshotRow;
+export type InventoryStockResponse = InventorySnapshotResponse;
 
 export interface InventoryAgingRow {
   ageRangeDays: string;
@@ -154,6 +158,55 @@ export interface ContainerCostBreakdown {
   totalCost: number;
   totalWeightKg: number;
   costPerKg: number;
+}
+
+// =============================================================
+// PROCUREMENT SUMMARY (REQUIRED)
+// =============================================================
+
+export interface ProcurementSummaryRow {
+  purchaseOrderId: string;
+  poNumber: string;
+  poType: string;
+  status: string;
+  currency: string;
+  vendorId?: string | null;
+  vendorName?: string | null;
+  createdAt: string;
+
+  containers: {
+    count: number;
+    weightKg: number;
+    cost: number;
+  };
+
+  looseBales: {
+    count: number;
+    weightKg: number;
+    cost: number;
+  };
+
+  poTotalCost: number;
+  computedProcurementCost: number;
+  costDelta: number;
+  matchesPoTotal: boolean;
+}
+
+export interface ProcurementSummaryResponse {
+  data: ProcurementSummaryRow[];
+  summary: {
+    currency: string;
+    totalPurchaseOrders: number;
+    totalPoCost: number;
+    totalContainers: number;
+    totalContainerWeightKg: number;
+    totalContainerCost: number;
+    totalLooseBales: number;
+    totalLooseBaleWeightKg: number;
+    totalLooseBaleCost: number;
+    totalComputedProcurementCost: number;
+    avgCostPerKg: number;
+  };
 }
 
 // =============================================================
@@ -252,6 +305,147 @@ export interface SortingEfficiencyResponse {
 }
 
 // =============================================================
+// SORTING OUTPUTS REPORT (REQUIRED)
+// =============================================================
+
+export interface SortingStage1OutputRow {
+  categoryOutputId: string;
+  createdAt: string | Date;
+  categoryId: string;
+  categoryName: string;
+  weightKg: number;
+  allocatedCost: number;
+  sortSessionId: string;
+  sortStatus: string;
+  workerId: string;
+  ragId: string;
+  ragCode: string;
+  containerId?: string | null;
+  containerNumber?: string | null;
+  purchaseOrderId?: string | null;
+  poNumber?: string | null;
+}
+
+export interface SortingStage2OutputRow {
+  gradingOutputId: string;
+  createdAt: string | Date;
+  gradeId: string;
+  gradeName: string;
+  categoryId: string;
+  categoryName: string;
+  weightKg: number;
+  allocatedCost: number;
+  totalAmount: number;
+  usedAmount: number;
+  remainingAmount: number;
+  measurementType: string;
+  status: string;
+  gradeSessionId: string;
+  gradeStatus: string;
+  workerId: string;
+  categoryOutputId: string;
+  sortSessionId: string;
+  ragId: string;
+  ragCode: string;
+  containerId?: string | null;
+  containerNumber?: string | null;
+  purchaseOrderId?: string | null;
+  poNumber?: string | null;
+}
+
+export interface SortingOutputsResponse {
+  stage1: {
+    data: SortingStage1OutputRow[];
+    summary: {
+      totalOutputs: number;
+      totalWeightKg: number;
+      totalAllocatedCost: number;
+    };
+  };
+  stage2: {
+    data: SortingStage2OutputRow[];
+    summary: {
+      totalOutputs: number;
+      totalWeightKg: number;
+      totalAllocatedCost: number;
+    };
+  };
+}
+
+// =============================================================
+// SORTING WASTE REPORT (REQUIRED)
+// =============================================================
+
+export interface SortingWasteLegacyRow {
+  sortingWasteId: string;
+  createdAt: string | Date;
+  sortSessionId: string;
+  workerId: string;
+  ragId: string;
+  ragCode: string;
+  containerId?: string | null;
+  containerNumber?: string | null;
+  purchaseOrderId?: string | null;
+  poNumber?: string | null;
+  wasteWeightKg: number;
+}
+
+export interface SortingWasteCategorizedRow {
+  wasteLineItemId: string;
+  createdAt: string | Date;
+  stage: 'STAGE_1' | 'STAGE_2';
+  amount: number;
+  unitType: 'KG' | 'PCS';
+  estimatedValue: number;
+  wasteCategoryId: string;
+  wasteCategoryName: string;
+  sortSessionId?: string | null;
+  gradeSessionId?: string | null;
+  workerId?: string | null;
+  ragId?: string | null;
+  ragCode?: string | null;
+  containerId?: string | null;
+  containerNumber?: string | null;
+  purchaseOrderId?: string | null;
+  poNumber?: string | null;
+}
+
+export interface SortingWasteByCategoryRow {
+  stage: 'STAGE_1' | 'STAGE_2';
+  wasteCategoryId: string;
+  wasteCategoryName: string;
+  unitType: 'KG' | 'PCS';
+  totalAmount: number;
+  totalEstimatedValue: number;
+  totalRecords: number;
+}
+
+export interface SortingWasteResponse {
+  data: SortingWasteLegacyRow[];
+  summary: {
+    totalWasteKg: number;
+    totalRecords: number;
+  };
+  categorized: {
+    data: SortingWasteCategorizedRow[];
+    byCategory: SortingWasteByCategoryRow[];
+    summary: {
+      totalKg: number;
+      totalPcs: number;
+      totalEstimatedValue: number;
+      totalRecords: number;
+    };
+  };
+  combinedSummary: {
+    totalWasteKg: number;
+    totalWastePcs: number;
+    totalEstimatedValue: number;
+    legacyRecords: number;
+    categorizedRecords: number;
+  };
+}
+
+// =============================================================
 // REPACK REPORTS
 // =============================================================
 
@@ -265,6 +459,91 @@ export interface RepackEfficiencyRow {
 
 export interface RepackEfficiencyResponse {
   data: RepackEfficiencyRow[];
+}
+
+export interface RepackSummaryRow {
+  status: string;
+  units: number;
+  totalWeightKg: number;
+  totalPcs: number;
+  totalCost: number;
+}
+
+export interface RepackSummaryResponse {
+  data: RepackSummaryRow[];
+  summary: {
+    totalUnits: number;
+    totalWeightKg: number;
+    totalPcs: number;
+    totalCost: number;
+  };
+}
+
+// =============================================================
+// INVENTORY MOVEMENTS (REQUIRED)
+// =============================================================
+
+export interface InventoryMovementRow {
+  movementId: string;
+  createdAt: string | Date;
+  movementType: string;
+  quantityKg: number;
+  quantityPcs: number;
+  referenceId?: string | null;
+  inventoryItemId: string;
+  inventoryStatus: string;
+  avgCost: number;
+  warehouseId?: string | null;
+  warehouseName?: string | null;
+  categoryId: string;
+  categoryName: string;
+  gradeId: string;
+  gradeName: string;
+  repackUnitId: string;
+  unitCode: string;
+  unitType: string;
+}
+
+export interface InventoryMovementsResponse {
+  data: InventoryMovementRow[];
+  summary: {
+    totalMovements: number;
+    totalKg: number;
+    totalPcs: number;
+  };
+}
+
+// =============================================================
+// FINAL PRODUCT COST REPORT (REQUIRED)
+// =============================================================
+
+export interface FinalProductCostRow {
+  repackUnitId: string;
+  productCode: string;
+  unitType: string;
+  categoryId?: string | null;
+  category?: string | null;
+  gradeId?: string | null;
+  grade?: string | null;
+  totalWeightKg: number;
+  totalQty: number;
+  totalCost: number;
+  repackUnitTotalCost: number;
+  costPerKg: number;
+  costPerUnit: number;
+  sourceContainers: number;
+  sourceBales: number;
+  allocationsCount: number;
+  dateSealed: string;
+}
+
+export interface FinalProductCostResponse {
+  data: FinalProductCostRow[];
+  summary: {
+    totalUnits: number;
+    totalWeightKg: number;
+    totalCost: number;
+  };
 }
 
 // =============================================================

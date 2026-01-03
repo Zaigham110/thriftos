@@ -3,6 +3,7 @@ import { TenantService } from './tenant.service';
 import { CurrentUserData } from '../common/decorators/current-user.decorator';
 import { RagBaleType } from '@prisma/client';
 import { CreateRawCategoryDto, UpdateRawCategoryDto } from './dto/raw-category.dto';
+import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 export declare class TenantController {
     private readonly tenantService;
     constructor(tenantService: TenantService);
@@ -33,6 +34,42 @@ export declare class TenantController {
         updatedAt: Date;
         sortOrder: number;
     }[]>;
+    getAllCategories(user: CurrentUserData, req: Request): Promise<{
+        id: string;
+        tenantId: string;
+        createdAt: Date;
+        name: string;
+        isActive: boolean;
+        updatedAt: Date;
+        sortOrder: number;
+    }[]>;
+    createCategory(user: CurrentUserData, req: Request, dto: CreateCategoryDto): Promise<{
+        id: string;
+        tenantId: string;
+        createdAt: Date;
+        name: string;
+        isActive: boolean;
+        updatedAt: Date;
+        sortOrder: number;
+    }>;
+    updateCategory(user: CurrentUserData, req: Request, id: string, dto: UpdateCategoryDto): Promise<{
+        id: string;
+        tenantId: string;
+        createdAt: Date;
+        name: string;
+        isActive: boolean;
+        updatedAt: Date;
+        sortOrder: number;
+    }>;
+    deleteCategory(user: CurrentUserData, req: Request, id: string): Promise<{
+        id: string;
+        tenantId: string;
+        createdAt: Date;
+        name: string;
+        isActive: boolean;
+        updatedAt: Date;
+        sortOrder: number;
+    }>;
     getRawCategories(user: CurrentUserData, req: Request, type?: RagBaleType): Promise<{
         id: string;
         tenantId: string;

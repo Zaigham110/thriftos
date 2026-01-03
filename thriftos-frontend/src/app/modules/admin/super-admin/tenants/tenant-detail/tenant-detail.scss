@@ -7,13 +7,13 @@
   align-items: center;
   gap: 0.375rem;
   font-size: 0.875rem;
-  color: #64748b;
+  color: hsl(var(--muted-foreground));
   text-decoration: none;
   margin-bottom: 1.5rem;
   transition: color 0.15s ease;
 
   &:hover {
-    color: #2563eb;
+    color: hsl(var(--primary));
   }
 }
 
@@ -54,14 +54,14 @@
 .page-title {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #1e293b;
+  color: hsl(var(--foreground));
   margin: 0;
 }
 
 .company-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.875rem;
-  color: #64748b;
+  color: hsl(var(--muted-foreground));
   margin: 0;
 }
 
@@ -86,14 +86,14 @@
 .detail-label {
   font-size: 0.75rem;
   font-weight: 500;
-  color: #64748b;
+  color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   letter-spacing: 0.025em;
 }
 
 .detail-value {
   font-size: 0.9375rem;
-  color: #1e293b;
+  color: hsl(var(--foreground));
 
   &.code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -102,7 +102,7 @@
 
 .confirm-message {
   font-size: 0.9375rem;
-  color: #475569;
+  color: hsl(var(--muted-foreground));
   line-height: 1.6;
   margin: 0;
 }
@@ -113,5 +113,5 @@
   justify-content: flex-end;
   padding-top: 1rem;
   margin-top: 1.5rem;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid hsl(var(--border));
 }

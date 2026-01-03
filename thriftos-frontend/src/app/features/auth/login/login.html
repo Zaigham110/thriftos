@@ -1,59 +1,59 @@
-<div class="login-container">
+<div class="min-h-screen grid lg:grid-cols-2">
   <!-- Brand Panel -->
-  <div class="brand-panel">
-    <div class="brand-content">
+  <div class="hidden lg:flex items-center justify-center bg-muted p-12">
+    <div class="max-w-md text-center">
       <!-- Logo Placeholder -->
-      <div class="brand-logo">
+      <div class="flex items-center justify-center gap-3 mb-4">
         <svg
-          class="logo-icon"
+          class="h-12 w-12"
           viewBox="0 0 48 48"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
-          <rect width="48" height="48" rx="12" fill="#2563EB" />
+          <rect width="48" height="48" rx="12" class="fill-primary" />
           <path
             d="M14 16h20v4H14v-4zm4 8h12v4H18v-4zm-4 8h20v4H14v-4z"
-            fill="white"
+            class="fill-primary-foreground"
           />
         </svg>
-        <h1 class="brand-name">ThriftOS</h1>
+        <h1 class="text-3xl font-bold text-foreground m-0">ThriftOS</h1>
       </div>
 
       <!-- Tagline -->
-      <p class="brand-tagline">ERP built for the thrift industry</p>
+      <p class="text-base text-muted-foreground italic m-0 mb-10">ERP built for the thrift industry</p>
 
       <!-- Abstract Illustration -->
-      <div class="brand-illustration">
+      <div class="mb-10">
         <svg
           viewBox="0 0 400 300"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          class="illustration-svg"
+          class="w-full max-w-sm h-auto mx-auto"
         >
           <!-- Abstract shapes representing data/inventory -->
-          <rect x="40" y="80" width="80" height="60" rx="8" fill="#DBEAFE" opacity="0.8" />
-          <rect x="60" y="100" width="80" height="60" rx="8" fill="#BFDBFE" opacity="0.8" />
-          <rect x="80" y="120" width="80" height="60" rx="8" fill="#93C5FD" opacity="0.8" />
+          <rect x="40" y="80" width="80" height="60" rx="8" class="fill-muted" opacity="0.9" />
+          <rect x="60" y="100" width="80" height="60" rx="8" class="fill-muted" opacity="0.75" />
+          <rect x="80" y="120" width="80" height="60" rx="8" class="fill-muted" opacity="0.6" />
 
           <!-- Connecting lines -->
-          <path d="M180 100 L220 80 L260 100" stroke="#2563EB" stroke-width="2" opacity="0.5" />
-          <path d="M180 140 L220 160 L260 140" stroke="#2563EB" stroke-width="2" opacity="0.5" />
+          <path d="M180 100 L220 80 L260 100" class="stroke-primary" stroke-width="2" opacity="0.5" />
+          <path d="M180 140 L220 160 L260 140" class="stroke-primary" stroke-width="2" opacity="0.5" />
 
           <!-- Circle accents -->
-          <circle cx="280" cy="90" r="30" fill="#DBEAFE" opacity="0.6" />
-          <circle cx="300" cy="140" r="40" fill="#BFDBFE" opacity="0.6" />
-          <circle cx="320" cy="100" r="20" fill="#93C5FD" opacity="0.6" />
+          <circle cx="280" cy="90" r="30" class="fill-muted" opacity="0.6" />
+          <circle cx="300" cy="140" r="40" class="fill-muted" opacity="0.5" />
+          <circle cx="320" cy="100" r="20" class="fill-muted" opacity="0.7" />
 
           <!-- Grid pattern -->
           <path
             d="M40 220 H360 M40 240 H360 M40 260 H360"
-            stroke="#E2E8F0"
+            class="stroke-border"
             stroke-width="1"
             opacity="0.5"
           />
           <path
             d="M80 200 V280 M160 200 V280 M240 200 V280 M320 200 V280"
-            stroke="#E2E8F0"
+            class="stroke-border"
             stroke-width="1"
             opacity="0.5"
           />
@@ -61,7 +61,7 @@
       </div>
 
       <!-- Footer text -->
-      <p class="brand-footer">
+      <p class="text-sm text-muted-foreground leading-relaxed m-0">
         Streamline your thrift operations with powerful inventory management,
         sorting workflows, and comprehensive reporting.
       </p>
@@ -69,18 +69,18 @@
   </div>
 
   <!-- Login Form Panel -->
-  <div class="form-panel">
-    <div class="form-container">
+  <div class="flex items-center justify-center p-8 bg-background">
+    <div class="w-full max-w-sm">
       @if (isCheckingAuth()) {
         <!-- Show loading spinner while checking auth state -->
-        <div class="auth-check-loading">
-          <div class="spinner"></div>
-          <p>Checking authentication...</p>
+        <div class="flex flex-col items-center justify-center py-12 gap-3">
+          <div class="h-8 w-8 rounded-full border-2 border-border border-t-primary animate-spin"></div>
+          <p class="text-sm text-muted-foreground m-0">Checking authentication...</p>
         </div>
       } @else {
-        <div class="form-header">
-          <h2 class="form-title">Welcome back</h2>
-          <p class="form-subtitle">Sign in to your account to continue</p>
+        <div class="text-center mb-8">
+          <h2 class="text-2xl font-semibold text-foreground m-0">Welcome back</h2>
+          <p class="text-sm text-muted-foreground mt-2 mb-0">Sign in to your account to continue</p>
         </div>
 
         <!-- Error Alert -->
@@ -92,8 +92,8 @@
           >{{ errorMessage() }}</ui-alert>
         }
 
-        <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
-          <div class="form-fields">
+        <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="flex flex-col gap-6">
+          <div class="flex flex-col gap-4">
             <ui-input
               formControlName="email"
               label="Email address"
@@ -102,7 +102,7 @@
               [required]="true"
             ></ui-input>
 
-            <div class="password-field">
+            <div class="relative">
               <ui-input
                 formControlName="password"
                 label="Password"
@@ -112,7 +112,7 @@
               ></ui-input>
               <button
                 type="button"
-                class="password-toggle"
+                class="absolute right-3 top-8 text-xs font-medium text-primary hover:text-primary/80"
                 (click)="togglePasswordVisibility()"
                 aria-label="Toggle password visibility"
               >
@@ -121,13 +121,13 @@
             </div>
           </div>
 
-          <div class="form-options">
+          <div class="flex items-center justify-between">
             <ui-checkbox
               formControlName="rememberMe"
               label="Remember me"
             ></ui-checkbox>
 
-            <a href="#" class="forgot-link">Forgot password?</a>
+            <a href="#" class="text-sm text-primary hover:text-primary/80">Forgot password?</a>
           </div>
 
           <ui-button
@@ -140,8 +140,8 @@
           </ui-button>
         </form>
 
-        <div class="form-footer">
-          <p class="help-text">
+        <div class="mt-8 text-center">
+          <p class="text-sm text-muted-foreground m-0">
             Need help? Contact your administrator
           </p>
         </div>

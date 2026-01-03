@@ -1,0 +1,67 @@
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs" />
+      <h1 class="page-title">Repack Summary</h1>
+      <p class="page-subtitle">Repack totals grouped by status</p>
+    </app-stack>
+    <div class="actions">
+      <app-button variant="secondary" (click)="loadData()">Refresh</app-button>
+    </div>
+  </app-page-header>
+
+  <app-page-body>
+    @if (error()) {
+      <app-error-state title="Failed to load report" [message]="error()!" [action]="true">
+        <app-button action variant="secondary" (click)="loadData()">Retry</app-button>
+      </app-error-state>
+    }
+
+    <app-section>
+      <app-section-body>
+        <app-report-filters
+          [showExport]="true"
+          [exporting]="exporting"
+          (filtersChange)="onFiltersChange($event)"
+          (searchChange)="onSearchChange($event)"
+          (onExport)="exportReport()"
+        />
+      </app-section-body>
+    </app-section>
+
+    <app-section>
+      <app-section-header>
+        <h2 class="section-title">By Status</h2>
+      </app-section-header>
+      <app-section-body>
+        <app-data-table
+          [data]="response()?.data || []"
+          [columns]="columns"
+          [loading]="loading()"
+          [enableSearch]="false"
+          [externalSearch]="searchText()"
+        >
+          <ng-template #cellTemplate let-row let-column="column">
+            @switch (column.key) {
+              @case ('units') {
+                {{ formatNumber(row.units) }}
+              }
+              @case ('totalWeightKg') {
+                {{ formatWeight(row.totalWeightKg) }}
+              }
+              @case ('totalPcs') {
+                {{ formatNumber(row.totalPcs) }}
+              }
+              @case ('totalCost') {
+                {{ formatCurrency(row.totalCost) }}
+              }
+              @default {
+                {{ row[column.key] ?? '—' }}
+              }
+            }
+          </ng-template>
+        </app-data-table>
+      </app-section-body>
+    </app-section>
+  </app-page-body>
+</app-page>

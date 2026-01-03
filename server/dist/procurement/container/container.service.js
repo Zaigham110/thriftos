@@ -33,8 +33,8 @@ let ContainerService = class ContainerService {
         if (!po) {
             throw new common_1.BadRequestException('Purchase order not found');
         }
-        if (po.poType !== client_1.PurchaseOrderType.CONTAINER && po.poType !== client_1.PurchaseOrderType.HYBRID) {
-            throw new common_1.BadRequestException('Purchase order type must allow containers');
+        if (po.poType === client_1.PurchaseOrderType.LOOSE_BALE) {
+            throw new common_1.BadRequestException('Containers are not allowed for LOOSE_BALE purchase orders');
         }
         if (po.status === client_1.PurchaseOrderStatus.CLOSED) {
             throw new common_1.ConflictException('Cannot add container to a closed purchase order');

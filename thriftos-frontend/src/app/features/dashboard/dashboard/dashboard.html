@@ -1,40 +1,146 @@
-<div class="dashboard-page">
-  <div class="page-header">
-    <h1 class="page-title">Dashboard</h1>
-    <p class="welcome-message">Welcome back, {{ userName() }}!</p>
-  </div>
-
-  @if (isImpersonating()) {
-    <div class="impersonation-notice">
-      <lucide-icon [img]="icons.LayoutDashboard" [size]="20"></lucide-icon>
-      <p>You are viewing this tenant's dashboard as a Super Admin.</p>
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <h1 class="page-title">Dashboard</h1>
+      <p class="page-subtitle">Operational overview @if (tenantName()) { for {{ tenantName() }} }</p>
+    </app-stack>
+    <div class="actions">
+      <!-- Reserved for Phase-1 (read-only). Intentionally empty. -->
     </div>
-  }
+  </app-page-header>
 
-  <!-- Placeholder cards for future modules -->
-  <div class="dashboard-grid">
-    <ui-card title="Procurement">
-      <div class="card-content">
-        <lucide-icon [img]="icons.Package" [size]="40" class="card-icon"></lucide-icon>
-        <p class="card-description">Manage vendors, purchase orders, and incoming inventory.</p>
-        <span class="coming-soon">Coming in Phase 2</span>
-      </div>
-    </ui-card>
+  <app-page-body>
+    <app-section>
+      <app-section-header>
+        <h2 class="section-title">KPIs</h2>
+        <div class="actions">
+          <app-stack direction="horizontal" spacing="md">
+            <app-form-field label="Period">
+              <app-select
+                [options]="periodOptions"
+                [ngModel]="period()"
+                (ngModelChange)="onPeriodChange($event)"
+              />
+            </app-form-field>
 
-    <ui-card title="Sorting">
-      <div class="card-content">
-        <lucide-icon [img]="icons.ArrowRightLeft" [size]="40" class="card-icon"></lucide-icon>
-        <p class="card-description">Sort and categorize incoming items by category and grade.</p>
-        <span class="coming-soon">Coming in Phase 3-4</span>
-      </div>
-    </ui-card>
+            @if (period() === 'custom') {
+              <app-form-field label="Start">
+                <app-input
+                  type="date"
+                  [ngModel]="customStart()"
+                  (ngModelChange)="onCustomStartChange($event)"
+                />
+              </app-form-field>
 
-    <ui-card title="Reports">
-      <div class="card-content">
-        <lucide-icon [img]="icons.BarChart3" [size]="40" class="card-icon"></lucide-icon>
-        <p class="card-description">View procurement, sorting, and inventory reports.</p>
-        <span class="coming-soon">Coming in Phase 7</span>
-      </div>
-    </ui-card>
-  </div>
-</div>
+              <app-form-field label="End">
+                <app-input
+                  type="date"
+                  [ngModel]="customEnd()"
+                  (ngModelChange)="onCustomEndChange($event)"
+                />
+              </app-form-field>
+            }
+
+            <app-form-field label="Category">
+              <app-select
+                [options]="categoryOptions()"
+                [ngModel]="categoryId()"
+                (ngModelChange)="onCategoryChange($event)"
+              />
+            </app-form-field>
+
+            <app-form-field label="Worker">
+              <app-input
+                placeholder="Worker ID"
+                [ngModel]="workerId()"
+                (ngModelChange)="onWorkerChange($event)"
+              />
+            </app-form-field>
+          </app-stack>
+        </div>
+      </app-section-header>
+
+      <app-section-body>
+        @if (loading()) {
+          <app-loading message="Loading dashboard…" />
+        } @else if (error()) {
+          <app-error-state [message]="error()!" />
+        } @else {
+          <app-grid [columns]="4" gap="md">
+            <app-kpi-card
+              label="Procurement Cost"
+              [value]="formatCurrency(kpiProcurementCost())"
+              [change]="kpiProcurementCostChange()"
+              [changeType]="kpiProcurementCostChangeType()"
+              [sparkline]="procurementSparkline()"
+              sparklineAriaLabel="Procurement cost trend"
+            />
+
+            <app-kpi-card
+              label="Sorted Weight"
+              [value]="formatKg(kpiSortedWeightKg())"
+              [change]="kpiSortedWeightChange()"
+              [changeType]="kpiSortedWeightChangeType()"
+              [sparkline]="sortedWeightSparkline()"
+              sparklineAriaLabel="Sorted weight trend"
+            />
+
+            <app-kpi-card
+              label="Yield"
+              [value]="formatPct(kpiYieldPct())"
+              [change]="kpiYieldChange()"
+              [changeType]="kpiYieldChangeType()"
+              [sparkline]="yieldSparkline()"
+              sparklineAriaLabel="Yield trend"
+            />
+
+            <app-kpi-card
+              label="Waste"
+              [value]="formatPct(kpiWastePct())"
+              [change]="kpiWasteChange()"
+              [changeType]="kpiWasteChangeType()"
+              [sparkline]="wasteSparkline()"
+              sparklineAriaLabel="Waste trend"
+            />
+          </app-grid>
+        }
+      </app-section-body>
+    </app-section>
+
+    <app-section>
+      <app-section-header>
+        <h2 class="section-title">Analytics</h2>
+        <div class="actions"></div>
+      </app-section-header>
+      <app-section-body>
+        @if (loading()) {
+          <app-loading message="Loading analytics…" />
+        } @else if (error()) {
+          <app-error-state [message]="error()!" />
+        } @else {
+          <app-grid [columns]="2" gap="md">
+            <app-card>
+              <app-stack direction="vertical" spacing="sm">
+                <div class="dash-card-head">
+                  <h3 class="dash-card-title">Category Yield</h3>
+                  <p class="dash-card-subtitle">Top categories by output (yield %)</p>
+                </div>
+                <app-chart [type]="'bar'" [variant]="'panel'" [points]="categoryYieldPoints()" />
+              </app-stack>
+            </app-card>
+
+            <app-card>
+              <app-stack direction="vertical" spacing="sm">
+                <div class="dash-card-head">
+                  <h3 class="dash-card-title">Sorted Volume Trend</h3>
+                  <p class="dash-card-subtitle">Total input weight by day</p>
+                </div>
+                <app-chart [type]="'line'" [variant]="'panel'" [points]="volumePoints()" />
+              </app-stack>
+            </app-card>
+          </app-grid>
+        }
+      </app-section-body>
+    </app-section>
+  </app-page-body>
+</app-page>

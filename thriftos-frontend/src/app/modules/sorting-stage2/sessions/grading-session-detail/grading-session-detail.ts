@@ -16,7 +16,6 @@ import {
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import {
@@ -38,10 +37,26 @@ import {
   PackagePlus,
 } from 'lucide-angular';
 
-import { CardComponent } from '../../../../shared/ui/card/card';
-import { ButtonComponent } from '../../../../shared/ui/button/button';
-import { BadgeComponent } from '../../../../shared/ui/badge/badge';
-import { GradeBucketComponent, GradeBucketUpdate } from '../../workspace/grade-bucket/grade-bucket';
+import {
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppPageBodyComponent,
+  AppSectionComponent,
+  AppSectionBodyComponent,
+  AppStackComponent,
+  AppWorkspace3PanelComponent,
+  AppCardComponent,
+  AppButtonComponent,
+  AppBadgeComponent,
+  AppBreadcrumbComponent,
+  AppDataTableComponent,
+  AppLoadingComponent,
+  AppErrorStateComponent,
+  AppEmptyStateComponent,
+  AppDialogComponent,
+  type BreadcrumbItem,
+  type TableColumn,
+} from '../../../../shared/ui';
 import { SortingStage2Service } from '../../sorting-stage2.service';
 import {
   GradeSession,
@@ -52,6 +67,13 @@ import {
   CreateGradeBucketRequest,
 } from '../../sorting-stage2.models';
 
+// Legacy type for backwards compatibility
+interface GradeBucketUpdate {
+  bucketId: string;
+  outputWeightKg: number;
+  outputCount: number;
+}
+
 @Component({
   selector: 'app-grading-session-detail',
   standalone: true,
@@ -60,10 +82,22 @@ import {
     RouterLink,
     FormsModule,
     LucideAngularModule,
-    CardComponent,
-    ButtonComponent,
-    BadgeComponent,
-    GradeBucketComponent,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppSectionComponent,
+    AppSectionBodyComponent,
+    AppStackComponent,
+    AppWorkspace3PanelComponent,
+    AppCardComponent,
+    AppButtonComponent,
+    AppBadgeComponent,
+    AppBreadcrumbComponent,
+    AppDataTableComponent,
+    AppLoadingComponent,
+    AppErrorStateComponent,
+    AppEmptyStateComponent,
+    AppDialogComponent,
   ],
   templateUrl: './grading-session-detail.html',
   styleUrl: './grading-session-detail.scss',
@@ -72,8 +106,9 @@ import {
 export class GradingSessionDetailComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly http = inject(HttpClient);
   private readonly gradingService = inject(SortingStage2Service);
+
+  protected readonly Math = Math;
 
   readonly icons = {
     arrowLeft: ArrowLeft,
@@ -107,6 +142,31 @@ export class GradingSessionDetailComponent implements OnInit, OnDestroy {
 
   // New bucket form
   readonly newBucket = signal<{ gradeId: string; weightKg: number; count: number } | null>(null);
+
+  // Modal states for 3-panel layout
+  readonly showAddGradeModal = signal(false);
+  readonly showEditGradeModal = signal(false);
+  readonly editingBucketId = signal<string | null>(null);
+  readonly modalGradeId = signal<string>('');
+  readonly modalWeightKg = signal<number>(0);
+  readonly modalCount = signal<number>(0);
+  readonly modalSaving = signal(false);
+
+  // Breadcrumbs
+  readonly breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Sorting', link: '/app/sorting/stage2' },
+    { label: 'Grading Sessions', link: '/app/sorting/stage2' },
+    { label: 'Grading Workspace' },
+  ];
+
+  // Table columns for grade buckets
+  readonly bucketColumns: TableColumn[] = [
+    { key: 'grade', label: 'Grade', sortable: true },
+    { key: 'weight', label: 'Weight (kg)', sortable: true },
+    { key: 'count', label: 'Count', sortable: true },
+    { key: 'percentage', label: '% of Total', sortable: true },
+    { key: 'actions', label: 'Actions', sortable: false },
+  ];
 
   // Computed: Session is editable
   readonly isEditable = computed(() => {
@@ -198,6 +258,150 @@ export class GradingSessionDetailComponent implements OnInit, OnDestroy {
 
   // =============================================================
   // BUCKET OPERATIONS
+  // =============================================================
+
+  // =============================================================
+  // NEW MODAL-BASED METHODS FOR 3-PANEL LAYOUT
+  // =============================================================
+
+  openAddGradeModal(): void {
+    const availableGrades = this.availableGrades();
+    if (availableGrades.length === 0) {
+      this.error.set('All grades have been allocated');
+      return;
+    }
+    this.modalGradeId.set(availableGrades[0].id);
+    this.modalWeightKg.set(0);
+    this.modalCount.set(0);
+    this.showAddGradeModal.set(true);
+  }
+
+  closeAddGradeModal(): void {
+    this.showAddGradeModal.set(false);
+    this.modalGradeId.set('');
+    this.modalWeightKg.set(0);
+    this.modalCount.set(0);
+  }
+
+  quickAddGrade(gradeId: string): void {
+    this.modalGradeId.set(gradeId);
+    this.modalWeightKg.set(0);
+    this.modalCount.set(0);
+    this.showAddGradeModal.set(true);
+  }
+
+  confirmAddGrade(): void {
+    const sessionId = this.session()?.id;
+    const gradeId = this.modalGradeId();
+    const weightKg = this.modalWeightKg();
+    const count = this.modalCount();
+
+    if (!sessionId || !gradeId || weightKg <= 0) {
+      this.error.set('Grade and weight are required');
+      return;
+    }
+
+    if (weightKg > this.remainingWeight()) {
+      this.error.set(`Weight exceeds remaining capacity (${this.formatWeight(this.remainingWeight())} kg available)`);
+      return;
+    }
+
+    this.modalSaving.set(true);
+    this.error.set(null);
+
+    const request: CreateGradeBucketRequest = {
+      gradeId,
+      outputWeightKg: weightKg,
+      outputCount: count,
+    };
+
+    this.gradingService.createBucket(sessionId, request).subscribe({
+      next: () => {
+        this.closeAddGradeModal();
+        this.loadData(sessionId);
+        this.modalSaving.set(false);
+      },
+      error: (err: any) => {
+        this.error.set(err.message || 'Failed to add grade bucket');
+        this.modalSaving.set(false);
+      },
+    });
+  }
+
+  openEditGradeModal(bucket: GradeBucket): void {
+    this.editingBucketId.set(bucket.id);
+    this.modalGradeId.set(bucket.gradeId);
+    this.modalWeightKg.set(this.toNum(bucket.outputWeightKg));
+    this.modalCount.set(bucket.outputCount || 0);
+    this.showEditGradeModal.set(true);
+  }
+
+  closeEditGradeModal(): void {
+    this.showEditGradeModal.set(false);
+    this.editingBucketId.set(null);
+    this.modalGradeId.set('');
+    this.modalWeightKg.set(0);
+    this.modalCount.set(0);
+  }
+
+  confirmEditGrade(): void {
+    const bucketId = this.editingBucketId();
+    const sessionId = this.session()?.id;
+    const weightKg = this.modalWeightKg();
+    const count = this.modalCount();
+
+    if (!bucketId || !sessionId) return;
+
+    this.modalSaving.set(true);
+    this.error.set(null);
+
+    this.gradingService.updateBucket(bucketId, {
+      outputWeightKg: weightKg,
+      outputCount: count,
+    }).subscribe({
+      next: () => {
+        this.closeEditGradeModal();
+        this.loadData(sessionId);
+        this.modalSaving.set(false);
+      },
+      error: (err: any) => {
+        this.error.set(err.message || 'Failed to update grade bucket');
+        this.modalSaving.set(false);
+      },
+    });
+  }
+
+  deleteBucket(bucketId: string): void {
+    const sessionId = this.session()?.id;
+    if (!sessionId) return;
+
+    if (!confirm('Are you sure you want to delete this grade bucket? This action cannot be undone.')) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.error.set(null);
+
+    this.gradingService.deleteBucket(bucketId).subscribe({
+      next: () => {
+        this.loadData(sessionId);
+        this.saving.set(false);
+      },
+      error: (err: any) => {
+        this.error.set(err.message || 'Failed to delete bucket');
+        this.saving.set(false);
+      },
+    });
+  }
+
+  getModalGradeName(): string {
+    const gradeId = this.modalGradeId();
+    const grade = this.grades().find(g => g.id === gradeId);
+    return grade?.name || 'Unknown Grade';
+  }
+
+  // =============================================================
+  // LEGACY INLINE EDIT METHODS (KEPT FOR BACKWARDS COMPAT)
   // =============================================================
 
   startAddBucket(): void {
@@ -391,22 +595,39 @@ export class GradingSessionDetailComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.saving.set(true);
-    this.error.set(null);
+    // Non-mutating entry: navigate to the unified repack create workspace.
+    // We pass a single suggested grading output id (non-binding).
+    const suggestedOutputId = this.pickSuggestedGradingOutputId(session);
+    if (!suggestedOutputId) {
+      this.error.set('No grading outputs available for repacking');
+      return;
+    }
 
-    // Create a new repack session via backend
-    this.http.post<{ id: string }>('/api/repack/sessions', {}).subscribe({
-      next: (repackSession) => {
-        this.saving.set(false);
-        // Navigate to the new repack session with gradeSessionId for lineage
-        this.router.navigate(['/app/repack', repackSession.id], {
-          queryParams: { gradeSessionId: session.id }
-        });
-      },
-      error: (err: any) => {
-        this.error.set(err.error?.message || 'Failed to create repack session');
-        this.saving.set(false);
-      },
+    this.router.navigate(['/app/repack/create'], {
+      queryParams: { fromGradingOutputId: suggestedOutputId },
     });
+  }
+
+  private pickSuggestedGradingOutputId(session: any): string | null {
+    const buckets = (session?.gradeBuckets ?? []) as any[];
+    const outputs: any[] = [];
+
+    for (const b of buckets) {
+      const bucketOutputs = (b?.gradeOutputs ?? []) as any[];
+      for (const o of bucketOutputs) outputs.push(o);
+    }
+
+    if (outputs.length === 0) return null;
+
+    // Prefer the output with the largest remaining amount (fallback to totalAmount/weightKg).
+    const pick = outputs
+      .slice()
+      .sort((a, b) => {
+        const ar = Number(a?.remainingAmount ?? a?.totalAmount ?? a?.weightKg ?? 0);
+        const br = Number(b?.remainingAmount ?? b?.totalAmount ?? b?.weightKg ?? 0);
+        return br - ar;
+      })[0];
+
+    return pick?.id ?? null;
   }
 }

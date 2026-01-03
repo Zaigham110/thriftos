@@ -1,0 +1,69 @@
+/**
+ * REPORTS DASHBOARD — ERP HARDENED
+ * Table-first analytics, no KPI cards, stat bar only
+ */
+
+// ============================================
+// STAT BAR (NOT KPI CARDS)
+// ============================================
+
+.stats-bar {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 1.5rem;
+  background: hsl(var(--muted) / 0.3);
+  border-radius: 0.375rem;
+  border: 1px solid hsl(var(--border));
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+  font-family: 'SF Mono', 'Consolas', monospace;
+}
+
+.stat-negative {
+  color: hsl(var(--destructive));
+}
+
+.stat-separator {
+  width: 1px;
+  height: 3rem;
+  background: hsl(var(--border));
+}
+
+// ============================================
+// REPORT TABLE STYLING
+// ============================================
+
+.report-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.report-icon {
+  color: hsl(var(--muted-foreground));
+}
+
+.text-muted {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+}

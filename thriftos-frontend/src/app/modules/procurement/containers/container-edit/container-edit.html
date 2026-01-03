@@ -1,0 +1,111 @@
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs()" />
+      <h1 class="page-title">Edit container</h1>
+      @if (container(); as cont) {
+        <p class="page-subtitle">{{ cont.containerNumber }}</p>
+      }
+    </app-stack>
+
+    <div class="actions">
+      <app-button variant="secondary" (click)="onCancel()">Cancel</app-button>
+    </div>
+  </app-page-header>
+
+  <app-page-body>
+    @if (loading()) {
+      <app-loading message="Loading container…" />
+    } @else if (error()) {
+      <app-error-state title="Failed" [message]="error()!" [action]="true">
+        <app-button action variant="secondary" (click)="loadContainer()">Retry</app-button>
+      </app-error-state>
+    } @else if (container(); as cont) {
+      <app-card>
+        <app-form
+          [formGroup]="form"
+          (submitted)="onSubmit()"
+          title="Edit Container"
+          subtitle="Update shipping and weight details."
+        >
+          <app-form-field label="Reference Number" hint="Optional">
+            <app-input formControlName="referenceNumber" />
+          </app-form-field>
+
+          <app-form-field label="Container Type" hint="Optional">
+            <app-select formControlName="containerType" [options]="containerTypeOptions" />
+          </app-form-field>
+
+          <app-form-field label="ETA" hint="Optional">
+            <app-input type="date" formControlName="eta" />
+          </app-form-field>
+
+          <app-form-field label="ETD" hint="Optional">
+            <app-input type="date" formControlName="etd" />
+          </app-form-field>
+
+          <app-form-field label="Arrived At" hint="Optional">
+            <app-input type="date" formControlName="arrivedAt" />
+          </app-form-field>
+
+          <app-form-field label="Cleared At" hint="Optional">
+            <app-input type="date" formControlName="clearedAt" />
+          </app-form-field>
+
+          <app-form-field label="Released At" hint="Optional">
+            <app-input type="date" formControlName="releasedAt" />
+          </app-form-field>
+
+          <app-form-field label="Gross Weight (kg)" [required]="true">
+            <app-input type="number" formControlName="grossWeight" />
+          </app-form-field>
+
+          <app-form-field label="Net Weight (kg)" [required]="true">
+            <app-input type="number" formControlName="netWeight" />
+          </app-form-field>
+
+          <app-form-field label="Bill of Lading #" hint="Optional">
+            <app-input formControlName="billOfLadingNumber" />
+          </app-form-field>
+
+          <app-form-field label="Shipment Reference" hint="Optional">
+            <app-input formControlName="shipmentReference" />
+          </app-form-field>
+
+          <app-form-field label="Forwarder" hint="Optional">
+            <app-input formControlName="forwarder" />
+          </app-form-field>
+
+          <app-form-field label="Shipping Line" hint="Optional">
+            <app-input formControlName="shippingLine" />
+          </app-form-field>
+
+          <app-form-field label="Vessel Name" hint="Optional">
+            <app-input formControlName="vesselName" />
+          </app-form-field>
+
+          <app-form-field label="Port of Loading" hint="Optional">
+            <app-input formControlName="portOfLoading" />
+          </app-form-field>
+
+          <app-form-field label="Port of Discharge" hint="Optional">
+            <app-input formControlName="portOfDischarge" />
+          </app-form-field>
+
+          <app-form-field label="Notes" hint="Optional">
+            <app-input formControlName="notes" />
+          </app-form-field>
+
+          <app-stack direction="horizontal" spacing="sm">
+            <app-button variant="secondary" type="button" (click)="onCancel()" [disabled]="actionLoading()">
+              Cancel
+            </app-button>
+            <app-button variant="primary" type="submit" [disabled]="form.invalid || actionLoading()">
+              Save
+            </app-button>
+          </app-stack>
+        </app-form>
+      </app-card>
+    }
+  </app-page-body>
+</app-page>

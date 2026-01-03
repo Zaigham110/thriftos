@@ -32,8 +32,8 @@ export class ContainerService {
       throw new BadRequestException('Purchase order not found');
     }
 
-    if (po.poType !== PurchaseOrderType.CONTAINER && po.poType !== PurchaseOrderType.HYBRID) {
-      throw new BadRequestException('Purchase order type must allow containers');
+    if (po.poType === PurchaseOrderType.LOOSE_BALE) {
+      throw new BadRequestException('Containers are not allowed for LOOSE_BALE purchase orders');
     }
 
     if (po.status === PurchaseOrderStatus.CLOSED) {

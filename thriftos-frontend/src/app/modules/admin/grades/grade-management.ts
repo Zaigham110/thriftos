@@ -7,15 +7,23 @@
 
 import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { LucideAngularModule, Star, Plus, Pencil, Trash2, Search, RefreshCw } from 'lucide-angular';
+import { LucideAngularModule, Star, Plus, Pencil, Trash2, Search, RefreshCw, ArrowLeft } from 'lucide-angular';
 import { AdminService } from '../admin.service';
 import { Grade } from '../admin.models';
 import {
-  CardComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppPageBodyComponent,
+  AppSectionComponent,
+  AppDataTableComponent,
+  AppButtonComponent,
+  AppBadgeComponent,
+  AppLoadingComponent,
+  AppEmptyStateComponent,
+  AppDialogComponent,
   BreadcrumbComponent,
-  EmptyStateComponent,
-  SkeletonComponent,
-  ConfirmDialogComponent,
+  type TableColumn,
+  type BreadcrumbItem,
 } from '../../../shared/ui';
 import { GradeFormDrawerComponent } from './grade-form-drawer';
 import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
@@ -26,11 +34,17 @@ import { HasPermissionDirective } from '../../../shared/directives/has-permissio
   imports: [
     CommonModule,
     LucideAngularModule,
-    CardComponent,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppSectionComponent,
+    AppDataTableComponent,
+    AppButtonComponent,
+    AppBadgeComponent,
+    AppLoadingComponent,
+    AppEmptyStateComponent,
+    AppDialogComponent,
     BreadcrumbComponent,
-    EmptyStateComponent,
-    SkeletonComponent,
-    ConfirmDialogComponent,
     GradeFormDrawerComponent,
     HasPermissionDirective,
   ],
@@ -48,11 +62,18 @@ export class GradeManagementComponent implements OnInit {
     Trash2,
     Search,
     RefreshCw,
+    ArrowLeft,
   };
 
-  readonly breadcrumbs = [
+  readonly breadcrumbs: BreadcrumbItem[] = [
     { label: 'Administration', route: '/app/admin' },
     { label: 'Grades' },
+  ];
+
+  readonly columns: TableColumn[] = [
+    { key: 'name', label: 'Grade', sortable: true },
+    { key: 'description', label: 'Description' },
+    { key: 'actions', label: 'Actions', width: '120px' },
   ];
 
   readonly searchQuery = signal('');
@@ -145,5 +166,15 @@ export class GradeManagementComponent implements OnInit {
     if (name.includes('D') || name.includes('POOR')) return 'badge-orange';
     if (name.includes('REJECT') || name.includes('WASTE')) return 'badge-red';
     return 'badge-gray';
+  }
+
+  getGradeBadgeVariant(grade: Grade): 'default' | 'primary' | 'success' | 'warning' | 'danger' {
+    // Map grade names to badge variants for design system
+    const name = grade.name.toUpperCase();
+    if (name.includes('A') || name.includes('PREMIUM')) return 'success';
+    if (name.includes('B') || name.includes('GOOD')) return 'primary';
+    if (name.includes('C') || name.includes('FAIR')) return 'warning';
+    if (name.includes('D') || name.includes('POOR') || name.includes('REJECT') || name.includes('WASTE')) return 'danger';
+    return 'default';
   }
 }

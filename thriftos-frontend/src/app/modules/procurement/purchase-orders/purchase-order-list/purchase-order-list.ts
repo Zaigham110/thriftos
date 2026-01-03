@@ -1,32 +1,25 @@
-/**
- * Purchase Order List Component
- * Phase 2: Procurement UI
- * 
- * Route: /app/procurement/purchase-orders
- */
-
-import { ChangeDetectionStrategy, Component, OnInit, signal, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
-import { Router, RouterLink, ActivatedRoute } from '@angular/router';
-import { LucideAngularModule, Plus, ChevronLeft, ChevronRight, FileText } from 'lucide-angular';
+import { Router, RouterLink } from '@angular/router';
 import { ProcurementService } from '../../procurement.service';
 import {
   PurchaseOrder,
   PurchaseOrderStatus,
-  PurchaseOrderFilters,
 } from '../../procurement.models';
 import { AuthService } from '../../../../core/auth/auth';
 import {
-  CardComponent,
-  ButtonComponent,
-  AlertComponent,
-  BreadcrumbComponent,
-  BreadcrumbItem,
-  BadgeComponent,
-  SelectComponent,
-  SelectOption,
-  SkeletonComponent,
-  EmptyStateComponent,
+  AppBreadcrumbComponent,
+  AppButtonComponent,
+  AppDataTableComponent,
+  AppErrorStateComponent,
+  AppPageBodyComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppStackComponent,
+  AppBadgeComponent,
+  type DataTableColumn,
+  type DataTableState,
+  type BreadcrumbItem,
 } from '../../../../shared/ui';
 
 @Component({
@@ -37,16 +30,15 @@ import {
     RouterLink,
     CurrencyPipe,
     DatePipe,
-    LucideAngularModule,
-    CardComponent,
-    ButtonComponent,
-    AlertComponent,
-    BreadcrumbComponent,
-    BadgeComponent,
-    SelectComponent,
-    SkeletonComponent,
-    EmptyStateComponent,
-    EmptyStateComponent,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppStackComponent,
+    AppBreadcrumbComponent,
+    AppButtonComponent,
+    AppDataTableComponent,
+    AppBadgeComponent,
+    AppErrorStateComponent,
   ],
   templateUrl: './purchase-order-list.html',
   styleUrl: './purchase-order-list.scss',
@@ -56,14 +48,6 @@ export class PurchaseOrderListComponent implements OnInit {
   private procurementService = inject(ProcurementService);
   private authService = inject(AuthService);
   private router = inject(Router);
-  private route = inject(ActivatedRoute);
-
-  readonly icons = {
-    Plus,
-    ChevronLeft,
-    ChevronRight,
-    FileText,
-  };
 
   readonly purchaseOrders = this.procurementService.purchaseOrders;
   readonly loading = this.procurementService.loading;
@@ -71,26 +55,50 @@ export class PurchaseOrderListComponent implements OnInit {
   readonly totalCount = this.procurementService.poTotalCount;
   readonly currentPage = this.procurementService.poCurrentPage;
   readonly totalPages = this.procurementService.poTotalPages;
-
-  readonly statusFilter = signal<PurchaseOrderStatus | ''>('');
   readonly canCreate = signal(false);
 
-  readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Home', link: '/app/dashboard' },
-    { label: 'Procurement', link: '/app/procurement' },
-    { label: 'Purchase Orders' },
+  readonly tableColumns: DataTableColumn[] = [
+    { key: 'poNumber', label: 'PO Number', sortable: true, filterable: true },
+    { key: 'poType', label: 'Type', sortable: true, filterable: true },
+    {
+      key: 'vendor',
+      label: 'Vendor',
+      sortable: true,
+      filterable: true,
+      getValue: (row) => (row as PurchaseOrder).vendor?.name ?? '',
+    },
+    {
+      key: 'totalCost',
+      label: 'Total Cost',
+      align: 'right',
+      sortable: true,
+      getValue: (row) => (row as PurchaseOrder).totalCost,
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      sortable: true,
+      filterable: true,
+      filterType: 'select',
+      filterOptions: [
+        { value: '', label: 'All' },
+        { value: 'OPEN', label: 'OPEN' },
+        { value: 'RECEIVED', label: 'RECEIVED' },
+        { value: 'CLOSED', label: 'CLOSED' },
+      ],
+    },
+    { key: 'createdAt', label: 'Created', sortable: true },
   ];
 
-  readonly statusOptions: SelectOption[] = [
-    { value: '', label: 'All Statuses' },
-    { value: 'OPEN', label: 'Open' },
-    { value: 'RECEIVED', label: 'Received' },
-    { value: 'CLOSED', label: 'Closed' },
+  readonly breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Home', route: '/dashboard' },
+    { label: 'Procurement', route: '/procurement/dashboard' },
+    { label: 'Purchase Orders', route: '/procurement/pos' },
   ];
 
   ngOnInit(): void {
     this.checkPermissions();
-    this.loadFromQueryParams();
+    this.loadPurchaseOrders();
   }
 
   private checkPermissions(): void {
@@ -100,34 +108,27 @@ export class PurchaseOrderListComponent implements OnInit {
     );
   }
 
-  private loadFromQueryParams(): void {
-    const status = this.route.snapshot.queryParamMap.get('status') as PurchaseOrderStatus | null;
-    if (status) {
-      this.statusFilter.set(status);
-    }
-    this.loadPurchaseOrders();
-  }
-
   loadPurchaseOrders(page = 1): void {
-    const filters: PurchaseOrderFilters = {
-      page,
-      limit: 20,
-    };
-
-    if (this.statusFilter()) {
-      filters.status = this.statusFilter() as PurchaseOrderStatus;
-    }
-
-    this.procurementService.loadPurchaseOrders(filters).subscribe();
+    this.procurementService.loadPurchaseOrders({ page, limit: 20 }).subscribe();
   }
 
-  onStatusFilterChange(status: string | number): void {
-    this.statusFilter.set(status as PurchaseOrderStatus | '');
-    this.loadPurchaseOrders(1);
+  onTableStateChange(state: DataTableState): void {
+    const status = (state.filters['status'] || '').trim();
+    this.procurementService
+      .loadPurchaseOrders({
+        page: state.pageIndex,
+        limit: state.pageSize,
+        status: status ? (status as PurchaseOrderStatus) : undefined,
+      })
+      .subscribe();
+  }
+
+  refresh(): void {
+    this.loadPurchaseOrders(this.currentPage());
   }
 
   onRowClick(po: PurchaseOrder): void {
-    this.router.navigate(['/app/procurement/purchase-orders', po.id]);
+    this.router.navigate(['/procurement/pos', po.id]);
   }
 
   onPageChange(page: number): void {
@@ -138,7 +139,7 @@ export class PurchaseOrderListComponent implements OnInit {
     const variants: Record<PurchaseOrderStatus, 'default' | 'primary' | 'success' | 'warning' | 'danger'> = {
       OPEN: 'primary',
       RECEIVED: 'warning',
-      CLOSED: 'success',
+      CLOSED: 'default',
     };
     return variants[status] || 'default';
   }

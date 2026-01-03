@@ -6,7 +6,8 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "lint": "eslint src/**/*.{ts,html}"
   },
   "prettier": {
     "printWidth": 100,
@@ -28,8 +29,11 @@
     "@angular/forms": "^20.3.0",
     "@angular/platform-browser": "^20.3.0",
     "@angular/router": "^20.3.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "lucide-angular": "^0.561.0",
     "rxjs": "~7.8.0",
+    "tailwind-merge": "^3.4.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"
   },
@@ -37,8 +41,17 @@
     "@angular/build": "^20.3.7",
     "@angular/cli": "^20.3.7",
     "@angular/compiler-cli": "^20.3.0",
+    "@angular-eslint/builder": "^19.0.3",
+    "@angular-eslint/eslint-plugin": "^19.0.3",
+    "@angular-eslint/eslint-plugin-template": "^19.0.3",
+    "@angular-eslint/schematics": "^19.0.3",
+    "@angular-eslint/template-parser": "^19.0.3",
+    "@tailwindcss/typography": "^0.5.19",
     "@types/jasmine": "~5.1.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
     "autoprefixer": "^10.4.23",
+    "eslint": "^9.0.0",
     "jasmine-core": "~5.9.0",
     "karma": "~6.4.0",
     "karma-chrome-launcher": "~3.2.0",
@@ -47,6 +60,7 @@
     "karma-jasmine-html-reporter": "~2.1.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
+    "tailwindcss-animate": "^1.0.7",
     "typescript": "~5.9.2"
   }
 }

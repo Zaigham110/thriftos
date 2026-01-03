@@ -1,620 +1,316 @@
-@use '../../../../../styles/variables' as *;
+/**
+ * Sorting Stage-1 Workspace - 3-Panel ERP Layout
+ * ERP Stabilization: Consistent workspace styling
+ */
 
-.sorting-session-detail {
-  padding: $spacing-page;
+// Context Bar (Traceability)
+.context-bar {
+  background: hsl(var(--muted) / 0.3);
+  border-left: 3px solid hsl(var(--primary));
+  padding: 1rem;
 }
 
-.loading-state {
-  .grid-2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-  }
-  
-  .mb-4 {
-    margin-bottom: 1rem;
-  }
-}
-
-.page-header {
-  margin-bottom: 1.5rem;
-
-  .back-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: $gray-600;
-    text-decoration: none;
-    margin-bottom: 0.75rem;
-    transition: color 0.15s ease;
-
-    &:hover {
-      color: $primary;
-    }
-  }
-
-  .header-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .header-content {
-    .title-row {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      margin-bottom: 0.25rem;
-
-      h1 {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: $gray-900;
-        margin: 0;
-        font-family: $font-family-mono;
-      }
-    }
-
-    .subtitle {
-      font-size: 0.875rem;
-      color: $gray-500;
-      margin: 0;
-
-      .source-ref {
-        font-weight: 500;
-        color: $gray-700;
-        font-family: $font-family-mono;
-      }
-    }
-  }
-
-  .header-actions {
-    display: flex;
-    gap: 0.75rem;
-  }
-
-  .closed-badge {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    background-color: $gray-100;
-    border-radius: $radius-md;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: $gray-600;
-  }
-}
-
-.font-mono {
-  font-family: $font-family-mono;
-}
-
-// Traceability Card (Mandatory Header)
-.traceability-card {
-  margin-bottom: 1.5rem;
-  background-color: $gray-50;
-  border: 1px solid $gray-200;
-}
-
-.traceability-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1.5rem;
-
-  @media (max-width: 992px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  @media (max-width: 576px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-.traceability-item {
+.context-item {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
 }
 
-.traceability-label {
+.context-label {
   font-size: 0.75rem;
   font-weight: 500;
-  color: $gray-500;
+  color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
-.traceability-value {
-  font-size: 1rem;
+.context-value {
+  font-size: 0.875rem;
   font-weight: 600;
-  color: $gray-900;
-
-  &--highlight {
-    color: $primary;
-    font-family: $font-family-mono;
-  }
-
-  &--mono {
-    font-family: $font-family-mono;
-  }
-
-  .text-muted {
-    color: $gray-400;
-    font-weight: 400;
-  }
+  color: hsl(var(--foreground));
 }
 
-.traceability-link {
-  color: $primary;
-  text-decoration: none;
-  font-weight: 600;
-
-  &:hover {
-    text-decoration: underline;
-  }
+.context-mono {
+  font-family: 'SF Mono', 'Consolas', monospace;
 }
 
-// Workspace Grid
-.workspace-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
+.context-highlight {
+  color: hsl(var(--primary));
+}
+
+.context-link {
+  color: hsl(var(--primary));
+  text-decoration: underline;
   
-  @media (max-width: 1024px) {
-    grid-template-columns: 1fr;
+  &:hover {
+    color: hsl(var(--primary) / 0.8);
   }
 }
 
-.workspace-column {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+.context-muted {
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
 }
 
-// Card Styles
-.card-header {
+// Panel Headers
+.panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid $gray-200;
 }
 
-.card-title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.panel-title {
   font-size: 1rem;
   font-weight: 600;
-  color: $gray-900;
+  color: hsl(var(--foreground));
   margin: 0;
 }
 
-// Bucket Form Styles
-.bucket-form,
-.bucket-edit-form,
-.waste-edit-form {
-  background-color: $gray-50;
-  border: 1px solid $gray-200;
-  border-radius: $radius-md;
-  padding: 1rem;
-  margin-bottom: 1rem;
+.panel-subtitle {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  margin-left: 0.5rem;
 }
 
-.form-header {
+// Category List (Left Panel)
+.category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.category-card {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.375rem;
+  transition: all 0.2s;
 
-  .form-title {
-    font-weight: 600;
-    color: $gray-900;
+  &:hover {
+    border-color: hsl(var(--primary));
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
 }
 
-.bucket-edit-header {
-  margin-bottom: 1rem;
-
-  .category-name {
-    font-weight: 600;
-    color: $gray-900;
-  }
+.category-name {
+  font-weight: 500;
+  color: hsl(var(--foreground));
 }
 
-.form-row {
-  margin-bottom: 1rem;
-
-  label {
-    display: block;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: $gray-600;
-    margin-bottom: 0.25rem;
-  }
-}
-
-.form-row-inline {
+// Stats Grid (Right Panel)
+.stats-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
-  margin-bottom: 1rem;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  background: hsl(var(--muted) / 0.3);
+  border-radius: 0.375rem;
+
+  &.stat-item--highlight {
+    background: hsl(var(--primary) / 0.1);
+    border: 1px solid hsl(var(--primary) / 0.3);
+  }
+
+  &.stat-item--danger {
+    background: hsl(var(--destructive) / 0.1);
+    border: 1px solid hsl(var(--destructive) / 0.3);
+    
+    .stat-value {
+      color: hsl(var(--destructive));
+    }
+  }
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+  font-family: 'SF Mono', 'Consolas', monospace;
+}
+
+// Progress Section
+.progress-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.progress-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+}
+
+.progress-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: 'SF Mono', 'Consolas', monospace;
+  color: hsl(var(--primary));
+}
+
+.progress-bar-wrapper {
+  width: 100%;
+  height: 8px;
+  background: hsl(var(--muted));
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: hsl(var(--primary));
+  transition: width 0.3s ease;
+
+  &.progress-complete {
+    background: hsl(var(--success));
+  }
+}
+
+.progress-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: hsl(var(--warning) / 0.1);
+  border: 1px solid hsl(var(--warning) / 0.3);
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  color: hsl(var(--warning-foreground));
+}
+
+// Info Rows
+.info-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid hsl(var(--border));
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.info-label {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.info-value {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+}
+
+.card-subtitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  margin: 0 0 0.75rem 0;
+}
+
+// Modal Form Fields
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 
   label {
-    display: block;
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     font-weight: 500;
-    color: $gray-600;
-    margin-bottom: 0.25rem;
+    color: hsl(var(--foreground));
   }
 }
 
 .form-select,
 .form-input {
-  width: 100%;
   padding: 0.5rem 0.75rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.375rem;
   font-size: 0.875rem;
-  border: 1px solid $gray-300;
-  border-radius: $radius-md;
-  background-color: white;
-  transition: border-color 0.15s ease;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  transition: border-color 0.2s;
 
   &:focus {
     outline: none;
-    border-color: $primary;
-    box-shadow: 0 0 0 3px rgba($primary, 0.1);
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1);
   }
 
-  &.input-error {
-    border-color: $status-danger;
-    
-    &:focus {
-      box-shadow: 0 0 0 3px rgba($status-danger, 0.1);
-    }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
-}
-
-.form-input[type="number"] {
-  font-family: $font-family-mono;
 }
 
 .field-hint {
-  display: block;
-  font-size: 0.7rem;
-  color: $gray-500;
-  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
 }
 
 .validation-error {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.5rem;
-  font-size: 0.75rem;
-  color: $status-danger;
-  background-color: $red-50;
-  border-radius: $radius-sm;
-  margin-top: 0.5rem;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
   gap: 0.5rem;
-  padding-top: 0.5rem;
+  padding: 0.75rem;
+  background: hsl(var(--destructive) / 0.1);
+  border: 1px solid hsl(var(--destructive) / 0.3);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: hsl(var(--destructive-foreground));
 }
 
-// Buckets List
-.buckets-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+// Table styling (inherits from app-data-table)
+.tabular-nums {
+  font-family: 'SF Mono', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
 }
 
-.empty-buckets {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 2rem;
-  color: $gray-400;
-
-  p {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: $gray-700;
-    margin: 0.75rem 0 0.25rem 0;
-  }
-
-  .hint {
-    font-size: 0.75rem;
-    color: $gray-500;
-  }
-}
-
-.bucket-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  background-color: $bg-card;
-  border: 1px solid $gray-200;
-  border-radius: $radius-md;
-  transition: border-color 0.15s ease;
-
-  &:hover {
-    border-color: $gray-300;
-  }
-
-  &--editing {
-    padding: 0;
-    border: none;
-    background: none;
-
-    .bucket-edit-form {
-      margin: 0;
-      width: 100%;
-    }
-  }
-}
-
-.bucket-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-
-  .category-name {
-    font-weight: 600;
-    color: $gray-900;
-  }
-
-  .bucket-stats {
-    display: flex;
-    gap: 1rem;
-
-    .stat {
-      display: flex;
-      align-items: center;
-      gap: 0.25rem;
-      font-size: 0.875rem;
-      color: $gray-600;
-      font-family: $font-family-mono;
-    }
-  }
-}
-
-.bucket-actions {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.icon-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  background-color: transparent;
-  border-radius: $radius-md;
-  color: $gray-500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-
-  &:hover {
-    background-color: $gray-100;
-    color: $gray-700;
-  }
-
-  &--danger:hover {
-    background-color: $red-50;
-    color: $red-600;
-  }
-}
-
-// Waste Card
-.waste-card {
-  .waste-display {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .waste-stats {
-    display: flex;
-    gap: 2rem;
-  }
-
-  .waste-stat {
-    display: flex;
-    align-items: baseline;
-    gap: 0.25rem;
-
-    .waste-value {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: $gray-900;
-    }
-
-    .waste-label {
-      font-size: 0.875rem;
-      color: $gray-500;
-    }
-  }
-
-  .waste-empty {
-    text-align: center;
-    padding: 1rem;
-
-    p {
-      font-size: 0.875rem;
-      color: $gray-500;
-      margin: 0 0 1rem 0;
-    }
-  }
-}
-
-// Totals Card
-.totals-card {
-  .totals-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .total-item {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    padding: 0.75rem;
-    background-color: $gray-50;
-    border-radius: $radius-md;
-
-    &--highlight {
-      background-color: $blue-50;
-      border: 1px solid rgba($primary, 0.2);
-    }
-
-    .total-label {
-      font-size: 0.75rem;
-      font-weight: 500;
-      color: $gray-500;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .total-value {
-      font-size: 1.125rem;
-      font-weight: 600;
-      color: $gray-900;
-
-      &--waste {
-        color: $status-danger;
-      }
-    }
-  }
-}
-
-.progress-section {
-  padding-top: 1rem;
-  border-top: 1px solid $gray-200;
-
-  .progress-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.5rem;
-
-    .progress-label {
-      font-size: 0.75rem;
-      font-weight: 500;
-      color: $gray-500;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .progress-value {
-      font-size: 0.875rem;
-      font-weight: 600;
-      color: $gray-700;
-    }
-  }
-
-  .progress-bar {
-    height: 8px;
-    background-color: $gray-200;
-    border-radius: 4px;
-    overflow: hidden;
-  }
-
-  .progress-fill {
-    height: 100%;
-    background-color: $primary;
-    border-radius: 4px;
-    transition: width 0.3s ease;
-
-    &--complete {
-      background-color: $green-600;
-    }
-
-    &--over {
-      background-color: $orange-600;
-    }
-  }
-
-  .progress-warning {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-    padding: 0.5rem;
-    background-color: $orange-50;
-    border-radius: $radius-md;
-    font-size: 0.75rem;
-    color: $orange-700;
-  }
-}
-
-// Info Card
-.info-card {
-  .info-rows {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .info-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid $gray-100;
-
-    &:last-child {
-      border-bottom: none;
-    }
-
-    .info-label {
-      font-size: 0.875rem;
-      color: $gray-500;
-    }
-
-    .info-value {
-      font-size: 0.875rem;
-      color: $gray-700;
-    }
-  }
-}
-
-// Responsive
-@media (max-width: 640px) {
-  .page-header {
-    .header-row {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-
-    .header-actions {
-      width: 100%;
-      
-      ui-button {
-        flex: 1;
-      }
-    }
-  }
-
-  .totals-card .totals-grid {
+// Responsive adjustments
+@media (max-width: 899px) {
+  .stats-grid {
     grid-template-columns: 1fr;
   }
 
-  .waste-card .waste-stats {
-    flex-direction: column;
-    gap: 1rem;
+  .context-bar {
+    app-stack {
+      flex-direction: column;
+    }
   }
 }

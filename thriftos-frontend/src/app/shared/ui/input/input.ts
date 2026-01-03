@@ -6,7 +6,7 @@ import { LucideAngularModule } from 'lucide-angular';
 export type InputType = 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | 'search';
 
 @Component({
-  selector: 'ui-input',
+  selector: 'ui-input, app-input',
   standalone: true,
   imports: [CommonModule, FormsModule, LucideAngularModule],
   templateUrl: './input.html',

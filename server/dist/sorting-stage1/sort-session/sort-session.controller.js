@@ -41,9 +41,9 @@ let SortSessionController = class SortSessionController {
         const tenantId = req.tenantId || user.tenantId;
         return this.sortSessionService.update(tenantId, id, dto, user.userId);
     }
-    async close(id, user, req) {
+    async close(id, body, user, req) {
         const tenantId = req.tenantId || user.tenantId;
-        return this.sortSessionService.close(tenantId, id, user.userId);
+        return this.sortSessionService.close(tenantId, id, user.userId, { wasteCategoryId: body?.wasteCategoryId });
     }
 };
 exports.SortSessionController = SortSessionController;
@@ -96,10 +96,11 @@ __decorate([
     (0, permissions_decorator_1.RequirePermissions)('SORTING_STAGE1_CLOSE'),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),
     __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, current_user_decorator_1.CurrentUser)()),
-    __param(2, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __param(3, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:paramtypes", [String, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], SortSessionController.prototype, "close", null);
 exports.SortSessionController = SortSessionController = __decorate([

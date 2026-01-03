@@ -1,95 +1,103 @@
-<div class="page-container">
-  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
-
-  <div class="page-header">
-    <div class="header-left">
+<app-page>
+  <app-page-header>
+    <ui-breadcrumb slot="breadcrumbs" [items]="breadcrumbs"></ui-breadcrumb>
+    
+    <div slot="title" class="header-content">
       <lucide-icon [img]="icons.Warehouse" class="header-icon"></lucide-icon>
       <div class="header-text">
         <h1 class="page-title">Warehouses</h1>
         <p class="page-subtitle">Storage locations for inventory management</p>
       </div>
     </div>
-    <div class="header-actions">
-      <button class="btn btn-secondary" (click)="refresh()" [disabled]="loading()">
+
+    <div slot="actions" class="actions">
+      <app-button 
+        variant="secondary"
+        size="sm"
+        (click)="refresh()" 
+        [disabled]="loading()"
+      >
         <lucide-icon [img]="icons.RefreshCw" [class.spinning]="loading()"></lucide-icon>
         Refresh
-      </button>
+      </app-button>
     </div>
-  </div>
+  </app-page-header>
 
-  <!-- Info Notice -->
-  <ui-alert variant="info" class="info-notice">
-    <lucide-icon [img]="icons.Info"></lucide-icon>
-    Warehouses are configured at the platform level and managed by Super Admin. Contact your administrator to request changes.
-  </ui-alert>
+  <app-page-body>
+    <!-- Info Notice -->
+    <app-section>
+      <app-card class="info-notice">
+        <div class="notice-content">
+          <lucide-icon [img]="icons.Info" class="notice-icon"></lucide-icon>
+          <p>Warehouses are configured at the platform level and managed by Super Admin. Contact your administrator to request changes.</p>
+        </div>
+      </app-card>
+    </app-section>
 
-  <!-- Search Bar -->
-  <div class="search-bar">
-    <div class="search-input-wrapper">
-      <lucide-icon [img]="icons.Search" class="search-icon"></lucide-icon>
-      <input
-        type="text"
-        class="search-input"
-        placeholder="Search warehouses..."
-        [value]="searchQuery()"
-        (input)="searchQuery.set($any($event.target).value)"
-      />
-    </div>
-  </div>
-
-  <!-- Loading State -->
-  @if (loading()) {
-    <ui-card>
-      <div class="skeleton-grid">
-        @for (i of [1, 2, 3, 4]; track i) {
-          <div class="skeleton-card">
-            <ui-skeleton width="100%" height="24px"></ui-skeleton>
-            <ui-skeleton width="60%" height="16px"></ui-skeleton>
-          </div>
-        }
+    <!-- Search Bar -->
+    <app-section>
+      <div class="search-bar">
+        <div class="search-input-wrapper">
+          <lucide-icon [img]="icons.Search" class="search-icon"></lucide-icon>
+          <input
+            type="text"
+            class="search-input"
+            placeholder="Search warehouses..."
+            [value]="searchQuery()"
+            (input)="searchQuery.set($any($event.target).value)"
+          />
+        </div>
       </div>
-    </ui-card>
-  } @else if (filteredWarehouses.length === 0) {
-    <ui-card>
-      @if (searchQuery()) {
-        <ui-empty-state
-          title="No warehouses found"
-          description="No warehouses match your search criteria."
-          [icon]="icons.Warehouse"
-        ></ui-empty-state>
-      } @else {
-        <ui-empty-state
-          title="No warehouses configured"
-          description="Warehouses have not been set up yet. Contact Super Admin."
-          [icon]="icons.Warehouse"
-        ></ui-empty-state>
-      }
-    </ui-card>
-  } @else {
-    <div class="warehouses-grid">
-      @for (warehouse of filteredWarehouses; track warehouse.id) {
-        <ui-card class="warehouse-card">
-          <div class="warehouse-header">
-            <lucide-icon [img]="icons.Warehouse" class="warehouse-icon"></lucide-icon>
-            <h3 class="warehouse-name">{{ warehouse.name }}</h3>
-          </div>
-          @if (warehouse.location) {
-            <div class="warehouse-location">
-              <lucide-icon [img]="icons.MapPin" class="location-icon"></lucide-icon>
-              <span>{{ warehouse.location }}</span>
-            </div>
-          } @else {
-            <p class="warehouse-location empty">
-              <lucide-icon [img]="icons.MapPin" class="location-icon"></lucide-icon>
-              <span>No location specified</span>
-            </p>
+    </app-section>
+
+    <!-- Loading State -->
+    @if (loading()) {
+      <app-section>
+        <app-loading message="Loading warehouses..."></app-loading>
+      </app-section>
+    } @else if (filteredWarehouses.length === 0) {
+      <app-section>
+        @if (searchQuery()) {
+          <app-empty-state
+            title="No warehouses found"
+            description="No warehouses match your search criteria."
+          ></app-empty-state>
+        } @else {
+          <app-empty-state
+            title="No warehouses configured"
+            description="Warehouses have not been set up yet. Contact Super Admin."
+          ></app-empty-state>
+        }
+      </app-section>
+    } @else {
+      <app-section>
+        <div class="warehouses-grid">
+          @for (warehouse of filteredWarehouses; track warehouse.id) {
+            <app-card class="warehouse-card">
+              <div class="warehouse-header">
+                <lucide-icon [img]="icons.Warehouse" class="warehouse-icon"></lucide-icon>
+                <h3 class="warehouse-name">{{ warehouse.name }}</h3>
+              </div>
+              @if (warehouse.location) {
+                <div class="warehouse-location">
+                  <lucide-icon [img]="icons.MapPin" class="location-icon"></lucide-icon>
+                  <span>{{ warehouse.location }}</span>
+                </div>
+              } @else {
+                <p class="warehouse-location empty">
+                  <lucide-icon [img]="icons.MapPin" class="location-icon"></lucide-icon>
+                  <span>No location specified</span>
+                </p>
+              }
+              <div class="warehouse-status" [class.active]="warehouse.isActive">
+                <span class="status-dot"></span>
+                {{ warehouse.isActive ? 'Active' : 'Inactive' }}
+              </div>
+            </app-card>
           }
-          <div class="warehouse-status" [class.active]="warehouse.isActive">
-            <span class="status-dot"></span>
-            {{ warehouse.isActive ? 'Active' : 'Inactive' }}
-          </div>
-        </ui-card>
-      }
-    </div>
-  }
-</div>
+        </div>
+      </app-section>
+    }
+  </app-page-body>
+</app-page>
+

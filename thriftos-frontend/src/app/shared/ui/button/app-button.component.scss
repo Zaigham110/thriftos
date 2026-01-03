@@ -1,0 +1,81 @@
+// ===============================
+// APP-BUTTON STYLES (LOCKED)
+// ===============================
+
+.app-button {
+  height: 36px;
+  padding: 0 var(--space-lg);
+  font-size: var(--font-size-body);
+  font-weight: 500;
+  font-family: var(--font-family);
+  border-radius: var(--border-radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  white-space: nowrap;
+
+  // PRIMARY VARIANT
+  &[data-variant='primary'] {
+    background-color: var(--app-primary);
+    color: white;
+    border-color: var(--app-primary);
+
+    &:hover:not(:disabled) {
+      background-color: var(--app-primary-hover);
+      border-color: var(--app-primary-hover);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+  }
+
+  // SECONDARY VARIANT
+  &[data-variant='secondary'] {
+    background-color: var(--app-bg-surface);
+    color: var(--app-text-secondary);
+    border-color: var(--app-border-subtle);
+
+    &:hover:not(:disabled) {
+      background-color: var(--app-bg-page);
+      border-color: var(--app-border-strong);
+      color: var(--app-text-primary);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+  }
+
+  // DANGER VARIANT
+  &[data-variant='danger'] {
+    background-color: var(--app-danger);
+    color: white;
+    border-color: var(--app-danger);
+
+    &:hover:not(:disabled) {
+      background-color: var(--app-danger-hover);
+      border-color: var(--app-danger-hover);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+  }
+
+  // DISABLED STATE
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  // Focus state
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+  }
+}

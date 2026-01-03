@@ -2,10 +2,16 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 import { CommonModule } from '@angular/common';
 import { LucideAngularModule, AlertCircle, CheckCircle, AlertTriangle, Info, X } from 'lucide-angular';
 
-export type AlertVariant = 'info' | 'success' | 'warning' | 'danger';
+export type AlertVariant =
+  | 'default'
+  | 'info'
+  | 'success'
+  | 'warning'
+  | 'danger'
+  | 'destructive';
 
 @Component({
-  selector: 'ui-alert',
+  selector: 'ui-alert, app-alert',
   standalone: true,
   imports: [CommonModule, LucideAngularModule],
   templateUrl: './alert.html',
@@ -24,15 +30,22 @@ export class AlertComponent {
     success: CheckCircle,
     warning: AlertTriangle,
     danger: AlertCircle,
+    destructive: AlertCircle,
     close: X,
   };
 
   get alertClasses(): string {
-    return `alert alert-${this.variant()}`;
+    const variant =
+      this.variant() === 'destructive' ? 'danger' : this.variant() === 'default' ? 'info' : this.variant();
+    return `alert alert-${variant}`;
   }
 
   get icon() {
-    return this.icons[this.variant()];
+    const key = (this.variant() === 'default' ? 'info' : this.variant()) as Exclude<
+      AlertVariant,
+      'default'
+    >;
+    return this.icons[key];
   }
 
   dismiss(): void {

@@ -53,7 +53,7 @@ export class ProcurementReportsController {
     });
 
     const data = await this.service.vendorProcurementSummary(tenantId, filters);
-    return { data };
+    return { data, total: data.length };
   }
 
   @Get('vendors/summary/export')
@@ -75,9 +75,84 @@ export class ProcurementReportsController {
     });
 
     const data = await this.service.vendorProcurementSummary(tenantId, filters);
-    const csv = toCsv(data, ['vendorId', 'vendorName', 'totalWeightKg', 'totalCost', 'avgCostPerKg']);
+    const csv = toCsv(data, ['vendorId', 'vendorName', 'totalContainers', 'totalWeightKg', 'totalCost', 'avgCostPerKg']);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="vendor-procurement-summary.csv"');
+    return res.status(200).send(csv);
+  }
+
+  @Get('summary')
+  @RequirePermissions('REPORTS_VIEW')
+  async procurementSummaryJson(
+    @Query() filters: ReportFiltersDto,
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+  ) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    await this.audit.logAccess({
+      tenantId,
+      userId: user.userId,
+      report: 'procurement.summary',
+      exported: false,
+      params: { startDate: filters.startDate, endDate: filters.endDate },
+    });
+    return await this.service.procurementSummary(tenantId, filters);
+  }
+
+  @Get('summary/export')
+  @RequirePermissions('REPORTS_EXPORT')
+  async procurementSummaryExportCsv(
+    @Query() filters: ReportFiltersDto,
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    await this.audit.logAccess({
+      tenantId,
+      userId: user.userId,
+      report: 'procurement.summary',
+      exported: true,
+      params: { startDate: filters.startDate, endDate: filters.endDate },
+    });
+    const result = await this.service.procurementSummary(tenantId, filters);
+    const flat = (result.data as any[]).map((r) => ({
+      purchaseOrderId: r.purchaseOrderId,
+      poNumber: r.poNumber,
+      poType: r.poType,
+      status: r.status,
+      currency: r.currency,
+      vendorName: r.vendorName,
+      createdAt: r.createdAt,
+      poTotalCost: r.poTotalCost,
+      containersCount: r.containers?.count,
+      containersWeightKg: r.containers?.weightKg,
+      containersCost: r.containers?.cost,
+      looseBalesCount: r.looseBales?.count,
+      looseBalesWeightKg: r.looseBales?.weightKg,
+      looseBalesCost: r.looseBales?.cost,
+      computedProcurementCost: r.computedProcurementCost,
+      costDelta: r.costDelta,
+    }));
+    const csv = toCsv(flat as any[], [
+      'poNumber',
+      'poType',
+      'status',
+      'currency',
+      'vendorName',
+      'createdAt',
+      'poTotalCost',
+      'containersCount',
+      'containersWeightKg',
+      'containersCost',
+      'looseBalesCount',
+      'looseBalesWeightKg',
+      'looseBalesCost',
+      'computedProcurementCost',
+      'costDelta',
+    ]);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="procurement-summary.csv"');
     return res.status(200).send(csv);
   }
 }

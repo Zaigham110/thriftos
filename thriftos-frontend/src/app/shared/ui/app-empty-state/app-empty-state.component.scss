@@ -1,0 +1,33 @@
+.app-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl) var(--space-lg);
+  text-align: center;
+}
+
+.empty-icon {
+  margin-bottom: var(--space-md);
+  color: var(--app-text-muted);
+  opacity: 0.5;
+}
+
+.empty-title {
+  margin: 0 0 var(--space-xs) 0;
+  font-size: var(--font-size-section-title);
+  font-weight: 600;
+  color: var(--app-text-primary);
+}
+
+.empty-message {
+  margin: 0 0 var(--space-lg) 0;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-body);
+  color: var(--app-text-secondary);
+  max-width: 400px;
+}
+
+.empty-action {
+  margin-top: var(--space-md);
+}

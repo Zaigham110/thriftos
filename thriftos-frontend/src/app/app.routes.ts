@@ -1,146 +1,129 @@
 /**
- * Application Routes - Phase 1: Authentication & Shell
+ * ===============================
+ * APPLICATION ROUTES - PHASE 0
+ * ===============================
  * 
  * Route Structure:
- * - /login - Public login page
- * - /error/403 - Access denied
- * - /error/404 - Page not found
- * - /admin/super/* - Super Admin routes (superAdminGuard)
- * - /app/* - Authenticated tenant routes (authGuard)
+ * - /auth/login - Public login page
+ * - /auth/no-tenant - No tenant assigned
+ * - /auth/unauthorized - Access restricted
+ * - /* - Authenticated routes with shell
  */
 
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth-guard';
-import { superAdminGuard } from './core/guards/super-admin-guard';
-import { AppShellComponent } from './core/layout/app-shell/app-shell';
 
 export const routes: Routes = [
-  // Public routes
-  {
-    path: 'login',
-    loadComponent: () =>
-      import('./features/auth/login/login').then((m) => m.LoginComponent),
-    title: 'Login - ThriftOS',
-  },
-
-  // Error pages
-  {
-    path: 'error/403',
-    loadComponent: () =>
-      import('./features/error/forbidden/forbidden').then((m) => m.ForbiddenComponent),
-    title: 'Access Denied - ThriftOS',
-  },
-  {
-    path: 'error/404',
-    loadComponent: () =>
-      import('./features/error/not-found/not-found').then((m) => m.NotFoundComponent),
-    title: 'Page Not Found - ThriftOS',
-  },
-
-  // Authenticated routes with App Shell
+  // Default redirect
   {
     path: '',
-    component: AppShellComponent,
+    redirectTo: '/dashboard',
+    pathMatch: 'full',
+  },
+
+  // Auth routes (public)
+  {
+    path: 'auth/login',
+    loadComponent: () =>
+      import('./features/auth/login/login.component').then((m) => m.LoginComponent),
+    title: 'Sign in - ThriftOS',
+  },
+  {
+    path: 'auth/no-tenant',
+    loadComponent: () =>
+      import('./features/auth/no-tenant/no-tenant.component').then((m) => m.NoTenantComponent),
+    title: 'No Tenant - ThriftOS',
+  },
+  {
+    path: 'auth/unauthorized',
+    loadComponent: () =>
+      import('./features/auth/unauthorized/unauthorized.component').then((m) => m.UnauthorizedComponent),
+    title: 'Access Restricted - ThriftOS',
+  },
+
+  // Legacy login redirect
+  {
+    path: 'login',
+    redirectTo: '/auth/login',
+    pathMatch: 'full',
+  },
+
+  // Authenticated routes with shell
+  {
+    path: '',
+    loadComponent: () =>
+      import('./features/shell/shell.component').then((m) => m.ThriftShellComponent),
     canActivate: [authGuard],
     children: [
-      // Super Admin routes
+      // Phase-0: ALL authenticated routes render the placeholder only.
       {
-        path: 'admin/super',
-        canActivate: [superAdminGuard],
+        path: 'dashboard',
+        loadComponent: () =>
+          import('./features/dashboard/dashboard/dashboard').then((m) => m.DashboardComponent),
+        title: 'Dashboard - ThriftOS',
+      },
+
+      // Procurement (Phase-2 module)
+      {
+        path: 'procurement',
         loadChildren: () =>
-          import('./modules/admin/super-admin/super-admin.routes').then(
-            (m) => m.SUPER_ADMIN_ROUTES
-          ),
+          import('./modules/procurement/procurement.routes').then((m) => m.PROCUREMENT_ROUTES),
       },
 
-      // Tenant application routes
+      // Sorting
       {
-        path: 'app',
-        children: [
-          {
-            path: 'dashboard',
-            loadComponent: () =>
-              import('./features/dashboard/dashboard/dashboard').then(
-                (m) => m.DashboardComponent
-              ),
-            title: 'Dashboard - ThriftOS',
-          },
-          // Procurement module
-          {
-            path: 'procurement',
-            loadChildren: () =>
-              import('./modules/procurement/procurement.routes').then(
-                (m) => m.PROCUREMENT_ROUTES
-              ),
-          },
-          // Sorting Stage 1 module (Phase 3)
-          {
-            path: 'sorting/stage1',
-            loadChildren: () =>
-              import('./modules/sorting-stage1/sorting-stage1.routes').then(
-                (m) => m.SORTING_STAGE1_ROUTES
-              ),
-          },
-          // Sorting Stage 2 module (Phase 4: Grading)
-          {
-            path: 'sorting/stage2',
-            loadChildren: () =>
-              import('./modules/sorting-stage2/sorting-stage2.routes').then(
-                (m) => m.SORTING_STAGE2_ROUTES
-              ),
-          },
-          // Repack module (Phase 5: Repack & QR Code Generation)
-          {
-            path: 'repack',
-            loadChildren: () =>
-              import('./modules/repack/repack.routes').then(
-                (m) => m.REPACK_ROUTES
-              ),
-          },
-          // Inventory module (Phase 6: Inventory Management)
-          {
-            path: 'inventory',
-            loadChildren: () =>
-              import('./modules/inventory/inventory.routes').then(
-                (m) => m.INVENTORY_ROUTES
-              ),
-          },
-          // Reports module (Phase 7: Reports & Analytics)
-          {
-            path: 'reports',
-            loadChildren: () =>
-              import('./modules/reports/reports.routes').then(
-                (m) => m.REPORTS_ROUTES
-              ),
-          },
-          // Admin module (Phase 8: Tenant Administration)
-          {
-            path: 'admin',
-            loadChildren: () =>
-              import('./modules/admin/admin.routes').then(
-                (m) => m.ADMIN_ROUTES
-              ),
-          },
-          {
-            path: '',
-            redirectTo: 'dashboard',
-            pathMatch: 'full',
-          },
-        ],
+        path: 'sorting',
+        loadChildren: () =>
+          import('./modules/sorting/sorting.routes').then((m) => m.SORTING_ROUTES),
       },
 
-      // Default redirect based on role
+      // Packaging
       {
-        path: '',
-        redirectTo: 'app/dashboard',
+        path: 'packaging/repack',
+        loadChildren: () =>
+          import('./modules/repack/repack.routes').then((m) => m.REPACK_ROUTES),
+      },
+      {
+        path: 'packaging/draft-packs',
+        loadComponent: () =>
+          import('./features/shell/module-placeholder.component').then((m) => m.ModulePlaceholderComponent),
+        title: 'Draft Packs - ThriftOS',
+      },
+
+      // Inventory / Reports / Settings
+      {
+        path: 'inventory',
+        loadChildren: () =>
+          import('./modules/inventory/inventory.routes').then((m) => m.INVENTORY_ROUTES),
+      },
+      {
+        path: 'reports',
+        loadChildren: () =>
+          import('./modules/reports/reports.routes').then((m) => m.REPORTS_ROUTES),
+      },
+      {
+        path: 'admin',
+        loadChildren: () =>
+          import('./modules/admin/admin.routes').then((m) => m.ADMIN_ROUTES),
+      },
+
+      // Redirects for group roots
+      {
+        path: 'sorting',
+        redirectTo: 'sorting/stage-1',
+        pathMatch: 'full',
+      },
+      {
+        path: 'packaging',
+        redirectTo: 'packaging/repack',
         pathMatch: 'full',
       },
     ],
   },
 
-  // Catch-all redirect to 404
+  // Fallback
   {
     path: '**',
-    redirectTo: 'error/404',
+    redirectTo: '/dashboard',
   },
 ];

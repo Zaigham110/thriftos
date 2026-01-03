@@ -51,9 +51,6 @@ let CategoryOutputService = class CategoryOutputService {
         const skip = (page - 1) * limit;
         const where = {
             tenantId,
-            gradeSessions: {
-                none: {},
-            },
             sortCategoryBucket: {
                 is: {
                     sortSession: {
@@ -63,6 +60,10 @@ let CategoryOutputService = class CategoryOutputService {
                     },
                 },
             },
+            OR: [
+                { gradeSessions: { none: {} } },
+                { gradeSessions: { some: { status: client_1.GradeStatus.OPEN } } },
+            ],
         };
         const [data, total] = await Promise.all([
             this.prisma.categoryOutput.findMany({
@@ -74,6 +75,11 @@ let CategoryOutputService = class CategoryOutputService {
                     category: { select: { id: true, name: true } },
                     container: { select: { id: true, containerNumber: true } },
                     rag: { select: { id: true, ragCode: true } },
+                    gradeSessions: {
+                        select: { id: true, status: true },
+                        orderBy: { createdAt: 'desc' },
+                        take: 1,
+                    },
                     sortCategoryBucket: {
                         include: {
                             sortSession: {
@@ -91,8 +97,22 @@ let CategoryOutputService = class CategoryOutputService {
             }),
             this.prisma.categoryOutput.count({ where }),
         ]);
+        const dataWithStatus = data.map((item) => {
+            let gradeStatus = 'NOT_STARTED';
+            if (item.gradeSessions && item.gradeSessions.length > 0) {
+                gradeStatus = item.gradeSessions[0].status === 'OPEN' ? 'IN_PROGRESS' : 'GRADED';
+            }
+            return { ...item, gradeStatus };
+        });
+        dataWithStatus.sort((a, b) => {
+            if (a.gradeStatus === 'IN_PROGRESS' && b.gradeStatus !== 'IN_PROGRESS')
+                return -1;
+            if (a.gradeStatus !== 'IN_PROGRESS' && b.gradeStatus === 'IN_PROGRESS')
+                return 1;
+            return 0;
+        });
         return {
-            data,
+            data: dataWithStatus,
             total,
             page,
             limit,

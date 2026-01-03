@@ -1,10 +1,60 @@
 @use '../../../../styles/variables' as *;
 @use '../../../../styles/mixins' as *;
 
+.app-data-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dt-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dt-title-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.dt-subtitle {
+  margin-top: 0.125rem;
+  font-size: 0.75rem;
+  color: $text-secondary;
+}
+
+.dt-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dt-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.dt-search {
+  width: 220px;
+}
+
+.dt-filter-slot {
+  flex: 1;
+  min-width: 0;
+}
+
+.dt-filter-actions {
+  flex: 0 0 auto;
+}
+
 .table-wrapper {
   overflow-x: auto;
   border: 1px solid $border-default;
-  border-radius: $radius-lg;
+  border-radius: $radius-md;
 }
 
 .data-table {
@@ -24,42 +74,57 @@
 
 .data-table-th {
   @include table-header;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: $text-secondary;
+  padding: 0.375rem 0.625rem;
+
+  &.is-sortable {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .th-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .th-sort {
+    margin-left: 0.25rem;
+    display: inline-flex;
+    color: $text-secondary;
+  }
 }
 
-.data-table-body {
-  .data-table-striped & {
-    tr:nth-child(odd) {
-      background-color: $bg-card;
-    }
+.data-table-filter-row {
+  background-color: $bg-section;
 
-    tr:nth-child(even) {
-      background-color: $bg-app;
-    }
+  .data-table-th {
+    padding: 0.25rem 0.625rem;
+    text-transform: none;
+    letter-spacing: normal;
   }
 }
 
 .data-table-row {
   transition: background-color $transition-fast;
 
-  .data-table-hoverable & {
-    &:hover {
-      background-color: $bg-section;
-    }
+  &:hover {
+    background-color: $bg-section;
   }
 }
 
 .data-table-td {
   @include table-cell;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: $text-primary;
+  padding: 0.375rem 0.625rem;
 }
 
 .data-table-empty {
-  padding: 0;
+  padding: 0.75rem;
 }
 
 .text-left {
@@ -74,24 +139,56 @@
   text-align: right;
 }
 
+
+.dt-row-actions {
+  opacity: 0;
+  transition: opacity $transition-fast;
+}
+
+.data-table-row:hover .dt-row-actions {
+  opacity: 1;
+}
+
+.dt-empty-fallback {
+  margin-top: 0.5rem;
+}
+
 .skeleton {
-  height: 1rem;
-  background: linear-gradient(
-    90deg,
-    $bg-section 25%,
-    $bg-app 50%,
-    $bg-section 75%
-  );
-  background-size: 200% 100%;
-  animation: skeleton-loading 1.5s ease-in-out infinite;
+  height: 0.75rem;
+  background-color: $bg-section;
   border-radius: $radius-sm;
 }
 
-@keyframes skeleton-loading {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
+.dt-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.dt-pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dt-page-meta {
+  font-size: 0.75rem;
+  color: $text-secondary;
+  padding: 0 0.25rem;
+}
+
+.dt-counts {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dt-count {
+  font-size: 0.75rem;
+  color: $text-secondary;
+}
+
+.dt-page-size {
+  width: 84px;
 }

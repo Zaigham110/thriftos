@@ -3,7 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../audit/audit.service';
 import { CreateSortSessionDto, UpdateSortSessionDto } from './dto';
 import { Decimal } from '@prisma/client/runtime/library';
-import { SortStatus, RagStatus } from '@prisma/client';
+import { SortStatus, RagStatus, WasteStage } from '@prisma/client';
 
 @Injectable()
 export class SortSessionService {
@@ -213,9 +213,18 @@ export class SortSessionService {
    * Phase 2.5 Domain Rules (LOCKED):
    * - On close, Rag status transitions to SORTED (permanently closed)
    * - CategoryOutput MUST carry containerId, ragId, sortSessionId for traceability
-   * - SortingWaste MUST be created with full traceability
+   * 
+   * Waste Rules (LOCKED):
+   * - Waste is recorded explicitly via categorized WasteLineItem entries
+   * - At seal, declaredWaste must exactly equal computed waste
+   * - If remaining waste > 0 at seal, wasteCategoryId must be provided to create the final remainder line
    */
-  async close(tenantId: string, sessionId: string, currentUserId: string) {
+  async close(
+    tenantId: string,
+    sessionId: string,
+    currentUserId: string,
+    options?: { wasteCategoryId?: string },
+  ) {
     const result = await this.prisma.$transaction(async (tx) => {
       const session = await tx.sortSession.findFirst({
         where: { id: sessionId, tenantId },
@@ -243,7 +252,50 @@ export class SortSessionService {
         throw new BadRequestException('wasteWeight cannot be negative (output exceeds input)');
       }
 
-      const wasteWeight = session.totalInputWeight.sub(totalOutputWeight);
+      const computedWasteWeight = session.totalInputWeight.sub(totalOutputWeight);
+
+      const existingWasteAgg = await tx.wasteLineItem.aggregate({
+        where: { tenantId, stage: WasteStage.STAGE_1, sortSessionId: sessionId },
+        _sum: { amount: true },
+      });
+      const declaredWasteAmount = existingWasteAgg._sum.amount || new Decimal(0);
+
+      if (declaredWasteAmount.greaterThan(computedWasteWeight)) {
+        throw new BadRequestException('Declared waste exceeds computed waste');
+      }
+
+      const remainingWasteAmount = computedWasteWeight.sub(declaredWasteAmount);
+      if (remainingWasteAmount.greaterThan(new Decimal(0))) {
+        if (!options?.wasteCategoryId) {
+          throw new BadRequestException('wasteCategoryId is required to seal when remaining waste > 0');
+        }
+
+        const category = await tx.wasteCategory.findFirst({
+          where: { id: options.wasteCategoryId, tenantId, isActive: true },
+        });
+        if (!category) {
+          throw new BadRequestException('Invalid waste category');
+        }
+
+        // Phase 2.5: Get traceability chain (for waste line)
+        const containerId = session.rag?.containerId ?? session.incomingBale?.containerId ?? null;
+        const ragId = session.ragId;
+
+        await tx.wasteLineItem.create({
+          data: {
+            tenantId,
+            stage: WasteStage.STAGE_1,
+            wasteCategoryId: category.id,
+            amount: remainingWasteAmount,
+            unitType: category.unitType,
+            estimatedValue: remainingWasteAmount.mul(category.defaultResalePrice),
+            sortSessionId: sessionId,
+            containerId,
+            ragId: ragId || null,
+            categoryOutputId: null,
+          },
+        });
+      }
 
       const yieldPercent = session.totalInputWeight.equals(new Decimal(0))
         ? new Decimal(0)
@@ -279,19 +331,6 @@ export class SortSessionService {
         );
       }
 
-      // Phase 2.5: Create SortingWaste record with full traceability
-      if (wasteWeight.greaterThan(new Decimal(0))) {
-        await tx.sortingWaste.create({
-          data: {
-            tenantId,
-            sortSessionId: sessionId,
-            containerId,
-            ragId: ragId!,
-            weightKg: wasteWeight,
-          },
-        });
-      }
-
       // Phase 2.5: Transition Rag status to SORTED (permanently closed)
       if (ragId) {
         await tx.rag.update({
@@ -306,11 +345,17 @@ export class SortSessionService {
           status: SortStatus.CLOSED,
           endTime: new Date(),
           totalOutputWeight,
-          wasteWeight,
+          // Keep wasteWeight as computed waste for legacy fields
+          wasteWeight: computedWasteWeight,
         },
       });
 
-      return { session: updatedSession, outputs, yieldPercent: yieldPercent.toNumber(), wasteWeight };
+      return {
+        session: updatedSession,
+        outputs,
+        yieldPercent: yieldPercent.toNumber(),
+        wasteWeight: computedWasteWeight,
+      };
     });
 
     await this.auditService.log({

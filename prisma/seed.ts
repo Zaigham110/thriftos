@@ -218,6 +218,7 @@ async function main() {
     { code: 'REPACK_CREATE', name: 'Repack - Create', group: 'Repack' },
     { code: 'REPACK_EDIT', name: 'Repack - Edit', group: 'Repack' },
     { code: 'REPACK_CLOSE', name: 'Repack - Close', group: 'Repack' },
+    { code: 'REPACK_ALLOCATE', name: 'Repack - Allocate', group: 'Repack' },
     
     // Inventory
     { code: 'inventory.read', name: 'View Inventory', group: 'Inventory' },

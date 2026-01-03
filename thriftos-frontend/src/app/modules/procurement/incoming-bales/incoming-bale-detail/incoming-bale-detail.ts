@@ -1,27 +1,30 @@
-/**
- * Incoming Bale Detail Component
- * Phase 2: Procurement UI
- * 
- * Route: /app/procurement/incoming-bales/:id
- */
-
-import { Component, OnInit, inject, signal, ChangeDetectionStrategy, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed } from '@angular/core';
+import { CommonModule, DatePipe, CurrencyPipe, DecimalPipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { LucideAngularModule, ArrowLeft, Edit, Trash2, Package, Calendar, Scale, DollarSign } from 'lucide-angular';
 import { ProcurementService } from '../../procurement.service';
 import { IncomingBale } from '../../procurement.models';
 import { AuthService } from '../../../../core/auth/auth';
 import { TenantService } from '../../../../core/tenant/tenant.service';
 import {
-  CardComponent,
-  ButtonComponent,
-  AlertComponent,
-  BreadcrumbComponent,
-  BreadcrumbItem,
-  BadgeComponent,
-  SkeletonComponent,
-  ModalComponent,
+  AppBadgeComponent,
+  AppBreadcrumbComponent,
+  AppButtonComponent,
+  AppCardComponent,
+  AppDialogComponent,
+  AppErrorStateComponent,
+  AppLinkComponent,
+  AppLoadingComponent,
+  AppPageBodyComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppSectionBodyComponent,
+  AppSectionComponent,
+  AppSectionHeaderComponent,
+  AppSplitAsideComponent,
+  AppSplitComponent,
+  AppSplitMainComponent,
+  AppStackComponent,
+  type BreadcrumbItem,
 } from '../../../../shared/ui';
 
 @Component({
@@ -30,51 +33,82 @@ import {
   imports: [
     CommonModule,
     RouterLink,
-    LucideAngularModule,
-    CardComponent,
-    ButtonComponent,
-    AlertComponent,
-    BreadcrumbComponent,
-    BadgeComponent,
-    SkeletonComponent,
-    ModalComponent,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppSectionComponent,
+    AppSectionHeaderComponent,
+    AppSectionBodyComponent,
+    AppStackComponent,
+    AppBreadcrumbComponent,
+    AppButtonComponent,
+    AppCardComponent,
+    AppBadgeComponent,
+    AppLoadingComponent,
+    AppErrorStateComponent,
+    AppDialogComponent,
+    AppLinkComponent,
+    AppSplitComponent,
+    AppSplitMainComponent,
+    AppSplitAsideComponent,
+    DatePipe,
+    CurrencyPipe,
+    DecimalPipe,
   ],
   templateUrl: './incoming-bale-detail.html',
   styleUrl: './incoming-bale-detail.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class IncomingBaleDetailComponent implements OnInit {
-  private route = inject(ActivatedRoute);
-  private router = inject(Router);
-  private procurementService = inject(ProcurementService);
-  private authService = inject(AuthService);
-  private tenantService = inject(TenantService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly procurementService = inject(ProcurementService);
+  private readonly authService = inject(AuthService);
+  private readonly tenantService = inject(TenantService);
 
-  readonly icons = {
-    ArrowLeft,
-    Edit,
-    Trash2,
-    Package,
-    Calendar,
-    Scale,
-    DollarSign,
-  };
+  readonly bale = signal<IncomingBale | null>(null);
+  readonly loading = signal(true);
+  readonly error = signal<string | null>(null);
+  readonly deleting = signal(false);
+  readonly showDeleteDialog = signal(false);
+  
+  readonly breadcrumbs = computed<BreadcrumbItem[]>(() => {
+    const b = this.bale();
+    return [
+      { label: 'Home', route: '/dashboard' },
+      { label: 'Procurement', route: '/procurement/dashboard' },
+      { label: 'Loose Bales', route: '/procurement/loose-bales' },
+      { label: b ? b.baleCode : 'Loading...' },
+    ];
+  });
 
-  breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Home', link: '/app/dashboard' },
-    { label: 'Procurement', link: '/app/procurement' },
-    { label: 'Incoming Bales', link: '/app/procurement/incoming-bales' },
-    { label: 'Loading...' },
-  ];
+  readonly currencyCode = computed(() => 
+    this.bale()?.purchaseOrder?.currency || 
+    this.tenantService.tenant()?.currency || 
+    'USD'
+  );
 
-  bale = signal<IncomingBale | null>(null);
-  loading = signal(true);
-  error = signal<string | null>(null);
-  deleting = signal(false);
-  showDeleteDialog = signal(false);
-  readonly currencyCode = computed(() => this.bale()?.purchaseOrder?.currency || this.tenantService.tenant()?.currency || 'USD');
+  readonly costPerKg = computed(() => {
+    const b = this.bale();
+    if (!b || b.weightKg === 0) return 0;
+    return b.cost / b.weightKg;
+  });
 
-  canEdit = false;
+  readonly canEdit = computed(() => {
+    const b = this.bale();
+    if (!b) return false;
+    // Check permissions
+    const permissions = this.authService.permissions();
+    const isSuperAdmin = this.authService.isSuperAdmin();
+    const hasPermission = permissions.includes('po.update') || isSuperAdmin;
+    if (!hasPermission) return false;
+    // Cannot edit if bale has been sorted
+    if (b.sortSessions && b.sortSessions.length > 0) return false;
+    // Cannot edit if PO is closed
+    if (b.purchaseOrder?.status === 'CLOSED') return false;
+    return true;
+  });
+
   canDelete = false;
 
   ngOnInit(): void {
@@ -86,11 +120,10 @@ export class IncomingBaleDetailComponent implements OnInit {
   private checkPermissions(): void {
     const permissions = this.authService.permissions();
     const isSuperAdmin = this.authService.isSuperAdmin();
-    this.canEdit = permissions.includes('po.update') || isSuperAdmin;
     this.canDelete = isSuperAdmin;
   }
 
-  private loadBale(): void {
+  loadBale(): void {
     const id = this.route.snapshot.paramMap.get('id');
     if (!id) {
       this.error.set('Bale ID not found');
@@ -98,13 +131,13 @@ export class IncomingBaleDetailComponent implements OnInit {
       return;
     }
 
+    this.loading.set(true);
     this.procurementService.getIncomingBale(id).subscribe({
       next: (bale: IncomingBale) => {
+        console.log('Bale data received:', bale);
+        console.log('Purchase Order:', bale.purchaseOrder);
+        console.log('Purchase Order ID:', bale.purchaseOrderId);
         this.bale.set(bale);
-        this.breadcrumbs = [
-          ...this.breadcrumbs.slice(0, -1),
-          { label: bale.baleCode },
-        ];
         this.loading.set(false);
       },
       error: (err: { error?: { message?: string } }) => {
@@ -131,7 +164,7 @@ export class IncomingBaleDetailComponent implements OnInit {
       next: () => {
         this.deleting.set(false);
         this.showDeleteDialog.set(false);
-        this.router.navigate(['/app/procurement/incoming-bales']);
+        this.router.navigate(['/procurement/loose-bales']);
       },
       error: (err) => {
         this.deleting.set(false);
@@ -139,35 +172,5 @@ export class IncomingBaleDetailComponent implements OnInit {
         this.showDeleteDialog.set(false);
       },
     });
-  }
-
-  formatWeight(weightKg: number): string {
-    return new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-    }).format(weightKg);
-  }
-
-  formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: this.currencyCode(),
-    }).format(amount);
-  }
-
-  formatDate(date: string | Date): string {
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(date));
-  }
-
-  get costPerKg(): number {
-    const bale = this.bale();
-    if (!bale || bale.weightKg === 0) return 0;
-    return bale.cost / bale.weightKg;
   }
 }

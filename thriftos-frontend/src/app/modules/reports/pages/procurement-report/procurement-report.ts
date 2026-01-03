@@ -9,26 +9,24 @@
 
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
-import {
-  LucideAngularModule,
-  DollarSign,
-  ArrowLeft,
-  Download,
-  Scale,
-  Package,
-  Users,
-  TrendingDown,
-} from 'lucide-angular';
 import { ReportsService } from '../../reports.service';
 import { VendorSummaryRow, ReportFilters } from '../../reports.models';
 import { ReportFiltersComponent } from '../../shared/report-filters.component';
 import {
-  CardComponent,
-  AlertComponent,
-  BreadcrumbComponent,
-  BreadcrumbItem,
-  SkeletonComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppPageBodyComponent,
+  AppSectionComponent,
+  AppSectionHeaderComponent,
+  AppSectionBodyComponent,
+  AppDataTableComponent,
+  AppButtonComponent,
+  AppErrorStateComponent,
+  AppLoadingComponent,
+  AppBreadcrumbComponent,
+  AppStackComponent,
+  type DataTableColumn,
+  type BreadcrumbItem
 } from '../../../../shared/ui';
 
 @Component({
@@ -36,13 +34,18 @@ import {
   standalone: true,
   imports: [
     CommonModule,
-    RouterLink,
-    LucideAngularModule,
-    CardComponent,
-    AlertComponent,
-    BreadcrumbComponent,
-    SkeletonComponent,
     ReportFiltersComponent,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppSectionComponent,
+    AppSectionHeaderComponent,
+    AppSectionBodyComponent,
+    AppDataTableComponent,
+    AppButtonComponent,
+    AppErrorStateComponent,
+    AppBreadcrumbComponent,
+    AppStackComponent
   ],
   templateUrl: './procurement-report.html',
   styleUrl: './procurement-report.scss',
@@ -51,19 +54,10 @@ import {
 export class ProcurementReportComponent implements OnInit {
   private readonly reportsService = inject(ReportsService);
 
-  readonly icons = {
-    DollarSign,
-    ArrowLeft,
-    Download,
-    Scale,
-    Package,
-    Users,
-    TrendingDown,
-  };
-
   readonly vendors = signal<VendorSummaryRow[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+  readonly searchText = signal<string>('');
   protected currentFilters: ReportFilters = {};
 
   readonly breadcrumbs: BreadcrumbItem[] = [
@@ -72,25 +66,37 @@ export class ProcurementReportComponent implements OnInit {
     { label: 'Procurement Report' },
   ];
 
-  protected get totalVendors(): number {
-    return this.vendors().length;
-  }
-
-  protected get totalContainers(): number {
-    return this.vendors().reduce((sum, v) => sum + (v.totalContainers || 0), 0);
-  }
-
-  protected get totalCost(): number {
-    return this.vendors().reduce((sum, v) => sum + (v.totalCost || 0), 0);
-  }
-
-  protected get totalWeight(): number {
-    return this.vendors().reduce((sum, v) => sum + (v.totalWeightKg || 0), 0);
-  }
-
-  protected get avgCostPerKg(): number {
-    return this.totalWeight > 0 ? this.totalCost / this.totalWeight : 0;
-  }
+  readonly vendorColumns: DataTableColumn[] = [
+    {
+      key: 'vendorName',
+      label: 'Vendor',
+      sortable: true,
+    },
+    {
+      key: 'totalContainers',
+      label: 'Containers',
+      sortable: true,
+      align: 'right'
+    },
+    {
+      key: 'totalWeightKg',
+      label: 'Weight',
+      sortable: true,
+      align: 'right',
+    },
+    {
+      key: 'totalCost',
+      label: 'Total Cost',
+      sortable: true,
+      align: 'right',
+    },
+    {
+      key: 'avgCostPerKg',
+      label: 'Cost/KG',
+      sortable: true,
+      align: 'right',
+    }
+  ];
 
   protected get exporting(): boolean {
     return this.reportsService.exporting();
@@ -121,34 +127,40 @@ export class ProcurementReportComponent implements OnInit {
     this.loadData(filters);
   }
 
+  onSearchChange(value: string): void {
+    this.searchText.set(value ?? '');
+  }
+
   exportReport(): void {
     this.reportsService.exportVendorSummary(this.currentFilters);
   }
 
-  formatWeight(weight: number): string {
-    if (weight >= 1000) {
-      return `${(weight / 1000).toFixed(2)} T`;
-    }
-    return `${weight.toFixed(2)} KG`;
+  private toNumber(value: unknown): number | null {
+    if (value === null || value === undefined) return null;
+    const n = typeof value === 'number' ? value : Number(String(value));
+    return Number.isFinite(n) ? n : null;
   }
 
-  formatCurrency(value: number): string {
+  formatWeight(weight: unknown): string {
+    const n = this.toNumber(weight);
+    if (n === null) return '—';
+    if (n >= 1000) return `${(n / 1000).toFixed(2)} T`;
+    return `${n.toFixed(2)} KG`;
+  }
+
+  formatNumber(value: number): string {
+    return new Intl.NumberFormat('en-US').format(value);
+  }
+
+  formatCurrency(value: unknown): string {
+    const n = this.toNumber(value);
+    if (n === null) return '—';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2,
-    }).format(value);
+    }).format(n);
   }
 
-  getCostClass(avgCostPerKg: number): string {
-    const overallAvg = this.avgCostPerKg;
-    if (avgCostPerKg < overallAvg * 0.9) return 'cost--low';
-    if (avgCostPerKg > overallAvg * 1.1) return 'cost--high';
-    return 'cost--normal';
-  }
-
-  getVendorShareWidth(totalCost: number): string {
-    const maxCost = Math.max(...this.vendors().map((v) => v.totalCost || 0));
-    return maxCost > 0 ? `${(totalCost / maxCost) * 100}%` : '0%';
-  }
+  // No frontend rollups or chart calculations.
 }

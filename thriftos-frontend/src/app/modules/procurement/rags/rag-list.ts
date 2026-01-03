@@ -1,11 +1,3 @@
-/**
- * Rag List Component
- * Phase 2.5: Container Breakdown
- * 
- * Displays list of Rags/Bales for a container with status-based filtering.
- * Shows "Start Sorting" action for NOT_STARTED rags only.
- */
-
 import {
   Component,
   OnInit,
@@ -15,53 +7,42 @@ import {
   input,
   ChangeDetectionStrategy,
 } from '@angular/core';
-import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
-import { Router, RouterLink } from '@angular/router';
-import {
-  LucideAngularModule,
-  Plus,
-  Play,
-  Edit2,
-  Trash2,
-  Package,
-  Eye,
-  EyeOff,
-  AlertCircle,
-} from 'lucide-angular';
+import { CommonModule, CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { Router } from '@angular/router';
 
 import { RagService } from './rag.service';
 import { Rag, RagStatus, RAG_STATUS_CONFIG, RAG_SOURCE_TYPE_LABELS } from './rag.models';
 import { Container, ContainerStatus } from '../procurement.models';
-import { SortingStage1Service } from '../../sorting-stage1/sorting-stage1.service';
-
 import {
-  ButtonComponent,
-  AlertComponent,
-  BadgeComponent,
-  SkeletonComponent,
-  EmptyStateComponent,
-  ConfirmDialogComponent,
+  AppBadgeComponent,
+  AppButtonComponent,
+  AppCardComponent,
+  AppDataTableComponent,
+  AppDialogComponent,
+  AppEmptyStateComponent,
+  AppErrorStateComponent,
+  AppLoadingComponent,
+  AppStackComponent,
+  type DataTableColumn,
 } from '../../../shared/ui';
-import { RagCreateDrawerComponent } from './rag-create-drawer';
-import { RagEditDrawerComponent } from './rag-edit-drawer';
 
 @Component({
   selector: 'app-rag-list',
   standalone: true,
   imports: [
     CommonModule,
-    RouterLink,
+    CurrencyPipe,
     DatePipe,
     DecimalPipe,
-    LucideAngularModule,
-    ButtonComponent,
-    AlertComponent,
-    BadgeComponent,
-    SkeletonComponent,
-    EmptyStateComponent,
-    ConfirmDialogComponent,
-    RagCreateDrawerComponent,
-    RagEditDrawerComponent,
+    AppStackComponent,
+    AppCardComponent,
+    AppDataTableComponent,
+    AppBadgeComponent,
+    AppButtonComponent,
+    AppDialogComponent,
+    AppLoadingComponent,
+    AppErrorStateComponent,
+    AppEmptyStateComponent,
   ],
   templateUrl: './rag-list.html',
   styleUrl: './rag-list.scss',
@@ -70,62 +51,22 @@ import { RagEditDrawerComponent } from './rag-edit-drawer';
 export class RagListComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly ragService = inject(RagService);
-  private readonly sortingService = inject(SortingStage1Service);
-
-  // =============================================================
-  // INPUTS
-  // =============================================================
 
   readonly container = input.required<Container>();
-
-  // =============================================================
-  // ICONS
-  // =============================================================
-
-  readonly icons = {
-    plus: Plus,
-    play: Play,
-    edit: Edit2,
-    trash: Trash2,
-    package: Package,
-    eye: Eye,
-    eyeOff: EyeOff,
-    alertCircle: AlertCircle,
-  };
-
-  // =============================================================
-  // STATE
-  // =============================================================
 
   readonly rags = signal<Rag[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly actionLoading = signal(false);
-  
-  // Filter state
+
   readonly showSorted = signal(false);
-  
-  // Drawer state
-  readonly showCreateDrawer = signal(false);
-  readonly showEditDrawer = signal(false);
-  readonly editingRag = signal<Rag | null>(null);
-  
-  // Delete confirmation
+
   readonly showDeleteConfirm = signal(false);
   readonly deletingRag = signal<Rag | null>(null);
-  
-  // Start Sorting confirmation
+
   readonly showSortingConfirm = signal(false);
   readonly sortingRag = signal<Rag | null>(null);
 
-  // =============================================================
-  // COMPUTED
-  // =============================================================
-
-  /**
-   * Filter rags based on showSorted toggle
-   * By default, hide SORTED rags (Phase 2.5 requirement)
-   */
   readonly filteredRags = computed(() => {
     const allRags = this.rags();
     if (this.showSorted()) {
@@ -134,25 +75,18 @@ export class RagListComponent implements OnInit {
     return allRags.filter((r) => r.status !== 'SORTED');
   });
 
-  /**
-   * Container must be RECEIVED or later to allow adding rags
-   */
   readonly canAddRags = computed(() => {
     const cont = this.container();
     const allowedStatuses: ContainerStatus[] = ['ARRIVED', 'CLEARED'];
     return allowedStatuses.includes(cont.status);
   });
 
-  /**
-   * Container must not be closed
-   */
   readonly isContainerClosed = computed(() => {
     return this.container().status === 'CLOSED';
   });
 
-  /**
-   * Calculate total weight of all rags in container
-   */
+  readonly currencyCode = computed(() => this.container().purchaseOrder?.currency || 'USD');
+
   readonly currentTotalWeight = computed(() => {
     return this.rags().reduce((sum, rag) => sum + Number(rag.weightKg), 0);
   });
@@ -163,33 +97,69 @@ export class RagListComponent implements OnInit {
 
   readonly totalCount = computed(() => this.rags().length);
 
-  /**
-   * Delete confirmation message
-   */
+  readonly ragColumns: DataTableColumn[] = [
+    {
+      key: 'ragCode',
+      label: 'Rag Code',
+      sortable: true,
+      filterable: true,
+      getValue: (row) => (row as Rag).ragCode,
+    },
+    {
+      key: 'ragBaleType',
+      label: 'Type',
+      sortable: true,
+      filterable: true,
+      getValue: (row) => (row as Rag).ragBaleType,
+    },
+    {
+      key: 'name',
+      label: 'Category',
+      sortable: true,
+      getValue: (row) => (row as Rag).rawCategory?.name ?? '',
+    },
+    {
+      key: 'weightKg',
+      label: 'Weight (kg)',
+      align: 'right',
+      sortable: true,
+      getValue: (row) => (row as Rag).weightKg,
+    },
+    {
+      key: 'allocatedCost',
+      label: 'Allocated Cost',
+      align: 'right',
+      sortable: true,
+      getValue: (row) => (row as Rag).allocatedCost,
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      sortable: true,
+      filterable: true,
+      getValue: (row) => (row as Rag).status,
+    },
+    {
+      key: 'createdAt',
+      label: 'Created',
+      sortable: true,
+      getValue: (row) => (row as Rag).createdAt,
+    },
+  ];
+
   readonly deleteConfirmMessage = computed(() => {
     const rag = this.deletingRag();
     return `Are you sure you want to delete rag "${rag?.ragCode ?? ''}"? This action cannot be undone.`;
   });
 
-  /**
-   * Start sorting confirmation message
-   */
   readonly sortingConfirmMessage = computed(() => {
     const rag = this.sortingRag();
-    return `Start Sorting Stage 1 for rag "${rag?.ragCode ?? ''}"? This will create a new sorting session and the rag status will change to In Sorting.`;
+    return `Start Sorting Stage 1 for rag "${rag?.ragCode ?? ''}"?`;
   });
-
-  // =============================================================
-  // LIFECYCLE
-  // =============================================================
 
   ngOnInit(): void {
     this.loadRags();
   }
-
-  // =============================================================
-  // DATA LOADING
-  // =============================================================
 
   loadRags(): void {
     const containerId = this.container().id;
@@ -208,50 +178,23 @@ export class RagListComponent implements OnInit {
     });
   }
 
-  // =============================================================
-  // ACTIONS
-  // =============================================================
-
   toggleShowSorted(): void {
     this.showSorted.update((v) => !v);
   }
 
-  openCreateDrawer(): void {
-    this.showCreateDrawer.set(true);
+  navigateToCreate(): void {
+    const containerId = this.container().id;
+    this.router.navigate(['/procurement/containers', containerId, 'rags', 'create']);
   }
 
-  closeCreateDrawer(): void {
-    this.showCreateDrawer.set(false);
-  }
-
-  onRagCreated(rag: Rag): void {
-    this.rags.update((rags) => [rag, ...rags]);
-    this.showCreateDrawer.set(false);
-  }
-
-  openEditDrawer(rag: Rag): void {
+  navigateToEdit(rag: Rag): void {
     if (rag.status !== 'NOT_STARTED') {
       this.error.set('Only rags with status "Not Started" can be edited');
       return;
     }
-    this.editingRag.set(rag);
-    this.showEditDrawer.set(true);
+    this.router.navigate(['/procurement/rags', rag.id, 'edit']);
   }
 
-  closeEditDrawer(): void {
-    this.showEditDrawer.set(false);
-    this.editingRag.set(null);
-  }
-
-  onRagUpdated(updatedRag: Rag): void {
-    this.rags.update((rags) =>
-      rags.map((r) => (r.id === updatedRag.id ? updatedRag : r))
-    );
-    this.showEditDrawer.set(false);
-    this.editingRag.set(null);
-  }
-
-  // Delete
   confirmDelete(rag: Rag): void {
     if (rag.status !== 'NOT_STARTED') {
       this.error.set('Only rags with status "Not Started" can be deleted');
@@ -287,7 +230,6 @@ export class RagListComponent implements OnInit {
     });
   }
 
-  // Start Sorting
   confirmStartSorting(rag: Rag): void {
     if (rag.status !== 'NOT_STARTED') {
       this.error.set('Only rags with status "Not Started" can be sorted');
@@ -309,26 +251,12 @@ export class RagListComponent implements OnInit {
     this.actionLoading.set(true);
     this.showSortingConfirm.set(false);
 
-    // Create sorting session and redirect
-    this.sortingService.createSession({ ragId: rag.id }).subscribe({
-      next: (session) => {
-        this.actionLoading.set(false);
-        // Redirect to sorting session
-        this.router.navigate(['/app/sorting/stage1', session.id]);
-      },
-      error: (err) => {
-        this.error.set(err.message || 'Failed to start sorting session');
-        this.actionLoading.set(false);
-        this.sortingRag.set(null);
-      },
-    });
+    this.actionLoading.set(false);
+    this.sortingRag.set(null);
+    this.router.navigate(['/sorting/stage-1', rag.id]);
   }
 
-  // =============================================================
-  // HELPERS
-  // =============================================================
-
-  getStatusBadgeVariant(status: RagStatus): 'default' | 'warning' | 'success' | 'danger' {
+  getStatusBadgeVariant(status: RagStatus): 'default' | 'primary' | 'success' | 'warning' | 'danger' {
     return RAG_STATUS_CONFIG[status]?.variant || 'default';
   }
 
@@ -345,7 +273,20 @@ export class RagListComponent implements OnInit {
   }
 
   canStartSorting(rag: Rag): boolean {
-    return rag.status === 'NOT_STARTED';
+    return rag.status === 'NOT_STARTED' && !this.isContainerClosed();
+  }
+
+  getSortingTooltip(rag: Rag): string {
+    if (this.isContainerClosed()) {
+      return 'Container is closed';
+    }
+    if (rag.status === 'IN_SORTING') {
+      return 'This rag is currently being sorted';
+    }
+    if (rag.status === 'SORTED') {
+      return 'This rag has already been sorted';
+    }
+    return 'Start Sorting Stage 1 for this rag';
   }
 
   clearError(): void {

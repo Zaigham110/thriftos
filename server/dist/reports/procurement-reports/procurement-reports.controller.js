@@ -48,7 +48,7 @@ let ProcurementReportsController = class ProcurementReportsController {
             params: { startDate: filters.startDate, endDate: filters.endDate },
         });
         const data = await this.service.vendorProcurementSummary(tenantId, filters);
-        return { data };
+        return { data, total: data.length };
     }
     async vendorSummaryExportCsv(filters, user, req, res) {
         const tenantId = req.tenantId || user.tenantId;
@@ -60,9 +60,69 @@ let ProcurementReportsController = class ProcurementReportsController {
             params: { startDate: filters.startDate, endDate: filters.endDate },
         });
         const data = await this.service.vendorProcurementSummary(tenantId, filters);
-        const csv = (0, report_utils_1.toCsv)(data, ['vendorId', 'vendorName', 'totalWeightKg', 'totalCost', 'avgCostPerKg']);
+        const csv = (0, report_utils_1.toCsv)(data, ['vendorId', 'vendorName', 'totalContainers', 'totalWeightKg', 'totalCost', 'avgCostPerKg']);
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         res.setHeader('Content-Disposition', 'attachment; filename="vendor-procurement-summary.csv"');
+        return res.status(200).send(csv);
+    }
+    async procurementSummaryJson(filters, user, req) {
+        const tenantId = req.tenantId || user.tenantId;
+        await this.audit.logAccess({
+            tenantId,
+            userId: user.userId,
+            report: 'procurement.summary',
+            exported: false,
+            params: { startDate: filters.startDate, endDate: filters.endDate },
+        });
+        return await this.service.procurementSummary(tenantId, filters);
+    }
+    async procurementSummaryExportCsv(filters, user, req, res) {
+        const tenantId = req.tenantId || user.tenantId;
+        await this.audit.logAccess({
+            tenantId,
+            userId: user.userId,
+            report: 'procurement.summary',
+            exported: true,
+            params: { startDate: filters.startDate, endDate: filters.endDate },
+        });
+        const result = await this.service.procurementSummary(tenantId, filters);
+        const flat = result.data.map((r) => ({
+            purchaseOrderId: r.purchaseOrderId,
+            poNumber: r.poNumber,
+            poType: r.poType,
+            status: r.status,
+            currency: r.currency,
+            vendorName: r.vendorName,
+            createdAt: r.createdAt,
+            poTotalCost: r.poTotalCost,
+            containersCount: r.containers?.count,
+            containersWeightKg: r.containers?.weightKg,
+            containersCost: r.containers?.cost,
+            looseBalesCount: r.looseBales?.count,
+            looseBalesWeightKg: r.looseBales?.weightKg,
+            looseBalesCost: r.looseBales?.cost,
+            computedProcurementCost: r.computedProcurementCost,
+            costDelta: r.costDelta,
+        }));
+        const csv = (0, report_utils_1.toCsv)(flat, [
+            'poNumber',
+            'poType',
+            'status',
+            'currency',
+            'vendorName',
+            'createdAt',
+            'poTotalCost',
+            'containersCount',
+            'containersWeightKg',
+            'containersCost',
+            'looseBalesCount',
+            'looseBalesWeightKg',
+            'looseBalesCost',
+            'computedProcurementCost',
+            'costDelta',
+        ]);
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename="procurement-summary.csv"');
         return res.status(200).send(csv);
     }
 };
@@ -98,6 +158,27 @@ __decorate([
     __metadata("design:paramtypes", [report_filters_dto_1.ReportFiltersDto, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], ProcurementReportsController.prototype, "vendorSummaryExportCsv", null);
+__decorate([
+    (0, common_1.Get)('summary'),
+    (0, permissions_decorator_1.RequirePermissions)('REPORTS_VIEW'),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [report_filters_dto_1.ReportFiltersDto, Object, Object]),
+    __metadata("design:returntype", Promise)
+], ProcurementReportsController.prototype, "procurementSummaryJson", null);
+__decorate([
+    (0, common_1.Get)('summary/export'),
+    (0, permissions_decorator_1.RequirePermissions)('REPORTS_EXPORT'),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Req)()),
+    __param(3, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [report_filters_dto_1.ReportFiltersDto, Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], ProcurementReportsController.prototype, "procurementSummaryExportCsv", null);
 exports.ProcurementReportsController = ProcurementReportsController = __decorate([
     (0, common_1.Controller)('reports/procurement'),
     (0, common_1.UseGuards)(tenant_guard_1.TenantGuard, permission_guard_1.PermissionGuard),

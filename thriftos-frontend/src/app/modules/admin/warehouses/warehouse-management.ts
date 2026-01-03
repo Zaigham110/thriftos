@@ -8,15 +8,20 @@
 
 import { ChangeDetectionStrategy, Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { LucideAngularModule, Warehouse, RefreshCw, Search, Info, MapPin } from 'lucide-angular';
+import { LucideAngularModule, Warehouse, RefreshCw, Search, Info, MapPin, ArrowLeft } from 'lucide-angular';
 import { AdminService } from '../admin.service';
 import { Warehouse as WarehouseModel } from '../admin.models';
 import {
-  CardComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppPageBodyComponent,
+  AppSectionComponent,
+  AppCardComponent,
+  AppButtonComponent,
+  AppLoadingComponent,
+  AppEmptyStateComponent,
   BreadcrumbComponent,
-  EmptyStateComponent,
-  SkeletonComponent,
-  AlertComponent,
+  type BreadcrumbItem,
 } from '../../../shared/ui';
 
 @Component({
@@ -25,11 +30,15 @@ import {
   imports: [
     CommonModule,
     LucideAngularModule,
-    CardComponent,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppSectionComponent,
+    AppCardComponent,
+    AppButtonComponent,
+    AppLoadingComponent,
+    AppEmptyStateComponent,
     BreadcrumbComponent,
-    EmptyStateComponent,
-    SkeletonComponent,
-    AlertComponent,
   ],
   templateUrl: './warehouse-management.html',
   styleUrl: './warehouse-management.scss',
@@ -44,9 +53,10 @@ export class WarehouseManagementComponent implements OnInit {
     Search,
     Info,
     MapPin,
+    ArrowLeft,
   };
 
-  readonly breadcrumbs = [
+  readonly breadcrumbs: BreadcrumbItem[] = [
     { label: 'Administration', route: '/app/admin' },
     { label: 'Warehouses' },
   ];

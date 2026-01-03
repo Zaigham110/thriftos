@@ -1,53 +1,186 @@
-<div class="table-wrapper">
-  <table class="data-table" [class.data-table-striped]="striped()" [class.data-table-hoverable]="hoverable()">
-    <thead class="data-table-head" [class.data-table-sticky]="stickyHeader()">
-      <tr>
-        @for (column of columns(); track column.key) {
-          <th
-            class="data-table-th"
-            [class]="getAlignClass(column)"
-            [style.width]="column.width"
-          >
-            {{ column.label }}
-          </th>
+<div class="app-data-table">
+  @if (title() || subtitle()) {
+    <div class="dt-header">
+      <div class="dt-title">
+        @if (title()) {
+          <div class="dt-title-text">{{ title() }}</div>
         }
-      </tr>
-    </thead>
-    <tbody class="data-table-body">
-      @if (loading()) {
-        @for (i of [1,2,3,4,5]; track i) {
-          <tr class="data-table-row">
-            @for (column of columns(); track column.key) {
-              <td class="data-table-td">
-                <div class="skeleton skeleton-text"></div>
-              </td>
-            }
-          </tr>
+        @if (subtitle()) {
+          <div class="dt-subtitle">{{ subtitle() }}</div>
         }
-      } @else {
-        @for (row of data(); track $index) {
-          <tr class="data-table-row" (click)="onRowClick(row)">
+      </div>
+      <div class="dt-actions">
+        <ng-content select="[tableActions]"></ng-content>
+      </div>
+    </div>
+  }
+
+  <div class="dt-filters" [class.has-filters]="enableSearch() || enableColumnFilters()">
+    @if (enableSearch()) {
+      <div class="dt-search">
+        <app-form-field>
+          <app-input [formControl]="searchControl" placeholder="Search…" />
+        </app-form-field>
+      </div>
+    }
+
+    <div class="dt-filter-slot">
+      <ng-content select="[filters]"></ng-content>
+    </div>
+
+    @if (hasAnyFilters()) {
+      <div class="dt-filter-actions">
+        <app-button variant="secondary" type="button" (click)="clearFilters()">Clear</app-button>
+      </div>
+    }
+  </div>
+
+  <app-table [loading]="false" [empty]="false">
+    <table>
+      <thead>
+        <tr>
+          @for (column of columns(); track column.key) {
+            <th
+              [class]="getAlignClass(column)"
+              [attr.width]="getColumnWidthAttr(column)"
+              [class.is-sortable]="column.sortable"
+              (click)="onHeaderClick(column)"
+            >
+              <span class="th-label">{{ column.label }}</span>
+              @if (column.sortable) {
+                <span class="th-sort">
+                  <app-icon [name]="sortIconName(column)" size="sm" />
+                </span>
+              }
+            </th>
+          }
+
+          @if (rowActionsTemplate) {
+            <th class="text-right actions" width="120">
+              Actions
+            </th>
+          }
+        </tr>
+
+        @if (enableColumnFilters() && filterableColumns().length) {
+          <tr class="data-table-filter-row">
             @for (column of columns(); track column.key) {
-              <td class="data-table-td" [class]="getAlignClass(column)">
-                @if (cellTemplate) {
-                  <ng-container
-                    [ngTemplateOutlet]="cellTemplate"
-                    [ngTemplateOutletContext]="{ $implicit: row, column: column }"
-                  ></ng-container>
-                } @else {
-                  {{ getCellValue(row, column) }}
+              <th [class]="getAlignClass(column)">
+                @if (column.filterable) {
+                  @if ((column.filterType || (column.filterOptions?.length ? 'select' : 'text')) === 'select') {
+                    <app-form-field>
+                      <app-select
+                        [options]="column.filterOptions || []"
+                        placeholder="All"
+                        [formControl]="filterControlFor(column)"
+                      />
+                    </app-form-field>
+                  } @else {
+                    <app-form-field>
+                      <app-input
+                        [formControl]="filterControlFor(column)"
+                        [type]="(column.filterType === 'number') ? 'number' : 'text'"
+                        placeholder="Filter…"
+                      />
+                    </app-form-field>
+                  }
                 }
-              </td>
+              </th>
+            }
+
+            @if (rowActionsTemplate) {
+              <th></th>
             }
           </tr>
-        } @empty {
-          <tr>
-            <td [attr.colspan]="columns().length" class="data-table-empty">
-              <ng-content select="[emptyState]"></ng-content>
-            </td>
-          </tr>
         }
-      }
-    </tbody>
-  </table>
+      </thead>
+
+      <tbody class="data-table-body">
+        @if (loading()) {
+          @for (i of [1,2,3,4,5]; track i) {
+            <tr>
+              @for (column of columns(); track column.key) {
+                <td>
+                  <div class="skeleton"></div>
+                </td>
+              }
+              @if (rowActionsTemplate) {
+                <td class="text-right"><div class="skeleton"></div></td>
+              }
+            </tr>
+          }
+        } @else {
+          @for (row of visibleRows(); track $index) {
+            <tr (click)="onRowClick(row)">
+              @for (column of columns(); track column.key) {
+                <td [class]="getAlignClass(column)">
+                  @if (cellTemplate) {
+                    <ng-container
+                      [ngTemplateOutlet]="cellTemplate"
+                      [ngTemplateOutletContext]="{ $implicit: row, column: column }"
+                    ></ng-container>
+                  } @else {
+                    {{ getCellValue(row, column) }}
+                  }
+                </td>
+              }
+
+              @if (rowActionsTemplate) {
+                <td class="text-right actions" (click)="$event.stopPropagation()">
+                  <ng-container
+                    [ngTemplateOutlet]="rowActionsTemplate"
+                    [ngTemplateOutletContext]="{ $implicit: row }"
+                  ></ng-container>
+                </td>
+              }
+            </tr>
+          } @empty {
+            <tr>
+              <td [attr.colspan]="columns().length + (rowActionsTemplate ? 1 : 0)" class="data-table-empty">
+                <ng-content select="[emptyState]"></ng-content>
+                <div class="dt-empty-fallback">
+                  <app-empty-state title="No results" message="Try adjusting your filters." />
+                </div>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </app-table>
+
+  <div class="dt-footer">
+    <div class="dt-pagination">
+      <app-button variant="secondary" type="button" (click)="prevPage()" [disabled]="pageIndex() <= 1">
+        Previous
+      </app-button>
+
+      <div class="dt-page-meta">
+        Page {{ pageIndex() }} of {{ totalPages() }}
+      </div>
+
+      <app-button variant="secondary" type="button" (click)="nextPage()" [disabled]="pageIndex() >= totalPages()">
+        Next
+      </app-button>
+    </div>
+
+    <div class="dt-counts">
+      <span class="dt-count">
+        @if (serverSide()) {
+          {{ totalCount() || 0 }} rows
+        } @else {
+          {{ filteredData().length }} rows
+        }
+      </span>
+
+      <div class="dt-page-size">
+        <app-form-field>
+          <app-select
+            [options]="pageSizeSelectOptions()"
+            [formControl]="pageSizeControl"
+          />
+        </app-form-field>
+      </div>
+    </div>
+  </div>
 </div>

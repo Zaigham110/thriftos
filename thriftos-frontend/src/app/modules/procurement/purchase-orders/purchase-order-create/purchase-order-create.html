@@ -1,84 +1,41 @@
-<div class="purchase-order-create">
-  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs" />
+      <h1 class="page-title">Create Purchase Order</h1>
+      <p class="page-subtitle">Start a new container or loose bale procurement</p>
+    </app-stack>
+    <div class="actions"></div>
+  </app-page-header>
 
-  <header class="page-header">
-    <h1>Create Purchase Order</h1>
-    <p class="page-header__subtitle">Start a new container or loose bale procurement</p>
-  </header>
+  <app-page-body>
+    <app-section>
+      <app-section-header>
+        <h2 class="section-title">Details</h2>
+        <div class="actions"></div>
+      </app-section-header>
+      <app-section-body>
+        @if (error()) {
+          <app-error-state title="Failed to create" [message]="error()!" />
+        }
 
-  @if (error()) {
-    <ui-alert variant="danger" [dismissible]="true" (dismissed)="error.set(null)">
-      {{ error() }}
-    </ui-alert>
-  }
+        <app-card>
+          <app-form [formGroup]="form" (submitted)="onSubmit()" title="Purchase Order" subtitle="Fields marked * are required.">
+            <app-form-field label="Procurement Type" [required]="true">
+              <app-select formControlName="poType" [options]="poTypeOptions" />
+            </app-form-field>
 
-  <ui-card class="form-card">
-    <form [formGroup]="form" (ngSubmit)="onSubmit()">
-      <!-- PO Number & Type -->
-      <div class="form-section">
-        <h3 class="section-title">Basic Information</h3>
+            <app-form-field label="Vendor" hint="Optional">
+              <app-select formControlName="vendorId" [options]="vendorOptions()" />
+            </app-form-field>
 
-        <div class="form-grid">
-          <div class="form-field">
-            <ui-select
-              formControlName="poType"
-              label="Procurement Type"
-              [options]="poTypeOptions"
-              [required]="true"
-            ></ui-select>
-          </div>
-
-          <div class="form-field auto-number-info">
-            <p>PO number will be generated automatically after creation.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Vendor Selection -->
-      <div class="form-section">
-        <h3 class="section-title">Vendor</h3>
-
-        <div class="form-field">
-          <app-vendor-select
-            [selectedVendorId]="selectedVendorId()"
-            [showAddButton]="true"
-            label="Select Vendor"
-            hint="Choose an existing vendor or add a new one"
-            (vendorSelected)="onVendorSelected($event)"
-          ></app-vendor-select>
-        </div>
-      </div>
-
-      <!-- Cost Information -->
-      <div class="form-section">
-        <h3 class="section-title">Financial Controls</h3>
-
-        <div class="form-field auto-number-info">
-          <p>
-            Currency is enforced by your tenant settings:
-            <strong>{{ tenantCurrency() || 'Loading…' }}</strong>
-          </p>
-          <p class="muted">
-            Purchase order totals are calculated automatically from container charges and loose bale costs.
-            No manual input is required here.
-          </p>
-        </div>
-      </div>
-
-      <!-- Form Actions -->
-      <div class="form-actions">
-        <ui-button variant="ghost" type="button" (clicked)="cancel()">
-          Cancel
-        </ui-button>
-        <ui-button
-          variant="primary"
-          type="submit"
-          [loading]="isSubmitting()"
-          [disabled]="form.invalid"
-        >
-          Create Purchase Order
-        </ui-button>
-      </div>
-    </form>
-  </ui-card>
-</div>
+            <app-stack direction="horizontal" spacing="sm">
+              <app-button variant="secondary" type="button" (click)="cancel()">Cancel</app-button>
+              <app-button variant="primary" type="submit" [disabled]="form.invalid || isSubmitting()">Create</app-button>
+            </app-stack>
+          </app-form>
+        </app-card>
+      </app-section-body>
+    </app-section>
+  </app-page-body>
+</app-page>

@@ -43,8 +43,8 @@ export declare class GradeSessionService {
                 weightKg: Decimal;
                 allocatedCost: Decimal;
                 ragId: string;
-                sortSessionId: string;
                 categoryId: string;
+                sortSessionId: string;
                 count: number;
             };
             _count: {
@@ -102,8 +102,8 @@ export declare class GradeSessionService {
             weightKg: Decimal;
             allocatedCost: Decimal;
             ragId: string;
-            sortSessionId: string;
             categoryId: string;
+            sortSessionId: string;
             count: number;
             sortCategoryBucketId: string;
         };
@@ -117,20 +117,25 @@ export declare class GradeSessionService {
                 tenantId: string;
                 createdAt: Date;
                 updatedAt: Date;
+                status: import("@prisma/client").$Enums.GradingOutputStatus;
                 weightKg: Decimal;
                 allocatedCost: Decimal;
-                count: number;
                 gradeId: string;
+                count: number;
                 gradeBucketId: string;
+                totalAmount: Decimal;
+                usedAmount: Decimal;
+                remainingAmount: Decimal;
+                measurementType: import("@prisma/client").$Enums.MeasurementType;
             }[];
         } & {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            gradeId: string;
             outputWeightKg: Decimal;
             outputCount: number;
             gradeSessionId: string;
-            gradeId: string;
         })[];
         worker: {
             id: string;
@@ -165,7 +170,9 @@ export declare class GradeSessionService {
         endTime: Date | null;
         categoryOutputId: string;
     }>;
-    close(tenantId: string, sessionId: string, currentUserId: string): Promise<{
+    close(tenantId: string, sessionId: string, currentUserId: string, options?: {
+        wasteCategoryId?: string;
+    }): Promise<{
         session: {
             id: string;
             tenantId: string;

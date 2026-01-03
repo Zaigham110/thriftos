@@ -1,4 +1,3 @@
-@use 'sass:color';
 @use '../../../../styles/variables' as *;
 
 .badge {
@@ -30,22 +29,22 @@
   }
 
   &-success {
-    background-color: rgba($status-success, 0.1);
+    background-color: hsl(var(--secondary) / 0.12);
     color: $status-success;
   }
 
   &-warning {
-    background-color: rgba($status-warning, 0.1);
-    color: color.adjust($status-warning, $lightness: -10%);
+    background-color: hsl(var(--module-yellow) / 0.12);
+    color: $status-warning;
   }
 
   &-danger {
-    background-color: rgba($status-danger, 0.1);
+    background-color: hsl(var(--destructive) / 0.12);
     color: $status-danger;
   }
 
   &-info {
-    background-color: rgba($status-info, 0.1);
+    background-color: hsl(var(--ring) / 0.12);
     color: $status-info;
   }
 }

@@ -1,0 +1,46 @@
+<!-- 
+  ===============================
+  LOGIN SCREEN - PHASE 0
+  ===============================
+  
+  DESIGN SYSTEM COMPLIANCE:
+  ✓ Uses app-page hierarchy
+  ✓ NO ad-hoc wrappers
+  ✓ NO spacing utilities
+  ✓ NO custom colors
+  ✓ NO tenant selector
+  ✓ Calm, premium, serious
+-->
+
+<app-auth-layout>
+  <app-brand-panel slot="brand" variant="product" size="lg" />
+
+  <app-section slot="form">
+    <app-card variant="data">
+      <app-form
+        [formGroup]="loginForm"
+        (submitted)="onSubmit()"
+        title="Sign in to ThriftOS"
+        subtitle="Operations & Inventory Platform"
+      >
+        <app-form-field label="Email" [required]="true" [error]="getEmailError()">
+          <app-input type="email" formControlName="email" placeholder="your@email.com" />
+        </app-form-field>
+
+        <app-form-field
+          label="Password"
+          [required]="true"
+          [error]="getPasswordError() || authError()"
+        >
+          <app-password-input formControlName="password" placeholder="Enter your password" />
+        </app-form-field>
+
+        <app-button variant="primary" type="submit" [disabled]="isLoading()">
+          {{ isLoading() ? 'Signing in...' : 'Sign In' }}
+        </app-button>
+
+        <app-link href="#">Forgot password?</app-link>
+      </app-form>
+    </app-card>
+  </app-section>
+</app-auth-layout>

@@ -1,147 +1,87 @@
-<div class="sorting-session-list">
-  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs" />
+      <h1 class="page-title">Sorting Stage 1</h1>
+      <p class="page-subtitle">Category sorting sessions • Start new sessions from Container → Rags/Bales tab</p>
+    </app-stack>
+  </app-page-header>
 
-  <header class="page-header">
-    <div class="page-header__info">
-      <h1>Sorting Stage 1</h1>
-      <p class="page-header__subtitle">Category sorting sessions • Start new sessions from Container → Rags/Bales tab</p>
-    </div>
-  </header>
+  <app-page-body>
+    <ng-container *ngIf="error(); else table">
+      <app-error-state title="Failed to load sessions" [message]="error() ?? undefined" [action]="true">
+        <app-button action variant="secondary" (click)="loadSessions()">Retry</app-button>
+      </app-error-state>
+    </ng-container>
 
-  @if (error()) {
-    <ui-alert variant="danger" [dismissible]="true" (dismissed)="dismissError()">
-      {{ error() }}
-    </ui-alert>
-  }
-
-  <!-- Filters -->
-  <ui-card class="filters-card">
-    <div class="filters-row">
-      <div class="filter-group">
-        <lucide-icon [img]="icons.Filter" [size]="16"></lucide-icon>
-        <ui-select
-          [options]="statusOptions"
-          placeholder="Filter by status"
-          (selectionChange)="onStatusFilterChange($any($event))"
-        ></ui-select>
-      </div>
-
-      <div class="filter-info">
-        <span class="count">{{ totalCount() }} sessions</span>
-      </div>
-    </div>
-  </ui-card>
-
-  <!-- Sessions Table -->
-  <ui-card class="table-card" [padding]="false">
-    @if (loading()) {
-      <div class="loading-state">
-        @for (i of [1, 2, 3, 4, 5]; track i) {
-          <div class="skeleton-row">
-            <ui-skeleton variant="text"></ui-skeleton>
+    <ng-template #table>
+      <app-section>
+        <app-section-header>
+          <h2 class="section-title">Sessions</h2>
+          <div class="actions">
+            <app-select
+              [options]="statusOptions"
+              [ngModel]="statusFilter()"
+              (ngModelChange)="onStatusFilterChange($event)"
+              placeholder="Filter by status"
+            />
           </div>
-        }
-      </div>
-    } @else if (sessions().length === 0) {
-      <ui-empty-state
-        [icon]="icons.ClipboardList"
-        title="No sorting sessions"
-        description="To start sorting, go to a Container's Rags/Bales tab and click 'Start Sorting' on a rag."
-      >
-      </ui-empty-state>
-    } @else {
-      <div class="table-wrapper">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Session ID</th>
-              <th>Source</th>
-              <th>Status</th>
-              <th class="text-right">Input Weight</th>
-              <th class="text-right">Output Weight</th>
-              <th class="text-right">Waste %</th>
-              <th>Created</th>
-              <th class="text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (session of sessions(); track session.id) {
-              <tr class="clickable-row" [routerLink]="[session.id]">
-                <td>
-                  <span class="session-id font-mono">{{ session.id | slice:0:8 }}...</span>
-                </td>
-                <td>
-                  <div class="source-cell">
-                    @if (getSourceType(session) === 'rag') {
-                      <lucide-icon [img]="icons.Box" [size]="16" class="source-icon source-icon--rag"></lucide-icon>
-                    } @else {
-                      <lucide-icon [img]="icons.Package" [size]="16" class="source-icon source-icon--bale"></lucide-icon>
-                    }
-                    <span>{{ getSourceDisplay(session) }}</span>
-                  </div>
-                </td>
-                <td>
-                  <ui-badge [variant]="getStatusBadgeVariant(session.status)">
-                    {{ session.status }}
-                  </ui-badge>
-                </td>
-                <td class="text-right font-mono">
-                  {{ formatWeight(session.totalInputWeight) }}
-                </td>
-                <td class="text-right font-mono">
-                  {{ formatWeight(session.totalOutputWeight) }}
-                </td>
-                <td class="text-right font-mono">
-                  {{ formatPercentage(session.wasteWeight, session.totalInputWeight) }}
-                </td>
-                <td class="text-muted">
-                  {{ formatDate(session.createdAt) }}
-                </td>
-                <td class="text-right">
-                  <div class="actions-cell">
-                    @if (session.status === 'OPEN') {
-                      <a [routerLink]="[session.id]" class="action-link action-link--primary">
-                        <lucide-icon [img]="icons.Play" [size]="14"></lucide-icon>
-                        Continue
-                      </a>
-                    } @else {
-                      <a [routerLink]="[session.id]" class="action-link">
-                        <lucide-icon [img]="icons.Eye" [size]="14"></lucide-icon>
-                        View
-                      </a>
-                    }
-                  </div>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
+        </app-section-header>
 
-      <!-- Pagination -->
-      @if (totalPages() > 1) {
-        <div class="pagination">
-          <ui-button
-            variant="ghost"
-            size="sm"
-            [disabled]="currentPage() <= 1"
-            (clicked)="onPageChange(currentPage() - 1)"
+        <app-section-body>
+          <app-data-table
+            title="Sorting Sessions"
+            [columns]="tableColumns"
+            [data]="sessions()"
+            [loading]="loading()"
+            [serverSide]="true"
+            [totalCount]="totalCount()"
+            [externalPageIndex]="currentPage()"
+            (stateChange)="onTableStateChange($event)"
+            (rowClick)="onRowClick($event)"
           >
-            Previous
-          </ui-button>
-          <span class="pagination__info">
-            Page {{ currentPage() }} of {{ totalPages() }}
-          </span>
-          <ui-button
-            variant="ghost"
-            size="sm"
-            [disabled]="currentPage() >= totalPages()"
-            (clicked)="onPageChange(currentPage() + 1)"
-          >
-            Next
-          </ui-button>
-        </div>
-      }
-    }
-  </ui-card>
-</div>
+            <ng-template #cellTemplate let-row let-column="column">
+              <ng-container [ngSwitch]="column.key">
+                <span *ngSwitchCase="'id'" class="font-mono">{{ row.id | slice:0:8 }}...</span>
+                
+                <ng-container *ngSwitchCase="'source'">
+                  {{ getSourceDisplay(row) }}
+                </ng-container>
+
+                <app-badge *ngSwitchCase="'status'" [variant]="getStatusVariant(row.status)">
+                  {{ row.status }}
+                </app-badge>
+
+                <span *ngSwitchCase="'inputWeight'" class="tabular-nums">
+                  {{ row.totalInputWeight | number:'1.2-2' }} kg
+                </span>
+
+                <span *ngSwitchCase="'outputWeight'" class="tabular-nums">
+                  {{ row.totalOutputWeight | number:'1.2-2' }} kg
+                </span>
+
+                <span *ngSwitchCase="'wastePct'" class="tabular-nums">
+                  {{ row.totalInputWeight > 0 ? ((row.wasteWeight / row.totalInputWeight) | percent:'1.1-1') : '0%' }}
+                </span>
+
+                <ng-container *ngSwitchCase="'createdAt'">
+                  {{ row.createdAt | date:'mediumDate' }}
+                </ng-container>
+
+                <ng-container *ngSwitchDefault>
+                  {{ column.getValue ? column.getValue(row) : row[column.key] }}
+                </ng-container>
+              </ng-container>
+            </ng-template>
+
+            <ng-template #rowActions let-row>
+              <app-button variant="secondary" size="sm" (click)="$event.stopPropagation(); onRowClick(row)">
+                View
+              </app-button>
+            </ng-template>
+          </app-data-table>
+        </app-section-body>
+      </app-section>
+    </ng-template>
+  </app-page-body>
+</app-page>

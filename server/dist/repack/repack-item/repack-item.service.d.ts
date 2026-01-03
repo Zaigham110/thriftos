@@ -13,9 +13,9 @@ export declare class RepackItemService {
             updatedAt: Date;
             weightKg: Decimal;
             sourceType: import("@prisma/client").$Enums.SourceType;
+            sourceId: string;
             pcsCount: number;
             repackUnitId: string;
-            sourceId: string;
         };
         unit: {
             category: {
@@ -38,18 +38,22 @@ export declare class RepackItemService {
             createdAt: Date;
             updatedAt: Date;
             status: import("@prisma/client").$Enums.RepackStatus;
+            unitType: import("@prisma/client").$Enums.UnitType;
             totalCost: Decimal;
             containerId: string | null;
             weightKg: Decimal;
             ragId: string | null;
-            sortSessionId: string | null;
             categoryId: string | null;
-            gradeSessionId: string | null;
             gradeId: string | null;
+            sortSessionId: string | null;
+            gradeSessionId: string | null;
+            measurementType: import("@prisma/client").$Enums.MeasurementType;
             repackSessionId: string;
             unitCode: string;
-            unitType: import("@prisma/client").$Enums.UnitType;
             pcsCount: number;
+            targetAmount: Decimal;
+            allocationMode: import("@prisma/client").$Enums.AllocationMode;
+            createdBy: string | null;
         };
         itemCost: string;
     }>;

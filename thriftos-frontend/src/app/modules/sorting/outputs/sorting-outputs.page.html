@@ -1,0 +1,106 @@
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs" />
+      <h1 class="page-title">Sorting — Output Registry</h1>
+      <p class="page-subtitle">{{ total() }} grade outputs</p>
+    </app-stack>
+
+    <div class="actions">
+      <app-button variant="secondary" (click)="load()" [disabled]="loading()">Refresh</app-button>
+    </div>
+  </app-page-header>
+
+  <app-page-body>
+    @if (error()) {
+      <app-error-state title="Failed to load" [message]="error()!" [action]="true">
+        <app-button action variant="secondary" (click)="clearError()">Dismiss</app-button>
+      </app-error-state>
+    }
+
+    @if (loading()) {
+      <app-loading message="Loading outputs…" />
+    } @else {
+      <app-section>
+        <app-section-header>
+          <h2 class="section-title">Grade Outputs</h2>
+        </app-section-header>
+
+        <app-section-body>
+          @if (rows().length === 0) {
+            <app-empty-state title="No outputs" message="No Stage 2 grade outputs exist yet." />
+          } @else {
+            <app-data-table
+              title="Outputs"
+              subtitle="Availability is remainingAmount / status"
+              [columns]="columns"
+              [data]="rows()"
+              [loading]="loading()"
+              [serverSide]="true"
+              [totalCount]="total()"
+              [externalPageIndex]="page()"
+              [externalPageSize]="pageSize()"
+              (stateChange)="onTableStateChange($event)"
+            >
+              <ng-template #cellTemplate let-row let-column="column">
+                @switch (column.key) {
+                  @case ('gradeId') {
+                    <strong>{{ row.grade?.name || '—' }}</strong>
+                  }
+                  @case ('category') {
+                    {{ row.gradeBucket?.gradeSession?.categoryOutput?.category?.name || '—' }}
+                  }
+                  @case ('ragCode') {
+                    {{ row.gradeBucket?.gradeSession?.categoryOutput?.rag?.ragCode || '—' }}
+                  }
+                  @case ('containerNumber') {
+                    {{ row.gradeBucket?.gradeSession?.categoryOutput?.container?.containerNumber || '—' }}
+                  }
+                  @case ('remaining') {
+                    <span class="tabular-nums">{{ (row.remainingAmount ?? row.totalAmount ?? row.weightKg) | number:'1.2-2' }}</span>
+                  }
+                  @case ('total') {
+                    <span class="tabular-nums">{{ (row.totalAmount ?? row.weightKg) | number:'1.2-2' }}</span>
+                  }
+                  @case ('used') {
+                    <span class="tabular-nums">{{ (row.usedAmount ?? 0) | number:'1.2-2' }}</span>
+                  }
+                  @case ('status') {
+                    <app-badge [variant]="statusVariant(row.status)">{{ statusLabel(row.status) }}</app-badge>
+                  }
+                  @default {
+                    {{ column.getValue ? column.getValue(row) : row[column.key] }}
+                  }
+                }
+              </ng-template>
+
+              <ng-template #rowActions let-row>
+                @if (canMarkReady(row)) {
+                  <app-button 
+                    variant="primary" 
+                    size="sm" 
+                    (click)="markReadyForRepack(row)"
+                    [disabled]="marking() && markingOutputId() === row.id"
+                    title="Mark this output as ready for repack"
+                  >
+                    {{ marking() && markingOutputId() === row.id ? 'Marking...' : 'Mark Ready' }}
+                  </app-button>
+                }
+                <app-button variant="secondary" size="sm" (click)="viewDetails(row)">View</app-button>
+                <app-button
+                  variant="primary"
+                  size="sm"
+                  (click)="startRepack(row)"
+                  [disabled]="!isRepackEligible(row)"
+                  [title]="isRepackEligible(row) ? 'Start repack with this output' : 'Output must be marked as READY_FOR_REPACK'"
+                >
+                  Repack
+                </app-button>
+              </ng-template>
+            </app-data-table>
+          }
+        </app-section-body>
+      </app-section>
+    }
+  </app-page-body>
+</app-page>

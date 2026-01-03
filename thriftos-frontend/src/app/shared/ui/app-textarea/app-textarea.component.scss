@@ -1,0 +1,28 @@
+.app-textarea {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  color: var(--app-text-primary);
+  background: var(--app-bg-surface);
+  border: 1px solid var(--app-border-subtle);
+  border-radius: 6px;
+  transition: border-color 0.15s ease;
+  resize: vertical;
+
+  &::placeholder {
+    color: var(--app-text-muted);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--app-primary);
+  }
+
+  &:disabled {
+    background: var(--app-bg-page);
+    color: var(--app-text-muted);
+    cursor: not-allowed;
+    resize: none;
+  }
+}

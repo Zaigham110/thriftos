@@ -1,0 +1,581 @@
+/**
+ * REPACK WORKSPACE STYLES — ALIGNED WITH PROCUREMENT PATTERN
+ * Table-based layout with proper section structure
+ */
+
+// Variables
+$border-color: #e5e7eb;
+$bg-primary: #ffffff;
+$bg-secondary: #f9fafb;
+$text-primary: #111827;
+$text-secondary: #6b7280;
+$text-muted: #9ca3af;
+$primary: #3b82f6;
+$success: #10b981;
+$warning: #f59e0b;
+$danger: #ef4444;
+
+// ============================================
+// CONTEXT BAR (PERSISTENT METADATA)
+// ============================================
+
+.context-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: hsl(var(--muted) / 0.3);
+  border-left: 3px solid hsl(var(--primary));
+  border-radius: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.context-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.context-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.context-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.context-mono {
+  font-family: 'SF Mono', 'Consolas', monospace;
+}
+
+.context-highlight {
+  color: hsl(var(--primary));
+}
+
+.context-separator {
+  color: hsl(var(--muted-foreground));
+  font-size: 1rem;
+  align-self: center;
+}
+
+// ============================================
+// PAGE HEADER
+// ============================================
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.page-subtitle {
+  font-size: 0.875rem;
+  color: $text-secondary;
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: $text-primary;
+  margin: 0;
+}
+
+// ============================================
+// DEFINITION BAR
+// ============================================
+
+.definition-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0;
+  font-size: 0.875rem;
+  flex-wrap: wrap;
+
+  .def-item {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .def-label {
+    color: $text-secondary;
+  }
+
+  .def-value {
+    color: $text-primary;
+    font-weight: 500;
+
+    &.complete {
+      color: $success;
+    }
+  }
+
+  .def-separator {
+    color: $text-muted;
+  }
+}
+
+// ============================================
+// 3-PANEL ODOO-STYLE LAYOUT
+// ============================================
+
+.workspace-3panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr 320px;
+  gap: 1rem;
+  min-height: 600px;
+  margin-bottom: 1rem;
+
+  @media (max-width: 1400px) {
+    grid-template-columns: 1fr 1fr;
+    
+    .panel-right {
+      grid-column: 1 / -1;
+      max-height: none;
+      position: static;
+    }
+  }
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+    
+    .panel-center, .panel-right {
+      grid-column: 1 / -1;
+    }
+  }
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+
+  &-left {
+    // Available stock panel
+  }
+
+  &-center {
+    // Allocations panel
+  }
+
+  &-right {
+    // Summary panel - sticky on desktop
+    max-height: 600px;
+    position: sticky;
+    top: 1rem;
+  }
+}
+
+.count-badge {
+  font-size: 0.875rem;
+  color: $text-secondary;
+  background: $bg-secondary;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.allocations-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: $bg-secondary;
+  border-top: 2px solid $border-color;
+  margin-top: 0.5rem;
+  border-radius: 0 0 6px 6px;
+  font-weight: 600;
+
+  .total-label {
+    color: $text-secondary;
+    text-transform: uppercase;
+    font-size: 0.875rem;
+    letter-spacing: 0.05em;
+  }
+
+  .total-value {
+    font-size: 1.125rem;
+    color: $text-primary;
+  }
+}
+
+.seal-hint {
+  font-size: 0.8125rem;
+  color: $text-secondary;
+  background: #fef3c7;
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+}
+
+// ============================================
+// SUMMARY BAR
+// ============================================
+
+.summary-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 0.5rem 0;
+  flex-wrap: wrap;
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  .sum-label {
+    font-size: 0.875rem;
+    color: $text-secondary;
+  }
+
+  .sum-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: $text-primary;
+
+    &.complete {
+      color: $success;
+    }
+
+    &.warning {
+      color: $warning;
+    }
+  }
+}
+
+.summary-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  max-width: 300px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: $primary;
+  transition: width 0.3s ease;
+
+  &.complete {
+    background: $success;
+  }
+}
+
+.progress-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: $text-secondary;
+  min-width: 40px;
+  text-align: right;
+}
+
+// ============================================
+// MODAL CONTENT
+// ============================================
+
+.modal-content {
+  min-width: 320px;
+}
+
+.modal-info {
+  margin-bottom: 1rem;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.375rem 0;
+  font-size: 0.875rem;
+
+  .label {
+    color: $text-secondary;
+  }
+
+  .value {
+    color: $text-primary;
+  }
+
+  &.warning {
+    background: rgba($warning, 0.1);
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    margin: 0.25rem 0;
+
+    .label {
+      color: $warning;
+      font-weight: 600;
+    }
+
+    .value {
+      color: $warning;
+      font-weight: 600;
+    }
+  }
+
+  .complete {
+    color: $success;
+    font-weight: 600;
+  }
+}
+
+.modal-input {
+  margin-top: 1rem;
+
+  label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: $text-secondary;
+    margin-bottom: 0.375rem;
+
+    .optional {
+      font-weight: 400;
+      color: $text-muted;
+    }
+  }
+}
+
+.amount-input {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid $border-color;
+  border-radius: 6px;
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+
+  &:focus {
+    outline: none;
+    border-color: $primary;
+    box-shadow: 0 0 0 3px rgba($primary, 0.1);
+  }
+}
+
+.seal-warning {
+  padding: 0.875rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  color: #b91c1c;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+// ============================================
+// UTILITY
+// ============================================
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+// ============================================
+// SUMMARY PANEL (RIGHT PANEL)
+// ============================================
+
+.summary-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0.5rem;
+}
+
+.metric-card {
+  background: $bg-secondary;
+  border: 1px solid $border-color;
+  border-radius: 6px;
+  padding: 1rem;
+  transition: all 0.2s ease;
+
+  &.warning {
+    border-color: $warning;
+    background: #fffbeb;
+  }
+
+  &.complete .metric-value {
+    color: $success;
+  }
+
+  .metric-label {
+    font-size: 0.75rem;
+    color: $text-secondary;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+  }
+
+  .metric-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: $text-primary;
+    line-height: 1.2;
+
+    &.complete {
+      color: $success;
+    }
+  }
+}
+
+.progress-container {
+  margin-top: 0.5rem;
+}
+
+.progress-bar-wrapper {
+  width: 100%;
+  height: 24px;
+  background: #e5e7eb;
+  border: 1px solid $border-color;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: $primary;
+  transition: width 0.3s ease, background-color 0.3s ease;
+
+  &.complete {
+    background: $success;
+  }
+}
+
+.progress-text {
+  text-align: center;
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: $text-secondary;
+}
+
+.seal-button {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+.seal-hint-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  border-radius: 6px;
+  margin-top: 0.5rem;
+
+  .seal-hint-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+  }
+
+  .seal-hint-text {
+    font-size: 0.875rem;
+    color: $text-primary;
+    line-height: 1.5;
+
+    strong {
+      color: #1d4ed8;
+      font-weight: 700;
+    }
+  }
+}
+
+.sealed-badge {
+  padding: 1rem;
+  background: #d1fae5;
+  border: 2px solid $success;
+  border-radius: 6px;
+  text-align: center;
+  font-weight: 600;
+  color: $success;
+  font-size: 1rem;
+  margin-top: 0.5rem;
+}
+
+// ============================================
+// NEW MODE FORM
+// ============================================
+
+.new-mode-form {
+  padding: 1.5rem;
+  background: $bg-secondary;
+  border-radius: 6px;
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: $text-primary;
+    }
+  }
+
+  .form-select,
+  .form-input {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid $border-color;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    background: white;
+    color: $text-primary;
+
+    &:focus {
+      outline: none;
+      border-color: $primary;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    &:disabled {
+      background: $bg-secondary;
+      color: $text-muted;
+      cursor: not-allowed;
+    }
+  }
+
+  .form-hint {
+    padding: 0.75rem 1rem;
+    background: #dbeafe;
+    border-left: 3px solid $primary;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    color: #1e40af;
+    line-height: 1.5;
+  }
+}

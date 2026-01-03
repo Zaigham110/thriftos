@@ -11,6 +11,7 @@ const common_1 = require("@nestjs/common");
 const prisma_module_1 = require("../../prisma/prisma.module");
 const audit_module_1 = require("../../audit/audit.module");
 const reports_audit_service_1 = require("../common/reports-audit.service");
+const reports_consistency_service_1 = require("../common/reports-consistency.service");
 const inventory_reports_controller_1 = require("./inventory-reports.controller");
 const inventory_reports_service_1 = require("./inventory-reports.service");
 let InventoryReportsModule = class InventoryReportsModule {
@@ -20,7 +21,7 @@ exports.InventoryReportsModule = InventoryReportsModule = __decorate([
     (0, common_1.Module)({
         imports: [prisma_module_1.PrismaModule, audit_module_1.AuditModule],
         controllers: [inventory_reports_controller_1.InventoryReportsController],
-        providers: [inventory_reports_service_1.InventoryReportsService, reports_audit_service_1.ReportsAuditService],
+        providers: [inventory_reports_service_1.InventoryReportsService, reports_audit_service_1.ReportsAuditService, reports_consistency_service_1.ReportsConsistencyService],
     })
 ], InventoryReportsModule);
 //# sourceMappingURL=inventory-reports.module.js.map

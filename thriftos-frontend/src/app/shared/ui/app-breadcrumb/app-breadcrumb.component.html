@@ -1,0 +1,12 @@
+<nav class="app-breadcrumb">
+  @for (item of items; track item.label; let isLast = $last) {
+    @if (!isLast && (item.route || item.link)) {
+      <a [routerLink]="item.route || item.link" class="breadcrumb-link">{{ item.label }}</a>
+    } @else {
+      <span class="breadcrumb-current">{{ item.label }}</span>
+    }
+    @if (!isLast) {
+      <span class="breadcrumb-separator">/</span>
+    }
+  }
+</nav>

@@ -1,0 +1,55 @@
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs()" />
+      <h1 class="page-title">Add bale</h1>
+      @if (purchaseOrder(); as po) {
+        <p class="page-subtitle">{{ po.poNumber }}</p>
+      }
+    </app-stack>
+
+    <div class="actions">
+      <app-button variant="secondary" (click)="onCancel()">Cancel</app-button>
+    </div>
+  </app-page-header>
+
+  <app-page-body>
+    @if (loading()) {
+      <app-loading message="Loading purchase order…" />
+    } @else if (error()) {
+      <app-error-state title="Failed" [message]="error()!" [action]="true">
+        <app-button action variant="secondary" (click)="loadPurchaseOrder()">Retry</app-button>
+      </app-error-state>
+    } @else if (purchaseOrder(); as po) {
+      <app-card>
+        <app-form
+          [formGroup]="form"
+          (submitted)="onSubmit()"
+          title="Create Loose Bale"
+          subtitle="Costs are enforced server-side in purchase order currency."
+        >
+          <app-form-field label="Raw Category" [required]="true">
+            <app-select formControlName="rawCategoryId" [options]="categoryOptions()" />
+          </app-form-field>
+
+          <app-form-field label="Weight (kg)" [required]="true">
+            <app-input type="number" formControlName="weightKg" />
+          </app-form-field>
+
+          <app-form-field label="Cost" [required]="true" [hint]="'Currency: ' + po.currency">
+            <app-input type="number" formControlName="cost" />
+          </app-form-field>
+
+          <app-stack direction="horizontal" spacing="sm">
+            <app-button variant="secondary" type="button" (click)="onCancel()" [disabled]="actionLoading()">
+              Cancel
+            </app-button>
+            <app-button variant="primary" type="submit" [disabled]="form.invalid || actionLoading()">
+              Create
+            </app-button>
+          </app-stack>
+        </app-form>
+      </app-card>
+    }
+  </app-page-body>
+</app-page>

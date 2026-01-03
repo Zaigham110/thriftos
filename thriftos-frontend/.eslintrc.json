@@ -1,0 +1,60 @@
+{
+  "root": true,
+  "ignorePatterns": ["projects/**/*"],
+  "overrides": [
+    {
+      "files": ["*.ts"],
+      "parserOptions": {
+        "project": ["tsconfig.json"],
+        "createDefaultProgram": true
+      },
+      "extends": [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/recommended",
+        "plugin:@angular-eslint/recommended",
+        "plugin:@angular-eslint/template/process-inline-templates"
+      ],
+      "rules": {
+        "@angular-eslint/directive-selector": [
+          "error",
+          {
+            "type": "attribute",
+            "prefix": "app",
+            "style": "camelCase"
+          }
+        ],
+        "@angular-eslint/component-selector": [
+          "error",
+          {
+            "type": "element",
+            "prefix": "app",
+            "style": "kebab-case"
+          }
+        ],
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "PropertyAccessExpression[expression.name='Tailwind']",
+            "message": "❌ DESIGN SYSTEM VIOLATION: Direct Tailwind usage is forbidden in business screens. Use app-* primitives only."
+          }
+        ]
+      }
+    },
+    {
+      "files": ["*.html"],
+      "extends": [
+        "plugin:@angular-eslint/template/recommended",
+        "plugin:@angular-eslint/template/accessibility"
+      ],
+      "rules": {
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "Element[name='div'][class*='flex'], Element[name='div'][class*='grid'], Element[name='div'][class*='p-'], Element[name='div'][class*='m-'], Element[name='section'], Element[name='input']:not([formControlName]), Element[name='select']:not([formControlName]), Element[name='textarea']:not([formControlName]), Element[name='table']",
+            "message": "❌ DESIGN SYSTEM VIOLATION: Raw HTML elements and Tailwind utilities are forbidden. Use app-* primitives: app-stack, app-grid, app-section, app-input, app-select, app-textarea, app-table."
+          }
+        ]
+      }
+    }
+  ]
+}

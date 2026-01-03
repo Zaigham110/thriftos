@@ -24,7 +24,10 @@ let IncomingBaleService = class IncomingBaleService {
         this.tenantSequenceService = tenantSequenceService;
     }
     async create(tenantId, dto, userId) {
-        let purchaseOrderId = dto.purchaseOrderId || null;
+        if (!dto.purchaseOrderId) {
+            throw new common_1.BadRequestException('Purchase order is required for loose bales');
+        }
+        let purchaseOrderId = dto.purchaseOrderId;
         if (dto.containerId) {
             const container = await this.prisma.container.findFirst({
                 where: {
@@ -40,19 +43,17 @@ let IncomingBaleService = class IncomingBaleService {
             }
             purchaseOrderId = container.purchaseOrderId;
         }
-        else if (purchaseOrderId) {
-            const purchaseOrder = await this.prisma.purchaseOrder.findFirst({
-                where: {
-                    id: purchaseOrderId,
-                    tenantId,
-                },
-            });
-            if (!purchaseOrder) {
-                throw new common_1.BadRequestException('Purchase order not found');
-            }
-            if (purchaseOrder.poType !== client_1.PurchaseOrderType.LOOSE_BALE && purchaseOrder.poType !== client_1.PurchaseOrderType.HYBRID) {
-                throw new common_1.BadRequestException('Purchase order type must allow loose bales');
-            }
+        const purchaseOrder = await this.prisma.purchaseOrder.findFirst({
+            where: {
+                id: purchaseOrderId,
+                tenantId,
+            },
+        });
+        if (!purchaseOrder) {
+            throw new common_1.BadRequestException('Purchase order not found');
+        }
+        if (purchaseOrder.poType === client_1.PurchaseOrderType.CONTAINER) {
+            throw new common_1.BadRequestException('Loose bales are not allowed for CONTAINER purchase orders');
         }
         if (dto.vendorId) {
             const vendor = await this.prisma.vendor.findFirst({
@@ -190,7 +191,7 @@ let IncomingBaleService = class IncomingBaleService {
                         select: { id: true, name: true },
                     },
                     purchaseOrder: {
-                        select: { id: true, poNumber: true },
+                        select: { id: true, poNumber: true, currency: true, vendor: true },
                     },
                     rawCategory: {
                         select: { id: true, name: true, rawType: true },
@@ -223,6 +224,8 @@ let IncomingBaleService = class IncomingBaleService {
                         id: true,
                         poNumber: true,
                         vendor: true,
+                        currency: true,
+                        status: true,
                     },
                 },
                 rawCategory: {
@@ -240,6 +243,9 @@ let IncomingBaleService = class IncomingBaleService {
         let targetPurchaseOrderId = bale.purchaseOrderId;
         if (bale.sortSessions.length > 0) {
             throw new common_1.ConflictException('Cannot modify bale that has been used in sorting');
+        }
+        if (bale.purchaseOrder && bale.purchaseOrder.status === 'CLOSED') {
+            throw new common_1.ConflictException('Cannot modify bale: Purchase order is closed');
         }
         if (dto.containerId !== undefined && dto.containerId !== bale.containerId) {
             if (dto.containerId) {

@@ -1,7 +1,9 @@
 import { PrismaService } from '../../prisma/prisma.service';
+import { ReportsConsistencyService } from '../common/reports-consistency.service';
 export declare class RepackReportsService {
-    private prisma;
-    constructor(prisma: PrismaService);
+    private readonly prisma;
+    private readonly consistency;
+    constructor(prisma: PrismaService, consistency: ReportsConsistencyService);
     repackEfficiency(tenantId: string, filters: {
         startDate?: string;
         endDate?: string;
@@ -10,11 +12,31 @@ export declare class RepackReportsService {
         workerId?: string;
     }): Promise<{
         day: string;
-        gradeInputWeightKg: string;
-        repackOutputWeightKg: string;
+        gradeInputWeightKg: number;
+        repackOutputWeightKg: number;
         unitsProduced: number;
-        avgUnitWeightKg: string;
+        avgUnitWeightKg: number;
     }[]>;
+    repackSummary(tenantId: string, filters: {
+        startDate?: string;
+        endDate?: string;
+        categoryId?: string;
+        gradeId?: string;
+    }): Promise<{
+        data: {
+            status: string;
+            units: number;
+            totalWeightKg: number;
+            totalPcs: number;
+            totalCost: number;
+        }[];
+        summary: {
+            totalUnits: number;
+            totalWeightKg: number;
+            totalPcs: number;
+            totalCost: number;
+        };
+    }>;
     skuProductionSummary(tenantId: string, filters: {
         startDate?: string;
         endDate?: string;
@@ -35,9 +57,9 @@ export declare class RepackReportsService {
             categoryName: string;
             gradeId: string;
             gradeName: string;
-            weightKg: string;
+            weightKg: number;
             pcsCount: number;
-            totalCost: string;
+            totalCost: number;
             createdAt: Date;
         }[];
     }>;

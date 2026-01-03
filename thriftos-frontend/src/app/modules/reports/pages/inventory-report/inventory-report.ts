@@ -9,26 +9,22 @@
 
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
-import {
-  LucideAngularModule,
-  Package,
-  ArrowLeft,
-  Download,
-  Scale,
-  Layers,
-  Clock,
-  Warehouse,
-} from 'lucide-angular';
 import { ReportsService } from '../../reports.service';
-import { InventorySnapshotResponse, InventoryAgingResponse, ReportFilters } from '../../reports.models';
+import { InventorySnapshotResponse, InventoryAgingResponse, ReportFilters, InventorySnapshotRow, InventoryAgingRow } from '../../reports.models';
 import { ReportFiltersComponent } from '../../shared/report-filters.component';
 import {
-  CardComponent,
-  AlertComponent,
-  BreadcrumbComponent,
-  BreadcrumbItem,
-  SkeletonComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppPageBodyComponent,
+  AppSectionComponent,
+  AppSectionHeaderComponent,
+  AppSectionBodyComponent,
+  AppDataTableComponent,
+  AppButtonComponent,
+  AppErrorStateComponent,
+  AppBreadcrumbComponent,
+  AppStackComponent,
+  type DataTableColumn,
 } from '../../../../shared/ui';
 
 @Component({
@@ -36,13 +32,18 @@ import {
   standalone: true,
   imports: [
     CommonModule,
-    RouterLink,
-    LucideAngularModule,
-    CardComponent,
-    AlertComponent,
-    BreadcrumbComponent,
-    SkeletonComponent,
     ReportFiltersComponent,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppSectionComponent,
+    AppSectionHeaderComponent,
+    AppSectionBodyComponent,
+    AppDataTableComponent,
+    AppButtonComponent,
+    AppErrorStateComponent,
+    AppBreadcrumbComponent,
+    AppStackComponent,
   ],
   templateUrl: './inventory-report.html',
   styleUrl: './inventory-report.scss',
@@ -51,40 +52,35 @@ import {
 export class InventoryReportComponent implements OnInit {
   private readonly reportsService = inject(ReportsService);
 
-  readonly icons = {
-    Package,
-    ArrowLeft,
-    Download,
-    Scale,
-    Layers,
-    Clock,
-    Warehouse,
-  };
+  readonly breadcrumbs = [
+    { label: 'Reports', link: '/reports' },
+    { label: 'Inventory', link: undefined },
+  ];
 
   readonly snapshot = signal<InventorySnapshotResponse | null>(null);
   readonly aging = signal<InventoryAgingResponse | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly activeView = signal<'snapshot' | 'aging'>('snapshot');
+  readonly searchText = signal<string>('');
   protected currentFilters: ReportFilters = {};
 
-  readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Home', link: '/app/dashboard' },
-    { label: 'Reports', link: '/app/reports' },
-    { label: 'Inventory Report' },
+  readonly snapshotColumns: DataTableColumn[] = [
+    { label: 'Category', key: 'categoryName', sortable: true },
+    { label: 'Grade', key: 'gradeName', sortable: true },
+    { label: 'Warehouse', key: 'warehouseName', sortable: true },
+    { label: 'Status', key: 'status', sortable: true },
+    { label: 'Units', key: 'totalUnits', sortable: true, align: 'right' },
+    { label: 'Weight', key: 'totalWeightKg', sortable: true, align: 'right' },
+    { label: 'Pieces', key: 'totalPcs', sortable: true, align: 'right' },
   ];
 
-  protected get totalUnits(): number {
-    return this.snapshot()?.summary?.totalUnits ?? 0;
-  }
-
-  protected get totalWeight(): number {
-    return this.snapshot()?.summary?.totalWeightKg ?? 0;
-  }
-
-  protected get totalPcs(): number {
-    return this.snapshot()?.summary?.totalPcs ?? 0;
-  }
+  readonly agingColumns: DataTableColumn[] = [
+    { label: 'Age Range', key: 'ageRangeDays', sortable: true },
+    { label: 'Units', key: 'unitsCount', sortable: true, align: 'right' },
+    { label: 'Weight', key: 'totalWeightKg', sortable: true, align: 'right' },
+    { label: 'Total Value', key: 'totalValue', sortable: true, align: 'right' },
+  ];
 
   protected get exporting(): boolean {
     return this.reportsService.exporting();
@@ -129,6 +125,10 @@ export class InventoryReportComponent implements OnInit {
     this.loadData(filters);
   }
 
+  onSearchChange(value: string): void {
+    this.searchText.set(value ?? '');
+  }
+
   setView(view: 'snapshot' | 'aging'): void {
     this.activeView.set(view);
   }
@@ -141,19 +141,31 @@ export class InventoryReportComponent implements OnInit {
     }
   }
 
-  formatWeight(weight: number): string {
-    if (weight >= 1000) {
-      return `${(weight / 1000).toFixed(2)} T`;
-    }
-    return `${weight.toFixed(2)} KG`;
+  private toNumber(value: unknown): number | null {
+    if (value === null || value === undefined) return null;
+    const n = typeof value === 'number' ? value : Number(String(value));
+    return Number.isFinite(n) ? n : null;
   }
 
-  formatCurrency(value: number): string {
+  formatWeight(weight: unknown): string {
+    const n = this.toNumber(weight);
+    if (n === null) return '—';
+    if (n >= 1000) return `${(n / 1000).toFixed(2)} T`;
+    return `${n.toFixed(2)} KG`;
+  }
+
+  formatNumber(value: number): string {
+    return new Intl.NumberFormat('en-US').format(value);
+  }
+
+  formatCurrency(value: unknown): string {
+    const n = this.toNumber(value);
+    if (n === null) return '—';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2,
-    }).format(value);
+    }).format(n);
   }
 
   getStatusClass(status: string): string {

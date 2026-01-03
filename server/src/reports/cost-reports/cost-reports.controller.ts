@@ -43,7 +43,14 @@ export class CostReportsController {
       params: { ...filters },
     });
     const data = await this.service.costCascade(tenantId, filters);
-    const csv = toCsv(data.steps as any[], ['stage', 'totalCost', 'totalWeightKg', 'avgCostPerKg', 'totalPcs', 'lockedCost', 'totalKg']);
+    const rows = [
+      { stage: 'PROCUREMENT', totalCost: data.procurement.totalCost, totalWeightKg: data.procurement.weightKg, costPerKg: data.procurement.costPerKg },
+      { stage: 'SORTING', totalCost: data.sorting.totalCost, totalWeightKg: data.sorting.weightKg, costPerKg: data.sorting.costPerKg },
+      { stage: 'GRADING', totalCost: data.grading.totalCost, totalWeightKg: data.grading.weightKg, costPerKg: data.grading.costPerKg },
+      { stage: 'REPACK', totalCost: data.repack.totalCost, totalWeightKg: data.repack.weightKg, costPerKg: data.repack.costPerKg },
+      { stage: 'FINAL', totalCost: data.final.totalCost, totalWeightKg: data.final.weightKg, costPerKg: data.final.costPerKg },
+    ];
+    const csv = toCsv(rows as any[], ['stage', 'totalCost', 'totalWeightKg', 'costPerKg']);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="cost-cascade.csv"');
     return res.status(200).send(csv);
@@ -60,7 +67,7 @@ export class CostReportsController {
       exported: false,
       params: { ...filters },
     });
-    return { data: await this.service.profitabilityReadiness(tenantId, filters) };
+    return await this.service.profitabilityReadiness(tenantId, filters);
   }
 
   @Get('readiness/export')
@@ -74,15 +81,56 @@ export class CostReportsController {
       exported: true,
       params: { ...filters },
     });
-    const data = await this.service.profitabilityReadiness(tenantId, filters);
-    const csv = toCsv(
-      [
-        ...data.perKg.map((r) => ({ metric: 'COST_PER_KG', ...r })),
-        ...data.perPcs.map((r) => ({ metric: 'COST_PER_PCS', ...r })),
-      ] as any[],
-    );
+    const result = await this.service.profitabilityReadiness(tenantId, filters);
+    const csv = toCsv(result.data as any[], ['categoryName', 'gradeName', 'unitsReady', 'totalWeightKg', 'totalCost', 'avgCostPerKg']);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="profitability-readiness.csv"');
+    return res.status(200).send(csv);
+  }
+
+  @Get('final-products')
+  @RequirePermissions('REPORTS_VIEW')
+  async finalProducts(@Query() filters: ReportFiltersDto, @CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    await this.audit.logAccess({
+      tenantId,
+      userId: user.userId,
+      report: 'cost.finalProducts',
+      exported: false,
+      params: { ...filters },
+    });
+    return await this.service.finalProductCostReport(tenantId, filters);
+  }
+
+  @Get('final-products/export')
+  @RequirePermissions('REPORTS_EXPORT')
+  async finalProductsExport(@Query() filters: ReportFiltersDto, @CurrentUser() user: CurrentUserData, @Req() req: Request, @Res() res: Response) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    await this.audit.logAccess({
+      tenantId,
+      userId: user.userId,
+      report: 'cost.finalProducts',
+      exported: true,
+      params: { ...filters },
+    });
+    const result = await this.service.finalProductCostReport(tenantId, filters);
+    const csv = toCsv(result.data as any[], [
+      'dateSealed',
+      'productCode',
+      'unitType',
+      'category',
+      'grade',
+      'totalWeightKg',
+      'totalQty',
+      'totalCost',
+      'costPerKg',
+      'costPerUnit',
+      'sourceContainers',
+      'sourceBales',
+      'allocationsCount',
+    ]);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="final-product-cost.csv"');
     return res.status(200).send(csv);
   }
 }

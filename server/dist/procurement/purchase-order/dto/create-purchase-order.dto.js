@@ -20,6 +20,12 @@ __decorate([
     __metadata("design:type", String)
 ], CreatePurchaseOrderDto.prototype, "poType", void 0);
 __decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreatePurchaseOrderDto.prototype, "budgetCap", void 0);
+__decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)

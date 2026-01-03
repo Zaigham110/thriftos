@@ -1,0 +1,138 @@
+<!-- INVENTORY DETAIL - READ-ONLY -->
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs" />
+      <h1 class="page-title">Inventory Item</h1>
+      @if (item(); as i) {
+        <p class="page-subtitle">{{ i.unitCode }}</p>
+      }
+    </app-stack>
+    <div class="actions">
+      <app-button variant="secondary" (click)="goBack()">← Back to Inventory</app-button>
+    </div>
+  </app-page-header>
+
+  <app-page-body>
+    @if (loading()) {
+      <app-loading message="Loading inventory detail..." />
+    } @else if (error()) {
+      <app-error-state [message]="error()!" [action]="true">
+        <app-button action variant="secondary" (click)="goBack()">
+          Back to Inventory
+        </app-button>
+      </app-error-state>
+    } @else if (item(); as i) {
+      <!-- SUMMARY SECTION -->
+      <app-section>
+        <app-section-header>
+          <h2 class="section-title">Details</h2>
+          <div class="actions">
+            <app-badge [variant]="getStatusVariant(i.status)">{{ i.status }}</app-badge>
+          </div>
+        </app-section-header>
+
+        <app-section-body>
+          <app-card>
+            <app-stack direction="vertical" spacing="sm">
+              <div><strong>Category:</strong> {{ i.category }}</div>
+              <div><strong>Grade:</strong> {{ i.grade }}</div>
+              <div><strong>Amount:</strong> {{ i.measurementType === 'WEIGHT' ? (i.weightKg | number:'1.2-2') + ' kg' : i.pcsCount + ' pcs' }}</div>
+              <div><strong>Warehouse:</strong> {{ i.warehouseName || 'N/A' }}</div>
+              <div><strong>Created:</strong> {{ i.createdAt | date:'medium' }}</div>
+              <div><strong>Updated:</strong> {{ i.updatedAt | date:'medium' }}</div>
+            </app-stack>
+          </app-card>
+        </app-section-body>
+      </app-section>
+
+      <!-- TRACEABILITY SECTION -->
+      <app-section>
+        <app-section-header>
+          <h2 class="section-title">Traceability Chain</h2>
+          <div class="actions">
+            <app-button variant="secondary" (click)="toggleTraceability()">
+              {{ showTraceability() ? 'Hide Chain' : 'Show Chain' }}
+            </app-button>
+          </div>
+        </app-section-header>
+
+        <app-section-body>
+          @if (loadingTrace()) {
+            <app-loading message="Loading traceability..." />
+          } @else if (showTraceability() && traceability()) {
+            <div class="timeline">
+              <!-- REPACK UNIT -->
+              <div class="timeline-step">
+                <div class="step-marker"></div>
+                <div class="step-content">
+                  <h3 class="step-title">Repack Unit</h3>
+                  <div class="step-details">
+                    <p><strong>Code:</strong> {{ traceability()!.repackUnit.unitCode }}</p>
+                    <p><strong>Status:</strong> {{ traceability()!.repackUnit.status }}</p>
+                    <p><strong>Created:</strong> {{ traceability()!.repackUnit.createdAt | date:'medium' }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- SOURCE ALLOCATIONS -->
+              @for (alloc of traceability()!.sourceAllocations; track alloc.allocationId) {
+                <div class="timeline-step">
+                  <div class="step-marker"></div>
+                  <div class="step-content">
+                    <h3 class="step-title">Source Allocation</h3>
+                    <div class="step-details">
+                      <p><strong>Amount Used:</strong> {{ alloc.amountUsed }} {{ alloc.measurementType === 'WEIGHT' ? 'kg' : 'pcs' }}</p>
+                      
+                      @if (alloc.gradingOutput) {
+                        <div class="substep">
+                          <h4>Grading Output</h4>
+                          <p><strong>Grade:</strong> {{ alloc.gradingOutput.grade.name }}</p>
+                          <p><strong>Weight:</strong> {{ alloc.gradingOutput.weightKg }} kg</p>
+                          <p><strong>Count:</strong> {{ alloc.gradingOutput.count }} pcs</p>
+                        </div>
+
+                        @if (alloc.gradingOutput.categoryOutput) {
+                          <div class="substep">
+                            <h4>Category Output</h4>
+                            <p><strong>Category:</strong> {{ alloc.gradingOutput.categoryOutput.category.name }}</p>
+                            <p><strong>Weight:</strong> {{ alloc.gradingOutput.categoryOutput.weightKg }} kg</p>
+
+                            @if (alloc.gradingOutput.categoryOutput.sortSession.rag) {
+                              <div class="substep">
+                                <h4>RAG</h4>
+                                <p><strong>Code:</strong> {{ alloc.gradingOutput.categoryOutput.sortSession.rag.ragCode }}</p>
+                                <p><strong>Type:</strong> {{ alloc.gradingOutput.categoryOutput.sortSession.rag.ragType }}</p>
+
+                                @if (alloc.gradingOutput.categoryOutput.sortSession.rag.container) {
+                                  <div class="substep">
+                                    <h4>Container</h4>
+                                    <p><strong>Number:</strong> {{ alloc.gradingOutput.categoryOutput.sortSession.rag.container.containerNumber }}</p>
+
+                                    @if (alloc.gradingOutput.categoryOutput.sortSession.rag.container.purchaseOrder) {
+                                      <div class="substep">
+                                        <h4>Purchase Order</h4>
+                                        <p><strong>PO #:</strong> {{ alloc.gradingOutput.categoryOutput.sortSession.rag.container.purchaseOrder.poNumber }}</p>
+                                        <p><strong>Vendor:</strong> {{ alloc.gradingOutput.categoryOutput.sortSession.rag.container.purchaseOrder.vendor.name }}</p>
+                                      </div>
+                                    }
+                                  </div>
+                                }
+                              </div>
+                            }
+                          </div>
+                        }
+                      }
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          } @else if (showTraceability()) {
+            <p class="empty-message">No traceability data available.</p>
+          }
+        </app-section-body>
+      </app-section>
+    }
+  </app-page-body>
+</app-page>

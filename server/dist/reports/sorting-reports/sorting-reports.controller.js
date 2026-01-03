@@ -53,6 +53,66 @@ let SortingReportsController = class SortingReportsController {
         res.setHeader('Content-Disposition', 'attachment; filename="category-yield.csv"');
         return res.status(200).send(csv);
     }
+    async outputs(filters, user, req) {
+        const tenantId = req.tenantId || user.tenantId;
+        await this.audit.logAccess({
+            tenantId,
+            userId: user.userId,
+            report: 'sorting.outputs',
+            exported: false,
+            params: { ...filters },
+        });
+        return await this.service.sortingOutputs(tenantId, filters);
+    }
+    async outputsExport(filters, user, req, res) {
+        const tenantId = req.tenantId || user.tenantId;
+        await this.audit.logAccess({
+            tenantId,
+            userId: user.userId,
+            report: 'sorting.outputs',
+            exported: true,
+            params: { ...filters },
+        });
+        const result = await this.service.sortingOutputs(tenantId, filters);
+        const csv = (0, report_utils_1.toCsv)((result.stage1?.data ?? []), [
+            'createdAt',
+            'poNumber',
+            'containerNumber',
+            'ragCode',
+            'categoryName',
+            'weightKg',
+            'allocatedCost',
+        ]);
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename="sorting-stage1-outputs.csv"');
+        return res.status(200).send(csv);
+    }
+    async waste(filters, user, req) {
+        const tenantId = req.tenantId || user.tenantId;
+        await this.audit.logAccess({
+            tenantId,
+            userId: user.userId,
+            report: 'sorting.waste',
+            exported: false,
+            params: { ...filters },
+        });
+        return await this.service.sortingWaste(tenantId, filters);
+    }
+    async wasteExport(filters, user, req, res) {
+        const tenantId = req.tenantId || user.tenantId;
+        await this.audit.logAccess({
+            tenantId,
+            userId: user.userId,
+            report: 'sorting.waste',
+            exported: true,
+            params: { ...filters },
+        });
+        const result = await this.service.sortingWaste(tenantId, filters);
+        const csv = (0, report_utils_1.toCsv)(result.data, ['createdAt', 'poNumber', 'containerNumber', 'ragCode', 'wasteWeightKg']);
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename="sorting-waste.csv"');
+        return res.status(200).send(csv);
+    }
     async efficiency(filters, user, req) {
         const tenantId = req.tenantId || user.tenantId;
         await this.audit.logAccess({
@@ -63,6 +123,28 @@ let SortingReportsController = class SortingReportsController {
             params: { ...filters },
         });
         return { data: await this.service.sortingEfficiency(tenantId, filters) };
+    }
+    async volumeTrend(filters, user, req) {
+        const tenantId = req.tenantId || user.tenantId;
+        await this.audit.logAccess({
+            tenantId,
+            userId: user.userId,
+            report: 'sorting.volumeTrend',
+            exported: false,
+            params: { ...filters },
+        });
+        return { data: await this.service.sortingVolumeTrend(tenantId, filters) };
+    }
+    async yieldWasteTrend(filters, user, req) {
+        const tenantId = req.tenantId || user.tenantId;
+        await this.audit.logAccess({
+            tenantId,
+            userId: user.userId,
+            report: 'sorting.yieldWasteTrend',
+            exported: false,
+            params: { ...filters },
+        });
+        return { data: await this.service.sortingYieldWasteTrend(tenantId, filters) };
     }
     async efficiencyExport(filters, user, req, res) {
         const tenantId = req.tenantId || user.tenantId;
@@ -111,6 +193,48 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], SortingReportsController.prototype, "categoryYieldExport", null);
 __decorate([
+    (0, common_1.Get)('outputs'),
+    (0, permissions_decorator_1.RequirePermissions)('REPORTS_VIEW'),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [report_filters_dto_1.ReportFiltersDto, Object, Object]),
+    __metadata("design:returntype", Promise)
+], SortingReportsController.prototype, "outputs", null);
+__decorate([
+    (0, common_1.Get)('outputs/export'),
+    (0, permissions_decorator_1.RequirePermissions)('REPORTS_EXPORT'),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Req)()),
+    __param(3, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [report_filters_dto_1.ReportFiltersDto, Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], SortingReportsController.prototype, "outputsExport", null);
+__decorate([
+    (0, common_1.Get)('waste'),
+    (0, permissions_decorator_1.RequirePermissions)('REPORTS_VIEW'),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [report_filters_dto_1.ReportFiltersDto, Object, Object]),
+    __metadata("design:returntype", Promise)
+], SortingReportsController.prototype, "waste", null);
+__decorate([
+    (0, common_1.Get)('waste/export'),
+    (0, permissions_decorator_1.RequirePermissions)('REPORTS_EXPORT'),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Req)()),
+    __param(3, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [report_filters_dto_1.ReportFiltersDto, Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], SortingReportsController.prototype, "wasteExport", null);
+__decorate([
     (0, common_1.Get)('efficiency'),
     (0, permissions_decorator_1.RequirePermissions)('REPORTS_VIEW'),
     __param(0, (0, common_1.Query)()),
@@ -120,6 +244,26 @@ __decorate([
     __metadata("design:paramtypes", [report_filters_dto_1.ReportFiltersDto, Object, Object]),
     __metadata("design:returntype", Promise)
 ], SortingReportsController.prototype, "efficiency", null);
+__decorate([
+    (0, common_1.Get)('volume-trend'),
+    (0, permissions_decorator_1.RequirePermissions)('REPORTS_VIEW'),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [report_filters_dto_1.ReportFiltersDto, Object, Object]),
+    __metadata("design:returntype", Promise)
+], SortingReportsController.prototype, "volumeTrend", null);
+__decorate([
+    (0, common_1.Get)('yield-waste-trend'),
+    (0, permissions_decorator_1.RequirePermissions)('REPORTS_VIEW'),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [report_filters_dto_1.ReportFiltersDto, Object, Object]),
+    __metadata("design:returntype", Promise)
+], SortingReportsController.prototype, "yieldWasteTrend", null);
 __decorate([
     (0, common_1.Get)('efficiency/export'),
     (0, permissions_decorator_1.RequirePermissions)('REPORTS_EXPORT'),

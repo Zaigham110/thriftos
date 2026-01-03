@@ -1,0 +1,66 @@
+// ===============================
+// APP-FORM-FIELD STYLES (LOCKED)
+// ===============================
+
+.app-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+
+  .field-label {
+    font-size: var(--font-size-table-header);
+    font-weight: var(--font-weight-table-header);
+    color: var(--app-text-primary);
+
+    .required {
+      color: var(--app-danger);
+      margin-left: 2px;
+    }
+  }
+
+  .field-control {
+    input,
+    select,
+    textarea {
+      width: 100%;
+      padding: var(--space-sm) var(--space-md);
+      font-size: var(--font-size-body);
+      color: var(--app-text-primary);
+      background-color: var(--app-bg-surface);
+      border: 1px solid var(--app-border-subtle);
+      border-radius: var(--border-radius-sm);
+      transition: border-color 0.15s ease;
+
+      &:focus {
+        outline: none;
+        border-color: var(--app-primary);
+        box-shadow: 0 0 0 3px var(--app-primary-light);
+      }
+
+      &:disabled {
+        background-color: var(--app-bg-page);
+        color: var(--app-text-muted);
+        cursor: not-allowed;
+      }
+
+      &.error {
+        border-color: var(--app-danger);
+      }
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+  }
+
+  .field-error {
+    font-size: var(--font-size-meta);
+    color: var(--app-danger);
+  }
+
+  .field-hint {
+    font-size: var(--font-size-meta);
+    color: var(--app-text-muted);
+  }
+}

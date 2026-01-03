@@ -1,128 +1,124 @@
-<div class="page-container">
-  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
-
-  <div class="page-header">
-    <div class="header-left">
+<app-page>
+  <app-page-header>
+    <ui-breadcrumb slot="breadcrumbs" [items]="breadcrumbs"></ui-breadcrumb>
+    
+    <div slot="title" class="header-content">
       <lucide-icon [img]="icons.Star" class="header-icon"></lucide-icon>
       <div class="header-text">
         <h1 class="page-title">Grades</h1>
         <p class="page-subtitle">Quality grades for sorting and inventory classification</p>
       </div>
     </div>
-    <div class="header-actions">
-      <button class="btn btn-secondary" (click)="refresh()" [disabled]="loading()">
+
+    <div slot="actions" class="actions">
+      <app-button 
+        variant="secondary"
+        size="sm"
+        (click)="refresh()" 
+        [disabled]="loading()"
+      >
         <lucide-icon [img]="icons.RefreshCw" [class.spinning]="loading()"></lucide-icon>
         Refresh
-      </button>
-      <button 
-        class="btn btn-primary" 
+      </app-button>
+      <app-button 
+        variant="primary"
+        size="sm"
         (click)="openAddDrawer()"
         *hasPermission="'grade.create'"
       >
         <lucide-icon [img]="icons.Plus"></lucide-icon>
         Add Grade
-      </button>
+      </app-button>
     </div>
-  </div>
+  </app-page-header>
 
-  <!-- Search Bar -->
-  <div class="search-bar">
-    <div class="search-input-wrapper">
-      <lucide-icon [img]="icons.Search" class="search-icon"></lucide-icon>
-      <input
-        type="text"
-        class="search-input"
-        placeholder="Search grades..."
-        [value]="searchQuery()"
-        (input)="searchQuery.set($any($event.target).value)"
-      />
-    </div>
-  </div>
-
-  <!-- Loading State -->
-  @if (loading()) {
-    <ui-card>
-      <div class="skeleton-table">
-        @for (i of [1, 2, 3, 4]; track i) {
-          <div class="skeleton-row">
-            <ui-skeleton width="80px" height="28px"></ui-skeleton>
-            <ui-skeleton width="300px" height="16px"></ui-skeleton>
-            <ui-skeleton width="120px" height="32px"></ui-skeleton>
-          </div>
-        }
+  <app-page-body>
+    <!-- Search Bar -->
+    <app-section>
+      <div class="search-bar">
+        <div class="search-input-wrapper">
+          <lucide-icon [img]="icons.Search" class="search-icon"></lucide-icon>
+          <input
+            type="text"
+            class="search-input"
+            placeholder="Search grades..."
+            [value]="searchQuery()"
+            (input)="searchQuery.set($any($event.target).value)"
+          />
+        </div>
       </div>
-    </ui-card>
-  } @else if (filteredGrades().length === 0) {
-    <ui-card>
-      @if (searchQuery()) {
-        <ui-empty-state
-          title="No grades found"
-          description="No grades match your search criteria."
-          [icon]="icons.Star"
-        ></ui-empty-state>
-      } @else {
-        <ui-empty-state
-          title="No grades yet"
-          description="Create your first grade to start classifying inventory."
-          [icon]="icons.Star"
-        >
-          <button 
-            class="btn btn-primary" 
-            (click)="openAddDrawer()"
-            *hasPermission="'grade.create'"
+    </app-section>
+
+    <!-- Loading State -->
+    @if (loading()) {
+      <app-section>
+        <app-loading message="Loading grades..."></app-loading>
+      </app-section>
+    } @else if (filteredGrades().length === 0) {
+      <app-section>
+        @if (searchQuery()) {
+          <app-empty-state
+            title="No grades found"
+            description="No grades match your search criteria."
+          ></app-empty-state>
+        } @else {
+          <app-empty-state
+            title="No grades yet"
+            description="Create your first grade to start classifying inventory."
           >
-            <lucide-icon [img]="icons.Plus"></lucide-icon>
-            Add Grade
-          </button>
-        </ui-empty-state>
-      }
-    </ui-card>
-  } @else {
-    <ui-card [padding]="false">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Grade</th>
-            <th>Description</th>
-            <th class="actions-column">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (grade of filteredGrades(); track grade.id) {
-            <tr>
-              <td>
-                <span class="grade-badge" [ngClass]="getGradeBadgeClass(grade)">
-                  {{ grade.name }}
-                </span>
-              </td>
-              <td>
-                <span class="description-text">{{ grade.description || '—' }}</span>
-              </td>
-              <td class="actions-cell">
-                <button 
-                  class="btn btn-icon" 
+            <app-button 
+              variant="primary"
+              (click)="openAddDrawer()"
+              *hasPermission="'grade.create'"
+            >
+              <lucide-icon [img]="icons.Plus"></lucide-icon>
+              Add Grade
+            </app-button>
+          </app-empty-state>
+        }
+      </app-section>
+    } @else {
+      <app-section>
+        <app-data-table
+          [columns]="columns"
+          [data]="filteredGrades()"
+          [loading]="loading()"
+        >
+          <ng-template #cellTemplate let-row let-column="column">
+            @if (column.key === 'name') {
+              <app-badge [variant]="getGradeBadgeVariant(row)">
+                {{ row.name }}
+              </app-badge>
+            } @else if (column.key === 'description') {
+              <span class="description-text">{{ row.description || '—' }}</span>
+            } @else if (column.key === 'actions') {
+              <div class="table-actions">
+                <app-button
+                  variant="secondary"
+                  size="sm"
                   title="Edit Grade"
-                  (click)="openEditDrawer(grade)"
+                  (click)="openEditDrawer(row)"
                   *hasPermission="'grade.update'"
                 >
                   <lucide-icon [img]="icons.Pencil"></lucide-icon>
-                </button>
-                <button 
-                  class="btn btn-icon btn-danger" 
+                </app-button>
+                <app-button
+                  variant="danger"
+                  size="sm"
                   title="Delete Grade"
-                  (click)="confirmDelete(grade)"
+                  (click)="confirmDelete(row)"
                   *hasPermission="'grade.delete'"
                 >
                   <lucide-icon [img]="icons.Trash2"></lucide-icon>
-                </button>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </ui-card>
-  }
-</div>
+                </app-button>
+              </div>
+            }
+          </ng-template>
+        </app-data-table>
+      </app-section>
+    }
+  </app-page-body>
+</app-page>
 
 <!-- Grade Form Drawer -->
 <app-grade-form-drawer
@@ -133,12 +129,20 @@
 ></app-grade-form-drawer>
 
 <!-- Delete Confirmation Dialog -->
-<ui-confirm-dialog
+<app-dialog
   [open]="confirmDeleteOpen()"
   title="Delete Grade"
-  [message]="'Are you sure you want to delete the grade \'' + (gradeToDelete()?.name || '') + '\'? This action cannot be undone.'"
-  confirmText="Delete"
-  confirmVariant="danger"
-  (confirmed)="deleteGrade()"
-  (cancelled)="cancelDelete()"
-></ui-confirm-dialog>
+  (closed)="cancelDelete()"
+>
+  <p>Are you sure you want to delete the grade '{{ gradeToDelete()?.name }}'? This action cannot be undone.</p>
+  
+  <div slot="footer" class="dialog-actions">
+    <app-button variant="secondary" (click)="cancelDelete()">
+      Cancel
+    </app-button>
+    <app-button variant="danger" (click)="deleteGrade()">
+      Delete
+    </app-button>
+  </div>
+</app-dialog>
+

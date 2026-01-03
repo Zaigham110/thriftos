@@ -21,6 +21,7 @@ const current_user_decorator_1 = require("../common/decorators/current-user.deco
 const permissions_decorator_1 = require("../common/decorators/permissions.decorator");
 const client_1 = require("@prisma/client");
 const raw_category_dto_1 = require("./dto/raw-category.dto");
+const category_dto_1 = require("./dto/category.dto");
 let TenantController = class TenantController {
     constructor(tenantService) {
         this.tenantService = tenantService;
@@ -32,6 +33,22 @@ let TenantController = class TenantController {
     async getCategories(user, req) {
         const tenantId = req.tenantId || user.tenantId;
         return this.tenantService.getCategories(tenantId);
+    }
+    async getAllCategories(user, req) {
+        const tenantId = req.tenantId || user.tenantId;
+        return this.tenantService.getAllCategories(tenantId);
+    }
+    async createCategory(user, req, dto) {
+        const tenantId = req.tenantId || user.tenantId;
+        return this.tenantService.createCategory(tenantId, dto);
+    }
+    async updateCategory(user, req, id, dto) {
+        const tenantId = req.tenantId || user.tenantId;
+        return this.tenantService.updateCategory(tenantId, id, dto);
+    }
+    async deleteCategory(user, req, id) {
+        const tenantId = req.tenantId || user.tenantId;
+        return this.tenantService.deleteCategory(tenantId, id);
     }
     async getRawCategories(user, req, type) {
         const tenantId = req.tenantId || user.tenantId;
@@ -81,6 +98,46 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], TenantController.prototype, "getCategories", null);
+__decorate([
+    (0, common_1.Get)('categories/all'),
+    (0, permissions_decorator_1.RequirePermissions)('category.read'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], TenantController.prototype, "getAllCategories", null);
+__decorate([
+    (0, common_1.Post)('categories'),
+    (0, permissions_decorator_1.RequirePermissions)('category.create'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, category_dto_1.CreateCategoryDto]),
+    __metadata("design:returntype", Promise)
+], TenantController.prototype, "createCategory", null);
+__decorate([
+    (0, common_1.Patch)('categories/:id'),
+    (0, permissions_decorator_1.RequirePermissions)('category.update'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Param)('id')),
+    __param(3, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, String, category_dto_1.UpdateCategoryDto]),
+    __metadata("design:returntype", Promise)
+], TenantController.prototype, "updateCategory", null);
+__decorate([
+    (0, common_1.Delete)('categories/:id'),
+    (0, permissions_decorator_1.RequirePermissions)('category.delete'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, String]),
+    __metadata("design:returntype", Promise)
+], TenantController.prototype, "deleteCategory", null);
 __decorate([
     (0, common_1.Get)('raw-categories'),
     (0, permissions_decorator_1.SkipPermissionCheck)(),

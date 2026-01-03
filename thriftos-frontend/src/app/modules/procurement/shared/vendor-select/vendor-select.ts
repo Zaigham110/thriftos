@@ -5,20 +5,21 @@
  * Dropdown for vendor selection with inline "Add Vendor" drawer
  */
 
-import { ChangeDetectionStrategy, Component, OnInit, input, output, signal, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, input, output, signal, computed, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { LucideAngularModule, Plus } from 'lucide-angular';
+import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ProcurementService } from '../../procurement.service';
 import { Vendor, CreateVendorRequest } from '../../procurement.models';
 import {
-  SelectComponent,
-  SelectOption,
-  DrawerComponent,
-  InputComponent,
-  TextareaComponent,
-  ButtonComponent,
-  AlertComponent,
+  AppButtonComponent,
+  AppCardComponent,
+  AppErrorStateComponent,
+  AppFormComponent,
+  AppFormFieldComponent,
+  AppInputComponent,
+  AppSelectComponent,
+  type SelectOption,
+  AppTextareaComponent,
 } from '../../../../shared/ui';
 
 @Component({
@@ -27,13 +28,14 @@ import {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    LucideAngularModule,
-    SelectComponent,
-    DrawerComponent,
-    InputComponent,
-    TextareaComponent,
-    ButtonComponent,
-    AlertComponent,
+    AppSelectComponent,
+    AppCardComponent,
+    AppFormComponent,
+    AppFormFieldComponent,
+    AppInputComponent,
+    AppTextareaComponent,
+    AppButtonComponent,
+    AppErrorStateComponent,
   ],
   templateUrl: './vendor-select.html',
   styleUrl: './vendor-select.scss',
@@ -42,8 +44,6 @@ import {
 export class VendorSelectComponent implements OnInit {
   private fb = inject(FormBuilder);
   private procurementService = inject(ProcurementService);
-
-  readonly icons = { Plus };
 
   readonly selectedVendorId = input<string | null>(null);
   readonly disabled = input<boolean>(false);
@@ -59,6 +59,8 @@ export class VendorSelectComponent implements OnInit {
   readonly isCreating = signal(false);
   readonly createError = signal<string | null>(null);
 
+  readonly vendorIdControl = new FormControl<string | number>('');
+
   readonly vendorOptions = computed<SelectOption[]>(() => {
     const vendors = this.procurementService.activeVendors();
     return [
@@ -72,6 +74,15 @@ export class VendorSelectComponent implements OnInit {
   ngOnInit(): void {
     this.initForm();
     this.loadVendors();
+
+    effect(() => {
+      const id = this.selectedVendorId() ?? '';
+      this.vendorIdControl.setValue(id, { emitEvent: false });
+    });
+
+    this.vendorIdControl.valueChanges.subscribe((value) => {
+      this.onVendorChange(value ?? '');
+    });
   }
 
   private initForm(): void {

@@ -31,6 +31,38 @@ export class RepackReportsController {
     return { data: await this.service.repackEfficiency(tenantId, filters) };
   }
 
+  @Get('summary')
+  @RequirePermissions('REPORTS_VIEW')
+  async summary(@Query() filters: ReportFiltersDto, @CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    await this.audit.logAccess({
+      tenantId,
+      userId: user.userId,
+      report: 'repack.summary',
+      exported: false,
+      params: { ...filters },
+    });
+    return await this.service.repackSummary(tenantId, filters);
+  }
+
+  @Get('summary/export')
+  @RequirePermissions('REPORTS_EXPORT')
+  async summaryExport(@Query() filters: ReportFiltersDto, @CurrentUser() user: CurrentUserData, @Req() req: Request, @Res() res: Response) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    await this.audit.logAccess({
+      tenantId,
+      userId: user.userId,
+      report: 'repack.summary',
+      exported: true,
+      params: { ...filters },
+    });
+    const result = await this.service.repackSummary(tenantId, filters);
+    const csv = toCsv(result.data as any[], ['status', 'units', 'totalWeightKg', 'totalPcs', 'totalCost']);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="repack-summary.csv"');
+    return res.status(200).send(csv);
+  }
+
   @Get('efficiency/export')
   @RequirePermissions('REPORTS_EXPORT')
   async efficiencyExport(@Query() filters: ReportFiltersDto, @CurrentUser() user: CurrentUserData, @Req() req: Request, @Res() res: Response) {

@@ -1,183 +1,77 @@
-<div class="procurement-dashboard">
-  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs" />
+      <h1 class="page-title">Procurement</h1>
+      <p class="page-subtitle">Procurement-only dashboard</p>
+    </app-stack>
 
-  <header class="page-header">
-    <div class="page-header__title">
-      <h1>Procurement</h1>
-      <p class="page-header__subtitle">Manage purchase orders, containers, and incoming bales</p>
-    </div>
-
-    @if (canCreate()) {
-      <div class="page-header__actions">
-        <a routerLink="purchase-orders/create" class="btn-create">
-          <ui-button variant="primary">
-            <lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>
-            New Purchase Order
-          </ui-button>
-        </a>
-      </div>
-    }
-  </header>
-
-  @if (error()) {
-    <ui-alert variant="danger" [dismissible]="true" (dismissed)="error.set(null)">
-      {{ error() }}
-      <button type="button" class="retry-btn" (click)="loadStats()">Retry</button>
-    </ui-alert>
-  }
-
-  <!-- Stats Grid -->
-  <div class="stats-grid">
-    <!-- Purchase Orders Card -->
-    <ui-card class="stat-card">
-      <div class="stat-card__icon stat-card__icon--primary">
-        <lucide-icon [img]="icons.FileText" [size]="24"></lucide-icon>
-      </div>
-      <div class="stat-card__content">
-        <h3 class="stat-card__label">Purchase Orders</h3>
-        @if (loading()) {
-          <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
-        } @else {
-          <p class="stat-card__value">{{ stats()?.totalPurchaseOrders ?? 0 }}</p>
-        }
-        <div class="stat-card__breakdown">
-          @if (loading()) {
-            <ui-skeleton variant="text" class="stat-mini-skeleton"></ui-skeleton>
-          } @else {
-            <span class="breakdown-item breakdown-item--open">{{ stats()?.openPurchaseOrders ?? 0 }} Open</span>
-            <span class="breakdown-item breakdown-item--received">{{ stats()?.receivedPurchaseOrders ?? 0 }} Received</span>
-            <span class="breakdown-item breakdown-item--closed">{{ stats()?.closedPurchaseOrders ?? 0 }} Closed</span>
-          }
-        </div>
-      </div>
-      <a routerLink="purchase-orders" class="stat-card__link">View All →</a>
-    </ui-card>
-
-    <!-- Containers Card -->
-    <ui-card class="stat-card">
-      <div class="stat-card__icon stat-card__icon--blue">
-        <lucide-icon [img]="icons.Box" [size]="24"></lucide-icon>
-      </div>
-      <div class="stat-card__content">
-        <h3 class="stat-card__label">Containers</h3>
-        @if (loading()) {
-          <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
-        } @else {
-          <p class="stat-card__value">{{ stats()?.totalContainers ?? 0 }}</p>
-        }
-        <div class="stat-card__breakdown">
-          @if (loading()) {
-            <ui-skeleton variant="text" class="stat-mini-skeleton"></ui-skeleton>
-          } @else {
-            <span class="breakdown-item breakdown-item--transit">{{ stats()?.containersInTransit ?? 0 }} In Transit</span>
-            <span class="breakdown-item breakdown-item--arrived">{{ stats()?.containersArrived ?? 0 }} Arrived</span>
-          }
-        </div>
-      </div>
-      <a routerLink="containers" class="stat-card__link">View All →</a>
-    </ui-card>
-
-    <!-- Incoming Bales Card -->
-    <ui-card class="stat-card">
-      <div class="stat-card__icon stat-card__icon--green">
-        <lucide-icon [img]="icons.Package" [size]="24"></lucide-icon>
-      </div>
-      <div class="stat-card__content">
-        <h3 class="stat-card__label">Incoming Bales</h3>
-        @if (loading()) {
-          <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
-        } @else {
-          <p class="stat-card__value">{{ stats()?.totalIncomingBales ?? 0 }}</p>
-        }
-        <div class="stat-card__breakdown">
-          @if (loading()) {
-            <ui-skeleton variant="text" class="stat-mini-skeleton"></ui-skeleton>
-          } @else {
-            <span class="breakdown-item">{{ stats()?.standaloneIncomingBales ?? 0 }} Standalone Bales</span>
-          }
-        </div>
-      </div>
-      <a routerLink="incoming-bales" class="stat-card__link">View All →</a>
-    </ui-card>
-
-    <!-- Weight Card -->
-    <ui-card class="stat-card">
-      <div class="stat-card__icon stat-card__icon--orange">
-        <lucide-icon [img]="icons.Scale" [size]="24"></lucide-icon>
-      </div>
-      <div class="stat-card__content">
-        <h3 class="stat-card__label">Total Weight Procured</h3>
-        @if (loading()) {
-          <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
-        } @else {
-          <p class="stat-card__value">{{ formatWeight(stats()?.totalWeightKg ?? 0) }}</p>
-        }
-      </div>
-    </ui-card>
-
-    <!-- Total Cost Card -->
-    <ui-card class="stat-card stat-card--wide">
-      <div class="stat-card__icon stat-card__icon--purple">
-        <lucide-icon [img]="icons.DollarSign" [size]="24"></lucide-icon>
-      </div>
-      <div class="stat-card__content">
-        <h3 class="stat-card__label">Total Procurement Cost</h3>
-        @if (loading()) {
-          <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
-        } @else {
-          <p class="stat-card__value stat-card__value--currency">
-            {{ stats()?.totalCost ?? 0 | currency:stats()?.currency ?? 'USD':'symbol':'1.2-2' }}
-          </p>
-        }
-      </div>
-    </ui-card>
-  </div>
-
-  <!-- Quick Actions -->
-  <section class="quick-actions">
-    <h2>Quick Actions</h2>
-    <div class="quick-actions__grid">
+    <div class="actions">
       @if (canCreate()) {
-        <a routerLink="purchase-orders/create" class="action-card">
-          <div class="action-card__icon">
-            <lucide-icon [img]="icons.PlusCircle" [size]="20"></lucide-icon>
-          </div>
-          <div class="action-card__content">
-            <h3>Create Purchase Order</h3>
-            <p>Start a new container or loose bale procurement</p>
-          </div>
-        </a>
-
-        <a routerLink="incoming-bales/create" class="action-card">
-          <div class="action-card__icon">
-            <lucide-icon [img]="icons.PackagePlus" [size]="20"></lucide-icon>
-          </div>
-          <div class="action-card__content">
-            <h3>Add Incoming Bale</h3>
-            <p>Record a standalone incoming bale</p>
-          </div>
-        </a>
+        <app-button variant="primary" [routerLink]="['/procurement/pos/create']">
+          New Purchase Order
+        </app-button>
       }
-
-      <a routerLink="containers" [queryParams]="{status: 'IN_TRANSIT'}" class="action-card">
-        <div class="action-card__icon">
-          <lucide-icon [img]="icons.Truck" [size]="20"></lucide-icon>
-        </div>
-        <div class="action-card__content">
-          <h3>Containers In Transit</h3>
-          <p>View containers currently in transit</p>
-        </div>
-      </a>
-
-      <a routerLink="purchase-orders" [queryParams]="{status: 'OPEN'}" class="action-card">
-        <div class="action-card__icon">
-          <lucide-icon [img]="icons.FolderOpen" [size]="20"></lucide-icon>
-        </div>
-        <div class="action-card__content">
-          <h3>Open Purchase Orders</h3>
-          <p>View active purchase orders</p>
-        </div>
-      </a>
     </div>
-  </section>
-</div>
+  </app-page-header>
+
+  <app-page-body>
+    <app-section>
+      <app-section-header>
+        <h2 class="section-title">KPIs</h2>
+        <div class="actions"></div>
+      </app-section-header>
+      <app-section-body>
+        @if (loading()) {
+          <app-loading message="Loading procurement dashboard…" />
+        } @else if (error()) {
+          <app-error-state title="Failed to load" [message]="error()!" [action]="true">
+            <app-button action variant="secondary" (click)="loadSummary()">Retry</app-button>
+          </app-error-state>
+        } @else {
+          <app-grid [columns]="3" gap="md">
+            <app-kpi-card label="Active POs" [value]="kpiActivePos()" />
+            <app-kpi-card label="Containers in Transit" [value]="kpiContainersInTransit()" />
+            <app-kpi-card label="Loose Bales Received" [value]="kpiLooseBalesReceived()" />
+          </app-grid>
+        }
+      </app-section-body>
+    </app-section>
+
+    <app-section>
+      <app-section-header>
+        <h2 class="section-title">Analytics</h2>
+        <div class="actions"></div>
+      </app-section-header>
+      <app-section-body>
+        @if (loading()) {
+          <app-loading message="Loading analytics…" />
+        } @else if (error()) {
+          <app-error-state title="Failed to load" [message]="error()!" />
+        } @else {
+          <app-grid [columns]="2" gap="md">
+            <app-card>
+              <app-stack direction="vertical" spacing="sm">
+                <div class="dash-card-head">
+                  <h3 class="dash-card-title">PO spend vs allocated</h3>
+                  <p class="dash-card-subtitle">Utilization % by active PO (top 10)</p>
+                </div>
+                <app-chart [type]="'bar'" [variant]="'panel'" [points]="poUtilizationPoints()" />
+              </app-stack>
+            </app-card>
+
+            <app-card>
+              <app-stack direction="vertical" spacing="sm">
+                <div class="dash-card-head">
+                  <h3 class="dash-card-title">Vendor distribution</h3>
+                  <p class="dash-card-subtitle">Spend share % in selected period (top 8)</p>
+                </div>
+                <app-chart [type]="'bar'" [variant]="'panel'" [points]="vendorDistributionPoints()" />
+              </app-stack>
+            </app-card>
+          </app-grid>
+        }
+      </app-section-body>
+    </app-section>
+  </app-page-body>
+</app-page>

@@ -1,5 +1,7 @@
 /**
- * Application Configuration - Phase 1: Authentication & Shell
+ * ===============================
+ * APPLICATION CONFIGURATION - PHASE 0
+ * ===============================
  */
 
 import {

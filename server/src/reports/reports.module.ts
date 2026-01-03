@@ -7,9 +7,11 @@ import { InventoryReportsModule } from './inventory-reports/inventory-reports.mo
 import { WasteReportsModule } from './waste-reports/waste-reports.module';
 import { WorkerReportsModule } from './worker-reports/worker-reports.module';
 import { CostReportsModule } from './cost-reports/cost-reports.module';
+import { DashboardReportsModule } from './dashboard-reports/dashboard-reports.module';
 
 @Module({
   imports: [
+    DashboardReportsModule,
     ProcurementReportsModule,
     SortingReportsModule,
     GradingReportsModule,

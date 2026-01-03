@@ -59,7 +59,8 @@ import {
   UpdateIncomingBaleRequest,
   IncomingBaleListResponse,
   IncomingBaleFilters,
-  ProcurementStats,
+  ProcurementDashboardSummary,
+  ProcurementDashboardSummaryResponse,
 } from './procurement.models';
 import { API_ENDPOINTS } from '../../core/config/api.config';
 import { TenantService } from '../../core/tenant/tenant.service';
@@ -95,8 +96,8 @@ export class ProcurementService {
   private readonly _baleCurrentPage = signal(1);
   private readonly _baleTotalPages = signal(1);
 
-  // Dashboard stats
-  private readonly _stats = signal<ProcurementStats | null>(null);
+  // Dashboard summary (authoritative backend aggregates)
+  private readonly _stats = signal<ProcurementDashboardSummary | null>(null);
 
   // Public readonly selectors
   readonly loading = this._loading.asReadonly();
@@ -114,6 +115,10 @@ export class ProcurementService {
   readonly baleTotalCount = this._baleTotalCount.asReadonly();
   readonly baleCurrentPage = this._baleCurrentPage.asReadonly();
   readonly baleTotalPages = this._baleTotalPages.asReadonly();
+  // Aliases for incoming bale pagination (for consistency with container pattern)
+  readonly incomingBaleTotalCount = this._baleTotalCount.asReadonly();
+  readonly incomingBaleCurrentPage = this._baleCurrentPage.asReadonly();
+  readonly incomingBaleTotalPages = this._baleTotalPages.asReadonly();
   readonly stats = this._stats.asReadonly();
 
   // Computed values
@@ -517,58 +522,24 @@ export class ProcurementService {
    * Load procurement stats for dashboard
    * Combines multiple API calls to build stats
    */
-  loadStats(): Observable<ProcurementStats> {
+  loadStats(filters?: { startDate?: string; endDate?: string }): Observable<ProcurementDashboardSummary> {
     this._loading.set(true);
     this._error.set(null);
 
-    // Load all needed data in parallel
-    return forkJoin({
-      tenant: this.tenantService.loadTenant(),
-      openPOs: this.http.get<PurchaseOrderListResponse>(`${API_BASE}/purchase-orders`, {
-        params: new HttpParams().set('status', 'OPEN').set('limit', '1'),
-      }),
-      receivedPOs: this.http.get<PurchaseOrderListResponse>(`${API_BASE}/purchase-orders`, {
-        params: new HttpParams().set('status', 'RECEIVED').set('limit', '1'),
-      }),
-      closedPOs: this.http.get<PurchaseOrderListResponse>(`${API_BASE}/purchase-orders`, {
-        params: new HttpParams().set('status', 'CLOSED').set('limit', '1'),
-      }),
-      containers: this.http.get<ContainerListResponse>(`${API_BASE}/containers`, {
-        params: new HttpParams().set('limit', '1000'),
-      }),
-      bales: this.http.get<IncomingBaleListResponse>(`${API_BASE}/incoming-bales`, {
-        params: new HttpParams().set('limit', '1000'),
-      }),
-    }).pipe(
-      map((results) => {
-        const containers = results.containers.data || [];
-        const bales = results.bales.data || [];
+    let params = new HttpParams();
+    if (filters?.startDate) params = params.set('startDate', filters.startDate);
+    if (filters?.endDate) params = params.set('endDate', filters.endDate);
 
-        // Calculate totals
-        const totalWeightKg = bales.reduce((sum, b) => sum + Number(b.weightKg || 0), 0);
-        const totalBalesCost = bales.reduce((sum, b) => sum + Number(b.cost || 0), 0);
-
-        const stats: ProcurementStats = {
-          totalPurchaseOrders: results.openPOs.total + results.receivedPOs.total + results.closedPOs.total,
-          openPurchaseOrders: results.openPOs.total,
-          receivedPurchaseOrders: results.receivedPOs.total,
-          closedPurchaseOrders: results.closedPOs.total,
-          totalContainers: results.containers.total,
-          containersInTransit: containers.filter((c) => c.status === 'IN_TRANSIT').length,
-          containersArrived: containers.filter((c) => c.status === 'ARRIVED' || c.status === 'CLEARED').length,
-          totalIncomingBales: results.bales.total,
-          standaloneIncomingBales: bales.filter((b) => !b.containerId).length,
-          totalWeightKg,
-          totalCost: totalBalesCost,
-          currency: results.tenant.currency,
-        };
-
-        this._stats.set(stats);
-        this._loading.set(false);
-        return stats;
-      }),
-      catchError((error) => this.handleError(error))
-    );
+    return this.http
+      .get<ProcurementDashboardSummaryResponse>(`${API_BASE}/dashboard/summary`, { params })
+      .pipe(
+        map((res) => res.data),
+        tap((summary) => {
+          this._stats.set(summary);
+          this._loading.set(false);
+        }),
+        catchError((error) => this.handleError(error)),
+      );
   }
 
   // =============================================================

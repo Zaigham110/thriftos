@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 
 @Component({
-  selector: 'ui-textarea',
+  selector: 'ui-textarea, app-textarea',
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './textarea.html',

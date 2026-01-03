@@ -4,7 +4,7 @@ import { CommonModule } from '@angular/common';
 export type SkeletonVariant = 'text' | 'circular' | 'rectangular';
 
 @Component({
-  selector: 'ui-skeleton',
+  selector: 'ui-skeleton, app-skeleton',
   standalone: true,
   imports: [CommonModule],
   templateUrl: './skeleton.html',

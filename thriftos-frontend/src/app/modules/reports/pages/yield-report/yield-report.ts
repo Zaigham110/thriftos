@@ -9,7 +9,6 @@
 
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
 import {
   LucideAngularModule,
   TrendingUp,
@@ -24,11 +23,19 @@ import { ReportsService } from '../../reports.service';
 import { YieldReportRow, ReportFilters } from '../../reports.models';
 import { ReportFiltersComponent } from '../../shared/report-filters.component';
 import {
-  CardComponent,
-  AlertComponent,
-  BreadcrumbComponent,
-  BreadcrumbItem,
-  SkeletonComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppPageBodyComponent,
+  AppSectionComponent,
+  AppSectionHeaderComponent,
+  AppSectionBodyComponent,
+  AppDataTableComponent,
+  AppButtonComponent,
+  AppErrorStateComponent,
+  AppBreadcrumbComponent,
+  AppStackComponent,
+  type DataTableColumn,
+  type BreadcrumbItem
 } from '../../../../shared/ui';
 
 @Component({
@@ -36,13 +43,19 @@ import {
   standalone: true,
   imports: [
     CommonModule,
-    RouterLink,
     LucideAngularModule,
-    CardComponent,
-    AlertComponent,
-    BreadcrumbComponent,
-    SkeletonComponent,
     ReportFiltersComponent,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppSectionComponent,
+    AppSectionHeaderComponent,
+    AppSectionBodyComponent,
+    AppDataTableComponent,
+    AppButtonComponent,
+    AppErrorStateComponent,
+    AppBreadcrumbComponent,
+    AppStackComponent,
   ],
   templateUrl: './yield-report.html',
   styleUrl: './yield-report.scss',
@@ -64,6 +77,7 @@ export class YieldReportComponent implements OnInit {
   readonly data = signal<YieldReportRow[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+  readonly searchText = signal<string>('');
   protected currentFilters: ReportFilters = {};
 
   readonly breadcrumbs: BreadcrumbItem[] = [
@@ -72,22 +86,13 @@ export class YieldReportComponent implements OnInit {
     { label: 'Yield Report' },
   ];
 
-  // Computed summary
-  protected get totalInput(): number {
-    return this.data().reduce((sum, r) => sum + (r.inputWeightKg || 0), 0);
-  }
-
-  protected get totalOutput(): number {
-    return this.data().reduce((sum, r) => sum + (r.outputWeightKg || 0), 0);
-  }
-
-  protected get totalWaste(): number {
-    return this.data().reduce((sum, r) => sum + (r.wasteWeightKg || 0), 0);
-  }
-
-  protected get avgYield(): number {
-    return this.totalInput > 0 ? (this.totalOutput / this.totalInput) * 100 : 0;
-  }
+  readonly columns: DataTableColumn[] = [
+    { label: 'Category', key: 'categoryName', sortable: true },
+    { label: 'Input (KG)', key: 'inputWeightKg', sortable: true, align: 'right' },
+    { label: 'Output (KG)', key: 'outputWeightKg', sortable: true, align: 'right' },
+    { label: 'Waste (KG)', key: 'wasteWeightKg', sortable: true, align: 'right' },
+    { label: 'Yield %', key: 'yieldPct', sortable: true, align: 'right' },
+  ];
 
   protected get exporting(): boolean {
     return this.reportsService.exporting();
@@ -118,24 +123,30 @@ export class YieldReportComponent implements OnInit {
     this.loadData(filters);
   }
 
+  onSearchChange(value: string): void {
+    this.searchText.set(value ?? '');
+  }
+
   exportReport(): void {
     this.reportsService.exportYieldReport(this.currentFilters);
   }
 
-  formatWeight(weight: number): string {
-    if (weight >= 1000) {
-      return `${(weight / 1000).toFixed(2)} T`;
-    }
-    return `${weight.toFixed(2)} KG`;
+  private toNumber(value: unknown): number | null {
+    if (value === null || value === undefined) return null;
+    const n = typeof value === 'number' ? value : Number(String(value));
+    return Number.isFinite(n) ? n : null;
   }
 
-  formatPercent(value: number): string {
-    return `${value.toFixed(1)}%`;
+  formatWeight(weight: unknown): string {
+    const n = this.toNumber(weight);
+    if (n === null) return '—';
+    if (n >= 1000) return `${(n / 1000).toFixed(2)} T`;
+    return `${n.toFixed(2)} KG`;
   }
 
-  getYieldClass(yieldPct: number): string {
-    if (yieldPct >= 80) return 'yield--high';
-    if (yieldPct >= 60) return 'yield--medium';
-    return 'yield--low';
+  formatPercent(value: unknown): string {
+    const n = this.toNumber(value);
+    if (n === null) return '—';
+    return `${n.toFixed(1)}%`;
   }
 }

@@ -1,0 +1,334 @@
+<app-page>
+  <app-page-header>
+    <app-stack direction="horizontal" spacing="sm" align="center">
+      <app-button variant="secondary" (click)="backToList()">Back</app-button>
+      <div>
+        <h1 class="page-title">Sorting — Stage 2 Workspace</h1>
+        <div class="page-subtitle">
+          @if (session()) {
+            Category {{ session()?.categoryOutput?.category?.name || '—' }} • Rag {{ session()?.categoryOutput?.rag?.ragCode || '—' }} • Container {{ session()?.categoryOutput?.container?.containerNumber || '—' }}
+          } @else {
+            Allocate weight into grades, then seal
+          }
+        </div>
+      </div>
+    </app-stack>
+
+    <div class="actions">
+      @if (session()) {
+        <app-badge [variant]="isClosed() ? 'success' : 'warning'">
+          {{ isClosed() ? 'CLOSED' : 'OPEN' }}
+        </app-badge>
+
+        <app-button
+          variant="primary"
+          (click)="closeConfirm()"
+          [disabled]="loading() || isClosed() || !canSeal()"
+          [title]="canSeal() ? 'Seal session' : 'Remaining must be 0 to seal'"
+        >
+          Seal
+        </app-button>
+      }
+    </div>
+  </app-page-header>
+
+  <app-page-body>
+    <!-- Seal Session Dialog -->
+    <app-dialog
+      [open]="showCloseConfirm()"
+      title="Seal Grading Session?"
+      [message]="sealMessage()"
+      variant="danger"
+      confirmText="Seal"
+      cancelText="Cancel"
+      [loading]="loading()"
+      (cancelled)="closeCancel()"
+      (confirmed)="closeExecute()"
+    />
+
+    <!-- Delete Bucket Dialog -->
+    <app-dialog
+      [open]="showDeleteBucketConfirm()"
+      title="Remove Grade Allocation?"
+      message="This will remove the grade allocation from this session. The weight will be returned to 'Remaining'."
+      variant="danger"
+      confirmText="Remove"
+      cancelText="Cancel"
+      [loading]="loading()"
+      (cancelled)="deleteBucketCancel()"
+      (confirmed)="deleteBucketExecute()"
+    />
+
+    <!-- Delete Waste Dialog -->
+    <app-dialog
+      [open]="showDeleteWasteConfirm()"
+      title="Remove Waste Line?"
+      message="This will remove the waste line item. The weight will be returned to 'Remaining'."
+      variant="danger"
+      confirmText="Remove"
+      cancelText="Cancel"
+      [loading]="loading()"
+      (cancelled)="deleteWasteCancel()"
+      (confirmed)="deleteWasteExecute()"
+    />
+
+    @if (error()) {
+      <app-error-state title="Action failed" [message]="error()!" [action]="true">
+        <app-button action variant="secondary" (click)="error.set(null)">Dismiss</app-button>
+      </app-error-state>
+    }
+
+    <app-split ratio="2-1">
+      <app-split-main>
+        <!-- ─── Grade Allocation Section ─────────────────────────────────── -->
+        <app-section>
+          <app-section-header>
+            <strong>Grade Allocation</strong>
+          </app-section-header>
+          <app-section-body>
+            <app-card>
+              @if (!started()) {
+                <app-stack direction="vertical" spacing="xs">
+                  <div class="muted">Loading grading session...</div>
+                  <div class="muted">Allocate weight into grades and/or waste until Remaining = 0, then <strong>Seal</strong>.</div>
+                </app-stack>
+              } @else {
+                <app-stack direction="horizontal" spacing="sm" align="center">
+                  <app-form-field label="Grade">
+                    <app-select
+                      [formControl]="gradeId"
+                      [options]="gradeOptions()"
+                      placeholder="Select grade"
+                      [disabled]="loading() || isClosed()"
+                    />
+                  </app-form-field>
+
+                  <app-form-field label="Amount (kg)">
+                    <app-input [formControl]="amountKg" type="number" placeholder="0.00" step="0.01" [disabled]="isClosed()" />
+                  </app-form-field>
+
+                  <app-button variant="primary" (click)="allocate()" [disabled]="loading() || isClosed()">Add</app-button>
+                </app-stack>
+                <div class="muted mt-2">Allocations are incremental. Same grade adds to existing total.</div>
+              }
+            </app-card>
+
+            @if (started() && buckets().length > 0) {
+              <app-card class="mt-4">
+                <app-data-table
+                  title="Grade Allocations"
+                  subtitle="Graded weight per grade level"
+                  [columns]="tableColumns"
+                  [data]="buckets()"
+                  [loading]="loading()"
+                >
+                  <ng-template #cellTemplate let-row let-column="column">
+                    @switch (column.key) {
+                      @case ('grade') {
+                        <strong>{{ row.grade?.name || '—' }}</strong>
+                      }
+                      @case ('allocated') {
+                        @if (editingBucket()?.id === row.id) {
+                          <app-input [formControl]="editBucketWeight" type="number" placeholder="0" class="w-24" />
+                        } @else {
+                          <span class="tabular-nums">{{ (row.outputWeightKg ?? 0) | number:'1.2-2' }}</span>
+                        }
+                      }
+                      @case ('updatedAt') {
+                        {{ row.updatedAt | date:'short' }}
+                      }
+                      @default {
+                        {{ column.getValue ? column.getValue(row) : row[column.key] }}
+                      }
+                    }
+                  </ng-template>
+
+                  <ng-template #rowActions let-row>
+                    @if (!isClosed()) {
+                      @if (editingBucket()?.id === row.id) {
+                        <app-button variant="primary" size="sm" (click)="saveBucket()" [disabled]="loading()">Save</app-button>
+                        <app-button variant="secondary" size="sm" (click)="cancelEditBucket()" [disabled]="loading()">Cancel</app-button>
+                      } @else {
+                        <app-button variant="secondary" size="sm" (click)="editBucket(row)" [disabled]="loading()">Edit</app-button>
+                        <app-button variant="danger" size="sm" (click)="deleteBucketConfirm(row)" [disabled]="loading()">Remove</app-button>
+                      }
+                    }
+                  </ng-template>
+                </app-data-table>
+              </app-card>
+            }
+          </app-section-body>
+        </app-section>
+
+        <!-- ─── Waste Section ─────────────────────────────────────────────── -->
+        @if (started()) {
+          <app-section>
+            <app-section-header>
+              <strong>Waste</strong>
+            </app-section-header>
+            <app-section-body>
+              <app-card>
+                <app-stack direction="horizontal" spacing="sm" align="center">
+                  <app-form-field label="Waste Category">
+                    <app-select
+                      [formControl]="wasteCategoryId"
+                      [options]="wasteCategoryOptions()"
+                      placeholder="Select waste type"
+                      [disabled]="loading() || isClosed()"
+                    />
+                  </app-form-field>
+
+                  <app-form-field label="Amount (kg)">
+                    <app-input [formControl]="wasteAmount" type="number" placeholder="0.00" step="0.01" [disabled]="loading() || isClosed()" />
+                  </app-form-field>
+
+                  @if (totals().remaining > 0 && !editingWasteId()) {
+                    <app-button 
+                      variant="secondary" 
+                      (click)="fillRemainingAsWaste()" 
+                      [disabled]="loading() || isClosed()"
+                      title="Fill form with remaining {{ totals().remaining | number:'1.2-2' }} kg"
+                    >
+                      Fill {{ totals().remaining | number:'1.2-2' }} kg
+                    </app-button>
+                  }
+
+                  @if (editingWasteId()) {
+                    <app-button variant="primary" (click)="saveWasteLine()" [disabled]="loading() || isClosed()">Save</app-button>
+                    <app-button variant="secondary" (click)="cancelEditWaste()" [disabled]="loading()">Cancel</app-button>
+                  } @else {
+                    <app-button variant="primary" (click)="saveWasteLine()" [disabled]="loading() || isClosed()">Add</app-button>
+                  }
+                </app-stack>
+                <div class="muted mt-2">Add waste explicitly. Each waste line is categorized and tracked.</div>
+              </app-card>
+
+              @if (wasteLineItems().length > 0) {
+                <app-card class="mt-4">
+                  <app-data-table
+                    title="Waste Lines"
+                    subtitle="Categorized waste for this session"
+                    [columns]="wasteTableColumns"
+                    [data]="wasteLineItems()"
+                    [loading]="loading()"
+                  >
+                    <ng-template #cellTemplate let-row let-column="column">
+                      @switch (column.key) {
+                        @case ('category') {
+                          <strong>{{ row.wasteCategory?.name || '—' }}</strong>
+                        }
+                        @case ('unit') {
+                          {{ row.unitType || row.wasteCategory?.unitType || '—' }}
+                        }
+                        @case ('amount') {
+                          <span class="tabular-nums">{{ (row.amount ?? 0) | number:'1.2-2' }}</span>
+                        }
+                        @case ('value') {
+                          <span class="tabular-nums">{{ (row.estimatedValue ?? 0) | number:'1.2-2' }}</span>
+                        }
+                        @case ('updatedAt') {
+                          {{ row.updatedAt | date:'short' }}
+                        }
+                        @default {
+                          {{ row[column.key] }}
+                        }
+                      }
+                    </ng-template>
+
+                    <ng-template #rowActions let-row>
+                      @if (!isClosed()) {
+                        <app-button variant="secondary" size="sm" (click)="editWasteLine(row)" [disabled]="loading()">Edit</app-button>
+                        <app-button variant="danger" size="sm" (click)="deleteWasteConfirm(row)" [disabled]="loading()">Remove</app-button>
+                      }
+                    </ng-template>
+                  </app-data-table>
+                </app-card>
+              }
+            </app-section-body>
+          </app-section>
+        }
+      </app-split-main>
+
+      <!-- ─── Sidebar: Context + Totals ─────────────────────────────────── -->
+      <app-split-aside>
+        <app-section>
+          <app-section-header>
+            <strong>Context</strong>
+          </app-section-header>
+          <app-section-body>
+            <app-card>
+              @if (!started()) {
+                <div class="muted">Press "Start" to open the grading session for this Stage‑1 output.</div>
+              } @else {
+                <app-stack direction="vertical" spacing="xs">
+                  <div><strong>Container:</strong> {{ session()?.categoryOutput?.container?.containerNumber || '—' }}</div>
+                  <div><strong>Rag/Bale:</strong> {{ session()?.categoryOutput?.rag?.ragCode || '—' }}</div>
+                  <div><strong>Category:</strong> {{ session()?.categoryOutput?.category?.name || '—' }}</div>
+                  <div><strong>Stage 1 Output Weight:</strong> <span class="tabular-nums">{{ session()?.categoryOutput?.weightKg || 0 | number:'1.2-2' }}</span> kg</div>
+                </app-stack>
+              }
+            </app-card>
+          </app-section-body>
+        </app-section>
+
+        <app-section>
+          <app-section-header>
+            <strong>Session Totals</strong>
+          </app-section-header>
+          <app-section-body>
+            <app-card>
+              <app-stack direction="vertical" spacing="sm">
+                <div class="flex justify-between items-center">
+                  <span>Input</span>
+                  <span class="tabular-nums font-semibold">{{ totals().input | number:'1.2-2' }} kg</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span>Allocated (grades)</span>
+                  <span class="tabular-nums">{{ totals().allocated | number:'1.2-2' }} kg</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span>Waste (declared)</span>
+                  <span class="tabular-nums">{{ totals().waste | number:'1.2-2' }} kg</span>
+                </div>
+                <div class="flex justify-between items-center border-t pt-2 mt-2">
+                  <span class="font-semibold">Remaining</span>
+                  <span
+                    class="tabular-nums font-bold"
+                    [class.text-green-600]="totals().remaining === 0"
+                    [class.text-amber-500]="totals().remaining > 0"
+                  >
+                    {{ totals().remaining | number:'1.2-2' }} kg
+                  </span>
+                </div>
+                <div class="flex justify-between items-center text-sm text-muted-foreground">
+                  <span>Yield</span>
+                  <span class="tabular-nums">{{ totals().yieldPct | number:'1.1-1' }}%</span>
+                </div>
+              </app-stack>
+            </app-card>
+
+            @if (started() && !isClosed()) {
+              <app-card class="mt-4">
+                @if (totals().remaining === 0) {
+                  <app-badge variant="success">Ready to Seal</app-badge>
+                  <div class="muted mt-2">All weight has been allocated. Click <strong>Seal</strong> to finalize.</div>
+                } @else {
+                  <app-badge variant="warning">{{ totals().remaining | number:'1.2-2' }} kg remaining</app-badge>
+                  <div class="muted mt-2">Allocate remaining weight to grades or waste before sealing.</div>
+                  <div class="text-xs text-gray-400 mt-1">Invariant: Input = Graded + Waste</div>
+                }
+              </app-card>
+            }
+
+            @if (isClosed()) {
+              <app-card class="mt-4">
+                <app-badge variant="success">Sealed (read-only)</app-badge>
+                <div class="muted mt-2">Session is sealed. Grade outputs are now READY_FOR_REPACK.</div>
+              </app-card>
+            }
+          </app-section-body>
+        </app-section>
+      </app-split-aside>
+    </app-split>
+  </app-page-body>
+</app-page>

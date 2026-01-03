@@ -1,0 +1,31 @@
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs()" />
+      <h1 class="page-title">Edit Rag / Bale</h1>
+      @if (rag(); as r) {
+        <p class="page-subtitle">{{ r.ragCode }}</p>
+      }
+    </app-stack>
+
+    <div class="actions">
+      <app-button variant="secondary" (click)="onCancel()">Cancel</app-button>
+    </div>
+  </app-page-header>
+
+  <app-page-body>
+    @if (loading()) {
+      <app-loading message="Loading…" />
+    } @else if (error()) {
+      <app-error-state title="Failed" [message]="error()!" [action]="true">
+        <app-button action variant="secondary" (click)="onCancel()">Back</app-button>
+      </app-error-state>
+    } @else if (rag(); as r) {
+      <app-rag-edit-drawer
+        [rag]="r"
+        (updated)="onUpdated()"
+        (closed)="onCancel()"
+      />
+    }
+  </app-page-body>
+</app-page>

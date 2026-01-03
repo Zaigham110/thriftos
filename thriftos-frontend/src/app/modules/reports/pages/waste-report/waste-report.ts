@@ -9,7 +9,6 @@
 
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
 import {
   LucideAngularModule,
   Trash2,
@@ -23,11 +22,19 @@ import { ReportsService } from '../../reports.service';
 import { WasteReportRow, ReportFilters } from '../../reports.models';
 import { ReportFiltersComponent } from '../../shared/report-filters.component';
 import {
-  CardComponent,
-  AlertComponent,
-  BreadcrumbComponent,
-  BreadcrumbItem,
-  SkeletonComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppPageBodyComponent,
+  AppSectionComponent,
+  AppSectionHeaderComponent,
+  AppSectionBodyComponent,
+  AppDataTableComponent,
+  AppButtonComponent,
+  AppErrorStateComponent,
+  AppBreadcrumbComponent,
+  AppStackComponent,
+  type DataTableColumn,
+  type BreadcrumbItem
 } from '../../../../shared/ui';
 
 @Component({
@@ -35,13 +42,19 @@ import {
   standalone: true,
   imports: [
     CommonModule,
-    RouterLink,
     LucideAngularModule,
-    CardComponent,
-    AlertComponent,
-    BreadcrumbComponent,
-    SkeletonComponent,
     ReportFiltersComponent,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppSectionComponent,
+    AppSectionHeaderComponent,
+    AppSectionBodyComponent,
+    AppDataTableComponent,
+    AppButtonComponent,
+    AppErrorStateComponent,
+    AppBreadcrumbComponent,
+    AppStackComponent,
   ],
   templateUrl: './waste-report.html',
   styleUrl: './waste-report.scss',
@@ -64,6 +77,7 @@ export class WasteReportComponent implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly activeView = signal<'by-stage' | 'cost-impact'>('by-stage');
+  readonly searchText = signal<string>('');
   protected currentFilters: ReportFilters = {};
 
   readonly breadcrumbs: BreadcrumbItem[] = [
@@ -72,14 +86,11 @@ export class WasteReportComponent implements OnInit {
     { label: 'Waste Report' },
   ];
 
-  protected get totalWaste(): number {
-    const data = this.activeView() === 'by-stage' ? this.wasteByStage() : this.wasteCostImpact();
-    return data.reduce((sum, r) => sum + (r.wasteKg || 0), 0);
-  }
-
-  protected get totalCost(): number {
-    return this.wasteCostImpact().reduce((sum, r) => sum + (r.wasteCost || 0), 0);
-  }
+  readonly columns: DataTableColumn[] = [
+    { label: 'Stage', key: 'stage', sortable: true },
+    { label: 'Waste (KG)', key: 'wasteKg', sortable: true, align: 'right' },
+    { label: 'Cost Impact', key: 'wasteCost', sortable: true, align: 'right' },
+  ];
 
   protected get currentData(): WasteReportRow[] {
     return this.activeView() === 'by-stage' ? this.wasteByStage() : this.wasteCostImpact();
@@ -128,6 +139,10 @@ export class WasteReportComponent implements OnInit {
     this.loadData(filters);
   }
 
+  onSearchChange(value: string): void {
+    this.searchText.set(value ?? '');
+  }
+
   setView(view: 'by-stage' | 'cost-impact'): void {
     this.activeView.set(view);
   }
@@ -140,40 +155,28 @@ export class WasteReportComponent implements OnInit {
     }
   }
 
-  formatWeight(weight: number): string {
-    if (weight >= 1000) {
-      return `${(weight / 1000).toFixed(2)} T`;
-    }
-    return `${weight.toFixed(2)} KG`;
+  private toNumber(value: unknown): number | null {
+    if (value === null || value === undefined) return null;
+    const n = typeof value === 'number' ? value : Number(String(value));
+    return Number.isFinite(n) ? n : null;
   }
 
-  formatCurrency(value: number): string {
+  formatWeight(weight: unknown): string {
+    const n = this.toNumber(weight);
+    if (n === null) return '—';
+    if (n >= 1000) return `${(n / 1000).toFixed(2)} T`;
+    return `${n.toFixed(2)} KG`;
+  }
+
+  formatCurrency(value: unknown): string {
+    const n = this.toNumber(value);
+    if (n === null) return '—';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2,
-    }).format(value);
+    }).format(n);
   }
 
-  formatPercent(value: number): string {
-    return `${value.toFixed(1)}%`;
-  }
-
-  getBarWidth(wasteKg: number): string {
-    const maxWaste = Math.max(...this.currentData.map((r) => r.wasteKg || 0));
-    return maxWaste > 0 ? `${(wasteKg / maxWaste) * 100}%` : '0%';
-  }
-
-  getStageColor(stage: string): string {
-    switch (stage) {
-      case 'Procurement':
-        return 'stage--procurement';
-      case 'Sorting Stage 1':
-        return 'stage--sorting';
-      case 'Grading Stage 2':
-        return 'stage--grading';
-      default:
-        return 'stage--default';
-    }
-  }
+  // No frontend rollups, percentages, or chart scaling.
 }

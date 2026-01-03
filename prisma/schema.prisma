@@ -63,7 +63,9 @@ enum UnitType {
 }
 
 enum RepackStatus {
+  DRAFT
   READY
+  SEALED
   SOLD
   RESERVED
 }
@@ -71,6 +73,37 @@ enum RepackStatus {
 enum RepackSessionStatus {
   OPEN
   CLOSED
+}
+
+enum MeasurementType {
+  WEIGHT
+  QUANTITY
+}
+
+// =============================================================
+// 🗑️ WASTE (Tenant-configured categories + line items)
+// =============================================================
+
+enum WasteUnitType {
+  KG
+  PCS
+}
+
+enum WasteStage {
+  STAGE_1
+  STAGE_2
+}
+
+enum AllocationMode {
+  FIFO
+  MANUAL
+}
+
+enum GradingOutputStatus {
+  AVAILABLE
+  PARTIALLY_USED
+  DEPLETED
+  READY_FOR_REPACK
 }
 
 enum MovementType {
@@ -160,10 +193,77 @@ model Tenant {
   gradeOutputs    GradeOutput[]
   repackSessions  RepackSession[]
   repackUnits     RepackUnit[]
+  repackInputAllocations RepackInputAllocation[]
   inventoryItems  InventoryItem[]
   sequences       TenantSequence[]
 
+  // Waste configuration + line items
+  wasteCategories WasteCategory[]
+  wasteLineItems  WasteLineItem[]
+
   @@index([companyCode])
+}
+
+model WasteCategory {
+  id                  String        @id @default(cuid())
+  tenantId             String
+  name                 String
+  linkedCategoryId     String?       // If auto-generated from Category
+  unitType             WasteUnitType
+  defaultResalePrice   Decimal       @default(0) @db.Decimal(12, 4)
+  isSystemGenerated    Boolean       @default(false)
+  isActive             Boolean       @default(true)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  linkedCategory Category?      @relation(fields: [linkedCategoryId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  wasteLineItems WasteLineItem[]
+
+  @@unique([tenantId, name])
+  @@unique([linkedCategoryId]) // One Category → One auto-generated WasteCategory
+  @@index([tenantId])
+  @@index([tenantId, isActive])
+  @@index([unitType])
+}
+
+model WasteLineItem {
+  id              String        @id @default(cuid())
+  tenantId         String
+  stage            WasteStage
+  wasteCategoryId  String
+  amount           Decimal       @db.Decimal(10, 2)
+  unitType         WasteUnitType
+  estimatedValue   Decimal       @db.Decimal(12, 4)
+
+  // Source references (exactly one session is used depending on stage)
+  sortSessionId    String?
+  gradeSessionId   String?
+
+  // Traceability chain (denormalized for audit/report joins)
+  containerId      String?
+  ragId            String?
+  categoryOutputId String?
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  wasteCategory WasteCategory @relation(fields: [wasteCategoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sortSession   SortSession?  @relation(fields: [sortSessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  gradeSession  GradeSession? @relation(fields: [gradeSessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  rag           Rag?          @relation(fields: [ragId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  container      Container?    @relation(fields: [containerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  categoryOutput CategoryOutput? @relation(fields: [categoryOutputId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, stage])
+  @@index([wasteCategoryId])
+  @@index([sortSessionId])
+  @@index([gradeSessionId])
+  @@index([ragId])
+  @@index([containerId])
+  @@index([categoryOutputId])
 }
 
 model TenantSequence {
@@ -321,6 +421,7 @@ model Category {
   categoryOutputs     CategoryOutput[]
   repackUnits         RepackUnit[]
   inventoryItems      InventoryItem[]
+  linkedWasteCategory WasteCategory?       // Auto-generated waste category
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -416,6 +517,7 @@ model PurchaseOrder {
   poType    PurchaseOrderType
   currency  String              @default("USD")
   totalCost Decimal             @db.Decimal(12, 2)
+  budgetCap Decimal?            @db.Decimal(12, 2)
   status    PurchaseOrderStatus @default(OPEN)
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
@@ -469,6 +571,7 @@ model Container {
   // Phase 2.5: Downstream traceability (for container-level analytics)
   categoryOutputs CategoryOutput[] // Category outputs traced to this container
   sortingWaste    SortingWaste[] // Waste outputs traced to this container
+  wasteLineItems  WasteLineItem[] // Waste line items linked for audit/reporting
 
   @@unique([tenantId, containerNumber])
   @@index([tenantId])
@@ -528,6 +631,7 @@ model Rag {
   // Downstream traceability relations (Phase 2.5)
   categoryOutputs CategoryOutput[] // Category outputs from this rag
   sortingWaste    SortingWaste[] // Waste outputs from this rag
+  wasteLineItems  WasteLineItem[] // Waste line items (Stage-1/Stage-2) linked for audit
 
   @@unique([tenantId, ragCode])
   @@index([tenantId])
@@ -610,6 +714,7 @@ model SortSession {
   supervisor          User                 @relation("SortSessionSupervisor", fields: [supervisorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   sortCategoryBuckets SortCategoryBucket[]
   sortingWaste        SortingWaste? // One-to-one: waste output per session
+  wasteLineItems      WasteLineItem[]
 
   @@index([tenantId])
   @@index([ragId])
@@ -669,6 +774,7 @@ model CategoryOutput {
   rag                Rag                @relation(fields: [ragId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   container          Container?         @relation(fields: [containerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   gradeSessions      GradeSession[]
+  wasteLineItems     WasteLineItem[]
 
   @@index([tenantId])
   @@index([sortCategoryBucketId])
@@ -735,6 +841,7 @@ model GradeSession {
   worker         User           @relation("GradeSessionWorker", fields: [workerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   supervisor     User           @relation("GradeSessionSupervisor", fields: [supervisorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   gradeBuckets   GradeBucket[]
+  wasteLineItems WasteLineItem[]
 
   @@index([tenantId])
   @@index([categoryOutputId])
@@ -770,6 +877,16 @@ model GradeOutput {
   weightKg      Decimal  @db.Decimal(10, 2)
   count         Int      @default(0)
   allocatedCost Decimal  @db.Decimal(12, 2)
+  
+  // =============================================================
+  // Mixed-Source Repack v2: Usage Tracking (MANDATORY)
+  // =============================================================
+  totalAmount      Decimal              @db.Decimal(10, 2) // Total available (weightKg or count)
+  usedAmount       Decimal              @default(0) @db.Decimal(10, 2) // Amount already allocated
+  remainingAmount  Decimal              @db.Decimal(10, 2) // Computed: totalAmount - usedAmount
+  measurementType  MeasurementType      @default(WEIGHT) // WEIGHT (kg) or QUANTITY (pcs)
+  status           GradingOutputStatus  @default(AVAILABLE) // AVAILABLE, PARTIALLY_USED, DEPLETED
+  
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -777,10 +894,15 @@ model GradeOutput {
   tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   gradeBucket GradeBucket @relation(fields: [gradeBucketId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   grade       Grade       @relation(fields: [gradeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  
+  // Repack allocations referencing this grading output
+  repackAllocations RepackInputAllocation[]
 
   @@index([tenantId])
   @@index([gradeBucketId])
   @@index([gradeId])
+  @@index([status]) // Index for filtering by availability status
+  @@index([measurementType]) // Index for filtering by measurement type
 }
 
 // =============================================================
@@ -822,6 +944,14 @@ model RepackUnit {
   pcsCount        Int          @default(0)
   totalCost       Decimal      @db.Decimal(12, 2)
   status          RepackStatus @default(READY)
+  
+  // =============================================================
+  // Mixed-Source Repack v2: Allocation Strategy (MANDATORY)
+  // =============================================================
+  measurementType MeasurementType @default(WEIGHT) // WEIGHT (kg) or QUANTITY (pcs)
+  targetAmount    Decimal         @db.Decimal(10, 2) // Target kg or pcs for this unit
+  allocationMode  AllocationMode  @default(FIFO) // FIFO (automatic) or MANUAL (user-selected)
+  createdBy       String? // User who created this repack unit
 
   // =============================================================
   // Phase 2.5: Traceability Chain (MANDATORY)
@@ -831,11 +961,14 @@ model RepackUnit {
   // ragId: REQUIRED - Links back to source Rag/Bale
   // sortSessionId: REQUIRED - Links back to Sorting Stage 1
   // gradeSessionId: Optional - Links to Sorting Stage 2 (if graded)
+  // 
+  // NOTE: With Mixed-Source v2, these fields represent PRIMARY source.
+  // Full traceability is maintained via RepackInputAllocation table.
   // =============================================================
-  containerId    String? // Nullable: null for loose bale origins
-  ragId          String? // Source Rag/Bale traceability (required when items added)
-  sortSessionId  String? // Source Sorting Stage 1 session
-  gradeSessionId String? // Source Sorting Stage 2 session (optional)
+  containerId    String? // Nullable: null for loose bale origins or mixed-source
+  ragId          String? // Primary source Rag/Bale traceability
+  sortSessionId  String? // Primary source Sorting Stage 1 session
+  gradeSessionId String? // Primary source Sorting Stage 2 session (optional)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -848,6 +981,9 @@ model RepackUnit {
   repackItems    RepackItem[]
   qrLabel        QRLabel?
   inventoryItems InventoryItem[]
+  
+  // Mixed-Source v2: Input allocations (CRITICAL for traceability)
+  inputAllocations RepackInputAllocation[]
 
   @@unique([tenantId, unitCode])
   @@index([tenantId])
@@ -859,6 +995,55 @@ model RepackUnit {
   @@index([ragId]) // Index for rag-level analytics
   @@index([containerId]) // Index for container-level analytics
   @@index([sortSessionId]) // Index for session traceability
+  @@index([allocationMode]) // Index for allocation mode filtering
+  @@index([measurementType]) // Index for measurement type filtering
+}
+
+// =============================================================
+// 📦 REPACK INPUT ALLOCATION (MIXED-SOURCE v2)
+// =============================================================
+// This table is the ONLY source of truth for mixed-source repacking.
+// Each row represents ONE contribution from a grading output into a repack unit.
+// Enables full traceability: RepackUnit → GradingOutput → GradeBucket → 
+// GradeSession → CategoryOutput → SortSession → Rag → Container
+// =============================================================
+
+model RepackInputAllocation {
+  id              String          @id @default(cuid())
+  tenantId        String
+  repackUnitId    String
+  gradingOutputId String
+  
+  // =============================================================
+  // Traceability Chain (MANDATORY)
+  // =============================================================
+  // These are denormalized from GradingOutput for query performance
+  // but MUST match the source GradingOutput's lineage
+  // =============================================================
+  containerId     String? // Source container (null for loose bale origins)
+  ragBaleId       String? // Source rag/bale ID
+  
+  // =============================================================
+  // Allocation Details (MANDATORY)
+  // =============================================================
+  amountUsed      Decimal         @db.Decimal(10, 2) // kg or pcs used from this grading output
+  measurementType MeasurementType // WEIGHT or QUANTITY (must match repack unit)
+  allocatedCost   Decimal         @default(0) @db.Decimal(12, 2) // Proportional cost from grading output
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  repackUnit    RepackUnit   @relation(fields: [repackUnitId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  gradingOutput GradeOutput  @relation(fields: [gradingOutputId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([tenantId])
+  @@index([repackUnitId])
+  @@index([gradingOutputId])
+  @@index([containerId]) // Index for container-level analytics
+  @@index([ragBaleId]) // Index for rag/bale-level analytics
+  @@index([createdAt]) // Index for FIFO sorting
 }
 
 model RepackItem {
@@ -906,7 +1091,7 @@ model InventoryItem {
   weightKg     Decimal         @db.Decimal(10, 2)
   pcsCount     Int             @default(0)
   avgCost      Decimal         @db.Decimal(12, 2)
-  warehouseId  String
+  warehouseId  String?         // Optional - can be assigned later
   status       InventoryStatus @default(AVAILABLE)
 
   // =============================================================
@@ -928,7 +1113,7 @@ model InventoryItem {
   repackUnit     RepackUnit      @relation(fields: [repackUnitId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   category       Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   grade          Grade           @relation(fields: [gradeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  warehouse      Warehouse       @relation(fields: [warehouseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  warehouse      Warehouse?      @relation(fields: [warehouseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   stockMovements StockMovement[]
 
   @@index([tenantId])

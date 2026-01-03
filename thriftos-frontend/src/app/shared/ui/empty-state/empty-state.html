@@ -1,4 +1,4 @@
-<div class="empty-state">
+<div [class]="containerClasses">
   <div class="empty-state-icon">
     <lucide-icon [img]="icon()" [size]="48"></lucide-icon>
   </div>
@@ -8,5 +8,10 @@
   }
   <div class="empty-state-actions">
     <ng-content></ng-content>
+    @if (actionLabel() && actionLink()) {
+      <a [routerLink]="actionLink()">
+        <ui-button variant="primary">{{ actionLabel() }}</ui-button>
+      </a>
+    }
   </div>
 </div>

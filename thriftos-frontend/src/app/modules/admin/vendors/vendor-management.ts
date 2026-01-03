@@ -7,14 +7,21 @@
 
 import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { LucideAngularModule, Store, Plus, Pencil, Search, RefreshCw, Mail, Phone } from 'lucide-angular';
+import { LucideAngularModule, Store, Plus, Pencil, Search, RefreshCw, Mail, Phone, ArrowLeft } from 'lucide-angular';
 import { AdminService } from '../admin.service';
 import { Vendor } from '../admin.models';
 import {
-  CardComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppPageBodyComponent,
+  AppSectionComponent,
+  AppDataTableComponent,
+  AppButtonComponent,
+  AppLoadingComponent,
+  AppEmptyStateComponent,
   BreadcrumbComponent,
-  EmptyStateComponent,
-  SkeletonComponent,
+  type TableColumn,
+  type BreadcrumbItem,
 } from '../../../shared/ui';
 import { VendorFormDrawerComponent } from './vendor-form-drawer';
 import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
@@ -25,10 +32,15 @@ import { HasPermissionDirective } from '../../../shared/directives/has-permissio
   imports: [
     CommonModule,
     LucideAngularModule,
-    CardComponent,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppSectionComponent,
+    AppDataTableComponent,
+    AppButtonComponent,
+    AppLoadingComponent,
+    AppEmptyStateComponent,
     BreadcrumbComponent,
-    EmptyStateComponent,
-    SkeletonComponent,
     VendorFormDrawerComponent,
     HasPermissionDirective,
   ],
@@ -47,11 +59,20 @@ export class VendorManagementComponent implements OnInit {
     RefreshCw,
     Mail,
     Phone,
+    ArrowLeft,
   };
 
-  readonly breadcrumbs = [
+  readonly breadcrumbs: BreadcrumbItem[] = [
     { label: 'Administration', route: '/app/admin' },
     { label: 'Vendors' },
+  ];
+
+  readonly columns: TableColumn[] = [
+    { key: 'name', label: 'Name', sortable: true },
+    { key: 'contactPerson', label: 'Contact Person' },
+    { key: 'email', label: 'Email' },
+    { key: 'phone', label: 'Phone' },
+    { key: 'actions', label: 'Actions', width: '100px' },
   ];
 
   readonly searchQuery = signal('');

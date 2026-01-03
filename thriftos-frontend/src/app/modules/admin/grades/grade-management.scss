@@ -87,7 +87,7 @@
   &:focus {
     outline: none;
     border-color: $primary;
-    box-shadow: 0 0 0 3px rgba($primary, 0.1);
+    box-shadow: 0 0 0 3px hsl(var(--ring) / 0.2);
   }
 }
 
@@ -153,27 +153,27 @@
   text-transform: uppercase;
 
   &.badge-green {
-    background-color: rgba($status-success, 0.1);
+    background-color: hsl(var(--secondary) / 0.12);
     color: $status-success;
   }
 
   &.badge-blue {
-    background-color: rgba($primary, 0.1);
+    background-color: hsl(var(--primary) / 0.12);
     color: $primary-hover;
   }
 
   &.badge-yellow {
-    background-color: rgba($status-warning, 0.15);
-    color: darken($status-warning, 20%);
+    background-color: hsl(var(--module-yellow) / 0.18);
+    color: $status-warning;
   }
 
   &.badge-orange {
-    background-color: rgba($status-warning, 0.1);
+    background-color: hsl(var(--module-orange) / 0.12);
     color: $status-warning;
   }
 
   &.badge-red {
-    background-color: rgba($status-danger, 0.1);
+    background-color: hsl(var(--destructive) / 0.12);
     color: $status-danger;
   }
 
@@ -251,7 +251,7 @@
   }
 
   &.btn-danger:hover {
-    background-color: rgba($status-danger, 0.1);
+    background-color: hsl(var(--destructive) / 0.12);
     color: $status-danger;
   }
 }

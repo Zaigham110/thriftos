@@ -10,8 +10,8 @@ export declare class SortCategoryBucketService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        sortSessionId: string;
         categoryId: string;
+        sortSessionId: string;
         outputWeightKg: Decimal;
         outputCount: number;
     }>;
@@ -19,8 +19,8 @@ export declare class SortCategoryBucketService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        sortSessionId: string;
         categoryId: string;
+        sortSessionId: string;
         outputWeightKg: Decimal;
         outputCount: number;
     }>;

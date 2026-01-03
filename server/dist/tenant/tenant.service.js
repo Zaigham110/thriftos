@@ -42,6 +42,94 @@ let TenantService = class TenantService {
             orderBy: { sortOrder: 'asc' },
         });
     }
+    async getAllCategories(tenantId) {
+        return this.prisma.category.findMany({
+            where: { tenantId },
+            orderBy: { sortOrder: 'asc' },
+        });
+    }
+    async createCategory(tenantId, dto) {
+        return this.prisma.$transaction(async (tx) => {
+            const category = await tx.category.create({
+                data: {
+                    tenantId,
+                    name: dto.name,
+                    sortOrder: dto.sortOrder ?? 0,
+                },
+            });
+            await tx.wasteCategory.create({
+                data: {
+                    tenantId,
+                    name: `${dto.name} Waste`,
+                    linkedCategoryId: category.id,
+                    unitType: 'KG',
+                    defaultResalePrice: 0,
+                    isSystemGenerated: true,
+                    isActive: true,
+                },
+            });
+            return category;
+        });
+    }
+    async updateCategory(tenantId, id, dto) {
+        return this.prisma.$transaction(async (tx) => {
+            const category = await tx.category.findFirst({
+                where: { id, tenantId },
+                include: { linkedWasteCategory: true },
+            });
+            if (!category) {
+                throw new common_1.NotFoundException('Category not found');
+            }
+            const updated = await tx.category.update({
+                where: { id },
+                data: {
+                    ...(dto.name && { name: dto.name }),
+                    ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
+                    ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+                },
+            });
+            if (category.linkedWasteCategory) {
+                await tx.wasteCategory.update({
+                    where: { id: category.linkedWasteCategory.id },
+                    data: {
+                        ...(dto.name && { name: `${dto.name} Waste` }),
+                        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+                    },
+                });
+            }
+            return updated;
+        });
+    }
+    async deleteCategory(tenantId, id) {
+        return this.prisma.$transaction(async (tx) => {
+            const category = await tx.category.findFirst({
+                where: { id, tenantId },
+                include: {
+                    linkedWasteCategory: true,
+                    _count: {
+                        select: {
+                            sortCategoryBuckets: true,
+                            categoryOutputs: true,
+                        },
+                    },
+                },
+            });
+            if (!category) {
+                throw new common_1.NotFoundException('Category not found');
+            }
+            const hasHistory = category._count.sortCategoryBuckets > 0 ||
+                category._count.categoryOutputs > 0;
+            if (hasHistory) {
+                throw new common_1.BadRequestException('Cannot delete category: already used in sorting history. Deactivate instead.');
+            }
+            if (category.linkedWasteCategory) {
+                await tx.wasteCategory.delete({
+                    where: { id: category.linkedWasteCategory.id },
+                });
+            }
+            return tx.category.delete({ where: { id } });
+        });
+    }
     async getRawCategories(tenantId, type) {
         return this.prisma.rawCategory.findMany({
             where: {

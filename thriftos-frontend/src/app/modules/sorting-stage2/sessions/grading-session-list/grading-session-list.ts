@@ -1,12 +1,3 @@
-/**
- * Grading Session List Component
- * Phase 4: Sorting Stage 2 - Grading
- * 
- * Shows two sections:
- * 1. Available for Grading - Category outputs from Stage 1 ready to grade
- * 2. Grading Sessions - Existing sessions (OPEN/CLOSED)
- */
-
 import {
   Component,
   OnInit,
@@ -15,32 +6,30 @@ import {
   inject,
   ChangeDetectionStrategy,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
+import { CommonModule, DatePipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import {
-  LucideAngularModule,
-  Search,
-  Filter,
-  ChevronLeft,
-  ChevronRight,
-  Eye,
-  Play,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
-  Layers,
-  Package,
-  ArrowRight,
-  Inbox,
-  Star,
-  PackagePlus,
-} from 'lucide-angular';
 
-import { CardComponent } from '../../../../shared/ui/card/card';
-import { ButtonComponent } from '../../../../shared/ui/button/button';
-import { BadgeComponent } from '../../../../shared/ui/badge/badge';
+import {
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppPageBodyComponent,
+  AppSectionComponent,
+  AppSectionHeaderComponent,
+  AppSectionBodyComponent,
+  AppStackComponent,
+  AppBreadcrumbComponent,
+  AppButtonComponent,
+  AppDataTableComponent,
+  AppBadgeComponent,
+  AppErrorStateComponent,
+  AppSelectComponent,
+  AppEmptyStateComponent,
+  type DataTableColumn,
+  type DataTableState,
+  type BreadcrumbItem,
+  type SelectOption,
+} from '../../../../shared/ui';
 import { SortingStage2Service } from '../../sorting-stage2.service';
 import { GradeSession, GradeStatus, AvailableForGrading } from '../../sorting-stage2.models';
 
@@ -50,10 +39,21 @@ import { GradeSession, GradeStatus, AvailableForGrading } from '../../sorting-st
   imports: [
     CommonModule,
     FormsModule,
-    LucideAngularModule,
-    CardComponent,
-    ButtonComponent,
-    BadgeComponent,
+    DatePipe,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppSectionComponent,
+    AppSectionHeaderComponent,
+    AppSectionBodyComponent,
+    AppStackComponent,
+    AppBreadcrumbComponent,
+    AppButtonComponent,
+    AppDataTableComponent,
+    AppBadgeComponent,
+    AppErrorStateComponent,
+    AppSelectComponent,
+    AppEmptyStateComponent,
   ],
   templateUrl: './grading-session-list.html',
   styleUrl: './grading-session-list.scss',
@@ -61,27 +61,13 @@ import { GradeSession, GradeStatus, AvailableForGrading } from '../../sorting-st
 })
 export class GradingSessionListComponent implements OnInit {
   private readonly router = inject(Router);
-  private readonly http = inject(HttpClient);
   private readonly gradingService = inject(SortingStage2Service);
 
-  // Icons
-  readonly icons = {
-    search: Search,
-    filter: Filter,
-    chevronLeft: ChevronLeft,
-    chevronRight: ChevronRight,
-    eye: Eye,
-    play: Play,
-    checkCircle: CheckCircle2,
-    clock: Clock,
-    alert: AlertCircle,
-    layers: Layers,
-    package: Package,
-    arrowRight: ArrowRight,
-    inbox: Inbox,
-    star: Star,
-    packagePlus: PackagePlus,
-  };
+  // Breadcrumbs
+  readonly breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Home', link: '/app/dashboard' },
+    { label: 'Sorting Stage 2' },
+  ];
 
   // Local state
   readonly searchQuery = signal('');
@@ -100,27 +86,34 @@ export class GradingSessionListComponent implements OnInit {
   
   // Available for grading
   readonly availableForGrading = this.gradingService.availableForGrading;
-  readonly availableTotal = this.gradingService.availableTotal;
-
-  // Filtered sessions (client-side search)
-  readonly filteredSessions = computed(() => {
-    const query = this.searchQuery().toLowerCase().trim();
-    const sessions = this.sessions();
-
-    if (!query) return sessions;
-
-    return sessions.filter((s) => {
-      const sessionId = s.id?.toLowerCase() || '';
-      const categoryName = s.categoryOutput?.category?.name?.toLowerCase() || '';
-      return sessionId.includes(query) || categoryName.includes(query);
-    });
-  });
+  readonly availableTotal = computed(() => this.availableForGrading().length);
 
   // Status options
-  readonly statusOptions: { value: GradeStatus | ''; label: string }[] = [
-    { value: '', label: 'All Status' },
+  readonly statusOptions: SelectOption[] = [
+    { value: '', label: 'All Statuses' },
     { value: 'OPEN', label: 'Open' },
     { value: 'CLOSED', label: 'Closed' },
+  ];
+
+  // Table Columns - Available
+  readonly availableColumns: DataTableColumn[] = [
+    { key: 'category', label: 'Category' },
+    { key: 'weight', label: 'Weight', align: 'right' },
+    { key: 'container', label: 'Container' },
+    { key: 'source', label: 'Source' },
+    { key: 'sortedAt', label: 'Sorted At' },
+    { key: 'actions', label: '', align: 'right' },
+  ];
+
+  // Table Columns - Sessions
+  readonly sessionColumns: DataTableColumn[] = [
+    { key: 'id', label: 'Session ID', sortable: true },
+    { key: 'category', label: 'Category' },
+    { key: 'status', label: 'Status', sortable: true },
+    { key: 'inputWeight', label: 'Input Weight', align: 'right' },
+    { key: 'outputWeight', label: 'Output Weight', align: 'right' },
+    { key: 'createdAt', label: 'Created', sortable: true },
+    { key: 'actions', label: '', align: 'right' },
   ];
 
   ngOnInit(): void {
@@ -128,128 +121,74 @@ export class GradingSessionListComponent implements OnInit {
   }
 
   loadData(): void {
-    // Load both available items and existing sessions
-    this.gradingService.getAvailableForGrading({ limit: 10 }).subscribe();
+    this.gradingService.loadAvailableForGrading().subscribe();
     this.loadSessions();
   }
 
-  loadSessions(): void {
-    const filters: any = {
-      page: this.currentPage(),
-      limit: this.pageSize(),
-    };
-    if (this.statusFilter()) {
-      filters.status = this.statusFilter();
-    }
-    this.gradingService.getSessions(filters).subscribe();
-  }
-
-  onStatusChange(): void {
-    this.loadSessions();
-  }
-
-  onPageChange(page: number): void {
-    if (page < 1 || page > this.totalPages()) return;
-    this.gradingService.getSessions({
-      page,
-      limit: this.pageSize(),
-      status: this.statusFilter() || undefined,
+  loadSessions(page = 1): void {
+    const status = this.statusFilter() || undefined;
+    this.gradingService.loadSessions({ 
+      status, 
+      page, 
+      limit: this.pageSize() 
     }).subscribe();
   }
 
-  /**
-   * Start grading for a category output from Stage 1
-   */
+  onStatusFilterChange(status: string): void {
+    this.statusFilter.set(status as GradeStatus | '');
+    this.loadSessions(1);
+  }
+
+  onTableStateChange(state: DataTableState): void {
+    this.loadSessions(state.pageIndex);
+  }
+
+  onSessionRowClick(session: GradeSession): void {
+    this.router.navigate(['/sorting/stage-2', session.id]);
+  }
+
   startGrading(item: AvailableForGrading): void {
-    this.startingGrading.set(item.id);
+    if (this.startingGrading()) return;
     
-    this.gradingService.createSession({ categoryOutputId: item.id }).subscribe({
+    this.startingGrading.set(item.id);
+    this.gradingService.startSession(item.id).subscribe({
       next: (session) => {
         this.startingGrading.set(null);
-        this.router.navigate(['/app/sorting/stage2', session.id]);
+        this.router.navigate(['/sorting/stage-2', session.id]);
       },
-      error: (err) => {
-        console.error('Failed to start grading:', err);
+      error: () => {
         this.startingGrading.set(null);
-      },
+      }
     });
   }
 
-  navigateToSession(session: GradeSession): void {
-    this.router.navigate(['/app/sorting/stage2', session.id]);
+  getStatusVariant(status: GradeStatus): 'primary' | 'success' | 'default' {
+    switch (status) {
+      case 'OPEN':
+        return 'primary';
+      case 'CLOSED':
+        return 'success';
+      default:
+        return 'default';
+    }
   }
 
-  // Helpers
-  getStatusBadgeVariant(status: GradeStatus): 'success' | 'warning' | 'default' {
-    return status === 'CLOSED' ? 'success' : 'warning';
-  }
-
-  formatDate(dateStr: string | null | undefined): string {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  }
-
-  formatWeight(weight: number | string | null | undefined): string {
-    if (weight === null || weight === undefined) return '-';
-    const num = typeof weight === 'string' ? parseFloat(weight) : weight;
-    return num.toFixed(2);
-  }
-
-  getCategoryName(session: GradeSession): string {
-    return session.categoryOutput?.category?.name || 'Unknown Category';
-  }
-
-  getInputWeight(session: GradeSession): string {
-    return this.formatWeight(session.categoryOutput?.weightKg);
-  }
-
-  truncateId(id: string): string {
-    if (!id) return '-';
-    return id.length > 12 ? `${id.substring(0, 8)}...` : id;
-  }
-
-  // Available item helpers
+  // Helpers for Available Items
   getAvailableCategoryName(item: AvailableForGrading): string {
     return item.category?.name || 'Unknown Category';
   }
 
   getAvailableContainerRef(item: AvailableForGrading): string {
-    return item.container?.containerNumber || 'N/A';
+    return item.container?.containerNumber || 'Unknown';
   }
 
   getAvailableRagCode(item: AvailableForGrading): string {
-    return item.rag?.ragCode || 'N/A';
+    if (item.rag) return item.rag.ragCode;
+    return '—';
   }
 
-  getAvailableSessionId(item: AvailableForGrading): string {
-    const sessionId = item.sortCategoryBucket?.sortSession?.id;
-    return sessionId ? this.truncateId(sessionId) : '-';
-  }
-
-  // Start Repack from closed grading session
-  startRepack(session: GradeSession): void {
-    if (session.status !== 'CLOSED') return;
-
-    this.startingRepack.set(session.id);
-
-    this.http.post<{ id: string }>('/api/repack/sessions', {}).subscribe({
-      next: (repackSession) => {
-        this.startingRepack.set(null);
-        // Navigate to repack with the source gradeSessionId as query param
-        this.router.navigate(['/app/repack', repackSession.id], {
-          queryParams: { gradeSessionId: session.id }
-        });
-      },
-      error: (err: any) => {
-        console.error('Failed to create repack session:', err);
-        this.startingRepack.set(null);
-      },
-    });
+  // Helpers for Sessions
+  getSessionCategoryName(session: GradeSession): string {
+    return session.categoryOutput?.category?.name || 'Unknown';
   }
 }

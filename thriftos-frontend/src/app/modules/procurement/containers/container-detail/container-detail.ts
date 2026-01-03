@@ -1,45 +1,40 @@
-/**
- * Container Detail Component
- * Phase 2: Procurement UI
- * Phase 2.5: Added Rags/Bales tab for Container Breakdown
- * 
- * Route: /app/procurement/containers/:id
- */
-
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule, CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { LucideAngularModule, ArrowRight, Edit2, ExternalLink, Plus, Receipt, Trash2, Package } from 'lucide-angular';
 import { ProcurementService } from '../../procurement.service';
 import {
   Container,
   ContainerStatus,
   CostBreakdown,
   ContainerCharge,
-  CreateContainerChargeRequest,
-  ChargeType,
-  UpdateContainerRequest,
 } from '../../procurement.models';
 import { AuthService } from '../../../../core/auth/auth';
 import { TenantService } from '../../../../core/tenant/tenant.service';
 import { CostBreakdownPanelComponent } from '../../shared/cost-breakdown-panel/cost-breakdown-panel';
 import { RagListComponent } from '../../rags/rag-list';
 import {
-  CardComponent,
-  ButtonComponent,
-  AlertComponent,
-  BreadcrumbComponent,
-  BreadcrumbItem,
-  BadgeComponent,
-  ModalComponent,
-  DrawerComponent,
-  InputComponent,
-  SelectComponent,
-  SelectOption,
-  SkeletonComponent,
-  TabsComponent,
-  Tab,
+  AppBadgeComponent,
+  AppBreadcrumbComponent,
+  AppButtonComponent,
+  AppCardComponent,
+  AppDataTableComponent,
+  AppDialogComponent,
+  AppEmptyStateComponent,
+  AppErrorStateComponent,
+  AppLinkComponent,
+  AppLoadingComponent,
+  AppPageBodyComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppSectionBodyComponent,
+  AppSectionComponent,
+  AppSectionHeaderComponent,
+  AppSplitAsideComponent,
+  AppSplitComponent,
+  AppSplitMainComponent,
+  AppStackComponent,
+  type DataTableColumn,
+  type BreadcrumbItem,
 } from '../../../../shared/ui';
 
 @Component({
@@ -48,23 +43,30 @@ import {
   imports: [
     CommonModule,
     RouterLink,
-    ReactiveFormsModule,
-    LucideAngularModule,
     CurrencyPipe,
     DatePipe,
     DecimalPipe,
-    CardComponent,
-    ButtonComponent,
-    AlertComponent,
-    BreadcrumbComponent,
-    BadgeComponent,
-    ModalComponent,
-    DrawerComponent,
-    InputComponent,
-    SelectComponent,
-    SkeletonComponent,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppSectionComponent,
+    AppSectionHeaderComponent,
+    AppSectionBodyComponent,
+    AppStackComponent,
+    AppSplitComponent,
+    AppSplitMainComponent,
+    AppSplitAsideComponent,
+    AppBreadcrumbComponent,
+    AppCardComponent,
+    AppBadgeComponent,
+    AppButtonComponent,
+    AppDialogComponent,
+    AppDataTableComponent,
+    AppLinkComponent,
+    AppLoadingComponent,
+    AppErrorStateComponent,
+    AppEmptyStateComponent,
     CostBreakdownPanelComponent,
-    TabsComponent,
     RagListComponent,
   ],
   templateUrl: './container-detail.html',
@@ -74,20 +76,9 @@ import {
 export class ContainerDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly fb = inject(FormBuilder);
   private readonly procurementService = inject(ProcurementService);
   private readonly authService = inject(AuthService);
   private readonly tenantService = inject(TenantService);
-
-  readonly icons = {
-    ArrowRight,
-    Edit2,
-    ExternalLink,
-    Plus,
-    Receipt,
-    Trash2,
-    Package,
-  };
 
   readonly container = signal<Container | null>(null);
   readonly costBreakdown = signal<CostBreakdown | null>(null);
@@ -96,28 +87,32 @@ export class ContainerDetailComponent implements OnInit {
   readonly costLoading = signal(false);
   readonly error = signal<string | null>(null);
   readonly actionLoading = signal(false);
-
-  readonly isEditMode = signal(false);
-  readonly showChargeDrawer = signal(false);
   readonly showStatusModal = signal(false);
   readonly selectedStatus = signal<ContainerStatus | null>(null);
+
+  readonly showDeleteChargeConfirm = signal(false);
+  readonly deletingChargeId = signal<string | null>(null);
 
   readonly canEdit = signal(false);
 
   // Phase 2.5: Tabs for container detail
   readonly activeTab = signal<string>('overview');
-  readonly tabs: Tab[] = [
+  readonly tabs = [
     { id: 'overview', label: 'Overview' },
-    { id: 'rags', label: 'Rags / Bales' },
     { id: 'costs', label: 'Costs' },
+    { id: 'rags', label: 'Rags / Bales' },
   ];
 
-  readonly breadcrumbs = computed<BreadcrumbItem[]>(() => [
-    { label: 'Home', link: '/app/dashboard' },
-    { label: 'Procurement', link: '/app/procurement' },
-    { label: 'Containers', link: '/app/procurement/containers' },
-    { label: this.container()?.containerNumber || 'Loading...' },
-  ]);
+  readonly breadcrumbs = computed<BreadcrumbItem[]>(() => {
+    const contNumber = this.container()?.containerNumber || 'Loading…';
+    const id = this.container()?.id;
+    return [
+      { label: 'Home', route: '/dashboard' },
+      { label: 'Procurement', route: '/procurement/dashboard' },
+      { label: 'Containers', route: '/procurement/containers' },
+      { label: contNumber, route: id ? `/procurement/containers/${id}` : '/procurement/containers' },
+    ];
+  });
 
   readonly isEditable = computed(() => {
     const container = this.container();
@@ -129,61 +124,27 @@ export class ContainerDetailComponent implements OnInit {
     return container?.status === 'CLOSED';
   });
 
-  readonly statusOptions: SelectOption[] = [
+  readonly statusOptions = [
     { value: 'IN_TRANSIT', label: 'In Transit' },
     { value: 'ARRIVED', label: 'Arrived' },
     { value: 'CLEARED', label: 'Cleared' },
     { value: 'CLOSED', label: 'Closed' },
   ];
 
-  readonly chargeTypeOptions: SelectOption[] = [
-    { value: 'CIF', label: 'CIF (Cost, Insurance, Freight)' },
-    { value: 'FREIGHT', label: 'Freight' },
-    { value: 'DUTY', label: 'Duty' },
-    { value: 'TAX', label: 'Tax' },
-    { value: 'PORT_HANDLING', label: 'Port Handling' },
-    { value: 'MISC', label: 'Miscellaneous' },
+  readonly chargeColumns: DataTableColumn[] = [
+    { key: 'chargeType', label: 'Type', sortable: true, filterable: true },
+    { key: 'description', label: 'Description', sortable: true, filterable: true },
+    { key: 'amount', label: 'Amount', align: 'right', sortable: true, getValue: (row) => (row as ContainerCharge).amount },
   ];
 
-  editForm!: FormGroup;
-  chargeForm!: FormGroup;
   readonly currencyCode = computed(
     () => this.container()?.purchaseOrder?.currency || this.costBreakdown()?.currency || this.tenantService.tenant()?.currency || 'USD',
   );
 
   ngOnInit(): void {
-    this.initForms();
     this.checkPermissions();
     this.loadContainer();
     this.tenantService.loadTenant().subscribe();
-  }
-
-  private initForms(): void {
-    this.editForm = this.fb.group({
-      referenceNumber: ['', Validators.maxLength(50)],
-      containerType: [''],
-      eta: [''],
-      etd: [''],
-      arrivedAt: [''],
-      clearedAt: [''],
-      releasedAt: [''],
-      grossWeight: [0, [Validators.required, Validators.min(0)]],
-      netWeight: [0, [Validators.required, Validators.min(0)]],
-      billOfLadingNumber: ['', Validators.maxLength(50)],
-      shipmentReference: ['', Validators.maxLength(50)],
-      shippingLine: ['', Validators.maxLength(50)],
-      vesselName: ['', Validators.maxLength(50)],
-      portOfLoading: ['', Validators.maxLength(50)],
-      portOfDischarge: ['', Validators.maxLength(50)],
-      forwarder: ['', Validators.maxLength(50)],
-      notes: ['', Validators.maxLength(500)],
-    });
-
-    this.chargeForm = this.fb.group({
-      chargeType: ['CIF', Validators.required],
-      description: ['', [Validators.required, Validators.maxLength(200)]],
-      amount: [0, [Validators.required, Validators.min(0.01)]],
-    });
   }
 
   private checkPermissions(): void {
@@ -206,25 +167,6 @@ export class ContainerDetailComponent implements OnInit {
     this.procurementService.getContainer(id).subscribe({
       next: (container) => {
         this.container.set(container);
-        this.editForm.patchValue({
-          referenceNumber: container.referenceNumber || '',
-          containerType: container.containerType || '',
-          eta: this.formatDate(container.eta),
-          etd: this.formatDate(container.etd),
-          arrivedAt: this.formatDate(container.arrivedAt),
-          clearedAt: this.formatDate(container.clearedAt),
-          releasedAt: this.formatDate(container.releasedAt),
-          grossWeight: container.grossWeight,
-          netWeight: container.netWeight,
-          billOfLadingNumber: container.billOfLadingNumber || '',
-          shipmentReference: container.shipmentReference || '',
-          shippingLine: container.shippingLine || '',
-          vesselName: container.vesselName || '',
-          portOfLoading: container.portOfLoading || '',
-          portOfDischarge: container.portOfDischarge || '',
-          forwarder: container.forwarder || '',
-          notes: container.notes || '',
-        });
         this.loading.set(false);
         this.loadCostBreakdown(id);
         this.loadCharges(id);
@@ -257,70 +199,6 @@ export class ContainerDetailComponent implements OnInit {
     });
   }
 
-  toggleEditMode(): void {
-    const container = this.container();
-    if (container) {
-      this.editForm.patchValue({
-        referenceNumber: container.referenceNumber || '',
-        containerType: container.containerType || '',
-        eta: this.formatDate(container.eta),
-        etd: this.formatDate(container.etd),
-        arrivedAt: this.formatDate(container.arrivedAt),
-        clearedAt: this.formatDate(container.clearedAt),
-        releasedAt: this.formatDate(container.releasedAt),
-        grossWeight: container.grossWeight,
-        netWeight: container.netWeight,
-        billOfLadingNumber: container.billOfLadingNumber || '',
-        shipmentReference: container.shipmentReference || '',
-        shippingLine: container.shippingLine || '',
-        vesselName: container.vesselName || '',
-        portOfLoading: container.portOfLoading || '',
-        portOfDischarge: container.portOfDischarge || '',
-        forwarder: container.forwarder || '',
-        notes: container.notes || '',
-      });
-    }
-    this.isEditMode.update((v) => !v);
-  }
-
-  saveChanges(): void {
-    const container = this.container();
-    if (!container || this.editForm.invalid) return;
-
-    this.actionLoading.set(true);
-
-    const data: UpdateContainerRequest = {
-      referenceNumber: this.editForm.value.referenceNumber?.trim() || undefined,
-      containerType: this.editForm.value.containerType?.trim() || undefined,
-      eta: this.normalizeDate(this.editForm.value.eta),
-      etd: this.normalizeDate(this.editForm.value.etd),
-      arrivedAt: this.normalizeDate(this.editForm.value.arrivedAt),
-      clearedAt: this.normalizeDate(this.editForm.value.clearedAt),
-      releasedAt: this.normalizeDate(this.editForm.value.releasedAt),
-      grossWeight: Number(this.editForm.value.grossWeight),
-      netWeight: Number(this.editForm.value.netWeight),
-      billOfLadingNumber: this.editForm.value.billOfLadingNumber?.trim() || undefined,
-      shipmentReference: this.editForm.value.shipmentReference?.trim() || undefined,
-      shippingLine: this.editForm.value.shippingLine?.trim() || undefined,
-      vesselName: this.editForm.value.vesselName?.trim() || undefined,
-      portOfLoading: this.editForm.value.portOfLoading?.trim() || undefined,
-      portOfDischarge: this.editForm.value.portOfDischarge?.trim() || undefined,
-      forwarder: this.editForm.value.forwarder?.trim() || undefined,
-      notes: this.editForm.value.notes?.trim() || undefined,
-    };
-
-    this.procurementService.updateContainer(container.id, data).subscribe({
-      next: (updated) => {
-        this.container.set(updated);
-        this.isEditMode.set(false);
-        this.actionLoading.set(false);
-      },
-      error: (err) => {
-        this.error.set(err.message || 'Failed to update container');
-        this.actionLoading.set(false);
-      },
-    });
-  }
 
   openStatusModal(status: ContainerStatus): void {
     this.selectedStatus.set(status);
@@ -354,43 +232,24 @@ export class ContainerDetailComponent implements OnInit {
     });
   }
 
-  openChargeDrawer(): void {
-    this.chargeForm.reset({
-      chargeType: 'CIF',
-      amount: 0,
-    });
-    this.showChargeDrawer.set(true);
+  confirmDeleteCharge(chargeId: string): void {
+    this.deletingChargeId.set(chargeId);
+    this.showDeleteChargeConfirm.set(true);
   }
 
-  closeChargeDrawer(): void {
-    this.showChargeDrawer.set(false);
+  cancelDeleteCharge(): void {
+    this.showDeleteChargeConfirm.set(false);
+    this.deletingChargeId.set(null);
   }
 
-  createCharge(): void {
-    const container = this.container();
-    if (!container || this.chargeForm.invalid) return;
-
-    this.actionLoading.set(true);
-
-    const data: CreateContainerChargeRequest = {
-      chargeType: this.chargeForm.value.chargeType as ChargeType,
-      description: this.chargeForm.value.description.trim(),
-      amount: Number(this.chargeForm.value.amount),
-    };
-
-    this.procurementService.addContainerCharge(container.id, data).subscribe({
-      next: () => {
-        this.showChargeDrawer.set(false);
-        this.actionLoading.set(false);
-        this.loadCharges(container.id);
-        this.loadCostBreakdown(container.id);
-      },
-      error: (err) => {
-        this.error.set(err.message || 'Failed to add charge');
-        this.actionLoading.set(false);
-      },
-    });
+  executeDeleteCharge(): void {
+    const chargeId = this.deletingChargeId();
+    if (!chargeId) return;
+    this.showDeleteChargeConfirm.set(false);
+    this.deleteCharge(chargeId);
+    this.deletingChargeId.set(null);
   }
+
 
   deleteCharge(chargeId: string): void {
     const container = this.container();
@@ -430,15 +289,10 @@ export class ContainerDetailComponent implements OnInit {
     return null;
   }
 
-  private formatDate(value?: string | null): string {
-    return value ? value.split('T')[0] : '';
-  }
-
   private normalizeDate(value?: string | null): string | undefined {
     return value ? value : undefined;
   }
 
-  // Phase 2.5: Tab change handler
   onTabChange(tabId: string): void {
     this.activeTab.set(tabId);
   }

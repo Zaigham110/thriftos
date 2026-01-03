@@ -1,0 +1,41 @@
+/**
+ * INVENTORY INDEX STYLES - DENSE ERP LAYOUT
+ */
+
+.filter-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr) auto;
+  gap: 1rem;
+  align-items: end;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding-top: 1.5rem; // Align with form fields
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+// Dense table overrides
+::ng-deep app-data-table {
+  table {
+    font-size: 0.875rem;
+  }
+
+  td, th {
+    padding: 0.5rem 0.75rem;
+  }
+
+  tr:hover {
+    background-color: #f9fafb;
+    cursor: pointer;
+  }
+}

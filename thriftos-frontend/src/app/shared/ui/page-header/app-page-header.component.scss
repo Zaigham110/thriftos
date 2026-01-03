@@ -1,0 +1,37 @@
+// ===============================
+// APP-PAGE-HEADER STYLES (LOCKED)
+// ===============================
+
+.app-page-header {
+  min-height: 56px;
+  padding: var(--space-md) var(--page-padding);
+  background-color: var(--app-bg-surface);
+  border-bottom: 1px solid var(--app-border-subtle);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  flex-shrink: 0;
+
+  .page-title {
+    font-size: var(--font-size-page-title);
+    font-weight: var(--font-weight-page-title);
+    color: var(--app-text-primary);
+    margin: 0;
+    line-height: 1.15;
+  }
+
+  .page-subtitle {
+    font-size: var(--font-size-body);
+    font-weight: var(--font-weight-body);
+    color: var(--app-text-muted);
+    margin: 0;
+    line-height: 1.25;
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+  }
+}

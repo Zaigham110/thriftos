@@ -1,0 +1,33 @@
+.app-split {
+  display: grid;
+  gap: var(--space-lg);
+  align-items: start;
+  grid-template-columns: 2fr 1fr;
+}
+
+.app-split[data-ratio='3-1'] {
+  grid-template-columns: 3fr 1fr;
+}
+
+.app-split[data-ratio='2-1'] {
+  grid-template-columns: 2fr 1fr;
+}
+
+.app-split[data-ratio='1-1'] {
+  grid-template-columns: 1fr 1fr;
+}
+
+.app-split[data-ratio='1-2'] {
+  grid-template-columns: 1fr 2fr;
+}
+
+.app-split-main,
+.app-split-aside {
+  min-width: 0;
+}
+
+@media (max-width: 960px) {
+  .app-split {
+    grid-template-columns: 1fr;
+  }
+}

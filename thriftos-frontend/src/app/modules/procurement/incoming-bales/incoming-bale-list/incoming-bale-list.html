@@ -1,90 +1,66 @@
-<ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs" />
+      <h1 class="page-title">Loose Bales</h1>
+      <p class="page-subtitle">{{ totalCount() }} bales</p>
+    </app-stack>
+    <div class="actions"></div>
+  </app-page-header>
 
-<div class="incoming-bale-list">
-  <header class="page-header">
-    <div class="header-content">
-      <h1>Incoming Bales</h1>
-      <p class="subtitle">Manage loose bale purchases (not part of containers)</p>
-    </div>
-    @if (canCreate) {
-      <a routerLink="create" ui-button variant="primary">
-        <lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>
-        New Bale
-      </a>
-    }
-  </header>
+  <app-page-body>
+    <app-section>
+      <app-section-header>
+        <h2 class="section-title">All Loose Bales</h2>
+        <div class="actions"></div>
+      </app-section-header>
+      <app-section-body>
+        @if (loading()) {
+          <app-loading message="Loading bales…" />
+        } @else if (error()) {
+          <app-error-state title="Failed to load" [message]="error()!" [action]="true">
+            <app-button action variant="secondary" (click)="loadBales(currentPage())">Retry</app-button>
+          </app-error-state>
+        } @else if (incomingBales().length === 0) {
+          <app-empty-state title="No bales" message="No loose bales found for this tenant." />
+        } @else {
+          <app-data-table
+            title="All Loose Bales"
+            [columns]="tableColumns"
+            [data]="incomingBales()"
+            [loading]="loading()"
+            [serverSide]="true"
+            [totalCount]="totalCount()"
+            [externalPageIndex]="currentPage()"
+            (stateChange)="onTableStateChange($event)"
+            (rowClick)="onRowClick($event)"
+          >
+            <ng-template #cellTemplate let-row let-column="column">
+              @switch (column.key) {
+                @case ('weightKg') {
+                  <span class="tabular-nums">{{ row.weightKg | number:'1.2-2' }}</span>
+                }
+                @case ('cost') {
+                  <span class="tabular-nums">{{ row.cost | number:'1.2-2' }}</span>
+                }
+                @case ('costPerKg') {
+                  <span class="tabular-nums">{{ (row.cost / row.weightKg) | number:'1.2-2' }}</span>
+                }
+                @case ('createdAt') {
+                  {{ (row.createdAt | date:'mediumDate') || '—' }}
+                }
+                @default {
+                  {{ column.getValue ? column.getValue(row) : row[column.key] }}
+                }
+              }
+            </ng-template>
 
-  @if (error()) {
-    <ui-alert variant="danger">
-      {{ error() }}
-    </ui-alert>
-  }
-
-  @if (loading()) {
-    <ui-card>
-      <div class="skeleton-list">
-        @for (i of [1, 2, 3, 4, 5]; track i) {
-          <ui-skeleton height="60px"></ui-skeleton>
+            <ng-template #rowActions let-row>
+              <app-button variant="secondary" size="sm" [routerLink]="['/procurement/loose-bales', row.id]">View</app-button>
+            </ng-template>
+          </app-data-table>
         }
-      </div>
-    </ui-card>
-  } @else if (incomingBales().length === 0) {
-    <ui-empty-state
-      title="No Incoming Bales"
-      description="No loose bale purchases have been recorded yet."
-      [icon]="icons.Package"
-    >
-      @if (canCreate) {
-        <a routerLink="create" ui-button variant="primary">
-          <lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>
-          Create First Bale
-        </a>
-      }
-    </ui-empty-state>
-  } @else {
-    <ui-card>
-      <div class="bale-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Bale Code</th>
-              <th>Category Guess</th>
-              <th>Weight (kg)</th>
-              <th>Cost</th>
-              <th>Cost/kg</th>
-              <th>Created</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (bale of incomingBales(); track bale.id) {
-              <tr>
-                <td class="bale-code">
-                  <lucide-icon [img]="icons.Package" [size]="16"></lucide-icon>
-                  {{ bale.baleCode }}
-                </td>
-                <td>
-                  @if (bale.categoryGuess) {
-                    <ui-badge variant="default">{{ bale.categoryGuess }}</ui-badge>
-                  } @else {
-                    <span class="text-muted">—</span>
-                  }
-                </td>
-                <td>{{ formatWeight(bale.weightKg) }}</td>
-                <td>{{ formatCurrency(bale.cost) }}</td>
-                <td class="text-muted">{{ formatCurrency(bale.cost / bale.weightKg) }}</td>
-                <td>{{ formatDate(bale.createdAt) }}</td>
-                <td>
-                  <a [routerLink]="[bale.id]" ui-button variant="ghost" size="sm">
-                    <lucide-icon [img]="icons.Eye" [size]="16"></lucide-icon>
-                    View
-                  </a>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    </ui-card>
-  }
-</div>
+      </app-section-body>
+    </app-section>
+  </app-page-body>
+</app-page>

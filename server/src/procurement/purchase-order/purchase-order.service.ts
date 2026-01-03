@@ -62,6 +62,7 @@ export class PurchaseOrderService {
         vendorId: dto.vendorId,
         currency: tenant.currency,
         totalCost: 0,
+        ...(dto.budgetCap !== undefined && { budgetCap: dto.budgetCap }),
         status: PurchaseOrderStatus.OPEN,
       },
       include: {
@@ -168,6 +169,7 @@ export class PurchaseOrderService {
       where: { id },
       data: {
         ...(dto.vendorId !== undefined && { vendorId: dto.vendorId }),
+        ...(dto.budgetCap !== undefined && { budgetCap: dto.budgetCap }),
       },
       include: {
         vendor: true,

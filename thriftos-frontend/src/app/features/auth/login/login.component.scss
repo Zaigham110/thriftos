@@ -1,0 +1,63 @@
+// ===============================
+// LOGIN SCREEN STYLES (MINIMAL)
+// ===============================
+// ONLY layout centering - NO visual styling
+
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 48px);
+  
+  app-card {
+    width: 100%;
+    max-width: 420px;
+  }
+}
+
+.login-header {
+  margin-bottom: var(--space-xl);
+  text-align: center;
+}
+
+.login-title {
+  font-size: var(--font-size-page-title);
+  font-weight: var(--font-weight-page-title);
+  color: var(--app-text-primary);
+  margin: 0 0 var(--space-sm) 0;
+}
+
+.login-subtitle {
+  font-size: var(--font-size-body);
+  color: var(--app-text-secondary);
+  margin: 0;
+}
+
+.error-card {
+  margin-bottom: var(--space-lg);
+}
+
+.error-message {
+  margin: 0;
+  font-size: var(--font-size-body);
+  color: var(--app-danger);
+}
+
+.loading-state {
+  padding: var(--space-2xl);
+  text-align: center;
+  color: var(--app-text-muted);
+}
+
+.forgot-password {
+  background: none;
+  border: none;
+  color: var(--app-primary);
+  font-size: var(--font-size-body);
+  cursor: pointer;
+  padding: 0;
+  
+  &:hover {
+    text-decoration: underline;
+  }
+}

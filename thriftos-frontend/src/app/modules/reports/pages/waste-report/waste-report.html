@@ -1,203 +1,79 @@
-<div class="waste-report">
-  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
-
-  <header class="page-header">
-    <div class="page-header__back">
-      <a routerLink="/app/reports" class="back-link">
-        <lucide-icon [img]="icons.ArrowLeft" [size]="18"></lucide-icon>
-        Back to Reports
-      </a>
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs" />
+      <h1 class="page-title">Waste Report</h1>
+      <p class="page-subtitle">Waste analysis by stage and cost impact</p>
+    </app-stack>
+    <div class="actions">
+      <app-button variant="secondary" (click)="loadData()">
+        Refresh
+      </app-button>
     </div>
-    <div class="page-header__title">
-      <div class="page-header__icon page-header__icon--red">
-        <lucide-icon [img]="icons.Trash2" [size]="24"></lucide-icon>
-      </div>
-      <div>
-        <h1>Waste Report</h1>
-        <p class="page-header__subtitle">Waste analysis by stage and cost impact</p>
-      </div>
-    </div>
-  </header>
+  </app-page-header>
 
-  @if (error()) {
-    <ui-alert variant="danger" [dismissible]="true" (dismissed)="error.set(null)">
-      {{ error() }}
-      <button type="button" class="retry-btn" (click)="loadData()">Retry</button>
-    </ui-alert>
-  }
+  <app-page-body>
+    @if (error()) {
+      <app-error-state title="Failed to load report" [message]="error()!" [action]="true">
+        <app-button action variant="secondary" (click)="loadData()">Retry</app-button>
+      </app-error-state>
+    }
 
-  <!-- Filters Panel -->
-  <app-report-filters
-    [showExport]="true"
-    [exporting]="exporting"
-    (filtersChange)="onFiltersChange($event)"
-    (onExport)="exportReport()"
-  ></app-report-filters>
+    <!-- Filters -->
+    <app-section>
+      <app-section-body>
+        <app-report-filters
+          [showExport]="true"
+          [exporting]="exporting"
+          (filtersChange)="onFiltersChange($event)"
+          (searchChange)="onSearchChange($event)"
+          (onExport)="exportReport()"
+        />
+      </app-section-body>
+    </app-section>
 
-  <!-- Summary Stats -->
-  <div class="stats-row">
-    <ui-card class="mini-stat">
-      <div class="mini-stat__icon mini-stat__icon--red">
-        <lucide-icon [img]="icons.Scale" [size]="18"></lucide-icon>
-      </div>
-      <div class="mini-stat__content">
-        <span class="mini-stat__label">Total Waste</span>
-        @if (loading()) {
-          <ui-skeleton variant="text" class="mini-skeleton"></ui-skeleton>
-        } @else {
-          <span class="mini-stat__value">{{ formatWeight(totalWaste) }}</span>
-        }
-      </div>
-    </ui-card>
-
-    <ui-card class="mini-stat">
-      <div class="mini-stat__icon mini-stat__icon--amber">
-        <lucide-icon [img]="icons.DollarSign" [size]="18"></lucide-icon>
-      </div>
-      <div class="mini-stat__content">
-        <span class="mini-stat__label">Cost Impact</span>
-        @if (loading()) {
-          <ui-skeleton variant="text" class="mini-skeleton"></ui-skeleton>
-        } @else {
-          <span class="mini-stat__value">{{ formatCurrency(totalCost) }}</span>
-        }
-      </div>
-    </ui-card>
-
-    <ui-card class="mini-stat">
-      <div class="mini-stat__icon mini-stat__icon--blue">
-        <lucide-icon [img]="icons.Layers" [size]="18"></lucide-icon>
-      </div>
-      <div class="mini-stat__content">
-        <span class="mini-stat__label">Stages Tracked</span>
-        @if (loading()) {
-          <ui-skeleton variant="text" class="mini-skeleton"></ui-skeleton>
-        } @else {
-          <span class="mini-stat__value">{{ currentData.length }}</span>
-        }
-      </div>
-    </ui-card>
-  </div>
-
-  <!-- View Toggle -->
-  <div class="view-toggle">
-    <button
-      type="button"
-      class="toggle-btn"
-      [class.toggle-btn--active]="activeView() === 'by-stage'"
-      (click)="setView('by-stage')"
-    >
-      By Stage
-    </button>
-    <button
-      type="button"
-      class="toggle-btn"
-      [class.toggle-btn--active]="activeView() === 'cost-impact'"
-      (click)="setView('cost-impact')"
-    >
-      Cost Impact
-    </button>
-  </div>
-
-  <!-- Chart Card -->
-  <ui-card class="chart-card">
-    <div class="chart-header">
-      <h2>
-        @if (activeView() === 'by-stage') {
-          Waste by Stage
-        } @else {
-          Waste Cost Impact
-        }
-      </h2>
-    </div>
-
-    @if (loading()) {
-      <div class="chart-loading">
-        @for (i of [1, 2, 3]; track i) {
-          <ui-skeleton variant="text" class="bar-skeleton"></ui-skeleton>
-        }
-      </div>
-    } @else if (!currentData.length) {
-      <div class="chart-empty">
-        <lucide-icon [img]="icons.Trash2" [size]="48"></lucide-icon>
-        <p>No waste data available for the selected filters</p>
-      </div>
-    } @else {
-      <div class="horizontal-bars">
-        @for (row of currentData; track row.stage) {
-          <div class="bar-row">
-            <div class="bar-label">
-              <span class="stage-name {{ getStageColor(row.stage) }}">{{ row.stage }}</span>
-            </div>
-            <div class="bar-container">
-              <div class="bar {{ getStageColor(row.stage) }}" [style.width]="getBarWidth(row.wasteKg)"></div>
-            </div>
-            <div class="bar-values">
-              <span class="bar-weight">{{ formatWeight(row.wasteKg) }}</span>
-              @if (activeView() === 'cost-impact' && row.wasteCost) {
-                <span class="bar-cost">{{ formatCurrency(row.wasteCost) }}</span>
-              }
-              @if (row.wastePct !== undefined) {
-                <span class="bar-pct">{{ formatPercent(row.wastePct) }}</span>
-              }
-            </div>
+    <!-- View Toggle & Data Table -->
+    <app-section>
+      <app-section-header>
+        <div class="flex items-center justify-between w-full">
+          <h2 class="section-title">Waste Breakdown</h2>
+          <div class="flex gap-2">
+            <app-button 
+              [variant]="activeView() === 'by-stage' ? 'primary' : 'secondary'" 
+              (click)="setView('by-stage')">
+              By Stage
+            </app-button>
+            <app-button 
+              [variant]="activeView() === 'cost-impact' ? 'primary' : 'secondary'" 
+              (click)="setView('cost-impact')">
+              Cost Impact
+            </app-button>
           </div>
-        }
-      </div>
-    }
-  </ui-card>
-
-  <!-- Data Table -->
-  <ui-card class="table-card">
-    <div class="table-header">
-      <h2>Detailed Breakdown</h2>
-    </div>
-
-    @if (loading()) {
-      <div class="table-loading">
-        @for (i of [1, 2, 3]; track i) {
-          <ui-skeleton variant="text" class="table-row-skeleton"></ui-skeleton>
-        }
-      </div>
-    } @else {
-      <div class="table-wrapper">
-        <table class="report-table">
-          <thead>
-            <tr>
-              <th>Stage</th>
-              <th class="align-right">Waste (KG)</th>
-              <th class="align-right">% of Total</th>
-              @if (activeView() === 'cost-impact') {
-                <th class="align-right">Cost Impact</th>
+        </div>
+      </app-section-header>
+      <app-section-body>
+        <app-data-table
+          [data]="currentData"
+          [columns]="columns"
+          [loading]="loading()"
+          [enableSearch]="false"
+          [externalSearch]="searchText()"
+        >
+          <ng-template #cellTemplate let-row let-column="column">
+            @switch (column.key) {
+              @case ('wasteKg') {
+                {{ formatWeight(row.wasteKg) }}
               }
-            </tr>
-          </thead>
-          <tbody>
-            @for (row of currentData; track row.stage) {
-              <tr>
-                <td>
-                  <span class="stage-badge {{ getStageColor(row.stage) }}">{{ row.stage }}</span>
-                </td>
-                <td class="align-right">{{ formatWeight(row.wasteKg) }}</td>
-                <td class="align-right text-muted">{{ formatPercent(row.wastePct ?? 0) }}</td>
-                @if (activeView() === 'cost-impact') {
-                  <td class="align-right text-danger">{{ formatCurrency(row.wasteCost ?? 0) }}</td>
-                }
-              </tr>
+              @case ('wasteCost') {
+                {{ formatCurrency(row.wasteCost) }}
+              }
+              @default {
+                {{ row[column.key] }}
+              }
             }
-          </tbody>
-          <tfoot>
-            <tr class="total-row">
-              <td><strong>Total</strong></td>
-              <td class="align-right"><strong>{{ formatWeight(totalWaste) }}</strong></td>
-              <td class="align-right"><strong>100%</strong></td>
-              @if (activeView() === 'cost-impact') {
-                <td class="align-right text-danger"><strong>{{ formatCurrency(totalCost) }}</strong></td>
-              }
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    }
-  </ui-card>
-</div>
+          </ng-template>
+        </app-data-table>
+      </app-section-body>
+    </app-section>
+  </app-page-body>
+</app-page>

@@ -97,7 +97,7 @@
   }
 
   &:hover:not(:disabled) {
-    border-color: color.adjust($border-default, $lightness: -10%);
+    border-color: hsl(var(--foreground) / 0.2);
   }
 
   &:focus {

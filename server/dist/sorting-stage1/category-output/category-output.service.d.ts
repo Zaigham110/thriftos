@@ -24,8 +24,8 @@ export declare class CategoryOutputService {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
-                sortSessionId: string;
                 categoryId: string;
+                sortSessionId: string;
                 outputWeightKg: import("@prisma/client/runtime/library").Decimal;
                 outputCount: number;
             };
@@ -38,8 +38,8 @@ export declare class CategoryOutputService {
             weightKg: import("@prisma/client/runtime/library").Decimal;
             allocatedCost: import("@prisma/client/runtime/library").Decimal;
             ragId: string;
-            sortSessionId: string;
             categoryId: string;
+            sortSessionId: string;
             count: number;
             sortCategoryBucketId: string;
         })[];
@@ -51,7 +51,8 @@ export declare class CategoryOutputService {
         page?: number;
         limit?: number;
     }): Promise<{
-        data: ({
+        data: {
+            gradeStatus: string;
             category: {
                 id: string;
                 name: string;
@@ -79,12 +80,15 @@ export declare class CategoryOutputService {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
-                sortSessionId: string;
                 categoryId: string;
+                sortSessionId: string;
                 outputWeightKg: import("@prisma/client/runtime/library").Decimal;
                 outputCount: number;
             };
-        } & {
+            gradeSessions: {
+                id: string;
+                status: import("@prisma/client").$Enums.GradeStatus;
+            }[];
             id: string;
             tenantId: string;
             createdAt: Date;
@@ -93,11 +97,11 @@ export declare class CategoryOutputService {
             weightKg: import("@prisma/client/runtime/library").Decimal;
             allocatedCost: import("@prisma/client/runtime/library").Decimal;
             ragId: string;
-            sortSessionId: string;
             categoryId: string;
+            sortSessionId: string;
             count: number;
             sortCategoryBucketId: string;
-        })[];
+        }[];
         total: number;
         page: number;
         limit: number;
@@ -123,8 +127,8 @@ export declare class CategoryOutputService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            sortSessionId: string;
             categoryId: string;
+            sortSessionId: string;
             outputWeightKg: import("@prisma/client/runtime/library").Decimal;
             outputCount: number;
         };
@@ -137,8 +141,8 @@ export declare class CategoryOutputService {
         weightKg: import("@prisma/client/runtime/library").Decimal;
         allocatedCost: import("@prisma/client/runtime/library").Decimal;
         ragId: string;
-        sortSessionId: string;
         categoryId: string;
+        sortSessionId: string;
         count: number;
         sortCategoryBucketId: string;
     }>;

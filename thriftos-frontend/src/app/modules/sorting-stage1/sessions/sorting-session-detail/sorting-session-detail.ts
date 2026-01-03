@@ -10,13 +10,27 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { LucideAngularModule, ArrowLeft, Package, Trash2, Save, Lock, Info, AlertCircle, Scale, Hash, Box, CheckCircle, Play } from 'lucide-angular';
 
-import { CardComponent } from '../../../../shared/ui/card/card';
-import { ButtonComponent } from '../../../../shared/ui/button/button';
-import { AlertComponent } from '../../../../shared/ui/alert/alert';
-import { BadgeComponent } from '../../../../shared/ui/badge/badge';
-import { SkeletonComponent } from '../../../../shared/ui/skeleton/skeleton';
-import { BreadcrumbComponent, BreadcrumbItem } from '../../../../shared/ui/breadcrumb/breadcrumb';
-import { ConfirmDialogComponent } from '../../../../shared/ui/confirm-dialog/confirm-dialog';
+import {
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppPageBodyComponent,
+  AppSectionComponent,
+  AppSectionHeaderComponent,
+  AppSectionBodyComponent,
+  AppStackComponent,
+  AppWorkspace3PanelComponent,
+  AppCardComponent,
+  AppButtonComponent,
+  AppBadgeComponent,
+  AppBreadcrumbComponent,
+  AppDataTableComponent,
+  AppLoadingComponent,
+  AppErrorStateComponent,
+  AppEmptyStateComponent,
+  AppDialogComponent,
+  type BreadcrumbItem,
+  type TableColumn,
+} from '../../../../shared/ui';
 
 import { SortingStage1Service } from '../../sorting-stage1.service';
 import { SortingStage2Service } from '../../../sorting-stage2/sorting-stage2.service';
@@ -42,14 +56,22 @@ interface NewBucket {
     CommonModule,
     RouterLink,
     LucideAngularModule,
-    CardComponent,
-    ButtonComponent,
-    AlertComponent,
-    BadgeComponent,
-    SkeletonComponent,
-    BreadcrumbComponent,
-    ConfirmDialogComponent,
-    WasteBucketComponent,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppSectionComponent,
+    AppSectionBodyComponent,
+    AppStackComponent,
+    AppWorkspace3PanelComponent,
+    AppCardComponent,
+    AppButtonComponent,
+    AppBadgeComponent,
+    AppBreadcrumbComponent,
+    AppDataTableComponent,
+    AppLoadingComponent,
+    AppErrorStateComponent,
+    AppEmptyStateComponent,
+    AppDialogComponent,
   ],
   templateUrl: './sorting-session-detail.html',
   styleUrls: ['./sorting-session-detail.scss'],
@@ -96,6 +118,22 @@ export class SortingSessionDetailComponent implements OnInit {
   showCloseConfirm = signal(false);
   showDeleteConfirm = signal(false);
   deletingBucketId = signal<string | null>(null);
+
+  // Modal states for new 3-panel layout
+  showAddCategoryModal = signal(false);
+  showEditCategoryModal = signal(false);
+  modalCategoryId = signal<string>('');
+  modalWeightKg = signal<number>(0);
+  modalCount = signal<number>(0);
+  modalSaving = signal(false);
+
+  // Table columns for category buckets
+  readonly bucketColumns: TableColumn[] = [
+    { key: 'category', label: 'Category', sortable: true },
+    { key: 'weight', label: 'Weight (kg)', sortable: true },
+    { key: 'count', label: 'Count', sortable: true },
+    { key: 'actions', label: 'Actions', sortable: false },
+  ];
 
   // Breadcrumbs
   breadcrumbs: BreadcrumbItem[] = [
@@ -246,6 +284,141 @@ export class SortingSessionDetailComponent implements OnInit {
   }
 
   // Category bucket actions
+  // =============================================================
+  // NEW MODAL-BASED METHODS FOR 3-PANEL LAYOUT
+  // =============================================================
+
+  openAddCategoryModal(): void {
+    this.modalCategoryId.set('');
+    this.modalWeightKg.set(0);
+    this.modalCount.set(0);
+    this.showAddCategoryModal.set(true);
+  }
+
+  closeAddCategoryModal(): void {
+    this.showAddCategoryModal.set(false);
+    this.modalCategoryId.set('');
+    this.modalWeightKg.set(0);
+    this.modalCount.set(0);
+  }
+
+  quickAddCategory(categoryId: string): void {
+    this.modalCategoryId.set(categoryId);
+    this.modalWeightKg.set(0);
+    this.modalCount.set(0);
+    this.showAddCategoryModal.set(true);
+  }
+
+  confirmAddCategory(): void {
+    const sessionId = this.session()?.id;
+    const categoryId = this.modalCategoryId();
+    const weightKg = this.modalWeightKg();
+    const count = this.modalCount();
+
+    if (!sessionId || !categoryId || weightKg <= 0) {
+      return;
+    }
+
+    if (weightKg > this.remainingWeight()) {
+      this.error.set(`Weight exceeds remaining capacity (${this.formatWeight(this.remainingWeight())} kg available)`);
+      return;
+    }
+
+    this.modalSaving.set(true);
+    this.error.set(null);
+
+    this.sortingService.addBucket(sessionId, {
+      categoryId,
+      outputWeightKg: weightKg,
+      outputCount: count,
+    }).subscribe({
+      next: (newBucket) => {
+        const currentSession = this.session();
+        if (currentSession) {
+          const updatedBuckets = [...(currentSession.buckets || []), newBucket];
+          this.session.set({ ...currentSession, buckets: updatedBuckets });
+        }
+        this.closeAddCategoryModal();
+        this.modalSaving.set(false);
+      },
+      error: (err: any) => {
+        console.error('Failed to add category:', err);
+        this.error.set(err.error?.message || 'Failed to add category bucket');
+        this.modalSaving.set(false);
+      },
+    });
+  }
+
+  openEditCategoryModal(bucket: SortCategoryBucket): void {
+    this.editingBucket.set({
+      bucketId: bucket.id,
+      weightKg: this.toNum(bucket.outputWeightKg),
+      count: bucket.outputCount || 0,
+    });
+    this.modalCategoryId.set(bucket.categoryId);
+    this.modalWeightKg.set(this.toNum(bucket.outputWeightKg));
+    this.modalCount.set(bucket.outputCount || 0);
+    this.showEditCategoryModal.set(true);
+  }
+
+  closeEditCategoryModal(): void {
+    this.showEditCategoryModal.set(false);
+    this.editingBucket.set(null);
+    this.modalCategoryId.set('');
+    this.modalWeightKg.set(0);
+    this.modalCount.set(0);
+  }
+
+  confirmEditCategory(): void {
+    const editing = this.editingBucket();
+    const sessionId = this.session()?.id;
+    const weightKg = this.modalWeightKg();
+    const count = this.modalCount();
+
+    if (!editing || !sessionId) return;
+
+    this.modalSaving.set(true);
+    this.error.set(null);
+
+    this.sortingService.updateBucket(editing.bucketId, {
+      outputWeightKg: weightKg,
+      outputCount: count,
+    }).subscribe({
+      next: (updatedBucket) => {
+        const currentSession = this.session();
+        if (currentSession) {
+          const updatedBuckets = (currentSession.buckets || []).map(b => {
+            if (b.id === editing.bucketId) {
+              return { ...updatedBucket, category: b.category };
+            }
+            return b;
+          });
+          this.session.set({ ...currentSession, buckets: updatedBuckets });
+        }
+        this.closeEditCategoryModal();
+        this.modalSaving.set(false);
+      },
+      error: (err: any) => {
+        console.error('Failed to update bucket:', err);
+        this.error.set(err.error?.message || 'Failed to update category bucket');
+        this.modalSaving.set(false);
+      },
+    });
+  }
+
+  getModalCategoryName(): string {
+    const catId = this.modalCategoryId();
+    const session = this.session();
+    if (!catId || !session) return 'Unknown';
+    
+    const bucket = session.buckets?.find(b => b.categoryId === catId);
+    return bucket?.category?.name || 'Unknown Category';
+  }
+
+  // =============================================================
+  // LEGACY INLINE EDIT METHODS (KEPT FOR BACKWARDS COMPAT)
+  // =============================================================
+
   startAddCategory(): void {
     const firstAvailable = this.availableCategories()[0];
     if (firstAvailable) {

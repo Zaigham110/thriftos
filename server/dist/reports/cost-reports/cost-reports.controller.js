@@ -48,7 +48,14 @@ let CostReportsController = class CostReportsController {
             params: { ...filters },
         });
         const data = await this.service.costCascade(tenantId, filters);
-        const csv = (0, report_utils_1.toCsv)(data.steps, ['stage', 'totalCost', 'totalWeightKg', 'avgCostPerKg', 'totalPcs', 'lockedCost', 'totalKg']);
+        const rows = [
+            { stage: 'PROCUREMENT', totalCost: data.procurement.totalCost, totalWeightKg: data.procurement.weightKg, costPerKg: data.procurement.costPerKg },
+            { stage: 'SORTING', totalCost: data.sorting.totalCost, totalWeightKg: data.sorting.weightKg, costPerKg: data.sorting.costPerKg },
+            { stage: 'GRADING', totalCost: data.grading.totalCost, totalWeightKg: data.grading.weightKg, costPerKg: data.grading.costPerKg },
+            { stage: 'REPACK', totalCost: data.repack.totalCost, totalWeightKg: data.repack.weightKg, costPerKg: data.repack.costPerKg },
+            { stage: 'FINAL', totalCost: data.final.totalCost, totalWeightKg: data.final.weightKg, costPerKg: data.final.costPerKg },
+        ];
+        const csv = (0, report_utils_1.toCsv)(rows, ['stage', 'totalCost', 'totalWeightKg', 'costPerKg']);
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         res.setHeader('Content-Disposition', 'attachment; filename="cost-cascade.csv"');
         return res.status(200).send(csv);
@@ -62,7 +69,7 @@ let CostReportsController = class CostReportsController {
             exported: false,
             params: { ...filters },
         });
-        return { data: await this.service.profitabilityReadiness(tenantId, filters) };
+        return await this.service.profitabilityReadiness(tenantId, filters);
     }
     async readinessExport(filters, user, req, res) {
         const tenantId = req.tenantId || user.tenantId;
@@ -73,13 +80,50 @@ let CostReportsController = class CostReportsController {
             exported: true,
             params: { ...filters },
         });
-        const data = await this.service.profitabilityReadiness(tenantId, filters);
-        const csv = (0, report_utils_1.toCsv)([
-            ...data.perKg.map((r) => ({ metric: 'COST_PER_KG', ...r })),
-            ...data.perPcs.map((r) => ({ metric: 'COST_PER_PCS', ...r })),
-        ]);
+        const result = await this.service.profitabilityReadiness(tenantId, filters);
+        const csv = (0, report_utils_1.toCsv)(result.data, ['categoryName', 'gradeName', 'unitsReady', 'totalWeightKg', 'totalCost', 'avgCostPerKg']);
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         res.setHeader('Content-Disposition', 'attachment; filename="profitability-readiness.csv"');
+        return res.status(200).send(csv);
+    }
+    async finalProducts(filters, user, req) {
+        const tenantId = req.tenantId || user.tenantId;
+        await this.audit.logAccess({
+            tenantId,
+            userId: user.userId,
+            report: 'cost.finalProducts',
+            exported: false,
+            params: { ...filters },
+        });
+        return await this.service.finalProductCostReport(tenantId, filters);
+    }
+    async finalProductsExport(filters, user, req, res) {
+        const tenantId = req.tenantId || user.tenantId;
+        await this.audit.logAccess({
+            tenantId,
+            userId: user.userId,
+            report: 'cost.finalProducts',
+            exported: true,
+            params: { ...filters },
+        });
+        const result = await this.service.finalProductCostReport(tenantId, filters);
+        const csv = (0, report_utils_1.toCsv)(result.data, [
+            'dateSealed',
+            'productCode',
+            'unitType',
+            'category',
+            'grade',
+            'totalWeightKg',
+            'totalQty',
+            'totalCost',
+            'costPerKg',
+            'costPerUnit',
+            'sourceContainers',
+            'sourceBales',
+            'allocationsCount',
+        ]);
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename="final-product-cost.csv"');
         return res.status(200).send(csv);
     }
 };
@@ -126,6 +170,27 @@ __decorate([
     __metadata("design:paramtypes", [report_filters_dto_1.ReportFiltersDto, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], CostReportsController.prototype, "readinessExport", null);
+__decorate([
+    (0, common_1.Get)('final-products'),
+    (0, permissions_decorator_1.RequirePermissions)('REPORTS_VIEW'),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [report_filters_dto_1.ReportFiltersDto, Object, Object]),
+    __metadata("design:returntype", Promise)
+], CostReportsController.prototype, "finalProducts", null);
+__decorate([
+    (0, common_1.Get)('final-products/export'),
+    (0, permissions_decorator_1.RequirePermissions)('REPORTS_EXPORT'),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Req)()),
+    __param(3, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [report_filters_dto_1.ReportFiltersDto, Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], CostReportsController.prototype, "finalProductsExport", null);
 exports.CostReportsController = CostReportsController = __decorate([
     (0, common_1.Controller)('reports/cost'),
     (0, common_1.UseGuards)(tenant_guard_1.TenantGuard, permission_guard_1.PermissionGuard),

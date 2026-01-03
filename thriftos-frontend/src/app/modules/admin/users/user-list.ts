@@ -7,23 +7,29 @@
  * Displays all tenant users with management actions.
  */
 
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { LucideAngularModule, Users, Plus, Search, UserCheck, UserX, Settings, RefreshCw } from 'lucide-angular';
 import { AdminService } from '../admin.service';
 import { User, Role } from '../admin.models';
 import { UserFormDrawerComponent } from './user-form-drawer';
 import {
-  CardComponent,
-  ButtonComponent,
-  AlertComponent,
-  BreadcrumbComponent,
-  BreadcrumbItem,
-  SkeletonComponent,
-  BadgeComponent,
-  EmptyStateComponent,
-  ConfirmDialogComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppPageBodyComponent,
+  AppSectionComponent,
+  AppSectionHeaderComponent,
+  AppSectionBodyComponent,
+  AppDataTableComponent,
+  AppBadgeComponent,
+  AppBreadcrumbComponent,
+  AppButtonComponent,
+  AppLoadingComponent,
+  AppErrorStateComponent,
+  AppEmptyStateComponent,
+  AppStackComponent,
+  AppDialogComponent,
+  type DataTableColumn,
 } from '../../../shared/ui';
 
 @Component({
@@ -33,15 +39,21 @@ import {
     CommonModule,
     DatePipe,
     FormsModule,
-    LucideAngularModule,
-    CardComponent,
-    ButtonComponent,
-    AlertComponent,
-    BreadcrumbComponent,
-    SkeletonComponent,
-    BadgeComponent,
-    EmptyStateComponent,
-    ConfirmDialogComponent,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppSectionComponent,
+    AppSectionHeaderComponent,
+    AppSectionBodyComponent,
+    AppDataTableComponent,
+    AppBadgeComponent,
+    AppBreadcrumbComponent,
+    AppButtonComponent,
+    AppLoadingComponent,
+    AppErrorStateComponent,
+    AppEmptyStateComponent,
+    AppStackComponent,
+    AppDialogComponent,
     UserFormDrawerComponent,
   ],
   templateUrl: './user-list.html',
@@ -50,16 +62,6 @@ import {
 })
 export class UserListComponent implements OnInit {
   private readonly adminService = inject(AdminService);
-
-  readonly icons = {
-    Users,
-    Plus,
-    Search,
-    UserCheck,
-    UserX,
-    Settings,
-    RefreshCw,
-  };
 
   readonly users = this.adminService.users;
   readonly roles = this.adminService.roles;
@@ -73,10 +75,17 @@ export class UserListComponent implements OnInit {
   readonly confirmDialogOpen = signal(false);
   readonly userToToggle = signal<User | null>(null);
 
-  readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Home', link: '/app/dashboard' },
-    { label: 'Administration', link: '/app/admin' },
-    { label: 'Users' },
+  readonly breadcrumbs = [
+    { label: 'Administration', link: '/admin' },
+    { label: 'Users', link: undefined },
+  ];
+
+  readonly tableColumns: DataTableColumn[] = [
+    { key: 'name', label: 'Name', sortable: true },
+    { key: 'email', label: 'Email', sortable: true },
+    { key: 'roles', label: 'Roles', getValue: (row) => this.getUserRoles(row as User) },
+    { key: 'status', label: 'Status', sortable: true },
+    { key: 'createdAt', label: 'Created', sortable: true },
   ];
 
   get filteredUsers(): User[] {
@@ -176,11 +185,19 @@ export class UserListComponent implements OnInit {
     return user.userRoles.map(ur => ur.role?.name || 'Unknown').join(', ');
   }
 
-  getStatusVariant(isActive: boolean): 'success' | 'danger' {
-    return isActive ? 'success' : 'danger';
+  statusVariant(isActive: boolean): 'success' | 'default' {
+    return isActive ? 'success' : 'default';
   }
 
   getStatusLabel(isActive: boolean): string {
     return isActive ? 'Active' : 'Blocked';
+  }
+
+  editUser(user: User): void {
+    this.openEditDrawer(user);
+  }
+
+  toggleStatus(user: User): void {
+    this.confirmToggleStatus(user);
   }
 }

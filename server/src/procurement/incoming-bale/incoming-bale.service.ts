@@ -16,7 +16,12 @@ export class IncomingBaleService {
   ) {}
 
   async create(tenantId: string, dto: CreateIncomingBaleDto, userId: string) {
-    let purchaseOrderId: string | null = dto.purchaseOrderId || null;
+    // Bales must be linked to a purchase order (same as containers)
+    if (!dto.purchaseOrderId) {
+      throw new BadRequestException('Purchase order is required for loose bales');
+    }
+
+    let purchaseOrderId: string = dto.purchaseOrderId;
 
     // Validate container if provided
     if (dto.containerId) {
@@ -36,21 +41,23 @@ export class IncomingBaleService {
       }
 
       purchaseOrderId = container.purchaseOrderId;
-    } else if (purchaseOrderId) {
-      const purchaseOrder = await this.prisma.purchaseOrder.findFirst({
-        where: {
-          id: purchaseOrderId,
-          tenantId,
-        },
-      });
+    }
 
-      if (!purchaseOrder) {
-        throw new BadRequestException('Purchase order not found');
-      }
+    // Validate purchase order
+    // Validate purchase order
+    const purchaseOrder = await this.prisma.purchaseOrder.findFirst({
+      where: {
+        id: purchaseOrderId,
+        tenantId,
+      },
+    });
 
-      if (purchaseOrder.poType !== PurchaseOrderType.LOOSE_BALE && purchaseOrder.poType !== PurchaseOrderType.HYBRID) {
-        throw new BadRequestException('Purchase order type must allow loose bales');
-      }
+    if (!purchaseOrder) {
+      throw new BadRequestException('Purchase order not found');
+    }
+
+    if (purchaseOrder.poType === PurchaseOrderType.CONTAINER) {
+      throw new BadRequestException('Loose bales are not allowed for CONTAINER purchase orders');
     }
 
     // Validate vendor if provided
@@ -226,7 +233,7 @@ export class IncomingBaleService {
             select: { id: true, name: true },
           },
           purchaseOrder: {
-            select: { id: true, poNumber: true },
+            select: { id: true, poNumber: true, currency: true, vendor: true },
           },
           rawCategory: {
             select: { id: true, name: true, rawType: true },
@@ -261,6 +268,8 @@ export class IncomingBaleService {
             id: true,
             poNumber: true,
             vendor: true,
+            currency: true,
+            status: true,
           },
         },
         rawCategory: {
@@ -283,6 +292,11 @@ export class IncomingBaleService {
     // Check if bale has been used in sorting
     if (bale.sortSessions.length > 0) {
       throw new ConflictException('Cannot modify bale that has been used in sorting');
+    }
+
+    // Check if PO is closed
+    if (bale.purchaseOrder && bale.purchaseOrder.status === 'CLOSED') {
+      throw new ConflictException('Cannot modify bale: Purchase order is closed');
     }
 
     // If changing container

@@ -1,0 +1,34 @@
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs()" />
+      <h1 class="page-title">Add Rag / Bale</h1>
+      @if (container(); as cont) {
+        <p class="page-subtitle">{{ cont.containerNumber }}</p>
+      }
+    </app-stack>
+
+    <div class="actions">
+      <app-button variant="secondary" (click)="onCancel()">Cancel</app-button>
+    </div>
+  </app-page-header>
+
+  <app-page-body>
+    @if (loading()) {
+      <app-loading message="Loading…" />
+    } @else if (error()) {
+      <app-error-state title="Failed" [message]="error()!" [action]="true">
+        <app-button action variant="secondary" (click)="onCancel()">Back</app-button>
+      </app-error-state>
+    } @else if (container(); as cont) {
+      <app-rag-create-drawer
+        [containerId]="cont.id"
+        [containerNumber]="cont.containerNumber"
+        [containerGrossWeight]="cont.grossWeight"
+        [containerCurrentWeight]="ragsWeightTotal()"
+        (created)="onCreated()"
+        (closed)="onCancel()"
+      />
+    }
+  </app-page-body>
+</app-page>

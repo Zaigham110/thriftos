@@ -10,8 +10,8 @@
   border: 1px solid;
 
   &-info {
-    background-color: rgba($status-info, 0.05);
-    border-color: rgba($status-info, 0.2);
+    background-color: hsl(var(--ring) / 0.05);
+    border-color: hsl(var(--ring) / 0.2);
 
     .alert-icon {
       color: $status-info;
@@ -19,8 +19,8 @@
   }
 
   &-success {
-    background-color: rgba($status-success, 0.05);
-    border-color: rgba($status-success, 0.2);
+    background-color: hsl(var(--secondary) / 0.05);
+    border-color: hsl(var(--secondary) / 0.2);
 
     .alert-icon {
       color: $status-success;
@@ -28,8 +28,8 @@
   }
 
   &-warning {
-    background-color: rgba($status-warning, 0.05);
-    border-color: rgba($status-warning, 0.2);
+    background-color: hsl(var(--module-yellow) / 0.05);
+    border-color: hsl(var(--module-yellow) / 0.2);
 
     .alert-icon {
       color: $status-warning;
@@ -37,8 +37,8 @@
   }
 
   &-danger {
-    background-color: rgba($status-danger, 0.05);
-    border-color: rgba($status-danger, 0.2);
+    background-color: hsl(var(--destructive) / 0.05);
+    border-color: hsl(var(--destructive) / 0.2);
 
     .alert-icon {
       color: $status-danger;

@@ -9,19 +9,19 @@ export declare class GradeBucketController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        gradeId: string;
         outputWeightKg: import("@prisma/client/runtime/library").Decimal;
         outputCount: number;
         gradeSessionId: string;
-        gradeId: string;
     }>;
     update(bucketId: string, dto: UpdateGradeBucketDto, user: CurrentUserData, req: Request): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        gradeId: string;
         outputWeightKg: import("@prisma/client/runtime/library").Decimal;
         outputCount: number;
         gradeSessionId: string;
-        gradeId: string;
     }>;
     delete(bucketId: string, user: CurrentUserData, req: Request): Promise<{
         success: boolean;

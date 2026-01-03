@@ -1,15 +1,15 @@
-<div class="error-page">
-  <div class="error-content">
-    <div class="error-icon">
-      <lucide-icon [img]="icons.ShieldX" [size]="64"></lucide-icon>
+<div class="min-h-screen flex items-center justify-center px-4 py-10 bg-background">
+  <div class="w-full max-w-lg text-center">
+    <div class="mx-auto mb-6 inline-flex h-24 w-24 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+      <lucide-icon [img]="icons.ShieldX" [size]="48"></lucide-icon>
     </div>
-    <h1 class="error-code">403</h1>
-    <h2 class="error-title">Access Denied</h2>
-    <p class="error-message">
+    <h1 class="text-5xl font-bold tracking-tight text-foreground m-0">403</h1>
+    <h2 class="mt-3 text-xl font-semibold text-foreground">Access Denied</h2>
+    <p class="mt-3 text-sm sm:text-base text-muted-foreground leading-relaxed">
       You don't have permission to access this page. If you believe this is an error,
       please contact your administrator.
     </p>
-    <div class="error-actions">
+    <div class="mt-6 flex justify-center">
       <ui-button variant="primary" routerLink="/">
         <lucide-icon [img]="icons.ArrowLeft" [size]="16"></lucide-icon>
         Go to Home

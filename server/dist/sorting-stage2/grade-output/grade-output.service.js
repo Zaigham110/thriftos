@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.GradeOutputService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const client_1 = require("@prisma/client");
 let GradeOutputService = class GradeOutputService {
     constructor(prisma) {
         this.prisma = prisma;
@@ -20,11 +21,74 @@ let GradeOutputService = class GradeOutputService {
         const page = options?.page || 1;
         const limit = options?.limit || 20;
         const skip = (page - 1) * limit;
+        const search = (options?.search ?? '').trim();
+        const ragCode = (options?.ragCode ?? '').trim();
+        const containerNumber = (options?.containerNumber ?? '').trim();
         const where = {
             tenantId,
             ...(options?.gradeId && { gradeId: options.gradeId }),
             ...(options?.gradeSessionId && { gradeBucket: { gradeSessionId: options.gradeSessionId } }),
+            ...(options?.status && { status: options.status }),
+            ...(options?.categoryId && {
+                gradeBucket: {
+                    ...(options?.gradeSessionId ? { gradeSessionId: options.gradeSessionId } : {}),
+                    gradeSession: { categoryOutput: { categoryId: options.categoryId } },
+                },
+            }),
         };
+        const or = [];
+        if (search) {
+            or.push({ id: { contains: search, mode: 'insensitive' } }, { grade: { name: { contains: search, mode: 'insensitive' } } }, {
+                gradeBucket: {
+                    gradeSession: {
+                        categoryOutput: {
+                            rag: { ragCode: { contains: search, mode: 'insensitive' } },
+                        },
+                    },
+                },
+            }, {
+                gradeBucket: {
+                    gradeSession: {
+                        categoryOutput: {
+                            container: { containerNumber: { contains: search, mode: 'insensitive' } },
+                        },
+                    },
+                },
+            }, {
+                gradeBucket: {
+                    gradeSession: {
+                        categoryOutput: {
+                            category: { name: { contains: search, mode: 'insensitive' } },
+                        },
+                    },
+                },
+            });
+        }
+        if (ragCode) {
+            or.push({
+                gradeBucket: {
+                    gradeSession: {
+                        categoryOutput: {
+                            rag: { ragCode: { contains: ragCode, mode: 'insensitive' } },
+                        },
+                    },
+                },
+            });
+        }
+        if (containerNumber) {
+            or.push({
+                gradeBucket: {
+                    gradeSession: {
+                        categoryOutput: {
+                            container: { containerNumber: { contains: containerNumber, mode: 'insensitive' } },
+                        },
+                    },
+                },
+            });
+        }
+        if (or.length) {
+            where.AND = [...(where.AND ?? []), { OR: or }];
+        }
         const [data, total] = await Promise.all([
             this.prisma.gradeOutput.findMany({
                 where,
@@ -37,7 +101,20 @@ let GradeOutputService = class GradeOutputService {
                         include: {
                             gradeSession: {
                                 include: {
-                                    categoryOutput: { select: { id: true, categoryId: true, weightKg: true, allocatedCost: true } },
+                                    categoryOutput: {
+                                        select: {
+                                            id: true,
+                                            categoryId: true,
+                                            ragId: true,
+                                            containerId: true,
+                                            sortSessionId: true,
+                                            weightKg: true,
+                                            allocatedCost: true,
+                                            category: { select: { id: true, name: true } },
+                                            rag: { select: { id: true, ragCode: true } },
+                                            container: { select: { id: true, containerNumber: true } },
+                                        },
+                                    },
                                 },
                             },
                         },
@@ -58,7 +135,20 @@ let GradeOutputService = class GradeOutputService {
                         grade: { select: { id: true, name: true } },
                         gradeSession: {
                             include: {
-                                categoryOutput: { select: { id: true, categoryId: true, weightKg: true, allocatedCost: true } },
+                                categoryOutput: {
+                                    select: {
+                                        id: true,
+                                        categoryId: true,
+                                        ragId: true,
+                                        containerId: true,
+                                        sortSessionId: true,
+                                        weightKg: true,
+                                        allocatedCost: true,
+                                        category: { select: { id: true, name: true } },
+                                        rag: { select: { id: true, ragCode: true } },
+                                        container: { select: { id: true, containerNumber: true } },
+                                    },
+                                },
                             },
                         },
                     },
@@ -68,6 +158,60 @@ let GradeOutputService = class GradeOutputService {
         if (!output)
             throw new common_1.NotFoundException('Grade output not found');
         return output;
+    }
+    async markReadyForRepack(tenantId, id) {
+        const output = await this.prisma.gradeOutput.findFirst({
+            where: { id, tenantId },
+            include: {
+                gradeBucket: {
+                    include: {
+                        gradeSession: {
+                            select: { id: true, status: true },
+                        },
+                    },
+                },
+                grade: { select: { id: true, name: true } },
+            },
+        });
+        if (!output) {
+            throw new common_1.NotFoundException('Grade output not found');
+        }
+        if (output.status === client_1.GradingOutputStatus.DEPLETED) {
+            throw new common_1.ConflictException('Cannot mark DEPLETED output as ready for repack');
+        }
+        if (output.status === client_1.GradingOutputStatus.READY_FOR_REPACK) {
+            return output;
+        }
+        if (output.gradeBucket.gradeSession.status !== 'CLOSED') {
+            throw new common_1.ConflictException('Cannot mark output as ready: grading session is still OPEN');
+        }
+        const updated = await this.prisma.gradeOutput.update({
+            where: { id },
+            data: { status: client_1.GradingOutputStatus.READY_FOR_REPACK },
+            include: {
+                grade: { select: { id: true, name: true } },
+                gradeBucket: {
+                    include: {
+                        gradeSession: {
+                            include: {
+                                categoryOutput: {
+                                    select: {
+                                        id: true,
+                                        categoryId: true,
+                                        ragId: true,
+                                        containerId: true,
+                                        category: { select: { id: true, name: true } },
+                                        rag: { select: { id: true, ragCode: true } },
+                                        container: { select: { id: true, containerNumber: true } },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        });
+        return updated;
     }
 };
 exports.GradeOutputService = GradeOutputService;

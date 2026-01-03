@@ -1,17 +1,12 @@
 /**
  * Procurement Module Routes
  * Phase 2: Procurement UI
- * 
- * Route Structure:
- * /app/procurement                 - Dashboard
- * /app/procurement/purchase-orders - PO List
- * /app/procurement/purchase-orders/create - Create PO
- * /app/procurement/purchase-orders/:id - PO Detail
- * /app/procurement/containers      - Container List
- * /app/procurement/containers/:id  - Container Detail
- * /app/procurement/incoming-bales  - Bale List
- * /app/procurement/incoming-bales/create - Create Bale
- * /app/procurement/incoming-bales/:id - Bale Detail
+ *
+ * Required route structure:
+ * /procurement
+ * /procurement/dashboard
+ * /procurement/pos
+ * /procurement/containers
  */
 
 import { Routes } from '@angular/router';
@@ -20,18 +15,22 @@ import { permissionGuard } from '../../core/guards/permission-guard';
 export const PROCUREMENT_ROUTES: Routes = [
   {
     path: '',
+    redirectTo: 'dashboard',
+    pathMatch: 'full',
+  },
+
+  {
+    path: 'dashboard',
     loadComponent: () =>
-      import('./dashboard/procurement-dashboard').then(
-        (m) => m.ProcurementDashboardComponent
-      ),
-    title: 'Procurement - ThriftOS',
+      import('./dashboard/procurement-dashboard').then((m) => m.ProcurementDashboardComponent),
+    title: 'Procurement Dashboard - ThriftOS',
     canActivate: [permissionGuard],
     data: { permissions: ['po.read'] },
   },
 
   // Purchase Orders
   {
-    path: 'purchase-orders',
+    path: 'pos',
     children: [
       {
         path: '',
@@ -52,6 +51,26 @@ export const PROCUREMENT_ROUTES: Routes = [
         title: 'Create Purchase Order - ThriftOS',
         canActivate: [permissionGuard],
         data: { permissions: ['po.create'] },
+      },
+      {
+        path: ':id/bales/create',
+        loadComponent: () =>
+          import('./purchase-orders/purchase-order-add-bale/purchase-order-add-bale').then(
+            (m) => m.PurchaseOrderAddBaleComponent
+          ),
+        title: 'Add Bale - ThriftOS',
+        canActivate: [permissionGuard],
+        data: { permissions: ['po.create'] },
+      },
+      {
+        path: ':id/containers/create',
+        loadComponent: () =>
+          import('./purchase-orders/purchase-order-add-container/purchase-order-add-container').then(
+            (m) => m.PurchaseOrderAddContainerComponent
+          ),
+        title: 'Add Container - ThriftOS',
+        canActivate: [permissionGuard],
+        data: { permissions: ['container.create'] },
       },
       {
         path: ':id',
@@ -81,6 +100,32 @@ export const PROCUREMENT_ROUTES: Routes = [
         data: { permissions: ['container.read'] },
       },
       {
+        path: ':id/edit',
+        loadComponent: () =>
+          import('./containers/container-edit/container-edit').then((m) => m.ContainerEditComponent),
+        title: 'Edit Container - ThriftOS',
+        canActivate: [permissionGuard],
+        data: { permissions: ['container.update'] },
+      },
+      {
+        path: ':id/charges/create',
+        loadComponent: () =>
+          import('./containers/container-charge-create/container-charge-create').then(
+            (m) => m.ContainerChargeCreateComponent
+          ),
+        title: 'Add Container Charge - ThriftOS',
+        canActivate: [permissionGuard],
+        data: { permissions: ['container.update'] },
+      },
+      {
+        path: ':id/rags/create',
+        loadComponent: () =>
+          import('./rags/rag-create-page').then((m) => m.RagCreatePageComponent),
+        title: 'Add Rag - ThriftOS',
+        canActivate: [permissionGuard],
+        data: { permissions: ['rag.create'] },
+      },
+      {
         path: ':id',
         loadComponent: () =>
           import('./containers/container-detail/container-detail').then(
@@ -93,9 +138,9 @@ export const PROCUREMENT_ROUTES: Routes = [
     ],
   },
 
-  // Incoming Bales (Loose Bales)
+  // Loose Bales (list/detail only - creation via PO)
   {
-    path: 'incoming-bales',
+    path: 'loose-bales',
     children: [
       {
         path: '',
@@ -103,19 +148,9 @@ export const PROCUREMENT_ROUTES: Routes = [
           import('./incoming-bales/incoming-bale-list/incoming-bale-list').then(
             (m) => m.IncomingBaleListComponent
           ),
-        title: 'Incoming Bales - ThriftOS',
+        title: 'Loose Bales - ThriftOS',
         canActivate: [permissionGuard],
         data: { permissions: ['po.read'] },
-      },
-      {
-        path: 'create',
-        loadComponent: () =>
-          import('./incoming-bales/incoming-bale-create/incoming-bale-create').then(
-            (m) => m.IncomingBaleCreateComponent
-          ),
-        title: 'Create Incoming Bale - ThriftOS',
-        canActivate: [permissionGuard],
-        data: { permissions: ['po.create'] },
       },
       {
         path: ':id',
@@ -123,9 +158,33 @@ export const PROCUREMENT_ROUTES: Routes = [
           import('./incoming-bales/incoming-bale-detail/incoming-bale-detail').then(
             (m) => m.IncomingBaleDetailComponent
           ),
-        title: 'Incoming Bale - ThriftOS',
+        title: 'Bale - ThriftOS',
         canActivate: [permissionGuard],
         data: { permissions: ['po.read'] },
+      },
+      {
+        path: ':id/edit',
+        loadComponent: () =>
+          import('./incoming-bales/incoming-bale-edit/incoming-bale-edit').then(
+            (m) => m.IncomingBaleEditComponent
+          ),
+        title: 'Edit Bale - ThriftOS',
+        canActivate: [permissionGuard],
+        data: { permissions: ['po.update'] },
+      },
+    ],
+  },
+
+  // Rags / Bales
+  {
+    path: 'rags',
+    children: [
+      {
+        path: ':ragId/edit',
+        loadComponent: () => import('./rags/rag-edit-page').then((m) => m.RagEditPageComponent),
+        title: 'Edit Rag - ThriftOS',
+        canActivate: [permissionGuard],
+        data: { permissions: ['rag.create'] },
       },
     ],
   },

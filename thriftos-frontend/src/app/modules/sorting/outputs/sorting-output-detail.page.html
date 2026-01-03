@@ -1,0 +1,83 @@
+<app-page>
+  <app-page-header>
+    <app-stack direction="horizontal" spacing="sm" align="center">
+      <app-button variant="secondary" (click)="back()">Back</app-button>
+      <div>
+        <h1 class="page-title">Sorting — Output Detail</h1>
+        <div class="page-subtitle">Immutable grading output (repack source of truth)</div>
+      </div>
+    </app-stack>
+
+    <div class="actions">
+      @if (output(); as o) {
+        <app-badge [variant]="statusVariant(statusText(o))">{{ statusText(o) }}</app-badge>
+        <app-button
+          variant="primary"
+          (click)="startRepack()"
+          [disabled]="!isRepackEligible(o)"
+        >
+          Start Repack
+        </app-button>
+      }
+    </div>
+  </app-page-header>
+
+  <app-page-body>
+    @if (error()) {
+      <app-error-state title="Failed to load" [message]="error()!" [action]="true">
+        <app-button action variant="secondary" (click)="error.set(null)">Dismiss</app-button>
+      </app-error-state>
+    }
+
+    @if (loading()) {
+      <app-loading message="Loading output…" />
+    } @else {
+      <app-section>
+        <app-section-header>
+          <strong>Identity</strong>
+        </app-section-header>
+        <app-section-body>
+          <app-card>
+            <app-stack direction="vertical" spacing="xs">
+              <div><strong>Output Code:</strong> {{ outputCode(output()) }}</div>
+              <div><strong>ID:</strong> {{ output()?.id || '—' }}</div>
+              <div><strong>Grade:</strong> {{ output()?.grade?.name || '—' }}</div>
+            </app-stack>
+          </app-card>
+        </app-section-body>
+      </app-section>
+
+      <app-section>
+        <app-section-header>
+          <strong>Traceability</strong>
+        </app-section-header>
+        <app-section-body>
+          <app-card>
+            <app-stack direction="vertical" spacing="xs">
+              <div><strong>Category:</strong> {{ output()?.gradeBucket?.gradeSession?.categoryOutput?.category?.name || '—' }}</div>
+              <div><strong>Rag/Bale:</strong> {{ output()?.gradeBucket?.gradeSession?.categoryOutput?.rag?.ragCode || '—' }}</div>
+              <div><strong>Container:</strong> {{ output()?.gradeBucket?.gradeSession?.categoryOutput?.container?.containerNumber || '—' }}</div>
+              <div><strong>Stage 1 Session:</strong> {{ output()?.gradeBucket?.gradeSession?.categoryOutput?.sortSessionId || '—' }}</div>
+              <div><strong>Grade Session:</strong> {{ output()?.gradeBucket?.gradeSession?.id || '—' }}</div>
+            </app-stack>
+          </app-card>
+        </app-section-body>
+      </app-section>
+
+      <app-section>
+        <app-section-header>
+          <strong>Availability</strong>
+        </app-section-header>
+        <app-section-body>
+          <app-card>
+            <app-stack direction="vertical" spacing="xs">
+              <div><strong>Total:</strong> <span class="tabular-nums">{{ totalKg(output()) | number:'1.2-2' }}</span></div>
+              <div><strong>Used:</strong> <span class="tabular-nums">{{ usedKg(output()) | number:'1.2-2' }}</span></div>
+              <div><strong>Remaining:</strong> <span class="tabular-nums">{{ remainingKg(output()) | number:'1.2-2' }}</span></div>
+            </app-stack>
+          </app-card>
+        </app-section-body>
+      </app-section>
+    }
+  </app-page-body>
+</app-page>

@@ -22,6 +22,8 @@ const tenant_module_1 = require("./tenant/tenant.module");
 const procurement_module_1 = require("./procurement/procurement.module");
 const sorting_stage1_module_1 = require("./sorting-stage1/sorting-stage1.module");
 const sorting_stage2_module_1 = require("./sorting-stage2/sorting-stage2.module");
+const sorting_facade_module_1 = require("./sorting-facade/sorting-facade.module");
+const waste_module_1 = require("./waste/waste.module");
 const repack_module_1 = require("./repack/repack.module");
 const inventory_module_1 = require("./inventory/inventory.module");
 const reports_module_1 = require("./reports/reports.module");
@@ -66,6 +68,8 @@ exports.AppModule = AppModule = __decorate([
             procurement_module_1.ProcurementModule,
             sorting_stage1_module_1.SortingStage1Module,
             sorting_stage2_module_1.SortingStage2Module,
+            sorting_facade_module_1.SortingFacadeModule,
+            waste_module_1.WasteModule,
             repack_module_1.RepackModule,
             inventory_module_1.InventoryModule,
             reports_module_1.ReportsModule,

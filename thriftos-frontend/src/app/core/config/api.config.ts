@@ -34,8 +34,13 @@ export const API_ENDPOINTS = {
   procurement: `${API_BASE_URL}/procurement`,
   sortingStage1: `${API_BASE_URL}/sorting/stage1`,
   sortingStage2: `${API_BASE_URL}/sorting/stage2`,
+  sortingFacadeStage1: `${API_BASE_URL}/sorting/stage-1`,
+  sortingFacadeStage2: `${API_BASE_URL}/sorting/stage-2`,
+  sortingOutputs: `${API_BASE_URL}/sorting/outputs`,
   grades: `${API_BASE_URL}/sorting/grades`,
   repack: `${API_BASE_URL}/repack`,
   inventory: `${API_BASE_URL}/inventory`,
   reports: `${API_BASE_URL}/reports`,
+  tenant: `${API_BASE_URL}/tenant`,
+  wasteCategories: `${API_BASE_URL}/tenant/waste-categories`,
 } as const;

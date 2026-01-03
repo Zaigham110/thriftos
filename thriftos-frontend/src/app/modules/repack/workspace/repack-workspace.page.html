@@ -1,0 +1,577 @@
+<!-- REPACK WORKSPACE — ALIGNED WITH PROCUREMENT PATTERN -->
+<app-page>
+  <!-- PAGE HEADER — Always visible -->
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs()" />
+      @if (unit(); as u) {
+        <h1 class="page-title">{{ u.unitCode }}</h1>
+        <p class="page-subtitle">Repack Workspace</p>
+      } @else {
+        <h1 class="page-title">Repack Workspace</h1>
+      }
+    </app-stack>
+    <div class="actions">
+      <app-button variant="secondary" (click)="goBack()">← Back</app-button>
+      <app-button 
+        variant="primary" 
+        (click)="openSealModal()" 
+        [disabled]="!canSeal()"
+        [title]="sealTooltip()"
+      >
+        Seal Unit
+      </app-button>
+    </div>
+  </app-page-header>
+
+  <app-page-body>
+
+    <!-- ============================================ -->
+    <!-- CONTEXT BAR (PERSISTENT METADATA)           -->
+    <!-- ============================================ -->
+    @if (unit(); as u) {
+      <app-section>
+        <app-section-body>
+          <div class="context-bar">
+            <div class="context-item">
+              <span class="context-label">Unit Code</span>
+              <span class="context-value context-highlight">{{ u.unitCode }}</span>
+            </div>
+            <div class="context-separator">•</div>
+            <div class="context-item">
+              <span class="context-label">Category</span>
+              <span class="context-value">{{ u.category?.name || 'N/A' }}</span>
+            </div>
+            <div class="context-separator">•</div>
+            <div class="context-item">
+              <span class="context-label">Grade</span>
+              <span class="context-value">{{ u.grade?.name || 'N/A' }}</span>
+            </div>
+            <div class="context-separator">•</div>
+            <div class="context-item">
+              <span class="context-label">Target</span>
+              <span class="context-value context-mono">{{ targetAmount() | number:'1.2-2' }} {{ measurementUnit() }}</span>
+            </div>
+            <div class="context-separator">•</div>
+            <div class="context-item">
+              <span class="context-label">Allocated</span>
+              <span class="context-value context-mono">{{ allocatedAmount() | number:'1.2-2' }} {{ measurementUnit() }}</span>
+            </div>
+            <div class="context-separator">•</div>
+            <div class="context-item">
+              <span class="context-label">Status</span>
+              <app-badge [variant]="getStatusVariant()">{{ getStatusLabel() }}</app-badge>
+            </div>
+            @if (isReady() && isDraft()) {
+              <div class="context-item">
+                <app-badge variant="success">✓ READY TO SEAL</app-badge>
+              </div>
+            }
+          </div>
+        </app-section-body>
+      </app-section>
+    }
+
+    <!-- ============================================ -->
+    <!-- NEW MODE FORM (shown before draft creation)  -->
+    <!-- ============================================ -->
+    @if (isNewMode()) {
+      <app-section>
+        <app-section-header>
+          <h2 class="section-title">New Repack Unit</h2>
+        </app-section-header>
+        <app-section-body>
+          <div class="new-mode-form">
+            <div class="form-grid">
+              <div class="form-field">
+                <label for="category">Category *</label>
+                <select 
+                  id="category" 
+                  class="form-select"
+                  [(ngModel)]="newModeForm().categoryId"
+                  (ngModelChange)="updateNewModeCategory($event)"
+                >
+                  <option value="">Select Category</option>
+                  @for (cat of categories(); track cat.id) {
+                    <option [value]="cat.id">{{ cat.name }}</option>
+                  }
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label for="grade">Grade *</label>
+                <select 
+                  id="grade" 
+                  class="form-select"
+                  [(ngModel)]="newModeForm().gradeId"
+                  (ngModelChange)="updateNewModeGrade($event)"
+                >
+                  <option value="">Select Grade</option>
+                  @for (grade of grades(); track grade.id) {
+                    <option [value]="grade.id">{{ grade.name }}</option>
+                  }
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label for="target">Target Amount *</label>
+                <input 
+                  id="target" 
+                  type="number" 
+                  class="form-input"
+                  [(ngModel)]="newModeForm().targetAmount"
+                  (ngModelChange)="updateNewModeTarget($event)"
+                  min="0.01"
+                  step="0.01"
+                />
+              </div>
+
+              <div class="form-field">
+                <label for="measurement">Measurement Type *</label>
+                <select 
+                  id="measurement" 
+                  class="form-select"
+                  [(ngModel)]="newModeForm().measurementType"
+                  (ngModelChange)="updateNewModeMeasurement($event)"
+                >
+                  <option value="WEIGHT">Weight (kg)</option>
+                  <option value="QUANTITY">Quantity (pieces)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-hint">
+              ℹ️ Fill in the details above, then add your first allocation from available stock below to create the draft.
+            </div>
+          </div>
+        </app-section-body>
+      </app-section>
+    }
+
+    <!-- ============================================ -->
+    <!-- ADD ALLOCATION MODAL                        -->
+    <!-- ============================================ -->
+    <app-dialog
+      [open]="showAddModal()"
+      title="Add Allocation"
+      confirmText="Add"
+      cancelText="Cancel"
+      [loading]="adding()"
+      (confirmed)="confirmAddAllocation()"
+      (cancelled)="closeAddModal()"
+    >
+      @if (selectedStock(); as stock) {
+        <div class="modal-content">
+          <div class="modal-info">
+            <div class="info-row">
+              <span class="label">Source:</span>
+              <span class="value"><strong>{{ getSourceLabel(stock) }}</strong></span>
+            </div>
+            <div class="info-row">
+              <span class="label">Available:</span>
+              <span class="value tabular">{{ stock.remainingAmount | number:'1.2-2' }} {{ measurementUnit() }}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Remaining Target:</span>
+              <span class="value tabular">{{ remainingAmount() | number:'1.2-2' }} {{ measurementUnit() }}</span>
+            </div>
+          </div>
+
+          <div class="modal-input">
+            <label for="allocAmount">Amount to Allocate:</label>
+            <input
+              id="allocAmount"
+              type="number"
+              class="amount-input"
+              [value]="allocAmount()"
+              (input)="onAllocAmountChange($any($event.target).value)"
+              min="0.01"
+              [max]="selectedStock()?.remainingAmount"
+              step="0.01"
+            />
+          </div>
+        </div>
+      }
+    </app-dialog>
+
+    <!-- ============================================ -->
+    <!-- SEAL CONFIRMATION MODAL                     -->
+    <!-- ============================================ -->
+    <app-dialog
+      [open]="showSealModal()"
+      title="Seal Repack Unit"
+      variant="danger"
+      confirmText="Confirm Seal"
+      cancelText="Cancel"
+      [loading]="sealing()"
+      (confirmed)="confirmSeal()"
+      (cancelled)="closeSealModal()"
+    >
+      <div class="modal-content">
+        <div class="seal-warning">
+          ⚠️ <strong>This action is irreversible.</strong><br/>
+          Inventory will be created and the unit will be locked.
+        </div>
+
+        @if (unit(); as u) {
+          <div class="modal-info">
+            <div class="info-row">
+              <span class="label">Unit:</span>
+              <span class="value"><strong>{{ u.unitCode }}</strong></span>
+            </div>
+            <div class="info-row">
+              <span class="label">Category:</span>
+              <span class="value">{{ u.category?.name }}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Grade:</span>
+              <span class="value">{{ u.grade?.name }}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Target Amount:</span>
+              <span class="value tabular">{{ targetAmount() | number:'1.2-2' }} {{ measurementUnit() }}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Allocated Amount:</span>
+              <span class="value tabular" [class.complete]="isReady()">{{ allocatedAmount() | number:'1.2-2' }} {{ measurementUnit() }}</span>
+            </div>
+            @if (remainingAmount() > 0) {
+              <div class="info-row warning">
+                <span class="label">⚠️ Shortfall:</span>
+                <span class="value tabular">{{ remainingAmount() | number:'1.2-2' }} {{ measurementUnit() }}</span>
+              </div>
+            }
+            <div class="info-row">
+              <span class="label">Allocations:</span>
+              <span class="value">{{ allocations().length }} source(s)</span>
+            </div>
+          </div>
+        }
+
+        <div class="modal-input">
+          <label for="warehouse">Destination Warehouse: <span class="optional">(optional)</span></label>
+          <app-select
+            id="warehouse"
+            [ngModel]="selectedWarehouseId()"
+            (ngModelChange)="selectedWarehouseId.set($event)"
+            [options]="warehouseOptions()"
+            placeholder="Select warehouse (optional)"
+          />
+        </div>
+      </div>
+    </app-dialog>
+
+    <!-- ============================================ -->
+    <!-- LOADING STATE                               -->
+    <!-- ============================================ -->
+    @if (loading()) {
+      <app-loading message="Loading repack unit..." />
+    } @else if (error()) {
+      <app-error-state title="Failed to load" [message]="error()!" [action]="true">
+        <app-button action variant="secondary" (click)="goBack()">Back to List</app-button>
+      </app-error-state>
+    } @else if (unit(); as u) {
+
+      <!-- ============================================ -->
+      <!-- 3-PANEL ODOO-STYLE LAYOUT                   -->
+      <!-- ============================================ -->
+      <div class="workspace-3panel">
+
+        <!-- ======== LEFT PANEL: AVAILABLE STOCK ======== -->
+        <app-section class="panel panel-left">
+          <app-section-header>
+            <h2 class="section-title">Available Stock</h2>
+            <div class="actions">
+              @if (!isSealed() && !loadingStock()) {
+                <span class="count-badge">{{ availableStock().length }} available</span>
+              }
+            </div>
+          </app-section-header>
+          <app-section-body>
+            @if (isSealed()) {
+              <app-empty-state 
+                title="Unit Sealed" 
+                message="Cannot add more allocations." 
+              />
+            } @else if (loadingStock()) {
+              <app-loading message="Loading stock..." />
+            } @else if (availableStock().length === 0) {
+              <app-empty-state 
+                title="No Available Stock" 
+                message="No grading outputs available for this category and grade." 
+              />
+            } @else {
+              <app-data-table
+                [columns]="stockColumns"
+                [data]="availableStock()"
+                [loading]="loadingStock()"
+              >
+                <ng-template #cellTemplate let-row let-column="column">
+                  @switch (column.key) {
+                    @case ('remainingAmount') {
+                      <span class="tabular-nums">{{ row.remainingAmount | number:'1.2-2' }} {{ measurementUnit() }}</span>
+                    }
+                    @default {
+                      {{ column.getValue ? column.getValue(row) : row[column.key] ?? '—' }}
+                    }
+                  }
+                </ng-template>
+                <ng-template #rowActions let-row>
+                  @if (isDraft() && remainingAmount() > 0) {
+                    <app-button variant="primary" size="sm" (click)="openAddModal(row)">+ Add</app-button>
+                  }
+                </ng-template>
+              </app-data-table>
+            }
+          </app-section-body>
+        </app-section>
+
+        <!-- ======== CENTER PANEL: ALLOCATIONS ======== -->
+        <app-section class="panel panel-center">
+          <app-section-header>
+            <h2 class="section-title">Allocations</h2>
+            <div class="actions">
+              <span class="count-badge">{{ allocations().length }} items</span>
+            </div>
+          </app-section-header>
+          <app-section-body>
+            @if (allocations().length === 0) {
+              <app-empty-state 
+                title="No Allocations Yet" 
+                message="Click [+ Add] on available stock to allocate." 
+              />
+            } @else {
+              <app-data-table
+                [columns]="allocationColumns"
+                [data]="allocations()"
+              >
+                <ng-template #cellTemplate let-row let-column="column">
+                  @switch (column.key) {
+                    @case ('amountUsed') {
+                      <span class="tabular-nums">{{ row.amountUsed | number:'1.2-2' }} {{ measurementUnit() }}</span>
+                    }
+                    @default {
+                      {{ column.getValue ? column.getValue(row) : row[column.key] ?? '—' }}
+                    }
+                  }
+                </ng-template>
+                <ng-template #rowActions let-row>
+                  @if (isDraft()) {
+                    <app-button 
+                      variant="danger" 
+                      size="sm" 
+                      (click)="removeAllocation(row)" 
+                      [disabled]="removing()"
+                    >
+                      Remove
+                    </app-button>
+                  }
+                </ng-template>
+              </app-data-table>
+
+              <!-- TOTAL ROW -->
+              <div class="allocations-total">
+                <span class="total-label">Total Allocated:</span>
+                <span class="total-value tabular-nums">
+                  {{ allocatedAmount() | number:'1.2-2' }} {{ measurementUnit() }}
+                </span>
+              </div>
+            }
+          </app-section-body>
+        </app-section>
+
+        <!-- ======== RIGHT PANEL: SUMMARY ======== -->
+        <app-section class="panel panel-right">
+          <app-section-header>
+            <h2 class="section-title">Summary</h2>
+          </app-section-header>
+          <app-section-body>
+            <div class="summary-content">
+              <!-- Metric Cards -->
+              <div class="metric-card">
+                <div class="metric-label">Target Amount</div>
+                <div class="metric-value tabular-nums">
+                  {{ targetAmount() | number:'1.2-2' }} {{ measurementUnit() }}
+                </div>
+              </div>
+
+              <div class="metric-card">
+                <div class="metric-label">Allocated</div>
+                <div class="metric-value tabular-nums" [class.complete]="isReady()">
+                  {{ allocatedAmount() | number:'1.2-2' }} {{ measurementUnit() }}
+                </div>
+              </div>
+
+              <div class="metric-card" [class.warning]="remainingAmount() > 0 && !isReady()">
+                <div class="metric-label">Remaining</div>
+                <div class="metric-value tabular-nums">
+                  {{ remainingAmount() | number:'1.2-2' }} {{ measurementUnit() }}
+                </div>
+              </div>
+
+              <!-- Progress Bar -->
+              <div class="progress-container">
+                <div class="progress-bar-wrapper">
+                  <div 
+                    class="progress-bar-fill" 
+                    [style.width.%]="progressPercent()" 
+                    [class.complete]="isReady()"
+                  ></div>
+                </div>
+                <div class="progress-text">{{ progressPercent() | number:'1.0-0' }}%</div>
+              </div>
+
+              <!-- Seal Button -->
+              @if (isDraft()) {
+                @if (isReady()) {
+                  <app-button 
+                    variant="primary" 
+                    class="seal-button" 
+                    (click)="openSealModal()"
+                    [disabled]="!canSeal()"
+                  >
+                    ✓ Ready to Seal
+                  </app-button>
+                } @else {
+                  <div class="seal-hint-box">
+                    <div class="seal-hint-icon">ℹ️</div>
+                    <div class="seal-hint-text">
+                      Add <strong>{{ remainingAmount() | number:'1.2-2' }} {{ measurementUnit() }}</strong> more to seal
+                    </div>
+                  </div>
+                }
+              } @else {
+                <div class="sealed-badge">
+                  ✓ Unit Sealed
+                </div>
+              }
+            </div>
+          </app-section-body>
+        </app-section>
+
+      </div>
+      <!-- End 3-panel layout -->
+
+    } @else if (isNewMode()) {
+
+      <!-- ============================================ -->
+      <!-- 3-PANEL LAYOUT FOR NEW MODE                 -->
+      <!-- ============================================ -->
+      <div class="workspace-3panel">
+
+        <!-- ======== LEFT PANEL: AVAILABLE STOCK ======== -->
+        <app-section class="panel panel-left">
+          <app-section-header>
+            <h2 class="section-title">Available Stock</h2>
+            <div class="actions">
+              @if (!loadingStock() && canAddAllocationsInNewMode()) {
+                <span class="count-badge">{{ availableStock().length }} available</span>
+              }
+            </div>
+          </app-section-header>
+          <app-section-body>
+            @if (!canAddAllocationsInNewMode()) {
+              <app-empty-state 
+                title="Complete Form First" 
+                message="Select category and grade above to see available stock." 
+              />
+            } @else if (loadingStock()) {
+              <app-loading message="Loading stock..." />
+            } @else if (availableStock().length === 0) {
+              <app-empty-state title="No Stock Available" message="No matching stock found." />
+            } @else {
+              <app-data-table
+                title="Available Stock"
+                [columns]="stockColumns"
+                [data]="availableStock()"
+                [loading]="loadingStock()"
+              >
+                <ng-template #cellTemplate let-row let-column="column">
+                  @if (column.key === 'remainingAmount') {
+                    <span class="tabular-nums">{{ row.remainingAmount | number:'1.2-2' }} {{ newModeMeasurementUnit() }}</span>
+                  } @else {
+                    {{ column.getValue ? column.getValue(row) : row[column.key] }}
+                  }
+                </ng-template>
+
+                <ng-template #rowActions let-row>
+                  <app-button variant="primary" size="sm" (click)="openAddModal(row)" [disabled]="creatingDraft()">
+                    + Add
+                  </app-button>
+                </ng-template>
+              </app-data-table>
+            }
+          </app-section-body>
+        </app-section>
+
+        <!-- ======== CENTER PANEL: ALLOCATIONS (empty in new mode) ======== -->
+        <app-section class="panel panel-center">
+          <app-section-header>
+            <h2 class="section-title">Allocations</h2>
+          </app-section-header>
+          <app-section-body>
+            <app-empty-state 
+              title="No Allocations Yet" 
+              message="Add your first allocation to create the draft." 
+            />
+          </app-section-body>
+        </app-section>
+
+        <!-- ======== RIGHT PANEL: SUMMARY ======== -->
+        <app-section class="panel panel-summary">
+          <app-section-header>
+            <h2 class="section-title">Summary</h2>
+          </app-section-header>
+          <app-section-body>
+            <div class="summary-content">
+              <div class="metric-card">
+                <div class="metric-label">Target</div>
+                <div class="metric-value">
+                  {{ newModeForm().targetAmount | number:'1.2-2' }}
+                  <span class="metric-unit">{{ newModeMeasurementUnit() }}</span>
+                </div>
+              </div>
+
+              <div class="metric-card">
+                <div class="metric-label">Allocated</div>
+                <div class="metric-value">
+                  0.00
+                  <span class="metric-unit">{{ newModeMeasurementUnit() }}</span>
+                </div>
+              </div>
+
+              <div class="metric-card">
+                <div class="metric-label">Remaining</div>
+                <div class="metric-value">
+                  {{ newModeForm().targetAmount | number:'1.2-2' }}
+                  <span class="metric-unit">{{ newModeMeasurementUnit() }}</span>
+                </div>
+              </div>
+
+              <div class="progress-bar-container">
+                <div class="progress-text-label">Progress</div>
+                <div class="progress-bar">
+                  <div class="progress-bar-fill" [style.width.%]="0"></div>
+                </div>
+                <div class="progress-text">0%</div>
+              </div>
+
+              <div class="seal-hint-box">
+                <div class="seal-hint-icon">ℹ️</div>
+                <div class="seal-hint-text">
+                  Add allocations from available stock to create the draft
+                </div>
+              </div>
+            </div>
+          </app-section-body>
+        </app-section>
+
+      </div>
+      <!-- End 3-panel layout for new mode -->
+
+    } @else {
+      <app-empty-state title="Unit Not Found" message="This repack unit does not exist." />
+    }
+
+  </app-page-body>
+</app-page>

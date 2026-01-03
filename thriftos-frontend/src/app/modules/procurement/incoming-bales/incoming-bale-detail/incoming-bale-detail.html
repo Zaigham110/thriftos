@@ -1,174 +1,140 @@
-<ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs()" />
+      <h1 class="page-title">Loose Bale</h1>
+      @if (bale(); as b) {
+        <p class="page-subtitle">{{ b.baleCode }}</p>
+      }
+    </app-stack>
 
-<div class="incoming-bale-detail">
-  <header class="page-header">
-    <a routerLink="/app/procurement/incoming-bales" ui-button variant="ghost" size="sm">
-      <lucide-icon [img]="icons.ArrowLeft" [size]="18"></lucide-icon>
-      Back to List
-    </a>
-    @if (!loading() && bale()) {
-      <div class="header-actions">
-        @if (canEdit) {
-          <button ui-button variant="outline" disabled>
-            <lucide-icon [img]="icons.Edit" [size]="18"></lucide-icon>
+    <div class="actions">
+      <app-button variant="secondary" [routerLink]="['/procurement/loose-bales']">Back to list</app-button>
+      @if (bale(); as b) {
+        @if (canEdit()) {
+          <app-button variant="primary" [routerLink]="['/procurement/loose-bales', b.id, 'edit']">
             Edit
-          </button>
+          </app-button>
         }
         @if (canDelete) {
-          <button ui-button variant="destructive" (click)="openDeleteDialog()">
-            <lucide-icon [img]="icons.Trash2" [size]="18"></lucide-icon>
+          <app-button variant="danger" (click)="openDeleteDialog()" [disabled]="deleting()">
             Delete
-          </button>
+          </app-button>
         }
-      </div>
+      }
+    </div>
+  </app-page-header>
+
+  <app-page-body>
+    @if (loading()) {
+      <app-loading message="Loading bale…" />
+    } @else if (error()) {
+      <app-error-state title="Failed to load" [message]="error()!" [action]="true">
+        <app-button action variant="secondary" (click)="loadBale()">Retry</app-button>
+      </app-error-state>
+    } @else if (bale(); as b) {
+      <app-section>
+        <app-section-header>
+          <h2 class="section-title">Overview</h2>
+          <div class="actions"></div>
+        </app-section-header>
+        <app-section-body>
+          <app-split ratio="2-1">
+            <app-split-main>
+              <app-stack direction="vertical" spacing="md">
+                <app-card>
+                  <app-stack direction="vertical" spacing="sm">
+                    <app-stack direction="horizontal" spacing="sm">
+                      @if (b.rawCategory) {
+                        <app-badge variant="default">{{ b.rawCategory.name }}</app-badge>
+                      } @else if (b.categoryGuess) {
+                        <app-badge variant="primary">{{ b.categoryGuess }}</app-badge>
+                      }
+                    </app-stack>
+
+                    <app-stack direction="vertical" spacing="xs">
+                      <div><strong>Bale Code:</strong> {{ b.baleCode }}</div>
+                      <div><strong>Raw Category:</strong> {{ b.rawCategory?.name || b.categoryGuess || 'Uncategorized' }}</div>
+                      <div><strong>Weight:</strong> {{ b.weightKg | number:'1.2-2' }} kg</div>
+                      <div><strong>Total Cost:</strong> {{ b.cost | currency:currencyCode():'symbol':'1.2-2' }}</div>
+                      <div><strong>Cost per kg:</strong> {{ costPerKg() | currency:currencyCode():'symbol':'1.2-2' }}</div>
+                      
+                      <div>
+                        <strong>Purchase Order:</strong>
+                        @if (b.purchaseOrderId) {
+                          <app-link [routerLink]="['/procurement/pos', b.purchaseOrderId]">
+                            {{ b.purchaseOrder?.poNumber || b.purchaseOrderId }}
+                          </app-link>
+                        } @else {
+                          <span class="text-muted">Not linked</span>
+                        }
+                      </div>
+                      
+                      <div>
+                        <strong>Container:</strong>
+                        @if (b.container) {
+                          <app-link [routerLink]="['/procurement/containers', b.containerId]">
+                            {{ b.container.containerNumber }}
+                          </app-link>
+                        } @else {
+                          <span class="text-muted">None</span>
+                        }
+                      </div>
+                      
+                      <div>
+                        <strong>Vendor:</strong>
+                        {{ b.vendor?.name || 'No vendor' }}
+                      </div>
+
+                      <div><strong>Currency:</strong> {{ currencyCode() }}</div>
+                    </app-stack>
+                  </app-stack>
+                </app-card>
+
+                <app-card>
+                  <h3 class="card-title">Timeline</h3>
+                  <app-stack direction="vertical" spacing="xs">
+                    <div><strong>Created:</strong> {{ b.createdAt | date:'medium' }}</div>
+                    <div><strong>Last Updated:</strong> {{ b.updatedAt | date:'medium' }}</div>
+                  </app-stack>
+                </app-card>
+              </app-stack>
+            </app-split-main>
+
+            <app-split-aside>
+              <app-card>
+                <h3 class="card-title">Summary</h3>
+                <app-stack direction="vertical" spacing="sm">
+                  <div>
+                    <div class="text-muted text-sm">Weight</div>
+                    <div class="text-lg font-semibold">{{ b.weightKg | number:'1.2-2' }} kg</div>
+                  </div>
+                  <div>
+                    <div class="text-muted text-sm">Total Cost</div>
+                    <div class="text-lg font-semibold">{{ b.cost | currency:currencyCode():'symbol':'1.2-2' }}</div>
+                  </div>
+                  <div>
+                    <div class="text-muted text-sm">Cost per kg</div>
+                    <div class="text-lg font-semibold">{{ costPerKg() | currency:currencyCode():'symbol':'1.2-2' }}</div>
+                  </div>
+                </app-stack>
+              </app-card>
+            </app-split-aside>
+          </app-split>
+        </app-section-body>
+      </app-section>
     }
-  </header>
+  </app-page-body>
+</app-page>
 
-  @if (error()) {
-    <ui-alert variant="danger">
-      {{ error() }}
-    </ui-alert>
-  }
-
-  @if (loading()) {
-    <ui-card>
-      <div class="skeleton-grid">
-        <ui-skeleton height="40px" width="60%"></ui-skeleton>
-        <ui-skeleton height="24px" width="40%"></ui-skeleton>
-        <ui-skeleton height="200px"></ui-skeleton>
-      </div>
-    </ui-card>
-  } @else if (bale()) {
-    <div class="detail-header">
-      <div class="bale-title">
-        <lucide-icon [img]="icons.Package" [size]="32"></lucide-icon>
-        <div>
-          <h1>{{ bale()!.baleCode }}</h1>
-          @if (bale()!.rawCategory) {
-            <ui-badge variant="default">{{ bale()!.rawCategory!.name }}</ui-badge>
-          } @else if (bale()!.categoryGuess) {
-            <ui-badge variant="info">{{ bale()!.categoryGuess }}</ui-badge>
-          }
-        </div>
-      </div>
-    </div>
-
-    <div class="detail-grid">
-      <ui-card class="info-card">
-        <h2 class="card-title">Bale Information</h2>
-        
-        <div class="info-list">
-          <div class="info-item">
-            <span class="info-label">
-              <lucide-icon [img]="icons.Package" [size]="16"></lucide-icon>
-              Bale Code
-            </span>
-            <span class="info-value">{{ bale()!.baleCode }}</span>
-          </div>
-
-          <div class="info-item">
-            <span class="info-label">Raw Category</span>
-            <span class="info-value">
-              {{ bale()!.rawCategory?.name || bale()!.categoryGuess || 'Uncategorized' }}
-            </span>
-          </div>
-
-          <div class="info-item">
-            <span class="info-label">
-              <lucide-icon [img]="icons.Scale" [size]="16"></lucide-icon>
-              Weight
-            </span>
-            <span class="info-value">{{ formatWeight(bale()!.weightKg) }} kg</span>
-          </div>
-
-          <div class="info-item">
-            <span class="info-label">
-              <lucide-icon [img]="icons.DollarSign" [size]="16"></lucide-icon>
-              Total Cost
-            </span>
-            <span class="info-value cost">{{ formatCurrency(bale()!.cost) }}</span>
-          </div>
-
-          <div class="info-item">
-            <span class="info-label">Cost per kg</span>
-            <span class="info-value">{{ formatCurrency(costPerKg) }}</span>
-          </div>
-
-          @if (bale()!.categoryGuess) {
-            <div class="info-item">
-              <span class="info-label">Category Guess</span>
-              <span class="info-value">{{ bale()!.categoryGuess }}</span>
-            </div>
-          }
-        </div>
-      </ui-card>
-
-      <ui-card class="info-card">
-        <h2 class="card-title">Timeline</h2>
-        
-        <div class="info-list">
-          <div class="info-item">
-            <span class="info-label">
-              <lucide-icon [img]="icons.Calendar" [size]="16"></lucide-icon>
-              Created
-            </span>
-            <span class="info-value">{{ formatDate(bale()!.createdAt) }}</span>
-          </div>
-
-          <div class="info-item">
-            <span class="info-label">Last Updated</span>
-            <span class="info-value">{{ formatDate(bale()!.updatedAt) }}</span>
-          </div>
-        </div>
-      </ui-card>
-
-      <ui-card class="info-card">
-        <h2 class="card-title">Related Records</h2>
-
-        <div class="info-list">
-          <div class="info-item">
-            <span class="info-label">Purchase Order</span>
-            <span class="info-value">
-              {{ bale()!.purchaseOrder?.poNumber || 'Standalone Bale' }}
-            </span>
-          </div>
-
-          <div class="info-item">
-            <span class="info-label">Container</span>
-            <span class="info-value">
-              {{ bale()!.container?.containerNumber || 'Not Assigned' }}
-            </span>
-          </div>
-
-          <div class="info-item">
-            <span class="info-label">Vendor</span>
-            <span class="info-value">
-              {{ bale()!.vendor?.name || 'No Vendor' }}
-            </span>
-          </div>
-
-          <div class="info-item">
-            <span class="info-label">Currency</span>
-            <span class="info-value">{{ currencyCode() }}</span>
-          </div>
-        </div>
-      </ui-card>
-    </div>
-  }
-</div>
-
-<!-- Delete Confirmation Modal -->
-@if (showDeleteDialog()) {
-  <ui-modal [isOpen]="showDeleteDialog()" (closed)="closeDeleteDialog()" size="sm">
-    <div class="confirm-modal">
-      <h3>Delete Incoming Bale</h3>
-      <p>Are you sure you want to delete this incoming bale? This action cannot be undone.</p>
-      <div class="confirm-actions">
-        <ui-button variant="ghost" (clicked)="closeDeleteDialog()">Cancel</ui-button>
-        <ui-button variant="danger" (clicked)="confirmDelete()" [loading]="deleting()">
-          Delete
-        </ui-button>
-      </div>
-    </div>
-  </ui-modal>
-}
+<app-dialog
+  [open]="showDeleteDialog()"
+  title="Delete Loose Bale?"
+  message="Are you sure you want to delete this bale? This action cannot be undone."
+  variant="danger"
+  confirmText="Delete"
+  cancelText="Cancel"
+  [loading]="deleting()"
+  (cancelled)="closeDeleteDialog()"
+  (confirmed)="confirmDelete()"
+/>

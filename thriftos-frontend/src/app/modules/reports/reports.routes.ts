@@ -23,10 +23,34 @@ export const REPORTS_ROUTES: Routes = [
     title: 'Reports - ThriftOS',
   },
   {
+    path: 'procurement-summary',
+    loadComponent: () =>
+      import('./pages/procurement-summary-report/procurement-summary-report').then(
+        (m) => m.ProcurementSummaryReportComponent,
+      ),
+    title: 'Procurement Summary - ThriftOS',
+  },
+  {
     path: 'yield',
     loadComponent: () =>
       import('./pages/yield-report/yield-report').then((m) => m.YieldReportComponent),
     title: 'Yield Report - ThriftOS',
+  },
+  {
+    path: 'sorting-outputs',
+    loadComponent: () =>
+      import('./pages/sorting-outputs-report/sorting-outputs-report').then(
+        (m) => m.SortingOutputsReportComponent,
+      ),
+    title: 'Sorting Outputs - ThriftOS',
+  },
+  {
+    path: 'sorting-waste',
+    loadComponent: () =>
+      import('./pages/sorting-waste-report/sorting-waste-report').then(
+        (m) => m.SortingWasteReportComponent,
+      ),
+    title: 'Sorting Waste - ThriftOS',
   },
   {
     path: 'waste',
@@ -41,9 +65,33 @@ export const REPORTS_ROUTES: Routes = [
     title: 'Inventory Report - ThriftOS',
   },
   {
+    path: 'inventory-movements',
+    loadComponent: () =>
+      import('./pages/inventory-movements-report/inventory-movements-report').then(
+        (m) => m.InventoryMovementsReportComponent,
+      ),
+    title: 'Inventory Movements - ThriftOS',
+  },
+  {
     path: 'procurement',
     loadComponent: () =>
       import('./pages/procurement-report/procurement-report').then((m) => m.ProcurementReportComponent),
     title: 'Procurement Report - ThriftOS',
+  },
+  {
+    path: 'repack-summary',
+    loadComponent: () =>
+      import('./pages/repack-summary-report/repack-summary-report').then(
+        (m) => m.RepackSummaryReportComponent,
+      ),
+    title: 'Repack Summary - ThriftOS',
+  },
+  {
+    path: 'final-product-cost',
+    loadComponent: () =>
+      import('./pages/final-product-cost-report/final-product-cost-report').then(
+        (m) => m.FinalProductCostReportComponent,
+      ),
+    title: 'Final Product Cost - ThriftOS',
   },
 ];

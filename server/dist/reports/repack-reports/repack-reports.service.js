@@ -14,11 +14,14 @@ const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const library_1 = require("@prisma/client/runtime/library");
 const report_utils_1 = require("../common/report-utils");
+const reports_consistency_service_1 = require("../common/reports-consistency.service");
 let RepackReportsService = class RepackReportsService {
-    constructor(prisma) {
+    constructor(prisma, consistency) {
         this.prisma = prisma;
+        this.consistency = consistency;
     }
     async repackEfficiency(tenantId, filters) {
+        await this.consistency.assertTenantIsReportable(tenantId);
         const { start, end } = (0, report_utils_1.parseDateRange)(filters);
         const conditions = ['u."tenantId" = $1', 'rs."status" = \'CLOSED\''];
         const params = [tenantId];
@@ -84,13 +87,70 @@ let RepackReportsService = class RepackReportsService {
       `, ...params);
         return rows.map((r) => ({
             day: r.day,
-            gradeInputWeightKg: new library_1.Decimal(r.gradeInputWeightKg).toString(),
-            repackOutputWeightKg: new library_1.Decimal(r.repackOutputWeightKg).toString(),
+            gradeInputWeightKg: new library_1.Decimal(r.gradeInputWeightKg).toNumber(),
+            repackOutputWeightKg: new library_1.Decimal(r.repackOutputWeightKg).toNumber(),
             unitsProduced: r.unitsProduced,
-            avgUnitWeightKg: new library_1.Decimal(r.avgUnitWeightKg).toString(),
+            avgUnitWeightKg: new library_1.Decimal(r.avgUnitWeightKg).toNumber(),
         }));
     }
+    async repackSummary(tenantId, filters) {
+        await this.consistency.assertTenantIsReportable(tenantId);
+        const { start, end } = (0, report_utils_1.parseDateRange)(filters);
+        const conditions = ['u."tenantId" = $1'];
+        const params = [tenantId];
+        let idx = 2;
+        if (start) {
+            conditions.push(`u."createdAt" >= $${idx}`);
+            params.push(start);
+            idx++;
+        }
+        if (end) {
+            conditions.push(`u."createdAt" <= $${idx}`);
+            params.push(end);
+            idx++;
+        }
+        if (filters.categoryId) {
+            conditions.push(`u."categoryId" = $${idx}`);
+            params.push(filters.categoryId);
+            idx++;
+        }
+        if (filters.gradeId) {
+            conditions.push(`u."gradeId" = $${idx}`);
+            params.push(filters.gradeId);
+            idx++;
+        }
+        const whereClause = conditions.join(' AND ');
+        const rows = await this.prisma.$queryRawUnsafe(`
+      SELECT
+        u."status"::text AS status,
+        COUNT(*)::int AS units,
+        COALESCE(SUM(u."weightKg"), 0)::float8 AS "totalWeightKg",
+        COALESCE(SUM(u."pcsCount"), 0)::int AS "totalPcs",
+        COALESCE(SUM(u."totalCost"), 0)::float8 AS "totalCost"
+      FROM "RepackUnit" u
+      WHERE ${whereClause}
+      GROUP BY 1
+      ORDER BY 1 ASC
+      `, ...params);
+        const data = rows.map((r) => ({
+            status: r.status,
+            units: Number(r.units ?? 0),
+            totalWeightKg: Number(r.totalWeightKg ?? 0),
+            totalPcs: Number(r.totalPcs ?? 0),
+            totalCost: Number(r.totalCost ?? 0),
+        }));
+        return {
+            data,
+            summary: {
+                totalUnits: data.reduce((sum, r) => sum + (r.units || 0), 0),
+                totalWeightKg: data.reduce((sum, r) => sum + (r.totalWeightKg || 0), 0),
+                totalPcs: data.reduce((sum, r) => sum + (r.totalPcs || 0), 0),
+                totalCost: data.reduce((sum, r) => sum + (r.totalCost || 0), 0),
+            },
+        };
+    }
     async skuProductionSummary(tenantId, filters) {
+        await this.consistency.assertTenantIsReportable(tenantId);
         const { start, end } = (0, report_utils_1.parseDateRange)(filters);
         const page = filters.page || 1;
         const limit = Math.min(filters.limit || 50, 200);
@@ -138,9 +198,9 @@ let RepackReportsService = class RepackReportsService {
                 categoryName: u.category?.name ?? null,
                 gradeId: u.gradeId,
                 gradeName: u.grade?.name ?? null,
-                weightKg: u.weightKg.toString(),
+                weightKg: u.weightKg.toNumber(),
                 pcsCount: u.pcsCount,
-                totalCost: u.totalCost.toString(),
+                totalCost: u.totalCost.toNumber(),
                 createdAt: u.createdAt,
             })),
         };
@@ -149,6 +209,7 @@ let RepackReportsService = class RepackReportsService {
 exports.RepackReportsService = RepackReportsService;
 exports.RepackReportsService = RepackReportsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        reports_consistency_service_1.ReportsConsistencyService])
 ], RepackReportsService);
 //# sourceMappingURL=repack-reports.service.js.map

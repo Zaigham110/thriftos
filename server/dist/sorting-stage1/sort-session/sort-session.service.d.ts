@@ -102,8 +102,8 @@ export declare class SortSessionService {
                 weightKg: Decimal;
                 allocatedCost: Decimal;
                 ragId: string;
-                sortSessionId: string;
                 categoryId: string;
+                sortSessionId: string;
                 count: number;
                 sortCategoryBucketId: string;
             }[];
@@ -111,8 +111,8 @@ export declare class SortSessionService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            sortSessionId: string;
             categoryId: string;
+            sortSessionId: string;
             outputWeightKg: Decimal;
             outputCount: number;
         })[];
@@ -157,7 +157,9 @@ export declare class SortSessionService {
         totalOutputWeight: Decimal;
         wasteWeight: Decimal;
     }>;
-    close(tenantId: string, sessionId: string, currentUserId: string): Promise<{
+    close(tenantId: string, sessionId: string, currentUserId: string, options?: {
+        wasteCategoryId?: string;
+    }): Promise<{
         session: {
             id: string;
             tenantId: string;

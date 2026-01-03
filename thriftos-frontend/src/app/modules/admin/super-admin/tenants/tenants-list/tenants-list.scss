@@ -22,13 +22,13 @@
 .page-title {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #1e293b;
+  color: hsl(var(--foreground));
   margin: 0;
 }
 
 .page-subtitle {
   font-size: 0.875rem;
-  color: #64748b;
+  color: hsl(var(--muted-foreground));
   margin: 0;
 }
 
@@ -50,7 +50,7 @@
   align-items: center;
   gap: 2rem;
   padding: 0.75rem 0;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid hsl(var(--border));
 
   &:last-child {
     border-bottom: none;
@@ -74,21 +74,21 @@
   }
 
   th {
-    background-color: #f8fafc;
+    background-color: hsl(var(--muted));
     font-weight: 600;
-    color: #475569;
-    border-bottom: 1px solid #e2e8f0;
+    color: hsl(var(--muted-foreground));
+    border-bottom: 1px solid hsl(var(--border));
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.025em;
   }
 
   tbody tr {
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid hsl(var(--border));
     transition: background-color 0.15s ease;
 
     &:hover {
-      background-color: #f8fafc;
+      background-color: hsl(var(--muted) / 0.6);
     }
 
     &:last-child {
@@ -97,23 +97,23 @@
   }
 
   td {
-    color: #334155;
+    color: hsl(var(--foreground));
   }
 }
 
 .company-name {
   font-weight: 500;
-  color: #1e293b;
+  color: hsl(var(--foreground));
 }
 
 .company-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.8125rem;
-  color: #64748b;
+  color: hsl(var(--muted-foreground));
 }
 
 .date-col {
-  color: #64748b;
+  color: hsl(var(--muted-foreground));
 }
 
 .actions-col {
@@ -136,13 +136,13 @@
   border: none;
   background: transparent;
   border-radius: 6px;
-  color: #64748b;
+  color: hsl(var(--muted-foreground));
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
 
   &:hover:not(:disabled) {
-    background-color: #f1f5f9;
-    color: #334155;
+    background-color: hsl(var(--muted));
+    color: hsl(var(--foreground));
   }
 
   &:disabled {
@@ -152,22 +152,22 @@
 
   &--warning {
     &:hover:not(:disabled) {
-      background-color: #fef3c7;
-      color: #d97706;
+      background-color: hsl(var(--accent));
+      color: hsl(var(--accent-foreground));
     }
   }
 
   &--success {
     &:hover:not(:disabled) {
-      background-color: #dcfce7;
-      color: #16a34a;
+      background-color: hsl(var(--secondary) / 0.18);
+      color: hsl(var(--secondary));
     }
   }
 
   &--danger {
     &:hover:not(:disabled) {
-      background-color: #fee2e2;
-      color: #dc2626;
+      background-color: hsl(var(--destructive) / 0.1);
+      color: hsl(var(--destructive));
     }
   }
 }
@@ -175,7 +175,7 @@
 .empty-state {
   text-align: center;
   padding: 3rem 1rem !important;
-  color: #64748b;
+  color: hsl(var(--muted-foreground));
 
   p {
     margin: 0;
@@ -187,18 +187,18 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem 1rem;
-  border-top: 1px solid #e2e8f0;
-  background-color: #f8fafc;
+  border-top: 1px solid hsl(var(--border));
+  background-color: hsl(var(--muted));
 }
 
 .pagination-info {
   font-size: 0.8125rem;
-  color: #64748b;
+  color: hsl(var(--muted-foreground));
 }
 
 .confirm-message {
   font-size: 0.9375rem;
-  color: #475569;
+  color: hsl(var(--muted-foreground));
   line-height: 1.6;
   margin: 0;
 }
@@ -209,5 +209,5 @@
   justify-content: flex-end;
   padding-top: 1rem;
   margin-top: 1.5rem;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid hsl(var(--border));
 }

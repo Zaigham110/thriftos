@@ -14,11 +14,14 @@ const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const library_1 = require("@prisma/client/runtime/library");
 const report_utils_1 = require("../common/report-utils");
+const reports_consistency_service_1 = require("../common/reports-consistency.service");
 let WasteReportsService = class WasteReportsService {
-    constructor(prisma) {
+    constructor(prisma, consistency) {
         this.prisma = prisma;
+        this.consistency = consistency;
     }
     async wasteByStage(tenantId, filters) {
+        await this.consistency.assertTenantIsReportable(tenantId);
         const { start, end } = (0, report_utils_1.parseDateRange)(filters);
         const procConditions = ['po."tenantId" = $1'];
         const procParams = [tenantId];
@@ -95,12 +98,13 @@ let WasteReportsService = class WasteReportsService {
       FROM session_out
       `, ...stage2Params);
         return {
-            procurementWasteKg: new library_1.Decimal(procurement?.[0]?.wasteKg).toString(),
-            sortingStage1WasteKg: (stage1._sum.wasteWeight ?? new library_1.Decimal(0)).toString(),
-            gradingStage2WasteKg: new library_1.Decimal(stage2?.[0]?.wasteKg).toString(),
+            procurementWasteKg: new library_1.Decimal(procurement?.[0]?.wasteKg).toNumber(),
+            sortingStage1WasteKg: (stage1._sum.wasteWeight ?? new library_1.Decimal(0)).toNumber(),
+            gradingStage2WasteKg: new library_1.Decimal(stage2?.[0]?.wasteKg).toNumber(),
         };
     }
     async wasteCostImpact(tenantId, filters) {
+        await this.consistency.assertTenantIsReportable(tenantId);
         const { start, end } = (0, report_utils_1.parseDateRange)(filters);
         const procConditions = ['po."tenantId" = $1'];
         const procParams = [tenantId];
@@ -215,16 +219,16 @@ let WasteReportsService = class WasteReportsService {
       `, ...s2Params);
         return {
             procurement: {
-                wasteKg: new library_1.Decimal(procurement?.[0]?.wasteKg).toString(),
-                wasteCost: new library_1.Decimal(procurement?.[0]?.wasteCost).toString(),
+                wasteKg: new library_1.Decimal(procurement?.[0]?.wasteKg).toNumber(),
+                wasteCost: new library_1.Decimal(procurement?.[0]?.wasteCost).toNumber(),
             },
             sortingStage1: {
-                wasteKg: new library_1.Decimal(stage1?.[0]?.wasteKg).toString(),
-                wasteCost: new library_1.Decimal(stage1?.[0]?.wasteCost).toString(),
+                wasteKg: new library_1.Decimal(stage1?.[0]?.wasteKg).toNumber(),
+                wasteCost: new library_1.Decimal(stage1?.[0]?.wasteCost).toNumber(),
             },
             gradingStage2: {
-                wasteKg: new library_1.Decimal(stage2?.[0]?.wasteKg).toString(),
-                wasteCost: new library_1.Decimal(stage2?.[0]?.wasteCost).toString(),
+                wasteKg: new library_1.Decimal(stage2?.[0]?.wasteKg).toNumber(),
+                wasteCost: new library_1.Decimal(stage2?.[0]?.wasteCost).toNumber(),
             },
         };
     }
@@ -232,6 +236,7 @@ let WasteReportsService = class WasteReportsService {
 exports.WasteReportsService = WasteReportsService;
 exports.WasteReportsService = WasteReportsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        reports_consistency_service_1.ReportsConsistencyService])
 ], WasteReportsService);
 //# sourceMappingURL=waste-reports.service.js.map

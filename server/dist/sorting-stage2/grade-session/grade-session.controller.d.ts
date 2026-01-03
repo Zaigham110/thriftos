@@ -38,8 +38,8 @@ export declare class GradeSessionController {
                 weightKg: import("@prisma/client/runtime/library").Decimal;
                 allocatedCost: import("@prisma/client/runtime/library").Decimal;
                 ragId: string;
-                sortSessionId: string;
                 categoryId: string;
+                sortSessionId: string;
                 count: number;
             };
             _count: {
@@ -97,8 +97,8 @@ export declare class GradeSessionController {
             weightKg: import("@prisma/client/runtime/library").Decimal;
             allocatedCost: import("@prisma/client/runtime/library").Decimal;
             ragId: string;
-            sortSessionId: string;
             categoryId: string;
+            sortSessionId: string;
             count: number;
             sortCategoryBucketId: string;
         };
@@ -112,20 +112,25 @@ export declare class GradeSessionController {
                 tenantId: string;
                 createdAt: Date;
                 updatedAt: Date;
+                status: import("@prisma/client").$Enums.GradingOutputStatus;
                 weightKg: import("@prisma/client/runtime/library").Decimal;
                 allocatedCost: import("@prisma/client/runtime/library").Decimal;
-                count: number;
                 gradeId: string;
+                count: number;
                 gradeBucketId: string;
+                totalAmount: import("@prisma/client/runtime/library").Decimal;
+                usedAmount: import("@prisma/client/runtime/library").Decimal;
+                remainingAmount: import("@prisma/client/runtime/library").Decimal;
+                measurementType: import("@prisma/client").$Enums.MeasurementType;
             }[];
         } & {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            gradeId: string;
             outputWeightKg: import("@prisma/client/runtime/library").Decimal;
             outputCount: number;
             gradeSessionId: string;
-            gradeId: string;
         })[];
         worker: {
             id: string;
@@ -160,7 +165,9 @@ export declare class GradeSessionController {
         endTime: Date | null;
         categoryOutputId: string;
     }>;
-    close(id: string, user: CurrentUserData, req: Request): Promise<{
+    close(id: string, body: {
+        wasteCategoryId?: string;
+    }, user: CurrentUserData, req: Request): Promise<{
         session: {
             id: string;
             tenantId: string;

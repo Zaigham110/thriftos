@@ -1,0 +1,120 @@
+<!-- REPACK INDEX — ALIGNED WITH PROCUREMENT GOLDEN REFERENCE -->
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs" />
+      <h1 class="page-title">Repack Units</h1>
+      <p class="page-subtitle">{{ totalCount() }} units</p>
+    </app-stack>
+    <div class="actions">
+      <app-button variant="secondary" (click)="loadData()" [disabled]="loading()">
+        Refresh
+      </app-button>
+      @if (canCreate()) {
+        <app-button variant="primary" [routerLink]="['/packaging/repack/workspace']" [queryParams]="{mode: 'new'}">
+          + New Repack Unit
+        </app-button>
+      }
+    </div>
+  </app-page-header>
+
+  <app-page-body>
+    <!-- Delete Confirmation Modal -->
+    <app-dialog
+      [open]="showDeleteModal()"
+      title="Delete Draft?"
+      variant="danger"
+      confirmText="Delete"
+      cancelText="Cancel"
+      [loading]="deleting()"
+      (confirmed)="deleteDraft()"
+      (cancelled)="closeDeleteModal()"
+    >
+      @if (unitToDelete(); as unit) {
+        <p>Are you sure you want to delete <strong>{{ unit.unitCode }}</strong>?</p>
+        <p class="warning-text">⚠️ All allocations will be released. This cannot be undone.</p>
+      }
+    </app-dialog>
+
+    <!-- ALL UNITS SECTION — Unified Table -->
+    <app-section>
+      <app-section-header>
+        <h2 class="section-title">All Repack Units</h2>
+        <div class="actions">
+          <!-- Filter by status -->
+          <select
+            class="filter-select"
+            [ngModel]="statusFilter()"
+            (ngModelChange)="statusFilter.set($event)"
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="DRAFT">Drafts Only</option>
+            <option value="SEALED">Sealed Only</option>
+          </select>
+        </div>
+      </app-section-header>
+      <app-section-body>
+        @if (loading()) {
+          <app-loading message="Loading repack units…" />
+        } @else if (error()) {
+          <app-error-state title="Failed to load" [message]="error()!" [action]="true">
+            <app-button action variant="secondary" (click)="loadData()">Retry</app-button>
+          </app-error-state>
+        } @else if (filteredUnits().length === 0) {
+          <app-empty-state
+            title="No repack units"
+            [message]="statusFilter() === 'ALL' ? 'Create a new repack unit to begin.' : 'No units match the selected filter.'"
+          />
+        } @else {
+          <app-data-table
+            title="Repack Units"
+            [columns]="tableColumns"
+            [data]="filteredUnits()"
+            [loading]="loading()"
+            (rowClick)="onRowClick($event)"
+          >
+            <ng-template #cellTemplate let-row let-column="column">
+              @switch (column.key) {
+                @case ('status') {
+                  <app-badge [variant]="getStatusVariant(row.status)">{{ row.status }}</app-badge>
+                }
+                @case ('progress') {
+                  <span class="tabular-nums">
+                    {{ row.allocatedAmount | number:'1.2-2' }} / {{ row.targetAmount | number:'1.2-2' }}
+                    {{ row.measurementType === 'WEIGHT' ? 'kg' : 'pcs' }}
+                  </span>
+                }
+                @case ('targetAmount') {
+                  <span class="tabular-nums">
+                    {{ row.targetAmount | number:'1.2-2' }}
+                    {{ row.measurementType === 'WEIGHT' ? 'kg' : 'pcs' }}
+                  </span>
+                }
+                @case ('sealedAt') {
+                  {{ row.sealedAt ? (row.sealedAt | date:'mediumDate') : '—' }}
+                }
+                @case ('createdAt') {
+                  {{ row.createdAt | date:'mediumDate' }}
+                }
+                @default {
+                  {{ column.getValue ? column.getValue(row) : row[column.key] ?? '—' }}
+                }
+              }
+            </ng-template>
+
+            <ng-template #rowActions let-row>
+              @if (row.status === 'DRAFT') {
+                <app-button variant="primary" size="sm" [routerLink]="['/packaging/repack', row.id]">Resume</app-button>
+                @if (canDelete()) {
+                  <app-button variant="danger" size="sm" (click)="confirmDelete(row, $event)">Delete</app-button>
+                }
+              } @else {
+                <app-button variant="secondary" size="sm" [routerLink]="['/packaging/repack', row.id]">View</app-button>
+              }
+            </ng-template>
+          </app-data-table>
+        }
+      </app-section-body>
+    </app-section>
+  </app-page-body>
+</app-page>

@@ -52,9 +52,16 @@
 
 import { Injectable, signal } from '@angular/core';
 import { HttpClient, HttpParams, HttpErrorResponse } from '@angular/common/http';
-import { Observable, catchError, tap, throwError, forkJoin, of, map } from 'rxjs';
+import { Observable, catchError, tap, throwError, map } from 'rxjs';
 import {
   ReportFilters,
+  ProcurementSummaryResponse,
+  SortingOutputsResponse,
+  SortingWasteResponse,
+  RepackSummaryResponse,
+  InventoryStockResponse,
+  InventoryMovementsResponse,
+  FinalProductCostResponse,
   YieldReportResponse,
   YieldReportRow,
   WasteByStageData,
@@ -140,64 +147,6 @@ export class ReportsService {
   constructor(private readonly http: HttpClient) {}
 
   // =============================================================
-  // DASHBOARD SUMMARY (Aggregated)
-  // =============================================================
-
-  loadDashboardSummary(filters?: ReportFilters): Observable<ReportsDashboardSummary> {
-    this._loading.set(true);
-    this._error.set(null);
-
-    // Fetch multiple reports in parallel and aggregate
-    return forkJoin({
-      yield: this.fetchYieldReport(filters).pipe(catchError(() => of({ data: [] }))),
-      waste: this.fetchWasteCostImpact(filters).pipe(catchError(() => of({ data: { procurement: { wasteKg: 0, wasteCost: 0 }, sortingStage1: { wasteKg: 0, wasteCost: 0 }, gradingStage2: { wasteKg: 0, wasteCost: 0 } } }))),
-      inventory: this.fetchInventorySnapshot(filters).pipe(catchError(() => of({ data: [], summary: { totalUnits: 0, totalWeightKg: 0, totalPcs: 0 } }))),
-      vendors: this.fetchVendorSummary(filters).pipe(catchError(() => of({ data: [], total: 0 }))),
-    }).pipe(
-      map(({ yield: yieldData, waste, inventory, vendors }) => {
-        // Calculate total yield percentage
-        const yieldRows = yieldData.data || [];
-        const totalInput = yieldRows.reduce((sum, r) => sum + (r.inputWeightKg || 0), 0);
-        const totalOutput = yieldRows.reduce((sum, r) => sum + (r.outputWeightKg || 0), 0);
-        const totalYieldPct = totalInput > 0 ? (totalOutput / totalInput) * 100 : 0;
-
-        // Calculate total waste
-        const wasteData = waste.data as WasteCostImpactData;
-        const totalWasteKg = (wasteData.procurement?.wasteKg || 0) + 
-                            (wasteData.sortingStage1?.wasteKg || 0) + 
-                            (wasteData.gradingStage2?.wasteKg || 0);
-        const totalWasteCost = (wasteData.procurement?.wasteCost || 0) + 
-                              (wasteData.sortingStage1?.wasteCost || 0) + 
-                              (wasteData.gradingStage2?.wasteCost || 0);
-
-        // Inventory summary
-        const invSummary = (inventory as InventorySnapshotResponse).summary || { totalUnits: 0, totalWeightKg: 0, totalPcs: 0 };
-
-        // Procurement totals
-        const vendorRows = vendors.data || [];
-        const procurementCostTotal = vendorRows.reduce((sum, v) => sum + (v.totalCost || 0), 0);
-        const procurementWeightKg = vendorRows.reduce((sum, v) => sum + (v.totalWeightKg || 0), 0);
-        const avgCostPerKg = procurementWeightKg > 0 ? procurementCostTotal / procurementWeightKg : 0;
-
-        const summary: ReportsDashboardSummary = {
-          totalYieldPct,
-          totalWasteKg,
-          totalWasteCost,
-          inventoryUnits: invSummary.totalUnits,
-          inventoryWeightKg: invSummary.totalWeightKg,
-          procurementCostTotal,
-          avgCostPerKg,
-        };
-
-        this._dashboardSummary.set(summary);
-        return summary;
-      }),
-      tap(() => this._loading.set(false)),
-      catchError((err) => this.handleError(err)),
-    );
-  }
-
-  // =============================================================
   // YIELD REPORT (Category Yield from Sorting)
   // =============================================================
 
@@ -236,14 +185,11 @@ export class ReportsService {
     return this.http.get<{ data: WasteByStageData }>(`${API_BASE}/waste/by-stage`, { params }).pipe(
       map((response) => {
         const data = response.data;
-        const rows: WasteReportRow[] = [
-          { stage: 'Procurement', wasteKg: data.procurementWasteKg || 0 },
-          { stage: 'Sorting Stage 1', wasteKg: data.sortingStage1WasteKg || 0 },
-          { stage: 'Grading Stage 2', wasteKg: data.gradingStage2WasteKg || 0 },
-        ];
-        const total = rows.reduce((sum, r) => sum + r.wasteKg, 0);
-        rows.forEach((r) => (r.wastePct = total > 0 ? (r.wasteKg / total) * 100 : 0));
-        return rows;
+        return [
+          { stage: 'Procurement', wasteKg: data?.procurementWasteKg },
+          { stage: 'Sorting Stage 1', wasteKg: data?.sortingStage1WasteKg },
+          { stage: 'Grading Stage 2', wasteKg: data?.gradingStage2WasteKg },
+        ] as WasteReportRow[];
       }),
       tap((rows) => {
         this._wasteByStage.set(rows);
@@ -260,14 +206,11 @@ export class ReportsService {
     return this.fetchWasteCostImpact(filters).pipe(
       map((response) => {
         const data = response.data as WasteCostImpactData;
-        const rows: WasteReportRow[] = [
-          { stage: 'Procurement', wasteKg: data.procurement?.wasteKg || 0, wasteCost: data.procurement?.wasteCost || 0 },
-          { stage: 'Sorting Stage 1', wasteKg: data.sortingStage1?.wasteKg || 0, wasteCost: data.sortingStage1?.wasteCost || 0 },
-          { stage: 'Grading Stage 2', wasteKg: data.gradingStage2?.wasteKg || 0, wasteCost: data.gradingStage2?.wasteCost || 0 },
-        ];
-        const total = rows.reduce((sum, r) => sum + r.wasteKg, 0);
-        rows.forEach((r) => (r.wastePct = total > 0 ? (r.wasteKg / total) * 100 : 0));
-        return rows;
+        return [
+          { stage: 'Procurement', wasteKg: data?.procurement?.wasteKg, wasteCost: data?.procurement?.wasteCost },
+          { stage: 'Sorting Stage 1', wasteKg: data?.sortingStage1?.wasteKg, wasteCost: data?.sortingStage1?.wasteCost },
+          { stage: 'Grading Stage 2', wasteKg: data?.gradingStage2?.wasteKg, wasteCost: data?.gradingStage2?.wasteCost },
+        ] as WasteReportRow[];
       }),
       tap((rows) => {
         this._wasteCostImpact.set(rows);
@@ -489,6 +432,112 @@ export class ReportsService {
 
   exportRepackEfficiency(filters?: ReportFilters): void {
     this.triggerExport(`${API_BASE}/repack/efficiency/export`, filters, 'repack-efficiency.csv');
+  }
+
+  // =============================================================
+  // REQUIRED (ERP-GRADE) REPORTS
+  // Backend is authoritative; frontend must not calculate totals.
+  // =============================================================
+
+  fetchProcurementSummary(filters?: ReportFilters): Observable<ProcurementSummaryResponse> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    const params = this.buildParams(filters);
+    return this.http.get<ProcurementSummaryResponse>(`${API_BASE}/procurement/summary`, { params }).pipe(
+      tap(() => this._loading.set(false)),
+      catchError((err) => this.handleError(err)),
+    );
+  }
+
+  exportProcurementSummary(filters?: ReportFilters): void {
+    this.triggerExport(`${API_BASE}/procurement/summary/export`, filters, 'procurement-summary.csv');
+  }
+
+  fetchSortingOutputs(filters?: ReportFilters): Observable<SortingOutputsResponse> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    const params = this.buildParams(filters);
+    return this.http.get<SortingOutputsResponse>(`${API_BASE}/sorting/outputs`, { params }).pipe(
+      tap(() => this._loading.set(false)),
+      catchError((err) => this.handleError(err)),
+    );
+  }
+
+  exportSortingOutputs(filters?: ReportFilters): void {
+    this.triggerExport(`${API_BASE}/sorting/outputs/export`, filters, 'sorting-outputs.csv');
+  }
+
+  fetchSortingWaste(filters?: ReportFilters): Observable<SortingWasteResponse> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    const params = this.buildParams(filters);
+    return this.http.get<SortingWasteResponse>(`${API_BASE}/sorting/waste`, { params }).pipe(
+      tap(() => this._loading.set(false)),
+      catchError((err) => this.handleError(err)),
+    );
+  }
+
+  exportSortingWaste(filters?: ReportFilters): void {
+    this.triggerExport(`${API_BASE}/sorting/waste/export`, filters, 'sorting-waste.csv');
+  }
+
+  fetchRepackSummary(filters?: ReportFilters): Observable<RepackSummaryResponse> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    const params = this.buildParams(filters);
+    return this.http.get<RepackSummaryResponse>(`${API_BASE}/repack/summary`, { params }).pipe(
+      tap(() => this._loading.set(false)),
+      catchError((err) => this.handleError(err)),
+    );
+  }
+
+  exportRepackSummary(filters?: ReportFilters): void {
+    this.triggerExport(`${API_BASE}/repack/summary/export`, filters, 'repack-summary.csv');
+  }
+
+  fetchInventoryStock(filters?: ReportFilters): Observable<InventoryStockResponse> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    const params = this.buildParams(filters);
+    return this.http.get<InventoryStockResponse>(`${API_BASE}/inventory/stock`, { params }).pipe(
+      tap(() => this._loading.set(false)),
+      catchError((err) => this.handleError(err)),
+    );
+  }
+
+  fetchInventoryMovements(filters?: ReportFilters): Observable<InventoryMovementsResponse> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    const params = this.buildParams(filters);
+    return this.http.get<InventoryMovementsResponse>(`${API_BASE}/inventory/movements`, { params }).pipe(
+      tap(() => this._loading.set(false)),
+      catchError((err) => this.handleError(err)),
+    );
+  }
+
+  exportInventoryMovements(filters?: ReportFilters): void {
+    this.triggerExport(`${API_BASE}/inventory/movements/export`, filters, 'inventory-movements.csv');
+  }
+
+  fetchFinalProductCost(filters?: ReportFilters): Observable<FinalProductCostResponse> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    const params = this.buildParams(filters);
+    return this.http.get<FinalProductCostResponse>(`${API_BASE}/cost/final-products`, { params }).pipe(
+      tap(() => this._loading.set(false)),
+      catchError((err) => this.handleError(err)),
+    );
+  }
+
+  exportFinalProductCost(filters?: ReportFilters): void {
+    this.triggerExport(`${API_BASE}/cost/final-products/export`, filters, 'final-product-cost.csv');
   }
 
   // =============================================================

@@ -10,7 +10,7 @@ export interface SelectOption {
 }
 
 @Component({
-  selector: 'ui-select',
+  selector: 'ui-select, app-select',
   standalone: true,
   imports: [CommonModule, FormsModule, LucideAngularModule],
   templateUrl: './select.html',

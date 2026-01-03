@@ -1,434 +1,415 @@
-<div class="sorting-session-detail">
-  <!-- Breadcrumb -->
-  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
-
-  <!-- Error Alert -->
-  @if (error()) {
-    <ui-alert type="error" [dismissible]="true" (dismissed)="error.set(null)">
-      {{ error() }}
-    </ui-alert>
-  }
-
-  <!-- Loading State -->
-  @if (loading()) {
-    <div class="loading-state">
-      <ui-skeleton height="60px" class="mb-4"></ui-skeleton>
-      <div class="grid grid-2">
-        <ui-skeleton height="300px"></ui-skeleton>
-        <ui-skeleton height="300px"></ui-skeleton>
-      </div>
+<!-- SORTING STAGE-1 WORKSPACE — 3-PANEL ERP LAYOUT -->
+<app-page>
+  <!-- ================== TOP ACTION BAR ================== -->
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs" />
+      <h1 class="page-title">Sorting Workspace</h1>
+      @if (session(); as s) {
+        <p class="page-subtitle">Stage 1: Category Sorting</p>
+      }
+    </app-stack>
+    <div class="actions">
+      <app-button variant="secondary" [routerLink]="['/app/sorting/stage1']">← Back</app-button>
+      @if (isEditable()) {
+        <app-button variant="primary" (clickEvent)="showCloseConfirm.set(true)">
+          Close Session
+        </app-button>
+      } @else {
+        <app-badge variant="success">Session Closed</app-badge>
+      }
     </div>
-  } @else if (session()) {
-    <!-- Page Header with Back Link -->
-    <div class="page-header">
-      <a routerLink="/app/sorting/stage1" class="back-link">
-        <lucide-icon [img]="icons.arrowLeft" size="16"></lucide-icon>
-        Back to Sessions
-      </a>
-      
-      <div class="header-row">
-        <div class="header-content">
-          <div class="title-row">
-            <h1>Sorting Workspace</h1>
-            <ui-badge [variant]="getStatusVariant(session()!.status)">
-              {{ session()!.status }}
-            </ui-badge>
-          </div>
-        </div>
+  </app-page-header>
 
-        <div class="header-actions">
-          @if (isEditable()) {
-            <ui-button
-              variant="primary"
-              [disabled]="saving()"
-              (clicked)="confirmCloseSession()"
-            >
-              <lucide-icon [img]="icons.lock" size="16"></lucide-icon>
-              Close Session
-            </ui-button>
-          } @else {
-            <div class="closed-badge">
-              <lucide-icon [img]="icons.lock" size="14"></lucide-icon>
-              Session Closed
-            </div>
-          }
-        </div>
-      </div>
-    </div>
+  <app-page-body>
+    @if (loading()) {
+      <app-loading message="Loading sorting session..." />
+    } @else if (error()) {
+      <app-error-state title="Failed to load session" [message]="error()!" [action]="true">
+        <app-button action variant="secondary" (clickEvent)="ngOnInit()">Retry</app-button>
+      </app-error-state>
+    } @else if (session(); as s) {
 
-    <!-- TRACEABILITY HEADER (MANDATORY) -->
-    <ui-card class="traceability-card">
-      <div class="traceability-grid">
-        <!-- Container Reference (if applicable) -->
-        <div class="traceability-item">
-          <span class="traceability-label">Container</span>
-          <span class="traceability-value">
-            @if (session()!.rag?.container) {
-              <a [routerLink]="['/app/procurement/containers', session()!.rag!.container!.id]" class="traceability-link">
-                {{ session()!.rag!.container!.containerNumber }}
-              </a>
-            } @else {
-              <span class="text-muted">N/A (Loose Bale)</span>
-            }
-          </span>
-        </div>
-
-        <!-- Rag/Bale Code -->
-        <div class="traceability-item">
-          <span class="traceability-label">Rag / Bale</span>
-          <span class="traceability-value traceability-value--highlight">
-            @if (session()!.rag) {
-              {{ session()!.rag!.ragCode }}
-            } @else if (session()!.incomingBale) {
-              {{ session()!.incomingBale!.baleCode }}
-            }
-          </span>
-        </div>
-
-        <!-- Source Type -->
-        <div class="traceability-item">
-          <span class="traceability-label">Source Type</span>
-          <span class="traceability-value">
-            @if (session()!.rag?.container) {
-              <ui-badge variant="primary" size="sm">Container</ui-badge>
-            } @else {
-              <ui-badge variant="default" size="sm">Loose Bale</ui-badge>
-            }
-          </span>
-        </div>
-
-        <!-- Original Weight -->
-        <div class="traceability-item">
-          <span class="traceability-label">Original Weight</span>
-          <span class="traceability-value traceability-value--mono">
-            {{ formatWeight(session()!.totalInputWeight) }} kg
-          </span>
-        </div>
-      </div>
-    </ui-card>
-
-    <!-- Main Workspace Grid -->
-    <div class="workspace-grid">
-      <!-- Left Column: Category Buckets -->
-      <div class="workspace-column">
-        <ui-card class="category-buckets-card">
-          <div class="card-header">
-            <h2 class="card-title">
-              <lucide-icon [img]="icons.box" size="18"></lucide-icon>
-              Category Buckets
-            </h2>
-            @if (isEditable()) {
-              <ui-button
-                variant="secondary"
-                size="sm"
-                [disabled]="availableCategories().length === 0 || newBucket() !== null"
-                (click)="startAddCategory()"
-              >
-                Add Category
-              </ui-button>
-            }
-          </div>
-
-          <!-- Add New Category Form -->
-          @if (newBucket()) {
-            <div class="bucket-form">
-              <div class="form-header">
-                <span class="form-title">Add Category</span>
-                <button class="icon-btn" (click)="cancelAddCategory()">×</button>
-              </div>
-              
-              <div class="form-row">
-                <label>Category</label>
-                <select 
-                  class="form-select"
-                  [value]="newBucket()!.categoryId"
-                  (change)="selectNewCategory($any($event.target).value)"
-                >
-                  @for (cat of availableCategories(); track cat.id) {
-                    <option [value]="cat.id">{{ cat.name }}</option>
-                  }
-                </select>
-              </div>
-
-              <div class="form-row-inline">
-                <div class="form-field">
-                  <label>Weight (kg)</label>
-                  <input 
-                    type="number" 
-                    class="form-input"
-                    [class.input-error]="!canAddWeight()"
-                    [value]="newBucket()!.weightKg"
-                    (input)="updateNewBucketWeight($event)"
-                    min="0"
-                    [max]="remainingWeight()"
-                    step="0.01"
-                  />
-                  <span class="field-hint">Available: {{ formatWeight(remainingWeight()) }} kg</span>
-                </div>
-                <div class="form-field">
-                  <label>Count</label>
-                  <input 
-                    type="number" 
-                    class="form-input"
-                    [value]="newBucket()!.count"
-                    (input)="updateNewBucketCount($event)"
-                    min="0"
-                    step="1"
-                  />
-                </div>
-              </div>
-
-              @if (!canAddWeight()) {
-                <div class="validation-error">
-                  <lucide-icon [img]="icons.alertCircle" size="14"></lucide-icon>
-                  {{ weightValidationError() }}
-                </div>
-              }
-
-              <div class="form-actions">
-                <ui-button variant="ghost" size="sm" (click)="cancelAddCategory()">
-                  Cancel
-                </ui-button>
-                <ui-button 
-                  variant="primary" 
-                  size="sm" 
-                  [disabled]="saving() || !canAddWeight()"
-                  (click)="saveNewBucket()"
-                >
-                  <lucide-icon [img]="icons.save" size="14"></lucide-icon>
-                  Save
-                </ui-button>
-              </div>
-            </div>
-          }
-
-          <!-- Category Buckets List -->
-          <div class="buckets-list">
-            @if (categoryBuckets().length === 0 && !newBucket()) {
-              <div class="empty-buckets">
-                <lucide-icon [img]="icons.box" size="32"></lucide-icon>
-                <p>No categories sorted yet</p>
-                @if (isEditable()) {
-                  <span class="hint">Click "Add Category" to start sorting</span>
+      <!-- ================== CONTEXT BAR (TRACEABILITY) ================== -->
+      <app-section>
+        <app-section-body>
+          <app-card class="context-bar">
+            <app-stack direction="horizontal" spacing="md">
+              <div class="context-item">
+                <span class="context-label">Container</span>
+                @if (s.rag?.container) {
+                  <a [routerLink]="['/app/procurement/containers', s.rag!.container!.id]" class="context-value context-link">
+                    {{ s.rag!.container!.containerNumber }}
+                  </a>
+                } @else {
+                  <span class="context-value context-muted">N/A (Loose Bale)</span>
                 }
               </div>
-            }
 
-            @for (bucket of categoryBuckets(); track bucket.id) {
-              <div class="bucket-item" [class.bucket-item--editing]="editingBucket()?.bucketId === bucket.id">
-                @if (editingBucket()?.bucketId === bucket.id) {
-                  <!-- Edit Mode -->
-                  <div class="bucket-edit-form">
-                    <div class="bucket-edit-header">
-                      <span class="category-name">{{ getCategoryName(bucket) }}</span>
-                    </div>
-                    
-                    <div class="form-row-inline">
-                      <div class="form-field">
-                        <label>Weight (kg)</label>
-                        <input 
-                          type="number" 
-                          class="form-input"
-                          [class.input-error]="!canSaveEditWeight()"
-                          [value]="editingBucket()!.weightKg"
-                          (input)="updateEditingWeight($event)"
-                          min="0"
-                          step="0.01"
-                        />
-                      </div>
-                      <div class="form-field">
-                        <label>Count</label>
-                        <input 
-                          type="number" 
-                          class="form-input"
-                          [value]="editingBucket()!.count"
-                          (input)="updateEditingCount($event)"
-                          min="0"
-                          step="1"
-                        />
-                      </div>
-                    </div>
+              <div class="context-item">
+                <span class="context-label">Rag / Bale</span>
+                <span class="context-value context-highlight">
+                  @if (s.rag) {
+                    {{ s.rag.ragCode }}
+                  } @else if (s.incomingBale) {
+                    {{ s.incomingBale.baleCode }}
+                  }
+                </span>
+              </div>
 
-                    @if (!canSaveEditWeight()) {
-                      <div class="validation-error">
-                        <lucide-icon [img]="icons.alertCircle" size="14"></lucide-icon>
-                        {{ weightValidationError() }}
+              <div class="context-item">
+                <span class="context-label">Source Type</span>
+                @if (s.rag?.container) {
+                  <app-badge variant="primary" size="sm">Container</app-badge>
+                } @else {
+                  <app-badge variant="default" size="sm">Loose Bale</app-badge>
+                }
+              </div>
+
+              <div class="context-item">
+                <span class="context-label">Original Weight</span>
+                <span class="context-value context-mono">{{ formatWeight(s.totalInputWeight) }} kg</span>
+              </div>
+
+              <div class="context-item">
+                <span class="context-label">Status</span>
+                <app-badge [variant]="s.status === 'CLOSED' ? 'success' : 'warning'">
+                  {{ s.status }}
+                </app-badge>
+              </div>
+            </app-stack>
+          </app-card>
+        </app-section-body>
+      </app-section>
+
+      <!-- ================== 3-PANEL WORKSPACE ================== -->
+      <app-section>
+        <app-section-body>
+          <app-workspace-3panel>
+            <!-- LEFT PANEL: Available Categories -->
+            <div slot="left">
+              <app-stack direction="vertical" spacing="sm">
+                <div class="panel-header">
+                  <h3 class="panel-title">Available Categories</h3>
+                  @if (isEditable() && availableCategories().length > 0) {
+                    <app-button variant="primary" size="sm" (clickEvent)="openAddCategoryModal()">
+                      + Add Category
+                    </app-button>
+                  }
+                </div>
+
+                @if (availableCategories().length === 0) {
+                  <app-empty-state
+                    title="All categories used"
+                    message="All available categories have been added to this session."
+                  />
+                } @else {
+                  <div class="category-list">
+                    @for (cat of availableCategories(); track cat.id) {
+                      <div class="category-card">
+                        <span class="category-name">{{ cat.name }}</span>
+                        @if (isEditable()) {
+                          <app-button 
+                            variant="secondary" 
+                            size="sm" 
+                            (clickEvent)="quickAddCategory(cat.id)"
+                          >
+                            + Add
+                          </app-button>
+                        }
                       </div>
                     }
-
-                    <div class="form-actions">
-                      <ui-button variant="ghost" size="sm" (click)="cancelEditBucket()">
-                        Cancel
-                      </ui-button>
-                      <ui-button 
-                        variant="primary" 
-                        size="sm" 
-                        [disabled]="saving() || !canSaveEditWeight()"
-                        (click)="saveEditBucket()"
-                      >
-                        <lucide-icon [img]="icons.save" size="14"></lucide-icon>
-                        Save
-                      </ui-button>
-                    </div>
                   </div>
-                } @else {
-                  <!-- View Mode -->
-                  <div class="bucket-info">
-                    <span class="category-name">{{ getCategoryName(bucket) }}</span>
-                    <div class="bucket-stats">
-                      <span class="stat">
-                        <lucide-icon [img]="icons.scale" size="14"></lucide-icon>
-                        {{ formatWeight(bucket.outputWeightKg) }} kg
-                      </span>
-                      <span class="stat">
-                        <lucide-icon [img]="icons.hash" size="14"></lucide-icon>
-                        {{ bucket.outputCount }} items
-                      </span>
-                    </div>
-                  </div>
-                  
-                  @if (isEditable()) {
-                    <div class="bucket-actions">
-                      <button class="icon-btn" (click)="startEditBucket(bucket)" title="Edit">
-                        <lucide-icon [img]="icons.save" size="14"></lucide-icon>
-                      </button>
-                      <button class="icon-btn icon-btn--danger" (click)="confirmDeleteBucket(bucket.id)" title="Delete">
-                        <lucide-icon [img]="icons.trash" size="14"></lucide-icon>
-                      </button>
-                    </div>
-                  } @else if (canStartGrading(bucket)) {
-                    <!-- Session is CLOSED - show Start Grading button -->
-                    <div class="bucket-actions">
-                      <ui-button
-                        variant="primary"
-                        size="sm"
-                        [disabled]="startingGrading() === bucket.id"
-                        (clicked)="startGrading(bucket)"
-                        title="Start Grading (Stage 2)"
-                      >
-                        @if (startingGrading() === bucket.id) {
-                          <span>Starting...</span>
-                        } @else {
-                          <lucide-icon [img]="icons.play" size="14"></lucide-icon>
-                          <span>Start Grading</span>
-                        }
-                      </ui-button>
-                    </div>
-                  }
                 }
-              </div>
-            }
-          </div>
-        </ui-card>
-
-        <!-- Waste Bucket (Display-only - shows remaining weight) -->
-        <app-waste-bucket
-          [wasteWeight]="calculatedWaste()"
-          [wasteCount]="wasteCount()"
-          [editable]="false"
-          [maxWeight]="0"
-        ></app-waste-bucket>
-      </div>
-
-      <!-- Right Column: Totals -->
-      <div class="workspace-column">
-        <!-- Totals Panel -->
-        <ui-card class="totals-card">
-          <div class="card-header">
-            <h2 class="card-title">
-              <lucide-icon [img]="icons.checkCircle" size="18"></lucide-icon>
-              Session Totals
-            </h2>
-          </div>
-
-          <div class="totals-grid">
-            <div class="total-item">
-              <span class="total-label">Input Weight</span>
-              <span class="total-value font-mono">{{ formatWeight(session()!.totalInputWeight) }} kg</span>
-            </div>
-            
-            <div class="total-item">
-              <span class="total-label">Total Sorted</span>
-              <span class="total-value font-mono">{{ formatWeight(sortingTotals().totalSortedWeight) }} kg</span>
+              </app-stack>
             </div>
 
-            <div class="total-item">
-              <span class="total-label">Waste</span>
-              <span class="total-value font-mono total-value--waste">{{ formatWeight(calculatedWaste()) }} kg</span>
+            <!-- CENTER PANEL: Category Buckets (Dense Table) -->
+            <div slot="center">
+              <app-stack direction="vertical" spacing="sm">
+                <div class="panel-header">
+                  <h3 class="panel-title">Category Buckets</h3>
+                  <span class="panel-subtitle">{{ categoryBuckets().length }} categories</span>
+                </div>
+
+                @if (categoryBuckets().length === 0) {
+                  <app-empty-state
+                    title="No categories sorted yet"
+                    message="Click 'Add Category' to start sorting items into categories."
+                  />
+                } @else {
+                  <app-data-table
+                    title=""
+                    [columns]="bucketColumns"
+                    [data]="categoryBuckets()"
+                    [serverSide]="false"
+                    [enableSearch]="false"
+                    [externalPageSize]="50"
+                  >
+                    <ng-template #cellTemplate let-row let-column="column">
+                      @switch (column.key) {
+                        @case ('category') {
+                          <strong>{{ getCategoryName(row) }}</strong>
+                        }
+                        @case ('weight') {
+                          <span class="tabular-nums">{{ formatWeight(row.outputWeightKg) }} kg</span>
+                        }
+                        @case ('count') {
+                          <span class="tabular-nums">{{ row.outputCount }}</span>
+                        }
+                        @case ('actions') {
+                          @if (isEditable()) {
+                            <app-stack direction="horizontal" spacing="xs">
+                              <app-button 
+                                variant="secondary" 
+                                size="sm" 
+                                (clickEvent)="openEditCategoryModal(row)"
+                              >
+                                Edit
+                              </app-button>
+                              <app-button 
+                                variant="danger" 
+                                size="sm" 
+                                (clickEvent)="confirmDeleteBucket(row.id)"
+                              >
+                                Delete
+                              </app-button>
+                            </app-stack>
+                          } @else if (canStartGrading(row)) {
+                            <app-button 
+                              variant="primary" 
+                              size="sm" 
+                              [disabled]="startingGrading() === row.id"
+                              (clickEvent)="startGrading(row)"
+                            >
+                              {{ startingGrading() === row.id ? 'Starting...' : 'Start Grading' }}
+                            </app-button>
+                          }
+                        }
+                      }
+                    </ng-template>
+                  </app-data-table>
+                }
+              </app-stack>
             </div>
 
-            <div class="total-item">
-              <span class="total-label">Total Items</span>
-              <span class="total-value font-mono">{{ sortingTotals().totalItemCount }}</span>
-            </div>
+            <!-- RIGHT PANEL: Summary + Actions -->
+            <div slot="right">
+              <app-stack direction="vertical" spacing="sm">
+                <!-- Totals Card -->
+                <app-card>
+                  <app-stack direction="vertical" spacing="md">
+                    <h3 class="panel-title">Session Totals</h3>
 
-            <div class="total-item total-item--highlight">
-              <span class="total-label">Yield %</span>
-              <span class="total-value font-mono">{{ sortingTotals().yieldPercentage.toFixed(1) }}%</span>
-            </div>
-          </div>
+                    <div class="stats-grid">
+                      <div class="stat-item">
+                        <span class="stat-label">Input Weight</span>
+                        <span class="stat-value">{{ formatWeight(s.totalInputWeight) }} kg</span>
+                      </div>
 
-          <!-- Progress Bar -->
-          <div class="progress-section">
-            <div class="progress-header">
-              <span class="progress-label">Sorted Progress</span>
-              <span class="progress-value font-mono">{{ sortingTotals().yieldPercentage.toFixed(1) }}%</span>
-            </div>
-            <div class="progress-bar">
-              <div 
-                class="progress-fill" 
-                [class.progress-fill--complete]="sortingTotals().yieldPercentage >= 100"
-                [class.progress-fill--over]="sortingTotals().yieldPercentage > 100"
-                [style.width.%]="Math.min(sortingTotals().yieldPercentage, 100)"
-              ></div>
-            </div>
-            @if (sortingTotals().yieldPercentage > 100) {
-              <div class="progress-warning">
-                <lucide-icon [img]="icons.alertCircle" size="14"></lucide-icon>
-                Output exceeds input by {{ formatWeight(sortingTotals().totalSortedWeight - session()!.totalInputWeight) }} kg
-              </div>
-            }
-          </div>
-        </ui-card>
+                      <div class="stat-item">
+                        <span class="stat-label">Total Sorted</span>
+                        <span class="stat-value">{{ formatWeight(sortingTotals().totalSortedWeight) }} kg</span>
+                      </div>
 
-        <!-- Session Info -->
-        <ui-card class="info-card">
-          <div class="info-rows">
-            <div class="info-row">
-              <span class="info-label">Created</span>
-              <span class="info-value">{{ session()!.createdAt | date:'medium' }}</span>
+                      <div class="stat-item stat-item--danger">
+                        <span class="stat-label">Waste</span>
+                        <span class="stat-value">{{ formatWeight(calculatedWaste()) }} kg</span>
+                      </div>
+
+                      <div class="stat-item">
+                        <span class="stat-label">Total Items</span>
+                        <span class="stat-value">{{ sortingTotals().totalItemCount }}</span>
+                      </div>
+
+                      <div class="stat-item stat-item--highlight">
+                        <span class="stat-label">Yield %</span>
+                        <span class="stat-value">{{ sortingTotals().yieldPercentage.toFixed(1) }}%</span>
+                      </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="progress-section">
+                      <div class="progress-header">
+                        <span class="progress-label">Sorted Progress</span>
+                        <span class="progress-value">{{ sortingTotals().yieldPercentage.toFixed(1) }}%</span>
+                      </div>
+                      <div class="progress-bar-wrapper">
+                        <div 
+                          class="progress-bar-fill" 
+                          [style.width.%]="Math.min(sortingTotals().yieldPercentage, 100)"
+                          [class.progress-complete]="sortingTotals().yieldPercentage >= 100"
+                        ></div>
+                      </div>
+                      @if (sortingTotals().yieldPercentage > 100) {
+                        <div class="progress-warning">
+                          ⚠️ Output exceeds input by {{ formatWeight(sortingTotals().totalSortedWeight - s.totalInputWeight) }} kg
+                        </div>
+                      }
+                    </div>
+                  </app-stack>
+                </app-card>
+
+                <!-- Session Info Card -->
+                <app-card>
+                  <app-stack direction="vertical" spacing="sm">
+                    <h4 class="card-subtitle">Session Info</h4>
+                    <div class="info-rows">
+                      <div class="info-row">
+                        <span class="info-label">Created</span>
+                        <span class="info-value">{{ s.createdAt | date:'medium' }}</span>
+                      </div>
+                      @if (s.endTime) {
+                        <div class="info-row">
+                          <span class="info-label">Closed</span>
+                          <span class="info-value">{{ s.endTime | date:'medium' }}</span>
+                        </div>
+                      }
+                    </div>
+                  </app-stack>
+                </app-card>
+              </app-stack>
             </div>
-            @if (session()!.endTime) {
-              <div class="info-row">
-                <span class="info-label">Closed</span>
-                <span class="info-value">{{ session()!.endTime | date:'medium' }}</span>
-              </div>
-            }
-          </div>
-        </ui-card>
-      </div>
+          </app-workspace-3panel>
+        </app-section-body>
+      </app-section>
+    }
+  </app-page-body>
+</app-page>
+
+<!-- ================== MODALS ================== -->
+
+<!-- Add Category Modal -->
+<app-dialog
+  [open]="showAddCategoryModal()"
+  title="Add Category"
+  confirmText="Add"
+  cancelText="Cancel"
+  [loading]="modalSaving()"
+  (confirmed)="confirmAddCategory()"
+  (cancelled)="closeAddCategoryModal()"
+>
+  <app-stack direction="vertical" spacing="md">
+    <div class="form-field">
+      <label for="modal-category">Category *</label>
+      <select 
+        id="modal-category" 
+        class="form-select"
+        [value]="modalCategoryId()"
+        (change)="modalCategoryId.set($any($event.target).value)"
+      >
+        <option value="">Select Category</option>
+        @for (cat of availableCategories(); track cat.id) {
+          <option [value]="cat.id">{{ cat.name }}</option>
+        }
+      </select>
     </div>
-  }
-</div>
+
+    <div class="form-field">
+      <label for="modal-weight">Weight (kg) *</label>
+      <input 
+        id="modal-weight" 
+        type="number" 
+        class="form-input"
+        [value]="modalWeightKg()"
+        (input)="modalWeightKg.set(+$any($event.target).value)"
+        min="0.01"
+        step="0.01"
+        [max]="remainingWeight()"
+      />
+      <span class="field-hint">Available: {{ formatWeight(remainingWeight()) }} kg</span>
+    </div>
+
+    <div class="form-field">
+      <label for="modal-count">Count</label>
+      <input 
+        id="modal-count" 
+        type="number" 
+        class="form-input"
+        [value]="modalCount()"
+        (input)="modalCount.set(+$any($event.target).value)"
+        min="0"
+        step="1"
+      />
+    </div>
+
+    @if (modalWeightKg() > remainingWeight()) {
+      <div class="validation-error">
+        ⚠️ Weight exceeds remaining capacity ({{ formatWeight(remainingWeight()) }} kg available)
+      </div>
+    }
+  </app-stack>
+</app-dialog>
+
+<!-- Edit Category Modal -->
+<app-dialog
+  [open]="showEditCategoryModal()"
+  title="Edit Category"
+  confirmText="Save"
+  cancelText="Cancel"
+  [loading]="modalSaving()"
+  (confirmed)="confirmEditCategory()"
+  (cancelled)="closeEditCategoryModal()"
+>
+  <app-stack direction="vertical" spacing="md">
+    <div class="form-field">
+      <label>Category</label>
+      <input 
+        type="text" 
+        class="form-input" 
+        [value]="getModalCategoryName()" 
+        disabled 
+      />
+    </div>
+
+    <div class="form-field">
+      <label for="modal-weight-edit">Weight (kg) *</label>
+      <input 
+        id="modal-weight-edit" 
+        type="number" 
+        class="form-input"
+        [value]="modalWeightKg()"
+        (input)="modalWeightKg.set(+$any($event.target).value)"
+        min="0.01"
+        step="0.01"
+      />
+    </div>
+
+    <div class="form-field">
+      <label for="modal-count-edit">Count</label>
+      <input 
+        id="modal-count-edit" 
+        type="number" 
+        class="form-input"
+        [value]="modalCount()"
+        (input)="modalCount.set(+$any($event.target).value)"
+        min="0"
+        step="1"
+      />
+    </div>
+  </app-stack>
+</app-dialog>
 
 <!-- Close Session Confirmation -->
-<ui-confirm-dialog
+<app-dialog
   [open]="showCloseConfirm()"
   title="Close Sorting Session"
   message="Are you sure you want to close this session? This action cannot be undone. The session will become read-only."
+  variant="danger"
   confirmText="Close Session"
-  confirmVariant="primary"
+  cancelText="Cancel"
   (confirmed)="closeSession()"
   (cancelled)="showCloseConfirm.set(false)"
-></ui-confirm-dialog>
+/>
 
 <!-- Delete Bucket Confirmation -->
-<ui-confirm-dialog
+<app-dialog
   [open]="showDeleteConfirm()"
   title="Delete Category Bucket"
   message="Are you sure you want to delete this category bucket? This action cannot be undone."
+  variant="danger"
   confirmText="Delete"
-  confirmVariant="danger"
+  cancelText="Cancel"
   (confirmed)="deleteBucket()"
   (cancelled)="showDeleteConfirm.set(false)"
-></ui-confirm-dialog>
+/>

@@ -229,10 +229,28 @@
 }
 
 .bar {
+  width: 100%;
   height: 100%;
+  display: block;
+  border: none;
+  padding: 0;
+  background: transparent;
   border-radius: $radius-md;
-  background: linear-gradient(90deg, $amber-500, $amber-600);
-  transition: width 0.3s ease;
+  appearance: none;
+
+  &::-webkit-progress-bar {
+    background: transparent;
+  }
+
+  &::-webkit-progress-value {
+    background: linear-gradient(90deg, $amber-500, $amber-600);
+    border-radius: $radius-md;
+  }
+
+  &::-moz-progress-bar {
+    background: linear-gradient(90deg, $amber-500, $amber-600);
+    border-radius: $radius-md;
+  }
 }
 
 .bar-values {

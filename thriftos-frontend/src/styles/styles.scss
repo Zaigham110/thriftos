@@ -5,6 +5,9 @@
 // 1. Tailwind base, components, and utilities
 @use 'tailwind';
 
+// TalentOS semantic tokens (CSS variables + base layer)
+@use 'tokens';
+
 // 2. Design system variables (imported by other files)
 @use 'variables';
 

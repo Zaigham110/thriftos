@@ -1,0 +1,64 @@
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-breadcrumb [items]="breadcrumbs()" />
+      <h1 class="page-title">Edit Loose Bale</h1>
+      @if (bale(); as b) {
+        <p class="page-subtitle">{{ b.baleCode }}</p>
+      }
+    </app-stack>
+
+    <div class="actions">
+      <app-button variant="secondary" (click)="onCancel()">Cancel</app-button>
+    </div>
+  </app-page-header>
+
+  <app-page-body>
+    @if (loading()) {
+      <app-loading message="Loading bale…" />
+    } @else if (error()) {
+      <app-error-state title="Failed" [message]="error()!" [action]="true">
+        <app-button action variant="secondary" (click)="loadBale()">Retry</app-button>
+      </app-error-state>
+    } @else if (bale(); as b) {
+      @if (!canEdit()) {
+        <app-card>
+          <app-stack direction="vertical" spacing="md">
+            <p class="text-warning">{{ editBlockedMessage() }}</p>
+            <app-button variant="secondary" (click)="onCancel()">Back to Bale</app-button>
+          </app-stack>
+        </app-card>
+      } @else {
+        <app-card>
+          <app-form
+            [formGroup]="form"
+            (submitted)="onSubmit()"
+            title="Edit Loose Bale"
+            subtitle="Update weight, cost, or category. Cannot edit after sorting."
+          >
+            <app-form-field label="Raw Category" [required]="true">
+              <app-select formControlName="rawCategoryId" [options]="categoryOptions()" />
+            </app-form-field>
+
+            <app-form-field label="Weight (kg)" [required]="true">
+              <app-input type="number" formControlName="weightKg" />
+            </app-form-field>
+
+            <app-form-field label="Cost" [required]="true" [hint]="b.purchaseOrder ? 'Currency: ' + b.purchaseOrder.currency : ''">
+              <app-input type="number" formControlName="cost" />
+            </app-form-field>
+
+            <app-stack direction="horizontal" spacing="sm">
+              <app-button variant="secondary" type="button" (click)="onCancel()" [disabled]="actionLoading()">
+                Cancel
+              </app-button>
+              <app-button variant="primary" type="submit" [disabled]="form.invalid || actionLoading()">
+                Save Changes
+              </app-button>
+            </app-stack>
+          </app-form>
+        </app-card>
+      }
+    }
+  </app-page-body>
+</app-page>

@@ -52,6 +52,7 @@ export declare class PurchaseOrderController {
         currency: string;
         status: import("@prisma/client").$Enums.PurchaseOrderStatus;
         poType: import("@prisma/client").$Enums.PurchaseOrderType;
+        budgetCap: import("@prisma/client/runtime/library").Decimal | null;
         vendorId: string | null;
         poNumber: string;
         totalCost: import("@prisma/client/runtime/library").Decimal;
@@ -80,6 +81,7 @@ export declare class PurchaseOrderController {
             currency: string;
             status: import("@prisma/client").$Enums.PurchaseOrderStatus;
             poType: import("@prisma/client").$Enums.PurchaseOrderType;
+            budgetCap: import("@prisma/client/runtime/library").Decimal | null;
             vendorId: string | null;
             poNumber: string;
             totalCost: import("@prisma/client/runtime/library").Decimal;
@@ -147,6 +149,7 @@ export declare class PurchaseOrderController {
         currency: string;
         status: import("@prisma/client").$Enums.PurchaseOrderStatus;
         poType: import("@prisma/client").$Enums.PurchaseOrderType;
+        budgetCap: import("@prisma/client/runtime/library").Decimal | null;
         vendorId: string | null;
         poNumber: string;
         totalCost: import("@prisma/client/runtime/library").Decimal;
@@ -196,6 +199,7 @@ export declare class PurchaseOrderController {
         currency: string;
         status: import("@prisma/client").$Enums.PurchaseOrderStatus;
         poType: import("@prisma/client").$Enums.PurchaseOrderType;
+        budgetCap: import("@prisma/client/runtime/library").Decimal | null;
         vendorId: string | null;
         poNumber: string;
         totalCost: import("@prisma/client/runtime/library").Decimal;
@@ -245,6 +249,7 @@ export declare class PurchaseOrderController {
         currency: string;
         status: import("@prisma/client").$Enums.PurchaseOrderStatus;
         poType: import("@prisma/client").$Enums.PurchaseOrderType;
+        budgetCap: import("@prisma/client/runtime/library").Decimal | null;
         vendorId: string | null;
         poNumber: string;
         totalCost: import("@prisma/client/runtime/library").Decimal;
@@ -294,6 +299,7 @@ export declare class PurchaseOrderController {
         currency: string;
         status: import("@prisma/client").$Enums.PurchaseOrderStatus;
         poType: import("@prisma/client").$Enums.PurchaseOrderType;
+        budgetCap: import("@prisma/client/runtime/library").Decimal | null;
         vendorId: string | null;
         poNumber: string;
         totalCost: import("@prisma/client/runtime/library").Decimal;

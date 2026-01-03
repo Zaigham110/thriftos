@@ -1,7 +1,9 @@
 import { PrismaService } from '../../prisma/prisma.service';
+import { ReportsConsistencyService } from '../common/reports-consistency.service';
 export declare class CostReportsService {
-    private prisma;
-    constructor(prisma: PrismaService);
+    private readonly prisma;
+    private readonly consistency;
+    constructor(prisma: PrismaService, consistency: ReportsConsistencyService);
     costCascade(tenantId: string, filters: {
         startDate?: string;
         endDate?: string;
@@ -9,31 +11,31 @@ export declare class CostReportsService {
         gradeId?: string;
         warehouseId?: string;
     }): Promise<{
-        steps: ({
-            stage: string;
-            totalCost: string;
-            totalWeightKg: string;
-            avgCostPerKg: string;
-            totalPcs?: undefined;
-            lockedCost?: undefined;
-            totalKg?: undefined;
-        } | {
-            stage: string;
-            totalCost: string;
-            totalWeightKg: string;
-            totalPcs: number;
-            avgCostPerKg: string;
-            lockedCost?: undefined;
-            totalKg?: undefined;
-        } | {
-            stage: string;
-            lockedCost: string;
-            totalKg: string;
-            totalPcs: number;
-            totalCost?: undefined;
-            totalWeightKg?: undefined;
-            avgCostPerKg?: undefined;
-        })[];
+        procurement: {
+            totalCost: number;
+            weightKg: number;
+            costPerKg: number;
+        };
+        sorting: {
+            totalCost: number;
+            weightKg: number;
+            costPerKg: number;
+        };
+        grading: {
+            totalCost: number;
+            weightKg: number;
+            costPerKg: number;
+        };
+        repack: {
+            totalCost: number;
+            weightKg: number;
+            costPerKg: number;
+        };
+        final: {
+            totalCost: number;
+            weightKg: number;
+            costPerKg: number;
+        };
     }>;
     profitabilityReadiness(tenantId: string, filters: {
         startDate?: string;
@@ -42,29 +44,46 @@ export declare class CostReportsService {
         gradeId?: string;
         warehouseId?: string;
     }): Promise<{
-        perKg: {
+        data: {
             categoryId: string;
+            categoryName: string;
             gradeId: string;
-            totalKg: string;
-            totalCost: string;
-            avgCostPerKg: string;
+            gradeName: string;
+            unitsReady: number;
+            totalWeightKg: number;
+            totalCost: number;
+            avgCostPerKg: number;
         }[];
-        perPcs: {
-            categoryId: string;
-            gradeId: string;
-            totalPcs: number;
-            totalCost: string;
-            avgCostPerPcs: string;
-        }[];
-        perSku: {
-            skuKey: string;
+    }>;
+    finalProductCostReport(tenantId: string, filters: {
+        startDate?: string;
+        endDate?: string;
+        categoryId?: string;
+        gradeId?: string;
+    }): Promise<{
+        data: {
+            repackUnitId: string;
+            productCode: string;
             unitType: string;
             categoryId: string;
+            category: string;
             gradeId: string;
-            units: number;
-            totalCost: string;
-            totalWeightKg: string;
-            totalPcs: number;
+            grade: string;
+            totalWeightKg: number;
+            totalQty: number;
+            totalCost: number;
+            repackUnitTotalCost: number;
+            costPerKg: number;
+            costPerUnit: number;
+            sourceContainers: number;
+            sourceBales: number;
+            allocationsCount: number;
+            dateSealed: string;
         }[];
+        summary: {
+            totalUnits: number;
+            totalWeightKg: number;
+            totalCost: number;
+        };
     }>;
 }

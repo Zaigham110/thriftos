@@ -109,8 +109,8 @@
 // Traceability Card
 .traceability-card {
   margin-bottom: 1.5rem;
-  background: linear-gradient(135deg, rgba($primary, 0.02), transparent);
-  border: 1px solid rgba($primary, 0.1);
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.02), transparent);
+  border: 1px solid hsl(var(--ring) / 0.2);
 }
 
 .traceability-header {
@@ -320,7 +320,7 @@
       &:focus {
         outline: none;
         border-color: $primary;
-        box-shadow: 0 0 0 2px rgba($primary, 0.1);
+        box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
       }
     }
 
@@ -353,7 +353,7 @@
 // Waste Card
 .waste-card {
   border: 2px solid $red-100;
-  background-color: rgba($status-danger, 0.02);
+  background-color: hsl(var(--destructive) / 0.04);
 }
 
 .waste-header {
@@ -422,7 +422,7 @@
 
   &--highlight {
     background-color: $blue-50;
-    border: 1px solid rgba($primary, 0.2);
+    border: 1px solid hsl(var(--ring) / 0.35);
   }
 
   .total-label {
@@ -468,10 +468,27 @@
 }
 
 .progress-fill {
+  width: 100%;
   height: 100%;
+  display: block;
+  border: none;
+  padding: 0;
+  background: transparent;
+  appearance: none;
+}
+
+.progress-fill::-webkit-progress-bar {
+  background: transparent;
+}
+
+.progress-fill::-webkit-progress-value {
   background: linear-gradient(90deg, $primary, $blue-600);
   border-radius: 4px;
-  transition: width 0.3s ease;
+}
+
+.progress-fill::-moz-progress-bar {
+  background: linear-gradient(90deg, $primary, $blue-600);
+  border-radius: 4px;
 }
 
 // Breakdown Card
