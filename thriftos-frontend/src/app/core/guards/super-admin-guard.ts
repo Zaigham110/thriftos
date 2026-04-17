@@ -24,7 +24,7 @@ export const superAdminGuard: CanActivateFn = (
     take(1),
     map(() => {
       if (!authService.isAuthenticated()) {
-        return router.createUrlTree(['/login'], {
+        return router.createUrlTree(['/auth/login'], {
           queryParams: { returnUrl: state.url },
         });
       }
@@ -33,8 +33,7 @@ export const superAdminGuard: CanActivateFn = (
         return true;
       }
 
-      // Redirect to 403 page for unauthorized access
-      return router.createUrlTree(['/error/403']);
+      return router.createUrlTree(['/auth/unauthorized']);
     })
   );
 };

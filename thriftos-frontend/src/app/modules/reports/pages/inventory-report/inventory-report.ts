@@ -10,6 +10,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReportsService } from '../../reports.service';
+import { MoneyService } from '../../../../core/money/money.service';
 import { InventorySnapshotResponse, InventoryAgingResponse, ReportFilters, InventorySnapshotRow, InventoryAgingRow } from '../../reports.models';
 import { ReportFiltersComponent } from '../../shared/report-filters.component';
 import {
@@ -51,6 +52,7 @@ import {
 })
 export class InventoryReportComponent implements OnInit {
   private readonly reportsService = inject(ReportsService);
+  private readonly money = inject(MoneyService);
 
   readonly breadcrumbs = [
     { label: 'Reports', link: '/reports' },
@@ -63,6 +65,9 @@ export class InventoryReportComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly activeView = signal<'snapshot' | 'aging'>('snapshot');
   readonly searchText = signal<string>('');
+  readonly categories = signal<{ id: string; name: string }[]>([]);
+  readonly grades = signal<{ id: string; name: string }[]>([]);
+  readonly warehouses = signal<{ id: string; name: string }[]>([]);
   protected currentFilters: ReportFilters = {};
 
   readonly snapshotColumns: DataTableColumn[] = [
@@ -87,6 +92,18 @@ export class InventoryReportComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.reportsService.loadFilterLookups().subscribe({
+      next: (lookups) => {
+        this.categories.set(lookups.categories);
+        this.grades.set(lookups.grades);
+        this.warehouses.set(lookups.warehouses);
+      },
+      error: () => {
+        this.categories.set([]);
+        this.grades.set([]);
+        this.warehouses.set([]);
+      },
+    });
     this.loadData();
   }
 
@@ -161,11 +178,7 @@ export class InventoryReportComponent implements OnInit {
   formatCurrency(value: unknown): string {
     const n = this.toNumber(value);
     if (n === null) return '—';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(n);
+    return this.money.format(n, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   getStatusClass(status: string): string {

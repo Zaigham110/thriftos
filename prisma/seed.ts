@@ -500,6 +500,7 @@ async function main() {
       etd: new Date('2024-12-28T00:00:00.000Z'),
       arrivedAt: new Date('2025-01-14T00:00:00.000Z'),
       grossWeight: 5500.0,
+      tareWeight: 500.0,
       netWeight: 5000.0,
       billOfLadingNumber: 'BL-0001',
       shipmentReference: 'SHIP-0001',

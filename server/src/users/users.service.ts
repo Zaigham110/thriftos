@@ -115,9 +115,26 @@ export class UsersService {
       throw new NotFoundException(`User not found`);
     }
 
+    if (dto.isActive === false && id === updaterUserId) {
+      throw new BadRequestException(`Cannot deactivate yourself`);
+    }
+
+    if (dto.email && dto.email.toLowerCase() !== user.email) {
+      const existing = await this.prisma.user.findFirst({
+        where: { tenantId, email: dto.email.toLowerCase(), id: { not: id } },
+      });
+      if (existing) {
+        throw new BadRequestException(`User with email "${dto.email}" already exists`);
+      }
+    }
+
     const updated = await this.prisma.user.update({
       where: { id },
-      data: dto,
+      data: {
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.email !== undefined && { email: dto.email.toLowerCase() }),
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+      },
       select: this.userSelect,
     });
 

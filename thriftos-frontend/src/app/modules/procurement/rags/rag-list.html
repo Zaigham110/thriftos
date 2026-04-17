@@ -86,7 +86,7 @@
             <span class="tabular-nums">{{ row.weightKg | number:'1.2-2' }}</span>
           }
           @case ('allocatedCost') {
-            <span class="tabular-nums">{{ row.allocatedCost | currency:currencyCode():'symbol':'1.2-2' }}</span>
+            <span class="tabular-nums">{{ row.allocatedCost | money:{ minimumFractionDigits: 2, maximumFractionDigits: 2 } }}</span>
           }
           @case ('status') {
             <app-badge [variant]="getStatusBadgeVariant(row.status)">{{ getStatusLabel(row.status) }}</app-badge>

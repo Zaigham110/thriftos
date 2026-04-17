@@ -17,6 +17,7 @@ import { ContainerStatus } from '@prisma/client';
 import { ContainerService } from './container.service';
 import { CreateContainerDto } from './dto/create-container.dto';
 import { UpdateContainerDto } from './dto/update-container.dto';
+import { UpdateContainerWeightsDto } from './dto/update-container-weights.dto';
 import { UpdateContainerStatusDto } from './dto/update-container-status.dto';
 import { CreateContainerChargeDto } from './dto/create-container-charge.dto';
 import { TenantGuard } from '../../common/guards/tenant.guard';
@@ -76,6 +77,18 @@ export class ContainerController {
   ) {
     const tenantId = (req as any).tenantId || user.tenantId;
     return this.containerService.update(tenantId, id, dto, user.userId);
+  }
+
+  @Patch(':id/weights')
+  @RequirePermissions('container.update')
+  async updateWeights(
+    @Param('id') id: string,
+    @Body() dto: UpdateContainerWeightsDto,
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+  ) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    return this.containerService.updateWeights(tenantId, id, dto, user.userId);
   }
 
   @Patch(':id/status')

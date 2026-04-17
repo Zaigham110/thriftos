@@ -32,6 +32,8 @@ export const API_ENDPOINTS = {
   me: `${API_BASE_URL}/me`,
   superadmin: `${API_BASE_URL}/superadmin`,
   procurement: `${API_BASE_URL}/procurement`,
+  sales: `${API_BASE_URL}/sales`,
+  customers: `${API_BASE_URL}/customers`,
   sortingStage1: `${API_BASE_URL}/sorting/stage1`,
   sortingStage2: `${API_BASE_URL}/sorting/stage2`,
   sortingFacadeStage1: `${API_BASE_URL}/sorting/stage-1`,

@@ -250,12 +250,12 @@ export class AuthService {
     return this.http.post<void>(`${API_ENDPOINTS.auth}/logout`, { refreshToken }).pipe(
       tap(() => {
         this.clearAuthState();
-        this.router.navigate(['/login']);
+        this.router.navigate(['/auth/login']);
       }),
       catchError(() => {
         // Clear state even if API call fails
         this.clearAuthState();
-        this.router.navigate(['/login']);
+        this.router.navigate(['/auth/login']);
         return of(undefined);
       })
     );
@@ -277,7 +277,7 @@ export class AuthService {
       map((response) => response.accessToken),
       catchError((error) => {
         this.clearAuthState();
-        this.router.navigate(['/login']);
+        this.router.navigate(['/auth/login']);
         return throwError(() => error);
       })
     );
@@ -318,7 +318,10 @@ export class AuthService {
       .post<ImpersonationResponse>(`${API_ENDPOINTS.superadmin}/tenants/${tenantId}/impersonate`, {})
       .pipe(
         tap((response) => {
-          this.tokenService.setAccessToken(response.accessToken);
+          const token = response.impersonationToken || response.accessToken;
+          if (token) {
+            this.tokenService.setAccessToken(token);
+          }
           if (response.refreshToken) {
             this.tokenService.setRefreshToken(response.refreshToken);
           }
@@ -379,7 +382,7 @@ export class AuthService {
         impersonationReady: true,
       });
       this.tokenService.clearImpersonationContext();
-      this.router.navigate(['/admin/super/tenants']);
+      this.router.navigate(['/admin/tenants']);
       return of(void 0);
     }
     
@@ -389,7 +392,7 @@ export class AuthService {
         this.tokenService.clearImpersonationContext();
         this._state.update(s => ({ ...s, isImpersonating: false, impersonationReady: true }));
         this.impersonationReady$.next(true);
-        this.router.navigate(['/admin/super/tenants']);
+        this.router.navigate(['/admin/tenants']);
       }),
       map(() => void 0),
       catchError((error) => this.handleAuthError(error))

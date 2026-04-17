@@ -87,8 +87,9 @@ export class PurchaseOrderAddContainerComponent implements OnInit {
       arrivedAt: [''],
       clearedAt: [''],
       releasedAt: [''],
-      grossWeight: [0, [Validators.required, Validators.min(0)]],
-      netWeight: [0, [Validators.required, Validators.min(0)]],
+      grossWeightKg: [0, [Validators.required, Validators.min(0)]],
+      netWeightKg: [0, [Validators.required, Validators.min(0)]],
+      tareWeightKg: [null, [Validators.min(0)]],
       billOfLadingNumber: ['', Validators.maxLength(50)],
       shipmentReference: ['', Validators.maxLength(50)],
       shippingLine: ['', Validators.maxLength(50)],
@@ -134,6 +135,9 @@ export class PurchaseOrderAddContainerComponent implements OnInit {
 
     this.actionLoading.set(true);
 
+    const rawTare = this.form.value.tareWeightKg;
+    const tareWeightKg = rawTare === '' || rawTare === null || rawTare === undefined ? undefined : Number(rawTare);
+
     const data: CreateContainerRequest = {
       purchaseOrderId: po.id,
       referenceNumber: this.form.value.referenceNumber?.trim() || undefined,
@@ -143,8 +147,9 @@ export class PurchaseOrderAddContainerComponent implements OnInit {
       arrivedAt: this.normalizeDate(this.form.value.arrivedAt),
       clearedAt: this.normalizeDate(this.form.value.clearedAt),
       releasedAt: this.normalizeDate(this.form.value.releasedAt),
-      grossWeight: Number(this.form.value.grossWeight),
-      netWeight: Number(this.form.value.netWeight),
+      grossWeightKg: Number(this.form.value.grossWeightKg),
+      netWeightKg: Number(this.form.value.netWeightKg),
+      tareWeightKg,
       billOfLadingNumber: this.form.value.billOfLadingNumber?.trim() || undefined,
       shipmentReference: this.form.value.shipmentReference?.trim() || undefined,
       shippingLine: this.form.value.shippingLine?.trim() || undefined,

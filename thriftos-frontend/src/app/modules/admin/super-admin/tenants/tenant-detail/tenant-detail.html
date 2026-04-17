@@ -1,131 +1,96 @@
-<div class="tenant-detail-page">
-  <!-- Back Link -->
-  <a routerLink="/admin/super/tenants" class="back-link">
-    <lucide-icon [img]="icons.ArrowLeft" [size]="16"></lucide-icon>
-    Back to Tenants
-  </a>
+<app-page>
+  <app-page-header>
+    <app-stack direction="vertical" spacing="xs">
+      <app-link [routerLink]="['/admin/tenants']">Back to Tenants</app-link>
+      @if (tenant()) {
+        <h1 class="page-title">{{ tenant()!.name }}</h1>
+        <p class="page-subtitle">{{ tenant()!.companyCode }}</p>
+      } @else {
+        <h1 class="page-title">Tenant</h1>
+        <p class="page-subtitle">Details</p>
+      }
+    </app-stack>
 
-  <!-- Error State -->
-  @if (error()) {
-    <ui-alert variant="danger">{{ error() }}</ui-alert>
-  }
-
-  <!-- Loading State -->
-  @if (isLoading()) {
-    <ui-card>
-      <div class="loading-content">
-        <ui-skeleton width="200px" height="24px"></ui-skeleton>
-        <ui-skeleton width="100px" height="20px"></ui-skeleton>
-        <div class="loading-grid">
-          <ui-skeleton width="100%" height="60px"></ui-skeleton>
-          <ui-skeleton width="100%" height="60px"></ui-skeleton>
-          <ui-skeleton width="100%" height="60px"></ui-skeleton>
-          <ui-skeleton width="100%" height="60px"></ui-skeleton>
-        </div>
-      </div>
-    </ui-card>
-  }
-
-  <!-- Tenant Details -->
-  @if (!isLoading() && tenant()) {
-    <div class="page-header">
-      <div class="page-title-section">
-        <div class="title-row">
-          <h1 class="page-title">{{ tenant()!.name }}</h1>
-          <ui-badge [variant]="getStatusBadgeType(tenant()!.status)">
-            {{ tenant()!.status }}
-          </ui-badge>
-        </div>
-        <p class="company-code">{{ tenant()!.companyCode }}</p>
-      </div>
-      <div class="page-actions">
-        <ui-button variant="secondary" size="sm" (clicked)="openEditDrawer()">
-          <lucide-icon [img]="icons.Pencil" [size]="16"></lucide-icon>
-          Edit
-        </ui-button>
+    @if (tenant()) {
+      <div class="actions">
+        <app-button variant="secondary" (click)="openEditDrawer()">Edit</app-button>
         @if (tenant()!.status === 'ACTIVE') {
-          <ui-button variant="secondary" size="sm" (clicked)="confirmToggleStatus()">
-            <lucide-icon [img]="icons.PowerOff" [size]="16"></lucide-icon>
-            Deactivate
-          </ui-button>
-          <ui-button variant="danger" size="sm" (clicked)="confirmImpersonate()">
-            <lucide-icon [img]="icons.UserCog" [size]="16"></lucide-icon>
-            Impersonate
-          </ui-button>
+          <app-button variant="secondary" (click)="confirmToggleStatus()">Deactivate</app-button>
+          <app-button variant="danger" (click)="confirmImpersonate()">Impersonate</app-button>
         } @else {
-          <ui-button variant="primary" size="sm" (clicked)="confirmToggleStatus()">
-            <lucide-icon [img]="icons.Power" [size]="16"></lucide-icon>
-            Activate
-          </ui-button>
+          <app-button variant="primary" (click)="confirmToggleStatus()">Activate</app-button>
         }
       </div>
-    </div>
+    }
+  </app-page-header>
 
-    <ui-card title="Tenant Information">
-      <div class="detail-grid">
-        <div class="detail-item">
-          <span class="detail-label">Company Name</span>
-          <span class="detail-value">{{ tenant()!.name }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">Company Code</span>
-          <span class="detail-value code">{{ tenant()!.companyCode }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">Currency</span>
-          <span class="detail-value">{{ tenant()!.currency }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">Locale</span>
-          <span class="detail-value">{{ tenant()!.locale }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">Status</span>
-          <span class="detail-value">
-            <ui-badge [variant]="getStatusBadgeType(tenant()!.status)" size="sm">
-              {{ tenant()!.status }}
-            </ui-badge>
-          </span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">Created</span>
-          <span class="detail-value">{{ tenant()!.createdAt | date:'medium' }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">Last Updated</span>
-          <span class="detail-value">{{ tenant()!.updatedAt | date:'medium' }}</span>
-        </div>
-      </div>
-    </ui-card>
-  }
+  <app-page-body>
+    @if (error()) {
+      <app-error-state title="Failed to load tenant" [message]="error()!" />
+    }
 
-  <!-- Edit Drawer -->
-  @if (showEditDrawer()) {
-    <app-tenant-form-drawer
-      [tenant]="tenant()"
-      (closed)="closeEditDrawer()"
-      (saved)="onDrawerSaved()"
-    ></app-tenant-form-drawer>
-  }
+    @if (isLoading()) {
+      <app-loading message="Loading tenant…" />
+    }
 
-  <!-- Confirmation Modal -->
-  @if (showConfirmModal()) {
-    <ui-modal
+    @if (!isLoading() && tenant()) {
+      <app-section>
+        <app-section-header>
+          <h2 class="section-title">Tenant Information</h2>
+          <div class="actions">
+            <app-badge [variant]="getStatusBadgeType(tenant()!.status)">{{ tenant()!.status }}</app-badge>
+          </div>
+        </app-section-header>
+        <app-section-body>
+          <app-card variant="data">
+            <div class="detail-grid">
+              <div class="detail-item">
+                <div class="detail-label">Company Name</div>
+                <div class="detail-value">{{ tenant()!.name }}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Company Code</div>
+                <div class="detail-value">{{ tenant()!.companyCode }}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Currency</div>
+                <div class="detail-value">{{ tenant()!.currencyCode }}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Locale</div>
+                <div class="detail-value">{{ tenant()!.locale }}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Created</div>
+                <div class="detail-value">{{ tenant()!.createdAt | date:'medium' }}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Last Updated</div>
+                <div class="detail-value">{{ tenant()!.updatedAt | date:'medium' }}</div>
+              </div>
+            </div>
+          </app-card>
+        </app-section-body>
+      </app-section>
+    }
+
+    @if (showEditDrawer()) {
+      <app-tenant-form-drawer
+        [tenant]="tenant()"
+        (closed)="closeEditDrawer()"
+        (saved)="onDrawerSaved()"
+      ></app-tenant-form-drawer>
+    }
+
+    <app-dialog
+      [open]="showConfirmModal()"
       [title]="getConfirmTitle()"
-      [isOpen]="true"
-      (closed)="closeConfirmModal()"
-    >
-      <p class="confirm-message">{{ getConfirmMessage() }}</p>
-      <div class="modal-footer" slot="footer">
-        <ui-button variant="ghost" (clicked)="closeConfirmModal()">Cancel</ui-button>
-        <ui-button
-          [variant]="getConfirmButtonVariant()"
-          [loading]="isActionLoading()"
-          (clicked)="executeConfirmedAction()"
-        >
-          {{ getConfirmButtonText() }}
-        </ui-button>
-      </div>
-    </ui-modal>
-  }
-</div>
+      [message]="getConfirmMessage()"
+      [confirmText]="getConfirmButtonText()"
+      [variant]="getConfirmButtonVariant() === 'danger' ? 'danger' : 'default'"
+      [loading]="isActionLoading()"
+      (cancelled)="closeConfirmModal()"
+      (confirmed)="executeConfirmedAction()"
+    />
+  </app-page-body>
+</app-page>

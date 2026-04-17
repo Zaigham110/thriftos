@@ -50,10 +50,8 @@ export class VendorFormDrawerComponent {
   constructor() {
     this.form = this.fb.group({
       name: ['', [Validators.required, Validators.minLength(2)]],
-      contactPerson: [''],
-      email: ['', [Validators.email]],
-      phone: [''],
-      address: [''],
+      country: [''],
+      contactInfo: [''],
     });
 
     // Watch for vendor changes to reset form
@@ -62,10 +60,8 @@ export class VendorFormDrawerComponent {
       if (currentVendor) {
         this.form.patchValue({
           name: currentVendor.name,
-          contactPerson: currentVendor.contactPerson || '',
-          email: currentVendor.email || '',
-          phone: currentVendor.phone || '',
-          address: currentVendor.address || '',
+          country: currentVendor.country || '',
+          contactInfo: currentVendor.contactInfo || '',
         });
       } else {
         this.form.reset();
@@ -97,29 +93,24 @@ export class VendorFormDrawerComponent {
 
     const formValue = this.form.value;
 
-    // Note: Backend only supports create, not update for vendors
-    // For edit mode, we'll just close the drawer
-    if (this.isEditMode) {
-      // TODO: Implement vendor update when backend supports it
-      this.saving.set(false);
-      this.formError.set('Vendor updates are not yet supported');
-      return;
-    }
-
-    this.adminService.createVendor({
+    const payload = {
       name: formValue.name,
-      contactPerson: formValue.contactPerson || undefined,
-      email: formValue.email || undefined,
-      phone: formValue.phone || undefined,
-      address: formValue.address || undefined,
-    }).subscribe({
+      country: formValue.country || undefined,
+      contactInfo: formValue.contactInfo || undefined,
+    };
+
+    const request$ = this.isEditMode
+      ? this.adminService.updateVendor(this.vendor()!.id, payload)
+      : this.adminService.createVendor(payload);
+
+    request$.subscribe({
       next: () => {
         this.saving.set(false);
         this.saved.emit();
       },
       error: (err) => {
         this.saving.set(false);
-        this.formError.set(err.message || 'Failed to create vendor');
+        this.formError.set(err.message || (this.isEditMode ? 'Failed to update vendor' : 'Failed to create vendor'));
       },
     });
   }
@@ -128,7 +119,6 @@ export class VendorFormDrawerComponent {
     const control = this.form.get(fieldName);
     if (control?.errors && control.touched) {
       if (control.errors['required']) return `${fieldName} is required`;
-      if (control.errors['email']) return 'Invalid email address';
       if (control.errors['minlength']) {
         const min = control.errors['minlength'].requiredLength;
         return `Minimum ${min} characters required`;

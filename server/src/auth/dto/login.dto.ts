@@ -21,6 +21,8 @@ export class LoginResponseDto {
     name: string;
     tenantId: string | null;
     isSuperAdmin: boolean;
+    role?: 'SUPERADMIN' | 'TENANT_USER';
+    tenants?: Array<{ id: string; name: string }>;
   };
 }
 

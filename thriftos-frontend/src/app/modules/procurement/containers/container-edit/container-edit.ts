@@ -2,9 +2,10 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { forkJoin } from 'rxjs';
 
 import { ProcurementService } from '../../procurement.service';
-import { Container, UpdateContainerRequest } from '../../procurement.models';
+import { Container, UpdateContainerRequest, UpdateContainerWeightsRequest } from '../../procurement.models';
 
 import {
   AppBreadcrumbComponent,
@@ -88,8 +89,8 @@ export class ContainerEditComponent implements OnInit {
       arrivedAt: [''],
       clearedAt: [''],
       releasedAt: [''],
-      grossWeight: [0, [Validators.required, Validators.min(0)]],
-      netWeight: [0, [Validators.required, Validators.min(0)]],
+      grossWeightKg: [null, [Validators.min(0)]],
+      tareWeightKg: [null, [Validators.min(0)]],
       billOfLadingNumber: ['', Validators.maxLength(50)],
       shipmentReference: ['', Validators.maxLength(50)],
       shippingLine: ['', Validators.maxLength(50)],
@@ -125,8 +126,8 @@ export class ContainerEditComponent implements OnInit {
           arrivedAt: this.formatDate(container.arrivedAt),
           clearedAt: this.formatDate(container.clearedAt),
           releasedAt: this.formatDate(container.releasedAt),
-          grossWeight: container.grossWeight,
-          netWeight: container.netWeight,
+          grossWeightKg: container.grossWeight,
+          tareWeightKg: container.tareWeight ?? null,
           billOfLadingNumber: container.billOfLadingNumber || '',
           shipmentReference: container.shipmentReference || '',
           shippingLine: container.shippingLine || '',
@@ -162,8 +163,6 @@ export class ContainerEditComponent implements OnInit {
       arrivedAt: this.normalizeDate(this.form.value.arrivedAt),
       clearedAt: this.normalizeDate(this.form.value.clearedAt),
       releasedAt: this.normalizeDate(this.form.value.releasedAt),
-      grossWeight: Number(this.form.value.grossWeight),
-      netWeight: Number(this.form.value.netWeight),
       billOfLadingNumber: this.form.value.billOfLadingNumber?.trim() || undefined,
       shipmentReference: this.form.value.shipmentReference?.trim() || undefined,
       shippingLine: this.form.value.shippingLine?.trim() || undefined,
@@ -174,7 +173,31 @@ export class ContainerEditComponent implements OnInit {
       notes: this.form.value.notes?.trim() || undefined,
     };
 
-    this.procurementService.updateContainer(container.id, data).subscribe({
+    const rawGross = this.form.value.grossWeightKg;
+    const rawTare = this.form.value.tareWeightKg;
+    const grossWeightKg = rawGross === '' || rawGross === null || rawGross === undefined ? undefined : Number(rawGross);
+    const tareWeightKg = rawTare === '' || rawTare === null || rawTare === undefined ? undefined : Number(rawTare);
+
+    const requests = [this.procurementService.updateContainer(container.id, data)];
+
+    if (grossWeightKg !== undefined || tareWeightKg !== undefined) {
+      if (grossWeightKg === undefined || tareWeightKg === undefined) {
+        this.error.set('To update weights, both gross weight and tare weight are required');
+        this.actionLoading.set(false);
+        return;
+      }
+
+      const currentGross = Number(container.grossWeight);
+      const currentTare = container.tareWeight === null || container.tareWeight === undefined ? null : Number(container.tareWeight);
+      const hasChanged = grossWeightKg !== currentGross || tareWeightKg !== currentTare;
+
+      if (hasChanged) {
+        const weights: UpdateContainerWeightsRequest = { grossWeightKg, tareWeightKg };
+        requests.push(this.procurementService.updateContainerWeights(container.id, weights));
+      }
+    }
+
+    forkJoin(requests).subscribe({
       next: () => {
         this.actionLoading.set(false);
         this.router.navigate(['/procurement/containers', container.id]);

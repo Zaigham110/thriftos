@@ -7,7 +7,7 @@ import {
   input,
   ChangeDetectionStrategy,
 } from '@angular/core';
-import { CommonModule, CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
 import { Router } from '@angular/router';
 
 import { RagService } from './rag.service';
@@ -25,15 +25,16 @@ import {
   AppStackComponent,
   type DataTableColumn,
 } from '../../../shared/ui';
+import { MoneyPipe } from '../../../core/money/money.pipe';
 
 @Component({
   selector: 'app-rag-list',
   standalone: true,
   imports: [
     CommonModule,
-    CurrencyPipe,
     DatePipe,
     DecimalPipe,
+    MoneyPipe,
     AppStackComponent,
     AppCardComponent,
     AppDataTableComponent,
@@ -84,8 +85,6 @@ export class RagListComponent implements OnInit {
   readonly isContainerClosed = computed(() => {
     return this.container().status === 'CLOSED';
   });
-
-  readonly currencyCode = computed(() => this.container().purchaseOrder?.currency || 'USD');
 
   readonly currentTotalWeight = computed(() => {
     return this.rags().reduce((sum, rag) => sum + Number(rag.weightKg), 0);

@@ -1,5 +1,6 @@
-import { IsString, IsOptional, IsEnum, MinLength, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsEnum, MinLength, MaxLength, IsIn } from 'class-validator';
 import { TenantStatus } from '@prisma/client';
+import { SUPPORTED_CURRENCY_CODES } from '../../common/currency/currency';
 
 export class UpdateTenantDto {
   @IsString()
@@ -11,7 +12,14 @@ export class UpdateTenantDto {
   @IsString()
   @IsOptional()
   @MaxLength(3)
+  @IsIn(SUPPORTED_CURRENCY_CODES)
   currency?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(3)
+  @IsIn(SUPPORTED_CURRENCY_CODES)
+  currencyCode?: string;
 
   @IsString()
   @IsOptional()

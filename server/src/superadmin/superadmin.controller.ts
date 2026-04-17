@@ -95,10 +95,18 @@ export class SuperAdminController {
     @Param('id') id: string,
     @CurrentUser() user: CurrentUserData,
     @Req() req: Request,
-  ): Promise<{ accessToken: string; expiresIn: number }> {
+  ): Promise<{ accessToken: string; impersonationToken: string; tenantId: string; expiresIn: number; expiresAt: string }> {
     const ipAddress = req.ip || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'];
-    return this.authService.createImpersonationToken(user.userId, id, ipAddress, userAgent);
+    const result = await this.authService.createImpersonationToken(user.userId, id, ipAddress, userAgent);
+    const expiresAt = new Date(Date.now() + result.expiresIn * 1000).toISOString();
+    return {
+      accessToken: result.accessToken,
+      impersonationToken: result.accessToken,
+      tenantId: id,
+      expiresIn: result.expiresIn,
+      expiresAt,
+    };
   }
 }
 

@@ -48,7 +48,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
               isRefreshing = false;
               tokenService.clearTokens();
               tokenService.clearImpersonationContext();
-              router.navigate(['/login']);
+              router.navigate(['/auth/login']);
               return throwError(() => refreshError);
             })
           );

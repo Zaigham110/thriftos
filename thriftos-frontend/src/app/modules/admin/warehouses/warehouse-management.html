@@ -1,103 +1,106 @@
 <app-page>
   <app-page-header>
-    <ui-breadcrumb slot="breadcrumbs" [items]="breadcrumbs"></ui-breadcrumb>
-    
-    <div slot="title" class="header-content">
-      <lucide-icon [img]="icons.Warehouse" class="header-icon"></lucide-icon>
-      <div class="header-text">
-        <h1 class="page-title">Warehouses</h1>
-        <p class="page-subtitle">Storage locations for inventory management</p>
-      </div>
-    </div>
+    <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
 
-    <div slot="actions" class="actions">
-      <app-button 
-        variant="secondary"
-        size="sm"
-        (click)="refresh()" 
-        [disabled]="loading()"
-      >
-        <lucide-icon [img]="icons.RefreshCw" [class.spinning]="loading()"></lucide-icon>
-        Refresh
-      </app-button>
+    <app-stack direction="vertical">
+      <h1>Warehouse Management</h1>
+      @if (!loading()) {
+        <p class="page-subtitle">{{ filteredWarehouses().length }} warehouses</p>
+      }
+    </app-stack>
+
+    <div class="actions">
+      <app-button variant="secondary" (clickEvent)="refresh()">Refresh</app-button>
+      <app-button variant="primary" (clickEvent)="navigateToCreate()" *hasPermission="'warehouse.create'">New Warehouse</app-button>
     </div>
   </app-page-header>
 
   <app-page-body>
-    <!-- Info Notice -->
     <app-section>
-      <app-card class="info-notice">
-        <div class="notice-content">
-          <lucide-icon [img]="icons.Info" class="notice-icon"></lucide-icon>
-          <p>Warehouses are configured at the platform level and managed by Super Admin. Contact your administrator to request changes.</p>
+      <app-section-header>
+        <h2 class="section-title">All Warehouses</h2>
+        <div class="section-actions">
+          <div class="search">
+            <input
+              type="text"
+              class="search-input"
+              placeholder="Search warehouses…"
+              [value]="searchQuery()"
+              (input)="searchQuery.set($any($event.target).value)"
+            />
+          </div>
         </div>
-      </app-card>
-    </app-section>
+      </app-section-header>
 
-    <!-- Search Bar -->
-    <app-section>
-      <div class="search-bar">
-        <div class="search-input-wrapper">
-          <lucide-icon [img]="icons.Search" class="search-icon"></lucide-icon>
-          <input
-            type="text"
-            class="search-input"
-            placeholder="Search warehouses..."
-            [value]="searchQuery()"
-            (input)="searchQuery.set($any($event.target).value)"
-          />
-        </div>
-      </div>
-    </app-section>
-
-    <!-- Loading State -->
-    @if (loading()) {
-      <app-section>
-        <app-loading message="Loading warehouses..."></app-loading>
-      </app-section>
-    } @else if (filteredWarehouses.length === 0) {
-      <app-section>
-        @if (searchQuery()) {
+      <app-section-body>
+        @if (loading()) {
+          <app-loading message="Loading warehouses…"></app-loading>
+        } @else if (filteredWarehouses().length === 0) {
           <app-empty-state
             title="No warehouses found"
-            description="No warehouses match your search criteria."
-          ></app-empty-state>
+            [message]="searchQuery() ? 'No warehouses match your search criteria.' : 'Create your first warehouse to enable repack sealing and inventory storage.'"
+          >
+            @if (!searchQuery()) {
+              <app-button variant="primary" (clickEvent)="navigateToCreate()" *hasPermission="'warehouse.create'">Create Warehouse</app-button>
+            }
+          </app-empty-state>
         } @else {
-          <app-empty-state
-            title="No warehouses configured"
-            description="Warehouses have not been set up yet. Contact Super Admin."
-          ></app-empty-state>
-        }
-      </app-section>
-    } @else {
-      <app-section>
-        <div class="warehouses-grid">
-          @for (warehouse of filteredWarehouses; track warehouse.id) {
-            <app-card class="warehouse-card">
-              <div class="warehouse-header">
-                <lucide-icon [img]="icons.Warehouse" class="warehouse-icon"></lucide-icon>
-                <h3 class="warehouse-name">{{ warehouse.name }}</h3>
-              </div>
-              @if (warehouse.location) {
-                <div class="warehouse-location">
-                  <lucide-icon [img]="icons.MapPin" class="location-icon"></lucide-icon>
-                  <span>{{ warehouse.location }}</span>
-                </div>
-              } @else {
-                <p class="warehouse-location empty">
-                  <lucide-icon [img]="icons.MapPin" class="location-icon"></lucide-icon>
-                  <span>No location specified</span>
-                </p>
+          <app-data-table
+            [data]="filteredWarehouses()"
+            [columns]="tableColumns"
+            [loading]="loading()"
+            [serverSide]="false"
+          >
+            <ng-template #cellTemplate let-row let-column="column">
+              @if (column.key === 'location') {
+                <span class="text-sm">{{ row.location || '—' }}</span>
+              } @else if (column.key === 'status') {
+                <span class="text-sm" [class.text-green-600]="row.isActive" [class.text-gray-500]="!row.isActive">
+                  {{ row.isActive ? 'Active' : 'Inactive' }}@if (row.isDefault) { <span class="text-xs"> (Default)</span> }
+                </span>
               }
-              <div class="warehouse-status" [class.active]="warehouse.isActive">
-                <span class="status-dot"></span>
-                {{ warehouse.isActive ? 'Active' : 'Inactive' }}
-              </div>
-            </app-card>
-          }
-        </div>
-      </app-section>
-    }
+            </ng-template>
+
+            <ng-template #rowActions let-row>
+              <app-button variant="secondary" size="sm" (clickEvent)="navigateToEdit(row)" *hasPermission="'warehouse.update'">Edit</app-button>
+              @if (row.isActive && !row.isDefault) {
+                <app-button variant="secondary" size="sm" (clickEvent)="setAsDefault(row)" *hasPermission="'warehouse.update'">Set Default</app-button>
+              }
+              @if (row.isActive) {
+                <app-button variant="danger" size="sm" (clickEvent)="confirmDeactivate(row)" *hasPermission="'warehouse.update'">Deactivate</app-button>
+              }
+              @if (!row.isActive) {
+                <app-button variant="danger" size="sm" (clickEvent)="confirmDelete(row)" *hasPermission="'warehouse.delete'">Delete</app-button>
+              }
+            </ng-template>
+          </app-data-table>
+        }
+      </app-section-body>
+    </app-section>
   </app-page-body>
 </app-page>
+
+<app-dialog
+  [open]="confirmDeactivateOpen()"
+  title="Deactivate Warehouse"
+  [message]="'Deactivating ' + (selected()?.name || '') + ' will hide it from selection in new operations. Existing inventory references remain.'"
+  confirmText="Deactivate"
+  cancelText="Cancel"
+  variant="danger"
+  [loading]="actionLoading()"
+  (confirmed)="executeDeactivate()"
+  (cancelled)="cancelDialogs()"
+></app-dialog>
+
+<app-dialog
+  [open]="confirmDeleteOpen()"
+  title="Delete Warehouse"
+  [message]="'Deleting ' + (selected()?.name || '') + ' will permanently remove it. If it is referenced by inventory items, deletion will be blocked and you should deactivate instead.'"
+  confirmText="Delete"
+  cancelText="Cancel"
+  variant="danger"
+  [loading]="actionLoading()"
+  (confirmed)="executeDelete()"
+  (cancelled)="cancelDialogs()"
+></app-dialog>
 

@@ -1,0 +1,43 @@
+<app-page>
+  <app-page-header>
+    <h1>New Sale</h1>
+    <p class="subtitle">Create a draft sale (no inventory committed until you add lines)</p>
+  </app-page-header>
+
+  <app-page-body>
+    <app-section>
+      <app-section-header>
+        <h2>Draft Definition</h2>
+      </app-section-header>
+
+      <app-section-body>
+        @if (loading()) {
+          <app-loading message="Loading customers..." />
+        } @else if (error()) {
+          <app-error-state [message]="error()!" [action]="true">
+            <app-button action variant="secondary" (clickEvent)="loadCustomers()">Retry</app-button>
+          </app-error-state>
+        } @else {
+          <div class="form">
+            <app-form-field label="Customer">
+              <app-select [formControl]="customerId" [options]="customerOptions()"></app-select>
+            </app-form-field>
+
+            <app-form-field label="Sale Type">
+              <app-select [formControl]="type" [options]="typeOptions"></app-select>
+            </app-form-field>
+
+            <div class="actions">
+              <app-button variant="primary" [disabled]="saving()" (clickEvent)="createDraft()">
+                Create Draft
+              </app-button>
+              <app-button variant="secondary" [disabled]="saving()" [routerLink]="['/app/sales']">
+                Back to Sales
+              </app-button>
+            </div>
+          </div>
+        }
+      </app-section-body>
+    </app-section>
+  </app-page-body>
+</app-page>

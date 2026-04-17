@@ -3,12 +3,59 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RagBaleType } from '@prisma/client';
 import { CreateRawCategoryDto, UpdateRawCategoryDto } from './dto/raw-category.dto';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
+import { CreateWarehouseDto, UpdateWarehouseDto } from './dto/warehouse.dto';
+import { UpdateTenantSettingsDto } from './dto/tenant-settings.dto';
+import { getCurrencyMeta, isSupportedCurrencyCode } from '../common/currency/currency';
 
 @Injectable()
 export class TenantService {
   constructor(private prisma: PrismaService) {}
 
+  private defaultWarehouseKey(tenantId: string): string {
+    return `tenant.${tenantId}.defaultWarehouseId`;
+  }
+
+  private async getDefaultWarehouseId(tenantId: string): Promise<string | null> {
+    const config = await this.prisma.globalConfig.findUnique({
+      where: { key: this.defaultWarehouseKey(tenantId) },
+    });
+
+    const warehouseId = (config?.valueJson as any)?.warehouseId;
+    return typeof warehouseId === 'string' && warehouseId.length > 0 ? warehouseId : null;
+  }
+
+  private async setDefaultWarehouseId(tenantId: string, warehouseId: string): Promise<void> {
+    await this.prisma.globalConfig.upsert({
+      where: { key: this.defaultWarehouseKey(tenantId) },
+      update: { valueJson: { warehouseId } },
+      create: { key: this.defaultWarehouseKey(tenantId), valueJson: { warehouseId } },
+    });
+  }
+
+  private async ensureValidDefaultWarehouseId(tenantId: string): Promise<string | null> {
+    const defaultId = await this.getDefaultWarehouseId(tenantId);
+    if (defaultId) {
+      const exists = await this.prisma.warehouse.findFirst({
+        where: { id: defaultId, tenantId, isActive: true },
+        select: { id: true },
+      });
+      if (exists) return defaultId;
+    }
+
+    const firstActive = await this.prisma.warehouse.findFirst({
+      where: { tenantId, isActive: true },
+      orderBy: { name: 'asc' },
+      select: { id: true },
+    });
+
+    if (!firstActive) return null;
+
+    await this.setDefaultWarehouseId(tenantId, firstActive.id);
+    return firstActive.id;
+  }
+
   async findOne(id: string) {
+    const currencyLocked = await this.isCurrencyLocked(id);
     const tenant = await this.prisma.tenant.findUnique({
       where: { id },
       include: {
@@ -28,7 +75,95 @@ export class TenantService {
       throw new NotFoundException(`Tenant not found`);
     }
 
-    return tenant;
+    const currencyMeta = getCurrencyMeta(tenant.currency);
+
+    return {
+      ...tenant,
+      currencyCode: tenant.currency,
+      currency: currencyMeta,
+      currencyLocked,
+    };
+  }
+
+  async updateSettings(tenantId: string, dto: UpdateTenantSettingsDto, userId: string) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+
+    const desiredCurrency = dto.currencyCode;
+    if (desiredCurrency && !isSupportedCurrencyCode(desiredCurrency)) {
+      throw new BadRequestException(`Unsupported currency code: ${desiredCurrency}`);
+    }
+
+    if (desiredCurrency && desiredCurrency !== tenant.currency) {
+      const locked = await this.isCurrencyLocked(tenantId);
+      if (locked) {
+        throw new BadRequestException(
+          'Currency cannot be changed after purchase orders, inventory, or reports exist.',
+        );
+      }
+    }
+
+    const updated = await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: {
+        ...(desiredCurrency ? { currency: desiredCurrency } : {}),
+        ...(dto.locale ? { locale: dto.locale } : {}),
+      },
+      include: {
+        _count: {
+          select: {
+            users: true,
+            roles: true,
+            categories: true,
+            grades: true,
+            warehouses: true,
+          },
+        },
+      },
+    });
+
+    const currencyMeta = getCurrencyMeta(updated.currency);
+    const currencyLocked = await this.isCurrencyLocked(tenantId);
+
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId,
+        userId,
+        action: 'TENANT_SETTINGS_UPDATED',
+        entityType: 'Tenant',
+        entityId: tenantId,
+        metadataJson: {
+          changes: {
+            ...(desiredCurrency ? { currencyCode: desiredCurrency } : {}),
+            ...(dto.locale ? { locale: dto.locale } : {}),
+          },
+        },
+      },
+    });
+
+    return {
+      ...updated,
+      currencyCode: updated.currency,
+      currency: currencyMeta,
+      currencyLocked,
+    };
+  }
+
+  private async isCurrencyLocked(tenantId: string): Promise<boolean> {
+    const [poCount, inventoryCount, reportAuditCount] = await Promise.all([
+      this.prisma.purchaseOrder.count({ where: { tenantId } }),
+      this.prisma.inventoryItem.count({ where: { tenantId } }),
+      this.prisma.auditLog.count({
+        where: {
+          tenantId,
+          action: { in: ['REPORT_ACCESSED', 'REPORT_EXPORTED'] },
+        },
+      }),
+    ]);
+
+    return poCount > 0 || inventoryCount > 0 || reportAuditCount > 0;
   }
 
   async getCategories(tenantId: string) {
@@ -43,6 +178,14 @@ export class TenantService {
       where: { tenantId },
       orderBy: { sortOrder: 'asc' },
     });
+  }
+
+  async getCategory(tenantId: string, id: string) {
+    const category = await this.prisma.category.findFirst({
+      where: { id, tenantId },
+    });
+    if (!category) throw new NotFoundException('Category not found');
+    return category;
   }
 
   /**
@@ -222,9 +365,155 @@ export class TenantService {
 
   async getWarehouses(tenantId: string) {
     return this.prisma.warehouse.findMany({
-      where: { tenantId },
+      where: { tenantId, isActive: true },
       orderBy: { name: 'asc' },
     });
+  }
+
+  async getAllWarehouses(tenantId: string) {
+    const [warehouses, defaultWarehouseId] = await Promise.all([
+      this.prisma.warehouse.findMany({
+        where: { tenantId },
+        orderBy: { name: 'asc' },
+      }),
+      this.ensureValidDefaultWarehouseId(tenantId),
+    ]);
+
+    return warehouses.map((w) => ({
+      ...w,
+      isDefault: defaultWarehouseId ? w.id === defaultWarehouseId : false,
+    }));
+  }
+
+  async getWarehouse(tenantId: string, id: string) {
+    const warehouse = await this.prisma.warehouse.findFirst({
+      where: { id, tenantId },
+    });
+    if (!warehouse) throw new NotFoundException('Warehouse not found');
+    return warehouse;
+  }
+
+  async createWarehouse(tenantId: string, dto: CreateWarehouseDto) {
+    const existing = await this.prisma.warehouse.findFirst({
+      where: { tenantId, code: dto.code },
+    });
+
+    if (existing) {
+      throw new BadRequestException(`Warehouse code "${dto.code}" already exists`);
+    }
+
+    const created = await this.prisma.warehouse.create({
+      data: {
+        tenantId,
+        name: dto.name,
+        code: dto.code,
+        location: dto.location,
+        isActive: true,
+      },
+    });
+
+    const defaultId = await this.getDefaultWarehouseId(tenantId);
+    if (!defaultId) {
+      await this.setDefaultWarehouseId(tenantId, created.id);
+    }
+
+    return created;
+  }
+
+  async updateWarehouse(tenantId: string, id: string, dto: UpdateWarehouseDto) {
+    const warehouse = await this.prisma.warehouse.findFirst({
+      where: { id, tenantId },
+    });
+
+    if (!warehouse) {
+      throw new NotFoundException('Warehouse not found');
+    }
+
+    if (dto.code && dto.code !== warehouse.code) {
+      const existing = await this.prisma.warehouse.findFirst({
+        where: { tenantId, code: dto.code, id: { not: id } },
+      });
+      if (existing) {
+        throw new BadRequestException(`Warehouse code "${dto.code}" already exists`);
+      }
+    }
+
+    if (dto.isActive === false) {
+      const defaultId = await this.ensureValidDefaultWarehouseId(tenantId);
+      if (defaultId && defaultId === id) {
+        throw new BadRequestException(
+          'Cannot deactivate default warehouse. Set another warehouse as default first.'
+        );
+      }
+
+      const otherActiveCount = await this.prisma.warehouse.count({
+        where: { tenantId, isActive: true, id: { not: id } },
+      });
+      if (otherActiveCount === 0) {
+        throw new BadRequestException('Cannot deactivate the last active warehouse.');
+      }
+    }
+
+    return this.prisma.warehouse.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.code !== undefined && { code: dto.code }),
+        ...(dto.location !== undefined && { location: dto.location }),
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+      },
+    });
+  }
+
+  async deleteWarehouse(tenantId: string, id: string) {
+    const defaultId = await this.ensureValidDefaultWarehouseId(tenantId);
+    if (defaultId && defaultId === id) {
+      throw new BadRequestException(
+        'Cannot delete default warehouse. Set another warehouse as default first.'
+      );
+    }
+
+    const totalCount = await this.prisma.warehouse.count({
+      where: { tenantId },
+    });
+    if (totalCount <= 1) {
+      throw new BadRequestException('Cannot delete the last warehouse. At least one is required.');
+    }
+
+    const warehouse = await this.prisma.warehouse.findFirst({
+      where: { id, tenantId },
+      include: {
+        _count: {
+          select: { inventoryItems: true },
+        },
+      },
+    });
+
+    if (!warehouse) {
+      throw new NotFoundException('Warehouse not found');
+    }
+
+    if (warehouse._count.inventoryItems > 0) {
+      throw new BadRequestException(
+        'Cannot delete warehouse: it is referenced by inventory items. Deactivate instead.'
+      );
+    }
+
+    return this.prisma.warehouse.delete({ where: { id } });
+  }
+
+  async setDefaultWarehouse(tenantId: string, warehouseId: string) {
+    const warehouse = await this.prisma.warehouse.findFirst({
+      where: { id: warehouseId, tenantId, isActive: true },
+      select: { id: true },
+    });
+
+    if (!warehouse) {
+      throw new BadRequestException('Invalid warehouse. Only active warehouses can be set as default.');
+    }
+
+    await this.setDefaultWarehouseId(tenantId, warehouseId);
+    return { warehouseId };
   }
 
   async getStats(tenantId: string) {
@@ -233,7 +522,7 @@ export class TenantService {
       this.prisma.role.count({ where: { tenantId } }),
       this.prisma.category.count({ where: { tenantId, isActive: true } }),
       this.prisma.grade.count({ where: { tenantId, isActive: true } }),
-      this.prisma.warehouse.count({ where: { tenantId } }),
+      this.prisma.warehouse.count({ where: { tenantId, isActive: true } }),
     ]);
 
     return {

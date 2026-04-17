@@ -84,8 +84,8 @@ export class IncomingBaleDetailComponent implements OnInit {
 
   readonly currencyCode = computed(() => 
     this.bale()?.purchaseOrder?.currency || 
-    this.tenantService.tenant()?.currency || 
-    'USD'
+    this.tenantService.tenant()?.currencyCode || 
+    '—'
   );
 
   readonly costPerKg = computed(() => {

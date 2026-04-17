@@ -1,132 +1,67 @@
 <app-page>
   <app-page-header>
-    <ui-breadcrumb slot="breadcrumbs" [items]="breadcrumbs"></ui-breadcrumb>
-    
-    <div slot="title" class="header-content">
-      <lucide-icon [img]="icons.Star" class="header-icon"></lucide-icon>
-      <div class="header-text">
-        <h1 class="page-title">Grades</h1>
-        <p class="page-subtitle">Quality grades for sorting and inventory classification</p>
-      </div>
+    <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+
+    <div>
+      <h1 class="page-title">Grades</h1>
+      <p class="page-subtitle">Grades are used in Sorting Stage-2 and downstream reporting.</p>
     </div>
 
-    <div slot="actions" class="actions">
-      <app-button 
-        variant="secondary"
-        size="sm"
-        (click)="refresh()" 
-        [disabled]="loading()"
-      >
-        <lucide-icon [img]="icons.RefreshCw" [class.spinning]="loading()"></lucide-icon>
-        Refresh
-      </app-button>
-      <app-button 
-        variant="primary"
-        size="sm"
-        (click)="openAddDrawer()"
-        *hasPermission="'grade.create'"
-      >
-        <lucide-icon [img]="icons.Plus"></lucide-icon>
-        Add Grade
-      </app-button>
+    <div class="actions">
+      <app-button variant="secondary" (click)="refresh()" [disabled]="loading()">Refresh</app-button>
+      <app-button variant="primary" (click)="createGrade()" *hasPermission="'grade.create'">New Grade</app-button>
     </div>
   </app-page-header>
 
   <app-page-body>
-    <!-- Search Bar -->
     <app-section>
-      <div class="search-bar">
-        <div class="search-input-wrapper">
-          <lucide-icon [img]="icons.Search" class="search-icon"></lucide-icon>
-          <input
-            type="text"
-            class="search-input"
-            placeholder="Search grades..."
-            [value]="searchQuery()"
-            (input)="searchQuery.set($any($event.target).value)"
-          />
+      <app-section-header>
+        <h2 class="section-title">All Grades</h2>
+        <div class="section-actions">
+          <div class="search">
+            <input
+              type="text"
+              class="search-input"
+              placeholder="Search grades…"
+              [value]="searchQuery()"
+              (input)="searchQuery.set($any($event.target).value)"
+            />
+          </div>
         </div>
-      </div>
-    </app-section>
+      </app-section-header>
 
-    <!-- Loading State -->
-    @if (loading()) {
-      <app-section>
-        <app-loading message="Loading grades..."></app-loading>
-      </app-section>
-    } @else if (filteredGrades().length === 0) {
-      <app-section>
-        @if (searchQuery()) {
+      <app-section-body>
+        @if (loading()) {
+          <app-loading message="Loading grades…"></app-loading>
+        } @else if (filteredGrades().length === 0) {
           <app-empty-state
             title="No grades found"
-            description="No grades match your search criteria."
-          ></app-empty-state>
-        } @else {
-          <app-empty-state
-            title="No grades yet"
-            description="Create your first grade to start classifying inventory."
+            [message]="searchQuery() ? 'No grades match your search criteria.' : 'Create your first grade to start classifying inventory.'"
           >
-            <app-button 
-              variant="primary"
-              (click)="openAddDrawer()"
-              *hasPermission="'grade.create'"
-            >
-              <lucide-icon [img]="icons.Plus"></lucide-icon>
-              Add Grade
-            </app-button>
-          </app-empty-state>
-        }
-      </app-section>
-    } @else {
-      <app-section>
-        <app-data-table
-          [columns]="columns"
-          [data]="filteredGrades()"
-          [loading]="loading()"
-        >
-          <ng-template #cellTemplate let-row let-column="column">
-            @if (column.key === 'name') {
-              <app-badge [variant]="getGradeBadgeVariant(row)">
-                {{ row.name }}
-              </app-badge>
-            } @else if (column.key === 'description') {
-              <span class="description-text">{{ row.description || '—' }}</span>
-            } @else if (column.key === 'actions') {
-              <div class="table-actions">
-                <app-button
-                  variant="secondary"
-                  size="sm"
-                  title="Edit Grade"
-                  (click)="openEditDrawer(row)"
-                  *hasPermission="'grade.update'"
-                >
-                  <lucide-icon [img]="icons.Pencil"></lucide-icon>
-                </app-button>
-                <app-button
-                  variant="danger"
-                  size="sm"
-                  title="Delete Grade"
-                  (click)="confirmDelete(row)"
-                  *hasPermission="'grade.delete'"
-                >
-                  <lucide-icon [img]="icons.Trash2"></lucide-icon>
-                </app-button>
-              </div>
+            @if (!searchQuery()) {
+              <app-button variant="primary" (click)="createGrade()" *hasPermission="'grade.create'">Create Grade</app-button>
             }
-          </ng-template>
-        </app-data-table>
-      </app-section>
-    }
+          </app-empty-state>
+        } @else {
+          <app-data-table [columns]="columns" [data]="filteredGrades()" [loading]="loading()" [serverSide]="false">
+            <ng-template #cellTemplate let-row let-column="column">
+              @if (column.key === 'description') {
+                <span class="text-sm text-gray-700">{{ row.description || '—' }}</span>
+              } @else if (column.key === 'status') {
+                <span class="text-sm">{{ statusLabel(row.isActive) }}</span>
+              }
+            </ng-template>
+
+            <ng-template #rowActions let-row>
+              <app-button variant="secondary" size="sm" (click)="editGrade(row)" *hasPermission="'grade.update'">Edit</app-button>
+              <app-button variant="danger" size="sm" (click)="confirmDelete(row)" *hasPermission="'grade.delete'">Delete</app-button>
+            </ng-template>
+          </app-data-table>
+        }
+      </app-section-body>
+    </app-section>
   </app-page-body>
 </app-page>
-
-<!-- Grade Form Drawer -->
-<app-grade-form-drawer
-  [isOpen]="drawerOpen()"
-  [grade]="selectedGrade()"
-  (closed)="closeDrawer()"
-  (saved)="onSaved()"
-></app-grade-form-drawer>
 
 <!-- Delete Confirmation Dialog -->
 <app-dialog
@@ -134,13 +69,15 @@
   title="Delete Grade"
   (closed)="cancelDelete()"
 >
-  <p>Are you sure you want to delete the grade '{{ gradeToDelete()?.name }}'? This action cannot be undone.</p>
+  <p>
+    Deleting a grade will deactivate it. If this grade is referenced by any grading sessions, deletion will be blocked to protect reporting.
+  </p>
   
   <div slot="footer" class="dialog-actions">
     <app-button variant="secondary" (click)="cancelDelete()">
       Cancel
     </app-button>
-    <app-button variant="danger" (click)="deleteGrade()">
+    <app-button variant="danger" (click)="deleteGrade()" *hasPermission="'grade.delete'">
       Delete
     </app-button>
   </div>

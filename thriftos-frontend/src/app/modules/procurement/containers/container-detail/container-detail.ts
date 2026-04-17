@@ -138,7 +138,11 @@ export class ContainerDetailComponent implements OnInit {
   ];
 
   readonly currencyCode = computed(
-    () => this.container()?.purchaseOrder?.currency || this.costBreakdown()?.currency || this.tenantService.tenant()?.currency || 'USD',
+    () =>
+      this.container()?.purchaseOrder?.currency ||
+      this.costBreakdown()?.currency ||
+      this.tenantService.tenant()?.currencyCode ||
+      '—',
   );
 
   ngOnInit(): void {

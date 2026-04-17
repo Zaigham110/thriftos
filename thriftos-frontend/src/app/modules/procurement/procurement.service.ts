@@ -20,6 +20,7 @@
  *   GET    /procurement/containers
  *   GET    /procurement/containers/:id
  *   PATCH  /procurement/containers/:id
+ *   PATCH  /procurement/containers/:id/weights
  *   PATCH  /procurement/containers/:id/status
  *   GET    /procurement/containers/:id/cost-breakdown
  *   POST   /procurement/containers/:id/charges
@@ -48,6 +49,7 @@ import {
   Container,
   CreateContainerRequest,
   UpdateContainerRequest,
+  UpdateContainerWeightsRequest,
   UpdateContainerStatusRequest,
   ContainerListResponse,
   ContainerFilters,
@@ -128,6 +130,30 @@ export class ProcurementService {
     private readonly http: HttpClient,
     private readonly tenantService: TenantService,
   ) {}
+
+  private normalizeContainer(raw: any): Container {
+    // Backward/forward compatibility:
+    // - Legacy API: grossWeight, netWeight, (optional) tareWeight
+    // - New API: grossWeightKg, tareWeightKg, netWeightKg
+    const grossWeight = Number(raw?.grossWeight ?? raw?.grossWeightKg ?? 0);
+    const netWeight = Number(raw?.netWeight ?? raw?.netWeightKg ?? 0);
+
+    const tareFromLegacy = raw?.tareWeight;
+    const tareFromKg = raw?.tareWeightKg;
+    const tareWeight =
+      tareFromLegacy === undefined && tareFromKg === undefined
+        ? undefined
+        : (tareFromLegacy ?? tareFromKg) === null
+          ? null
+          : Number(tareFromLegacy ?? tareFromKg);
+
+    return {
+      ...raw,
+      grossWeight,
+      netWeight,
+      tareWeight,
+    } as Container;
+  }
 
   // =============================================================
   // VENDORS
@@ -294,6 +320,10 @@ export class ProcurementService {
     if (filters.limit) params = params.set('limit', filters.limit.toString());
 
     return this.http.get<ContainerListResponse>(`${API_BASE}/containers`, { params }).pipe(
+      map((response) => ({
+        ...response,
+        data: (response.data || []).map((c: any) => this.normalizeContainer(c)),
+      })),
       tap((response) => {
         this._containers.set(response.data);
         this._containerTotalCount.set(response.total);
@@ -310,6 +340,7 @@ export class ProcurementService {
    */
   getContainer(id: string): Observable<Container> {
     return this.http.get<Container>(`${API_BASE}/containers/${id}`).pipe(
+      map((c: any) => this.normalizeContainer(c)),
       catchError((error) => this.handleError(error))
     );
   }
@@ -322,6 +353,7 @@ export class ProcurementService {
     this._error.set(null);
 
     return this.http.post<Container>(`${API_BASE}/containers`, data).pipe(
+      map((c: any) => this.normalizeContainer(c)),
       tap(() => {
         this._loading.set(false);
       }),
@@ -337,6 +369,26 @@ export class ProcurementService {
     this._error.set(null);
 
     return this.http.patch<Container>(`${API_BASE}/containers/${id}`, data).pipe(
+      map((c: any) => this.normalizeContainer(c)),
+      tap((updatedContainer) => {
+        this._containers.update((containers) =>
+          containers.map((c) => (c.id === id ? updatedContainer : c))
+        );
+        this._loading.set(false);
+      }),
+      catchError((error) => this.handleError(error))
+    );
+  }
+
+  /**
+   * Update container weights (gross/tare); backend computes net.
+   */
+  updateContainerWeights(id: string, data: UpdateContainerWeightsRequest): Observable<Container> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    return this.http.patch<Container>(`${API_BASE}/containers/${id}/weights`, data).pipe(
+      map((c: any) => this.normalizeContainer(c)),
       tap((updatedContainer) => {
         this._containers.update((containers) =>
           containers.map((c) => (c.id === id ? updatedContainer : c))
@@ -355,6 +407,7 @@ export class ProcurementService {
     this._error.set(null);
 
     return this.http.patch<Container>(`${API_BASE}/containers/${id}/status`, data).pipe(
+      map((c: any) => this.normalizeContainer(c)),
       tap((updatedContainer) => {
         this._containers.update((containers) =>
           containers.map((c) => (c.id === id ? updatedContainer : c))

@@ -1,0 +1,99 @@
+.status-badge {
+  margin-left: 8px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.definition-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: end;
+}
+
+.field .label {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.field .value {
+  font-size: 14px;
+}
+
+.definition-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.summary {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+
+.summary-item .label {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.summary-item .value {
+  font-size: 14px;
+}
+
+.add-lines {
+  margin-top: 18px;
+  display: grid;
+  gap: 18px;
+}
+
+.add-block h3 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 140px 120px;
+  gap: 12px;
+  align-items: end;
+}
+
+.row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.payments {
+  display: grid;
+  gap: 8px;
+}
+
+.payment-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 140px;
+  gap: 12px;
+  align-items: center;
+}
+
+.payment-row .amount {
+  text-align: right;
+}
+
+.invoice-actions {
+  margin-top: 14px;
+}
+
+.dialog-form {
+  padding: 8px 0;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}

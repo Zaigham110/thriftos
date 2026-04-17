@@ -102,26 +102,43 @@
     // LEGACY COMPATIBILITY
     // ===========================
     // Keep existing tokens for gradual migration
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    // NOTE: Tailwind utilities expect HSL triplets here.
+    // These values are mapped to the locked --app-* palette above.
+    --background: 210 20% 98%;
+    --foreground: 221 39% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 221 39% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --popover-foreground: 221 39% 11%;
+    --primary: 316 20% 37%;
+    --primary-foreground: 0 0% 100%;
+    // Project convention: "secondary" is used for positive/success states in legacy Tailwind UI.
+    --secondary: 142 76% 36%;
+    --secondary-foreground: 0 0% 100%;
     --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 316 31% 93%;
+    --accent-foreground: 221 39% 11%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 316 20% 37%;
     --radius: 0.5rem;
+
+    // Module palette (light mode)
+    // Some legacy SCSS variables reference these for warning/orange states.
+    --module-yellow: 32 95% 44%;
+    --module-yellow-light: 48 96% 89%;
+    --module-yellow-border: 32 80% 80%;
+
+    --module-orange: 24 95% 53%;
+    --module-orange-light: 34 100% 92%;
+    --module-orange-border: 24 80% 82%;
+
+    --module-dark-orange: 20 95% 48%;
+    --module-dark-orange-light: 34 100% 92%;
+    --module-dark-orange-border: 20 80% 82%;
   }
 
   .dark {

@@ -26,6 +26,7 @@ import {
   SealDraftRequest,
   Category,
   Grade,
+  Warehouse,
   MeasurementType,
 } from './repack.models';
 import { API_ENDPOINTS } from '../../core/config/api.config';
@@ -227,6 +228,15 @@ export class RepackService {
    */
   getGrades(): Observable<Grade[]> {
     return this.http.get<Grade[]>(`${API_ENDPOINTS.tenant}/grades`).pipe(
+      catchError(() => of([]))
+    );
+  }
+
+  /**
+   * Get warehouses
+   */
+  getWarehouses(): Observable<Warehouse[]> {
+    return this.http.get<Warehouse[]>(`${API_ENDPOINTS.tenant}/warehouses`).pipe(
       catchError(() => of([]))
     );
   }

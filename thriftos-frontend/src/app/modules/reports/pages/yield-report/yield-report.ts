@@ -78,6 +78,7 @@ export class YieldReportComponent implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly searchText = signal<string>('');
+  readonly categories = signal<{ id: string; name: string }[]>([]);
   protected currentFilters: ReportFilters = {};
 
   readonly breadcrumbs: BreadcrumbItem[] = [
@@ -99,6 +100,15 @@ export class YieldReportComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.reportsService.loadFilterLookups().subscribe({
+      next: (lookups) => {
+        this.categories.set(lookups.categories);
+      },
+      error: () => {
+        // Keep report usable even if lookups fail
+        this.categories.set([]);
+      },
+    });
     this.loadData();
   }
 

@@ -61,6 +61,7 @@ export class InventoryService {
               id: true,
               unitCode: true,
               status: true,
+              measurementType: true,
               qrLabel: { select: { qrCode: true } },
             },
           },
@@ -68,6 +69,14 @@ export class InventoryService {
       }),
       this.prisma.inventoryItem.count({ where }),
     ]);
+
+    // Compatibility fields: clients expect these at the top level.
+    const itemsWithCodes = items.map((item: any) => ({
+      ...item,
+      unitCode: item?.repackUnit?.unitCode ?? null,
+      measurementType: item?.repackUnit?.measurementType ?? null,
+      qrCode: item?.repackUnit?.qrLabel?.qrCode ?? null,
+    }));
 
     // Calculate totals
     const totalWeight = items
@@ -77,7 +86,7 @@ export class InventoryService {
     const totalPcs = items.reduce((sum, i) => sum + i.pcsCount, 0);
 
     return {
-      items,
+      items: itemsWithCodes,
       total,
       page,
       limit,
@@ -129,7 +138,12 @@ export class InventoryService {
       throw new NotFoundException('Inventory item not found');
     }
 
-    return item;
+    return {
+      ...item,
+      unitCode: (item as any)?.repackUnit?.unitCode ?? null,
+      measurementType: (item as any)?.repackUnit?.measurementType ?? null,
+      qrCode: (item as any)?.repackUnit?.qrLabel?.qrCode ?? null,
+    };
   }
 
   /**

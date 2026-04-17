@@ -233,6 +233,8 @@ export class RepackV3Service {
         dto.manualAllocations,
       );
 
+      const totalAllocated = allocations.reduce((sum, a) => sum + Number(a.amountUsed), 0);
+
       const updatedUnit = await tx.repackUnit.update({
         where: { id: unit.id },
         data: {
@@ -258,7 +260,7 @@ export class RepackV3Service {
       return {
         repackUnit: updatedUnit,
         allocations,
-        totalAllocated: dto.targetAmount,
+        totalAllocated,
         totalCost,
       };
     });
@@ -492,7 +494,13 @@ export class RepackV3Service {
         id: { in: ids },
         gradeId,
         measurementType,
-        status: { in: [GradingOutputStatus.AVAILABLE, GradingOutputStatus.PARTIALLY_USED] },
+        status: {
+          in: [
+            GradingOutputStatus.AVAILABLE,
+            GradingOutputStatus.PARTIALLY_USED,
+            GradingOutputStatus.READY_FOR_REPACK,
+          ],
+        },
         gradeBucket: { gradeSession: { categoryOutput: { categoryId } } },
       },
       include: {
@@ -598,10 +606,7 @@ export class RepackV3Service {
       totalCost += allocationCost;
     }
 
-    const totalAllocated = allocations.reduce((sum, a) => sum + a.amountUsed, 0);
-    if (Math.abs(totalAllocated - targetAmount) > 0.001) {
-      throw new BadRequestException(`Allocated total (${totalAllocated}) does not match target (${targetAmount})`);
-    }
+    // NOTE: Draft creation supports partial allocations; completeness is enforced at seal time.
 
     return { allocations, totalCost, primaryTrace };
   }

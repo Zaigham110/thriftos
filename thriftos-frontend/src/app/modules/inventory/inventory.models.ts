@@ -99,3 +99,27 @@ export interface TraceabilityAllocation {
     };
   };
 }
+
+export type MovementType = 'INTAKE' | 'ADJUSTMENT' | 'RESERVATION' | 'RELEASE' | 'SALE';
+
+export interface StockMovement {
+  id: string;
+  movementType: MovementType;
+  quantityKg: number | string;
+  quantityPcs?: number | null;
+  referenceId?: string | null;
+  metadataJson?: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface InventoryLineage {
+  containerId?: string | null;
+  containerCode?: string | null;
+  ragId?: string | null;
+  ragCode?: string | null;
+  sortSessionId?: string | null;
+  sortSessionCode?: string | null;
+  gradeSessionId?: string | null;
+  gradeSessionCode?: string | null;
+  repackUnitCode: string;
+}

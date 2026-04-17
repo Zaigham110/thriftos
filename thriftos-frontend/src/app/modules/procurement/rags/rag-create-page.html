@@ -24,7 +24,7 @@
       <app-rag-create-drawer
         [containerId]="cont.id"
         [containerNumber]="cont.containerNumber"
-        [containerGrossWeight]="cont.grossWeight"
+        [containerNetWeight]="cont.netWeight"
         [containerCurrentWeight]="ragsWeightTotal()"
         (created)="onCreated()"
         (closed)="onCancel()"

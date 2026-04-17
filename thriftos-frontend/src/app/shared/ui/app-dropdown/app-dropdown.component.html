@@ -1,4 +1,4 @@
-<div class="app-dropdown">
+<div class="app-dropdown" (clickOutside)="close()">
   <button type="button" class="dropdown-trigger" (click)="toggle()">
     <ng-content select="[trigger]" />
   </button>
@@ -16,6 +16,5 @@
         </button>
       }
     </div>
-    <div class="dropdown-backdrop" (click)="close()"></div>
   }
 </div>

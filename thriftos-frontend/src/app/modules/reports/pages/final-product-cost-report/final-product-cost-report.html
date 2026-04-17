@@ -22,6 +22,8 @@
         <app-report-filters
           [showCategory]="true"
           [showGrade]="true"
+          [categories]="categories()"
+          [grades]="grades()"
           [showExport]="true"
           [exporting]="exporting"
           (filtersChange)="onFiltersChange($event)"

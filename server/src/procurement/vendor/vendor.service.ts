@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../audit/audit.service';
 import { CreateVendorDto } from './dto/create-vendor.dto';
+import { UpdateVendorDto } from './dto/update-vendor.dto';
 
 @Injectable()
 export class VendorService {
@@ -63,7 +64,7 @@ export class VendorService {
     return vendor;
   }
 
-  async update(tenantId: string, id: string, dto: Partial<CreateVendorDto>, userId: string) {
+  async update(tenantId: string, id: string, dto: UpdateVendorDto, userId: string) {
     const vendor = await this.findOne(tenantId, id);
 
     // Check for duplicate name if changing
@@ -79,7 +80,12 @@ export class VendorService {
 
     const updated = await this.prisma.vendor.update({
       where: { id },
-      data: dto,
+      data: {
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.country !== undefined && { country: dto.country }),
+        ...(dto.contactInfo !== undefined && { contactInfo: dto.contactInfo }),
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+      },
     });
 
     await this.auditService.log({
@@ -92,6 +98,41 @@ export class VendorService {
     });
 
     return updated;
+  }
+
+  async remove(tenantId: string, id: string, userId: string) {
+    const vendor = await this.prisma.vendor.findFirst({
+      where: { id, tenantId },
+      include: {
+        _count: {
+          select: { purchaseOrders: true, incomingBales: true },
+        },
+      },
+    });
+
+    if (!vendor) {
+      throw new NotFoundException('Vendor not found');
+    }
+
+    const hasReferences = vendor._count.purchaseOrders > 0 || vendor._count.incomingBales > 0;
+    if (hasReferences) {
+      throw new BadRequestException(
+        'Cannot delete vendor: it is referenced by procurement history. Deactivate instead.'
+      );
+    }
+
+    await this.prisma.vendor.delete({ where: { id } });
+
+    await this.auditService.log({
+      userId,
+      tenantId,
+      action: 'VENDOR_DELETED',
+      entityType: 'Vendor',
+      entityId: id,
+      metadataJson: { vendorName: vendor.name },
+    });
+
+    return { id, deleted: true };
   }
 }
 

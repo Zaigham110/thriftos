@@ -41,6 +41,7 @@ import {
 } from '../../../shared/ui';
 
 import { TenantService } from '../../../core/tenant/tenant.service';
+import { MoneyService } from '../../../core/money/money.service';
 import { DashboardDataService, type DashboardFilters, type DashboardCategoryYieldRow } from './dashboard-data.service';
 
 @Component({
@@ -72,6 +73,7 @@ import { DashboardDataService, type DashboardFilters, type DashboardCategoryYiel
 })
 export class DashboardComponent {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly money = inject(MoneyService);
 
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -261,8 +263,7 @@ export class DashboardComponent {
   }
 
   protected formatCurrency(v: number): string {
-    const nf = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
-    return nf.format(v || 0);
+    return this.money.format(v || 0, { maximumFractionDigits: 0 });
   }
 
   protected formatKg(v: number): string {

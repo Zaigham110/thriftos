@@ -1,0 +1,114 @@
+<app-page>
+  <app-page-header>
+    <h1>Invoice</h1>
+    <p class="subtitle">
+      @if (sale()) {
+        Sale {{ sale()!.saleNumber }}
+        <app-badge class="status" [variant]="getStatusVariant(sale()!.status)">
+          {{ sale()!.status }}
+        </app-badge>
+      }
+    </p>
+  </app-page-header>
+
+  <app-page-body>
+    @if (loading()) {
+      <app-loading message="Loading invoice..." />
+    } @else if (error()) {
+      <app-error-state [message]="error()!" [action]="true">
+        <app-button action variant="secondary" (clickEvent)="loadSale()">Retry</app-button>
+      </app-error-state>
+    } @else if (!sale()) {
+      <app-empty-state title="Invoice not found" message="This invoice could not be loaded." />
+    } @else {
+      <app-section>
+        <app-section-header>
+          <h2>Summary</h2>
+          <div class="actions">
+            <app-button variant="secondary" [routerLink]="['/app/sales', sale()!.id]">Back to Sale</app-button>
+          </div>
+        </app-section-header>
+
+        <app-section-body>
+          <div class="summary-grid">
+            <div class="field">
+              <div class="label">Customer</div>
+              <div class="value">{{ sale()!.customer?.name || '—' }}</div>
+            </div>
+            <div class="field">
+              <div class="label">Issued At</div>
+              <div class="value">{{ sale()!.issuedAt ? (sale()!.issuedAt | date:'medium') : '—' }}</div>
+            </div>
+            <div class="field">
+              <div class="label">Total</div>
+              <div class="value tabular-nums">{{ sale()!.totalAmount | money }}</div>
+            </div>
+            <div class="field">
+              <div class="label">Paid</div>
+              <div class="value tabular-nums">{{ paidAmount() | money }}</div>
+            </div>
+            <div class="field">
+              <div class="label">Balance</div>
+              <div class="value tabular-nums">{{ balanceAmount() | money }}</div>
+            </div>
+          </div>
+        </app-section-body>
+      </app-section>
+
+      <app-section>
+        <app-section-header>
+          <h2>Payments</h2>
+        </app-section-header>
+
+        <app-section-body>
+          @if (sale()!.status === 'DRAFT') {
+            <app-empty-state title="Invoice not issued" message="Issue the invoice before recording payments." />
+          } @else {
+            <div class="payment-form">
+              <app-form-field label="Amount">
+                <app-input type="number" placeholder="0" [disabled]="saving()" [formControl]="paymentAmount" />
+              </app-form-field>
+
+              <app-form-field label="Method">
+                <app-input placeholder="cash / bank / transfer" [disabled]="saving()" [formControl]="paymentMethod" />
+              </app-form-field>
+
+              <div class="form-actions">
+                <app-button variant="primary" [disabled]="saving()" (clickEvent)="addPayment()">
+                  Add Payment
+                </app-button>
+              </div>
+            </div>
+
+            @if (payments().length === 0) {
+              <app-empty-state title="No payments" message="No payments recorded yet." />
+            } @else {
+              <div class="payments">
+                @for (p of payments(); track p.id) {
+                  <div class="payment-row">
+                    <div class="method">{{ p.method }}</div>
+                    <div class="date">{{ p.receivedAt | date:'medium' }}</div>
+                    <div class="amount tabular-nums">{{ p.amount | money }}</div>
+                  </div>
+                }
+              </div>
+            }
+          }
+        </app-section-body>
+      </app-section>
+
+      <app-dialog
+        [open]="confirmCancelOpen()"
+        title="Cancel draft sale?"
+        message="This will release all reserved inventory and lock the sale as CANCELLED."
+        icon="alert-triangle"
+        variant="danger"
+        confirmText="Cancel Sale"
+        cancelText="Keep Draft"
+        [loading]="saving()"
+        (confirmed)="confirmCancel()"
+        (cancelled)="closeCancel()"
+      ></app-dialog>
+    }
+  </app-page-body>
+</app-page>

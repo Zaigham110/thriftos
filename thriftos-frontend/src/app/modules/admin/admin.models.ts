@@ -32,7 +32,7 @@ export interface UserRole {
 export interface CreateUserRequest {
   name: string;
   email: string;
-  password: string;
+  password?: string;
   roleIds?: string[];
 }
 
@@ -97,7 +97,6 @@ export interface Category {
   id: string;
   tenantId: string;
   name: string;
-  description?: string;
   sortOrder: number;
   isActive: boolean;
   createdAt: string;
@@ -154,6 +153,7 @@ export interface Warehouse {
   code: string;
   location?: string;
   isActive: boolean;
+  isDefault?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -168,6 +168,7 @@ export interface UpdateWarehouseRequest {
   name?: string;
   code?: string;
   location?: string;
+  isActive?: boolean;
 }
 
 // =============================================================
@@ -178,10 +179,6 @@ export interface Vendor {
   id: string;
   tenantId: string;
   name: string;
-  email?: string;
-  phone?: string;
-  contactPerson?: string;
-  address?: string;
   country?: string;
   contactInfo?: string;
   isActive: boolean;
@@ -191,10 +188,6 @@ export interface Vendor {
 
 export interface CreateVendorRequest {
   name: string;
-  email?: string;
-  phone?: string;
-  contactPerson?: string;
-  address?: string;
   country?: string;
   contactInfo?: string;
 }
@@ -214,7 +207,13 @@ export interface Tenant {
   id: string;
   name: string;
   companyCode: string;
-  currency: string;
+  currencyCode: string;
+  currency: {
+    code: string;
+    symbol: string;
+    decimalPlaces: number;
+  };
+  currencyLocked?: boolean;
   locale: string;
   status: 'ACTIVE' | 'INACTIVE';
   createdAt: string;
@@ -239,6 +238,6 @@ export interface TenantStats {
 // Note: Tenant updates are limited - no status/billing changes allowed here
 export interface UpdateTenantRequest {
   name?: string;
-  currency?: string;
+  currencyCode?: string;
   locale?: string;
 }

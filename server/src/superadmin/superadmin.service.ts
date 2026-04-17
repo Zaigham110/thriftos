@@ -6,6 +6,7 @@ import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { TenantResponseDto, TenantListResponseDto } from './dto/tenant-response.dto';
 import { TenantStatus } from '@prisma/client';
+import { getCurrencyMeta, isSupportedCurrencyCode } from '../common/currency/currency';
 
 @Injectable()
 export class SuperAdminService {
@@ -28,12 +29,17 @@ export class SuperAdminService {
       throw new BadRequestException(`Company code "${dto.companyCode}" already exists`);
     }
 
+    const desiredCurrency = dto.currencyCode || dto.currency || 'USD';
+    if (!isSupportedCurrencyCode(desiredCurrency)) {
+      throw new BadRequestException(`Unsupported currency code: ${desiredCurrency}`);
+    }
+
     // Create tenant
     const tenant = await this.prisma.tenant.create({
       data: {
         name: dto.name,
         companyCode: dto.companyCode,
-        currency: dto.currency || 'USD',
+        currency: desiredCurrency,
         locale: dto.locale || 'en-US',
         status: dto.status || TenantStatus.ACTIVE,
       },
@@ -70,8 +76,12 @@ export class SuperAdminService {
       console.error('Failed to log audit for tenant creation:', auditError);
     }
 
+    const currencyMeta = getCurrencyMeta(tenant.currency);
+
     return {
       ...tenant,
+      currencyCode: tenant.currency,
+      currency: currencyMeta,
       bootstrap,
     };
   }
@@ -106,8 +116,17 @@ export class SuperAdminService {
       this.prisma.tenant.count({ where }),
     ]);
 
+    const mapped = data.map((t) => {
+      const currencyMeta = getCurrencyMeta(t.currency);
+      return {
+        ...t,
+        currencyCode: t.currency,
+        currency: currencyMeta,
+      };
+    });
+
     return {
-      data,
+      data: mapped,
       total,
       page,
       limit,
@@ -134,7 +153,12 @@ export class SuperAdminService {
       throw new NotFoundException(`Tenant with ID "${id}" not found`);
     }
 
-    return tenant;
+    const currencyMeta = getCurrencyMeta(tenant.currency);
+    return {
+      ...tenant,
+      currencyCode: tenant.currency,
+      currency: currencyMeta,
+    };
   }
 
   async update(id: string, dto: UpdateTenantDto, userId: string): Promise<TenantResponseDto> {
@@ -146,9 +170,21 @@ export class SuperAdminService {
       throw new NotFoundException(`Tenant with ID "${id}" not found`);
     }
 
+
+    const desiredCurrency = dto.currencyCode || dto.currency;
+    if (desiredCurrency && !isSupportedCurrencyCode(desiredCurrency)) {
+      throw new BadRequestException(`Unsupported currency code: ${desiredCurrency}`);
+    }
+
+    const updateData: any = {
+      ...dto,
+      ...(dto.currencyCode ? { currency: dto.currencyCode } : {}),
+    };
+    delete updateData.currencyCode;
+
     const updated = await this.prisma.tenant.update({
       where: { id },
-      data: dto,
+      data: updateData,
       include: {
         _count: {
           select: {
@@ -169,13 +205,18 @@ export class SuperAdminService {
       entityType: 'Tenant',
       entityId: id,
       metadataJson: {
-        changes: dto,
+        changes: updateData,
         previousStatus: tenant.status,
         newStatus: updated.status,
       },
     });
 
-    return updated;
+    const currencyMeta = getCurrencyMeta(updated.currency);
+    return {
+      ...updated,
+      currencyCode: updated.currency,
+      currency: currencyMeta,
+    };
   }
 
   async deactivate(id: string, userId: string): Promise<TenantResponseDto> {

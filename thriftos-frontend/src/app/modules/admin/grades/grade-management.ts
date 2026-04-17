@@ -7,45 +7,45 @@
 
 import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { LucideAngularModule, Star, Plus, Pencil, Trash2, Search, RefreshCw, ArrowLeft } from 'lucide-angular';
+import { Router } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { AdminService } from '../admin.service';
 import { Grade } from '../admin.models';
+import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 import {
   AppPageComponent,
   AppPageHeaderComponent,
   AppPageBodyComponent,
   AppSectionComponent,
+  AppSectionHeaderComponent,
+  AppSectionBodyComponent,
   AppDataTableComponent,
   AppButtonComponent,
-  AppBadgeComponent,
   AppLoadingComponent,
   AppEmptyStateComponent,
   AppDialogComponent,
-  BreadcrumbComponent,
-  type TableColumn,
-  type BreadcrumbItem,
+  AppBreadcrumbComponent,
+  type DataTableColumn,
 } from '../../../shared/ui';
-import { GradeFormDrawerComponent } from './grade-form-drawer';
-import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 
 @Component({
   selector: 'app-grade-management',
   standalone: true,
   imports: [
     CommonModule,
-    LucideAngularModule,
+    FormsModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
     AppSectionComponent,
+    AppSectionHeaderComponent,
+    AppSectionBodyComponent,
     AppDataTableComponent,
     AppButtonComponent,
-    AppBadgeComponent,
     AppLoadingComponent,
     AppEmptyStateComponent,
     AppDialogComponent,
-    BreadcrumbComponent,
-    GradeFormDrawerComponent,
+    AppBreadcrumbComponent,
     HasPermissionDirective,
   ],
   templateUrl: './grade-management.html',
@@ -54,32 +54,22 @@ import { HasPermissionDirective } from '../../../shared/directives/has-permissio
 })
 export class GradeManagementComponent implements OnInit {
   private readonly adminService = inject(AdminService);
+  private readonly router = inject(Router);
 
-  readonly icons = {
-    Star,
-    Plus,
-    Pencil,
-    Trash2,
-    Search,
-    RefreshCw,
-    ArrowLeft,
-  };
-
-  readonly breadcrumbs: BreadcrumbItem[] = [
+  readonly breadcrumbs = [
     { label: 'Administration', route: '/app/admin' },
     { label: 'Grades' },
   ];
 
-  readonly columns: TableColumn[] = [
+  readonly columns: DataTableColumn[] = [
     { key: 'name', label: 'Grade', sortable: true },
     { key: 'description', label: 'Description' },
-    { key: 'actions', label: 'Actions', width: '120px' },
+    { key: 'rank', label: 'Rank', sortable: true },
+    { key: 'status', label: 'Status', sortable: true },
   ];
 
   readonly searchQuery = signal('');
   readonly loading = signal(true);
-  readonly drawerOpen = signal(false);
-  readonly selectedGrade = signal<Grade | null>(null);
   readonly confirmDeleteOpen = signal(false);
   readonly gradeToDelete = signal<Grade | null>(null);
 
@@ -111,24 +101,12 @@ export class GradeManagementComponent implements OnInit {
     this.loadData();
   }
 
-  openAddDrawer(): void {
-    this.selectedGrade.set(null);
-    this.drawerOpen.set(true);
+  createGrade(): void {
+    this.router.navigate(['/app/admin/grades/new']);
   }
 
-  openEditDrawer(grade: Grade): void {
-    this.selectedGrade.set(grade);
-    this.drawerOpen.set(true);
-  }
-
-  closeDrawer(): void {
-    this.drawerOpen.set(false);
-    this.selectedGrade.set(null);
-  }
-
-  onSaved(): void {
-    this.closeDrawer();
-    this.refresh();
+  editGrade(grade: Grade): void {
+    this.router.navigate(['/app/admin/grades', grade.id, 'edit']);
   }
 
   confirmDelete(grade: Grade): void {
@@ -157,24 +135,7 @@ export class GradeManagementComponent implements OnInit {
     });
   }
 
-  getGradeBadgeClass(grade: Grade): string {
-    // Map grade names to colors
-    const name = grade.name.toUpperCase();
-    if (name.includes('A') || name.includes('PREMIUM')) return 'badge-green';
-    if (name.includes('B') || name.includes('GOOD')) return 'badge-blue';
-    if (name.includes('C') || name.includes('FAIR')) return 'badge-yellow';
-    if (name.includes('D') || name.includes('POOR')) return 'badge-orange';
-    if (name.includes('REJECT') || name.includes('WASTE')) return 'badge-red';
-    return 'badge-gray';
-  }
-
-  getGradeBadgeVariant(grade: Grade): 'default' | 'primary' | 'success' | 'warning' | 'danger' {
-    // Map grade names to badge variants for design system
-    const name = grade.name.toUpperCase();
-    if (name.includes('A') || name.includes('PREMIUM')) return 'success';
-    if (name.includes('B') || name.includes('GOOD')) return 'primary';
-    if (name.includes('C') || name.includes('FAIR')) return 'warning';
-    if (name.includes('D') || name.includes('POOR') || name.includes('REJECT') || name.includes('WASTE')) return 'danger';
-    return 'default';
+  statusLabel(isActive: boolean): string {
+    return isActive ? 'Active' : 'Inactive';
   }
 }

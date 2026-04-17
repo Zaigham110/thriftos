@@ -30,6 +30,13 @@ export class WasteController {
     return this.waste.listAllCategories(tenantId);
   }
 
+  @Get(':id')
+  @RequirePermissions('category.read')
+  async getOne(@Param('id') id: string, @CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    return this.waste.getCategory(tenantId, id);
+  }
+
   @Post()
   @RequirePermissions('category.create')
   @HttpCode(HttpStatus.CREATED)
@@ -62,7 +69,6 @@ export class WasteController {
     @Req() req: Request,
   ) {
     const tenantId = (req as any).tenantId || user.tenantId;
-    // hard delete is acceptable for config in this repo; can be switched to isActive=false later
-    return this.waste.updateCategory(tenantId, id, { isActive: false });
+    return this.waste.deleteCategory(tenantId, id);
   }
 }

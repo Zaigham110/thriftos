@@ -21,6 +21,7 @@
       <app-section-body>
         <app-report-filters
           [showWarehouse]="true"
+          [warehouses]="warehouses()"
           [showExport]="true"
           [exporting]="exporting"
           (filtersChange)="onFiltersChange($event)"

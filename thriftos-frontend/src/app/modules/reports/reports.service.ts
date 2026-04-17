@@ -52,7 +52,7 @@
 
 import { Injectable, signal } from '@angular/core';
 import { HttpClient, HttpParams, HttpErrorResponse } from '@angular/common/http';
-import { Observable, catchError, tap, throwError, map } from 'rxjs';
+import { Observable, catchError, tap, throwError, map, forkJoin, of } from 'rxjs';
 import {
   ReportFilters,
   ProcurementSummaryResponse,
@@ -144,7 +144,42 @@ export class ReportsService {
   readonly sortingEfficiency = this._sortingEfficiency.asReadonly();
   readonly repackEfficiency = this._repackEfficiency.asReadonly();
 
+  private readonly _filterLookups = signal<{
+    categories: { id: string; name: string }[];
+    grades: { id: string; name: string }[];
+    warehouses: { id: string; name: string }[];
+  } | null>(null);
+
   constructor(private readonly http: HttpClient) {}
+
+  loadFilterLookups(force = false): Observable<{
+    categories: { id: string; name: string }[];
+    grades: { id: string; name: string }[];
+    warehouses: { id: string; name: string }[];
+  }> {
+    const cached = this._filterLookups();
+    if (cached && !force) return of(cached);
+
+    return forkJoin({
+      categories: this.http.get<any[]>(`${API_ENDPOINTS.tenant}/categories`).pipe(catchError(() => of([]))),
+      grades: this.http.get<any[]>(`${API_ENDPOINTS.tenant}/grades`).pipe(catchError(() => of([]))),
+      warehouses: this.http.get<any[]>(`${API_ENDPOINTS.tenant}/warehouses`).pipe(catchError(() => of([]))),
+    }).pipe(
+      map(({ categories, grades, warehouses }) => {
+        const toActiveSimple = (rows: any[]) =>
+          (rows || [])
+            .filter((r) => r && r.id && r.name && r.isActive !== false)
+            .map((r) => ({ id: String(r.id), name: String(r.name) }));
+
+        return {
+          categories: toActiveSimple(categories),
+          grades: toActiveSimple(grades),
+          warehouses: toActiveSimple(warehouses),
+        };
+      }),
+      tap((lookups) => this._filterLookups.set(lookups)),
+    );
+  }
 
   // =============================================================
   // YIELD REPORT (Category Yield from Sorting)

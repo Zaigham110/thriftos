@@ -1,24 +1,27 @@
-/**
- * Role List Component
- * Phase 8: Tenant Administration
- * 
- * Displays list of roles with create/edit functionality.
- */
-
 import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { LucideAngularModule, Shield, Plus, Pencil, Trash2, Search, RefreshCw, Key } from 'lucide-angular';
+import { CommonModule, DatePipe } from '@angular/common';
+import { Router } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+
 import { AdminService } from '../admin.service';
-import { Role } from '../admin.models';
+import type { Role } from '../admin.models';
+
 import {
-  CardComponent,
-  BreadcrumbComponent,
-  EmptyStateComponent,
-  SkeletonComponent,
-  ConfirmDialogComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppPageBodyComponent,
+  AppSectionComponent,
+  AppSectionHeaderComponent,
+  AppSectionBodyComponent,
+  AppDataTableComponent,
+  AppBreadcrumbComponent,
+  AppButtonComponent,
+  AppStackComponent,
+  AppLoadingComponent,
+  AppEmptyStateComponent,
+  AppDialogComponent,
+  type DataTableColumn,
 } from '../../../shared/ui';
-import { RoleFormDrawerComponent } from './role-form-drawer';
-import { RolePermissionsDrawerComponent } from './role-permissions-drawer';
 import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 
 @Component({
@@ -26,14 +29,21 @@ import { HasPermissionDirective } from '../../../shared/directives/has-permissio
   standalone: true,
   imports: [
     CommonModule,
-    LucideAngularModule,
-    CardComponent,
-    BreadcrumbComponent,
-    EmptyStateComponent,
-    SkeletonComponent,
-    ConfirmDialogComponent,
-    RoleFormDrawerComponent,
-    RolePermissionsDrawerComponent,
+    FormsModule,
+    DatePipe,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppSectionComponent,
+    AppSectionHeaderComponent,
+    AppSectionBodyComponent,
+    AppDataTableComponent,
+    AppBreadcrumbComponent,
+    AppButtonComponent,
+    AppStackComponent,
+    AppLoadingComponent,
+    AppEmptyStateComponent,
+    AppDialogComponent,
     HasPermissionDirective,
   ],
   templateUrl: './role-list.html',
@@ -42,16 +52,7 @@ import { HasPermissionDirective } from '../../../shared/directives/has-permissio
 })
 export class RoleListComponent implements OnInit {
   private readonly adminService = inject(AdminService);
-
-  readonly icons = {
-    Shield,
-    Plus,
-    Pencil,
-    Trash2,
-    Search,
-    RefreshCw,
-    Key,
-  };
+  private readonly router = inject(Router);
 
   readonly breadcrumbs = [
     { label: 'Administration', route: '/app/admin' },
@@ -60,15 +61,18 @@ export class RoleListComponent implements OnInit {
 
   readonly searchQuery = signal('');
   readonly loading = signal(true);
-  readonly formDrawerOpen = signal(false);
-  readonly permissionsDrawerOpen = signal(false);
-  readonly selectedRole = signal<Role | null>(null);
   readonly confirmDeleteOpen = signal(false);
   readonly roleToDelete = signal<Role | null>(null);
 
   readonly roles = this.adminService.roles;
-  readonly permissions = this.adminService.permissions;
-  readonly permissionGroups = this.adminService.permissionGroups;
+
+  readonly tableColumns: DataTableColumn[] = [
+    { key: 'name', label: 'Name', sortable: true },
+    { key: 'description', label: 'Description' },
+    { key: 'users', label: 'Users', sortable: true, getValue: (row) => String((row as Role)._count?.userRoles ?? 0) },
+    { key: 'permissions', label: 'Permissions', getValue: (row) => String((row as Role).rolePermissions?.length ?? 0) },
+    { key: 'createdAt', label: 'Created', sortable: true },
+  ];
 
   readonly filteredRoles = computed(() => {
     const query = this.searchQuery().toLowerCase();
@@ -86,14 +90,10 @@ export class RoleListComponent implements OnInit {
 
   loadData(): void {
     this.loading.set(true);
-    
-    // Load roles and permissions in parallel
-    Promise.all([
-      this.adminService.loadRoles().toPromise(),
-      this.adminService.loadPermissions().toPromise(),
-      this.adminService.loadPermissionsGrouped().toPromise(),
-    ]).finally(() => {
-      this.loading.set(false);
+
+    this.adminService.loadRoles().subscribe({
+      next: () => this.loading.set(false),
+      error: () => this.loading.set(false),
     });
   }
 
@@ -101,39 +101,12 @@ export class RoleListComponent implements OnInit {
     this.loadData();
   }
 
-  openAddDrawer(): void {
-    this.selectedRole.set(null);
-    this.formDrawerOpen.set(true);
+  createRole(): void {
+    this.router.navigate(['/app/admin/roles/new']);
   }
 
-  openEditDrawer(role: Role): void {
-    this.selectedRole.set(role);
-    this.formDrawerOpen.set(true);
-  }
-
-  openPermissionsDrawer(role: Role): void {
-    this.selectedRole.set(role);
-    this.permissionsDrawerOpen.set(true);
-  }
-
-  closeFormDrawer(): void {
-    this.formDrawerOpen.set(false);
-    this.selectedRole.set(null);
-  }
-
-  closePermissionsDrawer(): void {
-    this.permissionsDrawerOpen.set(false);
-    this.selectedRole.set(null);
-  }
-
-  onFormSaved(): void {
-    this.closeFormDrawer();
-    this.refresh();
-  }
-
-  onPermissionsSaved(): void {
-    this.closePermissionsDrawer();
-    this.refresh();
+  editRole(role: Role): void {
+    this.router.navigate(['/app/admin/roles', role.id, 'edit']);
   }
 
   confirmDelete(role: Role): void {
@@ -162,7 +135,7 @@ export class RoleListComponent implements OnInit {
     });
   }
 
-  getPermissionCount(role: Role): number {
-    return role.rolePermissions?.length || 0;
+  getCreatedDate(role: Role): string {
+    return role.createdAt;
   }
 }

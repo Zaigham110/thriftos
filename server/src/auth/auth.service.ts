@@ -107,6 +107,12 @@ export class AuthService {
         name: user.name,
         tenantId: isSuperAdmin ? null : user.tenantId,
         isSuperAdmin,
+        role: isSuperAdmin ? 'SUPERADMIN' : 'TENANT_USER',
+        tenants: isSuperAdmin
+          ? []
+          : user.tenant
+            ? [{ id: user.tenant.id, name: user.tenant.name }]
+            : [],
       },
     };
   }

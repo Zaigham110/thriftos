@@ -53,7 +53,7 @@
                 {{ formatWeight(row.containers?.weightKg) }}
               }
               @case ('containersCost') {
-                {{ formatCurrency(row.containers?.cost, currency) }}
+                {{ formatCurrency(row.containers?.cost) }}
               }
               @case ('looseBalesCount') {
                 {{ formatNumber(row.looseBales?.count) }}
@@ -62,16 +62,16 @@
                 {{ formatWeight(row.looseBales?.weightKg) }}
               }
               @case ('looseBalesCost') {
-                {{ formatCurrency(row.looseBales?.cost, currency) }}
+                {{ formatCurrency(row.looseBales?.cost) }}
               }
               @case ('poTotalCost') {
-                {{ formatCurrency(row.poTotalCost, currency) }}
+                {{ formatCurrency(row.poTotalCost) }}
               }
               @case ('computedProcurementCost') {
-                {{ formatCurrency(row.computedProcurementCost, currency) }}
+                {{ formatCurrency(row.computedProcurementCost) }}
               }
               @case ('costDelta') {
-                {{ formatCurrency(row.costDelta, currency) }}
+                {{ formatCurrency(row.costDelta) }}
               }
               @case ('matchesPoTotal') {
                 {{ row.matchesPoTotal ? 'Yes' : 'No' }}

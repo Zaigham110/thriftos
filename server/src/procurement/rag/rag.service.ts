@@ -49,14 +49,20 @@ export class RagService {
       throw new BadRequestException('Raw category not found or inactive');
     }
 
-    // Validate total weight doesn't exceed container gross weight
+    // Validate total weight doesn't exceed container net weight (gross is informational only)
     const currentTotalWeight = container.rags.reduce((sum, rag) => sum + Number(rag.weightKg), 0);
     const newTotalWeight = Number(currentTotalWeight) + Number(dto.weightKg);
-    const grossWeight = Number(container.grossWeight);
+    const netWeight = Number(container.netWeight);
 
-    if (newTotalWeight > grossWeight) {
+    if (!Number.isFinite(netWeight) || netWeight <= 0) {
       throw new BadRequestException(
-        `Total weight (${newTotalWeight} kg) would exceed container gross weight (${grossWeight} kg). Available: ${grossWeight - currentTotalWeight} kg`,
+        'Container net weight is missing or invalid. Set gross/tare weights to compute net weight before adding rags.',
+      );
+    }
+
+    if (newTotalWeight > netWeight) {
+      throw new BadRequestException(
+        `Total weight (${newTotalWeight} kg) would exceed container net weight (${netWeight} kg). Available: ${netWeight - currentTotalWeight} kg`,
       );
     }
 

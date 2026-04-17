@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsDateString, Min, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsDateString, MaxLength } from 'class-validator';
 
 export class UpdateContainerDto {
   @IsString()
@@ -30,16 +30,6 @@ export class UpdateContainerDto {
   @IsDateString()
   @IsOptional()
   releasedAt?: string;
-
-  @IsNumber()
-  @Min(0)
-  @IsOptional()
-  grossWeight?: number;
-
-  @IsNumber()
-  @Min(0)
-  @IsOptional()
-  netWeight?: number;
 
   @IsString()
   @IsOptional()

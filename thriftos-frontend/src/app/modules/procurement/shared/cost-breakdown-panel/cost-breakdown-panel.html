@@ -6,9 +6,9 @@
       <app-loading message="Loading cost breakdown…" />
     } @else if (costBreakdown(); as breakdown) {
       <app-stack direction="vertical" spacing="xs">
-        <div><strong>Total Cost:</strong> {{ breakdown.totalCost | currency:currency():'symbol':'1.2-2' }}</div>
+        <div><strong>Total Cost:</strong> {{ breakdown.totalCost | money:{ minimumFractionDigits: 2, maximumFractionDigits: 2 } }}</div>
         <div><strong>Total Weight:</strong> {{ breakdown.totalWeight | number:'1.2-2' }} kg</div>
-        <div><strong>Cost per kg:</strong> {{ breakdown.costPerKg | currency:currency():'symbol':'1.4-4' }}</div>
+        <div><strong>Cost per kg:</strong> {{ breakdown.costPerKg | money:{ minimumFractionDigits: 4, maximumFractionDigits: 4 } }}</div>
       </app-stack>
 
       @if (hasCharges()) {
@@ -28,7 +28,7 @@
                 </app-badge>
               }
               @case ('amount') {
-                <span class="tabular-nums">{{ row.amount | currency:currency():'symbol':'1.2-2' }}</span>
+                <span class="tabular-nums">{{ row.amount | money:{ minimumFractionDigits: 2, maximumFractionDigits: 2 } }}</span>
               }
               @default {
                 {{ row[column.key] }}

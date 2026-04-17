@@ -1,0 +1,271 @@
+<app-page>
+  <app-page-header>
+    <h1>Sale {{ sale()?.saleNumber || '' }}</h1>
+    <p class="subtitle">
+      Status:
+      @if (sale()) {
+        <app-badge class="status-badge" [variant]="getStatusVariant(sale()!.status)">
+          {{ sale()!.status }}
+        </app-badge>
+      }
+    </p>
+  </app-page-header>
+
+  <app-page-body>
+    @if (loading()) {
+      <app-loading message="Loading sale..." />
+    } @else if (error()) {
+      <app-error-state [message]="error()!" [action]="true">
+        <app-button action variant="secondary" (clickEvent)="retryLoad()">Retry</app-button>
+      </app-error-state>
+    } @else if (!sale()) {
+      <app-empty-state title="Sale not found" message="This sale could not be loaded." />
+    } @else {
+      <app-section>
+        <app-section-header>
+          <h2>Definition</h2>
+
+          <div class="header-actions">
+            @if (sale()!.status !== 'DRAFT') {
+              <app-button variant="secondary" [routerLink]="['/app/sales', sale()!.id, 'invoice']">
+                View Invoice
+              </app-button>
+            }
+
+            <app-button
+              variant="primary"
+              [disabled]="!canEdit() || saving()"
+              (clickEvent)="openIssue()"
+            >
+              Issue Invoice
+            </app-button>
+          </div>
+        </app-section-header>
+
+        <app-section-body>
+          <div class="definition-grid">
+            <div class="field">
+              <div class="label">Sale #</div>
+              <div class="value">{{ sale()!.saleNumber }}</div>
+            </div>
+
+            <div class="field">
+              <div class="label">Created</div>
+              <div class="value">{{ sale()!.createdAt | date:'medium' }}</div>
+            </div>
+
+            <app-form-field label="Customer">
+              <app-select
+                [formControl]="customerId"
+                [options]="customerOptions()"
+                [disabled]="!canEdit()"
+              ></app-select>
+            </app-form-field>
+
+            <app-form-field label="Sale Type">
+              <app-select
+                [formControl]="type"
+                [options]="typeOptions"
+                [disabled]="!canEdit()"
+              ></app-select>
+            </app-form-field>
+
+            <div class="definition-actions">
+              <app-button
+                variant="secondary"
+                [disabled]="!canEdit() || saving()"
+                (clickEvent)="saveDefinition()"
+              >
+                Save Definition
+              </app-button>
+            </div>
+          </div>
+        </app-section-body>
+      </app-section>
+
+      <app-section>
+        <app-section-header>
+          <h2>Lines</h2>
+          <div class="header-actions">
+            <div class="summary">
+              <div class="summary-item">
+                <div class="label">Total</div>
+                <div class="value tabular-nums">{{ sale()!.totalAmount | money }}</div>
+              </div>
+              <div class="summary-item">
+                <div class="label">Paid</div>
+                <div class="value tabular-nums">{{ paidAmount() | money }}</div>
+              </div>
+              <div class="summary-item">
+                <div class="label">Balance</div>
+                <div class="value tabular-nums">{{ balanceAmount() | money }}</div>
+              </div>
+            </div>
+          </div>
+        </app-section-header>
+
+        <app-section-body>
+          @if (lines().length === 0) {
+            <app-empty-state title="No lines" message="Add inventory lines to reserve items." />
+          } @else {
+            <app-data-table
+              title=""
+              [columns]="linesColumns"
+              [data]="lines()"
+              [loading]="false"
+              [serverSide]="false"
+              [enableSearch]="false"
+              [enableColumnFilters]="false"
+              [stickyHeader]="true"
+            >
+              <ng-template #cellTemplate let-row let-column="column">
+                @switch (column.key) {
+                  @case ('unitCode') {
+                    {{ row.inventoryItem?.repackUnit?.unitCode || row.inventoryItem?.unitCode || '—' }}
+                  }
+                  @case ('category') {
+                    {{ row.inventoryItem?.category?.name || '—' }}
+                  }
+                  @case ('grade') {
+                    {{ row.inventoryItem?.grade?.name || '—' }}
+                  }
+                  @case ('qty') {
+                    <span class="tabular-nums">
+                      {{ row.measurementType === 'WEIGHT' ? ((+row.quantity) | number:'1.2-2') + ' kg' : (+row.quantity) + ' pcs' }}
+                    </span>
+                  }
+                  @case ('unitPrice') {
+                    <span class="tabular-nums">{{ row.unitPrice | money }}</span>
+                  }
+                  @case ('lineTotal') {
+                    <span class="tabular-nums">{{ row.lineTotal | money }}</span>
+                  }
+                  @default {
+                    {{ row[column.key] }}
+                  }
+                }
+              </ng-template>
+
+              <ng-template #rowActions let-row>
+                <div class="row-actions">
+                  @if (canEdit()) {
+                    <app-button variant="secondary" size="sm" (clickEvent)="openRepriceLine(row)">Reprice</app-button>
+                    <app-button variant="danger" size="sm" (clickEvent)="openRemoveLine(row)">Remove</app-button>
+                  }
+                </div>
+              </ng-template>
+            </app-data-table>
+          }
+
+          <div class="add-lines">
+            <div class="add-block">
+              <h3>Manual Add (AVAILABLE only)</h3>
+              <div class="row">
+                <app-form-field label="Inventory">
+                  <app-select
+                    [formControl]="manualInventoryId"
+                    [options]="inventoryOptions()"
+                    [disabled]="!canEdit() || inventoryLoading()"
+                  ></app-select>
+                </app-form-field>
+
+                <app-form-field label="Unit Price">
+                  <app-input type="number" [disabled]="!canEdit()" placeholder="0" [formControl]="manualUnitPrice" />
+                </app-form-field>
+
+                <div class="row-actions">
+                  <app-button variant="primary" [disabled]="!canEdit() || saving()" (clickEvent)="addManualLine()">
+                    Add
+                  </app-button>
+                </div>
+              </div>
+            </div>
+
+            <div class="add-block">
+              <h3>QR Scan Add</h3>
+              <div class="row">
+                <app-form-field label="QR Code">
+                  <app-input [disabled]="!canEdit()" placeholder="Scan or enter QR" [formControl]="qrCode" />
+                </app-form-field>
+
+                <app-form-field label="Unit Price">
+                  <app-input type="number" [disabled]="!canEdit()" placeholder="0" [formControl]="qrUnitPrice" />
+                </app-form-field>
+
+                <div class="row-actions">
+                  <app-button variant="primary" [disabled]="!canEdit() || saving()" (clickEvent)="scanQrAndAdd()">
+                    Scan + Add
+                  </app-button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </app-section-body>
+      </app-section>
+
+      <app-section>
+        <app-section-header>
+          <h2>Payments</h2>
+        </app-section-header>
+
+        <app-section-body>
+          @if (sale()!.status === 'DRAFT') {
+            <app-empty-state title="Invoice not issued" message="Issue the invoice before recording payments." />
+          } @else if (payments().length === 0) {
+            <app-empty-state title="No payments" message="No payments recorded yet." />
+          } @else {
+            <div class="payments">
+              @for (p of payments(); track p.id) {
+                <div class="payment-row">
+                  <div class="method">{{ p.method }}</div>
+                  <div class="date">{{ p.receivedAt | date:'medium' }}</div>
+                  <div class="amount tabular-nums">{{ p.amount | money }}</div>
+                </div>
+              }
+            </div>
+          }
+
+          @if (sale()!.status !== 'DRAFT') {
+            <div class="invoice-actions">
+              <app-button variant="secondary" [routerLink]="['/app/sales', sale()!.id, 'invoice']">
+                Open Invoice Page
+              </app-button>
+            </div>
+          }
+        </app-section-body>
+      </app-section>
+
+      <app-dialog
+        [open]="confirmIssueOpen()"
+        title="Issue invoice?"
+        message="After issuing, the sale becomes read-only. Lines and prices cannot be changed."
+        icon="file-text"
+        confirmText="Issue"
+        cancelText="Cancel"
+        [loading]="issuing()"
+        (confirmed)="confirmIssue()"
+        (cancelled)="closeIssue()"
+      ></app-dialog>
+
+      <app-dialog
+        [open]="confirmLineActionOpen()"
+        title="Confirm line change"
+        message="This will update reserved inventory for this sale."
+        icon="alert-triangle"
+        confirmText="Confirm"
+        cancelText="Cancel"
+        [loading]="saving()"
+        (confirmed)="confirmLineAction()"
+        (cancelled)="closeLineAction()"
+      >
+        @if (lineAction() === 'REPRICE') {
+          <div class="dialog-form">
+            <app-form-field label="New Unit Price">
+              <app-input type="number" placeholder="0" [formControl]="lineNewUnitPrice" />
+            </app-form-field>
+          </div>
+        }
+      </app-dialog>
+    }
+  </app-page-body>
+</app-page>

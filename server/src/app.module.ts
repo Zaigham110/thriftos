@@ -19,6 +19,8 @@ import { RepackModule } from './repack/repack.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { ReportsModule } from './reports/reports.module';
 import { HealthModule } from './health/health.module';
+import { AdminModule } from './admin/admin.module';
+import { SalesModule } from './sales/sales.module';
 
 @Module({
   imports: [
@@ -61,6 +63,7 @@ import { HealthModule } from './health/health.module';
 
     // Admin modules
     SuperAdminModule,
+    AdminModule,
     TenantModule,
 
     // Business modules
@@ -71,6 +74,7 @@ import { HealthModule } from './health/health.module';
     WasteModule,
     RepackModule,
     InventoryModule,
+    SalesModule,
     ReportsModule,
   ],
 })

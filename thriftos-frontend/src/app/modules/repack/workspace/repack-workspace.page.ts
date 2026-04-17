@@ -23,9 +23,8 @@ import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
 
 import { RepackService } from '../repack.service';
-import { AdminService } from '../../admin/admin.service';
 import { AuthService } from '../../../core/auth/auth';
-import { RepackUnit, RepackAllocation, AvailableStock, MeasurementType } from '../repack.models';
+import { RepackUnit, RepackAllocation, AvailableStock, MeasurementType, Warehouse } from '../repack.models';
 
 import {
   AppPageComponent,
@@ -78,7 +77,6 @@ export class RepackWorkspaceComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly repackService = inject(RepackService);
-  private readonly adminService = inject(AdminService);
   private readonly authService = inject(AuthService);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly destroy$ = new Subject<void>();
@@ -164,10 +162,10 @@ export class RepackWorkspaceComponent implements OnInit, OnDestroy {
   readonly selectedWarehouseId = signal<string | null>(null);
   readonly sealing = signal(false);
 
-  // Warehouses reference
-  readonly warehouses = this.adminService.warehouses;
+  // Warehouses reference (tenant-scoped)
+  readonly warehouses = signal<Warehouse[]>([]);
   readonly warehouseOptions = computed(() =>
-    this.warehouses().map((w: any) => ({ label: w.name, value: w.id }))
+    this.warehouses().map((w) => ({ label: w.name, value: w.id }))
   );
 
   // ============================================
@@ -256,8 +254,7 @@ export class RepackWorkspaceComponent implements OnInit, OnDestroy {
       this.isNewMode.set(true);
       this.loading.set(false);
       this.loadReferenceData();
-      // Load warehouses for seal action later
-      this.adminService.loadWarehouses().subscribe();
+      this.loadWarehouses();
       return;
     }
 
@@ -269,8 +266,7 @@ export class RepackWorkspaceComponent implements OnInit, OnDestroy {
       this.router.navigate(['/packaging/repack']);
     }
 
-    // Load warehouses
-    this.adminService.loadWarehouses().subscribe();
+    this.loadWarehouses();
   }
 
   ngOnDestroy(): void {
@@ -290,6 +286,13 @@ export class RepackWorkspaceComponent implements OnInit, OnDestroy {
     this.repackService.getGrades().subscribe({
       next: (grds) => this.grades.set(grds),
       error: (err) => console.error('Failed to load grades:', err)
+    });
+  }
+
+  loadWarehouses(): void {
+    this.repackService.getWarehouses().subscribe({
+      next: (ws) => this.warehouses.set(ws),
+      error: (err) => console.error('Failed to load warehouses:', err),
     });
   }
 

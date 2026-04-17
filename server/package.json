@@ -4,7 +4,7 @@
   "description": "ThriftOS V3 Backend API",
   "private": true,
   "scripts": {
-    "prisma:generate": "cd .. && npx prisma generate && cd server",
+    "prisma:generate": "npx prisma generate --schema ../prisma/schema.prisma && node ../scripts/ensure-prisma-client-link.js",
     "prebuild": "npm run prisma:generate",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\"",
@@ -15,7 +15,8 @@
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "maintenance:recompute-cost-chain": "node scripts/maintenance/recompute-cost-chain.js",
     "maintenance:backfill-waste-lines": "node scripts/maintenance/backfill-waste-line-items-from-sorting-waste.js",
-    "verify:reports:http": "node scripts/verification/verify-reports-http.js"
+    "verify:reports:http": "node scripts/verification/verify-reports-http.js",
+    "verify:sales:http": "node scripts/verification/verify-sales-http.js"
   },
   "prisma": {
     "schema": "../prisma/schema.prisma"

@@ -4,9 +4,10 @@ import { AuditService } from '../../audit/audit.service';
 import { CostAllocationService } from '../cost-allocation/cost-allocation.service';
 import { CreateContainerDto } from './dto/create-container.dto';
 import { UpdateContainerDto } from './dto/update-container.dto';
+import { UpdateContainerWeightsDto } from './dto/update-container-weights.dto';
 import { UpdateContainerStatusDto } from './dto/update-container-status.dto';
 import { CreateContainerChargeDto } from './dto/create-container-charge.dto';
-import { ContainerStatus, PurchaseOrderType, PurchaseOrderStatus, SequenceScope } from '@prisma/client';
+import { ContainerStatus, PurchaseOrderType, PurchaseOrderStatus, SequenceScope, Prisma } from '@prisma/client';
 import { TenantSequenceService } from '../shared/tenant-sequence.service';
 
 @Injectable()
@@ -20,6 +21,66 @@ export class ContainerService {
 
   private toDate(value?: string) {
     return value ? new Date(value) : null;
+  }
+
+  private computeCreateWeightsOrThrow(grossWeightKg: number, netWeightKg: number, tareWeightKg?: number) {
+    if (!Number.isFinite(grossWeightKg) || grossWeightKg <= 0) {
+      throw new BadRequestException('grossWeightKg must be greater than 0');
+    }
+    if (!Number.isFinite(netWeightKg) || netWeightKg <= 0) {
+      throw new BadRequestException('netWeightKg must be greater than 0');
+    }
+
+    const gross = new Prisma.Decimal(grossWeightKg).toDecimalPlaces(2);
+    const net = new Prisma.Decimal(netWeightKg).toDecimalPlaces(2);
+
+    if (net.gt(gross)) {
+      throw new BadRequestException('netWeightKg must be less than or equal to grossWeightKg');
+    }
+
+    if (tareWeightKg === undefined) {
+      // Tare weight is optional at creation time; store null if omitted.
+      return { gross, tare: null as Prisma.Decimal | null, net };
+    }
+
+    if (!Number.isFinite(tareWeightKg) || tareWeightKg < 0) {
+      throw new BadRequestException('tareWeightKg must be 0 or greater');
+    }
+
+    const tare = new Prisma.Decimal(tareWeightKg).toDecimalPlaces(2);
+
+    if (tare.gte(gross)) {
+      throw new BadRequestException('tareWeightKg must be less than grossWeightKg');
+    }
+
+    const computedNet = gross.minus(tare).toDecimalPlaces(2);
+    if (!computedNet.equals(net)) {
+      throw new BadRequestException('netWeightKg must equal grossWeightKg - tareWeightKg');
+    }
+
+    return { gross, tare, net };
+  }
+
+  private computeNetWeightOrThrow(grossWeightKg: number, tareWeightKg: number) {
+    if (!Number.isFinite(grossWeightKg) || grossWeightKg <= 0) {
+      throw new BadRequestException('grossWeightKg must be greater than 0');
+    }
+    if (!Number.isFinite(tareWeightKg) || tareWeightKg < 0) {
+      throw new BadRequestException('tareWeightKg must be 0 or greater');
+    }
+    if (tareWeightKg >= grossWeightKg) {
+      throw new BadRequestException('tareWeightKg must be less than grossWeightKg');
+    }
+
+    const gross = new Prisma.Decimal(grossWeightKg);
+    const tare = new Prisma.Decimal(tareWeightKg);
+    const net = gross.minus(tare).toDecimalPlaces(2);
+
+    if (net.lte(0)) {
+      throw new BadRequestException('Computed netWeight must be greater than 0');
+    }
+
+    return { gross, tare, net };
   }
 
   async create(tenantId: string, dto: CreateContainerDto, userId: string) {
@@ -53,6 +114,8 @@ export class ContainerService {
       },
     );
 
+    const { gross, tare, net } = this.computeCreateWeightsOrThrow(dto.grossWeightKg, dto.netWeightKg, dto.tareWeightKg);
+
     const container = await this.prisma.container.create({
       data: {
         tenantId,
@@ -65,8 +128,9 @@ export class ContainerService {
         arrivedAt: this.toDate(dto.arrivedAt),
         clearedAt: this.toDate(dto.clearedAt),
         releasedAt: this.toDate(dto.releasedAt),
-        grossWeight: dto.grossWeight,
-        netWeight: dto.netWeight,
+        grossWeight: gross,
+        tareWeight: tare,
+        netWeight: net,
         billOfLadingNumber: dto.billOfLadingNumber,
         shipmentReference: dto.shipmentReference,
         shippingLine: dto.shippingLine,
@@ -179,8 +243,6 @@ export class ContainerService {
       data: {
         ...(dto.referenceNumber !== undefined && { referenceNumber: dto.referenceNumber }),
         ...(dto.containerType !== undefined && { containerType: dto.containerType }),
-        ...(dto.grossWeight !== undefined && { grossWeight: dto.grossWeight }),
-        ...(dto.netWeight !== undefined && { netWeight: dto.netWeight }),
         ...(dto.billOfLadingNumber !== undefined && { billOfLadingNumber: dto.billOfLadingNumber }),
         ...(dto.shipmentReference !== undefined && { shipmentReference: dto.shipmentReference }),
         ...(dto.shippingLine !== undefined && { shippingLine: dto.shippingLine }),
@@ -203,11 +265,6 @@ export class ContainerService {
       },
     });
 
-    // Recalculate cost allocation if weight changed
-    if (dto.netWeight !== undefined) {
-      await this.costAllocationService.allocateContainerCosts(id, userId);
-    }
-
     await this.auditService.log({
       userId,
       tenantId,
@@ -215,6 +272,47 @@ export class ContainerService {
       entityType: 'Container',
       entityId: id,
       metadataJson: { changes: dto },
+    });
+
+    return updated;
+  }
+
+  async updateWeights(tenantId: string, id: string, dto: UpdateContainerWeightsDto, userId: string) {
+    const container = await this.findOne(tenantId, id);
+
+    if (container.status === ContainerStatus.CLOSED) {
+      throw new ConflictException('Cannot modify a closed container');
+    }
+
+    const { gross, tare, net } = this.computeNetWeightOrThrow(dto.grossWeightKg, dto.tareWeightKg);
+
+    const updated = await this.prisma.container.update({
+      where: { id },
+      data: {
+        grossWeight: gross,
+        tareWeight: tare,
+        netWeight: net,
+      },
+      include: {
+        purchaseOrder: {
+          select: { poNumber: true },
+        },
+        containerCharges: true,
+      },
+    });
+
+    await this.costAllocationService.allocateContainerCosts(id, userId);
+
+    await this.auditService.log({
+      userId,
+      tenantId,
+      action: 'CONTAINER_WEIGHTS_UPDATED',
+      entityType: 'Container',
+      entityId: id,
+      metadataJson: {
+        grossWeightKg: dto.grossWeightKg,
+        tareWeightKg: dto.tareWeightKg,
+      },
     });
 
     return updated;

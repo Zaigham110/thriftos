@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { CommonModule } from '@angular/common';
 
 import { ReportsService } from '../../reports.service';
+import { MoneyService } from '../../../../core/money/money.service';
 import type {
   ReportFilters,
   SortingWasteResponse,
@@ -50,6 +51,7 @@ import {
 })
 export class SortingWasteReportComponent implements OnInit {
   private readonly reportsService = inject(ReportsService);
+  private readonly money = inject(MoneyService);
 
   readonly breadcrumbs: BreadcrumbItem[] = [
     { label: 'Home', link: '/app/dashboard' },
@@ -146,11 +148,7 @@ export class SortingWasteReportComponent implements OnInit {
   formatCurrency(value: unknown): string {
     const n = this.toNumber(value);
     if (n === null) return '—';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(n);
+    return this.money.format(n, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   formatDate(value: unknown): string {

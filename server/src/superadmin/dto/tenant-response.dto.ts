@@ -1,10 +1,18 @@
 import { TenantStatus } from '@prisma/client';
 
+export class CurrencyDto {
+  code: string;
+  symbol: string;
+  decimalPlaces: number;
+}
+
 export class TenantResponseDto {
   id: string;
   name: string;
   companyCode: string;
-  currency: string;
+  currencyCode: string;
+  currency: CurrencyDto;
+  currencyLocked?: boolean;
   locale: string;
   status: TenantStatus;
   createdAt: Date;

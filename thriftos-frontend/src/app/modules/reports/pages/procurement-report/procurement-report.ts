@@ -10,6 +10,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReportsService } from '../../reports.service';
+import { MoneyService } from '../../../../core/money/money.service';
 import { VendorSummaryRow, ReportFilters } from '../../reports.models';
 import { ReportFiltersComponent } from '../../shared/report-filters.component';
 import {
@@ -53,6 +54,7 @@ import {
 })
 export class ProcurementReportComponent implements OnInit {
   private readonly reportsService = inject(ReportsService);
+  private readonly money = inject(MoneyService);
 
   readonly vendors = signal<VendorSummaryRow[]>([]);
   readonly loading = signal(true);
@@ -155,11 +157,7 @@ export class ProcurementReportComponent implements OnInit {
   formatCurrency(value: unknown): string {
     const n = this.toNumber(value);
     if (n === null) return '—';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(n);
+    return this.money.format(n, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   // No frontend rollups or chart calculations.

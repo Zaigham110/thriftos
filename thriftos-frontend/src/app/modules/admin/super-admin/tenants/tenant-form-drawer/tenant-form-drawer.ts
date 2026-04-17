@@ -17,6 +17,7 @@ import { AlertComponent } from '../../../../../shared/ui/alert/alert';
 
 const CURRENCIES = [
   { value: 'USD', label: 'USD - US Dollar' },
+  { value: 'PKR', label: 'PKR - Pakistani Rupee' },
   { value: 'EUR', label: 'EUR - Euro' },
   { value: 'GBP', label: 'GBP - British Pound' },
   { value: 'CAD', label: 'CAD - Canadian Dollar' },
@@ -80,7 +81,7 @@ export class TenantFormDrawerComponent implements OnInit {
     this.form = this.fb.group({
       name: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
       companyCode: ['', [Validators.required, Validators.pattern(/^[A-Z0-9_]{2,20}$/)]],
-      currency: ['USD', Validators.required],
+      currencyCode: ['USD', Validators.required],
       locale: ['en-US', Validators.required],
       status: ['ACTIVE', Validators.required],
       adminEmail: ['', [Validators.required, Validators.email]],
@@ -96,7 +97,7 @@ export class TenantFormDrawerComponent implements OnInit {
       this.form.patchValue({
         name: tenant.name,
         companyCode: tenant.companyCode,
-        currency: tenant.currency,
+        currencyCode: tenant.currencyCode,
         locale: tenant.locale,
         status: tenant.status,
       });
@@ -137,7 +138,7 @@ export class TenantFormDrawerComponent implements OnInit {
     const request = {
       name: formValue.name,
       companyCode: formValue.companyCode,
-      currency: formValue.currency,
+      currencyCode: formValue.currencyCode,
       locale: formValue.locale,
       adminEmail: formValue.adminEmail,
       adminName: formValue.adminName,
@@ -163,7 +164,7 @@ export class TenantFormDrawerComponent implements OnInit {
     const formValue = this.form.getRawValue();
     const request = {
       name: formValue.name,
-      currency: formValue.currency,
+      currencyCode: formValue.currencyCode,
       locale: formValue.locale,
       status: formValue.status,
     };

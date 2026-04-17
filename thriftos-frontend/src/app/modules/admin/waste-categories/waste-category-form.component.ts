@@ -15,6 +15,7 @@ import {
   AppButtonComponent,
   AppStackComponent,
 } from '../../../shared/ui';
+import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 import { WasteCategoryService } from './waste-category.service';
 import type { WasteCategory, CreateWasteCategoryDto, UpdateWasteCategoryDto } from './waste-category.models';
 
@@ -35,6 +36,7 @@ import type { WasteCategory, CreateWasteCategoryDto, UpdateWasteCategoryDto } fr
     AppSelectComponent,
     AppButtonComponent,
     AppStackComponent,
+    HasPermissionDirective,
   ],
   template: `
     <app-page>
@@ -133,7 +135,12 @@ import type { WasteCategory, CreateWasteCategoryDto, UpdateWasteCategoryDto } fr
                 <app-button variant="secondary" type="button" (clickEvent)="onCancel()">
                   Cancel
                 </app-button>
-                <app-button variant="primary" type="submit" [disabled]="form.invalid || submitting()">
+                <app-button
+                  variant="primary"
+                  type="submit"
+                  [disabled]="form.invalid || submitting()"
+                  *hasPermission="isEditMode() ? 'category.update' : 'category.create'"
+                >
                   {{ isEditMode() ? 'Update' : 'Create' }}
                 </app-button>
               </app-stack>
@@ -226,7 +233,7 @@ export class WasteCategoryFormComponent {
       }
 
       this.service.update(this.category()!.id, dto).subscribe({
-        next: () => this.router.navigate(['/settings/waste-categories']),
+        next: () => this.router.navigate(['/app/admin/waste-categories']),
         error: () => this.submitting.set(false)
       });
     } else {
@@ -237,13 +244,13 @@ export class WasteCategoryFormComponent {
       };
 
       this.service.create(dto).subscribe({
-        next: () => this.router.navigate(['/settings/waste-categories']),
+        next: () => this.router.navigate(['/app/admin/waste-categories']),
         error: () => this.submitting.set(false)
       });
     }
   }
 
   onCancel() {
-    this.router.navigate(['/settings/waste-categories']);
+    this.router.navigate(['/app/admin/waste-categories']);
   }
 }

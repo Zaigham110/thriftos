@@ -11,7 +11,7 @@
 
     <div class="actions">
       <app-button variant="secondary" (click)="refresh()">Refresh</app-button>
-      <app-button variant="primary" (click)="openCreateDrawer()">Add User</app-button>
+      <app-button variant="primary" (click)="createUser()" *hasPermission="'user.create'">New User</app-button>
     </div>
   </app-page-header>
 
@@ -28,6 +28,15 @@
       <app-section-header>
         <h2 class="section-title">All Users</h2>
         <div class="section-actions">
+          <div class="search">
+            <input
+              type="text"
+              class="search-input"
+              placeholder="Search users…"
+              [value]="searchQuery()"
+              (input)="searchQuery.set($any($event.target).value)"
+            />
+          </div>
           <label class="filter-checkbox">
             <input
               type="checkbox"
@@ -48,7 +57,7 @@
             [message]="searchQuery() ? 'No users match your search criteria' : 'No users have been added yet'"
           >
             @if (!searchQuery()) {
-              <app-button variant="primary" (click)="openCreateDrawer()">Add First User</app-button>
+              <app-button variant="primary" (click)="createUser()">Add First User</app-button>
             }
           </app-empty-state>
         } @else {
@@ -71,13 +80,14 @@
 
             <!-- Row actions -->
             <ng-template #rowActions let-row>
-              <app-button variant="secondary" size="sm" (click)="editUser(row)">Edit</app-button>
-              <app-button 
-                [variant]="row.isActive ? 'danger' : 'secondary'" 
-                size="sm" 
+              <app-button variant="secondary" size="sm" (click)="editUser(row)" *hasPermission="'user.update'">Edit</app-button>
+              <app-button
+                [variant]="row.isActive ? 'danger' : 'primary'"
+                size="sm"
                 (click)="toggleStatus(row)"
+                *hasPermission="'user.delete'"
               >
-                {{ row.isActive ? 'Block' : 'Unblock' }}
+                {{ row.isActive ? 'Delete' : 'Reactivate' }}
               </app-button>
             </ng-template>
           </app-data-table>
@@ -87,36 +97,27 @@
   </app-page-body>
 </app-page>
 
-<!-- User Form Drawer -->
-<app-user-form-drawer
-  [isOpen]="drawerOpen()"
-  [user]="selectedUser()"
-  [roles]="roles()"
-  (closed)="closeDrawer()"
-  (saved)="onUserSaved()"
-></app-user-form-drawer>
-
 <!-- Confirm Dialog -->
 <app-dialog
   [open]="confirmDialogOpen()"
-  [title]="userToToggle()?.isActive ? 'Block User' : 'Unblock User'"
+  [title]="userToToggle()?.isActive ? 'Delete User' : 'Reactivate User'"
   (closed)="cancelToggle()"
 >
   <p>
     @if (userToToggle()?.isActive) {
-      Are you sure you want to block {{ userToToggle()?.name }}? They will no longer be able to log in.
+      Deleting a user is a soft-deactivation. {{ userToToggle()?.name }} will no longer be able to log in, but historical records remain intact.
     } @else {
-      Are you sure you want to unblock {{ userToToggle()?.name }}? They will be able to log in again.
+      Reactivate {{ userToToggle()?.name }} so they can log in again.
     }
   </p>
   
-  <div class="dialog-actions">
+  <div slot="footer" class="dialog-actions">
     <app-button variant="secondary" (click)="cancelToggle()">Cancel</app-button>
     <app-button 
       [variant]="userToToggle()?.isActive ? 'danger' : 'primary'" 
       (click)="executeToggleStatus()"
     >
-      {{ userToToggle()?.isActive ? 'Block' : 'Unblock' }}
+      {{ userToToggle()?.isActive ? 'Delete' : 'Reactivate' }}
     </app-button>
   </div>
 </app-dialog>

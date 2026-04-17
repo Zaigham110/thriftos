@@ -11,6 +11,7 @@ import {
   FileBarChart,
   ArrowRight,
 } from 'lucide-angular';
+import { MoneyService } from '../../../core/money/money.service';
 import {
   AppPageComponent,
   AppPageHeaderComponent,
@@ -58,6 +59,7 @@ interface ReportLink {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReportsDashboardComponent implements OnInit {
+    constructor(private readonly money: MoneyService) {}
   readonly icons = {
     BarChart3,
     TrendingUp,
@@ -179,12 +181,7 @@ export class ReportsDashboardComponent implements OnInit {
   formatCurrency(value: unknown): string {
     const n = this.toNumber(value);
     if (n === null) return '—';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n);
+    return this.money.format(n, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   formatWeight(weight: unknown): string {

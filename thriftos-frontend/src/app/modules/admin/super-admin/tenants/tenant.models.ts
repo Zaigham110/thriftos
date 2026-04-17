@@ -5,11 +5,19 @@
 
 export type TenantStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 
+export interface CurrencyMeta {
+  code: string;
+  symbol: string;
+  decimalPlaces: number;
+}
+
 export interface Tenant {
   id: string;
   name: string;
   companyCode: string;
-  currency: string;
+  currencyCode: string;
+  currency: CurrencyMeta;
+  currencyLocked?: boolean;
   locale: string;
   status: TenantStatus;
   createdAt: string;
@@ -34,7 +42,7 @@ export interface TenantListResponse {
 export interface CreateTenantRequest {
   name: string;
   companyCode: string;
-  currency: string;
+  currencyCode: string;
   locale: string;
   adminEmail: string;
   adminName: string;
@@ -43,7 +51,7 @@ export interface CreateTenantRequest {
 
 export interface UpdateTenantRequest {
   name?: string;
-  currency?: string;
+  currencyCode?: string;
   locale?: string;
   status?: TenantStatus;
 }

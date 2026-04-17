@@ -5,6 +5,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 
 import { ProcurementService } from '../../procurement.service';
 import { ChargeType, Container, CreateContainerChargeRequest } from '../../procurement.models';
+import { TenantService } from '../../../../core/tenant/tenant.service';
 
 import {
   AppBreadcrumbComponent,
@@ -51,6 +52,7 @@ export class ContainerChargeCreateComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly procurementService = inject(ProcurementService);
+  private readonly tenantService = inject(TenantService);
 
   readonly container = signal<Container | null>(null);
   readonly loading = signal(true);
@@ -66,7 +68,7 @@ export class ContainerChargeCreateComponent implements OnInit {
     { value: 'MISC', label: 'Miscellaneous' },
   ];
 
-  readonly currencyCode = computed(() => this.container()?.purchaseOrder?.currency || 'USD');
+  readonly currencyCode = computed(() => this.container()?.purchaseOrder?.currency || this.tenantService.tenant()?.currencyCode || '—');
 
   readonly breadcrumbs = computed<BreadcrumbItem[]>(() => {
     const cont = this.container();
@@ -89,6 +91,7 @@ export class ContainerChargeCreateComponent implements OnInit {
       amount: [0, [Validators.required, Validators.min(0.01)]],
     });
 
+    this.tenantService.loadTenant().subscribe();
     this.loadContainer();
   }
 

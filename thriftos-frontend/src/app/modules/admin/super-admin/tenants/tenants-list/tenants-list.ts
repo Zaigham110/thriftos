@@ -5,18 +5,31 @@
 
 import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
-import { RouterModule } from '@angular/router';
-import { LucideAngularModule, Plus, Eye, Pencil, UserCog, Power, PowerOff, RefreshCw } from 'lucide-angular';
+import { Router, RouterModule } from '@angular/router';
 import { TenantsService } from '../tenants';
 import { Tenant, TenantStatus } from '../tenant.models';
 import { AuthService } from '../../../../../core/auth';
-import { ButtonComponent } from '../../../../../shared/ui/button/button';
-import { BadgeComponent } from '../../../../../shared/ui/badge/badge';
-import { CardComponent } from '../../../../../shared/ui/card/card';
-import { AlertComponent } from '../../../../../shared/ui/alert/alert';
-import { SkeletonComponent } from '../../../../../shared/ui/skeleton/skeleton';
-import { ModalComponent } from '../../../../../shared/ui/modal/modal';
 import { TenantFormDrawerComponent } from '../tenant-form-drawer/tenant-form-drawer';
+
+import {
+  AppBadgeComponent,
+  AppButtonComponent,
+  AppDataTableComponent,
+  type DataTableColumn,
+  type DataTableState,
+  AppDialogComponent,
+  AppDropdownComponent,
+  type DropdownItem,
+  AppErrorStateComponent,
+  AppIconComponent,
+  AppPageBodyComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppSectionBodyComponent,
+  AppSectionComponent,
+  AppSectionHeaderComponent,
+  AppStackComponent,
+} from '../../../../../shared/ui';
 
 @Component({
   selector: 'app-tenants-list',
@@ -24,13 +37,20 @@ import { TenantFormDrawerComponent } from '../tenant-form-drawer/tenant-form-dra
   imports: [
     CommonModule,
     RouterModule,
-    LucideAngularModule,
-    ButtonComponent,
-    BadgeComponent,
-    CardComponent,
-    AlertComponent,
-    SkeletonComponent,
-    ModalComponent,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppSectionComponent,
+    AppSectionHeaderComponent,
+    AppSectionBodyComponent,
+    AppStackComponent,
+    AppButtonComponent,
+    AppBadgeComponent,
+    AppDataTableComponent,
+    AppDialogComponent,
+    AppDropdownComponent,
+    AppIconComponent,
+    AppErrorStateComponent,
     TenantFormDrawerComponent,
     DatePipe,
   ],
@@ -39,16 +59,6 @@ import { TenantFormDrawerComponent } from '../tenant-form-drawer/tenant-form-dra
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TenantsListComponent implements OnInit {
-  protected readonly icons = {
-    Plus,
-    Eye,
-    Pencil,
-    UserCog,
-    Power,
-    PowerOff,
-    RefreshCw,
-  };
-
   // UI State
   protected readonly showDrawer = signal(false);
   protected readonly editingTenant = signal<Tenant | null>(null);
@@ -57,9 +67,55 @@ export class TenantsListComponent implements OnInit {
   protected readonly selectedTenant = signal<Tenant | null>(null);
   protected readonly isActionLoading = signal(false);
 
+  private readonly lastServerQuery = signal<{ page: number; limit: number; status?: TenantStatus } | null>(null);
+
+  protected readonly columns: DataTableColumn[] = [
+    {
+      key: 'name',
+      label: 'Company',
+      sortable: true,
+      getValue: (row) => (row as Tenant).name,
+    },
+    {
+      key: 'companyCode',
+      label: 'Code',
+      sortable: true,
+      getValue: (row) => (row as Tenant).companyCode,
+    },
+    {
+      key: 'currencyCode',
+      label: 'Currency',
+      sortable: true,
+      getValue: (row) => (row as Tenant).currencyCode,
+      width: '110',
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      sortable: true,
+      filterable: true,
+      filterType: 'select',
+      filterOptions: [
+        { value: 'ACTIVE', label: 'ACTIVE' },
+        { value: 'INACTIVE', label: 'INACTIVE' },
+        { value: 'SUSPENDED', label: 'SUSPENDED' },
+      ],
+      getValue: (row) => (row as Tenant).status,
+      width: '140',
+    },
+    {
+      key: 'createdAt',
+      label: 'Created',
+      sortable: true,
+      getValue: (row) => (row as Tenant).createdAt,
+      width: '140',
+    },
+  ];
+
   constructor(
     protected readonly tenantsService: TenantsService,
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
+    private readonly router: Router,
   ) {}
 
   ngOnInit(): void {
@@ -67,7 +123,60 @@ export class TenantsListComponent implements OnInit {
   }
 
   loadTenants(): void {
-    this.tenantsService.loadTenants({ page: 1, limit: 20 }).subscribe();
+    const query = { page: 1, limit: 20 };
+    this.lastServerQuery.set(query);
+    this.tenantsService.loadTenants(query).subscribe();
+  }
+
+  onTableStateChange(state: DataTableState): void {
+    const status = (state.filters?.['status'] ?? '').trim() as TenantStatus | '';
+    const statusFilter: TenantStatus | undefined =
+      status === 'ACTIVE' || status === 'INACTIVE' || status === 'SUSPENDED' ? status : undefined;
+
+    const nextQuery = {
+      page: state.pageIndex,
+      limit: state.pageSize,
+      status: statusFilter,
+    };
+
+    const prevQuery = this.lastServerQuery();
+    const unchanged =
+      prevQuery &&
+      prevQuery.page === nextQuery.page &&
+      prevQuery.limit === nextQuery.limit &&
+      (prevQuery.status ?? undefined) === (nextQuery.status ?? undefined);
+
+    if (unchanged) return;
+
+    this.lastServerQuery.set(nextQuery);
+
+    this.tenantsService
+      .loadTenants({
+        page: nextQuery.page,
+        limit: nextQuery.limit,
+        status: nextQuery.status,
+      })
+      .subscribe();
+  }
+
+  rowActionItems(tenant: Tenant): DropdownItem[] {
+    return [
+      { label: 'View', value: 'view' },
+      { label: 'Edit', value: 'edit' },
+      { label: tenant.status === 'ACTIVE' ? 'Deactivate' : 'Activate', value: 'toggle' },
+      { label: 'Impersonate', value: 'impersonate', disabled: tenant.status !== 'ACTIVE' },
+    ];
+  }
+
+  onRowAction(tenant: Tenant, action: string): void {
+    if (action === 'view') return void this.router.navigate(['/admin/tenants', tenant.id]);
+    if (action === 'edit') return this.openEditDrawer(tenant);
+    if (action === 'toggle') return this.confirmToggleStatus(tenant);
+    if (action === 'impersonate') return this.confirmImpersonate(tenant);
+  }
+
+  onRowClick(tenant: Tenant): void {
+    void this.router.navigate(['/admin/tenants', tenant.id]);
   }
 
   openCreateDrawer(): void {
@@ -149,7 +258,7 @@ export class TenantsListComponent implements OnInit {
     }
   }
 
-  getStatusBadgeType(status: TenantStatus): 'success' | 'warning' | 'danger' | 'info' {
+  getStatusBadgeType(status: TenantStatus): 'success' | 'warning' | 'danger' | 'default' {
     switch (status) {
       case 'ACTIVE':
         return 'success';
@@ -158,7 +267,7 @@ export class TenantsListComponent implements OnInit {
       case 'SUSPENDED':
         return 'danger';
       default:
-        return 'info';
+        return 'default';
     }
   }
 

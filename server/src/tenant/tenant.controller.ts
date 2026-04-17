@@ -8,6 +8,8 @@ import { RequirePermissions, SkipPermissionCheck } from '../common/decorators/pe
 import { RagBaleType } from '@prisma/client';
 import { CreateRawCategoryDto, UpdateRawCategoryDto } from './dto/raw-category.dto';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
+import { CreateWarehouseDto, UpdateWarehouseDto } from './dto/warehouse.dto';
+import { UpdateTenantSettingsDto } from './dto/tenant-settings.dto';
 
 /**
  * TenantController - Returns current tenant information and lookup data.
@@ -27,6 +29,17 @@ export class TenantController {
   async getCurrentTenant(@CurrentUser() user: CurrentUserData, @Req() req: Request) {
     const tenantId = (req as any).tenantId || user.tenantId;
     return this.tenantService.findOne(tenantId);
+  }
+
+  @Patch('settings')
+  @RequirePermissions('tenant.update')
+  async updateTenantSettings(
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+    @Body() dto: UpdateTenantSettingsDto,
+  ) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    return this.tenantService.updateSettings(tenantId, dto, user.userId);
   }
 
   @Get('categories')
@@ -134,6 +147,47 @@ export class TenantController {
   async getWarehouses(@CurrentUser() user: CurrentUserData, @Req() req: Request) {
     const tenantId = (req as any).tenantId || user.tenantId;
     return this.tenantService.getWarehouses(tenantId);
+  }
+
+  @Get('warehouses/all')
+  @RequirePermissions('warehouse.read')
+  async getAllWarehouses(@CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    return this.tenantService.getAllWarehouses(tenantId);
+  }
+
+  @Post('warehouses')
+  @RequirePermissions('warehouse.create')
+  async createWarehouse(
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+    @Body() dto: CreateWarehouseDto,
+  ) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    return this.tenantService.createWarehouse(tenantId, dto);
+  }
+
+  @Patch('warehouses/:id')
+  @RequirePermissions('warehouse.update')
+  async updateWarehouse(
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() dto: UpdateWarehouseDto,
+  ) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    return this.tenantService.updateWarehouse(tenantId, id, dto);
+  }
+
+  @Delete('warehouses/:id')
+  @RequirePermissions('warehouse.delete')
+  async deleteWarehouse(
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+    @Param('id') id: string,
+  ) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    return this.tenantService.deleteWarehouse(tenantId, id);
   }
 
   @Get('stats')

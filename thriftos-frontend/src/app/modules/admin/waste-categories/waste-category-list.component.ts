@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import {
@@ -6,12 +6,15 @@ import {
   AppPageHeaderComponent,
   AppPageBodyComponent,
   AppSectionComponent,
-  AppCardComponent,
+  AppSectionHeaderComponent,
+  AppSectionBodyComponent,
   AppDataTableComponent,
   AppButtonComponent,
   AppStackComponent,
   AppDialogComponent,
 } from '../../../shared/ui';
+import { MoneyPipe } from '../../../core/money/money.pipe';
+import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 import { WasteCategoryService } from './waste-category.service';
 import type { WasteCategory } from './waste-category.models';
 
@@ -20,15 +23,18 @@ import type { WasteCategory } from './waste-category.models';
   standalone: true,
   imports: [
     CommonModule,
+    MoneyPipe,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
     AppSectionComponent,
-    AppCardComponent,
+    AppSectionHeaderComponent,
+    AppSectionBodyComponent,
     AppDataTableComponent,
     AppButtonComponent,
     AppStackComponent,
     AppDialogComponent,
+    HasPermissionDirective,
   ],
   template: `
     <app-page>
@@ -39,7 +45,7 @@ import type { WasteCategory } from './waste-category.models';
         </app-stack>
 
         <div class="actions">
-          <app-button variant="primary" (clickEvent)="navigateToCreate()">
+          <app-button variant="primary" (clickEvent)="navigateToCreate()" *hasPermission="'category.create'">
             New Waste Category
           </app-button>
         </div>
@@ -47,9 +53,24 @@ import type { WasteCategory } from './waste-category.models';
 
       <app-page-body>
         <app-section>
-          <app-card>
+          <app-section-header>
+            <h2 class="section-title">All Waste Categories</h2>
+            <div class="section-actions">
+              <div class="search">
+                <input
+                  type="text"
+                  class="search-input"
+                  placeholder="Search waste categories…"
+                  [value]="searchQuery()"
+                  (input)="searchQuery.set($any($event.target).value)"
+                />
+              </div>
+            </div>
+          </app-section-header>
+
+          <app-section-body>
             <app-data-table
-              [data]="categories()"
+              [data]="filteredCategories()"
               [columns]="columns"
               [loading]="loading()"
               emptyMessage="No waste categories found. Create your first waste category."
@@ -73,7 +94,7 @@ import type { WasteCategory } from './waste-category.models';
               </ng-template>
 
               <ng-template #priceCell let-row>
-                <span class="text-sm">{{ row.defaultResalePrice | currency:'USD':'symbol':'1.2-2' }}</span>
+                <span class="text-sm">{{ row.defaultResalePrice | money:{ minimumFractionDigits: 2, maximumFractionDigits: 2 } }}</span>
               </ng-template>
 
               <ng-template #statusCell let-row>
@@ -90,23 +111,23 @@ import type { WasteCategory } from './waste-category.models';
 
               <ng-template #actionsCell let-row>
                 <div class="flex items-center gap-2">
-                  <app-button variant="secondary" type="button" (clickEvent)="navigateToEdit(row.id)">
+                  <app-button variant="secondary" type="button" (clickEvent)="navigateToEdit(row.id)" *hasPermission="'category.update'">
                     Edit
                   </app-button>
                   @if (row.isActive) {
-                    <app-button variant="danger" type="button" (clickEvent)="confirmDeactivate(row)">
+                    <app-button variant="danger" type="button" (clickEvent)="confirmDeactivate(row)" *hasPermission="'category.update'">
                       Deactivate
                     </app-button>
                   }
                   @if (!row.isSystemGenerated && !row.isActive) {
-                    <app-button variant="danger" type="button" (clickEvent)="confirmDelete(row)">
+                    <app-button variant="danger" type="button" (clickEvent)="confirmDelete(row)" *hasPermission="'category.delete'">
                       Delete
                     </app-button>
                   }
                 </div>
               </ng-template>
             </app-data-table>
-          </app-card>
+          </app-section-body>
         </app-section>
       </app-page-body>
     </app-page>
@@ -114,7 +135,7 @@ import type { WasteCategory } from './waste-category.models';
     <app-dialog
       [open]="deactivateDialog()"
       title="Deactivate Waste Category"
-      [message]="'Are you sure you want to deactivate ' + selectedCategory()?.name + '? It will no longer be available for new sorting operations.'"
+      [message]="'Deactivating ' + (selectedCategory()?.name || '') + ' will remove it from selection in Sorting Stage-1, Sorting Stage-2, and waste reporting. Existing history remains.'"
       confirmText="Deactivate"
       cancelText="Cancel"
       variant="danger"
@@ -126,7 +147,7 @@ import type { WasteCategory } from './waste-category.models';
     <app-dialog
       [open]="deleteDialog()"
       title="Delete Waste Category"
-      [message]="'Are you sure you want to permanently delete ' + selectedCategory()?.name + '? This action cannot be undone.'"
+      [message]="'Deleting ' + (selectedCategory()?.name || '') + ' will permanently remove it. If it has been used in waste records, deletion will be blocked and you should deactivate instead.'"
       confirmText="Delete"
       cancelText="Cancel"
       variant="danger"
@@ -142,6 +163,19 @@ export class WasteCategoryListComponent {
 
   readonly categories = signal<WasteCategory[]>([]);
   readonly loading = signal(false);
+
+  readonly searchQuery = signal('');
+  readonly filteredCategories = computed(() => {
+    const query = this.searchQuery().toLowerCase().trim();
+    if (!query) return this.categories();
+
+    return this.categories().filter((c) => {
+      return (
+        c.name.toLowerCase().includes(query) ||
+        (c.linkedCategory?.name || '').toLowerCase().includes(query)
+      );
+    });
+  });
   
   readonly deactivateDialog = signal(false);
   readonly deleteDialog = signal(false);
@@ -174,11 +208,11 @@ export class WasteCategoryListComponent {
   }
 
   navigateToCreate() {
-    this.router.navigate(['/settings/waste-categories/new']);
+    this.router.navigate(['/app/admin/waste-categories/new']);
   }
 
   navigateToEdit(id: string) {
-    this.router.navigate(['/settings/waste-categories', id, 'edit']);
+    this.router.navigate(['/app/admin/waste-categories', id, 'edit']);
   }
 
   confirmDeactivate(category: WasteCategory) {

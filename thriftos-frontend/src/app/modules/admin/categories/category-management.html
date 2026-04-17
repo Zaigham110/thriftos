@@ -1,85 +1,100 @@
-<div class="page-container">
-  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
+<app-page>
+  <app-page-header>
+    <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
 
-  <div class="page-header">
-    <div class="header-left">
-      <lucide-icon [img]="icons.Layers" class="header-icon"></lucide-icon>
-      <div class="header-text">
-        <h1 class="page-title">Categories</h1>
-        <p class="page-subtitle">Product categories for sorting and inventory</p>
-      </div>
+    <app-stack direction="vertical">
+      <h1>Category Management</h1>
+      @if (!loading()) {
+        <p class="page-subtitle">{{ filteredCategories().length }} categories</p>
+      }
+    </app-stack>
+
+    <div class="actions">
+      <app-button variant="secondary" (clickEvent)="refresh()">Refresh</app-button>
+      <app-button variant="primary" (clickEvent)="navigateToCreate()" *hasPermission="'category.create'">New Category</app-button>
     </div>
-    <div class="header-actions">
-      <button class="btn btn-secondary" (click)="refresh()" [disabled]="loading()">
-        <lucide-icon [img]="icons.RefreshCw" [class.spinning]="loading()"></lucide-icon>
-        Refresh
-      </button>
-    </div>
-  </div>
+  </app-page-header>
 
-  <!-- Info Notice -->
-  <ui-alert variant="info" class="info-notice">
-    <lucide-icon [img]="icons.Info"></lucide-icon>
-    Categories are configured at the platform level and managed by Super Admin. Contact your administrator to request changes.
-  </ui-alert>
-
-  <!-- Search Bar -->
-  <div class="search-bar">
-    <div class="search-input-wrapper">
-      <lucide-icon [img]="icons.Search" class="search-icon"></lucide-icon>
-      <input
-        type="text"
-        class="search-input"
-        placeholder="Search categories..."
-        [value]="searchQuery()"
-        (input)="searchQuery.set($any($event.target).value)"
-      />
-    </div>
-  </div>
-
-  <!-- Loading State -->
-  @if (loading()) {
-    <ui-card>
-      <div class="skeleton-grid">
-        @for (i of [1, 2, 3, 4, 5, 6]; track i) {
-          <div class="skeleton-card">
-            <ui-skeleton width="100%" height="24px"></ui-skeleton>
-            <ui-skeleton width="80%" height="16px"></ui-skeleton>
+  <app-page-body>
+    <app-section>
+      <app-section-header>
+        <h2 class="section-title">All Categories</h2>
+        <div class="section-actions">
+          <div class="search">
+            <input
+              type="text"
+              class="search-input"
+              placeholder="Search categories…"
+              [value]="searchQuery()"
+              (input)="searchQuery.set($any($event.target).value)"
+            />
           </div>
+        </div>
+      </app-section-header>
+
+      <app-section-body>
+        @if (loading()) {
+          <app-loading message="Loading categories…"></app-loading>
+        } @else if (filteredCategories().length === 0) {
+          <app-empty-state
+            title="No categories found"
+            [message]="searchQuery() ? 'No categories match your search criteria.' : 'Create your first category to unlock sorting and repack configuration.'"
+          >
+            @if (!searchQuery()) {
+              <app-button variant="primary" (clickEvent)="navigateToCreate()" *hasPermission="'category.create'">Create Category</app-button>
+            }
+          </app-empty-state>
+        } @else {
+          <app-data-table
+            [data]="filteredCategories()"
+            [columns]="tableColumns"
+            [loading]="loading()"
+            [serverSide]="false"
+          >
+            <ng-template #cellTemplate let-row let-column="column">
+              @if (column.key === 'status') {
+                <span class="text-sm" [class.text-green-600]="row.isActive" [class.text-gray-500]="!row.isActive">
+                  {{ row.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              }
+            </ng-template>
+
+            <ng-template #rowActions let-row>
+              <app-button variant="secondary" size="sm" (clickEvent)="navigateToEdit(row)" *hasPermission="'category.update'">Edit</app-button>
+              @if (row.isActive) {
+                <app-button variant="danger" size="sm" (clickEvent)="confirmDeactivate(row)" *hasPermission="'category.update'">Deactivate</app-button>
+              }
+              @if (!row.isActive) {
+                <app-button variant="danger" size="sm" (clickEvent)="confirmDelete(row)" *hasPermission="'category.delete'">Delete</app-button>
+              }
+            </ng-template>
+          </app-data-table>
         }
-      </div>
-    </ui-card>
-  } @else if (filteredCategories.length === 0) {
-    <ui-card>
-      @if (searchQuery()) {
-        <ui-empty-state
-          title="No categories found"
-          description="No categories match your search criteria."
-          [icon]="icons.Layers"
-        ></ui-empty-state>
-      } @else {
-        <ui-empty-state
-          title="No categories configured"
-          description="Categories have not been set up yet. Contact Super Admin."
-          [icon]="icons.Layers"
-        ></ui-empty-state>
-      }
-    </ui-card>
-  } @else {
-    <div class="categories-grid">
-      @for (category of filteredCategories; track category.id) {
-        <ui-card class="category-card">
-          <div class="category-header">
-            <lucide-icon [img]="icons.Layers" class="category-icon"></lucide-icon>
-            <h3 class="category-name">{{ category.name }}</h3>
-          </div>
-          @if (category.description) {
-            <p class="category-description">{{ category.description }}</p>
-          } @else {
-            <p class="category-description empty">No description</p>
-          }
-        </ui-card>
-      }
-    </div>
-  }
-</div>
+      </app-section-body>
+    </app-section>
+  </app-page-body>
+</app-page>
+
+<app-dialog
+  [open]="confirmDeactivateOpen()"
+  title="Deactivate Category"
+  [message]="'Deactivating ' + (selected()?.name || '') + ' will remove it from new sorting and repack operations. Existing history and reports remain.'"
+  confirmText="Deactivate"
+  cancelText="Cancel"
+  variant="danger"
+  [loading]="actionLoading()"
+  (confirmed)="executeDeactivate()"
+  (cancelled)="cancelDialogs()"
+></app-dialog>
+
+<app-dialog
+  [open]="confirmDeleteOpen()"
+  title="Delete Category"
+  [message]="'Deleting ' + (selected()?.name || '') + ' will permanently remove it. If it was used in sorting/repack history, deletion will be blocked and you should deactivate instead.'"
+  confirmText="Delete"
+  cancelText="Cancel"
+  variant="danger"
+  [loading]="actionLoading()"
+  (confirmed)="executeDelete()"
+  (cancelled)="cancelDialogs()"
+></app-dialog>

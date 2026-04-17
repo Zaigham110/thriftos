@@ -91,6 +91,19 @@ import { AppSidebarComponent, type SidebarNavConfig } from '../app-sidebar/app-s
           </app-topbar>
         </div>
 
+        @if (showImpersonationBanner) {
+          <div class="impersonation-banner" role="status" aria-live="polite">
+            <div class="impersonation-text">{{ impersonationBannerText }}</div>
+            <button
+              type="button"
+              class="impersonation-exit"
+              (click)="exitImpersonation.emit()"
+            >
+              Exit Impersonation
+            </button>
+          </div>
+        }
+
         <div class="shell-workspace">
           <router-outlet />
         </div>
@@ -128,6 +141,46 @@ import { AppSidebarComponent, type SidebarNavConfig } from '../app-sidebar/app-s
         overflow: auto;
         min-height: 0;
         padding: var(--space-lg);
+      }
+
+      .impersonation-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-md);
+        padding: var(--space-sm) var(--space-lg);
+        border-bottom: 1px solid var(--app-border-subtle);
+        background: var(--app-primary-light);
+        color: var(--app-text-primary);
+      }
+
+      .impersonation-text {
+        font-size: var(--font-size-table-header);
+        font-weight: var(--font-weight-section-title);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .impersonation-exit {
+        border: 1px solid var(--app-border-strong);
+        background: var(--app-bg-surface);
+        color: var(--app-text-primary);
+        border-radius: var(--border-radius);
+        padding: 6px 10px;
+        cursor: pointer;
+        font-size: var(--font-size-table-header);
+        font-weight: var(--font-weight-table-header);
+        white-space: nowrap;
+      }
+
+      .impersonation-exit:hover {
+        background: var(--app-bg-page);
+      }
+
+      .impersonation-exit:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px var(--app-primary-light);
       }
 
       .tenant-name {
@@ -305,11 +358,15 @@ export class AppShellLayoutComponent {
   @Input({ required: true }) userName!: string;
   @Input() showSwitchTenant = false;
 
+  @Input() showImpersonationBanner = false;
+  @Input() impersonationBannerText = '';
+
   @Input({ required: true }) nav!: SidebarNavConfig;
 
   @Output() profile = new EventEmitter<void>();
   @Output() switchTenant = new EventEmitter<void>();
   @Output() signOut = new EventEmitter<void>();
+  @Output() exitImpersonation = new EventEmitter<void>();
 
   protected userMenuOpen = false;
 

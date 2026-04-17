@@ -100,7 +100,7 @@ export class LoginComponent implements OnInit {
   private redirectAfterLogin(): void {
     if (this.authService.isSuperAdmin() && !this.authService.isImpersonating()) {
       // Super Admin goes to tenant management
-      this.router.navigate(['/admin/super/tenants']);
+      this.router.navigate(['/admin/tenants']);
     } else if (this.returnUrl && this.returnUrl !== '/') {
       // Go to return URL if specified
       this.router.navigateByUrl(this.returnUrl);

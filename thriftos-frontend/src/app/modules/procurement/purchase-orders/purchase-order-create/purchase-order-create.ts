@@ -58,8 +58,6 @@ export class PurchaseOrderCreateComponent implements OnInit {
 
   readonly isSubmitting = signal(false);
   readonly error = signal<string | null>(null);
-  readonly tenant = signal<{ currency: string } | null>(null);
-  readonly tenantCurrency = computed(() => this.tenant()?.currency ?? null);
 
   readonly vendors = this.procurementService.activeVendors;
   readonly vendorOptions = computed<SelectOption[]>(() => {
@@ -87,9 +85,7 @@ export class PurchaseOrderCreateComponent implements OnInit {
 
   ngOnInit(): void {
     this.initForm();
-    this.tenantService.loadTenant().subscribe(() => {
-      this.tenant.set(this.tenantService.tenant());
-    });
+    this.tenantService.loadTenant().subscribe();
     this.procurementService.loadVendors().subscribe();
   }
 

@@ -4,15 +4,22 @@
 
 .app-table-wrapper {
   width: 100%;
-  overflow-x: auto;
+  overflow: visible;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: var(--border-radius);
+  background-color: var(--app-bg-surface);
 
   .app-table {
     width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 
     table {
       width: 100%;
+      min-width: 100%;
       border-collapse: collapse;
       font-size: var(--font-size-table-cell);
+      background-color: var(--app-bg-surface);
 
       thead {
         background-color: var(--app-bg-page);
@@ -21,7 +28,7 @@
         th {
           position: sticky;
           top: 0;
-          z-index: 1;
+          z-index: 2;
           background-color: var(--app-bg-page);
           padding: var(--space-md) var(--space-lg);
           text-align: left;
@@ -34,6 +41,29 @@
             text-align: right;
             width: 120px;
           }
+        }
+      }
+
+      // Support app-data-table header content without requiring extra classes.
+      .th-label {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-sm);
+      }
+
+      .th-sort {
+        display: inline-flex;
+        align-items: center;
+        color: var(--app-text-secondary);
+      }
+
+      // Filter row styling (used by app-data-table)
+      tr.data-table-filter-row {
+        background-color: var(--app-bg-page);
+
+        th {
+          position: static;
+          padding: var(--space-sm) var(--space-lg);
         }
       }
 

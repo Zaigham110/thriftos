@@ -1,5 +1,6 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 
 export interface DropdownItem {
   label: string;
@@ -11,7 +12,7 @@ export interface DropdownItem {
 @Component({
   selector: 'app-dropdown',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, ClickOutsideDirective],
   templateUrl: './app-dropdown.component.html',
   styleUrl: './app-dropdown.component.scss'
 })

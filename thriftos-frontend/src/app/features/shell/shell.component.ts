@@ -32,9 +32,12 @@ import { TenantService } from '../../core/tenant/tenant.service';
       [tenantName]="tenantName()"
       [userName]="userName()"
       [showSwitchTenant]="showSwitchTenant()"
+      [showImpersonationBanner]="isImpersonating()"
+      [impersonationBannerText]="impersonationBannerText()"
       [nav]="nav"
       (profile)="onProfile()"
       (switchTenant)="onSwitchTenant()"
+      (exitImpersonation)="onExitImpersonation()"
       (signOut)="onSignOut()"
     />
   `,
@@ -43,6 +46,7 @@ import { TenantService } from '../../core/tenant/tenant.service';
 export class ThriftShellComponent {
   protected readonly user = computed(() => this.authService.user());
   protected readonly tenant = computed(() => this.tenantService.tenant());
+  protected readonly isImpersonating = computed(() => this.authService.isImpersonating());
 
   protected readonly tenantName = computed(() => {
     const user = this.user();
@@ -53,23 +57,36 @@ export class ThriftShellComponent {
   });
 
   protected readonly userName = computed(() => this.user()?.name || 'User');
-  protected readonly showSwitchTenant = computed(() => this.user()?.isSuperAdmin === true);
+  protected readonly showSwitchTenant = computed(() => false);
+
+  protected readonly impersonationBannerText = computed(() => {
+    if (!this.isImpersonating()) return '';
+    return `Impersonating Tenant: ${this.tenantName()}`;
+  });
 
   protected readonly nav: SidebarNavConfig = {
     productName: 'ThriftOS',
     productSubtitle: 'Operations & Inventory Platform',
     logoUrl: '/favicon.ico',
-    dashboard: { id: 'dashboard', label: 'Dashboard', route: '/dashboard', icon: 'layout-dashboard' },
+    dashboard: { id: 'dashboard', label: 'Dashboard', route: '/app/dashboard', icon: 'layout-dashboard' },
     groups: [
+      {
+        id: 'sales',
+        label: 'Sales',
+        icon: 'file-text',
+        items: [
+          { id: 'sales', label: 'Sales Orders', route: '/app/sales', icon: 'file-text' },
+        ],
+      },
       {
         id: 'procurement',
         label: 'Procurement',
         icon: 'shopping-cart',
         items: [
-          { id: 'dashboard', label: 'Dashboard', route: '/procurement/dashboard', icon: 'layout-dashboard' },
-          { id: 'po', label: 'Purchase Orders', route: '/procurement/pos', icon: 'file-text' },
-          { id: 'containers', label: 'Containers', route: '/procurement/containers', icon: 'container' },
-          { id: 'loose-bales', label: 'Loose Bales', route: '/procurement/loose-bales', icon: 'tag' },
+          { id: 'dashboard', label: 'Dashboard', route: '/app/procurement/dashboard', icon: 'layout-dashboard' },
+          { id: 'po', label: 'Purchase Orders', route: '/app/procurement/pos', icon: 'file-text' },
+          { id: 'containers', label: 'Containers', route: '/app/procurement/containers', icon: 'container' },
+          { id: 'loose-bales', label: 'Loose Bales', route: '/app/procurement/loose-bales', icon: 'tag' },
         ],
       },
       {
@@ -77,9 +94,9 @@ export class ThriftShellComponent {
         label: 'Sorting',
         icon: 'layers',
         items: [
-          { id: 'stage1', label: 'Stage 1 — Category', route: '/sorting/stage-1', icon: 'layers' },
-          { id: 'stage2', label: 'Stage 2 — Grading', route: '/sorting/stage-2', icon: 'tag' },
-          { id: 'outputs', label: 'Output Registry', route: '/sorting/outputs', icon: 'file-text' },
+          { id: 'stage1', label: 'Stage 1 — Category', route: '/app/sorting/stage-1', icon: 'layers' },
+          { id: 'stage2', label: 'Stage 2 — Grading', route: '/app/sorting/stage-2', icon: 'tag' },
+          { id: 'outputs', label: 'Output Registry', route: '/app/sorting/outputs', icon: 'file-text' },
         ],
       },
       {
@@ -87,25 +104,25 @@ export class ThriftShellComponent {
         label: 'Packaging',
         icon: 'package',
         items: [
-          { id: 'packaging', label: 'Packaging', route: '/packaging/repack', icon: 'package' },
+          { id: 'packaging', label: 'Packaging', route: '/app/packaging/repack', icon: 'package' },
         ],
       },
       {
         id: 'inventory',
         label: 'Inventory',
         icon: 'warehouse',
-        items: [{ id: 'inventory', label: 'Inventory', route: '/inventory', icon: 'warehouse' }],
+        items: [{ id: 'inventory', label: 'Inventory', route: '/app/inventory', icon: 'warehouse' }],
       },
       {
         id: 'reports',
         label: 'Reports',
         icon: 'bar-chart-3',
         items: [
-          {id: 'reports-dashboard', label: 'Dashboard', route: '/reports', icon: 'layout-dashboard' },
-          { id: 'inventory-report', label: 'Inventory Report', route: '/reports/inventory', icon: 'warehouse' },
-          { id: 'procurement-report', label: 'Procurement Report', route: '/reports/procurement', icon: 'shopping-cart' },
-          { id: 'waste-report', label: 'Waste Report', route: '/reports/waste', icon: 'trash-2' },
-          { id: 'yield-report', label: 'Yield Report', route: '/reports/yield', icon: 'trending-up' },
+          {id: 'reports-dashboard', label: 'Dashboard', route: '/app/reports', icon: 'layout-dashboard' },
+          { id: 'inventory-report', label: 'Inventory Report', route: '/app/reports/inventory', icon: 'warehouse' },
+          { id: 'procurement-report', label: 'Procurement Report', route: '/app/reports/procurement', icon: 'shopping-cart' },
+          { id: 'waste-report', label: 'Waste Report', route: '/app/reports/waste', icon: 'trash-2' },
+          { id: 'yield-report', label: 'Yield Report', route: '/app/reports/yield', icon: 'trending-up' },
         ],
       },
       {
@@ -113,14 +130,14 @@ export class ThriftShellComponent {
         label: 'Administration',
         icon: 'settings',
         items: [
-          { id: 'users', label: 'Users', route: '/admin/users', icon: 'users' },
-          { id: 'roles', label: 'Roles', route: '/admin/roles', icon: 'shield' },
-          { id: 'warehouses', label: 'Warehouses', route: '/admin/warehouses', icon: 'warehouse' },
-          { id: 'vendors', label: 'Vendors', route: '/admin/vendors', icon: 'truck' },
-          { id: 'categories', label: 'Categories', route: '/admin/categories', icon: 'layers' },
-          { id: 'grades', label: 'Grades', route: '/admin/grades', icon: 'tag' },
-          { id: 'raw-categories', label: 'Raw Categories', route: '/admin/raw-categories', icon: 'box' },
-          { id: 'waste-categories', label: 'Waste Categories', route: '/admin/waste-categories', icon: 'trash-2' },
+          { id: 'users', label: 'Users', route: '/app/admin/users', icon: 'users' },
+          { id: 'roles', label: 'Roles', route: '/app/admin/roles', icon: 'shield' },
+          { id: 'warehouses', label: 'Warehouses', route: '/app/admin/warehouses', icon: 'warehouse' },
+          { id: 'vendors', label: 'Vendors', route: '/app/admin/vendors', icon: 'truck' },
+          { id: 'categories', label: 'Categories', route: '/app/admin/categories', icon: 'layers' },
+          { id: 'grades', label: 'Grades', route: '/app/admin/grades', icon: 'tag' },
+          { id: 'raw-categories', label: 'Raw Categories', route: '/app/admin/raw-categories', icon: 'box' },
+          { id: 'waste-categories', label: 'Waste Categories', route: '/app/admin/waste-categories', icon: 'trash-2' },
         ],
       },
     ],
@@ -134,7 +151,8 @@ export class ThriftShellComponent {
     // Phase-0: load tenant profile only for displaying company name in topbar.
     effect(() => {
       const user = this.user();
-      if (user?.tenantId) {
+      const hasTenantContext = !!(user?.tenantId || user?.impersonatedTenantId);
+      if (hasTenantContext) {
         this.tenantService.loadTenant().subscribe({
           next: () => {},
           error: () => {},
@@ -149,6 +167,10 @@ export class ThriftShellComponent {
 
   onSwitchTenant(): void {
     // Phase-0: no tenant switch UI
+  }
+
+  onExitImpersonation(): void {
+    this.authService.exitImpersonation().subscribe();
   }
 
   onSignOut(): void {

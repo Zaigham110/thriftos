@@ -93,6 +93,7 @@ export interface Container {
   clearedAt: string | null;
   releasedAt: string | null;
   grossWeight: number;
+  tareWeight?: number | null;
   netWeight: number;
   billOfLadingNumber: string | null;
   shipmentReference: string | null;
@@ -124,8 +125,9 @@ export interface CreateContainerRequest {
   arrivedAt?: string;
   clearedAt?: string;
   releasedAt?: string;
-  grossWeight: number;
-  netWeight: number;
+  grossWeightKg: number;
+  netWeightKg: number;
+  tareWeightKg?: number;
   billOfLadingNumber?: string;
   shipmentReference?: string;
   shippingLine?: string;
@@ -144,8 +146,6 @@ export interface UpdateContainerRequest {
   arrivedAt?: string;
   clearedAt?: string;
   releasedAt?: string;
-  grossWeight?: number;
-  netWeight?: number;
   billOfLadingNumber?: string;
   shipmentReference?: string;
   shippingLine?: string;
@@ -154,6 +154,11 @@ export interface UpdateContainerRequest {
   portOfDischarge?: string;
   forwarder?: string;
   notes?: string;
+}
+
+export interface UpdateContainerWeightsRequest {
+  grossWeightKg: number;
+  tareWeightKg: number;
 }
 
 export interface UpdateContainerStatusRequest {

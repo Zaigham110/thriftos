@@ -52,7 +52,10 @@ export interface AuthState {
 }
 
 export interface ImpersonationResponse {
-  accessToken: string;
+  accessToken?: string;
+  impersonationToken?: string;
+  tenantId?: string;
+  expiresAt?: string;
   refreshToken?: string;
   expiresIn: number;
 }

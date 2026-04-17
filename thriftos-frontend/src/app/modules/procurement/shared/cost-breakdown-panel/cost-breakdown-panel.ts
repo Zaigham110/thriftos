@@ -6,8 +6,9 @@
  */
 
 import { ChangeDetectionStrategy, Component, input, computed } from '@angular/core';
-import { CommonModule, CurrencyPipe, DecimalPipe } from '@angular/common';
+import { CommonModule, DecimalPipe } from '@angular/common';
 import { CostBreakdown, ChargeType } from '../../procurement.models';
+import { MoneyPipe } from '../../../../core/money/money.pipe';
 import {
   AppBadgeComponent,
   AppCardComponent,
@@ -23,8 +24,8 @@ import {
   standalone: true,
   imports: [
     CommonModule,
-    CurrencyPipe,
     DecimalPipe,
+    MoneyPipe,
     AppCardComponent,
     AppStackComponent,
     AppBadgeComponent,
@@ -39,7 +40,6 @@ import {
 export class CostBreakdownPanelComponent {
   readonly costBreakdown = input<CostBreakdown | null>(null);
   readonly loading = input<boolean>(false);
-  readonly currency = input<string>('USD');
 
   readonly chargeColumns: DataTableColumn[] = [
     { key: 'chargeType', label: 'Type', sortable: false },

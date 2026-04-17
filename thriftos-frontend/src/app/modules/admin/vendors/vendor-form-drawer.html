@@ -22,55 +22,27 @@
       }
     </div>
 
-    <!-- Contact Person Field -->
+    <!-- Country Field -->
     <div class="form-group">
-      <label for="contactPerson" class="form-label">Contact Person</label>
+      <label for="country" class="form-label">Country</label>
       <input
         type="text"
-        id="contactPerson"
-        formControlName="contactPerson"
+        id="country"
+        formControlName="country"
         class="form-input"
-        placeholder="Primary contact name"
+        placeholder="e.g., Pakistan"
       />
     </div>
 
-    <!-- Email Field -->
+    <!-- Contact Info Field -->
     <div class="form-group">
-      <label for="email" class="form-label">Email</label>
-      <input
-        type="email"
-        id="email"
-        formControlName="email"
-        class="form-input"
-        placeholder="vendor@example.com"
-        [class.error]="form.get('email')?.invalid && form.get('email')?.touched"
-      />
-      @if (getFieldError('email')) {
-        <span class="field-error">{{ getFieldError('email') }}</span>
-      }
-    </div>
-
-    <!-- Phone Field -->
-    <div class="form-group">
-      <label for="phone" class="form-label">Phone</label>
-      <input
-        type="tel"
-        id="phone"
-        formControlName="phone"
-        class="form-input"
-        placeholder="+1 (555) 000-0000"
-      />
-    </div>
-
-    <!-- Address Field -->
-    <div class="form-group">
-      <label for="address" class="form-label">Address</label>
+      <label for="contactInfo" class="form-label">Contact Info</label>
       <textarea
-        id="address"
-        formControlName="address"
+        id="contactInfo"
+        formControlName="contactInfo"
         class="form-input form-textarea"
-        placeholder="Full address (optional)"
-        rows="3"
+        placeholder="Optional notes: phone, email, address, contact person, terms"
+        rows="4"
       ></textarea>
     </div>
 
@@ -87,7 +59,7 @@
       <button
         type="submit"
         class="btn btn-primary"
-        [disabled]="saving() || form.invalid || isEditMode"
+        [disabled]="saving() || form.invalid"
       >
         @if (saving()) {
           <lucide-icon [img]="icons.Loader2" class="icon-spin"></lucide-icon>

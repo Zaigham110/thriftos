@@ -7,12 +7,13 @@
  * Displays all tenant users with management actions.
  */
 
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { AdminService } from '../admin.service';
 import { User, Role } from '../admin.models';
-import { UserFormDrawerComponent } from './user-form-drawer';
+import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 import {
   AppPageComponent,
   AppPageHeaderComponent,
@@ -54,7 +55,7 @@ import {
     AppEmptyStateComponent,
     AppStackComponent,
     AppDialogComponent,
-    UserFormDrawerComponent,
+    HasPermissionDirective,
   ],
   templateUrl: './user-list.html',
   styleUrl: './user-list.scss',
@@ -62,6 +63,7 @@ import {
 })
 export class UserListComponent implements OnInit {
   private readonly adminService = inject(AdminService);
+  private readonly router = inject(Router);
 
   readonly users = this.adminService.users;
   readonly roles = this.adminService.roles;
@@ -70,14 +72,12 @@ export class UserListComponent implements OnInit {
 
   readonly searchQuery = signal('');
   readonly showInactive = signal(true);
-  readonly drawerOpen = signal(false);
-  readonly selectedUser = signal<User | null>(null);
   readonly confirmDialogOpen = signal(false);
   readonly userToToggle = signal<User | null>(null);
 
   readonly breadcrumbs = [
-    { label: 'Administration', link: '/admin' },
-    { label: 'Users', link: undefined },
+    { label: 'Administration', route: '/app/admin' },
+    { label: 'Users' },
   ];
 
   readonly tableColumns: DataTableColumn[] = [
@@ -132,24 +132,12 @@ export class UserListComponent implements OnInit {
     this.showInactive.update(v => !v);
   }
 
-  openCreateDrawer(): void {
-    this.selectedUser.set(null);
-    this.drawerOpen.set(true);
+  createUser(): void {
+    this.router.navigate(['/app/admin/users/new']);
   }
 
-  openEditDrawer(user: User): void {
-    this.selectedUser.set(user);
-    this.drawerOpen.set(true);
-  }
-
-  closeDrawer(): void {
-    this.drawerOpen.set(false);
-    this.selectedUser.set(null);
-  }
-
-  onUserSaved(): void {
-    this.closeDrawer();
-    this.loadData();
+  editUser(user: User): void {
+    this.router.navigate(['/app/admin/users', user.id, 'edit']);
   }
 
   confirmToggleStatus(user: User): void {
@@ -166,8 +154,9 @@ export class UserListComponent implements OnInit {
     const user = this.userToToggle();
     if (!user) return;
 
+    // "Delete" is soft-deactivation for users.
     const action = user.isActive
-      ? this.adminService.blockUser(user.id)
+      ? this.adminService.deleteUser(user.id)
       : this.adminService.unblockUser(user.id);
 
     action.subscribe({
@@ -191,10 +180,6 @@ export class UserListComponent implements OnInit {
 
   getStatusLabel(isActive: boolean): string {
     return isActive ? 'Active' : 'Blocked';
-  }
-
-  editUser(user: User): void {
-    this.openEditDrawer(user);
   }
 
   toggleStatus(user: User): void {

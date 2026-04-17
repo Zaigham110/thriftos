@@ -1,138 +1,107 @@
 <app-page>
   <app-page-header>
-    <ui-breadcrumb slot="breadcrumbs" [items]="breadcrumbs"></ui-breadcrumb>
-    
-    <div slot="title" class="header-content">
-      <lucide-icon [img]="icons.Store" class="header-icon"></lucide-icon>
-      <div class="header-text">
-        <h1 class="page-title">Vendors</h1>
-        <p class="page-subtitle">Suppliers and vendors for procurement</p>
-      </div>
-    </div>
+    <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
 
-    <div slot="actions" class="actions">
-      <app-button 
-        variant="secondary"
-        size="sm"
-        (click)="refresh()" 
-        [disabled]="loading()"
-      >
-        <lucide-icon [img]="icons.RefreshCw" [class.spinning]="loading()"></lucide-icon>
-        Refresh
-      </app-button>
-      <app-button 
-        variant="primary"
-        size="sm"
-        (click)="openAddDrawer()"
-        *hasPermission="'vendor.create'"
-      >
-        <lucide-icon [img]="icons.Plus"></lucide-icon>
-        Add Vendor
-      </app-button>
+    <app-stack direction="vertical">
+      <h1>Vendor Management</h1>
+      @if (!loading()) {
+        <p class="page-subtitle">{{ filteredVendors().length }} vendors</p>
+      }
+    </app-stack>
+
+    <div class="actions">
+      <app-button variant="secondary" (clickEvent)="refresh()">Refresh</app-button>
+      <app-button variant="primary" (clickEvent)="navigateToCreate()" *hasPermission="'vendor.create'">New Vendor</app-button>
     </div>
   </app-page-header>
 
   <app-page-body>
-    <!-- Search Bar -->
     <app-section>
-      <div class="search-bar">
-        <div class="search-input-wrapper">
-          <lucide-icon [img]="icons.Search" class="search-icon"></lucide-icon>
-          <input
-            type="text"
-            class="search-input"
-            placeholder="Search vendors..."
-            [value]="searchQuery()"
-            (input)="searchQuery.set($any($event.target).value)"
-          />
+      <app-section-header>
+        <h2 class="section-title">All Vendors</h2>
+        <div class="section-actions">
+          <div class="search">
+            <input
+              type="text"
+              class="search-input"
+              placeholder="Search vendors…"
+              [value]="searchQuery()"
+              (input)="searchQuery.set($any($event.target).value)"
+            />
+          </div>
         </div>
-      </div>
-    </app-section>
+      </app-section-header>
 
-    <!-- Loading State -->
-    @if (loading()) {
-      <app-section>
-        <app-loading message="Loading vendors..."></app-loading>
-      </app-section>
-    } @else if (filteredVendors().length === 0) {
-      <app-section>
-        @if (searchQuery()) {
+      <app-section-body>
+        @if (loading()) {
+          <app-loading message="Loading vendors…"></app-loading>
+        } @else if (filteredVendors().length === 0) {
           <app-empty-state
             title="No vendors found"
-            description="No vendors match your search criteria."
-          ></app-empty-state>
-        } @else {
-          <app-empty-state
-            title="No vendors yet"
-            description="Add your first vendor to start tracking suppliers."
+            [message]="searchQuery() ? 'No vendors match your search criteria.' : 'Create your first vendor so it can be selected in Procurement.'"
           >
-            <app-button 
-              variant="primary"
-              (click)="openAddDrawer()"
-              *hasPermission="'vendor.create'"
-            >
-              <lucide-icon [img]="icons.Plus"></lucide-icon>
-              Add Vendor
-            </app-button>
-          </app-empty-state>
-        }
-      </app-section>
-    } @else {
-      <app-section>
-        <app-data-table
-          [columns]="columns"
-          [data]="filteredVendors()"
-          [loading]="loading()"
-        >
-          <ng-template #cellTemplate let-row let-column="column">
-            @if (column.key === 'name') {
-              <div class="vendor-name">
-                <lucide-icon [img]="icons.Store" class="vendor-icon"></lucide-icon>
-                {{ row.name }}
-              </div>
-            } @else if (column.key === 'contactPerson') {
-              <span class="secondary-text">{{ row.contactPerson || '—' }}</span>
-            } @else if (column.key === 'email') {
-              @if (row.email) {
-                <a [href]="'mailto:' + row.email" class="contact-link">
-                  <lucide-icon [img]="icons.Mail" class="contact-icon"></lucide-icon>
-                  {{ row.email }}
-                </a>
-              } @else {
-                <span class="secondary-text">—</span>
-              }
-            } @else if (column.key === 'phone') {
-              @if (row.phone) {
-                <a [href]="'tel:' + row.phone" class="contact-link">
-                  <lucide-icon [img]="icons.Phone" class="contact-icon"></lucide-icon>
-                  {{ row.phone }}
-                </a>
-              } @else {
-                <span class="secondary-text">—</span>
-              }
-            } @else if (column.key === 'actions') {
-              <app-button
-                variant="secondary"
-                size="sm"
-                title="Edit Vendor"
-                (click)="openEditDrawer(row)"
-                *hasPermission="'vendor.update'"
-              >
-                <lucide-icon [img]="icons.Pencil"></lucide-icon>
-              </app-button>
+            @if (!searchQuery()) {
+              <app-button variant="primary" (clickEvent)="navigateToCreate()" *hasPermission="'vendor.create'">Create Vendor</app-button>
             }
-          </ng-template>
-        </app-data-table>
-      </app-section>
-    }
+          </app-empty-state>
+        } @else {
+          <app-data-table
+            [data]="filteredVendors()"
+            [columns]="columns"
+            [loading]="loading()"
+            [serverSide]="false"
+          >
+            <ng-template #cellTemplate let-row let-column="column">
+              @if (column.key === 'name') {
+                <span class="font-medium">{{ row.name }}</span>
+              } @else if (column.key === 'country') {
+                <span class="text-sm">{{ row.country || '—' }}</span>
+              } @else if (column.key === 'contactInfo') {
+                <span class="text-sm">{{ row.contactInfo || '—' }}</span>
+              } @else if (column.key === 'isActive') {
+                <span class="text-sm" [class.text-green-600]="row.isActive" [class.text-gray-500]="!row.isActive">
+                  {{ row.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              }
+            </ng-template>
+
+            <ng-template #rowActions let-row>
+              <app-button variant="secondary" size="sm" (clickEvent)="navigateToEdit(row)" *hasPermission="'vendor.update'">Edit</app-button>
+              @if (row.isActive) {
+                <app-button variant="danger" size="sm" (clickEvent)="confirmDeactivate(row)" *hasPermission="'vendor.update'">Deactivate</app-button>
+              }
+              @if (!row.isActive) {
+                <app-button variant="danger" size="sm" (clickEvent)="confirmDelete(row)" *hasPermission="'vendor.delete'">Delete</app-button>
+              }
+            </ng-template>
+          </app-data-table>
+        }
+      </app-section-body>
+    </app-section>
   </app-page-body>
 </app-page>
 
-<!-- Vendor Form Drawer -->
-<app-vendor-form-drawer
-  [isOpen]="drawerOpen()"
-  [vendor]="selectedVendor()"
-  (closed)="closeDrawer()"
-  (saved)="onSaved()"
-></app-vendor-form-drawer>
+<app-dialog
+  [open]="confirmDeactivateOpen()"
+  title="Deactivate Vendor"
+  [message]="'Deactivating ' + (selected()?.name || '') + ' will remove it from selection in Procurement. Existing purchase orders and reports remain.'"
+  confirmText="Deactivate"
+  cancelText="Cancel"
+  variant="danger"
+  [loading]="actionLoading()"
+  (confirmed)="executeDeactivate()"
+  (cancelled)="cancelDialogs()"
+></app-dialog>
+
+<app-dialog
+  [open]="confirmDeleteOpen()"
+  title="Delete Vendor"
+  [message]="'Deleting ' + (selected()?.name || '') + ' will permanently remove it. If it is referenced by procurement history (purchase orders or incoming bales), deletion will be blocked and you should deactivate instead.'"
+  confirmText="Delete"
+  cancelText="Cancel"
+  variant="danger"
+  [loading]="actionLoading()"
+  (confirmed)="executeDelete()"
+  (cancelled)="cancelDialogs()"
+></app-dialog>
 

@@ -77,6 +77,7 @@ import { API_ENDPOINTS, API_BASE_URL } from '../../core/config/api.config';
   providedIn: 'root',
 })
 export class AdminService {
+  private readonly adminBaseUrl = `${API_BASE_URL}/admin`;
   // Loading states
   private readonly _loading = signal(false);
   private readonly _error = signal<string | null>(null);
@@ -168,7 +169,7 @@ export class AdminService {
       params = params.set('includeInactive', 'true');
     }
 
-    return this.http.get<User[]>(`${API_BASE_URL}/users`, { params }).pipe(
+    return this.http.get<User[]>(`${this.adminBaseUrl}/users`, { params }).pipe(
       tap((users) => {
         this._users.set(users);
         this._loading.set(false);
@@ -178,7 +179,7 @@ export class AdminService {
   }
 
   getUser(id: string): Observable<User> {
-    return this.http.get<User>(`${API_BASE_URL}/users/${id}`).pipe(
+    return this.http.get<User>(`${this.adminBaseUrl}/users/${id}`).pipe(
       catchError((error) => this.handleError(error))
     );
   }
@@ -187,7 +188,7 @@ export class AdminService {
     this._loading.set(true);
     this._error.set(null);
 
-    return this.http.post<User>(`${API_BASE_URL}/users`, data).pipe(
+    return this.http.post<User>(`${this.adminBaseUrl}/users`, data).pipe(
       tap((user) => {
         this._users.update((users) => [...users, user]);
         this._loading.set(false);
@@ -200,7 +201,7 @@ export class AdminService {
     this._loading.set(true);
     this._error.set(null);
 
-    return this.http.patch<User>(`${API_BASE_URL}/users/${id}`, data).pipe(
+    return this.http.patch<User>(`${this.adminBaseUrl}/users/${id}`, data).pipe(
       tap((user) => {
         this._users.update((users) => users.map((u) => (u.id === id ? user : u)));
         this._loading.set(false);
@@ -213,7 +214,7 @@ export class AdminService {
     this._loading.set(true);
     this._error.set(null);
 
-    return this.http.patch<User>(`${API_BASE_URL}/users/${id}/block`, {}).pipe(
+    return this.http.patch<User>(`${this.adminBaseUrl}/users/${id}/block`, {}).pipe(
       tap((user) => {
         this._users.update((users) => users.map((u) => (u.id === id ? user : u)));
         this._loading.set(false);
@@ -226,7 +227,21 @@ export class AdminService {
     this._loading.set(true);
     this._error.set(null);
 
-    return this.http.patch<User>(`${API_BASE_URL}/users/${id}/unblock`, {}).pipe(
+    return this.http.patch<User>(`${this.adminBaseUrl}/users/${id}/unblock`, {}).pipe(
+      tap((user) => {
+        this._users.update((users) => users.map((u) => (u.id === id ? user : u)));
+        this._loading.set(false);
+      }),
+      catchError((error) => this.handleError(error))
+    );
+  }
+
+  deleteUser(id: string): Observable<User> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    // Backend performs soft-deactivation for users.
+    return this.http.delete<User>(`${this.adminBaseUrl}/users/${id}`).pipe(
       tap((user) => {
         this._users.update((users) => users.map((u) => (u.id === id ? user : u)));
         this._loading.set(false);
@@ -239,7 +254,7 @@ export class AdminService {
     this._loading.set(true);
     this._error.set(null);
 
-    return this.http.post<User>(`${API_BASE_URL}/users/${userId}/roles/bulk`, { roleIds }).pipe(
+    return this.http.post<User>(`${this.adminBaseUrl}/users/${userId}/roles/bulk`, { roleIds }).pipe(
       tap((user) => {
         this._users.update((users) => users.map((u) => (u.id === userId ? user : u)));
         this._loading.set(false);
@@ -256,7 +271,7 @@ export class AdminService {
     this._loading.set(true);
     this._error.set(null);
 
-    return this.http.get<Role[]>(`${API_BASE_URL}/roles`).pipe(
+    return this.http.get<Role[]>(`${this.adminBaseUrl}/roles`).pipe(
       tap((roles) => {
         this._roles.set(roles);
         this._loading.set(false);
@@ -266,7 +281,7 @@ export class AdminService {
   }
 
   getRole(id: string): Observable<Role> {
-    return this.http.get<Role>(`${API_BASE_URL}/roles/${id}`).pipe(
+    return this.http.get<Role>(`${this.adminBaseUrl}/roles/${id}`).pipe(
       catchError((error) => this.handleError(error))
     );
   }
@@ -275,7 +290,7 @@ export class AdminService {
     this._loading.set(true);
     this._error.set(null);
 
-    return this.http.post<Role>(`${API_BASE_URL}/roles`, data).pipe(
+    return this.http.post<Role>(`${this.adminBaseUrl}/roles`, data).pipe(
       tap((role) => {
         this._roles.update((roles) => [...roles, role]);
         this._loading.set(false);
@@ -288,7 +303,7 @@ export class AdminService {
     this._loading.set(true);
     this._error.set(null);
 
-    return this.http.patch<Role>(`${API_BASE_URL}/roles/${id}`, data).pipe(
+    return this.http.patch<Role>(`${this.adminBaseUrl}/roles/${id}`, data).pipe(
       tap((role) => {
         this._roles.update((roles) => roles.map((r) => (r.id === id ? role : r)));
         this._loading.set(false);
@@ -301,7 +316,7 @@ export class AdminService {
     this._loading.set(true);
     this._error.set(null);
 
-    return this.http.delete<void>(`${API_BASE_URL}/roles/${id}`).pipe(
+    return this.http.delete<void>(`${this.adminBaseUrl}/roles/${id}`).pipe(
       tap(() => {
         this._roles.update((roles) => roles.filter((r) => r.id !== id));
         this._loading.set(false);
@@ -314,7 +329,7 @@ export class AdminService {
     this._loading.set(true);
     this._error.set(null);
 
-    return this.http.post<Role>(`${API_BASE_URL}/roles/${roleId}/permissions/bulk`, { permissionIds }).pipe(
+    return this.http.post<Role>(`${this.adminBaseUrl}/roles/${roleId}/permissions/bulk`, { permissionIds }).pipe(
       tap((role) => {
         this._roles.update((roles) => roles.map((r) => (r.id === roleId ? role : r)));
         this._loading.set(false);
@@ -328,14 +343,14 @@ export class AdminService {
   // =============================================================
 
   loadPermissions(): Observable<Permission[]> {
-    return this.http.get<Permission[]>(`${API_BASE_URL}/permissions`).pipe(
+    return this.http.get<Permission[]>(`${this.adminBaseUrl}/permissions`).pipe(
       tap((perms) => this._permissions.set(perms)),
       catchError((error) => this.handleError(error))
     );
   }
 
   loadPermissionsGrouped(): Observable<PermissionGroup[]> {
-    return this.http.get<PermissionGroup[]>(`${API_BASE_URL}/permissions/grouped`).pipe(
+    return this.http.get<PermissionGroup[]>(`${this.adminBaseUrl}/permissions/grouped`).pipe(
       tap((groups) => this._permissionGroups.set(groups)),
       catchError((error) => this.handleError(error))
     );
@@ -349,8 +364,7 @@ export class AdminService {
     this._loading.set(true);
     this._error.set(null);
 
-    // Use tenant endpoint for categories
-    return this.http.get<Category[]>(`${API_BASE_URL}/tenant/categories`).pipe(
+    return this.http.get<Category[]>(`${this.adminBaseUrl}/categories`).pipe(
       tap((categories) => {
         this._categories.set(categories);
         this._loading.set(false);
@@ -359,8 +373,52 @@ export class AdminService {
     );
   }
 
-  // Note: Backend needs category CRUD endpoints for full admin management
-  // For now, categories are read-only from /tenant/categories
+  getCategory(id: string): Observable<Category> {
+    return this.http.get<Category>(`${this.adminBaseUrl}/categories/${id}`).pipe(
+      catchError((error) => this.handleError(error))
+    );
+  }
+
+  createCategory(data: CreateCategoryRequest): Observable<Category> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    return this.http.post<Category>(`${this.adminBaseUrl}/categories`, data).pipe(
+      tap((category) => {
+        this._categories.update((categories) => [...categories, category]);
+        this._loading.set(false);
+      }),
+      catchError((error) => this.handleError(error))
+    );
+  }
+
+  updateCategory(id: string, data: UpdateCategoryRequest): Observable<Category> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    return this.http.patch<Category>(`${this.adminBaseUrl}/categories/${id}`, data).pipe(
+      tap((category) => {
+        this._categories.update((categories) =>
+          categories.map((c) => (c.id === id ? category : c))
+        );
+        this._loading.set(false);
+      }),
+      catchError((error) => this.handleError(error))
+    );
+  }
+
+  deleteCategory(id: string): Observable<unknown> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    return this.http.delete(`${this.adminBaseUrl}/categories/${id}`).pipe(
+      tap(() => {
+        this._categories.update((categories) => categories.filter((c) => c.id !== id));
+        this._loading.set(false);
+      }),
+      catchError((error) => this.handleError(error))
+    );
+  }
 
   // =============================================================
   // GRADES
@@ -370,11 +428,10 @@ export class AdminService {
     this._loading.set(true);
     this._error.set(null);
 
-    const url = includeInactive 
-      ? `${API_ENDPOINTS.grades}/all`
-      : API_ENDPOINTS.grades;
+    // Admin endpoint always returns all grades
+    void includeInactive;
 
-    return this.http.get<Grade[]>(url).pipe(
+    return this.http.get<Grade[]>(`${this.adminBaseUrl}/grades`).pipe(
       tap((grades) => {
         this._grades.set(grades);
         this._loading.set(false);
@@ -384,7 +441,7 @@ export class AdminService {
   }
 
   getGrade(id: string): Observable<Grade> {
-    return this.http.get<Grade>(`${API_ENDPOINTS.grades}/${id}`).pipe(
+    return this.http.get<Grade>(`${this.adminBaseUrl}/grades/${id}`).pipe(
       catchError((error) => this.handleError(error))
     );
   }
@@ -393,7 +450,7 @@ export class AdminService {
     this._loading.set(true);
     this._error.set(null);
 
-    return this.http.post<Grade>(API_ENDPOINTS.grades, data).pipe(
+    return this.http.post<Grade>(`${this.adminBaseUrl}/grades`, data).pipe(
       tap((grade) => {
         this._grades.update((grades) => [...grades, grade]);
         this._loading.set(false);
@@ -406,7 +463,7 @@ export class AdminService {
     this._loading.set(true);
     this._error.set(null);
 
-    return this.http.patch<Grade>(`${API_ENDPOINTS.grades}/${id}`, data).pipe(
+    return this.http.patch<Grade>(`${this.adminBaseUrl}/grades/${id}`, data).pipe(
       tap((grade) => {
         this._grades.update((grades) => grades.map((g) => (g.id === id ? grade : g)));
         this._loading.set(false);
@@ -419,7 +476,7 @@ export class AdminService {
     this._loading.set(true);
     this._error.set(null);
 
-    return this.http.delete<void>(`${API_ENDPOINTS.grades}/${id}`).pipe(
+    return this.http.delete<void>(`${this.adminBaseUrl}/grades/${id}`).pipe(
       tap(() => {
         this._grades.update((grades) => grades.filter((g) => g.id !== id));
         this._loading.set(false);
@@ -436,7 +493,7 @@ export class AdminService {
     this._loading.set(true);
     this._error.set(null);
 
-    return this.http.get<Warehouse[]>(`${API_BASE_URL}/tenant/warehouses`).pipe(
+    return this.http.get<Warehouse[]>(`${this.adminBaseUrl}/warehouses`).pipe(
       tap((warehouses) => {
         this._warehouses.set(warehouses);
         this._loading.set(false);
@@ -445,8 +502,67 @@ export class AdminService {
     );
   }
 
-  // Note: Backend needs warehouse CRUD endpoints for full admin management
-  // For now, warehouses are read-only from /tenant/warehouses
+  getWarehouse(id: string): Observable<Warehouse> {
+    return this.http.get<Warehouse>(`${this.adminBaseUrl}/warehouses/${id}`).pipe(
+      catchError((error) => this.handleError(error))
+    );
+  }
+
+  createWarehouse(data: CreateWarehouseRequest): Observable<Warehouse> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    return this.http.post<Warehouse>(`${this.adminBaseUrl}/warehouses`, data).pipe(
+      tap((warehouse) => {
+        this._warehouses.update((warehouses) => [...warehouses, warehouse]);
+        this._loading.set(false);
+      }),
+      catchError((error) => this.handleError(error))
+    );
+  }
+
+  updateWarehouse(id: string, data: UpdateWarehouseRequest): Observable<Warehouse> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    return this.http.patch<Warehouse>(`${this.adminBaseUrl}/warehouses/${id}`, data).pipe(
+      tap((warehouse) => {
+        this._warehouses.update((warehouses) =>
+          warehouses.map((w) => (w.id === id ? warehouse : w))
+        );
+        this._loading.set(false);
+      }),
+      catchError((error) => this.handleError(error))
+    );
+  }
+
+  deleteWarehouse(id: string): Observable<unknown> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    return this.http.delete(`${this.adminBaseUrl}/warehouses/${id}`).pipe(
+      tap(() => {
+        this._warehouses.update((warehouses) => warehouses.filter((w) => w.id !== id));
+        this._loading.set(false);
+      }),
+      catchError((error) => this.handleError(error))
+    );
+  }
+
+  setDefaultWarehouse(id: string): Observable<{ warehouseId: string }> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    return this.http.patch<{ warehouseId: string }>(`${this.adminBaseUrl}/warehouses/${id}/default`, {}).pipe(
+      tap(({ warehouseId }) => {
+        this._warehouses.update((warehouses) =>
+          warehouses.map((w) => ({ ...w, isDefault: w.id === warehouseId }))
+        );
+        this._loading.set(false);
+      }),
+      catchError((error) => this.handleError(error))
+    );
+  }
 
   // =============================================================
   // VENDORS
@@ -461,7 +577,7 @@ export class AdminService {
       params = params.set('includeInactive', 'true');
     }
 
-    return this.http.get<Vendor[]>(`${API_ENDPOINTS.procurement}/vendors`, { params }).pipe(
+    return this.http.get<Vendor[]>(`${this.adminBaseUrl}/vendors`, { params }).pipe(
       tap((vendors) => {
         this._vendors.set(vendors);
         this._loading.set(false);
@@ -474,7 +590,7 @@ export class AdminService {
     this._loading.set(true);
     this._error.set(null);
 
-    return this.http.post<Vendor>(`${API_ENDPOINTS.procurement}/vendors`, data).pipe(
+    return this.http.post<Vendor>(`${this.adminBaseUrl}/vendors`, data).pipe(
       tap((vendor) => {
         this._vendors.update((vendors) => [...vendors, vendor]);
         this._loading.set(false);
@@ -483,7 +599,37 @@ export class AdminService {
     );
   }
 
-  // Note: Backend needs vendor update endpoint for full admin management
+  getVendor(id: string): Observable<Vendor> {
+    return this.http.get<Vendor>(`${this.adminBaseUrl}/vendors/${id}`).pipe(
+      catchError((error) => this.handleError(error))
+    );
+  }
+
+  updateVendor(id: string, data: UpdateVendorRequest): Observable<Vendor> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    return this.http.patch<Vendor>(`${this.adminBaseUrl}/vendors/${id}`, data).pipe(
+      tap((vendor) => {
+        this._vendors.update((vendors) => vendors.map((v) => (v.id === id ? vendor : v)));
+        this._loading.set(false);
+      }),
+      catchError((error) => this.handleError(error))
+    );
+  }
+
+  deleteVendor(id: string): Observable<unknown> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    return this.http.delete(`${this.adminBaseUrl}/vendors/${id}`).pipe(
+      tap(() => {
+        this._vendors.update((vendors) => vendors.filter((v) => v.id !== id));
+        this._loading.set(false);
+      }),
+      catchError((error) => this.handleError(error))
+    );
+  }
 
   // =============================================================
   // TENANT
@@ -509,6 +655,19 @@ export class AdminService {
     );
   }
 
+  updateTenantSettings(data: { currencyCode?: string; locale?: string }): Observable<Tenant> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    return this.http.patch<Tenant>(`${API_BASE_URL}/tenant/settings`, data).pipe(
+      tap((tenant) => {
+        this._tenant.set(tenant);
+        this._loading.set(false);
+      }),
+      catchError((error) => this.handleError(error))
+    );
+  }
+
   // Note: Tenant update endpoint would need to be added to backend
-  // For now, tenant settings are read-only
+  // Tenant settings supports currency/locale updates
 }

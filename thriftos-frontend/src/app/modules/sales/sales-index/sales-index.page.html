@@ -1,0 +1,114 @@
+<app-page>
+  <app-page-header>
+    <h1>Sales</h1>
+    <p class="subtitle">Drafts, invoices, and payments</p>
+  </app-page-header>
+
+  <app-page-body>
+    <app-section>
+      <app-section-header>
+        <h2>Sales Orders</h2>
+
+        <div class="header-actions">
+          <div class="tabs">
+            <app-button
+              [variant]="activeTab() === 'DRAFTS' ? 'primary' : 'secondary'"
+              (clickEvent)="selectTab('DRAFTS')"
+            >
+              Drafts
+            </app-button>
+            <app-button
+              [variant]="activeTab() === 'ISSUED' ? 'primary' : 'secondary'"
+              (clickEvent)="selectTab('ISSUED')"
+            >
+              Issued
+            </app-button>
+            <app-button
+              [variant]="activeTab() === 'PAID' ? 'primary' : 'secondary'"
+              (clickEvent)="selectTab('PAID')"
+            >
+              Paid
+            </app-button>
+          </div>
+
+          <app-button variant="primary" [routerLink]="['/app/sales/new']">New Sale</app-button>
+        </div>
+      </app-section-header>
+
+      <app-section-body>
+        @if (loading()) {
+          <app-loading message="Loading sales..." />
+        } @else if (error()) {
+          <app-error-state [message]="error()!" [action]="true">
+            <app-button action variant="secondary" (clickEvent)="loadSales()">Retry</app-button>
+          </app-error-state>
+        } @else if (visibleSales().length === 0) {
+          <app-empty-state title="No Sales" message="No sales found for this tab." />
+        } @else {
+          <app-data-table
+            title=""
+            [columns]="tableColumns"
+            [data]="visibleSales()"
+            [loading]="loading()"
+            [serverSide]="false"
+            [enableSearch]="false"
+            [enableColumnFilters]="false"
+            [stickyHeader]="true"
+            (rowClick)="onRowClick($event)"
+            (stateChange)="onTableStateChange($event)"
+          >
+            <ng-template #cellTemplate let-row let-column="column">
+              @switch (column.key) {
+                @case ('createdAt') {
+                  {{ row.createdAt | date:'medium' }}
+                }
+                @case ('customer') {
+                  {{ row.customer?.name || '—' }}
+                }
+                @case ('status') {
+                  <app-badge [variant]="getStatusVariant(row.status)">
+                    {{ row.status }}
+                  </app-badge>
+                }
+                @case ('total') {
+                  <span class="tabular-nums">{{ row.totalAmount | money }}</span>
+                }
+                @case ('paid') {
+                  <span class="tabular-nums">{{ paidAmountForRow(row) | money }}</span>
+                }
+                @case ('balance') {
+                  <span class="tabular-nums">{{ balanceAmountForRow(row) | money }}</span>
+                }
+                @default {
+                  {{ column.getValue ? column.getValue(row) : row[column.key] }}
+                }
+              }
+            </ng-template>
+
+            <ng-template #rowActions let-row>
+              <div class="row-actions">
+                <app-button variant="secondary" size="sm" [routerLink]="['/app/sales', row.id]">View</app-button>
+                @if (row.status === 'DRAFT') {
+                  <app-button variant="danger" size="sm" (clickEvent)="openCancel(row)">Cancel</app-button>
+                }
+              </div>
+            </ng-template>
+          </app-data-table>
+        }
+      </app-section-body>
+    </app-section>
+
+    <app-dialog
+      [open]="confirmCancelOpen()"
+      title="Cancel draft sale?"
+      message="This will release all reserved inventory and lock the sale as CANCELLED."
+      icon="alert-triangle"
+      variant="danger"
+      confirmText="Cancel Sale"
+      cancelText="Keep Draft"
+      [loading]="cancelling()"
+      (confirmed)="confirmCancel()"
+      (cancelled)="closeCancel()"
+    ></app-dialog>
+  </app-page-body>
+</app-page>

@@ -107,7 +107,7 @@ export class RagCreateDrawerComponent implements OnInit {
   // Inputs
   readonly containerId = input.required<string>();
   readonly containerNumber = input.required<string>();
-  readonly containerGrossWeight = input<number>();
+  readonly containerNetWeight = input<number>();
   readonly containerCurrentWeight = input<number>();
 
   // Outputs
@@ -128,10 +128,10 @@ export class RagCreateDrawerComponent implements OnInit {
 
   // Computed
   readonly availableWeight = computed(() => {
-    const gross = this.containerGrossWeight();
+    const net = this.containerNetWeight();
     const current = this.containerCurrentWeight();
-    if (gross === undefined || current === undefined) return null;
-    return gross - current;
+    if (net === undefined || current === undefined) return null;
+    return net - current;
   });
 
   // Form

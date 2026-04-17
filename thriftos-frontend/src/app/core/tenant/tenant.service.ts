@@ -10,11 +10,19 @@ import { API_BASE_URL } from '../config/api.config';
 
 export type CategoryType = 'RAG' | 'BALE' | 'GENERAL';
 
+export interface CurrencyMeta {
+  code: string;
+  symbol: string;
+  decimalPlaces: number;
+}
+
 export interface TenantProfile {
   id: string;
   name: string;
   companyCode: string;
-  currency: string;
+  currencyCode: string;
+  currency: CurrencyMeta;
+  currencyLocked?: boolean;
   locale: string;
 }
 

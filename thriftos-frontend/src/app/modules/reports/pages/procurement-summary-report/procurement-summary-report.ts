@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { ReportsService } from '../../reports.service';
 import type { ProcurementSummaryResponse, ProcurementSummaryRow, ReportFilters } from '../../reports.models';
 import { ReportFiltersComponent } from '../../shared/report-filters.component';
+import { MoneyService } from '../../../../core/money/money.service';
 import {
   AppPageComponent,
   AppPageHeaderComponent,
@@ -45,6 +46,7 @@ import {
 })
 export class ProcurementSummaryReportComponent implements OnInit {
   private readonly reportsService = inject(ReportsService);
+  private readonly money = inject(MoneyService);
 
   readonly breadcrumbs: BreadcrumbItem[] = [
     { label: 'Home', link: '/app/dashboard' },
@@ -119,10 +121,6 @@ export class ProcurementSummaryReportComponent implements OnInit {
     return this.reportsService.exporting();
   }
 
-  protected get currency(): string {
-    return this.response()?.summary?.currency ?? 'USD';
-  }
-
   ngOnInit(): void {
     this.loadData();
   }
@@ -175,14 +173,10 @@ export class ProcurementSummaryReportComponent implements OnInit {
     return new Intl.NumberFormat('en-US').format(n);
   }
 
-  formatCurrency(value: unknown, currency: string): string {
+  formatCurrency(value: unknown): string {
     const n = this.toNumber(value);
     if (n === null) return '—';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'USD',
-      minimumFractionDigits: 2,
-    }).format(n);
+    return this.money.format(n, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   formatDate(value: unknown): string {

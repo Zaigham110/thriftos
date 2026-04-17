@@ -7,7 +7,7 @@ import {
   OnInit,
   ChangeDetectionStrategy,
 } from '@angular/core';
-import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { RagService } from './rag.service';
@@ -23,6 +23,7 @@ import {
   AppStackComponent,
   AppTextareaComponent,
 } from '../../../shared/ui';
+import { MoneyPipe } from '../../../core/money/money.pipe';
 
 @Component({
   selector: 'app-rag-edit-drawer',
@@ -30,8 +31,8 @@ import {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    CurrencyPipe,
     DatePipe,
+    MoneyPipe,
     AppCardComponent,
     AppStackComponent,
     AppBadgeComponent,
@@ -77,7 +78,7 @@ import {
 
           <app-card>
             <app-stack direction="vertical" spacing="xs">
-              <div><strong>Allocated Cost:</strong> {{ rag().allocatedCost | currency:(currency() || 'USD'):'symbol':'1.2-2' }}</div>
+              <div><strong>Allocated Cost:</strong> {{ rag().allocatedCost | money:{ minimumFractionDigits: 2, maximumFractionDigits: 2 } }}</div>
               <div><strong>Created:</strong> {{ rag().createdAt | date:'medium' }}</div>
             </app-stack>
           </app-card>

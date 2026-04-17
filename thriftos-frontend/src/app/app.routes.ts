@@ -12,12 +12,26 @@
 
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth-guard';
+import { adminAreaGuard } from './core/guards/admin-area.guard';
+import { tenantAreaGuard } from './core/guards/tenant-area.guard';
+
+const LEGACY_TENANT_ROOTS = new Set(['dashboard', 'procurement', 'sorting', 'packaging', 'inventory', 'reports']);
+
+const legacyTenantMatcher = (segments: import('@angular/router').UrlSegment[]): import('@angular/router').UrlMatchResult | null => {
+  if (!segments.length) return null;
+  const first = segments[0]?.path;
+  if (!first) return null;
+  if (!LEGACY_TENANT_ROOTS.has(first)) return null;
+  return { consumed: segments };
+};
 
 export const routes: Routes = [
-  // Default redirect
+  // Default landing (role-aware)
   {
     path: '',
-    redirectTo: '/dashboard',
+    loadComponent: () =>
+      import('./features/auth/post-login-redirect.component').then((m) => m.PostLoginRedirectComponent),
+    canActivate: [authGuard],
     pathMatch: 'full',
   },
 
@@ -48,36 +62,49 @@ export const routes: Routes = [
     pathMatch: 'full',
   },
 
-  // Authenticated routes with shell
+  // SuperAdmin route space (isolated)
   {
-    path: '',
+    path: 'admin',
+    loadComponent: () =>
+      import('./features/admin-shell/admin-shell.component').then((m) => m.AdminShellComponent),
+    canActivate: [authGuard, adminAreaGuard],
+    children: [
+      {
+        path: '',
+        loadChildren: () =>
+          import('./modules/admin/super-admin/super-admin.routes').then((m) => m.SUPER_ADMIN_ROUTES),
+      },
+    ],
+  },
+
+  // Tenant app route space (isolated)
+  {
+    path: 'app',
     loadComponent: () =>
       import('./features/shell/shell.component').then((m) => m.ThriftShellComponent),
-    canActivate: [authGuard],
+    canActivate: [authGuard, tenantAreaGuard],
     children: [
-      // Phase-0: ALL authenticated routes render the placeholder only.
+      {
+        path: '',
+        redirectTo: 'dashboard',
+        pathMatch: 'full',
+      },
       {
         path: 'dashboard',
         loadComponent: () =>
           import('./features/dashboard/dashboard/dashboard').then((m) => m.DashboardComponent),
         title: 'Dashboard - ThriftOS',
       },
-
-      // Procurement (Phase-2 module)
       {
         path: 'procurement',
         loadChildren: () =>
           import('./modules/procurement/procurement.routes').then((m) => m.PROCUREMENT_ROUTES),
       },
-
-      // Sorting
       {
         path: 'sorting',
         loadChildren: () =>
           import('./modules/sorting/sorting.routes').then((m) => m.SORTING_ROUTES),
       },
-
-      // Packaging
       {
         path: 'packaging/repack',
         loadChildren: () =>
@@ -89,8 +116,6 @@ export const routes: Routes = [
           import('./features/shell/module-placeholder.component').then((m) => m.ModulePlaceholderComponent),
         title: 'Draft Packs - ThriftOS',
       },
-
-      // Inventory / Reports / Settings
       {
         path: 'inventory',
         loadChildren: () =>
@@ -102,12 +127,15 @@ export const routes: Routes = [
           import('./modules/reports/reports.routes').then((m) => m.REPORTS_ROUTES),
       },
       {
+        path: 'sales',
+        loadChildren: () =>
+          import('./modules/sales/sales.routes').then((m) => m.SALES_ROUTES),
+      },
+      {
         path: 'admin',
         loadChildren: () =>
           import('./modules/admin/admin.routes').then((m) => m.ADMIN_ROUTES),
       },
-
-      // Redirects for group roots
       {
         path: 'sorting',
         redirectTo: 'sorting/stage-1',
@@ -121,9 +149,16 @@ export const routes: Routes = [
     ],
   },
 
+  // Legacy tenant route space (redirect into /app while preserving deep-link segments)
+  {
+    matcher: legacyTenantMatcher,
+    loadComponent: () =>
+      import('./features/legacy/legacy-tenant-redirect.component').then((m) => m.LegacyTenantRedirectComponent),
+  },
+
   // Fallback
   {
     path: '**',
-    redirectTo: '/dashboard',
+    redirectTo: '/',
   },
 ];

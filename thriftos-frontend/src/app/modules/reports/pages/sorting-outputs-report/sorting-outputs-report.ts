@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { CommonModule } from '@angular/common';
 
 import { ReportsService } from '../../reports.service';
+import { MoneyService } from '../../../../core/money/money.service';
 import type {
   ReportFilters,
   SortingOutputsResponse,
@@ -50,6 +51,7 @@ import {
 })
 export class SortingOutputsReportComponent implements OnInit {
   private readonly reportsService = inject(ReportsService);
+  private readonly money = inject(MoneyService);
 
   readonly breadcrumbs: BreadcrumbItem[] = [
     { label: 'Home', link: '/app/dashboard' },
@@ -61,6 +63,8 @@ export class SortingOutputsReportComponent implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly searchText = signal<string>('');
+  readonly categories = signal<{ id: string; name: string }[]>([]);
+  readonly grades = signal<{ id: string; name: string }[]>([]);
   protected currentFilters: ReportFilters = {};
 
   readonly stage1Columns: DataTableColumn[] = [
@@ -92,6 +96,16 @@ export class SortingOutputsReportComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.reportsService.loadFilterLookups().subscribe({
+      next: (lookups) => {
+        this.categories.set(lookups.categories);
+        this.grades.set(lookups.grades);
+      },
+      error: () => {
+        this.categories.set([]);
+        this.grades.set([]);
+      },
+    });
     this.loadData();
   }
 
@@ -140,11 +154,7 @@ export class SortingOutputsReportComponent implements OnInit {
   formatCurrency(value: unknown): string {
     const n = this.toNumber(value);
     if (n === null) return '—';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(n);
+    return this.money.format(n, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   formatDate(value: unknown): string {

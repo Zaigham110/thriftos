@@ -6,17 +6,27 @@
 import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
-import { LucideAngularModule, ArrowLeft, Pencil, UserCog, Power, PowerOff } from 'lucide-angular';
 import { TenantsService } from '../tenants';
 import { Tenant, TenantStatus } from '../tenant.models';
 import { AuthService } from '../../../../../core/auth';
-import { ButtonComponent } from '../../../../../shared/ui/button/button';
-import { BadgeComponent } from '../../../../../shared/ui/badge/badge';
-import { CardComponent } from '../../../../../shared/ui/card/card';
-import { AlertComponent } from '../../../../../shared/ui/alert/alert';
-import { SkeletonComponent } from '../../../../../shared/ui/skeleton/skeleton';
-import { ModalComponent } from '../../../../../shared/ui/modal/modal';
 import { TenantFormDrawerComponent } from '../tenant-form-drawer/tenant-form-drawer';
+
+import {
+  AppBadgeComponent,
+  AppButtonComponent,
+  AppCardComponent,
+  AppDialogComponent,
+  AppErrorStateComponent,
+  AppLinkComponent,
+  AppLoadingComponent,
+  AppPageBodyComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppSectionBodyComponent,
+  AppSectionComponent,
+  AppSectionHeaderComponent,
+  AppStackComponent,
+} from '../../../../../shared/ui';
 
 @Component({
   selector: 'app-tenant-detail',
@@ -24,13 +34,20 @@ import { TenantFormDrawerComponent } from '../tenant-form-drawer/tenant-form-dra
   imports: [
     CommonModule,
     RouterModule,
-    LucideAngularModule,
-    ButtonComponent,
-    BadgeComponent,
-    CardComponent,
-    AlertComponent,
-    SkeletonComponent,
-    ModalComponent,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppSectionComponent,
+    AppSectionHeaderComponent,
+    AppSectionBodyComponent,
+    AppStackComponent,
+    AppLinkComponent,
+    AppButtonComponent,
+    AppBadgeComponent,
+    AppCardComponent,
+    AppDialogComponent,
+    AppErrorStateComponent,
+    AppLoadingComponent,
     TenantFormDrawerComponent,
     DatePipe,
   ],
@@ -39,14 +56,6 @@ import { TenantFormDrawerComponent } from '../tenant-form-drawer/tenant-form-dra
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TenantDetailComponent implements OnInit {
-  protected readonly icons = {
-    ArrowLeft,
-    Pencil,
-    UserCog,
-    Power,
-    PowerOff,
-  };
-
   protected readonly tenant = signal<Tenant | null>(null);
   protected readonly isLoading = signal(true);
   protected readonly error = signal<string | null>(null);
@@ -160,7 +169,7 @@ export class TenantDetailComponent implements OnInit {
     }
   }
 
-  getStatusBadgeType(status: TenantStatus): 'success' | 'warning' | 'danger' | 'info' {
+  getStatusBadgeType(status: TenantStatus): 'success' | 'warning' | 'danger' | 'default' {
     switch (status) {
       case 'ACTIVE':
         return 'success';
@@ -169,7 +178,7 @@ export class TenantDetailComponent implements OnInit {
       case 'SUSPENDED':
         return 'danger';
       default:
-        return 'info';
+        return 'default';
     }
   }
 

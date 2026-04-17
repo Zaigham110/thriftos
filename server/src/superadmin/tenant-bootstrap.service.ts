@@ -155,6 +155,25 @@ export class TenantBootstrapService {
           })),
         });
         result.categories = templates.length;
+
+        // AUTO-CREATE linked waste categories for each seeded category
+        const seededCategories = await tx.category.findMany({
+          where: { tenantId },
+          select: { id: true, name: true },
+        });
+
+        await tx.wasteCategory.createMany({
+          data: seededCategories.map((c) => ({
+            tenantId,
+            name: `${c.name} Waste`,
+            linkedCategoryId: c.id,
+            unitType: 'KG',
+            defaultResalePrice: 0,
+            isSystemGenerated: true,
+            isActive: true,
+          })),
+          skipDuplicates: true,
+        });
       }
 
       // 7. Create default grades
@@ -177,7 +196,7 @@ export class TenantBootstrapService {
       result.grades = defaultGrades.length;
 
       // 8. Create default warehouse
-      await tx.warehouse.create({
+      const defaultWarehouse = await tx.warehouse.create({
         data: {
           tenantId,
           name: 'Main Warehouse',
@@ -186,6 +205,16 @@ export class TenantBootstrapService {
         },
       });
       result.warehouses = 1;
+
+      // Persist default warehouse per tenant (used by admin + operations)
+      await tx.globalConfig.upsert({
+        where: { key: `tenant.${tenantId}.defaultWarehouseId` },
+        update: { valueJson: { warehouseId: defaultWarehouse.id } },
+        create: {
+          key: `tenant.${tenantId}.defaultWarehouseId`,
+          valueJson: { warehouseId: defaultWarehouse.id },
+        },
+      });
 
       // 9. Create admin user if email and password provided
       if (adminEmail && adminPassword && adminRole) {

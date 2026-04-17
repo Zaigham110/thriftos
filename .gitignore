@@ -2,3 +2,10 @@ node_modules
 
 # Legacy backup artifacts (never commit)
 *.bak
+
+# Build outputs (never commit)
+server/dist/
+server/*.tsbuildinfo
+
+# Misc
+.DS_Store

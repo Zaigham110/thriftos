@@ -37,11 +37,16 @@ export class CreateContainerDto {
 
   @IsNumber()
   @Min(0)
-  grossWeight: number;
+  grossWeightKg: number;
 
   @IsNumber()
   @Min(0)
-  netWeight: number;
+  netWeightKg: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  tareWeightKg?: number;
 
   @IsString()
   @IsOptional()

@@ -99,6 +99,24 @@
       font-weight: 400;
     }
   }
+
+  .currency-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    min-width: 320px;
+
+    @media (max-width: 600px) {
+      min-width: 0;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+
+    ui-select {
+      min-width: 220px;
+    }
+  }
 }
 
 .stats-grid {

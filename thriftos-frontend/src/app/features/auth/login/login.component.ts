@@ -145,6 +145,53 @@ export class LoginComponent implements OnInit {
   }
 
   private redirectAfterLogin(): void {
-    this.router.navigate([this.returnUrl]);
+    const user = this.authService.user();
+    const isSuperAdmin = this.authService.isSuperAdmin();
+    const isImpersonating = this.authService.isImpersonating();
+
+    const normalizeLegacy = (url: string): string => {
+      if (!url || url === '/') return '/';
+      // Legacy (pre /app) routes
+      const legacyPrefixes = ['/dashboard', '/procurement', '/sorting', '/packaging', '/inventory', '/reports', '/admin'];
+      if (!legacyPrefixes.some((p) => url.startsWith(p))) return url;
+
+      if (url === '/dashboard') return '/app/dashboard';
+      if (url.startsWith('/procurement')) return `/app${url}`;
+      if (url.startsWith('/sorting')) return `/app${url}`;
+      if (url.startsWith('/packaging')) return `/app${url}`;
+      if (url.startsWith('/inventory')) return `/app${url}`;
+      if (url.startsWith('/reports')) return `/app${url}`;
+      // Tenant admin legacy routes now live under /app/admin
+      if (url === '/admin') return '/app/admin';
+      if (url.startsWith('/admin/')) return `/app${url}`;
+
+      return url;
+    };
+
+    const requested = normalizeLegacy(this.returnUrl);
+
+    if (isSuperAdmin && !isImpersonating) {
+      // SuperAdmin is restricted to /admin/**
+      if (requested.startsWith('/admin')) {
+        void this.router.navigateByUrl(requested);
+        return;
+      }
+      void this.router.navigate(['/admin']);
+      return;
+    }
+
+    // Tenant user OR impersonating super admin: requires tenant context
+    const effectiveTenantId = user?.tenantId ?? user?.impersonatedTenantId ?? null;
+    if (!effectiveTenantId) {
+      void this.router.navigate(['/auth/no-tenant']);
+      return;
+    }
+
+    if (requested.startsWith('/app')) {
+      void this.router.navigateByUrl(requested);
+      return;
+    }
+
+    void this.router.navigate(['/app/dashboard']);
   }
 }
