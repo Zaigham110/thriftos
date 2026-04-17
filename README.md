@@ -51,7 +51,7 @@ Install these before starting:
 
 ## Local environment
 
-The backend reads the database connection from `/home/runner/work/thriftos/thriftos/.env`.
+The backend reads the database connection from the root `.env` file.
 
 Default local value:
 
@@ -66,8 +66,6 @@ Create the `thriftos` database in PostgreSQL and update the username/password if
 Run these commands from the repository root:
 
 ```bash
-cd /home/runner/work/thriftos/thriftos
-
 npm install
 npm --prefix server install
 npm --prefix thriftos-frontend install
@@ -76,8 +74,6 @@ npm --prefix thriftos-frontend install
 Then prepare the database:
 
 ```bash
-cd /home/runner/work/thriftos/thriftos
-
 npm run db:generate
 npm run db:migrate
 npm run db:seed
@@ -90,7 +86,7 @@ Open two terminals.
 ### 1) Start the backend
 
 ```bash
-cd /home/runner/work/thriftos/thriftos/server
+cd server
 npm run start:dev
 ```
 
@@ -103,7 +99,7 @@ Backend URLs:
 ### 2) Start the frontend
 
 ```bash
-cd /home/runner/work/thriftos/thriftos/thriftos-frontend
+cd thriftos-frontend
 npm run start
 ```
 
@@ -111,7 +107,7 @@ Frontend URL:
 
 - App: http://localhost:4200
 
-The frontend uses `/home/runner/work/thriftos/thriftos/thriftos-frontend/proxy.conf.json` to proxy `/api` requests to `http://localhost:3000`.
+The frontend uses `thriftos-frontend/proxy.conf.json` to proxy `/api` requests to `http://localhost:3000`.
 
 ## Seeded login accounts
 
@@ -144,7 +140,7 @@ npm run db:reset
 ### Backend
 
 ```bash
-cd /home/runner/work/thriftos/thriftos/server
+cd server
 
 npm run start:dev
 npm run build
@@ -154,7 +150,7 @@ npm run lint
 ### Frontend
 
 ```bash
-cd /home/runner/work/thriftos/thriftos/thriftos-frontend
+cd thriftos-frontend
 
 npm run start
 npm run build
