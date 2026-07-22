@@ -11,13 +11,11 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { AppButtonComponent } from '../button/app-button.component';
 import { AppEmptyStateComponent } from '../app-empty-state/app-empty-state.component';
 import { AppFormFieldComponent } from '../form-field/app-form-field.component';
 import { AppIconComponent } from '../app-icon/app-icon.component';
 import { AppInputComponent } from '../app-input/app-input.component';
 import { AppSelectComponent, type SelectOption } from '../app-select/app-select.component';
-import { AppTableComponent } from '../table/app-table.component';
 
 export type DataTableAlign = 'left' | 'center' | 'right';
 export type DataTableSortDir = 'asc' | 'desc';
@@ -77,8 +75,8 @@ export class AppDataTableComponent<T = unknown> {
   /** Optional external search term (e.g., from a page-level filter bar). */
   readonly externalSearch = input<string | null>(null);
   readonly enableColumnFilters = input<boolean>(true);
-  /** If true, pagination is driven by parent; component still renders controls and emits state changes. */
-  readonly serverSide = input<boolean>(true);
+  /** Defaults to false for client-side arrays; set to true if parent paginates via backend API. */
+  readonly serverSide = input<boolean>(false);
   readonly totalCount = input<number | null>(null);
   /** Optional sync from parent (useful for server-driven pagination state). */
   readonly externalPageIndex = input<number | null>(null);
@@ -117,7 +115,7 @@ export class AppDataTableComponent<T = unknown> {
   readonly totalPages = computed(() => {
     const pageSize = this.pageSize();
     const total = this.serverSide()
-      ? (this.totalCount() ?? 0)
+      ? (this.totalCount() ?? this.filteredData().length)
       : this.filteredData().length;
 
     if (!pageSize || pageSize <= 0) return 1;
@@ -136,15 +134,43 @@ export class AppDataTableComponent<T = unknown> {
 
     let rows = raw;
 
-    // Global search (applies locally even for serverSide tables; filters current page).
+    // Smart Global Search (searches both defined columns & raw row fields, with hyphen/space tolerance)
     if (search) {
+      const normSearch = search.replace(/[^a-z0-9]/gi, '');
+
       rows = rows.filter((row) => {
-        const haystack = cols
+        const colVals = cols
           .map((c) => this.getCellValue(row, c))
           .filter((v) => v !== null && v !== undefined)
-          .map((v) => String(v).toLowerCase())
-          .join(' ');
-        return haystack.includes(search);
+          .map((v) => String(v));
+
+        const rawVals: string[] = [];
+        const extractStrings = (obj: unknown) => {
+          if (!obj) return;
+          if (typeof obj !== 'object') {
+            rawVals.push(String(obj));
+            return;
+          }
+          for (const key of Object.keys(obj as Record<string, unknown>)) {
+            const val = (obj as Record<string, unknown>)[key];
+            if (val !== null && val !== undefined) {
+              if (typeof val === 'object') {
+                extractStrings(val);
+              } else {
+                rawVals.push(String(val));
+              }
+            }
+          }
+        };
+        extractStrings(row);
+
+        const allText = [...colVals, ...rawVals].join(' ').toLowerCase();
+        const normText = allText.replace(/[^a-z0-9]/gi, '');
+
+        return (
+          allText.includes(search) ||
+          (normSearch.length > 0 && normText.includes(normSearch))
+        );
       });
     }
 
