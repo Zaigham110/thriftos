@@ -1,37 +1,42 @@
 /**
- * INVENTORY INDEX - ODOO-STYLE DENSE TABLE
- * =========================================
- * Production-grade ERP inventory browser.
- * Dense table with fully functional filters.
+ * Inventory Index Component
+ * Phase 2: Inventory Module UI
+ * 
+ * High-density directory table and KPI summary cards for Finished Goods Inventory.
  */
 
-import { Component, OnInit, signal, computed, inject, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { Router, RouterLink } from '@angular/router';
+import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
+import {
+  LucideAngularModule,
+  Warehouse as WarehouseIcon,
+  Package,
+  Layers,
+  Sparkles,
+  RefreshCw,
+  Eye,
+  Filter,
+  XCircle,
+  DollarSign,
+  Truck,
+} from 'lucide-angular';
 
 import { InventoryService } from '../inventory.service';
 import { AuthService } from '../../../core/auth/auth';
 import { InventoryItem } from '../inventory.models';
-
+import { MoneyPipe } from '../../../core/money/money.pipe';
 import {
+  AppBreadcrumbComponent,
+  AppEmptyStateComponent,
+  AppErrorStateComponent,
+  AppLoadingComponent,
+  AppPageBodyComponent,
   AppPageComponent,
   AppPageHeaderComponent,
-  AppPageBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSectionBodyComponent,
-  AppDataTableComponent,
-  type DataTableColumn,
-  type DataTableState,
-  AppBadgeComponent,
-  AppButtonComponent,
-  AppLoadingComponent,
-  AppErrorStateComponent,
-  AppEmptyStateComponent,
-  AppSelectComponent,
+  type BreadcrumbItem,
   type SelectOption,
-  AppFormFieldComponent,
 } from '../../../shared/ui';
 
 @Component({
@@ -39,22 +44,18 @@ import {
   standalone: true,
   imports: [
     CommonModule,
-    RouterLink,
     ReactiveFormsModule,
+    DatePipe,
+    DecimalPipe,
+    MoneyPipe,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppDataTableComponent,
-    AppBadgeComponent,
-    AppButtonComponent,
+    AppBreadcrumbComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
     AppEmptyStateComponent,
-    AppSelectComponent,
-    AppFormFieldComponent,
   ],
   templateUrl: './inventory-index.page.html',
   styleUrl: './inventory-index.page.scss',
@@ -65,9 +66,28 @@ export class InventoryIndexPage implements OnInit {
   private readonly inventoryService = inject(InventoryService);
   private readonly authService = inject(AuthService);
 
+  readonly breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Inventory', route: '/app/inventory' },
+    { label: 'Finished Goods' },
+  ];
+
+  readonly icons = {
+    Warehouse: WarehouseIcon,
+    Package,
+    Layers,
+    Sparkles,
+    RefreshCw,
+    Eye,
+    Filter,
+    XCircle,
+    DollarSign,
+    Truck,
+  };
+
   // State
   readonly items = signal<InventoryItem[]>([]);
   readonly totalCount = signal<number>(0);
+  readonly totalWeightKg = signal<number>(0);
   readonly currentPage = signal<number>(1);
   readonly pageSize = signal<number>(20);
   readonly loading = signal<boolean>(false);
@@ -91,42 +111,20 @@ export class InventoryIndexPage implements OnInit {
     { value: 'CONSUMED', label: 'Consumed' },
   ];
 
-  // Permission check
   readonly hasPermission = computed(() => this.authService.hasPermission('INVENTORY_VIEW'));
 
-  // Table configuration
-  readonly tableColumns: DataTableColumn[] = [
-    { key: 'unitCode', label: 'Inventory Code', sortable: true, width: '150px' },
-    { key: 'category', label: 'Category', sortable: true, width: '120px' },
-    { key: 'grade', label: 'Grade', sortable: true, width: '100px' },
-    {
-      key: 'amount',
-      label: 'Amount',
-      sortable: true,
-      width: '120px',
-      getValue: (row: any) => {
-        const item = row as InventoryItem;
-        return item.measurementType === 'WEIGHT'
-          ? `${item.weightKg} kg`
-          : `${item.pcsCount} pcs`;
-      },
-    },
-    {
-      key: 'warehouse',
-      label: 'Warehouse',
-      sortable: true,
-      width: '140px',
-      getValue: (row: any) => (row as InventoryItem).warehouseName || '—',
-    },
-    { key: 'status', label: 'Status', sortable: true, width: '100px' },
-    {
-      key: 'createdAt',
-      label: 'Created',
-      sortable: true,
-      width: '140px',
-      getValue: (row: any) => new Date((row as InventoryItem).createdAt).toLocaleDateString(),
-    },
-  ];
+  // Computed KPI Metrics
+  readonly availableCount = computed(() => {
+    return this.items().filter((i) => i.status === 'AVAILABLE').length;
+  });
+
+  readonly totalValuation = computed(() => {
+    return this.items().reduce((sum, item) => {
+      const weight = Number(item.weightKg || 0);
+      const cost = Number(item.avgCost || 0);
+      return sum + weight * cost;
+    }, 0);
+  });
 
   ngOnInit(): void {
     if (!this.hasPermission()) {
@@ -139,7 +137,6 @@ export class InventoryIndexPage implements OnInit {
   }
 
   loadFilterOptions(): void {
-    // Load categories
     this.inventoryService.getFilterOptions().subscribe({
       next: (options) => {
         this.categories.set([
@@ -175,21 +172,16 @@ export class InventoryIndexPage implements OnInit {
 
     this.inventoryService.getAll(params).subscribe({
       next: (response) => {
-        this.items.set(response.items);
-        this.totalCount.set(response.total);
+        this.items.set(response.items || []);
+        this.totalCount.set(response.total || 0);
+        this.totalWeightKg.set(response.aggregates?.totalWeight || 0);
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set(err.message || 'Failed to load inventory');
+        this.error.set(err?.message || 'Failed to load inventory items');
         this.loading.set(false);
       },
     });
-  }
-
-  onTableStateChange(state: DataTableState): void {
-    this.currentPage.set(state.pageIndex);
-    this.pageSize.set(state.pageSize);
-    this.loadItems();
   }
 
   applyFilters(): void {
@@ -206,18 +198,18 @@ export class InventoryIndexPage implements OnInit {
     this.loadItems();
   }
 
-  onRowClick(item: InventoryItem): void {
-    this.router.navigate(['/inventory', item.id]);
+  viewDetails(item: InventoryItem): void {
+    this.router.navigate(['/app/inventory', item.id]);
   }
 
-  getStatusVariant(status: string): 'success' | 'warning' | 'default' {
-    switch (status) {
-      case 'AVAILABLE':
-        return 'success';
-      case 'MOVED':
-        return 'warning';
-      default:
-        return 'default';
-    }
+  itemCode(item: InventoryItem): string {
+    if (item.unitCode) return item.unitCode;
+    return `INV-${String(item.id).slice(0, 8).toUpperCase()}`;
+  }
+
+  itemTotalValue(item: InventoryItem): number {
+    const weight = Number(item.weightKg || 0);
+    const cost = Number(item.avgCost || 0);
+    return weight * cost;
   }
 }

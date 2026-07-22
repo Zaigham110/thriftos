@@ -1,34 +1,48 @@
+/**
+ * Stage 2 Quality Grading Workspace Component
+ * Phase 2: Sorting Module UI
+ * 
+ * Interactive grading workspace for inspecting Category Outputs and sorting items into Grade Outputs.
+ */
+
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription, forkJoin } from 'rxjs';
+import {
+  LucideAngularModule,
+  ArrowLeft,
+  Sparkles,
+  Layers,
+  Scale,
+  Play,
+  CheckCircle2,
+  Lock,
+  Plus,
+  Trash2,
+  Pencil,
+  AlertTriangle,
+  Building2,
+  Truck,
+  FileText,
+  Clock,
+  Package,
+} from 'lucide-angular';
 
 import type { Grade, GradeBucket } from '../../sorting-stage2/sorting-stage2.models';
 import { SortingFacadeService } from '../sorting-facade.service';
 import type { WasteCategory, WasteLineItem } from '../sorting-facade.service';
+import { MoneyPipe } from '../../../core/money/money.pipe';
 import {
-  AppBadgeComponent,
-  AppButtonComponent,
-  AppCardComponent,
+  AppBreadcrumbComponent,
   AppDialogComponent,
   AppErrorStateComponent,
-  AppFormFieldComponent,
-  AppInputComponent,
+  AppLoadingComponent,
   AppPageBodyComponent,
   AppPageComponent,
   AppPageHeaderComponent,
-  AppSectionBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSplitAsideComponent,
-  AppSplitComponent,
-  AppSplitMainComponent,
-  AppStackComponent,
-  AppDataTableComponent,
-  AppSelectComponent,
-  type DataTableColumn,
-  type SelectOption,
+  type BreadcrumbItem,
 } from '../../../shared/ui';
 
 @Component({
@@ -36,29 +50,21 @@ import {
   standalone: true,
   imports: [
     CommonModule,
-    DecimalPipe,
+    RouterLink,
     ReactiveFormsModule,
+    DecimalPipe,
+    MoneyPipe,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppStackComponent,
-    AppCardComponent,
-    AppBadgeComponent,
-    AppButtonComponent,
-    AppDialogComponent,
+    AppBreadcrumbComponent,
+    AppLoadingComponent,
     AppErrorStateComponent,
-    AppSplitComponent,
-    AppSplitMainComponent,
-    AppSplitAsideComponent,
-    AppFormFieldComponent,
-    AppInputComponent,
-    AppSelectComponent,
-    AppDataTableComponent,
+    AppDialogComponent,
   ],
   templateUrl: './sorting-stage2-grade.page.html',
+  styleUrl: './sorting-stage2-grade.page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SortingStage2GradePage implements OnInit, OnDestroy {
@@ -80,6 +86,25 @@ export class SortingStage2GradePage implements OnInit, OnDestroy {
   readonly wasteCategories = signal<WasteCategory[]>([]);
   readonly wasteLineItems = signal<WasteLineItem[]>([]);
 
+  readonly icons = {
+    ArrowLeft,
+    Sparkles,
+    Layers,
+    Scale,
+    Play,
+    CheckCircle2,
+    Lock,
+    Plus,
+    Trash2,
+    Pencil,
+    AlertTriangle,
+    Building2,
+    Truck,
+    FileText,
+    Clock,
+    Package,
+  };
+
   readonly started = computed(() => Boolean(this.session()));
   readonly isClosed = computed(() => this.session()?.status === 'CLOSED');
 
@@ -100,55 +125,40 @@ export class SortingStage2GradePage implements OnInit, OnDestroy {
   // Form controls
   readonly gradeId = new FormControl<string>('', { nonNullable: true });
   readonly amountKg = new FormControl<number>(0, { nonNullable: true });
+  readonly pieceCount = new FormControl<number>(0, { nonNullable: true });
+  readonly allocationUnitMode = new FormControl<'KG' | 'PCS'>('KG', { nonNullable: true });
+
+  toNumber(val: any): number {
+    return Number(val || 0);
+  }
 
   readonly wasteCategoryId = new FormControl<string>('', { nonNullable: true });
   readonly wasteAmount = new FormControl<number>(0, { nonNullable: true });
 
-  readonly gradeOptions = computed<SelectOption[]>(() =>
+  readonly gradeOptions = computed(() =>
     (this.grades() || [])
       .filter((g) => g.isActive)
       .sort((a, b) => a.rank - b.rank)
       .map((g) => ({ label: g.name, value: g.id }))
   );
 
-  readonly wasteCategoryOptions = computed<SelectOption[]>(() =>
+  readonly wasteCategoryOptions = computed(() =>
     (this.wasteCategories() || [])
       .filter((c) => c.isActive)
       .map((c) => ({ label: `${c.name} (${c.unitType})`, value: c.id }))
   );
 
-  readonly tableColumns: DataTableColumn[] = [
-    {
-      key: 'grade',
-      label: 'Grade',
-      sortable: true,
-      filterable: true,
-      getValue: (row) => (row as GradeBucket).grade?.name ?? (row as GradeBucket).gradeId,
-    },
-    {
-      key: 'allocated',
-      label: 'Allocated (kg)',
-      align: 'right',
-      sortable: true,
-      getValue: (row) => (row as GradeBucket).outputWeightKg ?? 0,
-    },
-    {
-      key: 'updatedAt',
-      label: 'Updated',
-      sortable: true,
-      getValue: (row) => (row as GradeBucket).updatedAt,
-    },
-  ];
+  readonly breadcrumbs = computed<BreadcrumbItem[]>(() => {
+    const s = this.session();
+    const categoryName = s?.categoryOutput?.category?.name || 'Grading Workspace';
+    return [
+      { label: 'Sorting', route: '/app/sorting/stage-1' },
+      { label: 'Stage 2 — Quality Grading', route: '/app/sorting/stage-2' },
+      { label: categoryName },
+    ];
+  });
 
-  readonly wasteTableColumns: DataTableColumn[] = [
-    { key: 'category', label: 'Category', sortable: false },
-    { key: 'unit', label: 'Unit', sortable: false },
-    { key: 'amount', label: 'Amount', align: 'right', sortable: false },
-    { key: 'value', label: 'Est. Value', align: 'right', sortable: false },
-    { key: 'updatedAt', label: 'Updated', sortable: false },
-  ];
-
-  /** Clear totals computation: Input, Allocated, Waste, Remaining */
+  /** Totals computation: Input, Allocated, Waste, Remaining, Yield */
   readonly totals = computed(() => {
     const session = this.session();
     const input = Number(session?.categoryOutput?.weightKg ?? 0);
@@ -156,10 +166,22 @@ export class SortingStage2GradePage implements OnInit, OnDestroy {
     const waste = Number(session?.declaredWasteAmount ?? 0);
     const remaining = Math.max(0, input - allocated - waste);
     const yieldPct = input > 0 ? (allocated / input) * 100 : 0;
-    return { input, allocated, waste, remaining, yieldPct };
+    const allocatedPercent = input > 0 ? Math.min(100, (allocated / input) * 100) : 0;
+    const wastePercent = input > 0 ? Math.min(100 - allocatedPercent, (waste / input) * 100) : 0;
+    const remainingPercent = Math.max(0, 100 - allocatedPercent - wastePercent);
+    return {
+      input,
+      allocated,
+      waste,
+      remaining,
+      yieldPct,
+      allocatedPercent,
+      wastePercent,
+      remainingPercent,
+    };
   });
 
-  /** Can seal only when remaining is exactly 0 */
+  /** Can seal when session is started and remaining weight is 0 */
   readonly canSeal = computed(() => {
     if (!this.started() || this.isClosed()) return false;
     return this.totals().remaining === 0;
@@ -170,12 +192,11 @@ export class SortingStage2GradePage implements OnInit, OnDestroy {
     const t = this.totals();
     const gradeCount = this.buckets().length;
     const wasteCount = this.wasteLineItems().length;
-    return `This action cannot be undone.\n\n` +
-      `Input: ${t.input.toFixed(2)} kg\n` +
-      `Allocated to ${gradeCount} grades: ${t.allocated.toFixed(2)} kg\n` +
-      `Waste (${wasteCount} items): ${t.waste.toFixed(2)} kg\n` +
-      `Remaining: ${t.remaining.toFixed(2)} kg\n` +
-      `Yield: ${t.yieldPct.toFixed(1)}%`;
+    return `Sealing this session will lock grade allocations and finalize finished Grade Outputs.\n\n` +
+      `Category Input: ${t.input.toFixed(2)} KG\n` +
+      `Allocated to ${gradeCount} Grades: ${t.allocated.toFixed(2)} KG\n` +
+      `Logged Waste (${wasteCount} lines): ${t.waste.toFixed(2)} KG\n` +
+      `Quality Yield: ${t.yieldPct.toFixed(1)}%`;
   });
 
   ngOnInit(): void {
@@ -187,11 +208,9 @@ export class SortingStage2GradePage implements OnInit, OnDestroy {
     }
     this.categoryOutputId.set(categoryOutputId);
     
-    // Auto-load: try to start/resume session immediately
     this.autoLoadSession(categoryOutputId);
   }
 
-  /** Auto-load existing session or prepare for new session */
   private autoLoadSession(categoryOutputId: string): void {
     this.loading.set(true);
     this.error.set(null);
@@ -222,61 +241,24 @@ export class SortingStage2GradePage implements OnInit, OnDestroy {
     this.subs.unsubscribe();
   }
 
-  startConfirm(): void {
-    this.showStartConfirm.set(true);
-  }
-
-  startCancel(): void {
-    this.showStartConfirm.set(false);
-  }
-
-  startExecute(): void {
-    const categoryOutputId = this.categoryOutputId();
-    if (!categoryOutputId) return;
-
-    this.showStartConfirm.set(false);
-    this.loading.set(true);
-    this.error.set(null);
-
-    this.subs.add(
-      forkJoin({
-        summary: this.facade.stage2Start(categoryOutputId),
-        grades: this.facade.grades(),
-        wasteCategories: this.facade.wasteCategories(),
-      }).subscribe({
-        next: ({ summary, grades, wasteCategories }) => {
-          this.session.set(summary.session);
-          this.buckets.set(summary.buckets || []);
-          this.grades.set(grades || []);
-          this.wasteCategories.set((wasteCategories || []).filter((c) => c.isActive));
-          this.wasteLineItems.set((summary as any).wasteLineItems || []);
-          this.loading.set(false);
-        },
-        error: (err) => {
-          this.error.set(err?.message || 'Failed to start grading');
-          this.loading.set(false);
-        },
-      })
-    );
-  }
-
   allocate(): void {
     if (this.isClosed()) return;
 
     const sessionId = this.session()?.id;
     const gradeId = this.gradeId.value;
     const amount = Number(this.amountKg.value ?? 0);
+    const count = Number(this.pieceCount.value ?? 0);
 
     if (!sessionId) {
-      this.error.set('Start the session first');
+      this.error.set('Please start the session first');
       return;
     }
     if (!gradeId) {
-      this.error.set('Select a grade');
+      this.error.set('Please select a grade');
       return;
     }
     if (!(amount > 0)) {
-      this.error.set('Enter an amount > 0');
+      this.error.set('Enter an amount > 0 KG');
       return;
     }
 
@@ -284,16 +266,17 @@ export class SortingStage2GradePage implements OnInit, OnDestroy {
     this.error.set(null);
 
     this.subs.add(
-      this.facade.stage2Allocate(sessionId, gradeId, amount).subscribe({
+      this.facade.stage2Allocate(sessionId, gradeId, amount, count > 0 ? count : undefined).subscribe({
         next: (summary) => {
           this.session.set(summary.session);
           this.buckets.set(summary.buckets || []);
           this.wasteLineItems.set((summary as any).wasteLineItems || []);
           this.amountKg.setValue(0);
+          this.pieceCount.setValue(0);
           this.loading.set(false);
         },
         error: (err) => {
-          this.error.set(err?.message || 'Failed to allocate');
+          this.error.set(err?.message || 'Failed to allocate grade weight');
           this.loading.set(false);
         },
       })
@@ -302,7 +285,7 @@ export class SortingStage2GradePage implements OnInit, OnDestroy {
 
   closeConfirm(): void {
     if (!this.canSeal()) {
-      this.error.set('Cannot seal: Remaining must be 0. Allocate all weight to grades or waste first.');
+      this.error.set('Cannot seal: Remaining weight must be 0. Allocate all weight to grades or waste first.');
       return;
     }
     this.showCloseConfirm.set(true);
@@ -329,7 +312,7 @@ export class SortingStage2GradePage implements OnInit, OnDestroy {
           this.loading.set(false);
         },
         error: (err) => {
-          this.error.set(err?.message || 'Failed to close grading session');
+          this.error.set(err?.message || 'Failed to seal grading session');
           this.loading.set(false);
         },
       })
@@ -345,18 +328,18 @@ export class SortingStage2GradePage implements OnInit, OnDestroy {
 
     const sessionId = this.session()?.id;
     if (!sessionId) {
-      this.error.set('Start the session first');
+      this.error.set('Please start the session first');
       return;
     }
 
     const categoryId = this.wasteCategoryId.value;
     const amount = Number(this.wasteAmount.value ?? 0);
     if (!categoryId) {
-      this.error.set('Select a waste category');
+      this.error.set('Please select a waste category');
       return;
     }
     if (!(amount > 0)) {
-      this.error.set('Enter a waste amount > 0');
+      this.error.set('Enter a waste amount > 0 KG');
       return;
     }
 
@@ -386,7 +369,6 @@ export class SortingStage2GradePage implements OnInit, OnDestroy {
     );
   }
 
-  /** Quick fill the waste form with the remaining amount */
   fillRemainingAsWaste(): void {
     const remaining = this.totals().remaining;
     if (remaining > 0) {
@@ -440,8 +422,6 @@ export class SortingStage2GradePage implements OnInit, OnDestroy {
     );
   }
 
-  // ─── Bucket (Grade Allocation) Edit/Delete ───────────────────────────────
-
   editBucket(bucket: GradeBucket): void {
     this.editingBucket.set(bucket);
     this.editBucketWeight.setValue(Number(bucket.outputWeightKg ?? 0));
@@ -460,7 +440,7 @@ export class SortingStage2GradePage implements OnInit, OnDestroy {
 
     const weight = Number(this.editBucketWeight.value ?? 0);
     if (!(weight > 0)) {
-      this.error.set('Enter a weight > 0');
+      this.error.set('Enter a weight > 0 KG');
       return;
     }
 
@@ -514,7 +494,6 @@ export class SortingStage2GradePage implements OnInit, OnDestroy {
     );
   }
 
-  /** Re-fetch the session summary to get updated totals after bucket changes */
   private refreshSummary(): void {
     const categoryOutputId = this.categoryOutputId();
     if (!categoryOutputId) {
@@ -536,10 +515,5 @@ export class SortingStage2GradePage implements OnInit, OnDestroy {
         },
       })
     );
-  }
-
-  shortId(value: string | null | undefined): string {
-    if (!value) return '—';
-    return String(value).slice(0, 8).toUpperCase();
   }
 }

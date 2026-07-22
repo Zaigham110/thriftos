@@ -1,41 +1,41 @@
 /**
- * REPACK INDEX PAGE — ALIGNED WITH PROCUREMENT GOLDEN REFERENCE
- * =============================================================
- * Table-based layout like all other ERP modules
+ * Repack Unit Registry List Component
+ * Phase 2: Repack Module UI
+ * 
+ * High-density directory table and KPI cards for Repack & Packaging units.
  */
 
-import {
-  Component,
-  OnInit,
-  signal,
-  computed,
-  inject,
-  ChangeDetectionStrategy,
-} from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { FormsModule } from '@angular/forms';
+import {
+  LucideAngularModule,
+  Box,
+  Package,
+  Plus,
+  RefreshCw,
+  Layers,
+  Sparkles,
+  CheckCircle2,
+  Clock,
+  Trash2,
+  ArrowRight,
+  Warehouse,
+} from 'lucide-angular';
+
 import { RepackService } from '../repack.service';
 import { RepackUnit, RepackStatus } from '../repack.models';
 import { AuthService } from '../../../core/auth/auth';
-
 import {
-  AppPageComponent,
-  AppPageHeaderComponent,
-  AppPageBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSectionBodyComponent,
-  AppButtonComponent,
-  AppStackComponent,
-  AppBadgeComponent,
   AppBreadcrumbComponent,
-  AppLoadingComponent,
+  AppDialogComponent,
   AppEmptyStateComponent,
   AppErrorStateComponent,
-  AppDialogComponent,
-  AppDataTableComponent,
-  type DataTableColumn,
+  AppLoadingComponent,
+  AppPageBodyComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  type BreadcrumbItem,
 } from '../../../shared/ui';
 
 @Component({
@@ -43,23 +43,17 @@ import {
   standalone: true,
   imports: [
     CommonModule,
-    RouterLink,
-    FormsModule,
+    DatePipe,
+    DecimalPipe,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppButtonComponent,
-    AppStackComponent,
-    AppBadgeComponent,
     AppBreadcrumbComponent,
     AppLoadingComponent,
-    AppEmptyStateComponent,
     AppErrorStateComponent,
+    AppEmptyStateComponent,
     AppDialogComponent,
-    AppDataTableComponent,
   ],
   templateUrl: './repack-index.page.html',
   styleUrl: './repack-index.page.scss',
@@ -70,48 +64,56 @@ export class RepackIndexComponent implements OnInit {
   private readonly repackService = inject(RepackService);
   private readonly authService = inject(AuthService);
 
-  // Breadcrumbs
-  readonly breadcrumbs = [
-    { label: 'Packaging', link: '/packaging' },
-    { label: 'Repack', link: undefined },
+  readonly breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Packaging', route: '/app/packaging/repack' },
+    { label: 'Repack Registry' },
   ];
 
-  // Data — unified list
+  readonly icons = {
+    Box,
+    Package,
+    Plus,
+    RefreshCw,
+    Layers,
+    Sparkles,
+    CheckCircle2,
+    Clock,
+    Trash2,
+    ArrowRight,
+    Warehouse,
+  };
+
   readonly allUnits = signal<RepackUnit[]>([]);
-  readonly loading = signal(false);
+  readonly loading = signal(true);
   readonly error = signal<string | null>(null);
 
-  // Filter
   readonly statusFilter = signal<'ALL' | RepackStatus>('ALL');
 
-  // Computed filtered list
+  // Computed KPI Metrics
+  readonly draftCount = computed(() => {
+    return this.allUnits().filter((u) => u.status === 'DRAFT').length;
+  });
+
+  readonly sealedCount = computed(() => {
+    return this.allUnits().filter((u) => u.status === 'SEALED').length;
+  });
+
+  readonly totalPackedWeight = computed(() => {
+    return this.allUnits().reduce((sum, u) => sum + Number(u.allocatedAmount || 0), 0);
+  });
+
   readonly filteredUnits = computed(() => {
     const filter = this.statusFilter();
     const units = this.allUnits();
     if (filter === 'ALL') return units;
-    return units.filter(u => u.status === filter);
+    return units.filter((u) => u.status === filter);
   });
 
-  // Total count for subtitle
-  readonly totalCount = computed(() => this.allUnits().length);
-
-  // Table columns — Procurement pattern
-  readonly tableColumns: DataTableColumn[] = [
-    { key: 'unitCode', label: 'Unit Code', sortable: true },
-    { key: 'status', label: 'Status', sortable: true },
-    { key: 'category', label: 'Category', getValue: (row) => (row as RepackUnit).category?.name || '—' },
-    { key: 'grade', label: 'Grade', getValue: (row) => (row as RepackUnit).grade?.name || '—' },
-    { key: 'progress', label: 'Progress' },
-    { key: 'createdAt', label: 'Created', sortable: true },
-    { key: 'sealedAt', label: 'Sealed' },
-  ];
-
-  // Delete modal
+  // Delete modal state
   readonly showDeleteModal = signal(false);
   readonly unitToDelete = signal<RepackUnit | null>(null);
   readonly deleting = signal(false);
 
-  // Permissions
   readonly canCreate = computed(() => this.authService.hasPermission('REPACK_CREATE'));
   readonly canDelete = computed(() => this.authService.hasPermission('REPACK_DELETE'));
 
@@ -123,25 +125,24 @@ export class RepackIndexComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    // Load all units (both drafts and sealed)
     this.repackService.getAllUnits().subscribe({
       next: (units) => {
         this.allUnits.set(units || []);
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set(err.message || 'Failed to load repack units');
+        this.error.set(err?.message || 'Failed to load repack units');
         this.loading.set(false);
       },
     });
   }
 
-  onRowClick(row: RepackUnit): void {
-    this.router.navigate(['/packaging/repack', row.id]);
+  openWorkspace(unit: RepackUnit): void {
+    this.router.navigate(['/app/packaging/repack', unit.id]);
   }
 
-  getStatusVariant(status: RepackStatus): 'warning' | 'success' {
-    return status === 'DRAFT' ? 'warning' : 'success';
+  createNew(): void {
+    this.router.navigate(['/app/packaging/repack/new']);
   }
 
   confirmDelete(unit: RepackUnit, event: Event): void {
@@ -168,8 +169,30 @@ export class RepackIndexComponent implements OnInit {
       },
       error: (err) => {
         this.deleting.set(false);
-        this.error.set(err.message);
+        this.error.set(err?.message || 'Failed to delete repack unit');
       },
     });
+  }
+
+  packedAmount(unit: RepackUnit): number {
+    if (unit.allocatedAmount !== undefined && unit.allocatedAmount !== null && !isNaN(Number(unit.allocatedAmount))) {
+      return Number(unit.allocatedAmount);
+    }
+    return Number((unit as any).weightKg ?? (unit as any).pcsCount ?? 0);
+  }
+
+  targetAmount(unit: RepackUnit): number {
+    if (unit.targetAmount !== undefined && unit.targetAmount !== null && Number(unit.targetAmount) > 0) {
+      return Number(unit.targetAmount);
+    }
+    return this.packedAmount(unit);
+  }
+
+  progressPercent(unit: RepackUnit): number {
+    if (unit.status === 'SEALED') return 100;
+    const target = this.targetAmount(unit);
+    const packed = this.packedAmount(unit);
+    if (target <= 0) return 0;
+    return Math.min(100, (packed / target) * 100);
   }
 }

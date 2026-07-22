@@ -189,15 +189,12 @@ export class RepackV3Service {
   async createDraftManual(tenantId: string, dto: CreateRepackUnitV2Dto, userId: string): Promise<RepackDraftResult> {
     return this.prisma.$transaction(async (tx) => {
       this.assertDraftInputs(dto);
-      // allocationMode validation removed - always MANUAL (FIFO deleted)
-      if (!dto.manualAllocations || dto.manualAllocations.length === 0) {
-        throw new BadRequestException('manualAllocations are required for MANUAL mode');
-      }
-
-      // Validate total is positive (allow partial allocations - more can be added later)
-      const totalRequested = dto.manualAllocations.reduce((sum, a) => sum + Number(a.amountUsed), 0);
-      if (totalRequested <= 0) {
-        throw new BadRequestException('Manual allocation total must be greater than zero');
+      const manualAllocations = dto.manualAllocations || [];
+      if (manualAllocations.length > 0) {
+        const totalRequested = manualAllocations.reduce((sum, a) => sum + Number(a.amountUsed), 0);
+        if (totalRequested <= 0) {
+          throw new BadRequestException('Manual allocation total must be greater than zero');
+        }
       }
       // Allow any amount - can be less than, equal to, or more than target
       // Users can add multiple allocations from different sources to reach target

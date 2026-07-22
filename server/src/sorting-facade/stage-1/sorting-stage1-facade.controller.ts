@@ -155,10 +155,15 @@ export class SortingStage1FacadeController {
     @Req() req: Request,
   ) {
     const tenantId = (req as any).tenantId || user.tenantId;
-    if (!ragId) return { session: null, buckets: [] };
-
     const session = await this.prisma.sortSession.findFirst({
-      where: { tenantId, ragId, status: SortStatus.OPEN },
+      where: {
+        tenantId,
+        status: SortStatus.OPEN,
+        OR: [
+          { ragId },
+          { incomingBaleId: ragId },
+        ],
+      },
       orderBy: { createdAt: 'desc' },
       select: { id: true },
     });
@@ -212,22 +217,25 @@ export class SortingStage1FacadeController {
       select: { id: true, outputWeightKg: true, outputCount: true },
     });
 
+    const count = Number(dto.outputCount || 0);
+
     if (!existing) {
       await this.bucketService.createForSession(
         tenantId,
         dto.sessionId,
-        { categoryId: dto.categoryId, outputWeightKg: amount, outputCount: 0 },
+        { categoryId: dto.categoryId, outputWeightKg: amount, outputCount: count },
         user.userId,
       );
       return this.getSessionSummary(tenantId, dto.sessionId);
     }
 
     const newWeight = Number(existing.outputWeightKg || 0) + amount;
+    const newCount = Number(existing.outputCount || 0) + count;
 
     await this.bucketService.update(
       tenantId,
       existing.id,
-      { outputWeightKg: newWeight, outputCount: existing.outputCount ?? 0 },
+      { outputWeightKg: newWeight, outputCount: newCount },
       user.userId,
     );
 

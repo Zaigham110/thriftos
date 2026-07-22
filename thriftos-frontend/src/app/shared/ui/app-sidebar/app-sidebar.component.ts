@@ -8,7 +8,7 @@ import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
-export interface SidebarNavItem extends AppNavGroupItem {}
+export interface SidebarNavItem extends AppNavGroupItem { }
 
 export interface SidebarNavGroup {
   id: string;
@@ -104,18 +104,18 @@ export interface SidebarNavConfig {
       background: var(--app-bg-surface);
     }
 
-    .sidebar-brand {
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      min-height: 56px;
-      width: 100%;
-      padding: var(--space-sm);
-      background: var(--app-bg-surface);
-      border: 1px solid var(--app-border-subtle);
-      border-radius: var(--border-radius);
-      box-shadow: var(--shadow-sm);
-    }
+    // .sidebar-brand {
+    //   display: flex;
+    //   align-items: center;
+    //   justify-content: flex-start;
+    //   min-height: 56px;
+    //   width: 100%;
+    //   padding: var(--space-sm);
+    //   background: var(--app-bg-surface);
+    //   border: 1px solid var(--app-border-subtle);
+    //   border-radius: var(--border-radius);
+    //   box-shadow: var(--shadow-sm);
+    // }
 
     .sidebar-nav {
       display: flex;
@@ -144,7 +144,7 @@ export class AppSidebarComponent {
   nav = input<SidebarNavConfig>({
     productName: 'ThriftOS',
     productSubtitle: 'Operations & Inventory Platform',
-    logoUrl: '/favicon.ico',
+    logoUrl: '/os_logo.png',
     dashboard: { id: 'dashboard', label: 'Dashboard', route: '/dashboard', icon: 'layout-dashboard' },
     groups: [],
   });

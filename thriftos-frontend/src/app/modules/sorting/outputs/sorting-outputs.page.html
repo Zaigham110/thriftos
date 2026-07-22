@@ -1,106 +1,223 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs" />
-      <h1 class="page-title">Sorting — Output Registry</h1>
-      <p class="page-subtitle">{{ total() }} grade outputs</p>
-    </app-stack>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Sorting Output Registry</h1>
+      <p class="page-subtitle">Central registry of finished Stage 2 Grade Outputs ready for repack, inventory, or direct wholesale.</p>
+    </div>
 
-    <div class="actions">
-      <app-button variant="secondary" (click)="load()" [disabled]="loading()">Refresh</app-button>
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="load()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="15" [class.animate-spin]="loading()"></lucide-icon>
+        Refresh Registry
+      </button>
     </div>
   </app-page-header>
 
   <app-page-body>
     @if (error()) {
-      <app-error-state title="Failed to load" [message]="error()!" [action]="true">
-        <app-button action variant="secondary" (click)="clearError()">Dismiss</app-button>
-      </app-error-state>
+      <app-error-state
+        [message]="error()!"
+        (retry)="load()"
+      ></app-error-state>
     }
 
-    @if (loading()) {
-      <app-loading message="Loading outputs…" />
-    } @else {
-      <app-section>
-        <app-section-header>
-          <h2 class="section-title">Grade Outputs</h2>
-        </app-section-header>
+    <!-- KPI Summary Grid -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-purple">
+          <lucide-icon [img]="icons.PackageCheck" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Grade Outputs</span>
+          <span class="kpi-value">{{ total() }}</span>
+        </div>
+      </div>
 
-        <app-section-body>
-          @if (rows().length === 0) {
-            <app-empty-state title="No outputs" message="No Stage 2 grade outputs exist yet." />
-          } @else {
-            <app-data-table
-              title="Outputs"
-              subtitle="Availability is remainingAmount / status"
-              [columns]="columns"
-              [data]="rows()"
-              [loading]="loading()"
-              [serverSide]="true"
-              [totalCount]="total()"
-              [externalPageIndex]="page()"
-              [externalPageSize]="pageSize()"
-              (stateChange)="onTableStateChange($event)"
-            >
-              <ng-template #cellTemplate let-row let-column="column">
-                @switch (column.key) {
-                  @case ('gradeId') {
-                    <strong>{{ row.grade?.name || '—' }}</strong>
-                  }
-                  @case ('category') {
-                    {{ row.gradeBucket?.gradeSession?.categoryOutput?.category?.name || '—' }}
-                  }
-                  @case ('ragCode') {
-                    {{ row.gradeBucket?.gradeSession?.categoryOutput?.rag?.ragCode || '—' }}
-                  }
-                  @case ('containerNumber') {
-                    {{ row.gradeBucket?.gradeSession?.categoryOutput?.container?.containerNumber || '—' }}
-                  }
-                  @case ('remaining') {
-                    <span class="tabular-nums">{{ (row.remainingAmount ?? row.totalAmount ?? row.weightKg) | number:'1.2-2' }}</span>
-                  }
-                  @case ('total') {
-                    <span class="tabular-nums">{{ (row.totalAmount ?? row.weightKg) | number:'1.2-2' }}</span>
-                  }
-                  @case ('used') {
-                    <span class="tabular-nums">{{ (row.usedAmount ?? 0) | number:'1.2-2' }}</span>
-                  }
-                  @case ('status') {
-                    <app-badge [variant]="statusVariant(row.status)">{{ statusLabel(row.status) }}</app-badge>
-                  }
-                  @default {
-                    {{ column.getValue ? column.getValue(row) : row[column.key] }}
-                  }
-                }
-              </ng-template>
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-emerald">
+          <lucide-icon [img]="icons.Sparkles" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Available Weight</span>
+          <span class="kpi-value">{{ totalRemainingWeight() | number:'1.2-2' }} <small>KG</small></span>
+        </div>
+      </div>
 
-              <ng-template #rowActions let-row>
-                @if (canMarkReady(row)) {
-                  <app-button 
-                    variant="primary" 
-                    size="sm" 
-                    (click)="markReadyForRepack(row)"
-                    [disabled]="marking() && markingOutputId() === row.id"
-                    title="Mark this output as ready for repack"
-                  >
-                    {{ marking() && markingOutputId() === row.id ? 'Marking...' : 'Mark Ready' }}
-                  </app-button>
-                }
-                <app-button variant="secondary" size="sm" (click)="viewDetails(row)">View</app-button>
-                <app-button
-                  variant="primary"
-                  size="sm"
-                  (click)="startRepack(row)"
-                  [disabled]="!isRepackEligible(row)"
-                  [title]="isRepackEligible(row) ? 'Start repack with this output' : 'Output must be marked as READY_FOR_REPACK'"
-                >
-                  Repack
-                </app-button>
-              </ng-template>
-            </app-data-table>
-          }
-        </app-section-body>
-      </app-section>
-    }
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-blue">
+          <lucide-icon [img]="icons.Layers" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Active / Ready Count</span>
+          <span class="kpi-value">{{ availableCount() }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-amber">
+          <lucide-icon [img]="icons.FileText" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Allocated Output Value</span>
+          <span class="kpi-value">{{ totalAllocatedCost() | money }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section Toolbar -->
+    <div class="section-toolbar mt-4">
+      <div class="toolbar-title">
+        <span class="section-label">Grade Outputs Directory</span>
+        <span class="results-count">{{ rows().length }} items registered</span>
+      </div>
+    </div>
+
+    <div class="table-card">
+      @if (loading()) {
+        <app-loading message="Loading grade outputs…"></app-loading>
+      } @else if (rows().length === 0) {
+        <app-empty-state
+          title="No Grade Outputs Registered"
+          message="Seal Stage 2 Quality Grading sessions to generate finished Grade Outputs."
+        ></app-empty-state>
+      } @else {
+        <div class="table-wrapper">
+          <table class="directory-table">
+            <thead>
+              <tr>
+                <th>Output Code</th>
+                <th>Quality Grade</th>
+                <th>Category</th>
+                <th>Source Rag / Bale</th>
+                <th>Ocean Container</th>
+                <th class="text-right">Total KG</th>
+                <th class="text-right">Used KG</th>
+                <th class="text-right">Remaining KG</th>
+                <th>Status</th>
+                <th class="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of rows(); track item.id) {
+                <tr (click)="viewDetails(item)" class="clickable-row">
+                  <td>
+                    <span class="code-badge">
+                      <lucide-icon [img]="icons.Sparkles" [size]="13"></lucide-icon>
+                      {{ outputCode(item) }}
+                    </span>
+                  </td>
+
+                  <td>
+                    <span class="grade-name-badge">
+                      {{ item.grade?.name || 'Standard Grade' }}
+                    </span>
+                  </td>
+
+                  <td>
+                    <span class="category-name font-bold">
+                      {{ item.gradeBucket?.gradeSession?.categoryOutput?.category?.name || '—' }}
+                    </span>
+                  </td>
+
+                  <td>
+                    @if (item.gradeBucket?.gradeSession?.categoryOutput?.rag?.ragCode; as code) {
+                      <span class="rag-code-text">
+                        <lucide-icon [img]="icons.Package" [size]="12"></lucide-icon>
+                        {{ code }}
+                      </span>
+                    } @else {
+                      <span class="text-muted">Direct Intake</span>
+                    }
+                  </td>
+
+                  <td>
+                    @if (item.gradeBucket?.gradeSession?.categoryOutput?.container; as cont) {
+                      <a 
+                        [routerLink]="['/app/procurement/containers', cont.id]"
+                        (click)="$event.stopPropagation()"
+                        class="container-link"
+                      >
+                        {{ cont.containerNumber }}
+                      </a>
+                    } @else {
+                      <span class="text-muted">Standalone</span>
+                    }
+                  </td>
+
+                  <td class="text-right font-mono">
+                    {{ totalKg(item) | number:'1.2-2' }}
+                  </td>
+
+                  <td class="text-right font-mono text-amber">
+                    {{ usedKg(item) | number:'1.2-2' }}
+                  </td>
+
+                  <td class="text-right font-mono font-bold text-primary">
+                    {{ remainingKg(item) | number:'1.2-2' }}
+                  </td>
+
+                  <td>
+                    <span
+                      class="status-pill"
+                      [class.status-available]="item.status === 'AVAILABLE' || item.status === 'READY_FOR_REPACK'"
+                      [class.status-partially]="item.status === 'PARTIALLY_USED'"
+                      [class.status-depleted]="item.status === 'DEPLETED'"
+                    >
+                      <span class="status-dot"></span>
+                      {{ statusLabel(item.status) }}
+                    </span>
+                  </td>
+
+                  <td class="text-right" (click)="$event.stopPropagation()">
+                    <div class="action-buttons-group">
+                      <button class="btn btn-secondary btn-xs" (click)="viewDetails(item)" title="View lineage & trace details">
+                        <lucide-icon [img]="icons.Eye" [size]="12"></lucide-icon>
+                        View
+                      </button>
+
+                      @if (canMarkReady(item)) {
+                        <button
+                          class="btn btn-secondary btn-xs"
+                          (click)="promptMarkReadyForRepack(item)"
+                          [disabled]="marking() && markingOutputId() === item.id"
+                        >
+                          <lucide-icon [img]="icons.PackageCheck" [size]="12"></lucide-icon>
+                          Ready Repack
+                        </button>
+                      }
+
+                      @if (isRepackEligible(item)) {
+                        <button class="btn btn-primary btn-xs" (click)="startRepack(item)">
+                          <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon>
+                          Start Repack
+                        </button>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
   </app-page-body>
 </app-page>
+
+<!-- Mark Ready for Repack Confirmation Dialog -->
+<app-dialog
+  [open]="confirmRepackDialog()"
+  title="Mark Output as Ready for Repack?"
+  (closed)="cancelMarkReady()"
+>
+  <div class="dialog-body">
+    <p>Marking this Grade Output as <strong>READY FOR REPACK</strong> will register it in the Repack & Packaging module for finished goods batching.</p>
+  </div>
+  <div slot="footer" class="dialog-actions">
+    <button class="btn btn-secondary" (click)="cancelMarkReady()">Cancel</button>
+    <button class="btn btn-primary" [disabled]="marking()" (click)="confirmMarkReady()">Confirm & Register</button>
+  </div>
+</app-dialog>

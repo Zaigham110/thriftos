@@ -39,6 +39,8 @@ export interface SaleListItem {
   status: SaleStatus;
   currencyCode: string;
   totalAmount: number | string;
+  totalCost?: number | string;
+  totalProfit?: number | string;
   issuedAt?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -70,6 +72,8 @@ export interface SaleLine {
   quantity: number | string;
   unitPrice: number | string;
   lineTotal: number | string;
+  lineCost?: number | string;
+  profit?: number | string;
   createdAt: string;
   updatedAt: string;
 
@@ -84,6 +88,8 @@ export interface SaleDetail {
   status: SaleStatus;
   currencyCode: string;
   totalAmount: number | string;
+  totalCost?: number | string;
+  totalProfit?: number | string;
   issuedAt?: string | null;
   createdBy: string;
   createdAt: string;

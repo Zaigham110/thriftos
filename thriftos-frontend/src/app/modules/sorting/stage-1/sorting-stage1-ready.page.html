@@ -1,86 +1,191 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs" />
-      <h1 class="page-title">Sorting — Stage 1</h1>
-      <p class="page-subtitle">{{ total() }} rags/bales with status NOT_STARTED</p>
-    </app-stack>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Stage 1 — Primary Breakdown Queue</h1>
+      <p class="page-subtitle">Incoming rags and loose bales ready for primary sorting into raw material categories.</p>
+    </div>
 
-    <div class="actions">
-      <app-button variant="secondary" (click)="load()" [disabled]="loading()">Refresh</app-button>
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="load()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="15" [class.animate-spin]="loading()"></lucide-icon>
+        Refresh Queue
+      </button>
     </div>
   </app-page-header>
 
   <app-page-body>
     @if (error()) {
-      <app-error-state title="Failed to load" [message]="error()!" [action]="true">
-        <app-button action variant="secondary" (click)="clearError()">Dismiss</app-button>
-      </app-error-state>
+      <app-error-state
+        [message]="error()!"
+        (retry)="load()"
+      ></app-error-state>
     }
 
-    @if (loading()) {
-      <app-loading message="Loading ready rags/bales…" />
-    } @else {
-      <app-section>
-        <app-section-header>
-          <h2 class="section-title">Ready Rags / Bales</h2>
-        </app-section-header>
+    <!-- KPI Metric Summary Grid -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-purple">
+          <lucide-icon [img]="icons.Layers" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Queue Items</span>
+          <span class="kpi-value">{{ total() }}</span>
+        </div>
+      </div>
 
-        <app-section-body>
-          @if (rows().length === 0) {
-            <app-empty-state title="No rags/bales ready" message="Nothing with status NOT_STARTED is available for sorting." />
-          } @else {
-            <app-data-table
-              title="Ready for sorting"
-              subtitle="Start Sorting Stage 1 from a single rag/bale"
-              [columns]="columns"
-              [data]="rows()"
-              [loading]="loading()"
-              [serverSide]="false"
-              [externalPageSize]="20"
-            >
-              <ng-template #cellTemplate let-row let-column="column">
-                @switch (column.key) {
-                  @case ('code') {
-                    <app-stack direction="vertical" spacing="xs">
-                      <strong>{{ row.sourceType === 'LOOSE_BALE' ? row.baleCode : row.ragCode }}</strong>
-                      @if (row.rawCategory?.name) {
-                        <span class="muted">{{ row.rawCategory?.name }}</span>
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-blue">
+          <lucide-icon [img]="icons.Clock" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Pending Intake</span>
+          <span class="kpi-value">{{ notStartedCount() }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-amber">
+          <lucide-icon [img]="icons.Play" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">In-Sorting Active</span>
+          <span class="kpi-value">{{ inSortingCount() }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-emerald">
+          <lucide-icon [img]="icons.Scale" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Queue Weight</span>
+          <span class="kpi-value">{{ totalQueueWeight() | number:'1.2-2' }} <small>KG</small></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section Toolbar -->
+    <div class="section-toolbar mt-4">
+      <div class="toolbar-title">
+        <span class="section-label">Ready Rags & Bales</span>
+        <span class="results-count">{{ rows().length }} items available</span>
+      </div>
+    </div>
+
+    <div class="table-card">
+      @if (loading()) {
+        <app-loading message="Loading sorting queue…"></app-loading>
+      } @else if (rows().length === 0) {
+        <app-empty-state
+          title="No Rags or Bales Ready for Sorting"
+          message="There are currently no items with status NOT_STARTED or IN_SORTING."
+        ></app-empty-state>
+      } @else {
+        <div class="table-wrapper">
+          <table class="directory-table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Source Type</th>
+                <th>Container Reference</th>
+                <th>Purchase Order</th>
+                <th>Weight (KG)</th>
+                <th>Sorting Status</th>
+                <th class="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of rows(); track item.id) {
+                <tr (click)="start(item)" class="clickable-row">
+                  <td>
+                    <div class="code-group">
+                      <span class="code-badge">
+                        <lucide-icon [img]="icons.Package" [size]="13"></lucide-icon>
+                        {{ item.sourceType === 'LOOSE_BALE' ? item.baleCode : item.ragCode }}
+                      </span>
+                      @if (item.rawCategory?.name) {
+                        <span class="sub-category">{{ item.rawCategory?.name }}</span>
                       }
-                    </app-stack>
-                  }
-                  @case ('sourceType') {
-                    <app-badge [variant]="row.sourceType === 'LOOSE_BALE' ? 'primary' : 'default'">
-                      {{ row.sourceType == 'RAG' ? ('RAG - '+row.ragBaleType) : row.sourceType == 'LOOSE_BALE' ? 'LOOSE BALE' : '—' }}
-                    </app-badge>
-                  }
-                  @case ('container') {
-                    <app-link [routerLink]="['/app/procurement/containers', row.container?.id]">{{ row.container?.containerNumber || '—' }}</app-link>
-                  }
-                  @case ('purchaseOrder') {
-                    <app-link [routerLink]="['/app/procurement/pos', row.container?.purchaseOrder?.id ?? row.purchaseOrder?.id]">{{ row.container?.purchaseOrder?.poNumber ?? row.purchaseOrder?.poNumber ?? '—' }}</app-link>
-                  }
-                  @case ('weightKg') {
-                    <span class="tabular-nums">{{ row.weightKg | number:'1.2-2' }}</span>
-                  }
-                  @case ('status') {
-                    <app-badge variant="primary">{{ row.status }}</app-badge>
-                  }
-                  @default {
-                    {{ column.getValue ? column.getValue(row) : row[column.key] }}
-                  }
-                }
-              </ng-template>
+                    </div>
+                  </td>
 
-              <ng-template #rowActions let-row>
-                <app-button variant="primary" size="sm" (click)="start(row)">
-                  {{ row.status === 'IN_SORTING' ? 'Resume' : 'Start' }}
-                </app-button>
-              </ng-template>
-            </app-data-table>
-          }
-        </app-section-body>
-      </app-section>
-    }
+                  <td>
+                    <span class="type-pill" [class.type-bale]="item.sourceType === 'LOOSE_BALE'">
+                      {{ getSourceLabel(item) }}
+                    </span>
+                  </td>
+
+                  <td>
+                    @if (item.container) {
+                      <a 
+                        [routerLink]="['/app/procurement/containers', item.container.id]"
+                        (click)="$event.stopPropagation()"
+                        class="container-link"
+                      >
+                        {{ item.container.containerNumber }}
+                      </a>
+                    } @else {
+                      <span class="text-muted">Direct Intake</span>
+                    }
+                  </td>
+
+                  <td>
+                    @if (item.container?.purchaseOrder || item.purchaseOrder) {
+                      <a 
+                        [routerLink]="['/app/procurement/pos', item.container?.purchaseOrder?.id ?? item.purchaseOrder?.id]"
+                        (click)="$event.stopPropagation()"
+                        class="po-link"
+                      >
+                        {{ item.container?.purchaseOrder?.poNumber ?? item.purchaseOrder?.poNumber }}
+                      </a>
+                    } @else {
+                      <span class="text-muted">Unlinked</span>
+                    }
+                  </td>
+
+                  <td>
+                    <span class="weight-text">{{ item.weightKg | number:'1.2-2' }} KG</span>
+                  </td>
+
+                  <td>
+                    @if (item.status === 'IN_SORTING') {
+                      <span class="status-pill status-active">
+                        <span class="status-dot"></span>
+                        IN SORTING
+                      </span>
+                    } @else {
+                      <span class="status-pill status-pending">
+                        <span class="status-dot"></span>
+                        NOT STARTED
+                      </span>
+                    }
+                  </td>
+
+                  <td class="text-right" (click)="$event.stopPropagation()">
+                    <button 
+                      class="btn btn-sm"
+                      [class.btn-primary]="item.status !== 'IN_SORTING'"
+                      [class.btn-success]="item.status === 'IN_SORTING'"
+                      (click)="start(item)"
+                    >
+                      @if (item.status === 'IN_SORTING') {
+                        <lucide-icon [img]="icons.Play" [size]="13"></lucide-icon>
+                        Resume Sorting
+                      } @else {
+                        <lucide-icon [img]="icons.ArrowRight" [size]="13"></lucide-icon>
+                        Start Sorting
+                      }
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
   </app-page-body>
 </app-page>

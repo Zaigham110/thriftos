@@ -1,120 +1,214 @@
-<!-- REPACK INDEX — ALIGNED WITH PROCUREMENT GOLDEN REFERENCE -->
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs" />
-      <h1 class="page-title">Repack Units</h1>
-      <p class="page-subtitle">{{ totalCount() }} units</p>
-    </app-stack>
-    <div class="actions">
-      <app-button variant="secondary" (click)="loadData()" [disabled]="loading()">
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Repack & Packaging Registry</h1>
+      <p class="page-subtitle">Batching, repackaging, and inventory unit creation from Stage 2 Grade Outputs.</p>
+    </div>
+
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="loadData()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="15" [class.animate-spin]="loading()"></lucide-icon>
         Refresh
-      </app-button>
+      </button>
+
       @if (canCreate()) {
-        <app-button variant="primary" [routerLink]="['/packaging/repack/workspace']" [queryParams]="{mode: 'new'}">
-          + New Repack Unit
-        </app-button>
+        <button class="btn btn-primary" (click)="createNew()">
+          <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
+          Create Repack Unit
+        </button>
       }
     </div>
   </app-page-header>
 
   <app-page-body>
-    <!-- Delete Confirmation Modal -->
-    <app-dialog
-      [open]="showDeleteModal()"
-      title="Delete Draft?"
-      variant="danger"
-      confirmText="Delete"
-      cancelText="Cancel"
-      [loading]="deleting()"
-      (confirmed)="deleteDraft()"
-      (cancelled)="closeDeleteModal()"
-    >
-      @if (unitToDelete(); as unit) {
-        <p>Are you sure you want to delete <strong>{{ unit.unitCode }}</strong>?</p>
-        <p class="warning-text">⚠️ All allocations will be released. This cannot be undone.</p>
-      }
-    </app-dialog>
+    @if (error()) {
+      <app-error-state
+        [message]="error()!"
+        (retry)="loadData()"
+      ></app-error-state>
+    }
 
-    <!-- ALL UNITS SECTION — Unified Table -->
-    <app-section>
-      <app-section-header>
-        <h2 class="section-title">All Repack Units</h2>
-        <div class="actions">
-          <!-- Filter by status -->
-          <select
-            class="filter-select"
-            [ngModel]="statusFilter()"
-            (ngModelChange)="statusFilter.set($event)"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="DRAFT">Drafts Only</option>
-            <option value="SEALED">Sealed Only</option>
-          </select>
+    <!-- KPI Summary Grid -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-purple">
+          <lucide-icon [img]="icons.Box" [size]="20"></lucide-icon>
         </div>
-      </app-section-header>
-      <app-section-body>
-        @if (loading()) {
-          <app-loading message="Loading repack units…" />
-        } @else if (error()) {
-          <app-error-state title="Failed to load" [message]="error()!" [action]="true">
-            <app-button action variant="secondary" (click)="loadData()">Retry</app-button>
-          </app-error-state>
-        } @else if (filteredUnits().length === 0) {
-          <app-empty-state
-            title="No repack units"
-            [message]="statusFilter() === 'ALL' ? 'Create a new repack unit to begin.' : 'No units match the selected filter.'"
-          />
-        } @else {
-          <app-data-table
-            title="Repack Units"
-            [columns]="tableColumns"
-            [data]="filteredUnits()"
-            [loading]="loading()"
-            (rowClick)="onRowClick($event)"
-          >
-            <ng-template #cellTemplate let-row let-column="column">
-              @switch (column.key) {
-                @case ('status') {
-                  <app-badge [variant]="getStatusVariant(row.status)">{{ row.status }}</app-badge>
-                }
-                @case ('progress') {
-                  <span class="tabular-nums">
-                    {{ row.allocatedAmount | number:'1.2-2' }} / {{ row.targetAmount | number:'1.2-2' }}
-                    {{ row.measurementType === 'WEIGHT' ? 'kg' : 'pcs' }}
-                  </span>
-                }
-                @case ('targetAmount') {
-                  <span class="tabular-nums">
-                    {{ row.targetAmount | number:'1.2-2' }}
-                    {{ row.measurementType === 'WEIGHT' ? 'kg' : 'pcs' }}
-                  </span>
-                }
-                @case ('sealedAt') {
-                  {{ row.sealedAt ? (row.sealedAt | date:'mediumDate') : '—' }}
-                }
-                @case ('createdAt') {
-                  {{ row.createdAt | date:'mediumDate' }}
-                }
-                @default {
-                  {{ column.getValue ? column.getValue(row) : row[column.key] ?? '—' }}
-                }
-              }
-            </ng-template>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Repack Units</span>
+          <span class="kpi-value">{{ allUnits().length }}</span>
+        </div>
+      </div>
 
-            <ng-template #rowActions let-row>
-              @if (row.status === 'DRAFT') {
-                <app-button variant="primary" size="sm" [routerLink]="['/packaging/repack', row.id]">Resume</app-button>
-                @if (canDelete()) {
-                  <app-button variant="danger" size="sm" (click)="confirmDelete(row, $event)">Delete</app-button>
-                }
-              } @else {
-                <app-button variant="secondary" size="sm" [routerLink]="['/packaging/repack', row.id]">View</app-button>
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-amber">
+          <lucide-icon [img]="icons.Clock" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Active Draft Units</span>
+          <span class="kpi-value">{{ draftCount() }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-emerald">
+          <lucide-icon [img]="icons.CheckCircle2" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Sealed Finished Units</span>
+          <span class="kpi-value">{{ sealedCount() }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-blue">
+          <lucide-icon [img]="icons.Package" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Packed Weight</span>
+          <span class="kpi-value">{{ totalPackedWeight() | number:'1.2-2' }} <small>KG</small></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section Toolbar -->
+    <div class="section-toolbar mt-4">
+      <div class="toolbar-title">
+        <span class="section-label">Repack Units Directory</span>
+        <span class="results-count">{{ filteredUnits().length }} items</span>
+      </div>
+
+      <div class="filter-tabs">
+        <button
+          class="tab-btn"
+          [class.active]="statusFilter() === 'ALL'"
+          (click)="statusFilter.set('ALL')"
+        >All Units</button>
+        <button
+          class="tab-btn"
+          [class.active]="statusFilter() === 'DRAFT'"
+          (click)="statusFilter.set('DRAFT')"
+        >Active Drafts</button>
+        <button
+          class="tab-btn"
+          [class.active]="statusFilter() === 'SEALED'"
+          (click)="statusFilter.set('SEALED')"
+        >Sealed Finished</button>
+      </div>
+    </div>
+
+    <div class="table-card">
+      @if (loading()) {
+        <app-loading message="Loading repack units…"></app-loading>
+      } @else if (filteredUnits().length === 0) {
+        <app-empty-state
+          title="No Repack Units Found"
+          message="Create a new repack unit batch to consolidate Grade Outputs."
+        ></app-empty-state>
+      } @else {
+        <div class="table-wrapper">
+          <table class="directory-table">
+            <thead>
+              <tr>
+                <th>Unit Code</th>
+                <th>Category</th>
+                <th>Quality Grade</th>
+                <th class="text-right">Packed / Target</th>
+                <th>Progress Bar</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th class="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of filteredUnits(); track item.id) {
+                <tr (click)="openWorkspace(item)" class="clickable-row">
+                  <td>
+                    <span class="code-badge">
+                      <lucide-icon [img]="icons.Box" [size]="13"></lucide-icon>
+                      {{ item.unitCode }}
+                    </span>
+                  </td>
+
+                  <td>
+                    <span class="category-name font-bold">
+                      {{ item.category?.name || '—' }}
+                    </span>
+                  </td>
+
+                  <td>
+                    <span class="grade-name-badge">
+                      {{ item.grade?.name || '—' }}
+                    </span>
+                  </td>
+
+                  <td class="text-right font-mono">
+                    <strong>{{ packedAmount(item) | number:'1.2-2' }}</strong> / {{ targetAmount(item) | number:'1.2-2' }}
+                    <small class="text-muted ml-1">{{ item.measurementType === 'WEIGHT' ? 'KG' : 'PCS' }}</small>
+                  </td>
+
+                  <td>
+                    <div class="progress-bar-container">
+                      <div class="progress-bar-fill" [style.width.%]="progressPercent(item)"></div>
+                    </div>
+                  </td>
+
+                  <td>
+                    @if (item.status === 'SEALED') {
+                      <span class="status-pill status-sealed">
+                        <span class="status-dot"></span>
+                        SEALED
+                      </span>
+                    } @else {
+                      <span class="status-pill status-draft">
+                        <span class="status-dot"></span>
+                        DRAFT
+                      </span>
+                    }
+                  </td>
+
+                  <td>
+                    <span class="text-muted text-sm">{{ item.createdAt | date:'mediumDate' }}</span>
+                  </td>
+
+                  <td class="text-right" (click)="$event.stopPropagation()">
+                    <div class="action-buttons-group">
+                      <button class="btn btn-secondary btn-xs" (click)="openWorkspace(item)">
+                        <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon>
+                        Workspace
+                      </button>
+
+                      @if (canDelete() && item.status === 'DRAFT') {
+                        <button class="btn btn-danger btn-xs" (click)="confirmDelete(item, $event)">
+                          <lucide-icon [img]="icons.Trash2" [size]="12"></lucide-icon>
+                        </button>
+                      }
+                    </div>
+                  </td>
+                </tr>
               }
-            </ng-template>
-          </app-data-table>
-        }
-      </app-section-body>
-    </app-section>
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
   </app-page-body>
 </app-page>
+
+<!-- Delete Modal -->
+<app-dialog
+  [open]="showDeleteModal()"
+  title="Delete Repack Unit Draft?"
+  (closed)="closeDeleteModal()"
+>
+  <div class="dialog-body">
+    <p>Are you sure you want to delete repack unit draft <strong>{{ unitToDelete()?.unitCode }}</strong>? Any allocated stock will be released back to inventory.</p>
+  </div>
+  <div slot="footer" class="dialog-actions">
+    <button class="btn btn-secondary" (click)="closeDeleteModal()">Cancel</button>
+    <button class="btn btn-danger" [disabled]="deleting()" (click)="deleteDraft()">Delete Draft</button>
+  </div>
+</app-dialog>

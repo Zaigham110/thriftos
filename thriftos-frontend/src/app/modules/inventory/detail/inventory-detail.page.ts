@@ -1,31 +1,37 @@
 /**
- * INVENTORY DETAIL - READ-ONLY AUDIT VIEW
- * ========================================
- * Shows inventory item details and traceability.
- * Aligned with Procurement Golden Reference pattern.
+ * Inventory Detail Component
+ * Phase 2: Inventory Module UI
+ * 
+ * Traceability & lineage detail audit view for a finished inventory item.
  */
 
-import { Component, OnInit, signal, inject, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { Router, ActivatedRoute } from '@angular/router';
+import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import {
+  LucideAngularModule,
+  ArrowLeft,
+  Package,
+  Warehouse as WarehouseIcon,
+  Sparkles,
+  Layers,
+  Truck,
+  FileText,
+  DollarSign,
+  Scale,
+  GitBranch,
+} from 'lucide-angular';
 
 import { InventoryService } from '../inventory.service';
 import { InventoryItem, TraceabilityChain } from '../inventory.models';
-
+import { MoneyPipe } from '../../../core/money/money.pipe';
 import {
+  AppBreadcrumbComponent,
+  AppErrorStateComponent,
+  AppLoadingComponent,
+  AppPageBodyComponent,
   AppPageComponent,
   AppPageHeaderComponent,
-  AppPageBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSectionBodyComponent,
-  AppBreadcrumbComponent,
-  AppButtonComponent,
-  AppBadgeComponent,
-  AppLoadingComponent,
-  AppErrorStateComponent,
-  AppCardComponent,
-  AppStackComponent,
   type BreadcrumbItem,
 } from '../../../shared/ui';
 
@@ -34,19 +40,17 @@ import {
   standalone: true,
   imports: [
     CommonModule,
+    RouterLink,
+    DatePipe,
+    DecimalPipe,
+    MoneyPipe,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
     AppBreadcrumbComponent,
-    AppButtonComponent,
-    AppBadgeComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
-    AppCardComponent,
-    AppStackComponent,
   ],
   templateUrl: './inventory-detail.page.html',
   styleUrl: './inventory-detail.page.scss',
@@ -59,24 +63,42 @@ export class InventoryDetailPage implements OnInit {
 
   readonly item = signal<InventoryItem | null>(null);
   readonly traceability = signal<TraceabilityChain | null>(null);
-  readonly loading = signal(false);
+  readonly loading = signal(true);
   readonly loadingTrace = signal(false);
   readonly error = signal<string | null>(null);
-  readonly showTraceability = signal(false);
 
-  readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Home', route: '/dashboard' },
-    { label: 'Inventory', route: '/inventory' },
-    { label: 'Detail', route: undefined },
-  ];
+  readonly icons = {
+    ArrowLeft,
+    Package,
+    Warehouse: WarehouseIcon,
+    Sparkles,
+    Layers,
+    Truck,
+    FileText,
+    DollarSign,
+    Scale,
+    GitBranch,
+  };
+
+  readonly breadcrumbs = computed<BreadcrumbItem[]>(() => {
+    const i = this.item();
+    const code = i ? (i.unitCode || `INV-${String(i.id).slice(0, 8).toUpperCase()}`) : 'Detail';
+    return [
+      { label: 'Inventory', route: '/app/inventory' },
+      { label: 'Finished Goods', route: '/app/inventory' },
+      { label: code },
+    ];
+  });
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
-    if (id) {
-      this.loadItem(id);
-    } else {
-      this.router.navigate(['/inventory']);
+    if (!id) {
+      this.error.set('Missing inventory item id');
+      this.loading.set(false);
+      return;
     }
+
+    this.loadItem(id);
   }
 
   loadItem(id: string): void {
@@ -87,24 +109,20 @@ export class InventoryDetailPage implements OnInit {
       next: (item) => {
         this.item.set(item);
         this.loading.set(false);
+        this.loadTraceability(id);
       },
       error: (err) => {
-        this.error.set(err.message || 'Failed to load inventory item');
+        this.error.set(err?.message || 'Failed to load inventory item');
         this.loading.set(false);
       },
     });
   }
 
-  loadTraceability(): void {
-    const item = this.item();
-    if (!item) return;
-
+  loadTraceability(id: string): void {
     this.loadingTrace.set(true);
-
-    this.inventoryService.getTraceability(item.id).subscribe({
+    this.inventoryService.getTraceability(id).subscribe({
       next: (trace) => {
         this.traceability.set(trace);
-        this.showTraceability.set(true);
         this.loadingTrace.set(false);
       },
       error: (err) => {
@@ -114,30 +132,40 @@ export class InventoryDetailPage implements OnInit {
     });
   }
 
-  toggleTraceability(): void {
-    if (this.showTraceability()) {
-      this.showTraceability.set(false);
-    } else {
-      if (!this.traceability()) {
-        this.loadTraceability();
-      } else {
-        this.showTraceability.set(true);
-      }
-    }
-  }
+  readonly firstAllocation = computed(() => {
+    const t = this.traceability();
+    return t?.sourceAllocations?.[0] || null;
+  });
+
+  readonly sourceContainer = computed(() => {
+    return this.firstAllocation()?.gradingOutput?.categoryOutput?.sortSession?.rag?.container || null;
+  });
+
+  readonly sourceRag = computed(() => {
+    return this.firstAllocation()?.gradingOutput?.categoryOutput?.sortSession?.rag || null;
+  });
+
+  readonly sourceSortSession = computed(() => {
+    return this.firstAllocation()?.gradingOutput?.categoryOutput?.sortSession || null;
+  });
+
+  readonly sourceGradeSession = computed(() => {
+    return this.firstAllocation()?.gradingOutput?.gradeSession || null;
+  });
 
   goBack(): void {
-    this.router.navigate(['/inventory']);
+    this.router.navigate(['/app/inventory']);
   }
 
-  getStatusVariant(status: string): 'success' | 'warning' | 'default' {
-    switch (status) {
-      case 'AVAILABLE':
-        return 'success';
-      case 'MOVED':
-        return 'warning';
-      default:
-        return 'default';
-    }
+  itemCode(i: InventoryItem | null): string {
+    if (!i) return '—';
+    return i.unitCode || `INV-${String(i.id).slice(0, 8).toUpperCase()}`;
+  }
+
+  totalValue(i: InventoryItem | null): number {
+    if (!i) return 0;
+    const weight = Number(i.weightKg || 0);
+    const cost = Number(i.avgCost || 0);
+    return weight * cost;
   }
 }

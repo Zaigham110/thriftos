@@ -1,27 +1,42 @@
+/**
+ * Sorting Output Registry List Component
+ * Phase 2: Sorting Module UI
+ * 
+ * High-density directory table and KPI cards for finished Grade Outputs.
+ */
+
 import { CommonModule, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
+import {
+  LucideAngularModule,
+  Sparkles,
+  Layers,
+  Package,
+  Truck,
+  FileText,
+  RefreshCw,
+  ArrowRight,
+  PackageCheck,
+  CheckCircle2,
+  AlertCircle,
+  Eye,
+} from 'lucide-angular';
 
 import type { GradeOutput, GradingOutputStatus } from '../../sorting-stage2/sorting-stage2.models';
 import { GRADING_OUTPUT_STATUS_CONFIG as STATUS_CONFIG } from '../../sorting-stage2/sorting-stage2.models';
 import { SortingFacadeService } from '../sorting-facade.service';
+import { MoneyPipe } from '../../../core/money/money.pipe';
 import {
-  AppBadgeComponent,
   AppBreadcrumbComponent,
-  AppButtonComponent,
-  AppDataTableComponent,
+  AppDialogComponent,
   AppEmptyStateComponent,
   AppErrorStateComponent,
   AppLoadingComponent,
   AppPageBodyComponent,
   AppPageComponent,
   AppPageHeaderComponent,
-  AppSectionBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppStackComponent,
-  type DataTableColumn,
-  type DataTableState,
+  type BreadcrumbItem,
 } from '../../../shared/ui';
 
 @Component({
@@ -29,34 +44,45 @@ import {
   standalone: true,
   imports: [
     CommonModule,
+    RouterLink,
     DecimalPipe,
+    MoneyPipe,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppStackComponent,
-    AppDataTableComponent,
-    AppBadgeComponent,
     AppBreadcrumbComponent,
-    AppButtonComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
     AppEmptyStateComponent,
+    AppDialogComponent,
   ],
   templateUrl: './sorting-outputs.page.html',
+  styleUrl: './sorting-outputs.page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SortingOutputsPage implements OnInit {
   private readonly facade = inject(SortingFacadeService);
   private readonly router = inject(Router);
 
-  // Breadcrumbs — matches Procurement pattern
-  readonly breadcrumbs = [
-    { label: 'Sorting', link: '/sorting' },
-    { label: 'Outputs', link: undefined },
+  readonly breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Sorting', route: '/app/sorting/stage-1' },
+    { label: 'Output Registry' },
   ];
+
+  readonly icons = {
+    Sparkles,
+    Layers,
+    Package,
+    Truck,
+    FileText,
+    RefreshCw,
+    ArrowRight,
+    PackageCheck,
+    CheckCircle2,
+    AlertCircle,
+    Eye,
+  };
 
   readonly rows = signal<GradeOutput[]>([]);
   readonly loading = signal(true);
@@ -68,105 +94,34 @@ export class SortingOutputsPage implements OnInit {
   readonly marking = signal(false);
   readonly markingOutputId = signal<string | null>(null);
 
-  readonly columns: DataTableColumn[] = [
-    {
-      key: 'code',
-      label: 'Output Code',
-      sortable: true,
-      filterable: true,
-      getValue: (row) => this.outputCode(row as GradeOutput),
-    },
-    {
-      key: 'gradeId',
-      label: 'Grade',
-      sortable: true,
-      filterable: true,
-      getValue: (row) => (row as GradeOutput).grade?.id ?? '',
-    },
-    {
-      key: 'category',
-      label: 'Category',
-      sortable: true,
-      filterable: true,
-      getValue: (row) => (row as GradeOutput).gradeBucket?.gradeSession?.categoryOutput?.category?.name ?? '',
-    },
-    {
-      key: 'ragCode',
-      label: 'Rag/Bale',
-      sortable: true,
-      filterable: true,
-      getValue: (row) => (row as GradeOutput).gradeBucket?.gradeSession?.categoryOutput?.rag?.ragCode ?? '',
-    },
-    {
-      key: 'containerNumber',
-      label: 'Container',
-      sortable: true,
-      filterable: true,
-      getValue: (row) => (row as GradeOutput).gradeBucket?.gradeSession?.categoryOutput?.container?.containerNumber ?? '',
-    },
-    {
-      key: 'total',
-      label: 'Total',
-      align: 'right',
-      sortable: true,
-      getValue: (row) => (row as any).totalAmount ?? (row as any).weightKg,
-    },
-    {
-      key: 'used',
-      label: 'Used',
-      align: 'right',
-      sortable: true,
-      getValue: (row) => (row as any).usedAmount ?? 0,
-    },
-    {
-      key: 'remaining',
-      label: 'Remaining',
-      align: 'right',
-      sortable: true,
-      getValue: (row) => (row as any).remainingAmount ?? (row as any).totalAmount ?? (row as any).weightKg,
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      sortable: true,
-      filterable: true,
-      filterType: 'select',
-      filterOptions: [
-        { label: 'Available', value: 'AVAILABLE' },
-        { label: 'Partially Used', value: 'PARTIALLY_USED' },
-        { label: 'Depleted', value: 'DEPLETED' },
-        { label: 'Ready for Repack', value: 'READY_FOR_REPACK' },
-      ],
-      getValue: (row) => (row as GradeOutput).status ?? 'AVAILABLE',
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      sortable: false,
-      getValue: () => '',
-    },
-  ];
+  readonly confirmRepackDialog = signal(false);
+  readonly pendingRepackOutput = signal<GradeOutput | null>(null);
+
+  // Computed KPI Metrics
+  readonly availableCount = computed(() => {
+    return this.rows().filter((r) => !r.status || r.status === 'AVAILABLE' || r.status === 'READY_FOR_REPACK').length;
+  });
+
+  readonly totalRemainingWeight = computed(() => {
+    return this.rows().reduce((sum, r) => {
+      const rem = Number((r as any).remainingAmount ?? (r as any).totalAmount ?? (r as any).weightKg ?? 0);
+      return sum + rem;
+    }, 0);
+  });
+
+  readonly totalAllocatedCost = computed(() => {
+    return this.rows().reduce((sum, r) => sum + Number((r as any).allocatedCost ?? 0), 0);
+  });
 
   ngOnInit(): void {
     this.load();
   }
 
-  load(
-    page = this.page(),
-    pageSize = this.pageSize(),
-    query?: { search?: string; filters?: Record<string, string> },
-  ): void {
+  load(page = this.page(), pageSize = this.pageSize()): void {
     this.loading.set(true);
     this.error.set(null);
 
-    const filters = query?.filters ?? {};
-    this.facade.outputs(page, pageSize, {
-      search: query?.search,
-      status: filters['status'],
-      gradeId: filters['gradeId'],
-      ragCode: filters['ragCode'],
-      containerNumber: filters['containerNumber'],
-    }).subscribe({
+    this.facade.outputs(page, pageSize).subscribe({
       next: (resp) => {
         this.rows.set(resp.data);
         this.total.set(resp.total);
@@ -175,23 +130,10 @@ export class SortingOutputsPage implements OnInit {
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set(err?.message || 'Failed to load outputs');
+        this.error.set(err?.message || 'Failed to load grade outputs');
         this.loading.set(false);
       },
     });
-  }
-
-  onTableStateChange(state: DataTableState): void {
-    this.load(state.pageIndex, state.pageSize, { search: state.search, filters: state.filters });
-  }
-
-  clearError(): void {
-    this.error.set(null);
-  }
-
-  statusVariant(status: string | undefined): 'success' | 'warning' | 'danger' | 'primary' | 'default' {
-    const s = (status ?? 'AVAILABLE') as GradingOutputStatus;
-    return STATUS_CONFIG[s]?.variant ?? 'default';
   }
 
   statusLabel(status: string | undefined): string {
@@ -204,15 +146,22 @@ export class SortingOutputsPage implements OnInit {
     return status === 'AVAILABLE' || status === 'PARTIALLY_USED';
   }
 
-  markReadyForRepack(row: GradeOutput): void {
-    if (!this.canMarkReady(row)) {
-      return;
-    }
+  promptMarkReadyForRepack(row: GradeOutput): void {
+    if (!this.canMarkReady(row)) return;
+    this.pendingRepackOutput.set(row);
+    this.confirmRepackDialog.set(true);
+  }
 
-    if (!confirm(`Mark this output as READY FOR REPACK?\n\nThis will make it available in the repack workspace.`)) {
-      return;
-    }
+  cancelMarkReady(): void {
+    this.confirmRepackDialog.set(false);
+    this.pendingRepackOutput.set(null);
+  }
 
+  confirmMarkReady(): void {
+    const row = this.pendingRepackOutput();
+    if (!row) return;
+
+    this.confirmRepackDialog.set(false);
     this.marking.set(true);
     this.markingOutputId.set(row.id);
 
@@ -220,7 +169,7 @@ export class SortingOutputsPage implements OnInit {
       next: () => {
         this.marking.set(false);
         this.markingOutputId.set(null);
-        // Reload to show updated status
+        this.pendingRepackOutput.set(null);
         this.load();
       },
       error: (err) => {
@@ -236,7 +185,7 @@ export class SortingOutputsPage implements OnInit {
   }
 
   viewDetails(row: GradeOutput): void {
-    this.router.navigate(['/sorting/outputs', row.id]);
+    this.router.navigate(['/app/sorting/outputs', row.id]);
   }
 
   isRepackEligible(row: GradeOutput): boolean {
@@ -246,8 +195,20 @@ export class SortingOutputsPage implements OnInit {
   }
 
   startRepack(row: GradeOutput): void {
-    this.router.navigate(['/packaging/repack/workspace'], {
+    this.router.navigate(['/app/packaging/repack/new'], {
       queryParams: { fromGradingOutputId: row.id },
     });
+  }
+
+  totalKg(o: any): number {
+    return Number(o?.totalAmount ?? o?.weightKg ?? 0);
+  }
+
+  usedKg(o: any): number {
+    return Number(o?.usedAmount ?? 0);
+  }
+
+  remainingKg(o: any): number {
+    return Number(o?.remainingAmount ?? this.totalKg(o) ?? 0);
   }
 }

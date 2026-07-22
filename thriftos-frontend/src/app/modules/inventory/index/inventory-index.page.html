@@ -1,125 +1,219 @@
-<!-- INVENTORY INDEX - DENSE ERP TABLE -->
 <app-page>
   <app-page-header>
-    <h1>Inventory</h1>
-    <p class="subtitle">Finalized goods from sealed repack units</p>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Finished Goods Inventory</h1>
+      <p class="page-subtitle">Central inventory registry of sealed repack units and finished warehouse stock.</p>
+    </div>
+
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="loadItems()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="15" [class.animate-spin]="loading()"></lucide-icon>
+        Refresh Inventory
+      </button>
+    </div>
   </app-page-header>
 
   <app-page-body>
-    @if (!hasPermission()) {
-      <app-error-state message="You do not have permission to view inventory" />
-    } @else {
-      <app-section>
-        <app-section-header>
-          <h2>Inventory Items</h2>
-
-          <!-- FILTER BAR -->
-          <div class="filter-bar">
-            <app-form-field label="Category">
-              <app-select
-                [formControl]="categoryFilter"
-                [options]="categories()"
-                placeholder="All Categories"
-              ></app-select>
-            </app-form-field>
-
-            <app-form-field label="Grade">
-              <app-select
-                [formControl]="gradeFilter"
-                [options]="grades()"
-                placeholder="All Grades"
-              ></app-select>
-            </app-form-field>
-
-            <app-form-field label="Warehouse">
-              <app-select
-                [formControl]="warehouseFilter"
-                [options]="warehouses()"
-                placeholder="All Warehouses"
-              ></app-select>
-            </app-form-field>
-
-            <app-form-field label="Status">
-              <app-select
-                [formControl]="statusFilter"
-                [options]="statusOptions"
-                placeholder="All Statuses"
-              ></app-select>
-            </app-form-field>
-
-            <div class="filter-actions">
-              <app-button variant="primary" (clickEvent)="applyFilters()">
-                Apply Filters
-              </app-button>
-              <app-button variant="secondary" (clickEvent)="clearFilters()">
-                Clear
-              </app-button>
-            </div>
-          </div>
-        </app-section-header>
-
-        <app-section-body>
-          @if (loading()) {
-            <app-loading message="Loading inventory..." />
-          } @else if (error()) {
-            <app-error-state [message]="error()!" [action]="true">
-              <app-button action variant="secondary" (clickEvent)="loadItems()">Retry</app-button>
-            </app-error-state>
-          } @else if (items().length === 0) {
-            <app-empty-state
-              title="No Inventory Items"
-              message="No inventory items found. Inventory is created automatically when repack units are sealed."
-            />
-          } @else {
-            <!-- DENSE TABLE -->
-            <app-data-table
-              title="All Inventory"
-              [columns]="tableColumns"
-              [data]="items()"
-              [loading]="loading()"
-              [serverSide]="true"
-              [totalCount]="totalCount()"
-              [externalPageIndex]="currentPage()"
-              [externalPageSize]="pageSize()"
-              [enableSearch]="false"
-              [enableColumnFilters]="false"
-              [stickyHeader]="true"
-              (stateChange)="onTableStateChange($event)"
-              (rowClick)="onRowClick($event)"
-            >
-              <ng-template #cellTemplate let-row let-column="column">
-                @switch (column.key) {
-                  @case ('status') {
-                    <app-badge [variant]="getStatusVariant(row.status)">
-                      {{ row.status }}
-                    </app-badge>
-                  }
-                  @case ('amount') {
-                    <span class="tabular-nums">
-                      {{ row.measurementType === 'WEIGHT' ? (row.weightKg | number:'1.2-2') + ' kg' : row.pcsCount + ' pcs' }}
-                    </span>
-                  }
-                  @case ('warehouse') {
-                    {{ row.warehouseName || '—' }}
-                  }
-                  @case ('createdAt') {
-                    {{ row.createdAt | date:'medium' }}
-                  }
-                  @default {
-                    {{ column.getValue ? column.getValue(row) : row[column.key] }}
-                  }
-                }
-              </ng-template>
-
-              <ng-template #rowActions let-row>
-                <app-button variant="secondary" size="sm" [routerLink]="['/inventory', row.id]">
-                  View
-                </app-button>
-              </ng-template>
-            </app-data-table>
-          }
-        </app-section-body>
-      </app-section>
+    @if (error()) {
+      <app-error-state
+        [message]="error()!"
+        (retry)="loadItems()"
+      ></app-error-state>
     }
+
+    <!-- KPI Summary Grid -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-purple">
+          <lucide-icon [img]="icons.Package" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Inventory Items</span>
+          <span class="kpi-value">{{ totalCount() }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-emerald">
+          <lucide-icon [img]="icons.Sparkles" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Available Weight</span>
+          <span class="kpi-value">{{ totalWeightKg() | number:'1.2-2' }} <small>KG</small></span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-blue">
+          <lucide-icon [img]="icons.Warehouse" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Available Stock Items</span>
+          <span class="kpi-value">{{ availableCount() }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-amber">
+          <lucide-icon [img]="icons.DollarSign" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Inventory Valuation</span>
+          <span class="kpi-value">{{ totalValuation() | money }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter Control Toolbar -->
+    <div class="filter-card mt-4">
+      <div class="filter-grid">
+        <div class="filter-group flex-1">
+          <label class="filter-label">Category</label>
+          <select [formControl]="categoryFilter" class="filter-select">
+            @for (opt of categories(); track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="filter-group flex-1">
+          <label class="filter-label">Quality Grade</label>
+          <select [formControl]="gradeFilter" class="filter-select">
+            @for (opt of grades(); track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="filter-group flex-1">
+          <label class="filter-label">Warehouse</label>
+          <select [formControl]="warehouseFilter" class="filter-select">
+            @for (opt of warehouses(); track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="filter-group flex-1">
+          <label class="filter-label">Status</label>
+          <select [formControl]="statusFilter" class="filter-select">
+            @for (opt of statusOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="filter-actions flex-0 align-self-end">
+          <button class="btn btn-primary btn-sm" (click)="applyFilters()">
+            <lucide-icon [img]="icons.Filter" [size]="13"></lucide-icon>
+            Apply Filters
+          </button>
+          <button class="btn btn-secondary btn-sm" (click)="clearFilters()">
+            <lucide-icon [img]="icons.XCircle" [size]="13"></lucide-icon>
+            Reset
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data Directory Table -->
+    <div class="table-card mt-3">
+      @if (loading()) {
+        <app-loading message="Loading finished goods inventory…"></app-loading>
+      } @else if (items().length === 0) {
+        <app-empty-state
+          title="No Inventory Items Found"
+          message="Seal repack units in the Repack module to create finished goods inventory items."
+        ></app-empty-state>
+      } @else {
+        <div class="table-wrapper">
+          <table class="directory-table">
+            <thead>
+              <tr>
+                <th>Inventory Code</th>
+                <th>Category</th>
+                <th>Quality Grade</th>
+                <th>Warehouse</th>
+                <th class="text-right">Quantity / Weight</th>
+                <th class="text-right">Avg Cost</th>
+                <th class="text-right">Total Valuation</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th class="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of items(); track item.id) {
+                <tr (click)="viewDetails(item)" class="clickable-row">
+                  <td>
+                    <span class="code-badge">
+                      <lucide-icon [img]="icons.Package" [size]="13"></lucide-icon>
+                      {{ itemCode(item) }}
+                    </span>
+                  </td>
+
+                  <td>
+                    <span class="category-name font-bold">
+                      {{ item.categoryName || '—' }}
+                    </span>
+                  </td>
+
+                  <td>
+                    <span class="grade-name-badge">
+                      {{ item.gradeName || 'Standard' }}
+                    </span>
+                  </td>
+
+                  <td>
+                    <span class="warehouse-badge">
+                      <lucide-icon [img]="icons.Warehouse" [size]="12"></lucide-icon>
+                      {{ item.warehouseName || 'Main Warehouse' }}
+                    </span>
+                  </td>
+
+                  <td class="text-right font-mono font-bold text-primary">
+                    {{ item.measurementType === 'WEIGHT' ? (item.weightKg | number:'1.2-2') + ' KG' : item.pcsCount + ' PCS' }}
+                  </td>
+
+                  <td class="text-right font-mono">
+                    {{ item.avgCost | money }}
+                  </td>
+
+                  <td class="text-right font-mono font-bold text-amber">
+                    {{ itemTotalValue(item) | money }}
+                  </td>
+
+                  <td>
+                    <span
+                      class="status-pill"
+                      [class.status-available]="item.status === 'AVAILABLE'"
+                      [class.status-moved]="item.status === 'MOVED'"
+                      [class.status-consumed]="item.status === 'CONSUMED'"
+                    >
+                      <span class="status-dot"></span>
+                      {{ item.status }}
+                    </span>
+                  </td>
+
+                  <td>
+                    <span class="text-muted text-sm">{{ item.createdAt | date:'mediumDate' }}</span>
+                  </td>
+
+                  <td class="text-right" (click)="$event.stopPropagation()">
+                    <button class="btn btn-secondary btn-xs" (click)="viewDetails(item)">
+                      <lucide-icon [img]="icons.Eye" [size]="12"></lucide-icon>
+                      Lineage
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
   </app-page-body>
 </app-page>

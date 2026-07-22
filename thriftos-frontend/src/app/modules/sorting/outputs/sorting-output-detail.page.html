@@ -1,83 +1,180 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="horizontal" spacing="sm" align="center">
-      <app-button variant="secondary" (click)="back()">Back</app-button>
-      <div>
-        <h1 class="page-title">Sorting — Output Detail</h1>
-        <div class="page-subtitle">Immutable grading output (repack source of truth)</div>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs()"></app-breadcrumb>
       </div>
-    </app-stack>
-
-    <div class="actions">
       @if (output(); as o) {
-        <app-badge [variant]="statusVariant(statusText(o))">{{ statusText(o) }}</app-badge>
-        <app-button
-          variant="primary"
-          (click)="startRepack()"
-          [disabled]="!isRepackEligible(o)"
-        >
-          Start Repack
-        </app-button>
+        <div class="title-with-code">
+          <h1 class="page-title">Grade Output Details</h1>
+          <span class="code-badge">
+            <lucide-icon [img]="icons.Sparkles" [size]="14"></lucide-icon>
+            {{ outputCode(o) }}
+          </span>
+        </div>
+        <p class="page-subtitle">Full audit trail, weight usage, and source traceability chain.</p>
+      }
+    </div>
+
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="back()">
+        <lucide-icon [img]="icons.ArrowLeft" [size]="15"></lucide-icon>
+        Back to Registry
+      </button>
+
+      @if (output(); as o) {
+        @if (isRepackEligible(o)) {
+          <button class="btn btn-primary" (click)="startRepack()">
+            <lucide-icon [img]="icons.ArrowRight" [size]="15"></lucide-icon>
+            Start Repack
+          </button>
+        }
       }
     </div>
   </app-page-header>
 
   <app-page-body>
     @if (error()) {
-      <app-error-state title="Failed to load" [message]="error()!" [action]="true">
-        <app-button action variant="secondary" (click)="error.set(null)">Dismiss</app-button>
-      </app-error-state>
+      <app-error-state
+        [message]="error()!"
+        (retry)="ngOnInit()"
+      ></app-error-state>
     }
 
     @if (loading()) {
-      <app-loading message="Loading output…" />
-    } @else {
-      <app-section>
-        <app-section-header>
-          <strong>Identity</strong>
-        </app-section-header>
-        <app-section-body>
-          <app-card>
-            <app-stack direction="vertical" spacing="xs">
-              <div><strong>Output Code:</strong> {{ outputCode(output()) }}</div>
-              <div><strong>ID:</strong> {{ output()?.id || '—' }}</div>
-              <div><strong>Grade:</strong> {{ output()?.grade?.name || '—' }}</div>
-            </app-stack>
-          </app-card>
-        </app-section-body>
-      </app-section>
+      <app-loading message="Loading output details…"></app-loading>
+    } @else if (output(); as o) {
+      
+      <!-- Metrics Overview Grid -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-icon-purple">
+            <lucide-icon [img]="icons.Scale" [size]="20"></lucide-icon>
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-label">Total Output Weight</span>
+            <span class="kpi-value">{{ totalKg(o) | number:'1.2-2' }} <small>KG</small></span>
+          </div>
+        </div>
 
-      <app-section>
-        <app-section-header>
-          <strong>Traceability</strong>
-        </app-section-header>
-        <app-section-body>
-          <app-card>
-            <app-stack direction="vertical" spacing="xs">
-              <div><strong>Category:</strong> {{ output()?.gradeBucket?.gradeSession?.categoryOutput?.category?.name || '—' }}</div>
-              <div><strong>Rag/Bale:</strong> {{ output()?.gradeBucket?.gradeSession?.categoryOutput?.rag?.ragCode || '—' }}</div>
-              <div><strong>Container:</strong> {{ output()?.gradeBucket?.gradeSession?.categoryOutput?.container?.containerNumber || '—' }}</div>
-              <div><strong>Stage 1 Session:</strong> {{ output()?.gradeBucket?.gradeSession?.categoryOutput?.sortSessionId || '—' }}</div>
-              <div><strong>Grade Session:</strong> {{ output()?.gradeBucket?.gradeSession?.id || '—' }}</div>
-            </app-stack>
-          </app-card>
-        </app-section-body>
-      </app-section>
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-icon-amber">
+            <lucide-icon [img]="icons.Scale" [size]="20"></lucide-icon>
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-label">Used Weight</span>
+            <span class="kpi-value">{{ usedKg(o) | number:'1.2-2' }} <small>KG</small></span>
+          </div>
+        </div>
 
-      <app-section>
-        <app-section-header>
-          <strong>Availability</strong>
-        </app-section-header>
-        <app-section-body>
-          <app-card>
-            <app-stack direction="vertical" spacing="xs">
-              <div><strong>Total:</strong> <span class="tabular-nums">{{ totalKg(output()) | number:'1.2-2' }}</span></div>
-              <div><strong>Used:</strong> <span class="tabular-nums">{{ usedKg(output()) | number:'1.2-2' }}</span></div>
-              <div><strong>Remaining:</strong> <span class="tabular-nums">{{ remainingKg(output()) | number:'1.2-2' }}</span></div>
-            </app-stack>
-          </app-card>
-        </app-section-body>
-      </app-section>
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-icon-emerald">
+            <lucide-icon [img]="icons.Sparkles" [size]="20"></lucide-icon>
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-label">Remaining Balance</span>
+            <span class="kpi-value">{{ remainingKg(o) | number:'1.2-2' }} <small>KG</small></span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-icon-blue">
+            <lucide-icon [img]="icons.DollarSign" [size]="20"></lucide-icon>
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-label">Allocated Output Cost</span>
+            <span class="kpi-value">{{ o.allocatedCost | money }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detail Grid Split -->
+      <div class="detail-grid mt-4">
+        
+        <!-- Specification Card -->
+        <div class="detail-card">
+          <div class="card-header">
+            <lucide-icon [img]="icons.Sparkles" [size]="16" class="header-icon"></lucide-icon>
+            <h3>Grade Output Specifications</h3>
+          </div>
+
+          <div class="spec-stack">
+            <div class="spec-row">
+              <span class="spec-label">Output Code</span>
+              <span class="code-badge font-mono">{{ outputCode(o) }}</span>
+            </div>
+
+            <div class="spec-row">
+              <span class="spec-label">Quality Grade</span>
+              <span class="spec-val font-bold text-primary">{{ o.grade?.name || 'Standard Grade' }}</span>
+            </div>
+
+            <div class="spec-row">
+              <span class="spec-label">Item Count</span>
+              <span class="spec-val font-mono">{{ o.count || 0 }} PCS</span>
+            </div>
+
+            <div class="spec-row">
+              <span class="spec-label">Current Status</span>
+              <span
+                class="status-pill"
+                [class.status-available]="statusText(o) === 'AVAILABLE' || statusText(o) === 'READY_FOR_REPACK'"
+                [class.status-partially]="statusText(o) === 'PARTIALLY_USED'"
+                [class.status-depleted]="statusText(o) === 'DEPLETED'"
+              >
+                <span class="status-dot"></span>
+                {{ statusText(o) }}
+              </span>
+            </div>
+
+            <div class="spec-row">
+              <span class="spec-label">Created At</span>
+              <span class="spec-val text-muted">{{ o.createdAt | date:'medium' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lineage & Source Audit Card -->
+        <div class="detail-card">
+          <div class="card-header">
+            <lucide-icon [img]="icons.FileText" [size]="16" class="header-icon"></lucide-icon>
+            <h3>Source Traceability & Lineage Chain</h3>
+          </div>
+
+          <div class="spec-stack">
+            <div class="spec-row">
+              <span class="spec-label">Raw Material Category</span>
+              <span class="spec-val font-bold">{{ o.gradeBucket?.gradeSession?.categoryOutput?.category?.name || '—' }}</span>
+            </div>
+
+            <div class="spec-row">
+              <span class="spec-label">Stage 1 Source Rag / Bale</span>
+              @if (o.gradeBucket?.gradeSession?.categoryOutput?.rag?.ragCode; as code) {
+                <span class="code-badge font-mono">
+                  <lucide-icon [img]="icons.Package" [size]="13"></lucide-icon>
+                  {{ code }}
+                </span>
+              } @else {
+                <span class="spec-val text-muted">Direct Intake</span>
+              }
+            </div>
+
+            <div class="spec-row">
+              <span class="spec-label">Ocean Container</span>
+              @if (o.gradeBucket?.gradeSession?.categoryOutput?.container; as cont) {
+                <a [routerLink]="['/app/procurement/containers', cont.id]" class="link-badge blue">
+                  <lucide-icon [img]="icons.Truck" [size]="12"></lucide-icon>
+                  {{ cont.containerNumber }}
+                </a>
+              } @else {
+                <span class="spec-val text-muted">Standalone Intake</span>
+              }
+            </div>
+          </div>
+        </div>
+
+      </div>
+
     }
   </app-page-body>
 </app-page>

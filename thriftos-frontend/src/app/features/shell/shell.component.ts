@@ -67,7 +67,7 @@ export class ThriftShellComponent {
   protected readonly nav: SidebarNavConfig = {
     productName: 'ThriftOS',
     productSubtitle: 'Operations & Inventory Platform',
-    logoUrl: '/favicon.ico',
+    logoUrl: '/os_logo.png',
     dashboard: { id: 'dashboard', label: 'Dashboard', route: '/app/dashboard', icon: 'layout-dashboard' },
     groups: [
       {
@@ -118,7 +118,7 @@ export class ThriftShellComponent {
         label: 'Reports',
         icon: 'bar-chart-3',
         items: [
-          {id: 'reports-dashboard', label: 'Dashboard', route: '/app/reports', icon: 'layout-dashboard' },
+          { id: 'reports-dashboard', label: 'Dashboard', route: '/app/reports', icon: 'layout-dashboard' },
           { id: 'inventory-report', label: 'Inventory Report', route: '/app/reports/inventory', icon: 'warehouse' },
           { id: 'procurement-report', label: 'Procurement Report', route: '/app/reports/procurement', icon: 'shopping-cart' },
           { id: 'waste-report', label: 'Waste Report', route: '/app/reports/waste', icon: 'trash-2' },
@@ -154,8 +154,8 @@ export class ThriftShellComponent {
       const hasTenantContext = !!(user?.tenantId || user?.impersonatedTenantId);
       if (hasTenantContext) {
         this.tenantService.loadTenant().subscribe({
-          next: () => {},
-          error: () => {},
+          next: () => { },
+          error: () => { },
         });
       }
     });

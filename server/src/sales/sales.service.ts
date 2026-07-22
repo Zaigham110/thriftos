@@ -89,10 +89,36 @@ export class SalesService {
       },
     );
 
-    const customer = await this.prisma.customer.findFirst({
+    let customer = await this.prisma.customer.findFirst({
       where: { id: dto.customerId, tenantId, isActive: true },
       select: { id: true },
     });
+
+    if (!customer) {
+      const vendor = await this.prisma.vendor.findFirst({
+        where: { id: dto.customerId, tenantId, isActive: true },
+        select: { id: true, name: true, contactInfo: true },
+      });
+      if (vendor) {
+        customer = await this.prisma.customer.upsert({
+          where: { id: vendor.id },
+          create: {
+            id: vendor.id,
+            tenantId,
+            name: vendor.name,
+            companyName: vendor.name,
+            billingAddress: vendor.contactInfo || 'Main Billing Address',
+            shippingAddress: vendor.contactInfo || 'Main Shipping Address',
+            contactEmail: `${vendor.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@vendor.com`,
+            contactPhone: vendor.contactInfo || '',
+            isActive: true,
+          },
+          update: {},
+          select: { id: true },
+        });
+      }
+    }
+
     if (!customer) throw new BadRequestException('Customer not found or inactive');
 
     const sale = await this.prisma.sale.create({

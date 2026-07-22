@@ -1,80 +1,183 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs" />
-      <h1 class="page-title">Sorting — Stage 2</h1>
-      <p class="page-subtitle">{{ total() }} Stage 1 outputs ready to grade</p>
-    </app-stack>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Stage 2 — Quality Grading Queue</h1>
+      <p class="page-subtitle">Category outputs from Stage 1 ready for detailed quality grading, sorting, and packaging.</p>
+    </div>
 
-    <div class="actions">
-      <app-button variant="secondary" (click)="load()" [disabled]="loading()">Refresh</app-button>
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="load()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="15" [class.animate-spin]="loading()"></lucide-icon>
+        Refresh Queue
+      </button>
     </div>
   </app-page-header>
 
   <app-page-body>
     @if (error()) {
-      <app-error-state title="Failed to load" [message]="error()!" [action]="true">
-        <app-button action variant="secondary" (click)="clearError()">Dismiss</app-button>
-      </app-error-state>
+      <app-error-state
+        [message]="error()!"
+        (retry)="load()"
+      ></app-error-state>
     }
 
-    @if (loading()) {
-      <app-loading message="Loading outputs…" />
-    } @else {
-      <app-section>
-        <app-section-header>
-          <h2 class="section-title">Ready to Grade</h2>
-        </app-section-header>
-        <app-section-body>
-          @if (rows().length === 0) {
-            <app-empty-state title="No outputs ready" message="All Stage 1 outputs already have grading sessions." />
-          } @else {
-            <app-data-table
-              title="Stage 1 outputs"
-              subtitle="Start grading from a single Stage 1 output"
-              [columns]="columns"
-              [data]="rows()"
-              [loading]="loading()"
-              [serverSide]="true"
-              [totalCount]="total()"
-              [externalPageIndex]="page()"
-              [externalPageSize]="pageSize()"
-              (stateChange)="onTableStateChange($event)"
-            >
-              <ng-template #cellTemplate let-row let-column="column">
-                @switch (column.key) {
-                  @case ('category') {
-                    <strong>{{ row.category?.name || '—' }}</strong>
-                  }
-                  @case ('rag') {
-                    {{ row.rag?.ragCode || '—' }}
-                  }
-                  @case ('container') {
-                    {{ row.container?.containerNumber || '—' }}
-                  }
-                  @case ('weightKg') {
-                    <span class="tabular-nums">{{ row.weightKg | number:'1.2-2' }}</span>
-                  }
-                  @case ('createdAt') {
-                    {{ row.createdAt | date:'short' }}
-                  }
-                  @default {
-                    {{ column.getValue ? column.getValue(row) : row[column.key] }}
-                  }
-                }
-              </ng-template>
+    <!-- KPI Metric Summary Grid -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-purple">
+          <lucide-icon [img]="icons.Sparkles" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Available Category Outputs</span>
+          <span class="kpi-value">{{ total() }}</span>
+        </div>
+      </div>
 
-              <ng-template #rowActions let-row>
-                @if (row.gradeStatus === 'IN_PROGRESS') {
-                  <app-button variant="primary" size="sm" (click)="grade(row)">Resume</app-button>
-                } @else {
-                  <app-button variant="primary" size="sm" (click)="grade(row)">Start</app-button>
-                }
-              </ng-template>
-            </app-data-table>
-          }
-        </app-section-body>
-      </app-section>
-    }
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-blue">
+          <lucide-icon [img]="icons.Clock" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Pending Grading</span>
+          <span class="kpi-value">{{ notStartedCount() }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-amber">
+          <lucide-icon [img]="icons.Play" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">In-Grading Active</span>
+          <span class="kpi-value">{{ inProgressCount() }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-emerald">
+          <lucide-icon [img]="icons.Scale" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Grading Weight</span>
+          <span class="kpi-value">{{ totalGradingWeight() | number:'1.2-2' }} <small>KG</small></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section Toolbar -->
+    <div class="section-toolbar mt-4">
+      <div class="toolbar-title">
+        <span class="section-label">Category Outputs Directory</span>
+        <span class="results-count">{{ rows().length }} items available</span>
+      </div>
+    </div>
+
+    <div class="table-card">
+      @if (loading()) {
+        <app-loading message="Loading grading queue…"></app-loading>
+      } @else if (rows().length === 0) {
+        <app-empty-state
+          title="No Category Outputs Ready for Grading"
+          message="Complete Stage 1 category breakdown sessions to generate category outputs."
+        ></app-empty-state>
+      } @else {
+        <div class="table-wrapper">
+          <table class="directory-table">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Source Rag / Bale</th>
+                <th>Container Reference</th>
+                <th>Intake Weight (KG)</th>
+                <th>Grading Status</th>
+                <th>Created</th>
+                <th class="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of rows(); track item.id) {
+                <tr (click)="grade(item)" class="clickable-row">
+                  <td>
+                    <div class="code-group">
+                      <span class="category-name-badge">
+                        <lucide-icon [img]="icons.Layers" [size]="13"></lucide-icon>
+                        {{ item.category?.name || 'Uncategorized' }}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td>
+                    @if (item.rag?.ragCode) {
+                      <span class="code-badge">
+                        <lucide-icon [img]="icons.Package" [size]="13"></lucide-icon>
+                        {{ item.rag?.ragCode }}
+                      </span>
+                    } @else {
+                      <span class="text-muted">Direct Intake</span>
+                    }
+                  </td>
+
+                  <td>
+                    @if (item.container) {
+                      <a 
+                        [routerLink]="['/app/procurement/containers', item.container.id]"
+                        (click)="$event.stopPropagation()"
+                        class="container-link"
+                      >
+                        {{ item.container.containerNumber }}
+                      </a>
+                    } @else {
+                      <span class="text-muted">Standalone</span>
+                    }
+                  </td>
+
+                  <td>
+                    <span class="weight-text">{{ item.weightKg | number:'1.2-2' }} KG</span>
+                  </td>
+
+                  <td>
+                    @if (item.gradeStatus === 'IN_PROGRESS') {
+                      <span class="status-pill status-active">
+                        <span class="status-dot"></span>
+                        IN PROGRESS
+                      </span>
+                    } @else {
+                      <span class="status-pill status-pending">
+                        <span class="status-dot"></span>
+                        NOT STARTED
+                      </span>
+                    }
+                  </td>
+
+                  <td>
+                    <span class="text-muted text-sm">{{ item.createdAt | date:'mediumDate' }}</span>
+                  </td>
+
+                  <td class="text-right" (click)="$event.stopPropagation()">
+                    <button 
+                      class="btn btn-sm"
+                      [class.btn-primary]="item.gradeStatus !== 'IN_PROGRESS'"
+                      [class.btn-success]="item.gradeStatus === 'IN_PROGRESS'"
+                      (click)="grade(item)"
+                    >
+                      @if (item.gradeStatus === 'IN_PROGRESS') {
+                        <lucide-icon [img]="icons.Play" [size]="13"></lucide-icon>
+                        Resume Grading
+                      } @else {
+                        <lucide-icon [img]="icons.Sparkles" [size]="13"></lucide-icon>
+                        Start Grading
+                      }
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
   </app-page-body>
 </app-page>

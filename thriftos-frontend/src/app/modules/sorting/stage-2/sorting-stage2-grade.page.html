@@ -1,334 +1,536 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="horizontal" spacing="sm" align="center">
-      <app-button variant="secondary" (click)="backToList()">Back</app-button>
-      <div>
-        <h1 class="page-title">Sorting — Stage 2 Workspace</h1>
-        <div class="page-subtitle">
-          @if (session()) {
-            Category {{ session()?.categoryOutput?.category?.name || '—' }} • Rag {{ session()?.categoryOutput?.rag?.ragCode || '—' }} • Container {{ session()?.categoryOutput?.container?.containerNumber || '—' }}
-          } @else {
-            Allocate weight into grades, then seal
-          }
-        </div>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs()"></app-breadcrumb>
       </div>
-    </app-stack>
-
-    <div class="actions">
-      @if (session()) {
-        <app-badge [variant]="isClosed() ? 'success' : 'warning'">
-          {{ isClosed() ? 'CLOSED' : 'OPEN' }}
-        </app-badge>
-
-        <app-button
-          variant="primary"
-          (click)="closeConfirm()"
-          [disabled]="loading() || isClosed() || !canSeal()"
-          [title]="canSeal() ? 'Seal session' : 'Remaining must be 0 to seal'"
-        >
-          Seal
-        </app-button>
+      @if (session(); as s) {
+        <div class="title-with-code">
+          <h1 class="page-title">Stage 2 Quality Grading Workspace</h1>
+          <span class="code-badge">
+            <lucide-icon [img]="icons.Sparkles" [size]="14"></lucide-icon>
+            {{ s.categoryOutput?.category?.name || 'Category Output' }}
+          </span>
+        </div>
+        <p class="page-subtitle">
+          Detailed quality grading, sorting, and packaging for output items into finished Grade Outputs.
+        </p>
       }
+    </div>
+
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="backToList()">
+        <lucide-icon [img]="icons.ArrowLeft" [size]="15"></lucide-icon>
+        Back to Queue
+      </button>
+
+      <button
+        class="btn"
+        [class.btn-success]="canSeal() && !isClosed()"
+        [class.btn-secondary]="isClosed()"
+        (click)="closeConfirm()"
+        [disabled]="loading() || isClosed() || !canSeal()"
+      >
+        @if (isClosed()) {
+          <lucide-icon [img]="icons.Lock" [size]="15"></lucide-icon>
+          Session Sealed
+        } @else {
+          <lucide-icon [img]="icons.CheckCircle2" [size]="15"></lucide-icon>
+          Seal Session
+        }
+      </button>
     </div>
   </app-page-header>
 
   <app-page-body>
-    <!-- Seal Session Dialog -->
-    <app-dialog
-      [open]="showCloseConfirm()"
-      title="Seal Grading Session?"
-      [message]="sealMessage()"
-      variant="danger"
-      confirmText="Seal"
-      cancelText="Cancel"
-      [loading]="loading()"
-      (cancelled)="closeCancel()"
-      (confirmed)="closeExecute()"
-    />
-
-    <!-- Delete Bucket Dialog -->
-    <app-dialog
-      [open]="showDeleteBucketConfirm()"
-      title="Remove Grade Allocation?"
-      message="This will remove the grade allocation from this session. The weight will be returned to 'Remaining'."
-      variant="danger"
-      confirmText="Remove"
-      cancelText="Cancel"
-      [loading]="loading()"
-      (cancelled)="deleteBucketCancel()"
-      (confirmed)="deleteBucketExecute()"
-    />
-
-    <!-- Delete Waste Dialog -->
-    <app-dialog
-      [open]="showDeleteWasteConfirm()"
-      title="Remove Waste Line?"
-      message="This will remove the waste line item. The weight will be returned to 'Remaining'."
-      variant="danger"
-      confirmText="Remove"
-      cancelText="Cancel"
-      [loading]="loading()"
-      (cancelled)="deleteWasteCancel()"
-      (confirmed)="deleteWasteExecute()"
-    />
-
     @if (error()) {
-      <app-error-state title="Action failed" [message]="error()!" [action]="true">
-        <app-button action variant="secondary" (click)="error.set(null)">Dismiss</app-button>
-      </app-error-state>
+      <app-error-state
+        [message]="error()!"
+        (retry)="error.set(null)"
+      ></app-error-state>
     }
 
-    <app-split ratio="2-1">
-      <app-split-main>
-        <!-- ─── Grade Allocation Section ─────────────────────────────────── -->
-        <app-section>
-          <app-section-header>
-            <strong>Grade Allocation</strong>
-          </app-section-header>
-          <app-section-body>
-            <app-card>
-              @if (!started()) {
-                <app-stack direction="vertical" spacing="xs">
-                  <div class="muted">Loading grading session...</div>
-                  <div class="muted">Allocate weight into grades and/or waste until Remaining = 0, then <strong>Seal</strong>.</div>
-                </app-stack>
-              } @else {
-                <app-stack direction="horizontal" spacing="sm" align="center">
-                  <app-form-field label="Grade">
-                    <app-select
-                      [formControl]="gradeId"
-                      [options]="gradeOptions()"
-                      placeholder="Select grade"
-                      [disabled]="loading() || isClosed()"
-                    />
-                  </app-form-field>
+    @if (loading() && !session()) {
+      <app-loading message="Loading grading workspace…"></app-loading>
+    } @else if (session(); as s) {
+      
+      <!-- Session Invariant Visual Progress Bar Card -->
+      <div class="progress-card">
+        <div class="progress-header">
+          <div class="progress-title-group">
+            <span class="progress-title">Category Input Weight Breakdown</span>
+            <span class="status-indicator-badge" [class.status-closed]="isClosed()" [class.status-open]="started() && !isClosed()">
+              {{ isClosed() ? 'CLOSED & SEALED' : 'GRADING IN PROGRESS' }}
+            </span>
+          </div>
 
-                  <app-form-field label="Amount (kg)">
-                    <app-input [formControl]="amountKg" type="number" placeholder="0.00" step="0.01" [disabled]="isClosed()" />
-                  </app-form-field>
+          <div class="progress-metrics-group">
+            <span class="metric-item">
+              <strong>Input:</strong> {{ totals().input | number:'1.2-2' }} KG
+            </span>
+            <span class="metric-item text-purple">
+              <strong>Allocated:</strong> {{ totals().allocated | number:'1.2-2' }} KG ({{ totals().allocatedPercent | number:'1.1-1' }}%)
+            </span>
+            <span class="metric-item text-amber">
+              <strong>Waste:</strong> {{ totals().waste | number:'1.2-2' }} KG ({{ totals().wastePercent | number:'1.1-1' }}%)
+            </span>
+            <span class="metric-item" [class.text-emerald]="totals().remaining === 0" [class.text-red]="totals().remaining > 0">
+              <strong>Remaining:</strong> {{ totals().remaining | number:'1.2-2' }} KG
+            </span>
+          </div>
+        </div>
 
-                  <app-button variant="primary" (click)="allocate()" [disabled]="loading() || isClosed()">Add</app-button>
-                </app-stack>
-                <div class="muted mt-2">Allocations are incremental. Same grade adds to existing total.</div>
-              }
-            </app-card>
+        <div class="stacked-bar-container">
+          <div
+            class="bar-segment bar-allocated"
+            [style.width.%]="totals().allocatedPercent"
+            title="Allocated: {{ totals().allocated | number:'1.2-2' }} KG"
+          ></div>
+          <div
+            class="bar-segment bar-waste"
+            [style.width.%]="totals().wastePercent"
+            title="Waste: {{ totals().waste | number:'1.2-2' }} KG"
+          ></div>
+          <div
+            class="bar-segment bar-remaining"
+            [style.width.%]="totals().remainingPercent"
+            title="Remaining: {{ totals().remaining | number:'1.2-2' }} KG"
+          ></div>
+        </div>
+      </div>
 
-            @if (started() && buckets().length > 0) {
-              <app-card class="mt-4">
-                <app-data-table
-                  title="Grade Allocations"
-                  subtitle="Graded weight per grade level"
-                  [columns]="tableColumns"
-                  [data]="buckets()"
-                  [loading]="loading()"
-                >
-                  <ng-template #cellTemplate let-row let-column="column">
-                    @switch (column.key) {
-                      @case ('grade') {
-                        <strong>{{ row.grade?.name || '—' }}</strong>
-                      }
-                      @case ('allocated') {
-                        @if (editingBucket()?.id === row.id) {
-                          <app-input [formControl]="editBucketWeight" type="number" placeholder="0" class="w-24" />
-                        } @else {
-                          <span class="tabular-nums">{{ (row.outputWeightKg ?? 0) | number:'1.2-2' }}</span>
-                        }
-                      }
-                      @case ('updatedAt') {
-                        {{ row.updatedAt | date:'short' }}
-                      }
-                      @default {
-                        {{ column.getValue ? column.getValue(row) : row[column.key] }}
-                      }
+      <!-- Main Workspace 2-Column Split -->
+      <div class="workspace-grid mt-4">
+        
+        <!-- Left Main Column: Form & Grade Allocations -->
+        <div class="workspace-main-column">
+          
+          <!-- Grade Allocation Card -->
+          <div class="workspace-card">
+            <div class="card-header">
+              <lucide-icon [img]="icons.Sparkles" [size]="16" class="header-icon"></lucide-icon>
+              <h3>Quality Grade Allocations</h3>
+            </div>
+
+            @if (!isClosed()) {
+              <div class="allocation-form">
+                <div class="form-group flex-2">
+                  <label class="form-label">Grade</label>
+                  <select [formControl]="gradeId" class="form-select">
+                    <option value="">Select Quality Grade...</option>
+                    @for (g of gradeOptions(); track g.value) {
+                      <option [value]="g.value">{{ g.label }}</option>
                     }
-                  </ng-template>
+                  </select>
+                </div>
 
-                  <ng-template #rowActions let-row>
-                    @if (!isClosed()) {
-                      @if (editingBucket()?.id === row.id) {
-                        <app-button variant="primary" size="sm" (click)="saveBucket()" [disabled]="loading()">Save</app-button>
-                        <app-button variant="secondary" size="sm" (click)="cancelEditBucket()" [disabled]="loading()">Cancel</app-button>
-                      } @else {
-                        <app-button variant="secondary" size="sm" (click)="editBucket(row)" [disabled]="loading()">Edit</app-button>
-                        <app-button variant="danger" size="sm" (click)="deleteBucketConfirm(row)" [disabled]="loading()">Remove</app-button>
-                      }
-                    }
-                  </ng-template>
-                </app-data-table>
-              </app-card>
-            }
-          </app-section-body>
-        </app-section>
-
-        <!-- ─── Waste Section ─────────────────────────────────────────────── -->
-        @if (started()) {
-          <app-section>
-            <app-section-header>
-              <strong>Waste</strong>
-            </app-section-header>
-            <app-section-body>
-              <app-card>
-                <app-stack direction="horizontal" spacing="sm" align="center">
-                  <app-form-field label="Waste Category">
-                    <app-select
-                      [formControl]="wasteCategoryId"
-                      [options]="wasteCategoryOptions()"
-                      placeholder="Select waste type"
-                      [disabled]="loading() || isClosed()"
+                <div class="form-group flex-1">
+                  <div class="label-with-toggle">
+                    <label class="form-label">Unit Type</label>
+                    <div class="unit-toggle-group">
+                      <button
+                        type="button"
+                        class="unit-toggle-btn"
+                        [class.active]="allocationUnitMode.value === 'KG'"
+                        (click)="allocationUnitMode.setValue('KG')"
+                      >KG</button>
+                      <button
+                        type="button"
+                        class="unit-toggle-btn"
+                        [class.active]="allocationUnitMode.value === 'PCS'"
+                        (click)="allocationUnitMode.setValue('PCS')"
+                      >PCS</button>
+                    </div>
+                  </div>
+                  <div class="input-with-addon">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      [formControl]="amountKg"
+                      class="form-input"
+                      placeholder="0.00"
                     />
-                  </app-form-field>
-
-                  <app-form-field label="Amount (kg)">
-                    <app-input [formControl]="wasteAmount" type="number" placeholder="0.00" step="0.01" [disabled]="loading() || isClosed()" />
-                  </app-form-field>
-
-                  @if (totals().remaining > 0 && !editingWasteId()) {
-                    <app-button 
-                      variant="secondary" 
-                      (click)="fillRemainingAsWaste()" 
-                      [disabled]="loading() || isClosed()"
-                      title="Fill form with remaining {{ totals().remaining | number:'1.2-2' }} kg"
-                    >
-                      Fill {{ totals().remaining | number:'1.2-2' }} kg
-                    </app-button>
-                  }
-
-                  @if (editingWasteId()) {
-                    <app-button variant="primary" (click)="saveWasteLine()" [disabled]="loading() || isClosed()">Save</app-button>
-                    <app-button variant="secondary" (click)="cancelEditWaste()" [disabled]="loading()">Cancel</app-button>
-                  } @else {
-                    <app-button variant="primary" (click)="saveWasteLine()" [disabled]="loading() || isClosed()">Add</app-button>
-                  }
-                </app-stack>
-                <div class="muted mt-2">Add waste explicitly. Each waste line is categorized and tracked.</div>
-              </app-card>
-
-              @if (wasteLineItems().length > 0) {
-                <app-card class="mt-4">
-                  <app-data-table
-                    title="Waste Lines"
-                    subtitle="Categorized waste for this session"
-                    [columns]="wasteTableColumns"
-                    [data]="wasteLineItems()"
-                    [loading]="loading()"
-                  >
-                    <ng-template #cellTemplate let-row let-column="column">
-                      @switch (column.key) {
-                        @case ('category') {
-                          <strong>{{ row.wasteCategory?.name || '—' }}</strong>
-                        }
-                        @case ('unit') {
-                          {{ row.unitType || row.wasteCategory?.unitType || '—' }}
-                        }
-                        @case ('amount') {
-                          <span class="tabular-nums">{{ (row.amount ?? 0) | number:'1.2-2' }}</span>
-                        }
-                        @case ('value') {
-                          <span class="tabular-nums">{{ (row.estimatedValue ?? 0) | number:'1.2-2' }}</span>
-                        }
-                        @case ('updatedAt') {
-                          {{ row.updatedAt | date:'short' }}
-                        }
-                        @default {
-                          {{ row[column.key] }}
-                        }
-                      }
-                    </ng-template>
-
-                    <ng-template #rowActions let-row>
-                      @if (!isClosed()) {
-                        <app-button variant="secondary" size="sm" (click)="editWasteLine(row)" [disabled]="loading()">Edit</app-button>
-                        <app-button variant="danger" size="sm" (click)="deleteWasteConfirm(row)" [disabled]="loading()">Remove</app-button>
-                      }
-                    </ng-template>
-                  </app-data-table>
-                </app-card>
-              }
-            </app-section-body>
-          </app-section>
-        }
-      </app-split-main>
-
-      <!-- ─── Sidebar: Context + Totals ─────────────────────────────────── -->
-      <app-split-aside>
-        <app-section>
-          <app-section-header>
-            <strong>Context</strong>
-          </app-section-header>
-          <app-section-body>
-            <app-card>
-              @if (!started()) {
-                <div class="muted">Press "Start" to open the grading session for this Stage‑1 output.</div>
-              } @else {
-                <app-stack direction="vertical" spacing="xs">
-                  <div><strong>Container:</strong> {{ session()?.categoryOutput?.container?.containerNumber || '—' }}</div>
-                  <div><strong>Rag/Bale:</strong> {{ session()?.categoryOutput?.rag?.ragCode || '—' }}</div>
-                  <div><strong>Category:</strong> {{ session()?.categoryOutput?.category?.name || '—' }}</div>
-                  <div><strong>Stage 1 Output Weight:</strong> <span class="tabular-nums">{{ session()?.categoryOutput?.weightKg || 0 | number:'1.2-2' }}</span> kg</div>
-                </app-stack>
-              }
-            </app-card>
-          </app-section-body>
-        </app-section>
-
-        <app-section>
-          <app-section-header>
-            <strong>Session Totals</strong>
-          </app-section-header>
-          <app-section-body>
-            <app-card>
-              <app-stack direction="vertical" spacing="sm">
-                <div class="flex justify-between items-center">
-                  <span>Input</span>
-                  <span class="tabular-nums font-semibold">{{ totals().input | number:'1.2-2' }} kg</span>
+                    <span class="input-addon font-mono">KG</span>
+                  </div>
                 </div>
-                <div class="flex justify-between items-center">
-                  <span>Allocated (grades)</span>
-                  <span class="tabular-nums">{{ totals().allocated | number:'1.2-2' }} kg</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span>Waste (declared)</span>
-                  <span class="tabular-nums">{{ totals().waste | number:'1.2-2' }} kg</span>
-                </div>
-                <div class="flex justify-between items-center border-t pt-2 mt-2">
-                  <span class="font-semibold">Remaining</span>
-                  <span
-                    class="tabular-nums font-bold"
-                    [class.text-green-600]="totals().remaining === 0"
-                    [class.text-amber-500]="totals().remaining > 0"
-                  >
-                    {{ totals().remaining | number:'1.2-2' }} kg
-                  </span>
-                </div>
-                <div class="flex justify-between items-center text-sm text-muted-foreground">
-                  <span>Yield</span>
-                  <span class="tabular-nums">{{ totals().yieldPct | number:'1.1-1' }}%</span>
-                </div>
-              </app-stack>
-            </app-card>
 
-            @if (started() && !isClosed()) {
-              <app-card class="mt-4">
-                @if (totals().remaining === 0) {
-                  <app-badge variant="success">Ready to Seal</app-badge>
-                  <div class="muted mt-2">All weight has been allocated. Click <strong>Seal</strong> to finalize.</div>
-                } @else {
-                  <app-badge variant="warning">{{ totals().remaining | number:'1.2-2' }} kg remaining</app-badge>
-                  <div class="muted mt-2">Allocate remaining weight to grades or waste before sealing.</div>
-                  <div class="text-xs text-gray-400 mt-1">Invariant: Input = Graded + Waste</div>
+                @if (allocationUnitMode.value === 'PCS') {
+                  <div class="form-group flex-1">
+                    <label class="form-label">Piece Count (PCS)</label>
+                    <div class="input-with-addon">
+                      <input
+                        type="number"
+                        step="1"
+                        min="1"
+                        [formControl]="pieceCount"
+                        class="form-input"
+                        placeholder="0"
+                      />
+                      <span class="input-addon font-mono">PCS</span>
+                    </div>
+                  </div>
                 }
-              </app-card>
+
+                <div class="form-group flex-0 align-self-end">
+                  <button class="btn btn-primary" (click)="allocate()" [disabled]="loading()">
+                    <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
+                    Add Allocation
+                  </button>
+                </div>
+              </div>
+            }
+
+            <!-- Grade Allocations Table -->
+            <div class="table-container mt-3">
+              @if (buckets().length === 0) {
+                <div class="empty-allocation-state">
+                  <lucide-icon [img]="icons.Scale" [size]="24" class="empty-icon"></lucide-icon>
+                  <span>No quality grades allocated yet. Select a grade above to begin.</span>
+                </div>
+              } @else {
+                <table class="workspace-table">
+                  <thead>
+                    <tr>
+                      <th>Quality Grade</th>
+                      <th class="text-right">Allocated Weight</th>
+                      <th class="text-right">% of Input</th>
+                      @if (!isClosed()) {
+                        <th class="text-right">Actions</th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (bucket of buckets(); track bucket.id) {
+                      <tr>
+                        <td>
+                          <span class="category-name-badge">
+                            <lucide-icon [img]="icons.Sparkles" [size]="13"></lucide-icon>
+                            {{ bucket.grade?.name || bucket.gradeId }}
+                          </span>
+                        </td>
+
+                        <td class="text-right">
+                          @if (editingBucket()?.id === bucket.id) {
+                            <input
+                              type="number"
+                              step="0.01"
+                              [formControl]="editBucketWeight"
+                              class="inline-edit-input"
+                            />
+                          } @else {
+                            <span class="weight-highlight">{{ bucket.outputWeightKg | number:'1.2-2' }} KG</span>
+                            @if (bucket.outputCount && bucket.outputCount > 0) {
+                              <span class="unit-badge ml-1">{{ bucket.outputCount }} PCS</span>
+                            }
+                          }
+                        </td>
+
+                        <td class="text-right">
+                          <span class="percent-badge font-mono">
+                            {{ totals().input > 0 ? ((toNumber(bucket.outputWeightKg) / totals().input) * 100 | number:'1.1-1') : 0 }}%
+                          </span>
+                        </td>
+
+                        @if (!isClosed()) {
+                          <td class="text-right">
+                            @if (editingBucket()?.id === bucket.id) {
+                              <button class="btn btn-primary btn-xs mr-1" (click)="saveBucket()">Save</button>
+                              <button class="btn btn-secondary btn-xs" (click)="cancelEditBucket()">Cancel</button>
+                            } @else {
+                              <button class="btn btn-secondary btn-xs mr-1" (click)="editBucket(bucket)">
+                                <lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon>
+                                Edit
+                              </button>
+                              <button class="btn btn-danger btn-xs" (click)="deleteBucketConfirm(bucket)">
+                                <lucide-icon [img]="icons.Trash2" [size]="12"></lucide-icon>
+                                Remove
+                              </button>
+                            }
+                          </td>
+                        }
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </div>
+          </div>
+
+          <!-- Stage 2 Waste Logging Section -->
+          <div class="workspace-card mt-4">
+            <div class="card-header">
+              <lucide-icon [img]="icons.Trash2" [size]="16" class="header-icon text-amber"></lucide-icon>
+              <h3>Declared Waste Logging</h3>
+            </div>
+
+            @if (!isClosed()) {
+              <div class="waste-form">
+                <div class="form-group flex-2">
+                  <label class="form-label">Waste Category</label>
+                  <select [formControl]="wasteCategoryId" class="form-select">
+                    <option value="">Select Waste Category...</option>
+                    @for (wCat of wasteCategoryOptions(); track wCat.value) {
+                      <option [value]="wCat.value">{{ wCat.label }}</option>
+                    }
+                  </select>
+                </div>
+
+                <div class="form-group flex-1">
+                  <label class="form-label">Amount (KG)</label>
+                  <div class="input-with-addon">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      [formControl]="wasteAmount"
+                      class="form-input"
+                      placeholder="0.00"
+                    />
+                    <span class="input-addon font-mono">KG</span>
+                  </div>
+                </div>
+
+                <div class="form-group flex-0 align-self-end flex-row-actions">
+                  @if (totals().remaining > 0 && !editingWasteId()) {
+                    <button class="btn btn-secondary" (click)="fillRemainingAsWaste()" title="Fill remaining weight">
+                      Fill {{ totals().remaining | number:'1.2-2' }} KG
+                    </button>
+                  }
+
+                  <button class="btn btn-primary" (click)="saveWasteLine()" [disabled]="loading()">
+                    <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
+                    {{ editingWasteId() ? 'Save Line' : 'Add Waste Line' }}
+                  </button>
+                </div>
+              </div>
+            }
+
+            <!-- Waste Table -->
+            <div class="table-container mt-3">
+              @if (wasteLineItems().length === 0) {
+                <div class="empty-allocation-state">
+                  <lucide-icon [img]="icons.Trash2" [size]="24" class="empty-icon"></lucide-icon>
+                  <span>No declared waste lines logged for this grading session.</span>
+                </div>
+              } @else {
+                <table class="workspace-table">
+                  <thead>
+                    <tr>
+                      <th>Waste Category</th>
+                      <th>Unit</th>
+                      <th class="text-right">Amount</th>
+                      <th class="text-right">Est. Value</th>
+                      @if (!isClosed()) {
+                        <th class="text-right">Actions</th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (wLine of wasteLineItems(); track wLine.id) {
+                      <tr>
+                        <td>
+                          <strong>{{ wLine.wasteCategory?.name || '—' }}</strong>
+                        </td>
+
+                        <td>
+                          <span class="unit-badge">{{ wLine.unitType || wLine.wasteCategory?.unitType || 'KG' }}</span>
+                        </td>
+
+                        <td class="text-right">
+                          <span class="weight-highlight">{{ wLine.amount | number:'1.2-2' }}</span>
+                        </td>
+
+                        <td class="text-right font-mono">
+                          {{ wLine.estimatedValue | money }}
+                        </td>
+
+                        @if (!isClosed()) {
+                          <td class="text-right">
+                            <button class="btn btn-secondary btn-xs mr-1" (click)="editWasteLine(wLine)">
+                              <lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon>
+                              Edit
+                            </button>
+                            <button class="btn btn-danger btn-xs" (click)="deleteWasteConfirm(wLine)">
+                              <lucide-icon [img]="icons.Trash2" [size]="12"></lucide-icon>
+                              Remove
+                            </button>
+                          </td>
+                        }
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Side Column: Category Output Context & Totals -->
+        <div class="workspace-side-column">
+          
+          <!-- Category Context Card -->
+          <div class="info-card">
+            <div class="card-header">
+              <lucide-icon [img]="icons.FileText" [size]="16" class="header-icon"></lucide-icon>
+              <h3>Output Context & Specs</h3>
+            </div>
+
+            <div class="context-stack">
+              <div class="context-row">
+                <span class="ctx-label">Category Name</span>
+                <span class="ctx-val font-bold text-primary">{{ s.categoryOutput?.category?.name || '—' }}</span>
+              </div>
+
+              <div class="context-row">
+                <span class="ctx-label">Source Rag / Bale</span>
+                @if (s.categoryOutput?.rag?.ragCode) {
+                  <span class="code-badge">
+                    <lucide-icon [img]="icons.Package" [size]="13"></lucide-icon>
+                    {{ s.categoryOutput.rag.ragCode }}
+                  </span>
+                } @else {
+                  <span class="ctx-val text-muted">Direct Intake</span>
+                }
+              </div>
+
+              <div class="context-row">
+                <span class="ctx-label">Ocean Container</span>
+                @if (s.categoryOutput?.container) {
+                  <a [routerLink]="['/app/procurement/containers', s.categoryOutput.container.id]" class="link-badge blue">
+                    <lucide-icon [img]="icons.Truck" [size]="12"></lucide-icon>
+                    {{ s.categoryOutput.container.containerNumber }}
+                  </a>
+                } @else {
+                  <span class="ctx-val text-muted">Standalone</span>
+                }
+              </div>
+
+              <div class="context-row">
+                <span class="ctx-label">Category Input Weight</span>
+                <span class="ctx-val font-bold text-primary">{{ s.categoryOutput?.weightKg | number:'1.2-2' }} KG</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Session Invariants Summary Card -->
+          <div class="info-card mt-3">
+            <div class="card-header">
+              <lucide-icon [img]="icons.Scale" [size]="16" class="header-icon"></lucide-icon>
+              <h3>Session Totals Summary</h3>
+            </div>
+
+            <div class="summary-rows-stack">
+              <div class="summary-row">
+                <span class="sum-label">Category Input</span>
+                <span class="sum-val font-mono">{{ totals().input | number:'1.2-2' }} KG</span>
+              </div>
+
+              <div class="summary-row">
+                <span class="sum-label">Quality Grade Allocations</span>
+                <span class="sum-val font-mono text-purple">{{ totals().allocated | number:'1.2-2' }} KG</span>
+              </div>
+
+              <div class="summary-row">
+                <span class="sum-label">Declared Waste</span>
+                <span class="sum-val font-mono text-amber">{{ totals().waste | number:'1.2-2' }} KG</span>
+              </div>
+
+              <div class="summary-row remaining-row">
+                <span class="sum-label font-bold">Remaining Weight</span>
+                <span class="sum-val font-mono font-extrabold" [class.text-emerald]="totals().remaining === 0" [class.text-red]="totals().remaining > 0">
+                  {{ totals().remaining | number:'1.2-2' }} KG
+                </span>
+              </div>
+
+              @if (totals().input > 0) {
+                <div class="summary-row yield-row">
+                  <span class="sum-label">Stage 2 Quality Yield %</span>
+                  <span class="sum-val font-mono font-bold">{{ totals().yieldPct | number:'1.1-1' }}%</span>
+                </div>
+              }
+            </div>
+
+            <!-- Invariant Check Banner -->
+            @if (!isClosed()) {
+              <div class="seal-prompt-box mt-3" [class.box-ready]="totals().remaining === 0" [class.box-warning]="totals().remaining > 0">
+                @if (totals().remaining === 0) {
+                  <lucide-icon [img]="icons.CheckCircle2" [size]="18" class="box-icon text-emerald"></lucide-icon>
+                  <div class="box-content">
+                    <strong>Ready to Seal Session</strong>
+                    <span>All category weight has been graded. Click "Seal Session" to generate finished Grade Outputs.</span>
+                  </div>
+                } @else {
+                  <lucide-icon [img]="icons.AlertTriangle" [size]="18" class="box-icon text-amber"></lucide-icon>
+                  <div class="box-content">
+                    <strong>{{ totals().remaining | number:'1.2-2' }} KG Remaining</strong>
+                    <span>Remaining weight must equal 0 before sealing. Allocate remaining weight to grades or waste.</span>
+                  </div>
+                }
+              </div>
             }
 
             @if (isClosed()) {
-              <app-card class="mt-4">
-                <app-badge variant="success">Sealed (read-only)</app-badge>
-                <div class="muted mt-2">Session is sealed. Grade outputs are now READY_FOR_REPACK.</div>
-              </app-card>
+              <div class="seal-prompt-box box-sealed mt-3">
+                <lucide-icon [img]="icons.Lock" [size]="18" class="box-icon"></lucide-icon>
+                <div class="box-content">
+                  <strong>Session Sealed & Read-Only</strong>
+                  <span>Grade Outputs have been generated and sent to inventory / repack workspace.</span>
+                </div>
+              </div>
             }
-          </app-section-body>
-        </app-section>
-      </app-split-aside>
-    </app-split>
+          </div>
+
+        </div>
+
+      </div>
+
+    }
   </app-page-body>
 </app-page>
+
+<!-- Seal Session Dialog -->
+<app-dialog
+  [open]="showCloseConfirm()"
+  title="Seal Stage 2 Grading Session?"
+  (closed)="closeCancel()"
+>
+  <div class="dialog-body">
+    <p class="whitespace-pre-line">{{ sealMessage() }}</p>
+  </div>
+  <div slot="footer" class="dialog-actions">
+    <button class="btn btn-secondary" (click)="closeCancel()">Cancel</button>
+    <button class="btn btn-danger" [disabled]="loading()" (click)="closeExecute()">Confirm & Seal</button>
+  </div>
+</app-dialog>
+
+<!-- Delete Bucket Confirmation -->
+<app-dialog
+  [open]="showDeleteBucketConfirm()"
+  title="Remove Grade Allocation?"
+  (closed)="deleteBucketCancel()"
+>
+  <div class="dialog-body">
+    <p>Are you sure you want to remove this quality grade allocation? The allocated weight will be returned to 'Remaining'.</p>
+  </div>
+  <div slot="footer" class="dialog-actions">
+    <button class="btn btn-secondary" (click)="deleteBucketCancel()">Cancel</button>
+    <button class="btn btn-danger" [disabled]="loading()" (click)="deleteBucketExecute()">Remove Allocation</button>
+  </div>
+</app-dialog>
+
+<!-- Delete Waste Confirmation -->
+<app-dialog
+  [open]="showDeleteWasteConfirm()"
+  title="Remove Waste Line?"
+  (closed)="deleteWasteCancel()"
+>
+  <div class="dialog-body">
+    <p>Are you sure you want to remove this logged waste line? The weight will be returned to 'Remaining'.</p>
+  </div>
+  <div slot="footer" class="dialog-actions">
+    <button class="btn btn-secondary" (click)="deleteWasteCancel()">Cancel</button>
+    <button class="btn btn-danger" [disabled]="loading()" (click)="deleteWasteExecute()">Remove Line</button>
+  </div>
+</app-dialog>

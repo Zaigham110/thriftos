@@ -1,11 +1,11 @@
 /**
- * REPACK ROUTES — CLEAN REBUILD
- * =============================
+ * REPACK ROUTES
+ * =============
  * 
- * Route Structure (LOCKED):
- * /packaging/repack         → Index (Drafts + Sealed)
- * /packaging/repack/new     → Create new draft
- * /packaging/repack/:id     → Workspace (edit DRAFT / view SEALED)
+ * Route Structure:
+ * /app/packaging/repack         → Index (Drafts + Sealed)
+ * /app/packaging/repack/new     → Create new draft
+ * /app/packaging/repack/:id     → Workspace (edit DRAFT / view SEALED)
  */
 
 import { Routes } from '@angular/router';
@@ -17,24 +17,20 @@ export const REPACK_ROUTES: Routes = [
     path: '',
     loadComponent: () =>
       import('./index/repack-index.page').then((m) => m.RepackIndexComponent),
-    title: 'Repack - ThriftOS',
+    title: 'Repack Registry - ThriftOS',
     canActivate: [permissionGuard],
     data: { permissions: ['REPACK_VIEW'] },
   },
 
   // NEW — Create a new draft
-  // TEMPORARILY DISABLED: Backend requires allocations upfront
-  // TODO: Implement inline draft creation in workspace
-  /*
   {
     path: 'new',
     loadComponent: () =>
       import('./new/repack-new.page').then((m) => m.RepackNewComponent),
-    title: 'New Repack - ThriftOS',
+    title: 'New Repack Unit - ThriftOS',
     canActivate: [permissionGuard],
     data: { permissions: ['REPACK_CREATE'] },
   },
-  */
 
   // WORKSPACE — Edit draft or view sealed
   {
@@ -47,6 +43,11 @@ export const REPACK_ROUTES: Routes = [
   },
 
   // LEGACY REDIRECTS
+  {
+    path: 'create',
+    redirectTo: 'new',
+    pathMatch: 'full',
+  },
   {
     path: 'workspace',
     redirectTo: 'new',

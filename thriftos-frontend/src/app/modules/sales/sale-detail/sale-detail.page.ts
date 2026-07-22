@@ -1,33 +1,49 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+/**
+ * Sale Detail Component
+ * Phase 2: Sales Module UI
+ * 
+ * Interactive sales order workspace for allocating inventory lines,
+ * issuing invoices, and tracking wholesale payments.
+ */
 
+import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
-  AppBadgeComponent,
-  AppButtonComponent,
-  AppDataTableComponent,
-  AppDialogComponent,
-  AppEmptyStateComponent,
-  AppErrorStateComponent,
-  AppFormFieldComponent,
-  AppInputComponent,
-  AppLoadingComponent,
-  AppPageBodyComponent,
-  AppPageComponent,
-  AppPageHeaderComponent,
-  AppSectionBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSelectComponent,
-  type DataTableColumn,
-  type SelectOption,
-} from '../../../shared/ui';
-import { MoneyPipe } from '../../../core/money/money.pipe';
+  LucideAngularModule,
+  ShoppingBag,
+  ArrowLeft,
+  Plus,
+  Trash2,
+  Tag,
+  DollarSign,
+  TrendingUp,
+  CreditCard,
+  UserCheck,
+  CheckCircle2,
+  QrCode,
+  FileText,
+  Printer,
+  XCircle,
+} from 'lucide-angular';
 
 import { CustomersService } from '../customers.service';
 import { SalesService } from '../sales.service';
 import type { Customer, SaleDetail, SaleLine, SaleStatus, SaleType } from '../sales.models';
+import { MoneyPipe } from '../../../core/money/money.pipe';
+import {
+  AppBreadcrumbComponent,
+  AppDialogComponent,
+  AppEmptyStateComponent,
+  AppErrorStateComponent,
+  AppLoadingComponent,
+  AppPageBodyComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  type BreadcrumbItem,
+  type SelectOption,
+} from '../../../shared/ui';
 
 type LineAction = 'NONE' | 'REMOVE' | 'REPRICE';
 
@@ -36,25 +52,18 @@ type LineAction = 'NONE' | 'REMOVE' | 'REPRICE';
   standalone: true,
   imports: [
     CommonModule,
-    RouterLink,
     ReactiveFormsModule,
+    DatePipe,
+    DecimalPipe,
+    MoneyPipe,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
+    AppBreadcrumbComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
-    AppEmptyStateComponent,
-    AppButtonComponent,
-    AppBadgeComponent,
-    AppFormFieldComponent,
-    AppSelectComponent,
-    AppInputComponent,
-    AppDataTableComponent,
     AppDialogComponent,
-    MoneyPipe,
   ],
   templateUrl: './sale-detail.page.html',
   styleUrl: './sale-detail.page.scss',
@@ -66,8 +75,24 @@ export class SaleDetailPage implements OnInit {
   private readonly salesService = inject(SalesService);
   private readonly customersService = inject(CustomersService);
 
-  readonly saleId = signal<string>('');
+  readonly icons = {
+    ShoppingBag,
+    ArrowLeft,
+    Plus,
+    Trash2,
+    Tag,
+    DollarSign,
+    TrendingUp,
+    CreditCard,
+    UserCheck,
+    CheckCircle2,
+    QrCode,
+    FileText,
+    Printer,
+    XCircle,
+  };
 
+  readonly saleId = signal<string>('');
   readonly loading = signal<boolean>(false);
   readonly saving = signal<boolean>(false);
   readonly error = signal<string | null>(null);
@@ -75,8 +100,18 @@ export class SaleDetailPage implements OnInit {
   readonly sale = signal<SaleDetail | null>(null);
   readonly customers = signal<Customer[]>([]);
 
-  readonly lines = computed(() => this.sale()?.lines ?? []);
-  readonly payments = computed(() => this.sale()?.payments ?? []);
+  readonly breadcrumbs = computed<BreadcrumbItem[]>(() => {
+    const s = this.sale();
+    const code = s ? (s.saleNumber || `SO-${String(s.id).slice(0, 8).toUpperCase()}`) : 'Detail';
+    return [
+      { label: 'Sales', route: '/app/sales' },
+      { label: 'Orders', route: '/app/sales' },
+      { label: code },
+    ];
+  });
+
+  readonly lines = computed(() => this.sale()?.lines || []);
+  readonly payments = computed(() => this.sale()?.payments || []);
 
   // Available inventory for manual add
   readonly inventoryLoading = signal<boolean>(false);
@@ -132,23 +167,24 @@ export class SaleDetailPage implements OnInit {
 
   readonly paidAmount = computed(() => {
     const s = this.sale();
-    const payments = s?.payments ?? [];
-    return payments.reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+    const payments = s?.payments || [];
+    return payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
   });
 
   readonly balanceAmount = computed(() => {
     const s = this.sale();
-    return Number(s?.totalAmount ?? 0) - this.paidAmount();
+    return Number(s?.totalAmount || 0) - this.paidAmount();
   });
 
-  readonly linesColumns: DataTableColumn[] = [
-    { key: 'unitCode', label: 'Inventory', sortable: false, width: '160px' },
-    { key: 'category', label: 'Category', sortable: false, width: '130px' },
-    { key: 'grade', label: 'Grade', sortable: false, width: '110px' },
-    { key: 'qty', label: 'Qty', sortable: false, width: '120px' },
-    { key: 'unitPrice', label: 'Unit Price', sortable: false, width: '140px', align: 'right' },
-    { key: 'lineTotal', label: 'Line Total', sortable: false, width: '140px', align: 'right' },
-  ];
+  readonly totalCost = computed(() => {
+    const s = this.sale();
+    return Number(s?.totalCost || 0);
+  });
+
+  readonly totalProfit = computed(() => {
+    const s = this.sale();
+    return Number(s?.totalProfit || 0);
+  });
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
@@ -166,14 +202,14 @@ export class SaleDetailPage implements OnInit {
 
   private loadCustomers(): void {
     this.customersService.list().subscribe({
-      next: (rows) => this.customers.set(rows ?? []),
+      next: (rows) => this.customers.set(rows || []),
       error: () => {},
     });
   }
 
   private syncFormFromSale(sale: SaleDetail): void {
-    this.customerId.setValue(sale.customerId ?? '', { emitEvent: false });
-    this.type.setValue(sale.type ?? 'WHOLESALE', { emitEvent: false });
+    this.customerId.setValue(sale.customerId || '', { emitEvent: false });
+    this.type.setValue(sale.type || 'WHOLESALE', { emitEvent: false });
   }
 
   loadSale(id: string): void {
@@ -187,16 +223,10 @@ export class SaleDetailPage implements OnInit {
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set(err?.message ?? 'Failed to load sale');
+        this.error.set(err?.message || 'Failed to load sale details');
         this.loading.set(false);
       },
     });
-  }
-
-  retryLoad(): void {
-    const id = this.saleId();
-    if (!id) return;
-    this.loadSale(id);
   }
 
   loadAvailableInventory(): void {
@@ -224,11 +254,10 @@ export class SaleDetailPage implements OnInit {
 
   saveDefinition(): void {
     const s = this.sale();
-    if (!s) return;
-    if (!this.canEdit()) return;
+    if (!s || !this.canEdit()) return;
 
     if (this.customerId.invalid || this.type.invalid) {
-      this.error.set('Customer and type are required');
+      this.error.set('Customer and order type are required');
       return;
     }
 
@@ -243,15 +272,14 @@ export class SaleDetailPage implements OnInit {
       },
       error: (err) => {
         this.saving.set(false);
-        this.error.set(err?.message ?? 'Failed to update sale');
+        this.error.set(err?.message || 'Failed to update sale definition');
       },
     });
   }
 
   addManualLine(): void {
     const s = this.sale();
-    if (!s) return;
-    if (!this.canEdit()) return;
+    if (!s || !this.canEdit()) return;
 
     if (this.manualInventoryId.invalid) {
       this.error.set('Select an AVAILABLE inventory item');
@@ -260,11 +288,11 @@ export class SaleDetailPage implements OnInit {
 
     const inv = this.availableInventory().find((i) => i.id === this.manualInventoryId.value);
     if (!inv) {
-      this.error.set('Inventory item not found in AVAILABLE list');
+      this.error.set('Selected inventory item is not available');
       return;
     }
 
-    const quantity = inv.measurementType === 'WEIGHT' ? Number(inv.weightKg ?? 0) : Number(inv.pcsCount ?? 0);
+    const quantity = inv.measurementType === 'WEIGHT' ? Number(inv.weightKg || 0) : Number(inv.pcsCount || 0);
 
     this.saving.set(true);
     this.error.set(null);
@@ -274,7 +302,7 @@ export class SaleDetailPage implements OnInit {
         inventoryItemId: inv.id,
         measurementType: inv.measurementType,
         quantity,
-        unitPrice: Number(this.manualUnitPrice.value ?? '0'),
+        unitPrice: Number(this.manualUnitPrice.value || '0'),
       })
       .subscribe({
         next: (updated) => {
@@ -286,67 +314,15 @@ export class SaleDetailPage implements OnInit {
         },
         error: (err) => {
           this.saving.set(false);
-          this.error.set(err?.message ?? 'Failed to add line');
+          this.error.set(err?.message || 'Failed to add inventory line');
         },
       });
-  }
-
-  scanQrAndAdd(): void {
-    const s = this.sale();
-    if (!s) return;
-    if (!this.canEdit()) return;
-
-    const code = String(this.qrCode.value ?? '').trim();
-    if (!code) {
-      this.error.set('QR code is required');
-      return;
-    }
-
-    this.saving.set(true);
-    this.error.set(null);
-
-    this.salesService.scanQr(code).subscribe({
-      next: (res) => {
-        this.salesService
-          .addLine(s.id, {
-            inventoryItemId: res.inventoryItemId,
-            measurementType: res.measurementType,
-            quantity: Number(res.quantity),
-            unitPrice: Number(this.qrUnitPrice.value ?? '0'),
-          })
-          .subscribe({
-            next: (updated) => {
-              this.sale.set(updated);
-              this.qrCode.setValue('', { emitEvent: false });
-              this.qrUnitPrice.setValue('0', { emitEvent: false });
-              this.loadAvailableInventory();
-              this.saving.set(false);
-            },
-            error: (err) => {
-              this.saving.set(false);
-              this.error.set(err?.message ?? 'Failed to add scanned inventory');
-            },
-          });
-      },
-      error: (err) => {
-        this.saving.set(false);
-        this.error.set(err?.message ?? 'QR scan failed');
-      },
-    });
   }
 
   openRemoveLine(line: SaleLine): void {
     if (!this.canEdit()) return;
     this.lineAction.set('REMOVE');
     this.lineTarget.set(line);
-    this.confirmLineActionOpen.set(true);
-  }
-
-  openRepriceLine(line: SaleLine): void {
-    if (!this.canEdit()) return;
-    this.lineAction.set('REPRICE');
-    this.lineTarget.set(line);
-    this.lineNewUnitPrice.setValue(String(line.unitPrice ?? '0'), { emitEvent: false });
     this.confirmLineActionOpen.set(true);
   }
 
@@ -360,60 +336,22 @@ export class SaleDetailPage implements OnInit {
   confirmLineAction(): void {
     const s = this.sale();
     const line = this.lineTarget();
-    const action = this.lineAction();
     if (!s || !line) return;
 
     this.saving.set(true);
     this.error.set(null);
 
-    if (action === 'REMOVE') {
-      this.salesService.deleteLine(s.id, line.id).subscribe({
-        next: (updated) => {
-          this.sale.set(updated);
-          this.closeLineAction();
-          this.loadAvailableInventory();
-          this.saving.set(false);
-        },
-        error: (err) => {
-          this.saving.set(false);
-          this.closeLineAction();
-          this.error.set(err?.message ?? 'Failed to remove line');
-        },
-      });
-      return;
-    }
-
-    // REPRICE: backend currently has no update-line endpoint.
-    // We re-price by deleting the line (release reservation) then re-adding the same inventory with new unit price.
-    const newPrice = Number(this.lineNewUnitPrice.value ?? '0');
-
     this.salesService.deleteLine(s.id, line.id).subscribe({
-      next: () => {
-        this.salesService
-          .addLine(s.id, {
-            inventoryItemId: line.inventoryItemId,
-            measurementType: line.measurementType,
-            quantity: Number(line.quantity),
-            unitPrice: newPrice,
-          })
-          .subscribe({
-            next: (updated) => {
-              this.sale.set(updated);
-              this.closeLineAction();
-              this.loadAvailableInventory();
-              this.saving.set(false);
-            },
-            error: (err) => {
-              this.saving.set(false);
-              this.closeLineAction();
-              this.error.set(err?.message ?? 'Failed to reprice line');
-            },
-          });
+      next: (updated) => {
+        this.sale.set(updated);
+        this.closeLineAction();
+        this.loadAvailableInventory();
+        this.saving.set(false);
       },
       error: (err) => {
         this.saving.set(false);
         this.closeLineAction();
-        this.error.set(err?.message ?? 'Failed to reprice line');
+        this.error.set(err?.message || 'Failed to remove line');
       },
     });
   }
@@ -430,8 +368,7 @@ export class SaleDetailPage implements OnInit {
 
   confirmIssue(): void {
     const s = this.sale();
-    if (!s) return;
-    if (!this.canEdit()) return;
+    if (!s || !this.canEdit()) return;
 
     this.issuing.set(true);
     this.error.set(null);
@@ -445,25 +382,23 @@ export class SaleDetailPage implements OnInit {
       error: (err) => {
         this.issuing.set(false);
         this.confirmIssueOpen.set(false);
-        this.error.set(err?.message ?? 'Failed to issue invoice');
+        this.error.set(err?.message || 'Failed to issue sales order');
       },
     });
   }
 
-  getStatusVariant(status: SaleStatus): 'default' | 'success' | 'warning' | 'danger' {
-    switch (status) {
-      case 'DRAFT':
-        return 'default';
-      case 'ISSUED':
-        return 'warning';
-      case 'PARTIALLY_PAID':
-        return 'warning';
-      case 'PAID':
-        return 'success';
-      case 'CANCELLED':
-        return 'danger';
-      default:
-        return 'default';
-    }
+  openInvoice(): void {
+    const s = this.sale();
+    if (!s) return;
+    this.router.navigate(['/app/sales', s.id, 'invoice']);
+  }
+
+  goBack(): void {
+    this.router.navigate(['/app/sales']);
+  }
+
+  saleCode(s: SaleDetail | null): string {
+    if (!s) return '—';
+    return s.saleNumber || `SO-${String(s.id).slice(0, 8).toUpperCase()}`;
   }
 }

@@ -1,38 +1,52 @@
+/**
+ * Stage 1 Sorting Workspace Component
+ * Phase 2: Sorting Module UI
+ * 
+ * Interactive breakdown workspace for sorting Rags and Loose Bales into Raw Material Categories.
+ */
+
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription, forkJoin } from 'rxjs';
+import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Subscription, forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
+import {
+  LucideAngularModule,
+  ArrowLeft,
+  Package,
+  Layers,
+  Scale,
+  Play,
+  CheckCircle2,
+  Lock,
+  Plus,
+  Trash2,
+  Pencil,
+  AlertTriangle,
+  Building2,
+  Truck,
+  FileText,
+  Clock,
+  Sparkles,
+} from 'lucide-angular';
 
 import { RagService } from '../../procurement/rags/rag.service';
-import type { Rag } from '../../procurement/rags/rag.models';
+import { ProcurementService } from '../../procurement/procurement.service';
 import { SortingStage1Service } from '../../sorting-stage1/sorting-stage1.service';
 import type { Category, SortCategoryBucket, SortSession } from '../../sorting-stage1/sorting-stage1.models';
 import { SortingFacadeService } from '../sorting-facade.service';
 import type { WasteCategory, WasteLineItem } from '../sorting-facade.service';
+import { MoneyPipe } from '../../../core/money/money.pipe';
 import {
-  AppBadgeComponent,
-  AppButtonComponent,
-  AppCardComponent,
+  AppBreadcrumbComponent,
   AppDialogComponent,
   AppErrorStateComponent,
-  AppFormFieldComponent,
-  AppInputComponent,
   AppLoadingComponent,
   AppPageBodyComponent,
   AppPageComponent,
   AppPageHeaderComponent,
-  AppSectionBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSplitAsideComponent,
-  AppSplitComponent,
-  AppSplitMainComponent,
-  AppStackComponent,
-  AppDataTableComponent,
-  AppSelectComponent,
-  type DataTableColumn,
-  type SelectOption,
+  type BreadcrumbItem,
 } from '../../../shared/ui';
 
 @Component({
@@ -40,36 +54,28 @@ import {
   standalone: true,
   imports: [
     CommonModule,
+    RouterLink,
     ReactiveFormsModule,
     DecimalPipe,
+    MoneyPipe,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppStackComponent,
-    AppCardComponent,
-    AppBadgeComponent,
-    AppButtonComponent,
-    AppDialogComponent,
+    AppBreadcrumbComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
-    AppSplitComponent,
-    AppSplitMainComponent,
-    AppSplitAsideComponent,
-    AppFormFieldComponent,
-    AppInputComponent,
-    AppSelectComponent,
-    AppDataTableComponent,
+    AppDialogComponent,
   ],
   templateUrl: './sorting-stage1-start.page.html',
+  styleUrl: './sorting-stage1-start.page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SortingStage1StartPage implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly ragService = inject(RagService);
+  private readonly procurementService = inject(ProcurementService);
   private readonly sortingStage1 = inject(SortingStage1Service);
   private readonly facade = inject(SortingFacadeService);
 
@@ -78,13 +84,33 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
 
-  readonly rag = signal<Rag | null>(null);
+  readonly rag = signal<any | null>(null);
+  readonly itemSourceType = signal<'RAG' | 'LOOSE_BALE'>('RAG');
   readonly session = signal<SortSession | null>(null);
   readonly categories = signal<Category[]>([]);
   readonly buckets = signal<SortCategoryBucket[]>([]);
 
   readonly wasteCategories = signal<WasteCategory[]>([]);
   readonly wasteLineItems = signal<WasteLineItem[]>([]);
+
+  readonly icons = {
+    ArrowLeft,
+    Package,
+    Layers,
+    Scale,
+    Play,
+    CheckCircle2,
+    Lock,
+    Plus,
+    Trash2,
+    Pencil,
+    AlertTriangle,
+    Building2,
+    Truck,
+    FileText,
+    Clock,
+    Sparkles,
+  };
 
   readonly started = computed(() => Boolean(this.session()));
   readonly isClosed = computed(() => this.session()?.status === 'CLOSED');
@@ -106,54 +132,35 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
   // Form controls
   readonly categoryId = new FormControl<string>('', { nonNullable: true });
   readonly amountKg = new FormControl<number>(0, { nonNullable: true });
+  readonly pieceCount = new FormControl<number>(0, { nonNullable: true });
+  readonly allocationUnitMode = new FormControl<'KG' | 'PCS'>('KG', { nonNullable: true });
 
   readonly wasteCategoryId = new FormControl<string>('', { nonNullable: true });
   readonly wasteAmount = new FormControl<number>(0, { nonNullable: true });
 
-  readonly categoryOptions = computed<SelectOption[]>(() =>
+  readonly categoryOptions = computed(() =>
     (this.categories() || [])
       .filter((c) => c.isActive)
       .map((c) => ({ label: c.name, value: c.id }))
   );
 
-  readonly wasteCategoryOptions = computed<SelectOption[]>(() =>
+  readonly wasteCategoryOptions = computed(() =>
     (this.wasteCategories() || [])
       .filter((c) => c.isActive)
       .map((c) => ({ label: `${c.name} (${c.unitType})`, value: c.id }))
   );
 
-  readonly tableColumns: DataTableColumn[] = [
-    {
-      key: 'category',
-      label: 'Category',
-      sortable: true,
-      filterable: true,
-      getValue: (row) => (row as SortCategoryBucket).category?.name ?? (row as SortCategoryBucket).categoryId,
-    },
-    {
-      key: 'allocated',
-      label: 'Allocated (kg)',
-      align: 'right',
-      sortable: true,
-      getValue: (row) => (row as SortCategoryBucket).outputWeightKg ?? 0,
-    },
-    {
-      key: 'updatedAt',
-      label: 'Updated',
-      sortable: true,
-      getValue: (row) => (row as SortCategoryBucket).updatedAt,
-    },
-  ];
+  readonly breadcrumbs = computed<BreadcrumbItem[]>(() => {
+    const item = this.rag();
+    const code = item ? (item.ragCode || item.baleCode || 'Workspace') : 'Workspace';
+    return [
+      { label: 'Sorting', route: '/app/sorting/stage-1' },
+      { label: 'Stage 1', route: '/app/sorting/stage-1' },
+      { label: code },
+    ];
+  });
 
-  readonly wasteTableColumns: DataTableColumn[] = [
-    { key: 'category', label: 'Category', sortable: false },
-    { key: 'unit', label: 'Unit', sortable: false },
-    { key: 'amount', label: 'Amount', align: 'right', sortable: false },
-    { key: 'value', label: 'Est. Value', align: 'right', sortable: false },
-    { key: 'updatedAt', label: 'Updated', sortable: false },
-  ];
-
-  /** Clear totals computation: Input, Allocated, Waste, Remaining, Yield */
+  /** Totals computation: Input, Allocated, Waste, Remaining, Yield */
   readonly totals = computed(() => {
     const session: any = this.session();
     const input = Number(session?.totalInputWeight ?? this.rag()?.weightKg ?? 0);
@@ -161,13 +168,25 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
     const waste = Number(session?.declaredWasteAmount ?? 0);
     const remaining = Math.max(0, input - allocated - waste);
     const yieldPercent = input > 0 ? (allocated / input) * 100 : 0;
-    return { input, allocated, waste, remaining, yieldPercent };
+    const allocatedPercent = input > 0 ? Math.min(100, (allocated / input) * 100) : 0;
+    const wastePercent = input > 0 ? Math.min(100 - allocatedPercent, (waste / input) * 100) : 0;
+    const remainingPercent = Math.max(0, 100 - allocatedPercent - wastePercent);
+    return {
+      input,
+      allocated,
+      waste,
+      remaining,
+      yieldPercent,
+      allocatedPercent,
+      wastePercent,
+      remainingPercent,
+    };
   });
 
-  /** Can seal when session is started (remaining can be > 0, will prompt for waste category) */
+  /** Can seal when session is started */
   readonly canSeal = computed(() => {
     if (!this.started() || this.isClosed()) return false;
-    return true; // Allow seal even if remaining > 0 (will prompt)
+    return true;
   });
 
   /** Show waste prompt when remaining > 0 */
@@ -181,22 +200,27 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
     const wasteCount = this.wasteLineItems().length;
     const remaining = t.remaining;
     if (remaining > 0) {
-      return `⚠️ There is ${remaining.toFixed(2)} kg remaining.\n\n` +
-        `This will be automatically added as waste.\nPlease select a waste category.`;
+      return `⚠️ There is ${remaining.toFixed(2)} KG remaining in the intake.\n\n` +
+        `This remaining weight will be automatically logged as waste upon sealing.\nPlease select the target waste category.`;
     }
-    return `This action cannot be undone.\n\n` +
-      `Input: ${t.input.toFixed(2)} kg\n` +
-      `Allocated to ${catCount} categories: ${t.allocated.toFixed(2)} kg\n` +
-      `Waste (${wasteCount} items): ${t.waste.toFixed(2)} kg\n` +
-      `Remaining: ${remaining.toFixed(2)} kg`;
+    return `Sealing this session will lock all category allocations and finalize Stage 1 outputs.\n\n` +
+      `Total Input: ${t.input.toFixed(2)} KG\n` +
+      `Allocated to ${catCount} Categories: ${t.allocated.toFixed(2)} KG\n` +
+      `Logged Waste (${wasteCount} lines): ${t.waste.toFixed(2)} KG\n` +
+      `Yield Percentage: ${t.yieldPercent.toFixed(1)}%`;
   });
 
   ngOnInit(): void {
-    const ragId = this.route.snapshot.paramMap.get('ragId');
-    if (!ragId) {
-      this.error.set('Missing ragId');
+    const id = this.route.snapshot.paramMap.get('ragId');
+    if (!id) {
+      this.error.set('Missing target ID');
       this.loading.set(false);
       return;
+    }
+
+    const stateType = history.state?.sourceType as 'RAG' | 'LOOSE_BALE';
+    if (stateType) {
+      this.itemSourceType.set(stateType);
     }
 
     this.loading.set(true);
@@ -204,13 +228,33 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
 
     this.subs.add(
       forkJoin({
-        rag: this.ragService.getRag(ragId),
+        rag: this.ragService.getRag(id).pipe(catchError(() => of(null))),
+        bale: this.procurementService.getIncomingBale(id).pipe(catchError(() => of(null))),
         categories: this.sortingStage1.loadCategories(),
-        summary: this.facade.stage1Summary(ragId),
+        summary: this.facade.stage1Summary(id),
         wasteCategories: this.facade.wasteCategories(),
       }).subscribe({
-        next: ({ rag, categories, summary, wasteCategories }) => {
-          this.rag.set(rag);
+        next: ({ rag, bale, categories, summary, wasteCategories }) => {
+          if (rag) {
+            this.rag.set(rag);
+            this.itemSourceType.set('RAG');
+          } else if (bale) {
+            this.rag.set({
+              id: bale.id,
+              ragCode: bale.baleCode,
+              container: bale.container,
+              purchaseOrder: bale.purchaseOrder,
+              rawCategory: bale.rawCategory,
+              vendor: bale.vendor,
+              weightKg: bale.weightKg,
+            });
+            this.itemSourceType.set('LOOSE_BALE');
+          } else {
+            this.error.set('Target item not found');
+            this.loading.set(false);
+            return;
+          }
+
           this.categories.set((categories || []).filter((c) => c.isActive));
           this.session.set(summary.session);
           this.buckets.set(summary.buckets || []);
@@ -239,15 +283,16 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
   }
 
   startExecute(): void {
-    const rag = this.rag();
-    if (!rag) return;
+    const item = this.rag();
+    if (!item) return;
 
     this.showStartConfirm.set(false);
     this.loading.set(true);
     this.error.set(null);
 
+    const sourceType = this.itemSourceType();
     this.subs.add(
-      this.facade.stage1Start(rag.id, 'RAG').subscribe({
+      this.facade.stage1Start(item.id, sourceType).subscribe({
         next: (summary) => {
           this.session.set(summary.session);
           this.buckets.set(summary.buckets || []);
@@ -268,17 +313,18 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
     const sessionId = this.session()?.id;
     const categoryId = this.categoryId.value;
     const amount = Number(this.amountKg.value ?? 0);
+    const count = Number(this.pieceCount.value ?? 0);
 
     if (!sessionId) {
-      this.error.set('Start the session first');
+      this.error.set('Please start the session first');
       return;
     }
     if (!categoryId) {
-      this.error.set('Select a category');
+      this.error.set('Please select a category');
       return;
     }
     if (!(amount > 0)) {
-      this.error.set('Enter an amount > 0');
+      this.error.set('Enter an amount > 0 KG');
       return;
     }
 
@@ -286,16 +332,17 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
     this.error.set(null);
 
     this.subs.add(
-      this.facade.stage1Allocate(sessionId, categoryId, amount).subscribe({
+      this.facade.stage1Allocate(sessionId, categoryId, amount, count > 0 ? count : undefined).subscribe({
         next: (summary) => {
           this.session.set(summary.session);
           this.buckets.set(summary.buckets || []);
           this.wasteLineItems.set((summary as any).wasteLineItems || []);
           this.amountKg.setValue(0);
+          this.pieceCount.setValue(0);
           this.loading.set(false);
         },
         error: (err) => {
-          this.error.set(err?.message || 'Failed to allocate');
+          this.error.set(err?.message || 'Failed to allocate category weight');
           this.loading.set(false);
         },
       })
@@ -305,11 +352,9 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
   closeConfirm(): void {
     const remaining = this.totals().remaining;
     if (remaining > 0) {
-      // Show waste category prompt
       this.sealWasteCategoryId.setValue('');
       this.showSealWastePrompt.set(true);
     } else {
-      // No remaining, proceed directly
       this.showCloseConfirm.set(true);
     }
   }
@@ -321,7 +366,7 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
 
   closeSealWastePromptConfirm(): void {
     if (!this.sealWasteCategoryId.value) {
-      this.error.set('Please select a waste category');
+      this.error.set('Please select a waste category for the remaining weight');
       return;
     }
     this.showSealWastePrompt.set(false);
@@ -340,7 +385,6 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
     this.loading.set(true);
     this.error.set(null);
 
-    // Pass wasteCategoryId if remaining > 0
     const remaining = this.totals().remaining;
     const wasteCategoryId = remaining > 0 ? this.sealWasteCategoryId.value : undefined;
 
@@ -353,7 +397,7 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
           this.loading.set(false);
         },
         error: (err) => {
-          this.error.set(err?.message || 'Failed to close session');
+          this.error.set(err?.message || 'Failed to seal session');
           this.loading.set(false);
         },
       })
@@ -369,18 +413,18 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
 
     const sessionId = this.session()?.id;
     if (!sessionId) {
-      this.error.set('Start the session first');
+      this.error.set('Please start the session first');
       return;
     }
 
     const categoryId = this.wasteCategoryId.value;
     const amount = Number(this.wasteAmount.value ?? 0);
     if (!categoryId) {
-      this.error.set('Select a waste category');
+      this.error.set('Please select a waste category');
       return;
     }
     if (!(amount > 0)) {
-      this.error.set('Enter a waste amount > 0');
+      this.error.set('Enter a waste amount > 0 KG');
       return;
     }
 
@@ -410,7 +454,6 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
     );
   }
 
-  /** Quick fill the waste form with the remaining amount */
   fillRemainingAsWaste(): void {
     const remaining = this.totals().remaining;
     if (remaining > 0) {
@@ -464,8 +507,6 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
     );
   }
 
-  // ─── Bucket (Category Allocation) Edit/Delete ───────────────────────────────
-
   editBucket(bucket: SortCategoryBucket): void {
     this.editingBucket.set(bucket);
     this.editBucketWeight.setValue(Number(bucket.outputWeightKg ?? 0));
@@ -484,7 +525,7 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
 
     const weight = Number(this.editBucketWeight.value ?? 0);
     if (!(weight > 0)) {
-      this.error.set('Enter a weight > 0');
+      this.error.set('Enter a weight > 0 KG');
       return;
     }
 
@@ -494,7 +535,6 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
     this.subs.add(
       this.facade.stage1UpdateBucket(bucket.id, weight).subscribe({
         next: () => {
-          // Re-fetch summary to get updated totals
           this.refreshSummary();
           this.editingBucket.set(null);
           this.editBucketWeight.setValue(0);
@@ -528,7 +568,6 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
     this.subs.add(
       this.facade.stage1DeleteBucket(id).subscribe({
         next: () => {
-          // Re-fetch summary to get updated totals
           this.refreshSummary();
           this.deletingBucketId.set(null);
         },
@@ -540,16 +579,15 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
     );
   }
 
-  /** Re-fetch the session summary to get updated totals after bucket changes */
   private refreshSummary(): void {
-    const ragId = this.rag()?.id;
-    if (!ragId) {
+    const item = this.rag();
+    if (!item?.id) {
       this.loading.set(false);
       return;
     }
 
     this.subs.add(
-      this.facade.stage1Summary(ragId).subscribe({
+      this.facade.stage1Summary(item.id).subscribe({
         next: (summary) => {
           this.session.set(summary.session);
           this.buckets.set(summary.buckets || []);
@@ -562,11 +600,5 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
         },
       })
     );
-  }
-
-  traceContainerLabel(): string {
-    const rag = this.rag();
-    if (!rag) return '—';
-    return rag.container?.containerNumber || '—';
   }
 }

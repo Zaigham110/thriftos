@@ -252,9 +252,13 @@ export class RepackUnitService {
     });
 
     if (unit.status !== RepackStatus.DRAFT) {
+      const allocatedFromInputs = unit.inputAllocations.reduce((sum, a: any) => sum + Number(a.amountUsed), 0);
+      const fallbackAmount = unit.measurementType === 'QUANTITY' ? unit.pcsCount : Number(unit.weightKg);
+      const allocatedAmount = allocatedFromInputs > 0 ? allocatedFromInputs : fallbackAmount;
       return {
         ...unit,
         inputAllocations: transformedAllocations,
+        allocatedAmount,
       };
     }
     if (!unit.categoryId || !unit.gradeId || !unit.measurementType) {
@@ -545,11 +549,15 @@ export class RepackUnitService {
       select: {
         id: true,
         unitCode: true,
-        createdAt: true,
-        category: { select: { id: true, name: true } },
-        grade: { select: { id: true, name: true } },
+        status: true,
+        categoryId: true,
+        gradeId: true,
         targetAmount: true,
         measurementType: true,
+        createdAt: true,
+        updatedAt: true,
+        category: { select: { id: true, name: true } },
+        grade: { select: { id: true, name: true } },
         inputAllocations: { select: { amountUsed: true } },
       },
       orderBy: {
@@ -561,11 +569,15 @@ export class RepackUnitService {
       const allocatedAmount = (u.inputAllocations ?? []).reduce((sum: number, a: any) => sum + Number(a.amountUsed), 0);
       return {
         id: u.id,
-        code: u.unitCode,
+        unitCode: u.unitCode,
+        status: u.status || 'DRAFT',
+        categoryId: u.categoryId,
+        gradeId: u.gradeId,
         category: u.category,
         grade: u.grade,
-        targetAmount: u.targetAmount,
+        targetAmount: Number(u.targetAmount) || 0,
         allocatedAmount,
+        measurementType: u.measurementType || 'WEIGHT',
         createdAt: u.createdAt,
       };
     });
@@ -583,34 +595,49 @@ export class RepackUnitService {
       select: {
         id: true,
         unitCode: true,
-        createdAt: true,
-        updatedAt: true,
+        status: true,
+        categoryId: true,
+        gradeId: true,
         weightKg: true,
         pcsCount: true,
+        targetAmount: true,
         totalCost: true,
-        status: true,
         measurementType: true,
+        createdAt: true,
+        updatedAt: true,
         category: { select: { id: true, name: true } },
         grade: { select: { id: true, name: true } },
+        inputAllocations: { select: { amountUsed: true } },
       },
       orderBy: {
         updatedAt: 'desc',
       },
     });
 
-    return units.map((u: any) => ({
-      id: u.id,
-      unitCode: u.unitCode,
-      status: u.status,
-      category: u.category,
-      grade: u.grade,
-      weightKg: Number(u.weightKg) || 0,
-      pcsCount: u.pcsCount || 0,
-      totalCost: Number(u.totalCost) || 0,
-      measurementType: u.measurementType,
-      createdAt: u.createdAt,
-      sealedAt: u.updatedAt,
-    }));
+    return units.map((u: any) => {
+      const allocatedFromInputs = (u.inputAllocations ?? []).reduce((sum: number, a: any) => sum + Number(a.amountUsed), 0);
+      const fallbackAmount = u.measurementType === 'QUANTITY' ? u.pcsCount : Number(u.weightKg);
+      const allocatedAmount = allocatedFromInputs > 0 ? allocatedFromInputs : (fallbackAmount || 0);
+      const targetAmount = Number(u.targetAmount) || fallbackAmount || 0;
+
+      return {
+        id: u.id,
+        unitCode: u.unitCode,
+        status: u.status,
+        categoryId: u.categoryId,
+        gradeId: u.gradeId,
+        category: u.category,
+        grade: u.grade,
+        weightKg: Number(u.weightKg) || 0,
+        pcsCount: u.pcsCount || 0,
+        totalCost: Number(u.totalCost) || 0,
+        targetAmount,
+        allocatedAmount,
+        measurementType: u.measurementType || 'WEIGHT',
+        createdAt: u.createdAt,
+        sealedAt: u.updatedAt,
+      };
+    });
   }
 
   async allocateToDraft(

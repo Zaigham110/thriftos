@@ -23,13 +23,6 @@ export type BrandPanelSize = 'lg' | 'md' | 'sm';
           (error)="onLogoError()"
         />
       }
-
-      <div class="brand-text">
-        <div class="brand-name">{{ name }}</div>
-        @if (subtitle) {
-          <div class="brand-subtitle">{{ subtitle }}</div>
-        }
-      </div>
     </div>
   `,
   styles: [
@@ -41,21 +34,13 @@ export type BrandPanelSize = 'lg' | 'md' | 'sm';
       }
 
       .brand {
-        display: flex;
-        align-items: center;
-        gap: var(--space-sm);
-        color: var(--app-text-primary);
         width: 100%;
         min-width: 0;
       }
 
       .brand-logo {
-        width: 32px;
-        height: 32px;
-        border-radius: var(--border-radius-sm);
-        border: 1px solid var(--app-border-subtle);
-        background: var(--app-bg-surface);
-        flex: 0 0 auto;
+        width: auto;
+        height: 48px;
       }
 
       .brand-text {
@@ -145,9 +130,9 @@ export class AppBrandPanelComponent {
 
   /**
    * Logo URL.
-   * Phase-0: uses public/favicon.ico as the canonical logo asset.
+   * Phase-0: uses public/os_logo.png as the canonical logo asset.
    */
-  @Input() logoUrl = '/favicon.ico';
+  @Input() logoUrl = '/os_logo.png';
 
   protected failed = false;
 

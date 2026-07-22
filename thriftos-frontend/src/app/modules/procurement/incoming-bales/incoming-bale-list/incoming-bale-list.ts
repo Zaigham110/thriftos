@@ -41,7 +41,6 @@ import {
   imports: [
     CommonModule,
     RouterLink,
-    DatePipe,
     DecimalPipe,
     MoneyPipe,
     LucideAngularModule,

@@ -6,15 +6,18 @@
 
 export interface InventoryItem {
   id: string;
-  unitCode: string;
+  unitCode?: string;
   repackUnitId: string;
-  category: string;
-  grade: string;
+  category?: { id: string; name: string } | null;
+  categoryName?: string | null;
+  grade?: { id: string; name: string } | null;
+  gradeName?: string | null;
   categoryId: string;
   gradeId: string;
   measurementType: 'WEIGHT' | 'QUANTITY';
   weightKg: number;
   pcsCount: number;
+  avgCost?: number;
   warehouseId?: string | null;
   warehouseName?: string | null;
   status: 'AVAILABLE' | 'MOVED' | 'CONSUMED';

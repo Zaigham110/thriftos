@@ -23,6 +23,11 @@ export class Stage2AllocateDto {
   @IsNumber()
   @Min(0)
   amountKg!: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  outputCount?: number;
 }
 
 export class Stage2AddWasteDto {

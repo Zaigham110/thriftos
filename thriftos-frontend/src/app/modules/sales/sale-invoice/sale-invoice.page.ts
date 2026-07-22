@@ -1,51 +1,57 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
+/**
+ * Sale Invoice Component
+ * Phase 2: Sales Module UI
+ * 
+ * Commercial customer invoice and payment recording view.
+ */
 
+import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
-  AppBadgeComponent,
-  AppButtonComponent,
+  LucideAngularModule,
+  Printer,
+  ArrowLeft,
+  DollarSign,
+  CreditCard,
+  UserCheck,
+  CheckCircle2,
+  FileText,
+  Plus,
+} from 'lucide-angular';
+
+import { SalesService } from '../sales.service';
+import type { SaleDetail, SaleStatus } from '../sales.models';
+import { MoneyPipe } from '../../../core/money/money.pipe';
+import {
+  AppBreadcrumbComponent,
   AppDialogComponent,
   AppEmptyStateComponent,
   AppErrorStateComponent,
-  AppFormFieldComponent,
-  AppInputComponent,
   AppLoadingComponent,
   AppPageBodyComponent,
   AppPageComponent,
   AppPageHeaderComponent,
-  AppSectionBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
+  type BreadcrumbItem,
 } from '../../../shared/ui';
-import { MoneyPipe } from '../../../core/money/money.pipe';
-
-import { SalesService } from '../sales.service';
-import type { SaleDetail, SaleStatus } from '../sales.models';
 
 @Component({
   selector: 'app-sale-invoice',
   standalone: true,
   imports: [
     CommonModule,
-    RouterLink,
     ReactiveFormsModule,
+    DatePipe,
+    DecimalPipe,
+    MoneyPipe,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
+    AppBreadcrumbComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
-    AppEmptyStateComponent,
-    AppButtonComponent,
-    AppBadgeComponent,
-    AppFormFieldComponent,
-    AppInputComponent,
-    AppDialogComponent,
-    MoneyPipe,
   ],
   templateUrl: './sale-invoice.page.html',
   styleUrl: './sale-invoice.page.scss',
@@ -56,6 +62,17 @@ export class SaleInvoicePage implements OnInit {
   private readonly router = inject(Router);
   private readonly salesService = inject(SalesService);
 
+  readonly icons = {
+    Printer,
+    ArrowLeft,
+    DollarSign,
+    CreditCard,
+    UserCheck,
+    CheckCircle2,
+    FileText,
+    Plus,
+  };
+
   readonly saleId = signal<string>('');
   readonly loading = signal<boolean>(false);
   readonly saving = signal<boolean>(false);
@@ -63,24 +80,32 @@ export class SaleInvoicePage implements OnInit {
 
   readonly sale = signal<SaleDetail | null>(null);
 
-  readonly payments = computed(() => this.sale()?.payments ?? []);
+  readonly breadcrumbs = computed<BreadcrumbItem[]>(() => {
+    const s = this.sale();
+    const code = s ? (s.saleNumber || `SO-${String(s.id).slice(0, 8).toUpperCase()}`) : 'Invoice';
+    return [
+      { label: 'Sales', route: '/app/sales' },
+      { label: 'Orders', route: '/app/sales' },
+      { label: code, route: s ? `/app/sales/${s.id}` : undefined },
+      { label: 'Commercial Invoice' },
+    ];
+  });
 
-  // Payment form (only allowed when issued)
+  readonly payments = computed(() => this.sale()?.payments || []);
+
+  // Payment form
   readonly paymentAmount = new FormControl<string>('0', { nonNullable: true });
   readonly paymentMethod = new FormControl<string>('cash', { nonNullable: true });
 
-  // Cancel confirmation (DRAFT only — but invoice page should generally be for issued. Still keep safe.)
-  readonly confirmCancelOpen = signal<boolean>(false);
-
   readonly paidAmount = computed(() => {
     const s = this.sale();
-    const payments = s?.payments ?? [];
-    return payments.reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+    const payments = s?.payments || [];
+    return payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
   });
 
   readonly balanceAmount = computed(() => {
     const s = this.sale();
-    return Number(s?.totalAmount ?? 0) - this.paidAmount();
+    return Number(s?.totalAmount || 0) - this.paidAmount();
   });
 
   ngOnInit(): void {
@@ -106,27 +131,10 @@ export class SaleInvoicePage implements OnInit {
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set(err?.message ?? 'Failed to load invoice');
+        this.error.set(err?.message || 'Failed to load invoice');
         this.loading.set(false);
       },
     });
-  }
-
-  getStatusVariant(status: SaleStatus): 'default' | 'success' | 'warning' | 'danger' {
-    switch (status) {
-      case 'DRAFT':
-        return 'default';
-      case 'ISSUED':
-        return 'warning';
-      case 'PARTIALLY_PAID':
-        return 'warning';
-      case 'PAID':
-        return 'success';
-      case 'CANCELLED':
-        return 'danger';
-      default:
-        return 'default';
-    }
   }
 
   canAddPayment(): boolean {
@@ -137,21 +145,13 @@ export class SaleInvoicePage implements OnInit {
 
   addPayment(): void {
     const s = this.sale();
-    if (!s) return;
-    if (!this.canAddPayment()) {
-      this.error.set('Payments can only be recorded after issuing the invoice');
-      return;
-    }
+    if (!s || !this.canAddPayment()) return;
 
-    const amount = Number(this.paymentAmount.value ?? '0');
-    const method = String(this.paymentMethod.value ?? '').trim();
+    const amount = Number(this.paymentAmount.value || '0');
+    const method = String(this.paymentMethod.value || '').trim();
 
     if (!Number.isFinite(amount) || amount <= 0) {
-      this.error.set('Payment amount must be > 0');
-      return;
-    }
-    if (!method) {
-      this.error.set('Payment method is required');
+      this.error.set('Payment amount must be greater than zero');
       return;
     }
 
@@ -167,40 +167,26 @@ export class SaleInvoicePage implements OnInit {
       },
       error: (err) => {
         this.saving.set(false);
-        this.error.set(err?.message ?? 'Failed to add payment');
+        this.error.set(err?.message || 'Failed to record payment');
       },
     });
   }
 
-  // Safety: allow cancel only if draft (should be hidden/disabled on invoice).
-  openCancel(): void {
-    const s = this.sale();
-    if (!s || s.status !== 'DRAFT') return;
-    this.confirmCancelOpen.set(true);
+  printInvoice(): void {
+    window.print();
   }
 
-  closeCancel(): void {
-    if (this.saving()) return;
-    this.confirmCancelOpen.set(false);
+  goBack(): void {
+    const id = this.saleId();
+    if (id) {
+      this.router.navigate(['/app/sales', id]);
+    } else {
+      this.router.navigate(['/app/sales']);
+    }
   }
 
-  confirmCancel(): void {
-    const s = this.sale();
-    if (!s) return;
-    if (s.status !== 'DRAFT') return;
-
-    this.saving.set(true);
-    this.salesService.cancel(s.id).subscribe({
-      next: (updated) => {
-        this.sale.set(updated);
-        this.confirmCancelOpen.set(false);
-        this.saving.set(false);
-      },
-      error: (err) => {
-        this.confirmCancelOpen.set(false);
-        this.saving.set(false);
-        this.error.set(err?.message ?? 'Failed to cancel sale');
-      },
-    });
+  saleCode(s: SaleDetail | null): string {
+    if (!s) return '—';
+    return s.saleNumber || `SO-${String(s.id).slice(0, 8).toUpperCase()}`;
   }
 }

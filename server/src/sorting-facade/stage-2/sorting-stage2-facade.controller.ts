@@ -77,22 +77,25 @@ export class SortingStage2FacadeController {
       select: { id: true, outputWeightKg: true, outputCount: true },
     });
 
+    const count = Number(dto.outputCount || 0);
+
     if (!existing) {
       await this.gradeBucketService.createForSession(
         tenantId,
         dto.sessionId,
-        { gradeId: dto.gradeId, outputWeightKg: amount, outputCount: 0 },
+        { gradeId: dto.gradeId, outputWeightKg: amount, outputCount: count },
         user.userId,
       );
       return this.getSessionSummary(tenantId, dto.sessionId);
     }
 
     const newWeight = Number(existing.outputWeightKg || 0) + amount;
+    const newCount = Number(existing.outputCount || 0) + count;
 
     await this.gradeBucketService.update(
       tenantId,
       existing.id,
-      { outputWeightKg: newWeight, outputCount: existing.outputCount ?? 0 },
+      { outputWeightKg: newWeight, outputCount: newCount },
       user.userId,
     );
 

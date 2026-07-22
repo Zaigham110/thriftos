@@ -1,114 +1,199 @@
 <app-page>
-  <app-page-header>
-    <h1>Invoice</h1>
-    <p class="subtitle">
-      @if (sale()) {
-        Sale {{ sale()!.saleNumber }}
-        <app-badge class="status" [variant]="getStatusVariant(sale()!.status)">
-          {{ sale()!.status }}
-        </app-badge>
+  <app-page-header class="no-print">
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs()"></app-breadcrumb>
+      </div>
+      @if (sale(); as s) {
+        <div class="title-with-code">
+          <h1 class="page-title">Commercial Invoice</h1>
+          <span class="code-badge">
+            <lucide-icon [img]="icons.FileText" [size]="14"></lucide-icon>
+            INV-{{ saleCode(s) }}
+          </span>
+        </div>
       }
-    </p>
+    </div>
+
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="goBack()">
+        <lucide-icon [img]="icons.ArrowLeft" [size]="15"></lucide-icon>
+        Back to Order
+      </button>
+      <button class="btn btn-primary" (click)="printInvoice()">
+        <lucide-icon [img]="icons.Printer" [size]="15"></lucide-icon>
+        Print Invoice
+      </button>
+    </div>
   </app-page-header>
 
   <app-page-body>
+    @if (error()) {
+      <app-error-state
+        [message]="error()!"
+        (retry)="loadSale()"
+      ></app-error-state>
+    }
+
     @if (loading()) {
-      <app-loading message="Loading invoice..." />
-    } @else if (error()) {
-      <app-error-state [message]="error()!" [action]="true">
-        <app-button action variant="secondary" (clickEvent)="loadSale()">Retry</app-button>
-      </app-error-state>
-    } @else if (!sale()) {
-      <app-empty-state title="Invoice not found" message="This invoice could not be loaded." />
-    } @else {
-      <app-section>
-        <app-section-header>
-          <h2>Summary</h2>
-          <div class="actions">
-            <app-button variant="secondary" [routerLink]="['/app/sales', sale()!.id]">Back to Sale</app-button>
-          </div>
-        </app-section-header>
-
-        <app-section-body>
-          <div class="summary-grid">
-            <div class="field">
-              <div class="label">Customer</div>
-              <div class="value">{{ sale()!.customer?.name || '—' }}</div>
+      <app-loading message="Loading printable commercial invoice…"></app-loading>
+    } @else if (sale(); as s) {
+      
+      <div class="invoice-container">
+        
+        <!-- Printable Invoice Paper Card -->
+        <div class="invoice-paper">
+          
+          <!-- Invoice Header -->
+          <div class="invoice-header">
+            <div class="company-brand">
+              <h2>THRIFTOS ERP</h2>
+              <p>Wholesale Textiles & Supply Chain Logistics</p>
             </div>
-            <div class="field">
-              <div class="label">Issued At</div>
-              <div class="value">{{ sale()!.issuedAt ? (sale()!.issuedAt | date:'medium') : '—' }}</div>
-            </div>
-            <div class="field">
-              <div class="label">Total</div>
-              <div class="value tabular-nums">{{ sale()!.totalAmount | money }}</div>
-            </div>
-            <div class="field">
-              <div class="label">Paid</div>
-              <div class="value tabular-nums">{{ paidAmount() | money }}</div>
-            </div>
-            <div class="field">
-              <div class="label">Balance</div>
-              <div class="value tabular-nums">{{ balanceAmount() | money }}</div>
-            </div>
-          </div>
-        </app-section-body>
-      </app-section>
 
-      <app-section>
-        <app-section-header>
-          <h2>Payments</h2>
-        </app-section-header>
-
-        <app-section-body>
-          @if (sale()!.status === 'DRAFT') {
-            <app-empty-state title="Invoice not issued" message="Issue the invoice before recording payments." />
-          } @else {
-            <div class="payment-form">
-              <app-form-field label="Amount">
-                <app-input type="number" placeholder="0" [disabled]="saving()" [formControl]="paymentAmount" />
-              </app-form-field>
-
-              <app-form-field label="Method">
-                <app-input placeholder="cash / bank / transfer" [disabled]="saving()" [formControl]="paymentMethod" />
-              </app-form-field>
-
-              <div class="form-actions">
-                <app-button variant="primary" [disabled]="saving()" (clickEvent)="addPayment()">
-                  Add Payment
-                </app-button>
+            <div class="invoice-meta text-right">
+              <h1 class="invoice-title">COMMERCIAL INVOICE</h1>
+              <div class="meta-row">
+                <span class="meta-label">Invoice #:</span>
+                <span class="meta-val font-mono font-bold">INV-{{ saleCode(s) }}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Date:</span>
+                <span class="meta-val">{{ s.createdAt | date:'mediumDate' }}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Status:</span>
+                <span class="status-pill">{{ s.status }}</span>
               </div>
             </div>
+          </div>
 
-            @if (payments().length === 0) {
-              <app-empty-state title="No payments" message="No payments recorded yet." />
-            } @else {
-              <div class="payments">
-                @for (p of payments(); track p.id) {
-                  <div class="payment-row">
-                    <div class="method">{{ p.method }}</div>
-                    <div class="date">{{ p.receivedAt | date:'medium' }}</div>
-                    <div class="amount tabular-nums">{{ p.amount | money }}</div>
-                  </div>
+          <!-- Bill To / Customer Details -->
+          <div class="customer-section mt-4">
+            <div class="bill-to">
+              <span class="section-label">Billed To:</span>
+              <h4 class="customer-name">{{ s.customer?.name || 'Wholesale Buyer' }}</h4>
+              @if (s.customer?.companyName) {
+                <p class="company-name">{{ s.customer!.companyName }}</p>
+              }
+              @if (s.customer?.billingAddress) {
+                <p class="address">{{ s.customer!.billingAddress }}</p>
+              }
+              @if (s.customer?.contactEmail) {
+                <p class="email">{{ s.customer!.contactEmail }}</p>
+              }
+            </div>
+
+            <div class="ship-to text-right">
+              <span class="section-label">Order Details:</span>
+              <p><strong>Channel:</strong> {{ s.type }}</p>
+              <p><strong>Currency:</strong> {{ s.currencyCode || 'USD' }}</p>
+            </div>
+          </div>
+
+          <!-- Line Items Table -->
+          <div class="invoice-lines mt-4">
+            <table class="invoice-table">
+              <thead>
+                <tr>
+                  <th>Item Code / Inventory</th>
+                  <th>Category / Grade</th>
+                  <th class="text-right">Quantity</th>
+                  <th class="text-right">Unit Price</th>
+                  <th class="text-right">Line Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of s.lines; track line.id) {
+                  <tr>
+                    <td>
+                      <span class="font-mono font-bold">{{ line.inventoryItem?.unitCode || 'INV-' + line.inventoryItemId.slice(0, 8).toUpperCase() }}</span>
+                    </td>
+                    <td>Finished Goods</td>
+                    <td class="text-right font-mono">{{ line.quantity | number:'1.2-2' }} {{ line.measurementType === 'WEIGHT' ? 'KG' : 'PCS' }}</td>
+                    <td class="text-right font-mono">{{ line.unitPrice | money }}</td>
+                    <td class="text-right font-mono font-bold">{{ line.lineTotal | money }}</td>
+                  </tr>
                 }
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Invoice Summary Totals -->
+          <div class="invoice-summary mt-4">
+            <div class="summary-box text-right">
+              <div class="summary-row">
+                <span>Subtotal:</span>
+                <span class="font-mono font-bold">{{ s.totalAmount | money }}</span>
+              </div>
+              <div class="summary-row">
+                <span>Paid Amount:</span>
+                <span class="font-mono text-emerald">{{ paidAmount() | money }}</span>
+              </div>
+              <div class="summary-row total-due-row">
+                <span>Balance Due:</span>
+                <span class="font-mono font-bold text-amber">{{ balanceAmount() | money }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payment History & Add Payment Form (No Print) -->
+          <div class="payments-section mt-4 no-print">
+            <h3 class="font-bold text-base border-b pb-2 mb-3">Recorded Customer Payments</h3>
+
+            @if (canAddPayment()) {
+              <div class="add-payment-card mb-3 p-3">
+                <div class="add-payment-grid">
+                  <div class="form-group flex-1">
+                    <label class="form-label">Payment Amount ($)</label>
+                    <input type="number" [formControl]="paymentAmount" class="form-input font-mono text-right" placeholder="0.00" />
+                  </div>
+
+                  <div class="form-group flex-1">
+                    <label class="form-label">Payment Method</label>
+                    <select [formControl]="paymentMethod" class="form-select">
+                      <option value="cash">Cash / Bank Wire</option>
+                      <option value="check">Check</option>
+                      <option value="card">Credit Card</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group flex-0 align-self-end">
+                    <button class="btn btn-primary btn-sm" (click)="addPayment()" [disabled]="saving()">
+                      <lucide-icon [img]="icons.Plus" [size]="13"></lucide-icon>
+                      Record Payment
+                    </button>
+                  </div>
+                </div>
               </div>
             }
-          }
-        </app-section-body>
-      </app-section>
 
-      <app-dialog
-        [open]="confirmCancelOpen()"
-        title="Cancel draft sale?"
-        message="This will release all reserved inventory and lock the sale as CANCELLED."
-        icon="alert-triangle"
-        variant="danger"
-        confirmText="Cancel Sale"
-        cancelText="Keep Draft"
-        [loading]="saving()"
-        (confirmed)="confirmCancel()"
-        (cancelled)="closeCancel()"
-      ></app-dialog>
+            @if (payments().length === 0) {
+              <p class="text-sm text-muted">No payment transactions recorded for this invoice yet.</p>
+            } @else {
+              <table class="directory-table">
+                <thead>
+                  <tr>
+                    <th>Payment Method</th>
+                    <th class="text-right">Amount Paid</th>
+                    <th>Recorded Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (p of payments(); track p.id) {
+                    <tr>
+                      <td class="font-bold text-primary">{{ p.method }}</td>
+                      <td class="text-right font-mono font-bold text-emerald">{{ p.amount | money }}</td>
+                      <td class="text-muted text-xs">{{ p.createdAt | date:'medium' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          </div>
+
+        </div>
+      </div>
     }
   </app-page-body>
 </app-page>

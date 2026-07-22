@@ -129,11 +129,12 @@ export class SortingFacadeService {
     return this.http.post<Stage1Summary>(`${API_ENDPOINTS.sortingFacadeStage1}/start`, body);
   }
 
-  stage1Allocate(sessionId: string, categoryId: string, amountKg: number) {
+  stage1Allocate(sessionId: string, categoryId: string, amountKg: number, outputCount?: number) {
     return this.http.post<Stage1Summary>(`${API_ENDPOINTS.sortingFacadeStage1}/allocate`, {
       sessionId,
       categoryId,
       amountKg,
+      ...(outputCount !== undefined ? { outputCount } : {}),
     });
   }
 
@@ -182,11 +183,12 @@ export class SortingFacadeService {
     });
   }
 
-  stage2Allocate(sessionId: string, gradeId: string, amountKg: number) {
+  stage2Allocate(sessionId: string, gradeId: string, amountKg: number, outputCount?: number) {
     return this.http.post<Stage2Summary>(`${API_ENDPOINTS.sortingFacadeStage2}/allocate`, {
       sessionId,
       gradeId,
       amountKg,
+      ...(outputCount !== undefined ? { outputCount } : {}),
     });
   }
 

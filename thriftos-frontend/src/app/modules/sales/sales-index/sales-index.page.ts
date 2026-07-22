@@ -1,51 +1,61 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { Router, RouterLink } from '@angular/router';
+/**
+ * Sales Index Component
+ * Phase 2: Sales & Wholesale Orders Module UI
+ * 
+ * High-density directory table and KPI summary cards for Wholesale & Retail Sales.
+ */
 
+import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
 import {
-  AppBadgeComponent,
-  AppButtonComponent,
-  AppDataTableComponent,
+  LucideAngularModule,
+  ShoppingBag,
+  Plus,
+  RefreshCw,
+  Eye,
+  XCircle,
+  DollarSign,
+  TrendingUp,
+  CreditCard,
+  UserCheck,
+  CheckCircle2,
+  Clock,
+} from 'lucide-angular';
+
+import { SalesService } from '../sales.service';
+import type { SaleListItem, SaleStatus } from '../sales.models';
+import { MoneyPipe } from '../../../core/money/money.pipe';
+import {
+  AppBreadcrumbComponent,
+  AppDialogComponent,
   AppEmptyStateComponent,
   AppErrorStateComponent,
   AppLoadingComponent,
   AppPageBodyComponent,
   AppPageComponent,
   AppPageHeaderComponent,
-  AppSectionBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  type DataTableColumn,
-  type DataTableState,
-  AppDialogComponent,
+  type BreadcrumbItem,
 } from '../../../shared/ui';
-import { MoneyPipe } from '../../../core/money/money.pipe';
 
-import { SalesService } from '../sales.service';
-import type { SaleListItem, SaleStatus } from '../sales.models';
-
-type SalesTab = 'DRAFTS' | 'ISSUED' | 'PAID';
+type SalesTab = 'ALL' | 'DRAFTS' | 'ISSUED' | 'PAID';
 
 @Component({
   selector: 'app-sales-index',
   standalone: true,
   imports: [
     CommonModule,
-    RouterLink,
+    DatePipe,
+    MoneyPipe,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppDataTableComponent,
-    AppBadgeComponent,
-    AppButtonComponent,
+    AppBreadcrumbComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
     AppEmptyStateComponent,
     AppDialogComponent,
-    MoneyPipe,
   ],
   templateUrl: './sales-index.page.html',
   styleUrl: './sales-index.page.scss',
@@ -55,71 +65,60 @@ export class SalesIndexPage implements OnInit {
   private readonly router = inject(Router);
   private readonly salesService = inject(SalesService);
 
+  readonly breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Sales', route: '/app/sales' },
+    { label: 'Orders Directory' },
+  ];
+
+  readonly icons = {
+    ShoppingBag,
+    Plus,
+    RefreshCw,
+    Eye,
+    XCircle,
+    DollarSign,
+    TrendingUp,
+    CreditCard,
+    UserCheck,
+    CheckCircle2,
+    Clock,
+  };
+
+  // State
   readonly loading = signal<boolean>(false);
   readonly error = signal<string | null>(null);
   readonly sales = signal<SaleListItem[]>([]);
+  readonly activeTab = signal<SalesTab>('ALL');
 
-  readonly activeTab = signal<SalesTab>('DRAFTS');
-
-  // Cancel confirmation
+  // Cancel confirmation modal state
   readonly confirmCancelOpen = signal<boolean>(false);
   readonly cancelling = signal<boolean>(false);
   readonly saleToCancel = signal<SaleListItem | null>(null);
 
+  // Computed KPI Metrics
+  readonly totalSalesCount = computed(() => this.sales().length);
+  readonly activeDraftsCount = computed(() => this.sales().filter((s) => s.status === 'DRAFT').length);
+  readonly totalRevenue = computed(() => {
+    return this.sales()
+      .filter((s) => s.status !== 'CANCELLED')
+      .reduce((sum, s) => sum + Number(s.totalAmount || 0), 0);
+  });
+  readonly totalProfit = computed(() => {
+    return this.sales()
+      .filter((s) => s.status !== 'CANCELLED')
+      .reduce((sum, s) => sum + Number(s.totalProfit || 0), 0);
+  });
+
+  // Filtered rows for current active tab
   readonly visibleSales = computed(() => {
     const tab = this.activeTab();
     const rows = this.sales();
 
     if (tab === 'DRAFTS') return rows.filter((s) => s.status === 'DRAFT');
     if (tab === 'PAID') return rows.filter((s) => s.status === 'PAID');
-
-    // ISSUED tab (includes issued + partially paid + cancelled)
-    return rows.filter((s) => s.status !== 'DRAFT' && s.status !== 'PAID');
+    if (tab === 'ISSUED') return rows.filter((s) => s.status === 'ISSUED' || s.status === 'PARTIALLY_PAID');
+    return rows;
   });
-
-  readonly tableColumns: DataTableColumn[] = [
-    { key: 'saleNumber', label: 'Sale #', sortable: true, width: '130px' },
-    {
-      key: 'createdAt',
-      label: 'Date',
-      sortable: true,
-      width: '170px',
-      getValue: (row: any) => new Date((row as SaleListItem).createdAt).toISOString(),
-    },
-    {
-      key: 'customer',
-      label: 'Customer',
-      sortable: true,
-      width: '220px',
-      getValue: (row: any) => (row as SaleListItem).customer?.name ?? '—',
-    },
-    { key: 'type', label: 'Type', sortable: true, width: '120px' },
-    { key: 'status', label: 'Status', sortable: true, width: '140px' },
-    {
-      key: 'total',
-      label: 'Total',
-      sortable: true,
-      align: 'right',
-      width: '140px',
-      getValue: (row: any) => (row as SaleListItem).totalAmount,
-    },
-    {
-      key: 'paid',
-      label: 'Paid',
-      sortable: true,
-      align: 'right',
-      width: '140px',
-      getValue: (row: any) => this.paidAmountForRow(row as SaleListItem),
-    },
-    {
-      key: 'balance',
-      label: 'Balance',
-      sortable: true,
-      align: 'right',
-      width: '140px',
-      getValue: (row: any) => this.balanceAmountForRow(row as SaleListItem),
-    },
-  ];
 
   ngOnInit(): void {
     this.loadSales();
@@ -131,31 +130,32 @@ export class SalesIndexPage implements OnInit {
 
     this.salesService.list().subscribe({
       next: (rows) => {
-        this.sales.set(rows ?? []);
+        this.sales.set(rows || []);
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set(err?.message ?? 'Failed to load sales');
+        this.error.set(err?.message || 'Failed to load sales orders');
         this.loading.set(false);
       },
     });
-  }
-
-  onTableStateChange(_state: DataTableState): void {
-    // Server-side pagination isn’t implemented for sales yet; keep table in client mode.
   }
 
   selectTab(tab: SalesTab): void {
     this.activeTab.set(tab);
   }
 
-  onRowClick(row: SaleListItem): void {
-    this.router.navigate(['/app/sales', row.id]);
+  createOrder(): void {
+    this.router.navigate(['/app/sales/new']);
   }
 
-  openCancel(row: SaleListItem): void {
-    if (row.status !== 'DRAFT') return;
-    this.saleToCancel.set(row);
+  openOrder(sale: SaleListItem): void {
+    this.router.navigate(['/app/sales', sale.id]);
+  }
+
+  openCancel(sale: SaleListItem, event: Event): void {
+    event.stopPropagation();
+    if (sale.status !== 'DRAFT') return;
+    this.saleToCancel.set(sale);
     this.confirmCancelOpen.set(true);
   }
 
@@ -179,36 +179,24 @@ export class SalesIndexPage implements OnInit {
       },
       error: (err) => {
         this.cancelling.set(false);
-        this.error.set(err?.message ?? 'Failed to cancel sale');
+        this.error.set(err?.message || 'Failed to cancel sale order');
         this.confirmCancelOpen.set(false);
         this.saleToCancel.set(null);
       },
     });
   }
 
-  getStatusVariant(status: SaleStatus): 'default' | 'success' | 'warning' | 'danger' {
-    switch (status) {
-      case 'DRAFT':
-        return 'default';
-      case 'ISSUED':
-        return 'warning';
-      case 'PARTIALLY_PAID':
-        return 'warning';
-      case 'PAID':
-        return 'success';
-      case 'CANCELLED':
-        return 'danger';
-      default:
-        return 'default';
-    }
-  }
-
   paidAmountForRow(sale: SaleListItem): number {
-    const payments = sale.payments ?? [];
-    return payments.reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+    const payments = sale.payments || [];
+    return payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
   }
 
   balanceAmountForRow(sale: SaleListItem): number {
-    return Number(sale.totalAmount ?? 0) - this.paidAmountForRow(sale);
+    return Number(sale.totalAmount || 0) - this.paidAmountForRow(sale);
+  }
+
+  saleCode(sale: SaleListItem): string {
+    if (sale.saleNumber) return sale.saleNumber;
+    return `SO-${String(sale.id).slice(0, 8).toUpperCase()}`;
   }
 }

@@ -1,22 +1,37 @@
-import { CommonModule, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+/**
+ * Sorting Output Detail Page Component
+ * Phase 2: Sorting Module UI
+ * 
+ * Traceability & lineage detail view for a specific Grade Output.
+ */
+
+import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import {
+  LucideAngularModule,
+  ArrowLeft,
+  Sparkles,
+  Layers,
+  Package,
+  Truck,
+  FileText,
+  Scale,
+  DollarSign,
+  ArrowRight,
+} from 'lucide-angular';
 
 import type { GradeOutput } from '../../repack/repack.models';
 import { SortingFacadeService } from '../sorting-facade.service';
+import { MoneyPipe } from '../../../core/money/money.pipe';
 import {
-  AppBadgeComponent,
-  AppButtonComponent,
-  AppCardComponent,
+  AppBreadcrumbComponent,
   AppErrorStateComponent,
   AppLoadingComponent,
   AppPageBodyComponent,
   AppPageComponent,
   AppPageHeaderComponent,
-  AppSectionBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppStackComponent,
+  type BreadcrumbItem,
 } from '../../../shared/ui';
 
 @Component({
@@ -24,21 +39,20 @@ import {
   standalone: true,
   imports: [
     CommonModule,
+    RouterLink,
+    DatePipe,
     DecimalPipe,
+    MoneyPipe,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppStackComponent,
-    AppCardComponent,
-    AppBadgeComponent,
-    AppButtonComponent,
+    AppBreadcrumbComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
   ],
   templateUrl: './sorting-output-detail.page.html',
+  styleUrl: './sorting-output-detail.page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SortingOutputDetailPage implements OnInit {
@@ -49,6 +63,28 @@ export class SortingOutputDetailPage implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly output = signal<GradeOutput | null>(null);
+
+  readonly icons = {
+    ArrowLeft,
+    Sparkles,
+    Layers,
+    Package,
+    Truck,
+    FileText,
+    Scale,
+    DollarSign,
+    ArrowRight,
+  };
+
+  readonly breadcrumbs = computed<BreadcrumbItem[]>(() => {
+    const o = this.output();
+    const code = o ? `OUT-${String(o.id).slice(0, 8).toUpperCase()}` : 'Detail';
+    return [
+      { label: 'Sorting', route: '/app/sorting/stage-1' },
+      { label: 'Output Registry', route: '/app/sorting/outputs' },
+      { label: code },
+    ];
+  });
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
@@ -67,14 +103,14 @@ export class SortingOutputDetailPage implements OnInit {
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set(err?.message || 'Failed to load output');
+        this.error.set(err?.message || 'Failed to load output detail');
         this.loading.set(false);
       },
     });
   }
 
   back(): void {
-    this.router.navigate(['/sorting/outputs']);
+    this.router.navigate(['/app/sorting/outputs']);
   }
 
   outputCode(o: GradeOutput | null): string {
@@ -106,20 +142,8 @@ export class SortingOutputDetailPage implements OnInit {
   startRepack(): void {
     const o = this.output();
     if (!o) return;
-    this.router.navigate(['/packaging/repack/workspace'], {
+    this.router.navigate(['/app/packaging/repack/new'], {
       queryParams: { fromGradingOutputId: o.id },
     });
-  }
-
-  statusVariant(status: string | undefined): 'success' | 'warning' | 'default' {
-    switch (status) {
-      case 'AVAILABLE':
-        return 'success';
-      case 'PARTIALLY_USED':
-        return 'warning';
-      case 'DEPLETED':
-      default:
-        return 'default';
-    }
   }
 }

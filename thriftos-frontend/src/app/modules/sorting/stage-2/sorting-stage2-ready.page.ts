@@ -1,24 +1,35 @@
-import { CommonModule, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+/**
+ * Stage 2 Grading Ready Queue Page Component
+ * 
+ * High-density queue directory for Stage 2 Quality Grading & Classification.
+ */
+
+import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
+import {
+  LucideAngularModule,
+  Layers,
+  Sparkles,
+  Scale,
+  Play,
+  ArrowRight,
+  RefreshCw,
+  Clock,
+  Package,
+} from 'lucide-angular';
 
 import type { AvailableForGrading } from '../../sorting-stage2/sorting-stage2.models';
 import { SortingFacadeService } from '../sorting-facade.service';
 import {
   AppBreadcrumbComponent,
-  AppButtonComponent,
-  AppDataTableComponent,
   AppEmptyStateComponent,
   AppErrorStateComponent,
   AppLoadingComponent,
   AppPageBodyComponent,
   AppPageComponent,
   AppPageHeaderComponent,
-  AppSectionBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppStackComponent,
-  type DataTableColumn,
+  type BreadcrumbItem,
 } from '../../../shared/ui';
 
 @Component({
@@ -26,33 +37,41 @@ import {
   standalone: true,
   imports: [
     CommonModule,
+    RouterLink,
+    DatePipe,
     DecimalPipe,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppStackComponent,
-    AppDataTableComponent,
     AppBreadcrumbComponent,
-    AppButtonComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
     AppEmptyStateComponent,
   ],
   templateUrl: './sorting-stage2-ready.page.html',
+  styleUrl: './sorting-stage2-ready.page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SortingStage2ReadyPage implements OnInit {
   private readonly facade = inject(SortingFacadeService);
   private readonly router = inject(Router);
 
-  // Breadcrumbs — matches Procurement pattern
-  readonly breadcrumbs = [
-    { label: 'Sorting', link: '/app/sorting/stage-2' },
-    { label: 'Stage 2 — Grading Workspace', link: undefined },
+  readonly breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Sorting', route: '/app/sorting/stage-1' },
+    { label: 'Stage 2 — Quality Grading' },
   ];
+
+  readonly icons = {
+    Layers,
+    Sparkles,
+    Scale,
+    Play,
+    ArrowRight,
+    RefreshCw,
+    Clock,
+    Package,
+  };
 
   readonly rows = signal<AvailableForGrading[]>([]);
   readonly loading = signal(true);
@@ -63,54 +82,18 @@ export class SortingStage2ReadyPage implements OnInit {
   readonly total = signal(0);
   readonly totalPages = signal(1);
 
-  readonly columns: DataTableColumn[] = [
-    {
-      key: 'category',
-      label: 'Category',
-      sortable: true,
-      filterable: true,
-      getValue: (row) => (row as AvailableForGrading).category?.name ?? '',
-    },
-    {
-      key: 'rag',
-      label: 'Rag/Bale',
-      sortable: true,
-      filterable: true,
-      getValue: (row) => (row as AvailableForGrading).rag?.ragCode ?? '',
-    },
-    {
-      key: 'container',
-      label: 'Container',
-      sortable: true,
-      filterable: true,
-      getValue: (row) => (row as AvailableForGrading).container?.containerNumber ?? '',
-    },
-    {
-      key: 'weightKg',
-      label: 'Weight (kg)',
-      align: 'right',
-      sortable: true,
-      getValue: (row) => (row as AvailableForGrading).weightKg,
-    },
-    {
-      key: 'gradeStatus',
-      label: 'Status',
-      sortable: true,
-      filterable: true,
-      filterType: 'select',
-      filterOptions: [
-        { label: 'NOT_STARTED', value: 'NOT_STARTED' },
-        { label: 'IN_PROGRESS', value: 'IN_PROGRESS' },
-      ],
-      getValue: (row) => (row as AvailableForGrading).gradeStatus ?? 'NOT_STARTED',
-    },
-    {
-      key: 'createdAt',
-      label: 'Created',
-      sortable: true,
-      getValue: (row) => (row as AvailableForGrading).createdAt,
-    },
-  ];
+  // Computed KPI Metrics
+  readonly notStartedCount = computed(() => {
+    return this.rows().filter((r) => !r.gradeStatus || r.gradeStatus === 'NOT_STARTED').length;
+  });
+
+  readonly inProgressCount = computed(() => {
+    return this.rows().filter((r) => r.gradeStatus === 'IN_PROGRESS').length;
+  });
+
+  readonly totalGradingWeight = computed(() => {
+    return this.rows().reduce((sum, r) => sum + Number(r.weightKg || 0), 0);
+  });
 
   ngOnInit(): void {
     this.load();
@@ -130,16 +113,10 @@ export class SortingStage2ReadyPage implements OnInit {
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set(err?.message || 'Failed to load available outputs');
+        this.error.set(err?.message || 'Failed to load available category outputs');
         this.loading.set(false);
       },
     });
-  }
-
-  onTableStateChange(state: { pageIndex: number; pageSize: number }): void {
-    if (state.pageIndex !== this.page() || state.pageSize !== this.pageSize()) {
-      this.load(state.pageIndex, state.pageSize);
-    }
   }
 
   grade(output: AvailableForGrading): void {

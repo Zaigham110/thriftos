@@ -1,138 +1,203 @@
-<!-- INVENTORY DETAIL - READ-ONLY -->
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs" />
-      <h1 class="page-title">Inventory Item</h1>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs()"></app-breadcrumb>
+      </div>
       @if (item(); as i) {
-        <p class="page-subtitle">{{ i.unitCode }}</p>
+        <div class="title-with-code">
+          <h1 class="page-title">Finished Good Details</h1>
+          <span class="code-badge">
+            <lucide-icon [img]="icons.Package" [size]="14"></lucide-icon>
+            {{ itemCode(i) }}
+          </span>
+        </div>
+        <p class="page-subtitle">Full inventory specifications, warehouse location, and upstream traceability chain.</p>
       }
-    </app-stack>
-    <div class="actions">
-      <app-button variant="secondary" (click)="goBack()">← Back to Inventory</app-button>
+    </div>
+
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="goBack()">
+        <lucide-icon [img]="icons.ArrowLeft" [size]="15"></lucide-icon>
+        Back to Inventory
+      </button>
     </div>
   </app-page-header>
 
   <app-page-body>
+    @if (error()) {
+      <app-error-state
+        [message]="error()!"
+        (retry)="ngOnInit()"
+      ></app-error-state>
+    }
+
     @if (loading()) {
-      <app-loading message="Loading inventory detail..." />
-    } @else if (error()) {
-      <app-error-state [message]="error()!" [action]="true">
-        <app-button action variant="secondary" (click)="goBack()">
-          Back to Inventory
-        </app-button>
-      </app-error-state>
+      <app-loading message="Loading inventory item details…"></app-loading>
     } @else if (item(); as i) {
-      <!-- SUMMARY SECTION -->
-      <app-section>
-        <app-section-header>
-          <h2 class="section-title">Details</h2>
-          <div class="actions">
-            <app-badge [variant]="getStatusVariant(i.status)">{{ i.status }}</app-badge>
+      
+      <!-- Metrics Overview Grid -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-icon-purple">
+            <lucide-icon [img]="icons.Scale" [size]="20"></lucide-icon>
           </div>
-        </app-section-header>
-
-        <app-section-body>
-          <app-card>
-            <app-stack direction="vertical" spacing="sm">
-              <div><strong>Category:</strong> {{ i.category }}</div>
-              <div><strong>Grade:</strong> {{ i.grade }}</div>
-              <div><strong>Amount:</strong> {{ i.measurementType === 'WEIGHT' ? (i.weightKg | number:'1.2-2') + ' kg' : i.pcsCount + ' pcs' }}</div>
-              <div><strong>Warehouse:</strong> {{ i.warehouseName || 'N/A' }}</div>
-              <div><strong>Created:</strong> {{ i.createdAt | date:'medium' }}</div>
-              <div><strong>Updated:</strong> {{ i.updatedAt | date:'medium' }}</div>
-            </app-stack>
-          </app-card>
-        </app-section-body>
-      </app-section>
-
-      <!-- TRACEABILITY SECTION -->
-      <app-section>
-        <app-section-header>
-          <h2 class="section-title">Traceability Chain</h2>
-          <div class="actions">
-            <app-button variant="secondary" (click)="toggleTraceability()">
-              {{ showTraceability() ? 'Hide Chain' : 'Show Chain' }}
-            </app-button>
+          <div class="kpi-content">
+            <span class="kpi-label">Available Amount</span>
+            <span class="kpi-value">
+              {{ i.measurementType === 'WEIGHT' ? (i.weightKg | number:'1.2-2') + ' KG' : i.pcsCount + ' PCS' }}
+            </span>
           </div>
-        </app-section-header>
+        </div>
 
-        <app-section-body>
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-icon-blue">
+            <lucide-icon [img]="icons.DollarSign" [size]="20"></lucide-icon>
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-label">Average Unit Cost</span>
+            <span class="kpi-value">{{ i.avgCost | money }}</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-icon-amber">
+            <lucide-icon [img]="icons.DollarSign" [size]="20"></lucide-icon>
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-label">Total Item Valuation</span>
+            <span class="kpi-value">{{ totalValue(i) | money }}</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-icon-emerald">
+            <lucide-icon [img]="icons.Warehouse" [size]="20"></lucide-icon>
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-label">Storage Warehouse</span>
+            <span class="kpi-value font-bold text-sm">{{ i.warehouseName || 'Main Warehouse' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detail Grid Split -->
+      <div class="detail-grid mt-4">
+        
+        <!-- Specifications Card -->
+        <div class="detail-card">
+          <div class="card-header">
+            <lucide-icon [img]="icons.Package" [size]="16" class="header-icon"></lucide-icon>
+            <h3>Item Specifications</h3>
+          </div>
+
+          <div class="spec-stack">
+            <div class="spec-row">
+              <span class="spec-label">Inventory Code</span>
+              <span class="code-badge font-mono">{{ itemCode(i) }}</span>
+            </div>
+
+            <div class="spec-row">
+              <span class="spec-label">Category Name</span>
+              <span class="spec-val font-bold text-primary">{{ i.categoryName || '—' }}</span>
+            </div>
+
+            <div class="spec-row">
+              <span class="spec-label">Quality Grade</span>
+              <span class="spec-val font-bold">{{ i.gradeName || 'Standard' }}</span>
+            </div>
+
+            <div class="spec-row">
+              <span class="spec-label">Measurement Type</span>
+              <span class="spec-val font-mono">{{ i.measurementType }}</span>
+            </div>
+
+            <div class="spec-row">
+              <span class="spec-label">Current Status</span>
+              <span
+                class="status-pill"
+                [class.status-available]="i.status === 'AVAILABLE'"
+                [class.status-moved]="i.status === 'MOVED'"
+                [class.status-consumed]="i.status === 'CONSUMED'"
+              >
+                <span class="status-dot"></span>
+                {{ i.status }}
+              </span>
+            </div>
+
+            <div class="spec-row">
+              <span class="spec-label">Created At</span>
+              <span class="spec-val text-muted">{{ i.createdAt | date:'medium' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Traceability Card -->
+        <div class="detail-card">
+          <div class="card-header">
+            <lucide-icon [img]="icons.GitBranch" [size]="16" class="header-icon"></lucide-icon>
+            <h3>Upstream Lineage & Traceability Chain</h3>
+          </div>
+
           @if (loadingTrace()) {
-            <app-loading message="Loading traceability..." />
-          } @else if (showTraceability() && traceability()) {
-            <div class="timeline">
-              <!-- REPACK UNIT -->
-              <div class="timeline-step">
-                <div class="step-marker"></div>
-                <div class="step-content">
-                  <h3 class="step-title">Repack Unit</h3>
-                  <div class="step-details">
-                    <p><strong>Code:</strong> {{ traceability()!.repackUnit.unitCode }}</p>
-                    <p><strong>Status:</strong> {{ traceability()!.repackUnit.status }}</p>
-                    <p><strong>Created:</strong> {{ traceability()!.repackUnit.createdAt | date:'medium' }}</p>
-                  </div>
-                </div>
+            <app-loading message="Resolving traceability chain…"></app-loading>
+          } @else if (traceability(); as t) {
+            <div class="spec-stack">
+              <div class="spec-row">
+                <span class="spec-label">Source Repack Unit</span>
+                @if (t.repackUnit; as r) {
+                  <a [routerLink]="['/app/packaging/repack', r.id]" class="link-badge purple">
+                    <lucide-icon [img]="icons.Package" [size]="12"></lucide-icon>
+                    {{ r.unitCode }}
+                  </a>
+                } @else {
+                  <span class="spec-val text-muted">Direct Intake</span>
+                }
               </div>
 
-              <!-- SOURCE ALLOCATIONS -->
-              @for (alloc of traceability()!.sourceAllocations; track alloc.allocationId) {
-                <div class="timeline-step">
-                  <div class="step-marker"></div>
-                  <div class="step-content">
-                    <h3 class="step-title">Source Allocation</h3>
-                    <div class="step-details">
-                      <p><strong>Amount Used:</strong> {{ alloc.amountUsed }} {{ alloc.measurementType === 'WEIGHT' ? 'kg' : 'pcs' }}</p>
-                      
-                      @if (alloc.gradingOutput) {
-                        <div class="substep">
-                          <h4>Grading Output</h4>
-                          <p><strong>Grade:</strong> {{ alloc.gradingOutput.grade.name }}</p>
-                          <p><strong>Weight:</strong> {{ alloc.gradingOutput.weightKg }} kg</p>
-                          <p><strong>Count:</strong> {{ alloc.gradingOutput.count }} pcs</p>
-                        </div>
+              <div class="spec-row">
+                <span class="spec-label">Source Ocean Container</span>
+                @if (sourceContainer(); as c) {
+                  <a [routerLink]="['/app/procurement/containers', c.id]" class="link-badge blue">
+                    <lucide-icon [img]="icons.Truck" [size]="12"></lucide-icon>
+                    {{ c.containerNumber }}
+                  </a>
+                } @else {
+                  <span class="spec-val text-muted">Loose Bale / Standalone</span>
+                }
+              </div>
 
-                        @if (alloc.gradingOutput.categoryOutput) {
-                          <div class="substep">
-                            <h4>Category Output</h4>
-                            <p><strong>Category:</strong> {{ alloc.gradingOutput.categoryOutput.category.name }}</p>
-                            <p><strong>Weight:</strong> {{ alloc.gradingOutput.categoryOutput.weightKg }} kg</p>
+              <div class="spec-row">
+                <span class="spec-label">Source Rag / Bale Code</span>
+                @if (sourceRag(); as r) {
+                  <span class="code-badge font-mono">{{ r.ragCode }}</span>
+                } @else {
+                  <span class="spec-val text-muted">Direct Intake</span>
+                }
+              </div>
 
-                            @if (alloc.gradingOutput.categoryOutput.sortSession.rag) {
-                              <div class="substep">
-                                <h4>RAG</h4>
-                                <p><strong>Code:</strong> {{ alloc.gradingOutput.categoryOutput.sortSession.rag.ragCode }}</p>
-                                <p><strong>Type:</strong> {{ alloc.gradingOutput.categoryOutput.sortSession.rag.ragType }}</p>
+              <div class="spec-row">
+                <span class="spec-label">Stage 1 Sort Session</span>
+                <span class="spec-val font-mono">{{ sourceSortSession()?.id ? 'Session #' + sourceSortSession()!.id.slice(0, 8).toUpperCase() : '—' }}</span>
+              </div>
 
-                                @if (alloc.gradingOutput.categoryOutput.sortSession.rag.container) {
-                                  <div class="substep">
-                                    <h4>Container</h4>
-                                    <p><strong>Number:</strong> {{ alloc.gradingOutput.categoryOutput.sortSession.rag.container.containerNumber }}</p>
-
-                                    @if (alloc.gradingOutput.categoryOutput.sortSession.rag.container.purchaseOrder) {
-                                      <div class="substep">
-                                        <h4>Purchase Order</h4>
-                                        <p><strong>PO #:</strong> {{ alloc.gradingOutput.categoryOutput.sortSession.rag.container.purchaseOrder.poNumber }}</p>
-                                        <p><strong>Vendor:</strong> {{ alloc.gradingOutput.categoryOutput.sortSession.rag.container.purchaseOrder.vendor.name }}</p>
-                                      </div>
-                                    }
-                                  </div>
-                                }
-                              </div>
-                            }
-                          </div>
-                        }
-                      }
-                    </div>
-                  </div>
-                </div>
-              }
+              <div class="spec-row">
+                <span class="spec-label">Stage 2 Grade Session</span>
+                <span class="spec-val font-mono">{{ sourceGradeSession()?.id ? 'Session #' + sourceGradeSession()!.id.slice(0, 8).toUpperCase() : '—' }}</span>
+              </div>
             </div>
-          } @else if (showTraceability()) {
-            <p class="empty-message">No traceability data available.</p>
+          } @else {
+            <div class="spec-stack">
+              <div class="spec-row">
+                <span class="spec-label">Origin Linkage</span>
+                <span class="spec-val text-muted">Sealed Repack Unit</span>
+              </div>
+            </div>
           }
-        </app-section-body>
-      </app-section>
+        </div>
+
+      </div>
+
     }
   </app-page-body>
 </app-page>

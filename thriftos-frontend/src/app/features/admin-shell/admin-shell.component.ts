@@ -35,7 +35,7 @@ export class AdminShellComponent {
   protected readonly nav: SidebarNavConfig = {
     productName: 'ThriftOS',
     productSubtitle: 'SuperAdmin',
-    logoUrl: '/favicon.ico',
+    logoUrl: '/os_logo.png',
     dashboard: { id: 'tenants', label: 'Tenants', route: '/admin/tenants', icon: 'layers' },
     groups: [
       {
@@ -71,7 +71,7 @@ export class AdminShellComponent {
   constructor(
     private readonly authService: AuthService,
     private readonly router: Router,
-  ) {}
+  ) { }
 
   onProfile(): void {
     // Intentionally not implemented in this hardening pass.

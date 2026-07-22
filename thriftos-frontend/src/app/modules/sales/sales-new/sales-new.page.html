@@ -1,43 +1,76 @@
 <app-page>
   <app-page-header>
-    <h1>New Sale</h1>
-    <p class="subtitle">Create a draft sale (no inventory committed until you add lines)</p>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">New Sales Order</h1>
+      <p class="page-subtitle">Initialize a new wholesale sales order draft to allocate finished goods inventory.</p>
+    </div>
+
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="goBack()">
+        <lucide-icon [img]="icons.ArrowLeft" [size]="15"></lucide-icon>
+        Cancel
+      </button>
+    </div>
   </app-page-header>
 
   <app-page-body>
-    <app-section>
-      <app-section-header>
-        <h2>Draft Definition</h2>
-      </app-section-header>
+    @if (error()) {
+      <app-error-state
+        [message]="error()!"
+        (retry)="loadCustomers()"
+      ></app-error-state>
+    }
 
-      <app-section-body>
-        @if (loading()) {
-          <app-loading message="Loading customers..." />
-        } @else if (error()) {
-          <app-error-state [message]="error()!" [action]="true">
-            <app-button action variant="secondary" (clickEvent)="loadCustomers()">Retry</app-button>
-          </app-error-state>
-        } @else {
-          <div class="form">
-            <app-form-field label="Customer">
-              <app-select [formControl]="customerId" [options]="customerOptions()"></app-select>
-            </app-form-field>
+    @if (loading()) {
+      <app-loading message="Loading customer directory…"></app-loading>
+    } @else {
+      <div class="form-container">
+        <div class="form-card">
+          <div class="card-header">
+            <lucide-icon [img]="icons.ShoppingBag" [size]="18" class="header-icon"></lucide-icon>
+            <h3>Order Specification</h3>
+          </div>
 
-            <app-form-field label="Sale Type">
-              <app-select [formControl]="type" [options]="typeOptions"></app-select>
-            </app-form-field>
+          <div class="form-grid">
+            <div class="form-group col-full">
+              <label class="form-label required">Wholesale Customer / Buyer</label>
+              <select [formControl]="customerId" class="form-select">
+                @for (opt of customerOptions(); track opt.value) {
+                  <option [value]="opt.value">{{ opt.label }}</option>
+                }
+              </select>
+              <span class="field-hint">Select the registered wholesale buyer for this commercial sales order.</span>
+            </div>
 
-            <div class="actions">
-              <app-button variant="primary" [disabled]="saving()" (clickEvent)="createDraft()">
-                Create Draft
-              </app-button>
-              <app-button variant="secondary" [disabled]="saving()" [routerLink]="['/app/sales']">
-                Back to Sales
-              </app-button>
+            <div class="form-group col-full mt-3">
+              <label class="form-label required">Order Channel / Type</label>
+              <select [formControl]="type" class="form-select">
+                @for (opt of typeOptions; track opt.value) {
+                  <option [value]="opt.value">{{ opt.label }}</option>
+                }
+              </select>
+              <span class="field-hint">Wholesale batch sale or international export shipment.</span>
+            </div>
+
+            <div class="form-actions mt-4">
+              <button class="btn btn-secondary" (click)="goBack()" [disabled]="saving()">
+                Cancel
+              </button>
+              <button class="btn btn-primary" (click)="createDraft()" [disabled]="saving() || customerId.invalid">
+                <lucide-icon [img]="icons.CheckCircle2" [size]="15"></lucide-icon>
+                @if (saving()) {
+                  Creating Order Draft…
+                } @else {
+                  Create & Open Order
+                }
+              </button>
             </div>
           </div>
-        }
-      </app-section-body>
-    </app-section>
+        </div>
+      </div>
+    }
   </app-page-body>
 </app-page>

@@ -1,43 +1,48 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { Router, RouterLink } from '@angular/router';
-import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+/**
+ * Sales New Component
+ * Phase 2: Sales Module UI
+ * 
+ * Form page to initialize a new wholesale/retail sales order draft.
+ */
 
+import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
 import {
-  AppButtonComponent,
+  LucideAngularModule,
+  ShoppingBag,
+  ArrowLeft,
+  UserCheck,
+  CheckCircle2,
+  Tag,
+} from 'lucide-angular';
+
+import { CustomersService } from '../customers.service';
+import { SalesService } from '../sales.service';
+import type { Customer, SaleType } from '../sales.models';
+import {
+  AppBreadcrumbComponent,
   AppErrorStateComponent,
   AppLoadingComponent,
   AppPageBodyComponent,
   AppPageComponent,
   AppPageHeaderComponent,
-  AppSectionBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppFormFieldComponent,
-  AppSelectComponent,
+  type BreadcrumbItem,
   type SelectOption,
 } from '../../../shared/ui';
-
-import { CustomersService } from '../customers.service';
-import { SalesService } from '../sales.service';
-import type { Customer, SaleType } from '../sales.models';
 
 @Component({
   selector: 'app-sales-new',
   standalone: true,
   imports: [
     CommonModule,
-    RouterLink,
     ReactiveFormsModule,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppFormFieldComponent,
-    AppSelectComponent,
-    AppButtonComponent,
+    AppBreadcrumbComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
   ],
@@ -49,6 +54,20 @@ export class SalesNewPage implements OnInit {
   private readonly router = inject(Router);
   private readonly customersService = inject(CustomersService);
   private readonly salesService = inject(SalesService);
+
+  readonly breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Sales', route: '/app/sales' },
+    { label: 'Orders', route: '/app/sales' },
+    { label: 'New Sales Order' },
+  ];
+
+  readonly icons = {
+    ShoppingBag,
+    ArrowLeft,
+    UserCheck,
+    CheckCircle2,
+    Tag,
+  };
 
   readonly loading = signal<boolean>(false);
   readonly saving = signal<boolean>(false);
@@ -62,14 +81,14 @@ export class SalesNewPage implements OnInit {
   readonly customerOptions = computed<SelectOption[]>(() => {
     const rows = this.customers();
     return [
-      { value: '', label: 'Select a customer' },
-      ...rows.map((c) => ({ value: c.id, label: c.name })),
+      { value: '', label: 'Select a customer / wholesale buyer' },
+      ...rows.map((c) => ({ value: c.id, label: c.companyName ? `${c.name} (${c.companyName})` : c.name })),
     ];
   });
 
   readonly typeOptions: SelectOption[] = [
-    { value: 'WHOLESALE', label: 'Wholesale' },
-    { value: 'EXPORT', label: 'Export' },
+    { value: 'WHOLESALE', label: 'Wholesale Batch Sale' },
+    { value: 'EXPORT', label: 'Export Ocean Shipment Sale' },
   ];
 
   ngOnInit(): void {
@@ -82,11 +101,15 @@ export class SalesNewPage implements OnInit {
 
     this.customersService.list().subscribe({
       next: (rows) => {
-        this.customers.set((rows ?? []).filter((c) => c.isActive !== false));
+        const active = (rows || []).filter((c) => c.isActive !== false);
+        this.customers.set(active);
+        if (active.length > 0 && !this.customerId.value) {
+          this.customerId.setValue(active[0].id);
+        }
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set(err?.message ?? 'Failed to load customers');
+        this.error.set(err?.message || 'Failed to load customers list');
         this.loading.set(false);
       },
     });
@@ -95,7 +118,7 @@ export class SalesNewPage implements OnInit {
   createDraft(): void {
     if (this.saving()) return;
     if (this.customerId.invalid || this.type.invalid) {
-      this.error.set('Customer and sale type are required');
+      this.error.set('Customer selection and order type are required');
       return;
     }
 
@@ -111,8 +134,12 @@ export class SalesNewPage implements OnInit {
         },
         error: (err) => {
           this.saving.set(false);
-          this.error.set(err?.message ?? 'Failed to create sale');
+          this.error.set(err?.message || 'Failed to create sales order draft');
         },
       });
+  }
+
+  goBack(): void {
+    this.router.navigate(['/app/sales']);
   }
 }

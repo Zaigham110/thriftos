@@ -1,26 +1,34 @@
-import { CommonModule } from '@angular/common';
+/**
+ * Sorting Stage 1 Ready Page Component
+ * 
+ * High-density queue directory for primary breakdown sorting stage (Rags & Loose Bales).
+ */
+
+import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import {
+  LucideAngularModule,
+  Package,
+  Layers,
+  Scale,
+  Play,
+  ArrowRight,
+  RefreshCw,
+  Clock,
+  CheckCircle2,
+} from 'lucide-angular';
 
 import { SortingFacadeService, type Stage1QueueItem } from '../sorting-facade.service';
 import {
-  AppBadgeComponent,
   AppBreadcrumbComponent,
-  AppButtonComponent,
-  AppDataTableComponent,
   AppEmptyStateComponent,
   AppErrorStateComponent,
-  AppLinkComponent,
   AppLoadingComponent,
   AppPageBodyComponent,
   AppPageComponent,
   AppPageHeaderComponent,
-  AppSectionBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppStackComponent,
-  type DataTableColumn,
-  type DataTableState,
+  type BreadcrumbItem,
 } from '../../../shared/ui';
 
 @Component({
@@ -28,101 +36,59 @@ import {
   standalone: true,
   imports: [
     CommonModule,
+    RouterLink,
+    DecimalPipe,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppStackComponent,
-    AppDataTableComponent,
-    AppBadgeComponent,
     AppBreadcrumbComponent,
-    AppButtonComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
     AppEmptyStateComponent,
-    AppLinkComponent
   ],
   templateUrl: './sorting-stage1-ready.page.html',
+  styleUrl: './sorting-stage1-ready.page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SortingStage1ReadyPage implements OnInit {
   private readonly facade = inject(SortingFacadeService);
   private readonly router = inject(Router);
 
-  // Breadcrumbs — matches Procurement pattern
-  readonly breadcrumbs = [
-    { label: 'Sorting', link: '/app/sorting/stage-1' },
-    { label: 'Stage 1 — Primary Breakdown', link: undefined },
+  readonly breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Sorting', route: '/app/sorting/stage-1' },
+    { label: 'Stage 1 — Primary Breakdown' },
   ];
+
+  readonly icons = {
+    Package,
+    Layers,
+    Scale,
+    Play,
+    ArrowRight,
+    RefreshCw,
+    Clock,
+    CheckCircle2,
+  };
 
   readonly rows = signal<Stage1QueueItem[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
 
-  readonly page = signal(1);
-  readonly pageSize = signal(20);
   readonly total = signal(0);
 
-  readonly columns: DataTableColumn[] = [
-    {
-      key: 'code',
-      label: 'Code',
-      sortable: true,
-      filterable: true,
-      getValue: (row) => {
-        const item = row as Stage1QueueItem;
-        return item.sourceType === 'LOOSE_BALE' ? item.baleCode : item.ragCode;
-      },
-    },
-    {
-      key: 'sourceType',
-      label: 'Source Type',
-      sortable: true,
-      getValue: (row) => {
-        const item = row as Stage1QueueItem;
-        return item.sourceType || 'RAG';
-      },
-    },
-    {
-      key: 'container',
-      label: 'Container',
-      sortable: true,
-      filterable: true,
-      getValue: (row) => (row as Stage1QueueItem).container?.containerNumber ?? '—',
-    },
-    {
-      key: 'purchaseOrder',
-      label: 'Purchase Order',
-      sortable: true,
-      getValue: (row) => {
-        const item = row as Stage1QueueItem;
-        return item.container?.purchaseOrder?.poNumber ?? item.purchaseOrder?.poNumber ?? '—';
-      },
-    },
-    {
-      key: 'weightKg',
-      label: 'Weight (kg)',
-      align: 'right',
-      sortable: true,
-      getValue: (row) => (row as Stage1QueueItem).weightKg,
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      sortable: true,
-      filterable: true,
-      filterType: 'select',
-      filterOptions: [
-        { label: 'NOT_STARTED', value: 'NOT_STARTED' },
-        { label: 'IN_SORTING', value: 'IN_SORTING' },
-      ],
-      getValue: (row) => (row as Stage1QueueItem).status,
-    },
-  ];
+  // Computed KPI Metrics
+  readonly notStartedCount = computed(() => {
+    return this.rows().filter((r) => r.status === 'NOT_STARTED').length;
+  });
 
-  readonly readyCount = computed(() => this.rows().length);
+  readonly inSortingCount = computed(() => {
+    return this.rows().filter((r) => r.status === 'IN_SORTING').length;
+  });
+
+  readonly totalQueueWeight = computed(() => {
+    return this.rows().reduce((sum, r) => sum + Number(r.weightKg || 0), 0);
+  });
 
   ngOnInit(): void {
     this.load();
@@ -132,7 +98,6 @@ export class SortingStage1ReadyPage implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    // Load all data for client-side filtering - queue is typically small
     this.facade.stage1Queue(1, 1000, undefined).subscribe({
       next: (resp) => {
         this.rows.set(resp.data);
@@ -149,9 +114,9 @@ export class SortingStage1ReadyPage implements OnInit {
   start(item: Stage1QueueItem): void {
     const id = item.sourceType === 'LOOSE_BALE' ? item.sourceId || item.id : item.id;
     const sourceType = item.sourceType || 'RAG';
-    
-    this.router.navigate(['/app/sorting/stage-1', id], { 
-      state: { sourceType } 
+
+    this.router.navigate(['/app/sorting/stage-1', id], {
+      state: { sourceType },
     });
   }
 

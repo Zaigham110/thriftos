@@ -129,11 +129,20 @@ export class RepackService {
 
   /**
    * Create a new draft (manual mode)
-   * Backend requires non-empty manualAllocations array
-   * Use createDraftWithAllocation() instead for new mode workflow
    */
   createDraft(dto: CreateDraftRequest): Observable<RepackUnit> {
-    return throwError(() => new Error('Use createDraftWithAllocation() for new mode'));
+    const body = {
+      categoryId: dto.categoryId,
+      gradeId: dto.gradeId,
+      measurementType: dto.measurementType,
+      targetAmount: dto.targetAmount,
+      manualAllocations: [],
+    };
+
+    return this.http.post<{ repackUnit: RepackUnit }>(`${API}/units/manual`, body).pipe(
+      map(res => res.repackUnit),
+      catchError(this.handleError)
+    );
   }
 
   /**
