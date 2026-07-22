@@ -1,179 +1,182 @@
-<div class="tenant-settings">
-  <ui-breadcrumb [items]="breadcrumbs"></ui-breadcrumb>
-
-  <header class="page-header">
-    <div class="page-header__title">
-      <h1>Tenant Settings</h1>
-      <p class="page-header__subtitle">Company profile and configuration</p>
-    </div>
-    <div class="page-header__actions">
-      <ui-button variant="outline" (click)="refresh()">
-        <lucide-icon [img]="icons.RefreshCw" [size]="16"></lucide-icon>
-        Refresh
-      </ui-button>
-    </div>
-  </header>
-
-  @if (error()) {
-    <ui-alert variant="danger" [dismissible]="true" (dismissed)="clearError()">
-      {{ error() }}
-    </ui-alert>
-  }
-
-  <div class="settings-grid">
-    <!-- Company Profile Card -->
-    <ui-card class="profile-card">
-      <div class="card-header">
-        <lucide-icon [img]="icons.Building2" [size]="20"></lucide-icon>
-        <h2>Company Profile</h2>
+<app-page>
+  <app-page-header>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
       </div>
-      
-      @if (loading() && !tenant()) {
-        <div class="loading-state">
-          @for (i of [1, 2, 3, 4]; track i) {
-            <div class="skeleton-row">
-              <ui-skeleton variant="text" class="skeleton-label"></ui-skeleton>
-              <ui-skeleton variant="text" class="skeleton-value"></ui-skeleton>
-            </div>
-          }
-        </div>
-      } @else if (tenant()) {
-        <div class="profile-details">
-          <div class="detail-row">
-            <span class="detail-label">Company Name</span>
-            <span class="detail-value">{{ tenant()!.name }}</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Company Code</span>
-            <span class="detail-value font-mono">{{ tenant()!.companyCode }}</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Currency</span>
-            <div class="detail-value currency-row">
-              <ui-select
-                [options]="currencyOptions"
-                [disabled]="currencyLocked()"
-                [formControl]="currencyCodeControl"
-              ></ui-select>
-
-              <ui-button
-                variant="outline"
-                size="sm"
-                (clicked)="saveCurrency()"
-                [disabled]="currencyLocked() || saving() || !currencyChanged()"
-                [loading]="saving()"
-              >Save</ui-button>
-
-              @if (currencyLocked()) {
-                <ui-badge variant="danger" size="sm">Locked</ui-badge>
-              }
-            </div>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Locale</span>
-            <span class="detail-value">{{ tenant()!.locale }}</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Status</span>
-            <ui-badge [variant]="getStatusVariant(tenant()!.status)" size="sm">
-              {{ tenant()!.status }}
-            </ui-badge>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Created</span>
-            <span class="detail-value text-muted">{{ tenant()!.createdAt | date:'mediumDate' }}</span>
-          </div>
-        </div>
-      }
-    </ui-card>
-
-    <!-- Stats Cards -->
-    <div class="stats-grid">
-      <ui-card class="stat-card">
-        <div class="stat-icon users">
-          <lucide-icon [img]="icons.Users" [size]="24"></lucide-icon>
-        </div>
-        <div class="stat-content">
-          <span class="stat-value">
-            @if (tenantStats()) {
-              {{ tenantStats()!.users }}
-            } @else {
-              <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
-            }
-          </span>
-          <span class="stat-label">Users</span>
-        </div>
-      </ui-card>
-
-      <ui-card class="stat-card">
-        <div class="stat-icon roles">
-          <lucide-icon [img]="icons.Shield" [size]="24"></lucide-icon>
-        </div>
-        <div class="stat-content">
-          <span class="stat-value">
-            @if (tenantStats()) {
-              {{ tenantStats()!.roles }}
-            } @else {
-              <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
-            }
-          </span>
-          <span class="stat-label">Roles</span>
-        </div>
-      </ui-card>
-
-      <ui-card class="stat-card">
-        <div class="stat-icon categories">
-          <lucide-icon [img]="icons.Layers" [size]="24"></lucide-icon>
-        </div>
-        <div class="stat-content">
-          <span class="stat-value">
-            @if (tenantStats()) {
-              {{ tenantStats()!.categories }}
-            } @else {
-              <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
-            }
-          </span>
-          <span class="stat-label">Categories</span>
-        </div>
-      </ui-card>
-
-      <ui-card class="stat-card">
-        <div class="stat-icon grades">
-          <lucide-icon [img]="icons.Package" [size]="24"></lucide-icon>
-        </div>
-        <div class="stat-content">
-          <span class="stat-value">
-            @if (tenantStats()) {
-              {{ tenantStats()!.grades }}
-            } @else {
-              <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
-            }
-          </span>
-          <span class="stat-label">Grades</span>
-        </div>
-      </ui-card>
-
-      <ui-card class="stat-card">
-        <div class="stat-icon warehouses">
-          <lucide-icon [img]="icons.Warehouse" [size]="24"></lucide-icon>
-        </div>
-        <div class="stat-content">
-          <span class="stat-value">
-            @if (tenantStats()) {
-              {{ tenantStats()!.warehouses }}
-            } @else {
-              <ui-skeleton variant="text" class="stat-skeleton"></ui-skeleton>
-            }
-          </span>
-          <span class="stat-label">Warehouses</span>
-        </div>
-      </ui-card>
+      <h1 class="page-title">Tenant Profile & Settings</h1>
+      <p class="page-subtitle">Configure company details, operational currency, and view tenant resource metrics.</p>
     </div>
-  </div>
 
-  <!-- Info Notice -->
-  <ui-alert variant="info" class="info-notice">
-    <strong>Note:</strong> Tenant profile changes (company name, billing, plan) require Super Admin access. 
-    Contact your system administrator for changes.
-  </ui-alert>
-</div>
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="refresh()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="15" [class.animate-spin]="loading()"></lucide-icon>
+        Refresh
+      </button>
+    </div>
+  </app-page-header>
+
+  <app-page-body>
+    @if (error()) {
+      <app-error-state
+        [message]="error()!"
+        (retry)="loadData()"
+        (dismiss)="clearError()"
+      ></app-error-state>
+    }
+
+    <!-- KPI Stats Bar -->
+    <div class="stats-overview-grid">
+      <div class="stat-card">
+        <div class="stat-icon purple">
+          <lucide-icon [img]="icons.Users" [size]="20"></lucide-icon>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Active Users</span>
+          <span class="stat-value">{{ tenantStats()?.users ?? 0 }}</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon emerald">
+          <lucide-icon [img]="icons.Shield" [size]="20"></lucide-icon>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">RBAC Roles</span>
+          <span class="stat-value">{{ tenantStats()?.roles ?? 0 }}</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon blue">
+          <lucide-icon [img]="icons.Layers" [size]="20"></lucide-icon>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Output Categories</span>
+          <span class="stat-value">{{ tenantStats()?.categories ?? 0 }}</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon amber">
+          <lucide-icon [img]="icons.Package" [size]="20"></lucide-icon>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Quality Grades</span>
+          <span class="stat-value">{{ tenantStats()?.grades ?? 0 }}</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon indigo">
+          <lucide-icon [img]="icons.Warehouse" [size]="20"></lucide-icon>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Warehouses</span>
+          <span class="stat-value">{{ tenantStats()?.warehouses ?? 0 }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-content-layout">
+      <!-- Profile Card -->
+      <div class="profile-card">
+        <div class="card-header">
+          <lucide-icon [img]="icons.Building2" [size]="18" class="header-icon"></lucide-icon>
+          <h2>Company Overview</h2>
+        </div>
+
+        @if (loading() && !tenant()) {
+          <app-loading></app-loading>
+        } @else if (tenant()) {
+          <div class="profile-details-grid">
+            
+            <div class="detail-row">
+              <span class="detail-label">Company Name</span>
+              <span class="detail-value text-bold">{{ tenant()!.name }}</span>
+            </div>
+
+            <div class="detail-row">
+              <span class="detail-label">Company Code</span>
+              <span class="company-code-pill">{{ tenant()!.companyCode }}</span>
+            </div>
+
+            <div class="detail-row">
+              <span class="detail-label">Tenant Status</span>
+              <span class="status-pill status-active">
+                <span class="status-dot"></span>
+                {{ tenant()!.status }}
+              </span>
+            </div>
+
+            <div class="detail-row">
+              <span class="detail-label">Locale Setting</span>
+              <span class="detail-value">{{ tenant()!.locale }}</span>
+            </div>
+
+            <div class="detail-row">
+              <span class="detail-label">Registration Date</span>
+              <span class="detail-value text-subtle">{{ tenant()!.createdAt | date:'mediumDate' }}</span>
+            </div>
+
+            <!-- Currency Settings Group -->
+            <div class="currency-settings-box">
+              <div class="currency-header">
+                <lucide-icon [img]="icons.DollarSign" [size]="16" class="currency-icon"></lucide-icon>
+                <div class="currency-title-group">
+                  <span class="currency-title">Base Reporting Currency</span>
+                  <span class="currency-subtitle">Controls financial reporting currency display across procurement, inventory, and sales.</span>
+                </div>
+              </div>
+
+              <div class="currency-action-row">
+                <select
+                  [formControl]="currencyCodeControl"
+                  class="currency-select"
+                  [class.disabled]="currencyLocked()"
+                >
+                  @for (opt of currencyOptions; track opt.value) {
+                    <option [value]="opt.value">{{ opt.label }}</option>
+                  }
+                </select>
+
+                <button
+                  class="btn btn-primary"
+                  (click)="saveCurrency()"
+                  [disabled]="currencyLocked() || saving() || !currencyChanged()"
+                >
+                  @if (saving()) {
+                    <lucide-icon [img]="icons.Loader2" [size]="15" class="animate-spin"></lucide-icon>
+                    Saving...
+                  } @else {
+                    <lucide-icon [img]="icons.Save" [size]="15"></lucide-icon>
+                    Save Currency
+                  }
+                </button>
+
+                @if (currencyLocked()) {
+                  <span class="locked-pill">
+                    <lucide-icon [img]="icons.Lock" [size]="12"></lucide-icon>
+                    Locked
+                  </span>
+                }
+              </div>
+            </div>
+
+          </div>
+        }
+      </div>
+
+      <!-- Info Callout Banner -->
+      <div class="info-callout">
+        <lucide-icon [img]="icons.Info" [size]="18" class="callout-icon"></lucide-icon>
+        <div class="callout-content">
+          <span class="callout-title">Super Admin Managed Profile</span>
+          <p class="callout-desc">
+            Company profile changes (company name, company code, tenant status, or subscription billing) require Super Admin privileges. Contact your system administrator for organization updates.
+          </p>
+        </div>
+      </div>
+    </div>
+  </app-page-body>
+</app-page>

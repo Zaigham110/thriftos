@@ -1,21 +1,27 @@
+/**
+ * Rag Create Page Component
+ * Phase 2: Procurement & Intake UI
+ * 
+ * Route: /app/procurement/containers/:id/rags/create
+ * 
+ * Wrapper page to register a new intake rag or bale.
+ */
+
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
+import { LucideAngularModule, ArrowLeft } from 'lucide-angular';
 
 import { ProcurementService } from '../procurement.service';
 import { Container } from '../procurement.models';
 import { RagService } from './rag.service';
-
 import {
-  AppBreadcrumbComponent,
-  AppButtonComponent,
-  AppErrorStateComponent,
-  AppLoadingComponent,
-  AppPageBodyComponent,
   AppPageComponent,
   AppPageHeaderComponent,
-  AppStackComponent,
-  type BreadcrumbItem,
+  AppPageBodyComponent,
+  AppBreadcrumbComponent,
+  AppLoadingComponent,
+  AppErrorStateComponent,
 } from '../../../shared/ui';
 
 import { RagCreateDrawerComponent } from './rag-create-drawer';
@@ -25,12 +31,11 @@ import { RagCreateDrawerComponent } from './rag-create-drawer';
   standalone: true,
   imports: [
     CommonModule,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
     AppBreadcrumbComponent,
-    AppStackComponent,
-    AppButtonComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
     RagCreateDrawerComponent,
@@ -49,16 +54,19 @@ export class RagCreatePageComponent implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
 
-  readonly breadcrumbs = computed<BreadcrumbItem[]>(() => {
+  readonly icons = {
+    ArrowLeft,
+  };
+
+  readonly breadcrumbs = computed(() => {
     const cont = this.container();
     const label = cont?.containerNumber || 'Container';
     const id = cont?.id;
     return [
-      { label: 'Home', route: '/dashboard' },
-      { label: 'Procurement', route: '/procurement/dashboard' },
-      { label: 'Containers', route: '/procurement/containers' },
-      { label, route: id ? `/procurement/containers/${id}` : '/procurement/containers' },
-      { label: 'Add rag / bale', route: '' },
+      { label: 'Procurement', route: '/app/procurement' },
+      { label: 'Containers', route: '/app/procurement/containers' },
+      { label, route: id ? `/app/procurement/containers/${id}` : '/app/procurement/containers' },
+      { label: 'Register Intake Item' },
     ];
   });
 
@@ -103,15 +111,15 @@ export class RagCreatePageComponent implements OnInit {
   onCreated(): void {
     const cont = this.container();
     if (!cont) return;
-    this.router.navigate(['/procurement/containers', cont.id]);
+    this.router.navigate(['/app/procurement/containers', cont.id]);
   }
 
   onCancel(): void {
     const cont = this.container();
     if (cont) {
-      this.router.navigate(['/procurement/containers', cont.id]);
+      this.router.navigate(['/app/procurement/containers', cont.id]);
       return;
     }
-    this.router.navigate(['/procurement/containers']);
+    this.router.navigate(['/app/procurement/containers']);
   }
 }

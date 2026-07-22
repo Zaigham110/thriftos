@@ -1,28 +1,42 @@
+/**
+ * Purchase Order Add Bale Component
+ * Phase 2: Procurement UI
+ * 
+ * Route: /app/procurement/pos/:id/bales/create
+ * 
+ * Form to register a loose bale intake linked to a specific purchase order with flexible pricing options.
+ */
+
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  LucideAngularModule,
+  ArrowLeft,
+  Save,
+  Loader2,
+  Package,
+  Layers,
+  Scale,
+  DollarSign,
+  Calculator,
+  Tag,
+} from 'lucide-angular';
 
 import { ProcurementService } from '../../procurement.service';
 import { PurchaseOrder, CreateIncomingBaleRequest } from '../../procurement.models';
 import { TenantService } from '../../../../core/tenant/tenant.service';
-
 import {
-  AppBreadcrumbComponent,
-  AppButtonComponent,
-  AppCardComponent,
-  AppErrorStateComponent,
-  AppFormComponent,
-  AppFormFieldComponent,
-  AppInputComponent,
-  AppLoadingComponent,
-  AppPageBodyComponent,
   AppPageComponent,
   AppPageHeaderComponent,
-  AppStackComponent,
-  AppSelectComponent,
-  type BreadcrumbItem,
+  AppPageBodyComponent,
+  AppBreadcrumbComponent,
+  AppLoadingComponent,
+  AppErrorStateComponent,
 } from '../../../../shared/ui';
+
+export type PriceType = 'WHOLE' | 'PER_UNIT';
 
 @Component({
   selector: 'app-purchase-order-add-bale',
@@ -30,21 +44,16 @@ import {
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
     AppBreadcrumbComponent,
-    AppStackComponent,
-    AppCardComponent,
-    AppFormComponent,
-    AppFormFieldComponent,
-    AppSelectComponent,
-    AppInputComponent,
-    AppButtonComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
   ],
   templateUrl: './purchase-order-add-bale.html',
+  styleUrl: './purchase-order-add-bale.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseOrderAddBaleComponent implements OnInit {
@@ -59,39 +68,81 @@ export class PurchaseOrderAddBaleComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly actionLoading = signal(false);
 
+  readonly priceType = signal<PriceType>('WHOLE');
   readonly rawCategoriesSignal = signal<any[]>([]);
-  readonly categoryOptions = computed(() =>
-    this.rawCategoriesSignal()
-      .filter((category: any) => category.isActive && (category.rawType === 'BALE' || category.rawType === 'BOTH'))
-      .map((category: any) => ({ value: category.id, label: category.name })),
-  );
 
-  readonly breadcrumbs = computed<BreadcrumbItem[]>(() => {
+  readonly icons = {
+    ArrowLeft,
+    Save,
+    Loader2,
+    Package,
+    Layers,
+    Scale,
+    DollarSign,
+    Calculator,
+    Tag,
+  };
+
+  readonly breadcrumbs = computed(() => {
     const po = this.purchaseOrder();
     const poLabel = po?.poNumber || 'Purchase Order';
     return [
-      { label: 'Home', route: '/dashboard' },
-      { label: 'Procurement', route: '/procurement/dashboard' },
-      { label: 'Purchase Orders', route: '/procurement/pos' },
-      { label: poLabel, route: po ? `/procurement/pos/${po.id}` : '/procurement/pos' },
-      { label: 'Add bale', route: '' },
+      { label: 'Procurement', route: '/app/procurement' },
+      { label: 'Purchase Orders', route: '/app/procurement/pos' },
+      { label: poLabel, route: po ? `/app/procurement/pos/${po.id}` : '/app/procurement/pos' },
+      { label: 'Add Bale' },
     ];
   });
 
   form!: FormGroup;
 
   ngOnInit(): void {
-    this.form = this.fb.group({
-      rawCategoryId: ['', Validators.required],
-      weightKg: [0, [Validators.required, Validators.min(0.01)]],
-      cost: [0, [Validators.required, Validators.min(0)]],
-    });
-
+    this.initForm();
     this.tenantService.loadRawCategories().subscribe((categories) => {
       this.rawCategoriesSignal.set(categories);
     });
-
     this.loadPurchaseOrder();
+  }
+
+  private initForm(): void {
+    this.form = this.fb.group({
+      rawCategoryId: ['', Validators.required],
+      weightKg: [0, [Validators.required, Validators.min(0.01)]],
+      pricePerKg: [0, [Validators.min(0)]],
+      cost: [0, [Validators.required, Validators.min(0)]],
+    });
+
+    // Recalculate cost dynamically when weight or price per kg changes
+    this.form.get('weightKg')?.valueChanges.subscribe(() => this.recalculatePricing());
+    this.form.get('pricePerKg')?.valueChanges.subscribe(() => {
+      if (this.priceType() === 'PER_UNIT') {
+        this.recalculatePricing();
+      }
+    });
+    this.form.get('cost')?.valueChanges.subscribe(() => {
+      if (this.priceType() === 'WHOLE') {
+        this.recalculatePricing();
+      }
+    });
+  }
+
+  setPriceType(type: PriceType): void {
+    this.priceType.set(type);
+    this.recalculatePricing();
+  }
+
+  private recalculatePricing(): void {
+    const weight = Number(this.form.get('weightKg')?.value) || 0;
+
+    if (this.priceType() === 'PER_UNIT') {
+      const pricePerKg = Number(this.form.get('pricePerKg')?.value) || 0;
+      const totalCost = Number((weight * pricePerKg).toFixed(2));
+      this.form.get('cost')?.setValue(totalCost, { emitEvent: false });
+    } else {
+      const totalCost = Number(this.form.get('cost')?.value) || 0;
+      const pricePerKg = weight > 0 ? Number((totalCost / weight).toFixed(4)) : 0;
+      this.form.get('pricePerKg')?.setValue(pricePerKg, { emitEvent: false });
+    }
   }
 
   loadPurchaseOrder(): void {
@@ -137,7 +188,7 @@ export class PurchaseOrderAddBaleComponent implements OnInit {
     this.procurementService.createIncomingBale(data).subscribe({
       next: () => {
         this.actionLoading.set(false);
-        this.router.navigate(['/procurement/pos', po.id]);
+        this.router.navigate(['/app/procurement/pos', po.id]);
       },
       error: (err) => {
         this.error.set(err.message || 'Failed to create loose bale');
@@ -149,9 +200,9 @@ export class PurchaseOrderAddBaleComponent implements OnInit {
   onCancel(): void {
     const po = this.purchaseOrder();
     if (po) {
-      this.router.navigate(['/procurement/pos', po.id]);
+      this.router.navigate(['/app/procurement/pos', po.id]);
       return;
     }
-    this.router.navigate(['/procurement/pos']);
+    this.router.navigate(['/app/procurement/pos']);
   }
 }

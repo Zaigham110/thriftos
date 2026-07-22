@@ -74,7 +74,9 @@ export class RolePermissionsDrawerComponent {
   readonly selectedCount = computed(() => this.selectedPermissions().size);
   
   readonly totalCount = computed(() => {
-    return this.permissionGroups().reduce((acc, g) => acc + g.permissions.length, 0);
+    const groups = this.permissionGroups();
+    if (!Array.isArray(groups)) return 0;
+    return groups.reduce((acc, g) => acc + (g?.permissions?.length || 0), 0);
   });
 
   isExpanded(groupName: string): boolean {

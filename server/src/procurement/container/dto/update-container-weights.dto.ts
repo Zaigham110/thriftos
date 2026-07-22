@@ -1,4 +1,4 @@
-import { IsNumber, Min } from 'class-validator';
+import { IsNumber, Min, IsOptional } from 'class-validator';
 
 export class UpdateContainerWeightsDto {
   @IsNumber()
@@ -7,5 +7,6 @@ export class UpdateContainerWeightsDto {
 
   @IsNumber()
   @Min(0)
-  tareWeightKg: number;
+  @IsOptional()
+  tareWeightKg?: number;
 }

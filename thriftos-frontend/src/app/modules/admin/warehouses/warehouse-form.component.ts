@@ -41,12 +41,13 @@ import type { Warehouse, CreateWarehouseRequest, UpdateWarehouseRequest } from '
   template: `
     <app-page>
       <app-page-header>
-        <app-breadcrumb [items]="breadcrumbs()"></app-breadcrumb>
-
-        <app-stack direction="vertical" spacing="xs">
+        <div class="header-left-group">
+          <div class="eyebrow-container">
+            <app-breadcrumb [items]="breadcrumbs()"></app-breadcrumb>
+          </div>
           <h1 class="page-title">{{ isEditMode() ? 'Edit Warehouse' : 'New Warehouse' }}</h1>
-          <p class="page-subtitle">Warehouses are used for inventory storage and repack sealing.</p>
-        </app-stack>
+          <p class="page-subtitle">Configure facility name, unique facility code, and location details.</p>
+        </div>
       </app-page-header>
 
       <app-page-body>

@@ -36,6 +36,15 @@
   &.drawer-lg {
     width: 40rem;
   }
+
+  &.drawer-xl {
+    width: min(55vw, 960px);
+    min-width: 600px;
+  }
+
+  &.drawer-full {
+    width: 90vw;
+  }
 }
 
 .drawer-header {

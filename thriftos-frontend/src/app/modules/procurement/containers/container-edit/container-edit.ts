@@ -1,27 +1,40 @@
+/**
+ * Container Edit Component
+ * Phase 2: Procurement UI
+ * 
+ * Route: /app/procurement/containers/:id/edit
+ * 
+ * Form to update container logistics, dates, weights, and shipping agent.
+ */
+
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
+import {
+  LucideAngularModule,
+  ArrowLeft,
+  Save,
+  Loader2,
+  Truck,
+  Anchor,
+  Scale,
+  Calendar,
+} from 'lucide-angular';
 
 import { ProcurementService } from '../../procurement.service';
 import { Container, UpdateContainerRequest, UpdateContainerWeightsRequest } from '../../procurement.models';
 
 import {
-  AppBreadcrumbComponent,
-  AppButtonComponent,
-  AppCardComponent,
-  AppErrorStateComponent,
-  AppFormComponent,
-  AppFormFieldComponent,
-  AppInputComponent,
-  AppLoadingComponent,
-  AppPageBodyComponent,
   AppPageComponent,
   AppPageHeaderComponent,
-  AppSelectComponent,
-  AppStackComponent,
-  type BreadcrumbItem,
+  AppPageBodyComponent,
+  AppBreadcrumbComponent,
+  AppLoadingComponent,
+  AppErrorStateComponent,
+  AppAutocompleteComponent,
+  type AutocompleteOption,
 } from '../../../../shared/ui';
 
 @Component({
@@ -30,21 +43,17 @@ import {
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
     AppBreadcrumbComponent,
-    AppStackComponent,
-    AppCardComponent,
-    AppFormComponent,
-    AppFormFieldComponent,
-    AppInputComponent,
-    AppSelectComponent,
-    AppButtonComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
+    AppAutocompleteComponent,
   ],
   templateUrl: './container-edit.html',
+  styleUrl: './container-edit.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ContainerEditComponent implements OnInit {
@@ -58,6 +67,23 @@ export class ContainerEditComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly actionLoading = signal(false);
 
+  readonly vendors = this.procurementService.activeVendors;
+
+  // Auto-fetch shipping agents and forwarders
+  readonly agentVendors = computed(() => {
+    const all = this.vendors();
+    const shippers = all.filter((v) => v.vendorType === 'SHIPPER');
+    return shippers.length > 0 ? shippers : all;
+  });
+
+  readonly agentOptions = computed<AutocompleteOption[]>(() => {
+    return this.agentVendors().map((v) => ({
+      value: v.name,
+      label: v.name,
+      sublabel: v.country ? `Origin Country: ${v.country}` : 'Registered Agent',
+    }));
+  });
+
   readonly containerTypeOptions = [
     { value: '', label: 'Select type' },
     { value: '20ft', label: '20ft Standard' },
@@ -66,21 +92,36 @@ export class ContainerEditComponent implements OnInit {
     { value: '45HC', label: '45ft High Cube' },
   ];
 
-  readonly breadcrumbs = computed<BreadcrumbItem[]>(() => {
+  readonly icons = {
+    ArrowLeft,
+    Save,
+    Loader2,
+    Truck,
+    Anchor,
+    Scale,
+    Calendar,
+  };
+
+  readonly breadcrumbs = computed(() => {
     const cont = this.container();
     const label = cont?.containerNumber || 'Container';
     return [
-      { label: 'Home', route: '/dashboard' },
-      { label: 'Procurement', route: '/procurement/dashboard' },
-      { label: 'Containers', route: '/procurement/containers' },
-      { label, route: cont ? `/procurement/containers/${cont.id}` : '/procurement/containers' },
-      { label: 'Edit', route: '' },
+      { label: 'Procurement', route: '/app/procurement' },
+      { label: 'Containers', route: '/app/procurement/containers' },
+      { label, route: cont ? `/app/procurement/containers/${cont.id}` : '/app/procurement/containers' },
+      { label: 'Edit' },
     ];
   });
 
   form!: FormGroup;
 
   ngOnInit(): void {
+    this.initForm();
+    this.procurementService.loadVendors().subscribe();
+    this.loadContainer();
+  }
+
+  private initForm(): void {
     this.form = this.fb.group({
       referenceNumber: ['', Validators.maxLength(50)],
       containerType: [''],
@@ -100,8 +141,6 @@ export class ContainerEditComponent implements OnInit {
       forwarder: ['', Validators.maxLength(50)],
       notes: ['', Validators.maxLength(500)],
     });
-
-    this.loadContainer();
   }
 
   loadContainer(): void {
@@ -155,6 +194,18 @@ export class ContainerEditComponent implements OnInit {
 
     this.actionLoading.set(true);
 
+    const forwarderName = this.form.value.forwarder?.trim() || undefined;
+
+    // Auto-save forwarder into Vendors database if it's a new agent name
+    if (forwarderName) {
+      const existingVendor = this.vendors().find(
+        (v) => v.name.toLowerCase() === forwarderName.toLowerCase()
+      );
+      if (!existingVendor) {
+        this.procurementService.createVendor({ name: forwarderName, vendorType: 'SHIPPER' }).subscribe();
+      }
+    }
+
     const data: UpdateContainerRequest = {
       referenceNumber: this.form.value.referenceNumber?.trim() || undefined,
       containerType: this.form.value.containerType?.trim() || undefined,
@@ -169,38 +220,32 @@ export class ContainerEditComponent implements OnInit {
       vesselName: this.form.value.vesselName?.trim() || undefined,
       portOfLoading: this.form.value.portOfLoading?.trim() || undefined,
       portOfDischarge: this.form.value.portOfDischarge?.trim() || undefined,
-      forwarder: this.form.value.forwarder?.trim() || undefined,
+      forwarder: forwarderName,
       notes: this.form.value.notes?.trim() || undefined,
     };
 
     const rawGross = this.form.value.grossWeightKg;
     const rawTare = this.form.value.tareWeightKg;
-    const grossWeightKg = rawGross === '' || rawGross === null || rawGross === undefined ? undefined : Number(rawGross);
-    const tareWeightKg = rawTare === '' || rawTare === null || rawTare === undefined ? undefined : Number(rawTare);
+
+    const currentGross = Number(container.grossWeight);
+    const currentTare = container.tareWeight === null || container.tareWeight === undefined ? 0 : Number(container.tareWeight);
+
+    const grossWeightKg = rawGross === '' || rawGross === null || rawGross === undefined ? currentGross : Number(rawGross);
+    const tareWeightKg = rawTare === '' || rawTare === null || rawTare === undefined ? 0 : Number(rawTare);
 
     const requests = [this.procurementService.updateContainer(container.id, data)];
 
-    if (grossWeightKg !== undefined || tareWeightKg !== undefined) {
-      if (grossWeightKg === undefined || tareWeightKg === undefined) {
-        this.error.set('To update weights, both gross weight and tare weight are required');
-        this.actionLoading.set(false);
-        return;
-      }
+    const hasChanged = grossWeightKg !== currentGross || tareWeightKg !== currentTare;
 
-      const currentGross = Number(container.grossWeight);
-      const currentTare = container.tareWeight === null || container.tareWeight === undefined ? null : Number(container.tareWeight);
-      const hasChanged = grossWeightKg !== currentGross || tareWeightKg !== currentTare;
-
-      if (hasChanged) {
-        const weights: UpdateContainerWeightsRequest = { grossWeightKg, tareWeightKg };
-        requests.push(this.procurementService.updateContainerWeights(container.id, weights));
-      }
+    if (hasChanged) {
+      const weights: UpdateContainerWeightsRequest = { grossWeightKg, tareWeightKg };
+      requests.push(this.procurementService.updateContainerWeights(container.id, weights));
     }
 
     forkJoin(requests).subscribe({
       next: () => {
         this.actionLoading.set(false);
-        this.router.navigate(['/procurement/containers', container.id]);
+        this.router.navigate(['/app/procurement/containers', container.id]);
       },
       error: (err) => {
         this.error.set(err.message || 'Failed to update container');
@@ -212,10 +257,10 @@ export class ContainerEditComponent implements OnInit {
   onCancel(): void {
     const container = this.container();
     if (container) {
-      this.router.navigate(['/procurement/containers', container.id]);
+      this.router.navigate(['/app/procurement/containers', container.id]);
       return;
     }
-    this.router.navigate(['/procurement/containers']);
+    this.router.navigate(['/app/procurement/containers']);
   }
 
   private formatDate(value?: string | null): string {

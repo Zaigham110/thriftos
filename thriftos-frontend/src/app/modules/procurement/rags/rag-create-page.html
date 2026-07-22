@@ -1,25 +1,31 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs()" />
-      <h1 class="page-title">Add Rag / Bale</h1>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs()"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Register Intake Rag / Bale</h1>
       @if (container(); as cont) {
-        <p class="page-subtitle">{{ cont.containerNumber }}</p>
+        <p class="page-subtitle">Log intake weight and raw category for container <strong>{{ cont.containerNumber }}</strong>.</p>
       }
-    </app-stack>
+    </div>
 
-    <div class="actions">
-      <app-button variant="secondary" (click)="onCancel()">Cancel</app-button>
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="onCancel()">
+        <lucide-icon [img]="icons.ArrowLeft" [size]="15"></lucide-icon>
+        Back to Container Details
+      </button>
     </div>
   </app-page-header>
 
   <app-page-body>
     @if (loading()) {
-      <app-loading message="Loading…" />
+      <app-loading message="Loading container intake details…"></app-loading>
     } @else if (error()) {
-      <app-error-state title="Failed" [message]="error()!" [action]="true">
-        <app-button action variant="secondary" (click)="onCancel()">Back</app-button>
-      </app-error-state>
+      <app-error-state
+        [message]="error()!"
+        (retry)="onCancel()"
+      ></app-error-state>
     } @else if (container(); as cont) {
       <app-rag-create-drawer
         [containerId]="cont.id"
@@ -28,7 +34,7 @@
         [containerCurrentWeight]="ragsWeightTotal()"
         (created)="onCreated()"
         (closed)="onCancel()"
-      />
+      ></app-rag-create-drawer>
     }
   </app-page-body>
 </app-page>

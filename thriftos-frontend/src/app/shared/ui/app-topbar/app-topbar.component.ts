@@ -1,34 +1,20 @@
 import { Component } from '@angular/core';
 
 /**
- * app-topbar - Top Bar Primitive
- * 
- * Odoo-Style Design System
- * Contextual information bar at the top of the shell
- * 
- * Structure:
- * - Projects content into left and right slots
- * - Fixed height, minimal padding
- * - Subtle border bottom
- * 
- * @example
- * <app-topbar>
- *   <div slot="left">Module Name</div>
- *   <div slot="right">Tenant + User Menu</div>
- * </app-topbar>
+ * app-topbar - Professional SaaS Topbar Primitive
  */
 @Component({
   selector: 'app-topbar',
   standalone: true,
   template: `
-    <div class="topbar">
+    <header class="topbar">
       <div class="topbar-left">
         <ng-content select="[slot='left']" />
       </div>
       <div class="topbar-right">
         <ng-content select="[slot='right']" />
       </div>
-    </div>
+    </header>
   `,
   styles: [`
     .topbar {
@@ -36,25 +22,25 @@ import { Component } from '@angular/core';
       justify-content: space-between;
       align-items: center;
       width: 100%;
-      min-height: 56px;
-      padding: 0 var(--space-lg);
-      background: var(--app-bg-surface);
-      border-bottom: 1px solid var(--app-border-subtle);
+      height: 56px;
+      padding: 0 1.5rem;
+      background: #ffffff;
+      border-bottom: 1px solid #e5e7eb;
       position: relative;
-      z-index: 10;
+      z-index: 20;
     }
 
     .topbar-left {
       display: flex;
       align-items: center;
-      gap: var(--space-md);
+      gap: 1rem;
       min-width: 0;
     }
 
     .topbar-right {
       display: flex;
       align-items: center;
-      gap: var(--space-md);
+      gap: 1rem;
     }
   `]
 })

@@ -3,8 +3,8 @@ import { RagBaleType } from '@prisma/client';
 
 export class CreateRagDto {
   @IsString()
-  @IsNotEmpty()
-  containerId: string;
+  @IsOptional()
+  containerId?: string;
 
   @IsEnum(RagBaleType)
   @IsNotEmpty()

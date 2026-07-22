@@ -218,7 +218,7 @@ modules = [
 - `--space-xl`: Extra large padding
 
 ### Typography
-- `--font-size-sm`: Small text
+- `--font-size-meta`: Small text
 - `--font-size-base`: Body text
 - `--font-size-lg`: Large icons
 - `--font-size-xl`: Module name, logo

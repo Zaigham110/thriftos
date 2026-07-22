@@ -42,12 +42,13 @@ export class AdminUsersController {
   @Get()
   @RequirePermissions('user.read')
   async findAll(
-    @Query('includeInactive') includeInactive: boolean,
+    @Query('includeInactive') includeInactive: string | boolean,
     @CurrentUser() user: CurrentUserData,
     @Req() req: Request,
   ) {
     const tenantId = (req as any).tenantId || user.tenantId;
-    return this.usersService.findAll(tenantId, includeInactive);
+    const shouldIncludeInactive = String(includeInactive) === 'true';
+    return this.usersService.findAll(tenantId, shouldIncludeInactive);
   }
 
   @Get(':id')
@@ -83,6 +84,14 @@ export class AdminUsersController {
   async unblock(@Param('id') id: string, @CurrentUser() user: CurrentUserData, @Req() req: Request) {
     const tenantId = (req as any).tenantId || user.tenantId;
     return this.usersService.unblock(tenantId, id, user.userId);
+  }
+
+  @Post(':id/reset-password')
+  @RequirePermissions('user.update')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Param('id') id: string, @CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    return this.usersService.resetPassword(tenantId, id, user.userId);
   }
 
   @Post(':id/roles/bulk')

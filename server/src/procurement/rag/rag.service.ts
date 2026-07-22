@@ -16,28 +16,32 @@ export class RagService {
   ) {}
 
   async create(tenantId: string, dto: CreateRagDto, userId: string) {
-    // Validate container
-    const container = await this.prisma.container.findFirst({
-      where: {
-        id: dto.containerId,
-        purchaseOrder: { tenantId },
-      },
-      include: {
-        purchaseOrder: {
-          select: { id: true, poNumber: true },
-        },
-        rags: {
-          select: { weightKg: true },
-        },
-      },
-    });
+    let container: any = null;
 
-    if (!container) {
-      throw new BadRequestException('Container not found');
-    }
+    if (dto.containerId) {
+      // Validate container if provided
+      container = await this.prisma.container.findFirst({
+        where: {
+          id: dto.containerId,
+          purchaseOrder: { tenantId },
+        },
+        include: {
+          purchaseOrder: {
+            select: { id: true, poNumber: true },
+          },
+          rags: {
+            select: { weightKg: true },
+          },
+        },
+      });
 
-    if (container.status === ContainerStatus.CLOSED) {
-      throw new ConflictException('Cannot add rags to a closed container');
+      if (!container) {
+        throw new BadRequestException('Container not found');
+      }
+
+      if (container.status === ContainerStatus.CLOSED) {
+        throw new ConflictException('Cannot add rags to a closed container');
+      }
     }
 
     // Validate raw category exists and is active
@@ -49,21 +53,23 @@ export class RagService {
       throw new BadRequestException('Raw category not found or inactive');
     }
 
-    // Validate total weight doesn't exceed container net weight (gross is informational only)
-    const currentTotalWeight = container.rags.reduce((sum, rag) => sum + Number(rag.weightKg), 0);
-    const newTotalWeight = Number(currentTotalWeight) + Number(dto.weightKg);
-    const netWeight = Number(container.netWeight);
+    if (container) {
+      // Validate total weight doesn't exceed container net weight
+      const currentTotalWeight = container.rags.reduce((sum: number, rag: any) => sum + Number(rag.weightKg), 0);
+      const newTotalWeight = Number(currentTotalWeight) + Number(dto.weightKg);
+      const netWeight = Number(container.netWeight);
 
-    if (!Number.isFinite(netWeight) || netWeight <= 0) {
-      throw new BadRequestException(
-        'Container net weight is missing or invalid. Set gross/tare weights to compute net weight before adding rags.',
-      );
-    }
+      if (!Number.isFinite(netWeight) || netWeight <= 0) {
+        throw new BadRequestException(
+          'Container net weight is missing or invalid. Set gross/tare weights to compute net weight before adding rags.',
+        );
+      }
 
-    if (newTotalWeight > netWeight) {
-      throw new BadRequestException(
-        `Total weight (${newTotalWeight} kg) would exceed container net weight (${netWeight} kg). Available: ${netWeight - currentTotalWeight} kg`,
-      );
+      if (newTotalWeight > netWeight) {
+        throw new BadRequestException(
+          `Total weight (${newTotalWeight} kg) would exceed container net weight (${netWeight} kg). Available: ${netWeight - currentTotalWeight} kg`,
+        );
+      }
     }
 
     // Determine prefix based on type
@@ -85,12 +91,13 @@ export class RagService {
     const rag = await this.prisma.rag.create({
       data: {
         tenantId,
-        containerId: dto.containerId,
+        containerId: dto.containerId || null,
+        sourceType: container ? RagSourceType.CONTAINER : RagSourceType.LOOSE_BALE,
         ragCode,
         ragBaleType: dto.ragBaleType,
         rawCategoryId: dto.rawCategoryId,
         weightKg: dto.weightKg,
-        allocatedCost: 0, // Will be calculated
+        allocatedCost: 0, // Will be calculated if container exists
         notes: dto.notes,
       },
       include: {
@@ -103,8 +110,10 @@ export class RagService {
       },
     });
 
-    // Recalculate cost allocation
-    await this.costAllocationService.allocateContainerCosts(dto.containerId, userId);
+    // Recalculate cost allocation if container is associated
+    if (dto.containerId) {
+      await this.costAllocationService.allocateContainerCosts(dto.containerId, tenantId, userId);
+    }
 
     // Reload to get updated cost
     const updatedRag = await this.prisma.rag.findUnique({

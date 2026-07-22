@@ -1,100 +1,242 @@
 <app-page>
   <app-page-header>
-    <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Category Management</h1>
+      <p class="page-subtitle">Configure sorted output item categories, sort priority indices, and auto-linked waste categories.</p>
+    </div>
 
-    <app-stack direction="vertical">
-      <h1>Category Management</h1>
-      @if (!loading()) {
-        <p class="page-subtitle">{{ filteredCategories().length }} categories</p>
-      }
-    </app-stack>
-
-    <div class="actions">
-      <app-button variant="secondary" (clickEvent)="refresh()">Refresh</app-button>
-      <app-button variant="primary" (clickEvent)="navigateToCreate()" *hasPermission="'category.create'">New Category</app-button>
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="refresh()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="15" [class.animate-spin]="loading()"></lucide-icon>
+        Refresh
+      </button>
+      <button class="btn btn-primary" (click)="navigateToCreate()" *hasPermission="'category.create'">
+        <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
+        New Category
+      </button>
     </div>
   </app-page-header>
 
   <app-page-body>
-    <app-section>
-      <app-section-header>
-        <h2 class="section-title">All Categories</h2>
-        <div class="section-actions">
-          <div class="search">
-            <input
-              type="text"
-              class="search-input"
-              placeholder="Search categories…"
-              [value]="searchQuery()"
-              (input)="searchQuery.set($any($event.target).value)"
-            />
-          </div>
-        </div>
-      </app-section-header>
+    @if (error()) {
+      <app-error-state
+        [message]="error()!"
+        (retry)="loadData()"
+        (dismiss)="clearError()"
+      ></app-error-state>
+    }
 
-      <app-section-body>
-        @if (loading()) {
-          <app-loading message="Loading categories…"></app-loading>
+    <!-- KPI Summary Grid -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-purple">
+          <lucide-icon [img]="icons.Layers" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Categories</span>
+          <span class="kpi-value">{{ totalCategoriesCount() }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-emerald">
+          <lucide-icon [img]="icons.CheckCircle2" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Active Output Types</span>
+          <span class="kpi-value">{{ activeCategoriesCount() }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-blue">
+          <lucide-icon [img]="icons.Recycle" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Linked Waste Streams</span>
+          <span class="kpi-value">{{ linkedWasteCount() }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Table Section -->
+    <app-section>
+      <div class="table-toolbar">
+        <div class="toolbar-title">
+          <span class="section-label">Sorting Category Directory</span>
+          <span class="results-count">{{ filteredCategories().length }} categories</span>
+        </div>
+
+        <div class="search-box">
+          <lucide-icon [img]="icons.Search" [size]="15" class="search-icon"></lucide-icon>
+          <input
+            type="text"
+            class="search-input"
+            placeholder="Search categories by name..."
+            [value]="searchQuery()"
+            (input)="searchQuery.set($any($event.target).value)"
+          />
+          @if (searchQuery()) {
+            <button class="search-clear-btn" (click)="clearSearch()">
+              <lucide-icon [img]="icons.X" [size]="14"></lucide-icon>
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="table-card">
+        @if (loading() && categories().length === 0) {
+          <app-loading></app-loading>
         } @else if (filteredCategories().length === 0) {
           <app-empty-state
-            title="No categories found"
-            [message]="searchQuery() ? 'No categories match your search criteria.' : 'Create your first category to unlock sorting and repack configuration.'"
+            title="No Categories Found"
+            [message]="searchQuery() ? 'No category matches your search query' : 'Create your first output category to enable sorting classification.'"
           >
             @if (!searchQuery()) {
-              <app-button variant="primary" (clickEvent)="navigateToCreate()" *hasPermission="'category.create'">Create Category</app-button>
+              <button class="btn btn-primary mt-3" (click)="navigateToCreate()" *hasPermission="'category.create'">
+                <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
+                Create Category
+              </button>
             }
           </app-empty-state>
         } @else {
-          <app-data-table
-            [data]="filteredCategories()"
-            [columns]="tableColumns"
-            [loading]="loading()"
-            [serverSide]="false"
-          >
-            <ng-template #cellTemplate let-row let-column="column">
-              @if (column.key === 'status') {
-                <span class="text-sm" [class.text-green-600]="row.isActive" [class.text-gray-500]="!row.isActive">
-                  {{ row.isActive ? 'Active' : 'Inactive' }}
-                </span>
-              }
-            </ng-template>
+          <div class="table-wrapper">
+            <table class="category-table">
+              <thead>
+                <tr>
+                  <th>Category Name</th>
+                  <th>Linked Waste Category</th>
+                  <th>Sort Priority</th>
+                  <th>Status</th>
+                  <th>Created Date</th>
+                  <th class="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (category of filteredCategories(); track category.id) {
+                  <tr>
+                    <td>
+                      <div class="category-name-cell">
+                        <div class="category-badge-icon">
+                          <lucide-icon [img]="icons.Tags" [size]="16"></lucide-icon>
+                        </div>
+                        <span class="category-name">{{ category.name }}</span>
+                      </div>
+                    </td>
 
-            <ng-template #rowActions let-row>
-              <app-button variant="secondary" size="sm" (clickEvent)="navigateToEdit(row)" *hasPermission="'category.update'">Edit</app-button>
-              @if (row.isActive) {
-                <app-button variant="danger" size="sm" (clickEvent)="confirmDeactivate(row)" *hasPermission="'category.update'">Deactivate</app-button>
-              }
-              @if (!row.isActive) {
-                <app-button variant="danger" size="sm" (clickEvent)="confirmDelete(row)" *hasPermission="'category.delete'">Delete</app-button>
-              }
-            </ng-template>
-          </app-data-table>
+                    <td>
+                      <span class="waste-link-pill">
+                        <lucide-icon [img]="icons.Recycle" [size]="12"></lucide-icon>
+                        {{ category.name }} Waste
+                      </span>
+                    </td>
+
+                    <td>
+                      <span class="order-pill">
+                        <lucide-icon [img]="icons.ArrowUpDown" [size]="12"></lucide-icon>
+                        #{{ category.sortOrder }}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span 
+                        class="status-pill" 
+                        [class.status-active]="category.isActive" 
+                        [class.status-inactive]="!category.isActive"
+                      >
+                        <span class="status-dot"></span>
+                        {{ category.isActive ? 'Active' : 'Inactive' }}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span class="text-subtle">{{ category.createdAt | date:'mediumDate' }}</span>
+                    </td>
+
+                    <td class="text-right">
+                      <div class="action-buttons">
+                        <button 
+                          class="action-icon-btn" 
+                          title="Edit Category Details"
+                          (click)="navigateToEdit(category)"
+                          *hasPermission="'category.update'"
+                        >
+                          <lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>
+                        </button>
+
+                        @if (category.isActive) {
+                          <button 
+                            class="action-icon-btn danger" 
+                            title="Deactivate Category"
+                            (click)="confirmDeactivate(category)"
+                            *hasPermission="'category.update'"
+                          >
+                            <lucide-icon [img]="icons.Power" [size]="15"></lucide-icon>
+                          </button>
+                        } @else {
+                          <button 
+                            class="action-icon-btn danger" 
+                            title="Delete Category"
+                            (click)="confirmDelete(category)"
+                            *hasPermission="'category.delete'"
+                          >
+                            <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+                          </button>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
         }
-      </app-section-body>
+      </div>
     </app-section>
   </app-page-body>
 </app-page>
 
+<!-- Deactivate Modal -->
 <app-dialog
   [open]="confirmDeactivateOpen()"
   title="Deactivate Category"
-  [message]="'Deactivating ' + (selected()?.name || '') + ' will remove it from new sorting and repack operations. Existing history and reports remain.'"
-  confirmText="Deactivate"
-  cancelText="Cancel"
-  variant="danger"
-  [loading]="actionLoading()"
-  (confirmed)="executeDeactivate()"
-  (cancelled)="cancelDialogs()"
-></app-dialog>
+  (closed)="cancelDialogs()"
+>
+  <div class="dialog-content-body">
+    <p class="dialog-desc">
+      Are you sure you want to deactivate <strong>{{ selected()?.name }}</strong>?
+      Deactivating this category will hide it from selection in new sorting batches.
+    </p>
+  </div>
 
+  <div slot="footer" class="dialog-actions">
+    <button class="btn btn-secondary" (click)="cancelDialogs()">Cancel</button>
+    <button class="btn btn-danger" [disabled]="actionLoading()" (click)="executeDeactivate()">
+      @if (actionLoading()) { Deactivating... } @else { Deactivate Category }
+    </button>
+  </div>
+</app-dialog>
+
+<!-- Delete Modal -->
 <app-dialog
   [open]="confirmDeleteOpen()"
   title="Delete Category"
-  [message]="'Deleting ' + (selected()?.name || '') + ' will permanently remove it. If it was used in sorting/repack history, deletion will be blocked and you should deactivate instead.'"
-  confirmText="Delete"
-  cancelText="Cancel"
-  variant="danger"
-  [loading]="actionLoading()"
-  (confirmed)="executeDelete()"
-  (cancelled)="cancelDialogs()"
-></app-dialog>
+  (closed)="cancelDialogs()"
+>
+  <div class="dialog-content-body">
+    <p class="dialog-desc">
+      Are you sure you want to permanently delete <strong>{{ selected()?.name }}</strong>?
+      This action will fail if the category has already been used in sorting history.
+    </p>
+  </div>
+
+  <div slot="footer" class="dialog-actions">
+    <button class="btn btn-secondary" (click)="cancelDialogs()">Cancel</button>
+    <button class="btn btn-danger" [disabled]="actionLoading()" (click)="executeDelete()">
+      @if (actionLoading()) { Deleting... } @else { Delete Category }
+    </button>
+  </div>
+</app-dialog>

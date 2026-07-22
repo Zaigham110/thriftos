@@ -61,19 +61,22 @@ export class ContainerService {
     return { gross, tare, net };
   }
 
-  private computeNetWeightOrThrow(grossWeightKg: number, tareWeightKg: number) {
+  private computeNetWeightOrThrow(grossWeightKg: number, tareWeightKg?: number | null) {
     if (!Number.isFinite(grossWeightKg) || grossWeightKg <= 0) {
       throw new BadRequestException('grossWeightKg must be greater than 0');
     }
-    if (!Number.isFinite(tareWeightKg) || tareWeightKg < 0) {
+
+    const safeTare = tareWeightKg === null || tareWeightKg === undefined ? 0 : tareWeightKg;
+    if (!Number.isFinite(safeTare) || safeTare < 0) {
       throw new BadRequestException('tareWeightKg must be 0 or greater');
     }
-    if (tareWeightKg >= grossWeightKg) {
+
+    if (safeTare >= grossWeightKg) {
       throw new BadRequestException('tareWeightKg must be less than grossWeightKg');
     }
 
     const gross = new Prisma.Decimal(grossWeightKg);
-    const tare = new Prisma.Decimal(tareWeightKg);
+    const tare = new Prisma.Decimal(safeTare);
     const net = gross.minus(tare).toDecimalPlaces(2);
 
     if (net.lte(0)) {
@@ -191,7 +194,7 @@ export class ContainerService {
         orderBy: { createdAt: 'desc' },
         include: {
           purchaseOrder: {
-            select: { id: true, poNumber: true, tenantId: true },
+            select: { id: true, poNumber: true, tenantId: true, vendor: true },
           },
           containerCharges: true,
           _count: {
@@ -301,7 +304,7 @@ export class ContainerService {
       },
     });
 
-    await this.costAllocationService.allocateContainerCosts(id, userId);
+    await this.costAllocationService.allocateContainerCosts(id, tenantId, userId);
 
     await this.auditService.log({
       userId,
@@ -380,7 +383,7 @@ export class ContainerService {
     });
 
     // Recalculate cost allocation
-    await this.costAllocationService.allocateContainerCosts(containerId, userId);
+    await this.costAllocationService.allocateContainerCosts(containerId, tenantId, userId);
     await this.costAllocationService.syncPurchaseOrderTotals(container.purchaseOrder.id);
 
     await this.auditService.log({
@@ -428,7 +431,7 @@ export class ContainerService {
     });
 
     // Recalculate cost allocation
-    await this.costAllocationService.allocateContainerCosts(containerId, userId);
+    await this.costAllocationService.allocateContainerCosts(containerId, tenantId, userId);
     await this.costAllocationService.syncPurchaseOrderTotals(container.purchaseOrder.id);
 
     await this.auditService.log({

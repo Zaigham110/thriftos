@@ -1,17 +1,22 @@
 <app-page>
   <app-page-header>
-    <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
-    
-    <app-stack direction="vertical">
-      <h1>User Management</h1>
-      @if (!loading()) {
-        <p class="page-subtitle">{{ filteredUsers.length }} users</p>
-      }
-    </app-stack>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">User Management</h1>
+      <p class="page-subtitle">Manage tenant team accounts, role assignments, security access, and password resets.</p>
+    </div>
 
-    <div class="actions">
-      <app-button variant="secondary" (click)="refresh()">Refresh</app-button>
-      <app-button variant="primary" (click)="createUser()" *hasPermission="'user.create'">New User</app-button>
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="refresh()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="15" [class.animate-spin]="loading()"></lucide-icon>
+        Refresh
+      </button>
+      <button class="btn btn-primary" (click)="openCreateDrawer()" *hasPermission="'user.create'">
+        <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
+        Add User
+      </button>
     </div>
   </app-page-header>
 
@@ -24,100 +29,279 @@
       ></app-error-state>
     }
 
-    <app-section>
-      <app-section-header>
-        <h2 class="section-title">All Users</h2>
-        <div class="section-actions">
-          <div class="search">
-            <input
-              type="text"
-              class="search-input"
-              placeholder="Search users…"
-              [value]="searchQuery()"
-              (input)="searchQuery.set($any($event.target).value)"
-            />
-          </div>
-          <label class="filter-checkbox">
-            <input
-              type="checkbox"
-              [checked]="showInactive()"
-              (change)="toggleShowInactive()"
-            />
-            Show inactive
-          </label>
+    <!-- KPI Summary Grid -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-blue">
+          <lucide-icon [img]="icons.Users" [size]="20"></lucide-icon>
         </div>
-      </app-section-header>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Users</span>
+          <span class="kpi-value">{{ totalUsersCount() }}</span>
+        </div>
+      </div>
 
-      <app-section-body>
-        @if (loading()) {
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-emerald">
+          <lucide-icon [img]="icons.UserCheck" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Active Staff</span>
+          <span class="kpi-value">{{ activeUsersCount() }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-amber">
+          <lucide-icon [img]="icons.UserX" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Blocked Accounts</span>
+          <span class="kpi-value">{{ blockedUsersCount() }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-purple">
+          <lucide-icon [img]="icons.Shield" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Available Roles</span>
+          <span class="kpi-value">{{ totalRolesCount() }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Table & Filter Section -->
+    <app-section>
+      <div class="table-toolbar">
+        <div class="filter-tabs">
+          <button 
+            class="tab-btn" 
+            [class.active]="statusFilter() === 'ALL'" 
+            (click)="setFilter('ALL')"
+          >
+            All Users <span class="tab-badge">{{ totalUsersCount() }}</span>
+          </button>
+          <button 
+            class="tab-btn" 
+            [class.active]="statusFilter() === 'ACTIVE'" 
+            (click)="setFilter('ACTIVE')"
+          >
+            Active <span class="tab-badge badge-active">{{ activeUsersCount() }}</span>
+          </button>
+          <button 
+            class="tab-btn" 
+            [class.active]="statusFilter() === 'BLOCKED'" 
+            (click)="setFilter('BLOCKED')"
+          >
+            Blocked <span class="tab-badge badge-blocked">{{ blockedUsersCount() }}</span>
+          </button>
+        </div>
+
+        <div class="search-box">
+          <lucide-icon [img]="icons.Search" [size]="16" class="search-icon"></lucide-icon>
+          <input
+            type="text"
+            class="search-input"
+            placeholder="Search by name, email, or role..."
+            [value]="searchQuery()"
+            (input)="searchQuery.set($any($event.target).value)"
+          />
+          @if (searchQuery()) {
+            <button class="search-clear-btn" (click)="clearSearch()">
+              <lucide-icon [img]="icons.X" [size]="14"></lucide-icon>
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="table-card">
+        @if (loading() && users().length === 0) {
           <app-loading></app-loading>
         } @else if (filteredUsers.length === 0) {
           <app-empty-state
             title="No Users Found"
-            [message]="searchQuery() ? 'No users match your search criteria' : 'No users have been added yet'"
+            [message]="searchQuery() ? 'No user matches your search query' : 'No team members added under this filter'"
           >
             @if (!searchQuery()) {
-              <app-button variant="primary" (click)="createUser()">Add First User</app-button>
+              <button class="btn btn-primary mt-3" (click)="openCreateDrawer()" *hasPermission="'user.create'">
+                <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>
+                Add First User
+              </button>
             }
           </app-empty-state>
         } @else {
-          <app-data-table
-            [data]="filteredUsers"
-            [columns]="tableColumns"
-            [loading]="loading()"
-            [serverSide]="false"
-          >
-            <!-- Custom cell templates -->
-            <ng-template #cellTemplate let-row let-column="column">
-              @if (column.key === 'status') {
-                <app-badge [variant]="statusVariant(row.isActive)" size="sm">
-                  {{ getStatusLabel(row.isActive) }}
-                </app-badge>
-              } @else if (column.key === 'createdAt') {
-                {{ row.createdAt | date:'mediumDate' }}
-              }
-            </ng-template>
+          <div class="table-wrapper">
+            <table class="user-table">
+              <thead>
+                <tr>
+                  <th>User Details</th>
+                  <th>Roles & Access</th>
+                  <th>Status</th>
+                  <th>Created Date</th>
+                  <th class="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (user of filteredUsers; track user.id) {
+                  <tr [class.inactive-row]="!user.isActive">
+                    <td>
+                      <div class="user-info-cell">
+                        <div class="user-avatar" [class.user-avatar-self]="isSelf(user)">
+                          {{ getUserInitials(user.name) }}
+                        </div>
+                        <div class="user-text">
+                          <span class="user-name">
+                            {{ user.name }}
+                            @if (isSelf(user)) {
+                              <span class="self-badge">(You)</span>
+                            }
+                          </span>
+                          <span class="user-email">{{ user.email }}</span>
+                        </div>
+                      </div>
+                    </td>
 
-            <!-- Row actions -->
-            <ng-template #rowActions let-row>
-              <app-button variant="secondary" size="sm" (click)="editUser(row)" *hasPermission="'user.update'">Edit</app-button>
-              <app-button
-                [variant]="row.isActive ? 'danger' : 'primary'"
-                size="sm"
-                (click)="toggleStatus(row)"
-                *hasPermission="'user.delete'"
-              >
-                {{ row.isActive ? 'Delete' : 'Reactivate' }}
-              </app-button>
-            </ng-template>
-          </app-data-table>
+                    <td>
+                      <div class="roles-flex">
+                        @if (!user.userRoles || user.userRoles.length === 0) {
+                          <span class="text-muted text-xs">No roles assigned</span>
+                        } @else {
+                          @for (ur of user.userRoles; track ur.id) {
+                            @if (ur.role) {
+                              <span class="role-pill" [ngClass]="getRoleBadgeClass(ur.role.name)">
+                                {{ ur.role.name }}
+                              </span>
+                            }
+                          }
+                        }
+                      </div>
+                    </td>
+
+                    <td>
+                      <span class="status-indicator" [class.status-active]="user.isActive" [class.status-blocked]="!user.isActive">
+                        <span class="status-dot"></span>
+                        {{ user.isActive ? 'Active' : 'Blocked' }}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span class="text-subtle">{{ user.createdAt | date:'mediumDate' }}</span>
+                    </td>
+
+                    <td class="text-right">
+                      <div class="action-buttons">
+                        <button 
+                          class="action-icon-btn" 
+                          title="Edit User"
+                          (click)="openEditDrawer(user)"
+                          *hasPermission="'user.update'"
+                        >
+                          <lucide-icon [img]="icons.Pencil" [size]="16"></lucide-icon>
+                        </button>
+
+                        <button 
+                          class="action-icon-btn" 
+                          title="Reset Password"
+                          (click)="promptResetPassword(user)"
+                          *hasPermission="'user.update'"
+                        >
+                          <lucide-icon [img]="icons.KeyRound" [size]="16"></lucide-icon>
+                        </button>
+
+                        <button 
+                          class="action-icon-btn" 
+                          [class.danger]="user.isActive"
+                          [class.success]="!user.isActive"
+                          [disabled]="isSelf(user)"
+                          [title]="isSelf(user) ? 'Cannot block your own account' : (user.isActive ? 'Deactivate User' : 'Reactivate User')"
+                          (click)="confirmToggleStatus(user)"
+                          *hasPermission="'user.delete'"
+                        >
+                          <lucide-icon [img]="user.isActive ? icons.Ban : icons.CheckCircle2" [size]="16"></lucide-icon>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
         }
-      </app-section-body>
+      </div>
     </app-section>
   </app-page-body>
 </app-page>
 
-<!-- Confirm Dialog -->
+<!-- Slide-over Form Drawer for Inline Create/Edit -->
+<app-user-form-drawer
+  [isOpen]="isDrawerOpen()"
+  [user]="selectedUserForEdit()"
+  [roles]="roles()"
+  (closed)="closeDrawer()"
+  (saved)="onUserSaved()"
+></app-user-form-drawer>
+
+<!-- Confirm Status Toggle Dialog -->
 <app-dialog
   [open]="confirmDialogOpen()"
-  [title]="userToToggle()?.isActive ? 'Delete User' : 'Reactivate User'"
+  [title]="userToToggle()?.isActive ? 'Deactivate User Account' : 'Reactivate User Account'"
   (closed)="cancelToggle()"
 >
-  <p>
+  <div class="dialog-content-body">
     @if (userToToggle()?.isActive) {
-      Deleting a user is a soft-deactivation. {{ userToToggle()?.name }} will no longer be able to log in, but historical records remain intact.
+      <p class="dialog-desc">
+        Are you sure you want to deactivate <strong>{{ userToToggle()?.name }}</strong>?
+        They will no longer be able to log in, but all historical activity logs and audit trails will remain preserved.
+      </p>
     } @else {
-      Reactivate {{ userToToggle()?.name }} so they can log in again.
+      <p class="dialog-desc">
+        Reactivate <strong>{{ userToToggle()?.name }}</strong> to restore their application access and role permissions.
+      </p>
     }
-  </p>
+  </div>
   
   <div slot="footer" class="dialog-actions">
-    <app-button variant="secondary" (click)="cancelToggle()">Cancel</app-button>
-    <app-button 
-      [variant]="userToToggle()?.isActive ? 'danger' : 'primary'" 
+    <button class="btn btn-secondary" (click)="cancelToggle()">Cancel</button>
+    <button 
+      class="btn"
+      [class.btn-danger]="userToToggle()?.isActive" 
+      [class.btn-primary]="!userToToggle()?.isActive" 
       (click)="executeToggleStatus()"
     >
-      {{ userToToggle()?.isActive ? 'Delete' : 'Reactivate' }}
-    </app-button>
+      {{ userToToggle()?.isActive ? 'Deactivate Account' : 'Reactivate Account' }}
+    </button>
+  </div>
+</app-dialog>
+
+<!-- Reset Password Modal -->
+<app-dialog
+  [open]="resetDialogOpen()"
+  [title]="tempPassword() ? 'Temporary Password Generated' : 'Reset User Password'"
+  (closed)="closeResetDialog()"
+>
+  @if (!tempPassword()) {
+    <p class="dialog-desc">
+      Are you sure you want to reset the password for <strong>{{ resetUser()?.name }}</strong>?
+      This will revoke all active user login sessions and generate a secure temporary password.
+    </p>
+  } @else {
+    <div class="temp-password-box">
+      <p class="box-title">Temporary Password for {{ resetUser()?.name }}:</p>
+      <div class="password-display">
+        <code>{{ tempPassword() }}</code>
+      </div>
+      <p class="box-note">{{ resetMessage() }}</p>
+    </div>
+  }
+
+  <div slot="footer" class="dialog-actions">
+    @if (!tempPassword()) {
+      <button class="btn btn-secondary" (click)="closeResetDialog()">Cancel</button>
+      <button class="btn btn-primary" (click)="executeResetPassword()">Generate Reset Password</button>
+    } @else {
+      <button class="btn btn-primary" (click)="closeResetDialog()">Done</button>
+    }
   </div>
 </app-dialog>

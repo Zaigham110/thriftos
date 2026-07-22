@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { LucideAngularModule, X } from 'lucide-angular';
 
 export type DrawerPosition = 'left' | 'right';
-export type DrawerSize = 'sm' | 'md' | 'lg';
+export type DrawerSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
 
 @Component({
   selector: 'ui-drawer',

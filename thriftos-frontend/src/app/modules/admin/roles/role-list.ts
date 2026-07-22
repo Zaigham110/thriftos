@@ -1,28 +1,47 @@
+/**
+ * Role List Component
+ * Phase 8: Tenant Administration
+ * 
+ * Route: /app/admin/roles
+ * 
+ * Displays tenant roles, assigned users count, permission matrix, and role actions.
+ */
+
 import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
-import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import {
+  LucideAngularModule,
+  Shield,
+  Users,
+  Key,
+  Lock,
+  Plus,
+  RefreshCw,
+  Search,
+  Pencil,
+  Trash2,
+  Sliders,
+  CheckCircle2,
+  X,
+} from 'lucide-angular';
 
 import { AdminService } from '../admin.service';
-import type { Role } from '../admin.models';
-
+import type { Role, PermissionGroup } from '../admin.models';
+import { RoleFormDrawerComponent } from './role-form-drawer';
+import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 import {
   AppPageComponent,
   AppPageHeaderComponent,
   AppPageBodyComponent,
   AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSectionBodyComponent,
-  AppDataTableComponent,
   AppBreadcrumbComponent,
-  AppButtonComponent,
-  AppStackComponent,
   AppLoadingComponent,
+  AppErrorStateComponent,
   AppEmptyStateComponent,
   AppDialogComponent,
-  type DataTableColumn,
 } from '../../../shared/ui';
-import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 
 @Component({
   selector: 'app-role-list',
@@ -31,19 +50,17 @@ import { HasPermissionDirective } from '../../../shared/directives/has-permissio
     CommonModule,
     FormsModule,
     DatePipe,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
     AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppDataTableComponent,
     AppBreadcrumbComponent,
-    AppButtonComponent,
-    AppStackComponent,
     AppLoadingComponent,
+    AppErrorStateComponent,
     AppEmptyStateComponent,
     AppDialogComponent,
+    RoleFormDrawerComponent,
     HasPermissionDirective,
   ],
   templateUrl: './role-list.html',
@@ -56,31 +73,58 @@ export class RoleListComponent implements OnInit {
 
   readonly breadcrumbs = [
     { label: 'Administration', route: '/app/admin' },
-    { label: 'Roles' },
+    { label: 'Roles & Permissions' },
   ];
 
   readonly searchQuery = signal('');
   readonly loading = signal(true);
+  readonly error = this.adminService.error;
+
+  // Drawer state
+  readonly isRoleDrawerOpen = signal(false);
+  readonly selectedRoleForEdit = signal<Role | null>(null);
+
+  // Delete modal state
   readonly confirmDeleteOpen = signal(false);
   readonly roleToDelete = signal<Role | null>(null);
 
   readonly roles = this.adminService.roles;
+  readonly permissionGroups = this.adminService.permissionGroups;
 
-  readonly tableColumns: DataTableColumn[] = [
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'description', label: 'Description' },
-    { key: 'users', label: 'Users', sortable: true, getValue: (row) => String((row as Role)._count?.userRoles ?? 0) },
-    { key: 'permissions', label: 'Permissions', getValue: (row) => String((row as Role).rolePermissions?.length ?? 0) },
-    { key: 'createdAt', label: 'Created', sortable: true },
-  ];
+  readonly icons = {
+    Shield,
+    Users,
+    Key,
+    Lock,
+    Plus,
+    RefreshCw,
+    Search,
+    Pencil,
+    Trash2,
+    Sliders,
+    CheckCircle2,
+    X,
+  };
+
+  // KPI Calculations
+  readonly totalRolesCount = computed(() => this.roles().length);
+  readonly totalAssignedUsersCount = computed(() =>
+    this.roles().reduce((acc, r) => acc + (r._count?.userRoles ?? 0), 0)
+  );
+  readonly totalPermissionsCount = computed(() => {
+    const groups = this.permissionGroups();
+    if (!Array.isArray(groups)) return 0;
+    return groups.reduce((acc, g) => acc + (g?.permissions?.length || 0), 0);
+  });
 
   readonly filteredRoles = computed(() => {
-    const query = this.searchQuery().toLowerCase();
+    const query = this.searchQuery().toLowerCase().trim();
     if (!query) return this.roles();
 
-    return this.roles().filter(role =>
-      role.name.toLowerCase().includes(query) ||
-      role.description?.toLowerCase().includes(query)
+    return this.roles().filter(
+      (role) =>
+        role.name.toLowerCase().includes(query) ||
+        role.description?.toLowerCase().includes(query)
     );
   });
 
@@ -95,20 +139,49 @@ export class RoleListComponent implements OnInit {
       next: () => this.loading.set(false),
       error: () => this.loading.set(false),
     });
+
+    this.adminService.loadPermissionsGrouped().subscribe();
   }
 
   refresh(): void {
     this.loadData();
   }
 
-  createRole(): void {
-    this.router.navigate(['/app/admin/roles/new']);
+  clearSearch(): void {
+    this.searchQuery.set('');
   }
 
-  editRole(role: Role): void {
-    this.router.navigate(['/app/admin/roles', role.id, 'edit']);
+  clearError(): void {
+    this.adminService.clearError();
   }
 
+  // Role Form Drawer Handlers
+  openCreateRoleDrawer(): void {
+    this.selectedRoleForEdit.set(null);
+    this.isRoleDrawerOpen.set(true);
+  }
+
+  openEditRoleDrawer(role: Role): void {
+    this.selectedRoleForEdit.set(role);
+    this.isRoleDrawerOpen.set(true);
+  }
+
+  closeRoleDrawer(): void {
+    this.isRoleDrawerOpen.set(false);
+    this.selectedRoleForEdit.set(null);
+  }
+
+  onRoleSaved(): void {
+    this.closeRoleDrawer();
+    this.refresh();
+  }
+
+  // Full page Role Permissions Navigation
+  openPermissionsDrawer(role: Role): void {
+    this.router.navigate(['/app/admin/roles', role.id, 'permissions']);
+  }
+
+  // Delete Handlers
   confirmDelete(role: Role): void {
     this.roleToDelete.set(role);
     this.confirmDeleteOpen.set(true);
@@ -128,14 +201,13 @@ export class RoleListComponent implements OnInit {
         this.cancelDelete();
         this.refresh();
       },
-      error: (err) => {
-        console.error('Failed to delete role:', err);
+      error: () => {
         this.cancelDelete();
       },
     });
   }
 
-  getCreatedDate(role: Role): string {
-    return role.createdAt;
+  hasAssignedUsers(role: Role): boolean {
+    return (role._count?.userRoles ?? 0) > 0;
   }
 }

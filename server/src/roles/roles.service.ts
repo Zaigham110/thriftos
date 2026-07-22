@@ -233,13 +233,15 @@ export class RolesService {
       throw new NotFoundException(`Role not found`);
     }
 
-    // Verify all permissions exist
-    const permissions = await this.prisma.permission.findMany({
-      where: { id: { in: permissionIds } },
-    });
+    // Verify all permissions exist if array is not empty
+    if (permissionIds.length > 0) {
+      const permissions = await this.prisma.permission.findMany({
+        where: { id: { in: permissionIds } },
+      });
 
-    if (permissions.length !== permissionIds.length) {
-      throw new BadRequestException(`Some permissions not found`);
+      if (permissions.length !== permissionIds.length) {
+        throw new BadRequestException(`Some permissions not found`);
+      }
     }
 
     // Remove existing assignments and create new ones

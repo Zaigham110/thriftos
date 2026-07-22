@@ -22,3 +22,15 @@
 
 // Inter font import from Google Fonts
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+.header-right-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    flex-shrink: 0;
+
+    @media (max-width: 640px) {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}

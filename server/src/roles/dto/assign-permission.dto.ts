@@ -8,7 +8,7 @@ export class AssignPermissionDto {
 
 export class AssignMultiplePermissionsDto {
   @IsArray()
-  @ArrayMinSize(1)
+  @ArrayMinSize(0)
   @IsString({ each: true })
   permissionIds: string[];
 }

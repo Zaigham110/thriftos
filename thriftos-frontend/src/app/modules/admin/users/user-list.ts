@@ -4,34 +4,49 @@
  * 
  * Route: /app/admin/users
  * 
- * Displays all tenant users with management actions.
+ * Displays all tenant users with rich KPI stats, search, filters, inline slide-over management, and security controls.
  */
 
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import {
+  LucideAngularModule,
+  Users,
+  UserCheck,
+  UserX,
+  Shield,
+  Search,
+  Plus,
+  RefreshCw,
+  Pencil,
+  KeyRound,
+  Ban,
+  CheckCircle2,
+  X,
+  Filter,
+} from 'lucide-angular';
+import { AuthService } from '../../../core/auth/auth';
 import { AdminService } from '../admin.service';
 import { User, Role } from '../admin.models';
+import { UserFormDrawerComponent } from './user-form-drawer';
 import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 import {
   AppPageComponent,
   AppPageHeaderComponent,
   AppPageBodyComponent,
   AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSectionBodyComponent,
-  AppDataTableComponent,
   AppBadgeComponent,
   AppBreadcrumbComponent,
   AppButtonComponent,
   AppLoadingComponent,
   AppErrorStateComponent,
   AppEmptyStateComponent,
-  AppStackComponent,
   AppDialogComponent,
-  type DataTableColumn,
 } from '../../../shared/ui';
+
+export type StatusFilter = 'ALL' | 'ACTIVE' | 'BLOCKED';
 
 @Component({
   selector: 'app-user-list',
@@ -40,21 +55,17 @@ import {
     CommonModule,
     DatePipe,
     FormsModule,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
     AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppDataTableComponent,
-    AppBadgeComponent,
     AppBreadcrumbComponent,
-    AppButtonComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
     AppEmptyStateComponent,
-    AppStackComponent,
     AppDialogComponent,
+    UserFormDrawerComponent,
     HasPermissionDirective,
   ],
   templateUrl: './user-list.html',
@@ -63,47 +74,78 @@ import {
 })
 export class UserListComponent implements OnInit {
   private readonly adminService = inject(AdminService);
+  private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
 
   readonly users = this.adminService.users;
   readonly roles = this.adminService.roles;
   readonly loading = this.adminService.loading;
   readonly error = this.adminService.error;
+  readonly currentUserId = signal(this.authService.user()?.id);
 
   readonly searchQuery = signal('');
-  readonly showInactive = signal(true);
+  readonly statusFilter = signal<StatusFilter>('ALL');
+
+  // Drawer state
+  readonly isDrawerOpen = signal(false);
+  readonly selectedUserForEdit = signal<User | null>(null);
+
+  // Status toggle modal state
   readonly confirmDialogOpen = signal(false);
   readonly userToToggle = signal<User | null>(null);
 
+  // Reset password state
+  readonly resetDialogOpen = signal(false);
+  readonly resetUser = signal<User | null>(null);
+  readonly tempPassword = signal<string | null>(null);
+  readonly resetMessage = signal<string | null>(null);
+
+  readonly icons = {
+    Users,
+    UserCheck,
+    UserX,
+    Shield,
+    Search,
+    Plus,
+    RefreshCw,
+    Pencil,
+    KeyRound,
+    Ban,
+    CheckCircle2,
+    X,
+    Filter,
+  };
+
   readonly breadcrumbs = [
     { label: 'Administration', route: '/app/admin' },
-    { label: 'Users' },
+    { label: 'User Management' },
   ];
 
-  readonly tableColumns: DataTableColumn[] = [
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'email', label: 'Email', sortable: true },
-    { key: 'roles', label: 'Roles', getValue: (row) => this.getUserRoles(row as User) },
-    { key: 'status', label: 'Status', sortable: true },
-    { key: 'createdAt', label: 'Created', sortable: true },
-  ];
+  // KPI Calculations
+  readonly totalUsersCount = computed(() => this.users().length);
+  readonly activeUsersCount = computed(() => this.users().filter((u) => u.isActive).length);
+  readonly blockedUsersCount = computed(() => this.users().filter((u) => !u.isActive).length);
+  readonly totalRolesCount = computed(() => this.roles().length);
 
   get filteredUsers(): User[] {
-    let users = this.users();
-    
-    if (!this.showInactive()) {
-      users = users.filter(u => u.isActive);
+    let list = this.users();
+
+    if (this.statusFilter() === 'ACTIVE') {
+      list = list.filter((u) => u.isActive);
+    } else if (this.statusFilter() === 'BLOCKED') {
+      list = list.filter((u) => !u.isActive);
     }
-    
+
     const query = this.searchQuery().toLowerCase().trim();
     if (query) {
-      users = users.filter(u => 
-        u.name.toLowerCase().includes(query) || 
-        u.email.toLowerCase().includes(query)
+      list = list.filter((u) =>
+        u.name.toLowerCase().includes(query) ||
+        u.email.toLowerCase().includes(query) ||
+        u.userRoles?.some((ur) => ur.role?.name.toLowerCase().includes(query))
       );
     }
-    
-    return users;
+
+    return list;
   }
 
   ngOnInit(): void {
@@ -123,24 +165,38 @@ export class UserListComponent implements OnInit {
     this.loadData();
   }
 
-  onSearchChange(event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
-    this.searchQuery.set(value);
+  setFilter(filter: StatusFilter): void {
+    this.statusFilter.set(filter);
   }
 
-  toggleShowInactive(): void {
-    this.showInactive.update(v => !v);
+  clearSearch(): void {
+    this.searchQuery.set('');
   }
 
-  createUser(): void {
-    this.router.navigate(['/app/admin/users/new']);
+  // Drawer handlers
+  openCreateDrawer(): void {
+    this.selectedUserForEdit.set(null);
+    this.isDrawerOpen.set(true);
   }
 
-  editUser(user: User): void {
-    this.router.navigate(['/app/admin/users', user.id, 'edit']);
+  openEditDrawer(user: User): void {
+    this.selectedUserForEdit.set(user);
+    this.isDrawerOpen.set(true);
   }
 
+  closeDrawer(): void {
+    this.isDrawerOpen.set(false);
+    this.selectedUserForEdit.set(null);
+  }
+
+  onUserSaved(): void {
+    this.closeDrawer();
+    this.loadData();
+  }
+
+  // Deactivation handlers
   confirmToggleStatus(user: User): void {
+    if (user.id === this.currentUserId()) return;
     this.userToToggle.set(user);
     this.confirmDialogOpen.set(true);
   }
@@ -154,7 +210,6 @@ export class UserListComponent implements OnInit {
     const user = this.userToToggle();
     if (!user) return;
 
-    // "Delete" is soft-deactivation for users.
     const action = user.isActive
       ? this.adminService.deleteUser(user.id)
       : this.adminService.unblockUser(user.id);
@@ -163,26 +218,58 @@ export class UserListComponent implements OnInit {
       next: () => {
         this.confirmDialogOpen.set(false);
         this.userToToggle.set(null);
+        this.loadData();
       },
     });
   }
 
-  getUserRoles(user: User): string {
-    if (!user.userRoles || user.userRoles.length === 0) {
-      return 'No roles';
+  // Reset password handlers
+  promptResetPassword(user: User): void {
+    this.resetUser.set(user);
+    this.tempPassword.set(null);
+    this.resetMessage.set(null);
+    this.resetDialogOpen.set(true);
+  }
+
+  executeResetPassword(): void {
+    const user = this.resetUser();
+    if (!user) return;
+
+    this.adminService.resetUserPassword(user.id).subscribe({
+      next: (res: { success: boolean; temporaryPassword?: string; message: string }) => {
+        this.tempPassword.set(res.temporaryPassword || 'Reset completed');
+        this.resetMessage.set(res.message);
+      },
+    });
+  }
+
+  closeResetDialog(): void {
+    this.resetDialogOpen.set(false);
+    this.resetUser.set(null);
+    this.tempPassword.set(null);
+    this.resetMessage.set(null);
+  }
+
+  // Avatar helper
+  getUserInitials(name: string): string {
+    if (!name) return 'U';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
     }
-    return user.userRoles.map(ur => ur.role?.name || 'Unknown').join(', ');
+    return name.slice(0, 2).toUpperCase();
   }
 
-  statusVariant(isActive: boolean): 'success' | 'default' {
-    return isActive ? 'success' : 'default';
+  // Role style color helper
+  getRoleBadgeClass(roleName: string): string {
+    const r = roleName.toLowerCase();
+    if (r.includes('admin')) return 'badge-role-admin';
+    if (r.includes('manager') || r.includes('supervisor')) return 'badge-role-manager';
+    if (r.includes('sorting') || r.includes('grading')) return 'badge-role-ops';
+    return 'badge-role-default';
   }
 
-  getStatusLabel(isActive: boolean): string {
-    return isActive ? 'Active' : 'Blocked';
-  }
-
-  toggleStatus(user: User): void {
-    this.confirmToggleStatus(user);
+  isSelf(user: User): boolean {
+    return user.id === this.currentUserId();
   }
 }

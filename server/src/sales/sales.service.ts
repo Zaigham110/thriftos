@@ -185,51 +185,55 @@ export class SalesService {
     dto: { inventoryItemId: string; measurementType: MeasurementType; quantity: number; unitPrice: number },
     userId: string,
   ) {
-    const sale = await this.prisma.sale.findFirst({
-      where: { id: saleId, tenantId },
-      select: { id: true, status: true, type: true, saleNumber: true },
-    });
-    if (!sale) throw new NotFoundException('Sale not found');
-    this.ensureDraft(sale);
-
-    const inventory = await this.prisma.inventoryItem.findFirst({
-      where: { id: dto.inventoryItemId, tenantId },
-      include: { repackUnit: { select: { measurementType: true, unitCode: true } } },
-    });
-    if (!inventory) throw new NotFoundException('Inventory item not found');
-
-    if (inventory.status !== InventoryStatus.AVAILABLE) {
-      throw new ConflictException('Inventory item is not AVAILABLE');
-    }
-
-    if (inventory.repackUnit.measurementType !== dto.measurementType) {
-      throw new BadRequestException('measurementType does not match inventory item');
-    }
-
-    const qty = new Prisma.Decimal(dto.quantity);
-    if (dto.measurementType === MeasurementType.WEIGHT) {
-      if (!inventory.weightKg || !qty.equals(new Prisma.Decimal(inventory.weightKg.toFixed(2)))) {
-        throw new BadRequestException('Quantity must equal full inventory weightKg');
-      }
-    } else {
-      if (inventory.pcsCount <= 0 || !qty.equals(new Prisma.Decimal(inventory.pcsCount))) {
-        throw new BadRequestException('Quantity must equal full inventory pcsCount');
-      }
-    }
-
-    const avgCost = new Prisma.Decimal(inventory.avgCost);
-    if (avgCost.lte(0)) {
-      throw new BadRequestException('Inventory item cost is missing or invalid');
-    }
-
-    const unitPrice = new Prisma.Decimal(dto.unitPrice);
-    if (unitPrice.lt(0)) {
-      throw new BadRequestException('unitPrice must be >= 0');
-    }
-
-    const { lineTotal, lineCost, profit } = this.computeLineAmounts({ quantity: qty, unitPrice, avgCost });
-
     return this.prisma.$transaction(async (tx) => {
+      const sale = await tx.sale.findFirst({
+        where: { id: saleId, tenantId },
+        include: { customer: { select: { id: true, isActive: true } } },
+      });
+      if (!sale) throw new NotFoundException('Sale not found');
+      this.ensureDraft(sale);
+
+      if (!sale.customer || !sale.customer.isActive) {
+        throw new BadRequestException('Customer is inactive or not found');
+      }
+
+      const inventory = await tx.inventoryItem.findFirst({
+        where: { id: dto.inventoryItemId, tenantId },
+        include: { repackUnit: { select: { measurementType: true, unitCode: true } } },
+      });
+      if (!inventory) throw new NotFoundException('Inventory item not found');
+
+      if (inventory.status !== InventoryStatus.AVAILABLE) {
+        throw new ConflictException('Inventory item is not AVAILABLE');
+      }
+
+      if (inventory.repackUnit.measurementType !== dto.measurementType) {
+        throw new BadRequestException('measurementType does not match inventory item');
+      }
+
+      const qty = new Prisma.Decimal(dto.quantity);
+      if (dto.measurementType === MeasurementType.WEIGHT) {
+        if (!inventory.weightKg || !qty.equals(new Prisma.Decimal(inventory.weightKg.toFixed(2)))) {
+          throw new BadRequestException('Quantity must equal full inventory weightKg');
+        }
+      } else {
+        if (inventory.pcsCount <= 0 || !qty.equals(new Prisma.Decimal(inventory.pcsCount))) {
+          throw new BadRequestException('Quantity must equal full inventory pcsCount');
+        }
+      }
+
+      const avgCost = new Prisma.Decimal(inventory.avgCost);
+      if (avgCost.lte(0)) {
+        throw new BadRequestException('Inventory item cost is missing or invalid');
+      }
+
+      const unitPrice = new Prisma.Decimal(dto.unitPrice);
+      if (unitPrice.lt(0)) {
+        throw new BadRequestException('unitPrice must be >= 0');
+      }
+
+      const { lineTotal, lineCost, profit } = this.computeLineAmounts({ quantity: qty, unitPrice, avgCost });
+
       const existingReservation = await tx.inventoryReservation.findFirst({
         where: { inventoryItemId: inventory.id },
         select: { id: true },
@@ -356,10 +360,14 @@ export class SalesService {
   async issue(tenantId: string, saleId: string, userId: string) {
     const sale = await this.prisma.sale.findFirst({
       where: { id: saleId, tenantId },
-      include: { lines: true },
+      include: { lines: true, customer: { select: { id: true, isActive: true } } },
     });
     if (!sale) throw new NotFoundException('Sale not found');
     this.ensureDraft(sale);
+
+    if (!sale.customer || !sale.customer.isActive) {
+      throw new BadRequestException('Customer is inactive or not found');
+    }
 
     if (sale.lines.length === 0) {
       throw new BadRequestException('Cannot issue an empty sale');

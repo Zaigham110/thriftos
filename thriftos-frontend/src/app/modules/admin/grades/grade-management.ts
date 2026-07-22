@@ -2,30 +2,43 @@
  * Grade Management Component
  * Phase 8: Tenant Administration
  * 
- * Manage sorting grades (A, B, C, etc.) for inventory classification.
+ * Route: /app/admin/grades
+ * 
+ * Manages Stage-2 grading classifications (A, B, C, Cream, Vintage, Waste, etc.).
  */
 
 import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import {
+  LucideAngularModule,
+  Award,
+  CheckCircle2,
+  Sparkles,
+  Plus,
+  RefreshCw,
+  Search,
+  Pencil,
+  Trash2,
+  Power,
+  X,
+  Layers,
+} from 'lucide-angular';
+
 import { AdminService } from '../admin.service';
-import { Grade } from '../admin.models';
+import type { Grade } from '../admin.models';
 import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 import {
   AppPageComponent,
   AppPageHeaderComponent,
   AppPageBodyComponent,
   AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSectionBodyComponent,
-  AppDataTableComponent,
-  AppButtonComponent,
+  AppBreadcrumbComponent,
   AppLoadingComponent,
+  AppErrorStateComponent,
   AppEmptyStateComponent,
   AppDialogComponent,
-  AppBreadcrumbComponent,
-  type DataTableColumn,
 } from '../../../shared/ui';
 
 @Component({
@@ -34,18 +47,17 @@ import {
   imports: [
     CommonModule,
     FormsModule,
+    DatePipe,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
     AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppDataTableComponent,
-    AppButtonComponent,
+    AppBreadcrumbComponent,
     AppLoadingComponent,
+    AppErrorStateComponent,
     AppEmptyStateComponent,
     AppDialogComponent,
-    AppBreadcrumbComponent,
     HasPermissionDirective,
   ],
   templateUrl: './grade-management.html',
@@ -61,27 +73,48 @@ export class GradeManagementComponent implements OnInit {
     { label: 'Grades' },
   ];
 
-  readonly columns: DataTableColumn[] = [
-    { key: 'name', label: 'Grade', sortable: true },
-    { key: 'description', label: 'Description' },
-    { key: 'rank', label: 'Rank', sortable: true },
-    { key: 'status', label: 'Status', sortable: true },
-  ];
-
   readonly searchQuery = signal('');
   readonly loading = signal(true);
+  readonly error = this.adminService.error;
+
   readonly confirmDeleteOpen = signal(false);
-  readonly gradeToDelete = signal<Grade | null>(null);
+  readonly selected = signal<Grade | null>(null);
+  readonly actionLoading = signal(false);
 
   readonly grades = this.adminService.grades;
 
+  readonly icons = {
+    Award,
+    CheckCircle2,
+    Sparkles,
+    Plus,
+    RefreshCw,
+    Search,
+    Pencil,
+    Trash2,
+    Power,
+    X,
+    Layers,
+  };
+
+  // KPI Calculations
+  readonly totalGradesCount = computed(() => this.grades().length);
+  readonly activeGradesCount = computed(
+    () => this.grades().filter((g) => g.isActive).length
+  );
+  readonly topRankedGrade = computed(() => {
+    const sorted = [...this.grades()].sort((a, b) => a.rank - b.rank);
+    return sorted.length > 0 ? sorted[0].name : '—';
+  });
+
   readonly filteredGrades = computed(() => {
-    const query = this.searchQuery().toLowerCase();
+    const query = this.searchQuery().toLowerCase().trim();
     if (!query) return this.grades();
 
-    return this.grades().filter(grade =>
-      grade.name.toLowerCase().includes(query) ||
-      grade.description?.toLowerCase().includes(query)
+    return this.grades().filter(
+      (g) =>
+        g.name.toLowerCase().includes(query) ||
+        (g.description || '').toLowerCase().includes(query)
     );
   });
 
@@ -101,41 +134,48 @@ export class GradeManagementComponent implements OnInit {
     this.loadData();
   }
 
-  createGrade(): void {
+  clearSearch(): void {
+    this.searchQuery.set('');
+  }
+
+  clearError(): void {
+    this.adminService.clearError();
+  }
+
+  navigateToCreate(): void {
     this.router.navigate(['/app/admin/grades/new']);
   }
 
-  editGrade(grade: Grade): void {
+  navigateToEdit(grade: Grade): void {
     this.router.navigate(['/app/admin/grades', grade.id, 'edit']);
   }
 
   confirmDelete(grade: Grade): void {
-    this.gradeToDelete.set(grade);
+    this.selected.set(grade);
     this.confirmDeleteOpen.set(true);
   }
 
-  cancelDelete(): void {
+  cancelDialog(): void {
     this.confirmDeleteOpen.set(false);
-    this.gradeToDelete.set(null);
+    this.selected.set(null);
+    this.actionLoading.set(false);
   }
 
-  deleteGrade(): void {
-    const grade = this.gradeToDelete();
+  executeDelete(): void {
+    const grade = this.selected();
     if (!grade) return;
 
+    this.actionLoading.set(true);
     this.adminService.deleteGrade(grade.id).subscribe({
       next: () => {
-        this.cancelDelete();
+        this.actionLoading.set(false);
+        this.cancelDialog();
         this.refresh();
       },
-      error: (err) => {
-        console.error('Failed to delete grade:', err);
-        this.cancelDelete();
+      error: () => {
+        this.actionLoading.set(false);
+        this.cancelDialog();
       },
     });
-  }
-
-  statusLabel(isActive: boolean): string {
-    return isActive ? 'Active' : 'Inactive';
   }
 }

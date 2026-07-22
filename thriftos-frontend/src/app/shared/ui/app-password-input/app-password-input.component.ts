@@ -59,7 +59,7 @@ import { AppIconComponent } from '../app-icon/app-icon.component';
       padding-right: 40px;
         border: 1px solid var(--app-border-subtle);
         border-radius: var(--border-radius-sm);
-      font-size: var(--font-size-sm);
+      font-size: var(--font-size-meta);
       font-family: inherit;
       color: var(--app-text-primary);
         background: var(--app-bg-surface);
@@ -123,8 +123,8 @@ export class AppPasswordInputComponent implements ControlValueAccessor {
 
   private readonly _showPassword = signal<boolean>(false);
 
-  onChange: (value: string) => void = () => {};
-  onTouched: () => void = () => {};
+  onChange: (value: string) => void = () => { };
+  onTouched: () => void = () => { };
 
   showPassword(): boolean {
     return this._showPassword();

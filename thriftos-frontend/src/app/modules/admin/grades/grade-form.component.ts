@@ -1,20 +1,28 @@
-import { Component, inject, signal } from '@angular/core';
+/**
+ * Grade Form Component
+ * Phase 8: Tenant Administration
+ * 
+ * Route: /app/admin/grades/new or /app/admin/grades/:id/edit
+ * 
+ * Form for creating and editing Stage-2 quality grades.
+ */
+
+import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  LucideAngularModule,
+  ArrowLeft,
+  Save,
+  Loader2,
+  Award,
+} from 'lucide-angular';
 
 import {
   AppPageComponent,
   AppPageHeaderComponent,
   AppPageBodyComponent,
-  AppSectionComponent,
-  AppCardComponent,
-  AppFormComponent,
-  AppFormFieldComponent,
-  AppInputComponent,
-  AppTextareaComponent,
-  AppButtonComponent,
-  AppStackComponent,
   AppBreadcrumbComponent,
 } from '../../../shared/ui';
 
@@ -27,79 +35,266 @@ import type { Grade, CreateGradeRequest, UpdateGradeRequest } from '../admin.mod
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppCardComponent,
-    AppFormComponent,
-    AppFormFieldComponent,
-    AppInputComponent,
-    AppTextareaComponent,
-    AppButtonComponent,
-    AppStackComponent,
     AppBreadcrumbComponent,
   ],
   template: `
     <app-page>
       <app-page-header>
-        <app-breadcrumb [items]="breadcrumbs()"></app-breadcrumb>
+        <div class="header-left-group">
+          <div class="eyebrow-container">
+            <app-breadcrumb [items]="breadcrumbs()"></app-breadcrumb>
+          </div>
+          <h1 class="page-title">{{ isEditMode() ? 'Edit Quality Grade' : 'New Quality Grade' }}</h1>
+          <p class="page-subtitle">Configure Stage-2 item quality grades, ranking hierarchy, and active status.</p>
+        </div>
 
-        <app-stack direction="vertical" spacing="xs">
-          <h1 class="page-title">{{ isEditMode() ? 'Edit Grade' : 'New Grade' }}</h1>
-          <p class="page-subtitle">Grades are used in Sorting Stage-2 and downstream reporting.</p>
-        </app-stack>
+        <div class="header-right-actions">
+          <button class="btn btn-secondary" type="button" (click)="onCancel()" [disabled]="submitting()">
+            <lucide-icon [img]="icons.ArrowLeft" [size]="15"></lucide-icon>
+            Back to Grades
+          </button>
+        </div>
       </app-page-header>
 
       <app-page-body>
-        <app-section>
-          <app-card>
-            <app-form [formGroup]="form" (submitted)="onSubmit()">
-              <app-form-field
-                label="Name"
-                [required]="true"
-                [error]="form.get('name')?.hasError('required') && form.get('name')?.touched ? 'Name is required' : ''"
-              >
-                <app-input type="text" formControlName="name" placeholder="e.g., Grade A" />
-              </app-form-field>
-
-              <app-form-field label="Description">
-                <app-textarea formControlName="description" [rows]="3" placeholder="Optional"></app-textarea>
-              </app-form-field>
-
-              <app-form-field label="Rank">
-                <app-input type="number" formControlName="rank" placeholder="0" />
-                <div class="text-xs text-gray-500 mt-1">Lower rank sorts earlier (e.g., A=1, B=2).</div>
-              </app-form-field>
-
-              @if (isEditMode()) {
-                <app-form-field label="Status">
-                  <label class="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      formControlName="isActive"
-                      class="form-checkbox h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
-                    />
-                    <span class="text-sm">Active</span>
-                  </label>
-                  <div class="text-xs text-gray-500 mt-1">Inactive grades are hidden from selection in new operations.</div>
-                </app-form-field>
+        <div class="form-container-card">
+          <form [formGroup]="form" (ngSubmit)="onSubmit()" class="grade-form">
+            
+            <!-- Grade Name -->
+            <div class="form-group">
+              <label class="form-label required">Grade Name</label>
+              <input
+                type="text"
+                formControlName="name"
+                class="form-input"
+                placeholder="e.g. Grade A, Cream Grade, Vintage Premium, Grade B"
+                [class.has-error]="form.get('name')?.invalid && form.get('name')?.touched"
+              />
+              @if (form.get('name')?.invalid && form.get('name')?.touched) {
+                <span class="field-error">Grade name is required</span>
               }
+            </div>
 
-              <app-stack direction="horizontal" spacing="sm">
-                <app-button variant="secondary" type="button" (clickEvent)="onCancel()">Cancel</app-button>
-                <app-button variant="primary" type="submit" [disabled]="form.invalid || submitting()">
-                  {{ isEditMode() ? 'Update' : 'Create' }}
-                </app-button>
-              </app-stack>
-            </app-form>
-          </app-card>
-        </app-section>
+            <!-- Rank -->
+            <div class="form-group">
+              <label class="form-label">Quality Rank Index</label>
+              <input
+                type="number"
+                formControlName="rank"
+                class="form-input"
+                placeholder="0"
+              />
+              <span class="field-hint">Lower rank numbers prioritize higher quality grades in Stage-2 grading sessions (e.g. 1 = Grade A).</span>
+            </div>
+
+            <!-- Description -->
+            <div class="form-group">
+              <label class="form-label">Grade Description & Criteria</label>
+              <textarea
+                formControlName="description"
+                class="form-textarea"
+                rows="3"
+                placeholder="Describe quality criteria, condition expectations, or inspection standards for this grade..."
+              ></textarea>
+            </div>
+
+            <!-- Active Status (Edit Mode) -->
+            @if (isEditMode()) {
+              <div class="form-group">
+                <label class="checkbox-container">
+                  <input
+                    type="checkbox"
+                    formControlName="isActive"
+                    class="custom-checkbox"
+                  />
+                  <div class="checkbox-text">
+                    <span class="checkbox-title">Active Quality Grade</span>
+                    <span class="checkbox-desc">Inactive grades are hidden from selection in new Stage-2 grading sessions.</span>
+                  </div>
+                </label>
+              </div>
+            }
+
+            <!-- Form Actions -->
+            <div class="form-footer-actions">
+              <button class="btn btn-secondary" type="button" (click)="onCancel()" [disabled]="submitting()">
+                Cancel
+              </button>
+              <button class="btn btn-primary" type="submit" [disabled]="form.invalid || submitting()">
+                @if (submitting()) {
+                  <lucide-icon [img]="icons.Loader2" [size]="15" class="animate-spin"></lucide-icon>
+                  Saving...
+                } @else {
+                  <lucide-icon [img]="icons.Save" [size]="15"></lucide-icon>
+                  {{ isEditMode() ? 'Update Grade' : 'Create Grade' }}
+                }
+              </button>
+            </div>
+          </form>
+        </div>
       </app-page-body>
     </app-page>
   `,
+  styles: [`
+    @use '../../../../styles/variables' as *;
+
+    .form-container-card {
+      max-width: 680px;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+    }
+
+    .grade-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+    }
+
+    .form-label {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #0f172a;
+
+      &.required::after {
+        content: ' *';
+        color: #ef4444;
+      }
+    }
+
+    .form-input, .form-textarea {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.875rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 0.375rem;
+      background: white;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+      &:focus {
+        outline: none;
+        border-color: #714b67;
+        box-shadow: 0 0 0 3px rgba(113, 75, 103, 0.12);
+      }
+
+      &.has-error {
+        border-color: #ef4444;
+      }
+    }
+
+    .form-textarea {
+      resize: vertical;
+      font-family: inherit;
+    }
+
+    .field-hint {
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+
+    .field-error {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: #ef4444;
+    }
+
+    .checkbox-container {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.625rem;
+      cursor: pointer;
+    }
+
+    .custom-checkbox {
+      width: 1.125rem;
+      height: 1.125rem;
+      accent-color: #714b67;
+      margin-top: 0.125rem;
+    }
+
+    .checkbox-text {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+
+    .checkbox-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    .checkbox-desc {
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+
+    .form-footer-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.625rem;
+      margin-top: 0.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4375rem;
+      padding: 0.4375rem 0.875rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      border-radius: 0.375rem;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+
+      &-primary {
+        background: #714b67;
+        color: white;
+
+        &:hover:not(:disabled) {
+          background: #5b3c53;
+          transform: translateY(-1px);
+        }
+      }
+
+      &-secondary {
+        background: #ffffff;
+        border-color: #cbd5e1;
+        color: #334155;
+
+        &:hover:not(:disabled) {
+          background: #f8fafc;
+          border-color: #94a3b8;
+          color: #0f172a;
+        }
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    }
+  `],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class GradeFormComponent {
+export class GradeFormComponent implements OnInit {
   private readonly adminService = inject(AdminService);
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
@@ -108,6 +303,13 @@ export class GradeFormComponent {
   readonly grade = signal<Grade | null>(null);
   readonly isEditMode = signal(false);
   readonly submitting = signal(false);
+
+  readonly icons = {
+    ArrowLeft,
+    Save,
+    Loader2,
+    Award,
+  };
 
   readonly breadcrumbs = signal([
     { label: 'Administration', route: '/app/admin' },
@@ -122,7 +324,7 @@ export class GradeFormComponent {
     isActive: [true],
   });
 
-  ngOnInit() {
+  ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.isEditMode.set(true);
@@ -135,7 +337,7 @@ export class GradeFormComponent {
     }
   }
 
-  private loadGrade(id: string) {
+  private loadGrade(id: string): void {
     this.adminService.getGrade(id).subscribe({
       next: (data) => {
         this.grade.set(data);
@@ -149,7 +351,7 @@ export class GradeFormComponent {
     });
   }
 
-  onSubmit() {
+  onSubmit(): void {
     if (this.form.invalid) return;
 
     this.submitting.set(true);
@@ -182,7 +384,7 @@ export class GradeFormComponent {
     });
   }
 
-  onCancel() {
+  onCancel(): void {
     this.router.navigate(['/app/admin/grades']);
   }
 }

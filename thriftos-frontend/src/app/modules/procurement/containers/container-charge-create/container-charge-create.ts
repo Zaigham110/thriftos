@@ -74,11 +74,10 @@ export class ContainerChargeCreateComponent implements OnInit {
     const cont = this.container();
     const label = cont?.containerNumber || 'Container';
     return [
-      { label: 'Home', route: '/dashboard' },
-      { label: 'Procurement', route: '/procurement/dashboard' },
-      { label: 'Containers', route: '/procurement/containers' },
-      { label, route: cont ? `/procurement/containers/${cont.id}` : '/procurement/containers' },
-      { label: 'Add charge', route: '' },
+      { label: 'Procurement', route: '/app/procurement' },
+      { label: 'Containers', route: '/app/procurement/containers' },
+      { label, route: cont ? `/app/procurement/containers/${cont.id}` : '/app/procurement/containers' },
+      { label: 'Add Charge' },
     ];
   });
 
@@ -136,7 +135,7 @@ export class ContainerChargeCreateComponent implements OnInit {
     this.procurementService.addContainerCharge(container.id, data).subscribe({
       next: () => {
         this.actionLoading.set(false);
-        this.router.navigate(['/procurement/containers', container.id]);
+        this.router.navigate(['/app/procurement/containers', container.id]);
       },
       error: (err) => {
         this.error.set(err.message || 'Failed to add charge');
@@ -148,9 +147,9 @@ export class ContainerChargeCreateComponent implements OnInit {
   onCancel(): void {
     const container = this.container();
     if (container) {
-      this.router.navigate(['/procurement/containers', container.id]);
+      this.router.navigate(['/app/procurement/containers', container.id]);
       return;
     }
-    this.router.navigate(['/procurement/containers']);
+    this.router.navigate(['/app/procurement/containers']);
   }
 }

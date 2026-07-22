@@ -1,20 +1,27 @@
+/**
+ * Rag Edit Page Component
+ * Phase 2: Procurement & Intake UI
+ * 
+ * Route: /app/procurement/rags/:ragId/edit
+ * 
+ * Page wrapper to update weight or notes for an existing intake rag or bale.
+ */
+
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
+import { LucideAngularModule, ArrowLeft } from 'lucide-angular';
 
 import { RagService } from './rag.service';
 import { Rag } from './rag.models';
 
 import {
-  AppBreadcrumbComponent,
-  AppButtonComponent,
-  AppErrorStateComponent,
-  AppLoadingComponent,
-  AppPageBodyComponent,
   AppPageComponent,
   AppPageHeaderComponent,
-  AppStackComponent,
-  type BreadcrumbItem,
+  AppPageBodyComponent,
+  AppBreadcrumbComponent,
+  AppLoadingComponent,
+  AppErrorStateComponent,
 } from '../../../shared/ui';
 
 import { RagEditDrawerComponent } from './rag-edit-drawer';
@@ -24,12 +31,11 @@ import { RagEditDrawerComponent } from './rag-edit-drawer';
   standalone: true,
   imports: [
     CommonModule,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
     AppBreadcrumbComponent,
-    AppStackComponent,
-    AppButtonComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
     RagEditDrawerComponent,
@@ -46,16 +52,19 @@ export class RagEditPageComponent implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
 
-  readonly breadcrumbs = computed<BreadcrumbItem[]>(() => {
+  readonly icons = {
+    ArrowLeft,
+  };
+
+  readonly breadcrumbs = computed(() => {
     const rag = this.rag();
     const containerId = rag?.containerId;
     const containerLabel = rag?.container?.containerNumber || 'Container';
     return [
-      { label: 'Home', route: '/dashboard' },
-      { label: 'Procurement', route: '/procurement/dashboard' },
-      { label: 'Containers', route: '/procurement/containers' },
-      { label: containerLabel, route: containerId ? `/procurement/containers/${containerId}` : '/procurement/containers' },
-      { label: 'Edit rag', route: '' },
+      { label: 'Procurement', route: '/app/procurement' },
+      { label: 'Containers', route: '/app/procurement/containers' },
+      { label: containerLabel, route: containerId ? `/app/procurement/containers/${containerId}` : '/app/procurement/containers' },
+      { label: 'Edit Intake Item' },
     ];
   });
 
@@ -80,7 +89,7 @@ export class RagEditPageComponent implements OnInit {
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set(err.message || 'Failed to load rag');
+        this.error.set(err.message || 'Failed to load rag item');
         this.loading.set(false);
       },
     });
@@ -89,10 +98,10 @@ export class RagEditPageComponent implements OnInit {
   onUpdated(): void {
     const rag = this.rag();
     if (rag?.containerId) {
-      this.router.navigate(['/procurement/containers', rag.containerId]);
+      this.router.navigate(['/app/procurement/containers', rag.containerId]);
       return;
     }
-    this.router.navigate(['/procurement/containers']);
+    this.router.navigate(['/app/procurement/containers']);
   }
 
   onCancel(): void {

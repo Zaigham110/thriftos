@@ -1,29 +1,38 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+/**
+ * Container List Component
+ * Phase 2: Procurement UI
+ * 
+ * High-density directory listing all ocean freight containers with KPI metric cards, status filters, and logistics specs.
+ */
+
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
-import { Router, RouterLink, ActivatedRoute } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import {
+  LucideAngularModule,
+  Truck,
+  Anchor,
+  Calendar,
+  Scale,
+  CheckCircle2,
+  Clock,
+  ArrowRight,
+  Eye,
+  Filter,
+  Plus,
+  RefreshCw,
+} from 'lucide-angular';
+
 import { ProcurementService } from '../../procurement.service';
+import { Container, ContainerStatus, ContainerFilters } from '../../procurement.models';
 import {
-  Container,
-  ContainerStatus,
-  ContainerFilters,
-} from '../../procurement.models';
-import {
-  AppBadgeComponent,
   AppBreadcrumbComponent,
-  AppButtonComponent,
-  AppDataTableComponent,
   AppEmptyStateComponent,
   AppErrorStateComponent,
   AppLoadingComponent,
   AppPageBodyComponent,
   AppPageComponent,
   AppPageHeaderComponent,
-  AppSectionBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppStackComponent,
-  type DataTableColumn,
-  type DataTableState,
   type BreadcrumbItem,
 } from '../../../../shared/ui';
 
@@ -33,22 +42,16 @@ import {
   imports: [
     CommonModule,
     RouterLink,
+    DatePipe,
+    DecimalPipe,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppStackComponent,
     AppBreadcrumbComponent,
-    AppButtonComponent,
-    AppDataTableComponent,
-    AppBadgeComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
     AppEmptyStateComponent,
-    DatePipe,
-    DecimalPipe,
   ],
   templateUrl: './container-list.html',
   styleUrl: './container-list.scss',
@@ -57,7 +60,6 @@ import {
 export class ContainerListComponent implements OnInit {
   private readonly procurementService = inject(ProcurementService);
   private readonly router = inject(Router);
-  private readonly route = inject(ActivatedRoute);
 
   readonly containers = this.procurementService.containers;
   readonly loading = this.procurementService.loading;
@@ -66,95 +68,86 @@ export class ContainerListComponent implements OnInit {
   readonly currentPage = this.procurementService.containerCurrentPage;
   readonly totalPages = this.procurementService.containerTotalPages;
 
-  private readonly lastRequestKey = signal<string>('');
+  // Active status filter signal
+  readonly activeStatusFilter = signal<string>('ALL');
 
-  readonly tableColumns: DataTableColumn[] = [
-    { key: 'containerNumber', label: 'Container #', sortable: true, filterable: true },
-    {
-      key: 'status',
-      label: 'Status',
-      sortable: true,
-      filterable: true,
-      filterType: 'select',
-      filterOptions: [
-        { value: '', label: 'All' },
-        { value: 'IN_TRANSIT', label: 'In Transit' },
-        { value: 'ARRIVED', label: 'Arrived' },
-        { value: 'CLEARED', label: 'Cleared' },
-        { value: 'CLOSED', label: 'Closed' },
-      ],
-    },
-    {
-      key: 'netWeight',
-      label: 'Net Weight (kg)',
-      align: 'right',
-      sortable: true,
-      getValue: (row) => (row as Container).netWeight,
-    },
-    { key: 'eta', label: 'ETA', sortable: true },
-  ];
+  readonly icons = {
+    Truck,
+    Anchor,
+    Calendar,
+    Scale,
+    CheckCircle2,
+    Clock,
+    ArrowRight,
+    Eye,
+    Filter,
+    Plus,
+    RefreshCw,
+  };
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Home', route: '/dashboard' },
-    { label: 'Procurement', route: '/procurement/dashboard' },
-    { label: 'Containers', route: '/procurement/containers' },
+    { label: 'Procurement', route: '/app/procurement' },
+    { label: 'Containers', route: '/app/procurement/containers' },
   ];
 
-  clearError(): void {
-    this.procurementService.clearError();
-  }
+  // KPI Metrics computed from current container dataset
+  readonly inTransitCount = computed(() => {
+    return this.containers().filter((c) => c.status === 'IN_TRANSIT').length;
+  });
+
+  readonly arrivedCount = computed(() => {
+    return this.containers().filter((c) => c.status === 'ARRIVED' || c.status === 'CLEARED').length;
+  });
+
+  readonly closedCount = computed(() => {
+    return this.containers().filter((c) => c.status === 'CLOSED').length;
+  });
+
+  readonly totalNetWeightSum = computed(() => {
+    return this.containers().reduce((sum, c) => sum + Number(c.netWeight || 0), 0);
+  });
+
+  readonly filteredContainers = computed(() => {
+    const list = this.containers();
+    const filter = this.activeStatusFilter();
+    if (filter === 'ALL') return list;
+    if (filter === 'ARRIVED_CLEARED') {
+      return list.filter((c) => c.status === 'ARRIVED' || c.status === 'CLEARED');
+    }
+    return list.filter((c) => c.status === filter);
+  });
 
   ngOnInit(): void {
-    this.loadFromQueryParams();
-  }
-
-  private loadFromQueryParams(): void {
     this.loadContainers();
   }
 
   loadContainers(page = 1): void {
     const filters: ContainerFilters = {
       page,
-      limit: 20,
+      limit: 50,
     };
-
     this.procurementService.loadContainers(filters).subscribe();
   }
 
-  onTableStateChange(state: DataTableState): void {
-    const status = String(state.filters['status'] ?? '').trim();
-    const requestKey = [state.pageIndex, state.pageSize, status].join('|');
-    if (requestKey === this.lastRequestKey()) return;
-    this.lastRequestKey.set(requestKey);
-
-    this.procurementService
-      .loadContainers({
-        page: state.pageIndex,
-        limit: state.pageSize,
-        status: status ? (status as ContainerStatus) : undefined,
-      })
-      .subscribe();
+  setStatusFilter(status: string): void {
+    this.activeStatusFilter.set(status);
   }
 
   onRowClick(container: Container): void {
-    this.router.navigate(['/procurement/containers', container.id]);
-  }
-
-  onPageChange(page: number): void {
-    this.loadContainers(page);
-  }
-
-  getStatusVariant(status: ContainerStatus): 'default' | 'primary' | 'success' | 'warning' | 'danger' {
-    const variants: Record<ContainerStatus, 'default' | 'primary' | 'success' | 'warning' | 'danger'> = {
-      IN_TRANSIT: 'warning',
-      ARRIVED: 'primary',
-      CLEARED: 'success',
-      CLOSED: 'default',
-    };
-    return variants[status] || 'default';
+    this.router.navigate(['/app/procurement/containers', container.id]);
   }
 
   getStatusLabel(status: ContainerStatus): string {
-    return status.replace('_', ' ');
+    const labels: Record<ContainerStatus, string> = {
+      IN_TRANSIT: 'In Transit',
+      ARRIVED: 'Arrived at Port',
+      CLEARED: 'Customs Cleared',
+      CLOSED: 'Closed & Reconciled',
+    };
+    return labels[status] || status;
+  }
+
+  clearError(): void {
+    this.procurementService.clearError();
   }
 }

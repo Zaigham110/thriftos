@@ -1,25 +1,40 @@
+/**
+ * Procurement Dashboard Component
+ * Phase 2: Procurement UI
+ * 
+ * Route: /app/procurement/dashboard
+ * 
+ * Real-time operational dashboard for purchase orders, containers in transit, loose bales intake, and vendor spend analytics.
+ */
+
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import {
-  AppBreadcrumbComponent,
-  AppButtonComponent,
-  AppCardComponent,
-  AppChartComponent,
-  AppErrorStateComponent,
-  AppGridComponent,
-  AppKpiCardComponent,
-  AppLoadingComponent,
-  AppPageBodyComponent,
+  LucideAngularModule,
+  ShoppingBag,
+  Truck,
+  PackageCheck,
+  Plus,
+  RefreshCw,
+  TrendingUp,
+  PieChart,
+  BarChart3,
+  Globe,
+  ArrowRight,
+} from 'lucide-angular';
+
+import {
   AppPageComponent,
   AppPageHeaderComponent,
-  AppSectionBodyComponent,
+  AppPageBodyComponent,
   AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppStackComponent,
-  type BreadcrumbItem,
+  AppBreadcrumbComponent,
+  AppLoadingComponent,
+  AppErrorStateComponent,
+  AppChartComponent,
   type ChartPoint,
 } from '../../../shared/ui';
-import { RouterLink } from '@angular/router';
 import { ProcurementService } from '../procurement.service';
 import { ProcurementDashboardSummary } from '../procurement.models';
 import { AuthService } from '../../../core/auth/auth';
@@ -30,21 +45,15 @@ import { AuthService } from '../../../core/auth/auth';
   imports: [
     CommonModule,
     RouterLink,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
     AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppStackComponent,
-    AppGridComponent,
-    AppKpiCardComponent,
-    AppCardComponent,
-    AppChartComponent,
     AppBreadcrumbComponent,
-    AppButtonComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
+    AppChartComponent,
   ],
   templateUrl: './procurement-dashboard.html',
   styleUrl: './procurement-dashboard.scss',
@@ -58,10 +67,23 @@ export class ProcurementDashboardComponent implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
 
-  readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Home', route: '/dashboard' },
-    { label: 'Procurement', route: '/procurement/dashboard' },
+  readonly breadcrumbs = [
+    { label: 'Procurement', route: '/app/procurement' },
+    { label: 'Dashboard' },
   ];
+
+  readonly icons = {
+    ShoppingBag,
+    Truck,
+    PackageCheck,
+    Plus,
+    RefreshCw,
+    TrendingUp,
+    PieChart,
+    BarChart3,
+    Globe,
+    ArrowRight,
+  };
 
   readonly canCreate = signal(false);
 

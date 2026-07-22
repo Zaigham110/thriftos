@@ -1,44 +1,63 @@
+/**
+ * Category Management Component
+ * Phase 8: Tenant Administration
+ * 
+ * Route: /app/admin/categories
+ * 
+ * Manages sorting output categories and linked waste category assignments.
+ */
+
 import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import {
+  LucideAngularModule,
+  Layers,
+  Tags,
+  CheckCircle2,
+  Recycle,
+  Plus,
+  RefreshCw,
+  Search,
+  Pencil,
+  Trash2,
+  Power,
+  X,
+  ArrowUpDown,
+} from 'lucide-angular';
+
 import { AdminService } from '../admin.service';
 import type { Category } from '../admin.models';
+import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 import {
   AppPageComponent,
   AppPageHeaderComponent,
   AppPageBodyComponent,
   AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSectionBodyComponent,
-  AppDataTableComponent,
-  AppButtonComponent,
-  AppLoadingComponent,
-  AppEmptyStateComponent,
   AppBreadcrumbComponent,
-  AppStackComponent,
+  AppLoadingComponent,
+  AppErrorStateComponent,
+  AppEmptyStateComponent,
   AppDialogComponent,
-  type DataTableColumn,
-  type BreadcrumbItem,
 } from '../../../shared/ui';
-import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 
 @Component({
   selector: 'app-category-management',
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
+    DatePipe,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
     AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppDataTableComponent,
-    AppButtonComponent,
-    AppLoadingComponent,
-    AppEmptyStateComponent,
     AppBreadcrumbComponent,
-    AppStackComponent,
+    AppLoadingComponent,
+    AppErrorStateComponent,
+    AppEmptyStateComponent,
     AppDialogComponent,
     HasPermissionDirective,
   ],
@@ -48,16 +67,16 @@ import { HasPermissionDirective } from '../../../shared/directives/has-permissio
 })
 export class CategoryManagementComponent implements OnInit {
   private readonly adminService = inject(AdminService);
-
   private readonly router = inject(Router);
 
-  readonly breadcrumbs: BreadcrumbItem[] = [
+  readonly breadcrumbs = [
     { label: 'Administration', route: '/app/admin' },
     { label: 'Categories' },
   ];
 
   readonly searchQuery = signal('');
   readonly loading = signal(true);
+  readonly error = this.adminService.error;
 
   readonly confirmDeactivateOpen = signal(false);
   readonly confirmDeleteOpen = signal(false);
@@ -66,16 +85,35 @@ export class CategoryManagementComponent implements OnInit {
 
   readonly categories = this.adminService.categories;
 
-  readonly tableColumns: DataTableColumn[] = [
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'sortOrder', label: 'Sort Order', sortable: true },
-    { key: 'status', label: 'Status', sortable: true },
-  ];
+  readonly icons = {
+    Layers,
+    Tags,
+    CheckCircle2,
+    Recycle,
+    Plus,
+    RefreshCw,
+    Search,
+    Pencil,
+    Trash2,
+    Power,
+    X,
+    ArrowUpDown,
+  };
+
+  // KPI Calculations
+  readonly totalCategoriesCount = computed(() => this.categories().length);
+  readonly activeCategoriesCount = computed(
+    () => this.categories().filter((c) => c.isActive).length
+  );
+  readonly linkedWasteCount = computed(() => this.categories().length);
 
   readonly filteredCategories = computed(() => {
     const query = this.searchQuery().toLowerCase().trim();
     if (!query) return this.categories();
-    return this.categories().filter((c) => c.name.toLowerCase().includes(query));
+
+    return this.categories().filter((c) =>
+      c.name.toLowerCase().includes(query)
+    );
   });
 
   ngOnInit(): void {
@@ -92,6 +130,14 @@ export class CategoryManagementComponent implements OnInit {
 
   refresh(): void {
     this.loadData();
+  }
+
+  clearSearch(): void {
+    this.searchQuery.set('');
+  }
+
+  clearError(): void {
+    this.adminService.clearError();
   }
 
   navigateToCreate(): void {

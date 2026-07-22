@@ -25,6 +25,7 @@ export class VendorService {
       data: {
         tenantId,
         name: dto.name,
+        vendorType: dto.vendorType || 'SUPPLIER',
         country: dto.country,
         contactInfo: dto.contactInfo,
       },
@@ -82,6 +83,7 @@ export class VendorService {
       where: { id },
       data: {
         ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.vendorType !== undefined && { vendorType: dto.vendorType }),
         ...(dto.country !== undefined && { country: dto.country }),
         ...(dto.contactInfo !== undefined && { contactInfo: dto.contactInfo }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),

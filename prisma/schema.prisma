@@ -17,6 +17,14 @@ datasource db {
 // 🧩 ENUMS
 // =============================================================
 
+enum VendorType {
+  SUPPLIER
+  CUSTOMER
+  SHIPPER
+  CONSIGNEE
+  OTHER
+}
+
 enum PurchaseOrderType {
   CONTAINER
   LOOSE_BALE
@@ -628,14 +636,15 @@ model Warehouse {
 // =============================================================
 
 model Vendor {
-  id          String   @id @default(cuid())
+  id          String     @id @default(cuid())
   tenantId    String
   name        String
+  vendorType  VendorType @default(SUPPLIER)
   country     String?
   contactInfo String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   // Relations
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -644,6 +653,7 @@ model Vendor {
 
   @@unique([tenantId, name])
   @@index([tenantId])
+  @@index([vendorType])
   @@index([name])
 }
 

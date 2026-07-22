@@ -62,6 +62,7 @@ export { AppFormFieldComponent } from './form-field/app-form-field.component';
 export { AppInputComponent } from './app-input/app-input.component';
 export { AppPasswordInputComponent } from './app-password-input/app-password-input.component';
 export { AppSelectComponent, type SelectOption } from './app-select/app-select.component';
+export { AppAutocompleteComponent, type AutocompleteOption } from './app-autocomplete/app-autocomplete.component';
 export { AppTextareaComponent } from './app-textarea/app-textarea.component';
 export { AppCheckboxComponent } from './app-checkbox/app-checkbox.component';
 export { AppRadioComponent } from './app-radio/app-radio.component';

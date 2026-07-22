@@ -1,31 +1,37 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs()" />
-      <h1 class="page-title">Edit Rag / Bale</h1>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs()"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Edit Intake Rag / Bale</h1>
       @if (rag(); as r) {
-        <p class="page-subtitle">{{ r.ragCode }}</p>
+        <p class="page-subtitle">Update intake weight and handling notes for item <strong>{{ r.ragCode }}</strong>.</p>
       }
-    </app-stack>
+    </div>
 
-    <div class="actions">
-      <app-button variant="secondary" (click)="onCancel()">Cancel</app-button>
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="onCancel()">
+        <lucide-icon [img]="icons.ArrowLeft" [size]="15"></lucide-icon>
+        Back to Container
+      </button>
     </div>
   </app-page-header>
 
   <app-page-body>
     @if (loading()) {
-      <app-loading message="Loading…" />
+      <app-loading message="Loading intake item details…"></app-loading>
     } @else if (error()) {
-      <app-error-state title="Failed" [message]="error()!" [action]="true">
-        <app-button action variant="secondary" (click)="onCancel()">Back</app-button>
-      </app-error-state>
+      <app-error-state
+        [message]="error()!"
+        (retry)="onCancel()"
+      ></app-error-state>
     } @else if (rag(); as r) {
       <app-rag-edit-drawer
         [rag]="r"
         (updated)="onUpdated()"
         (closed)="onCancel()"
-      />
+      ></app-rag-edit-drawer>
     }
   </app-page-body>
 </app-page>

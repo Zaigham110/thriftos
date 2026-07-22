@@ -4,25 +4,38 @@
  * 
  * Route: /app/admin/tenant
  * 
- * Displays tenant profile and basic configuration.
- * READ-ONLY for most fields - tenant updates require Super Admin.
+ * Displays tenant profile, system resource statistics, and currency settings.
  */
 
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { LucideAngularModule, Building2, Users, Shield, Layers, Package, Warehouse, RefreshCw } from 'lucide-angular';
+import {
+  LucideAngularModule,
+  Building2,
+  Users,
+  Shield,
+  Layers,
+  Package,
+  Warehouse,
+  RefreshCw,
+  Info,
+  Lock,
+  Globe,
+  DollarSign,
+  Save,
+  Loader2,
+} from 'lucide-angular';
+
 import { AdminService } from '../admin.service';
 import {
-  CardComponent,
-  ButtonComponent,
-  AlertComponent,
-  BreadcrumbComponent,
-  BreadcrumbItem,
-  SkeletonComponent,
-  BadgeComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppPageBodyComponent,
+  AppBreadcrumbComponent,
+  AppLoadingComponent,
+  AppErrorStateComponent,
 } from '../../../shared/ui';
-import { SelectComponent } from '../../../shared/ui/select/select';
 
 @Component({
   selector: 'app-tenant-settings',
@@ -32,13 +45,12 @@ import { SelectComponent } from '../../../shared/ui/select/select';
     DatePipe,
     ReactiveFormsModule,
     LucideAngularModule,
-    CardComponent,
-    ButtonComponent,
-    SelectComponent,
-    AlertComponent,
-    BreadcrumbComponent,
-    SkeletonComponent,
-    BadgeComponent,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppBreadcrumbComponent,
+    AppLoadingComponent,
+    AppErrorStateComponent,
   ],
   templateUrl: './tenant-settings.html',
   styleUrl: './tenant-settings.scss',
@@ -47,12 +59,12 @@ import { SelectComponent } from '../../../shared/ui/select/select';
 export class TenantSettingsComponent implements OnInit {
   private readonly adminService = inject(AdminService);
 
-  protected readonly saving = signal(false);
-  protected readonly currencyCodeControl = new FormControl<string>('USD', { nonNullable: true });
+  readonly saving = signal(false);
+  readonly currencyCodeControl = new FormControl<string>('USD', { nonNullable: true });
 
-  protected readonly currencyOptions = [
-    { value: 'USD', label: 'USD - US Dollar' },
-    { value: 'PKR', label: 'PKR - Pakistani Rupee' },
+  readonly currencyOptions = [
+    { value: 'USD', label: 'USD - US Dollar ($)' },
+    { value: 'PKR', label: 'PKR - Pakistani Rupee (Rs)' },
   ];
 
   readonly icons = {
@@ -63,6 +75,12 @@ export class TenantSettingsComponent implements OnInit {
     Package,
     Warehouse,
     RefreshCw,
+    Info,
+    Lock,
+    Globe,
+    DollarSign,
+    Save,
+    Loader2,
   };
 
   readonly tenant = this.adminService.tenant;
@@ -70,9 +88,8 @@ export class TenantSettingsComponent implements OnInit {
   readonly loading = this.adminService.loading;
   readonly error = this.adminService.error;
 
-  readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Home', link: '/app/dashboard' },
-    { label: 'Administration', link: '/app/admin' },
+  readonly breadcrumbs = [
+    { label: 'Administration', route: '/app/admin' },
     { label: 'Tenant Settings' },
   ];
 
@@ -95,9 +112,9 @@ export class TenantSettingsComponent implements OnInit {
     this.loadData();
   }
 
-  protected readonly currencyLocked = computed(() => !!this.tenant()?.currencyLocked);
+  readonly currencyLocked = computed(() => !!this.tenant()?.currencyLocked);
 
-  protected readonly currencyChanged = computed(() => {
+  readonly currencyChanged = computed(() => {
     const tenant = this.tenant();
     if (!tenant) return false;
     return this.currencyCodeControl.value !== tenant.currencyCode;
@@ -119,9 +136,5 @@ export class TenantSettingsComponent implements OnInit {
       },
       error: () => this.saving.set(false),
     });
-  }
-
-  getStatusVariant(status: string): 'success' | 'danger' {
-    return status === 'ACTIVE' ? 'success' : 'danger';
   }
 }

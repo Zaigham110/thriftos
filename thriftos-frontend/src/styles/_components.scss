@@ -17,9 +17,10 @@
 }
 
 .page-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: $text-primary;
+  font-size: 1.65rem;
+  font-weight: 700;
+  margin-top: 0.25rem;
+  color: $primary;
 }
 
 .page-actions {
@@ -180,12 +181,10 @@
 
 // Loading states
 .loading-skeleton {
-  background: linear-gradient(
-    90deg,
-    $bg-section 25%,
-    $bg-app 50%,
-    $bg-section 75%
-  );
+  background: linear-gradient(90deg,
+      $bg-section 25%,
+      $bg-app 50%,
+      $bg-section 75%);
   background-size: 200% 100%;
   animation: skeleton-loading 1.5s ease-in-out infinite;
   border-radius: $radius-md;
@@ -195,6 +194,7 @@
   0% {
     background-position: 200% 0;
   }
+
   100% {
     background-position: -200% 0;
   }

@@ -304,7 +304,7 @@ All colors from tokens:
 ### Typography Compliance
 
 - Page title: `font-size: var(--font-size-lg)` (text-lg)
-- Body text: `font-size: var(--font-size-sm)` (text-sm)
+- Body text: `font-size: var(--font-size-meta)` (text-sm)
 - Meta text: `font-size: var(--font-size-xs)` (text-xs)
 
 ---

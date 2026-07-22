@@ -1,41 +1,71 @@
+/**
+ * Container Detail Component
+ * Phase 2: Procurement UI
+ * 
+ * Route: /app/procurement/containers/:id
+ * 
+ * Detailed view of an ocean container shipment, weight verification, shipping agent, charges, and cost breakdown.
+ * Features an inline editable grid for container charges with save on enter.
+ */
+
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed } from '@angular/core';
-import { CommonModule, CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import {
+  LucideAngularModule,
+  Truck,
+  Anchor,
+  Scale,
+  Calendar,
+  DollarSign,
+  Plus,
+  Pencil,
+  ArrowLeft,
+  CheckCircle2,
+  Lock,
+  FileText,
+  RefreshCw,
+  UserCheck,
+  Globe,
+  Trash2,
+  ShoppingBag,
+  Check,
+  X,
+  Loader2,
+} from 'lucide-angular';
+
 import { ProcurementService } from '../../procurement.service';
 import {
   Container,
   ContainerStatus,
   CostBreakdown,
   ContainerCharge,
+  ChargeType,
+  CreateContainerChargeRequest,
 } from '../../procurement.models';
 import { AuthService } from '../../../../core/auth/auth';
 import { TenantService } from '../../../../core/tenant/tenant.service';
+import { MoneyPipe } from '../../../../core/money/money.pipe';
 import { CostBreakdownPanelComponent } from '../../shared/cost-breakdown-panel/cost-breakdown-panel';
 import { RagListComponent } from '../../rags/rag-list';
 import {
-  AppBadgeComponent,
-  AppBreadcrumbComponent,
-  AppButtonComponent,
-  AppCardComponent,
-  AppDataTableComponent,
-  AppDialogComponent,
-  AppEmptyStateComponent,
-  AppErrorStateComponent,
-  AppLinkComponent,
-  AppLoadingComponent,
-  AppPageBodyComponent,
   AppPageComponent,
   AppPageHeaderComponent,
-  AppSectionBodyComponent,
+  AppPageBodyComponent,
   AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSplitAsideComponent,
-  AppSplitComponent,
-  AppSplitMainComponent,
-  AppStackComponent,
-  type DataTableColumn,
-  type BreadcrumbItem,
+  AppBreadcrumbComponent,
+  AppLoadingComponent,
+  AppErrorStateComponent,
+  AppEmptyStateComponent,
+  AppDialogComponent,
 } from '../../../../shared/ui';
+
+export interface DraftChargeRow {
+  chargeType: ChargeType;
+  description: string;
+  amount: number | null;
+}
 
 @Component({
   selector: 'app-container-detail',
@@ -43,29 +73,19 @@ import {
   imports: [
     CommonModule,
     RouterLink,
-    CurrencyPipe,
+    FormsModule,
     DatePipe,
     DecimalPipe,
+    MoneyPipe,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
     AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppStackComponent,
-    AppSplitComponent,
-    AppSplitMainComponent,
-    AppSplitAsideComponent,
     AppBreadcrumbComponent,
-    AppCardComponent,
-    AppBadgeComponent,
-    AppButtonComponent,
-    AppDialogComponent,
-    AppDataTableComponent,
-    AppLinkComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
-    AppEmptyStateComponent,
+    AppDialogComponent,
     CostBreakdownPanelComponent,
     RagListComponent,
   ],
@@ -90,59 +110,76 @@ export class ContainerDetailComponent implements OnInit {
   readonly showStatusModal = signal(false);
   readonly selectedStatus = signal<ContainerStatus | null>(null);
 
+  // Inline Charge Grid State
+  readonly isAddingChargeRow = signal(false);
+  readonly isSavingInlineCharge = signal(false);
+  readonly draftCharge = signal<DraftChargeRow>({
+    chargeType: 'FREIGHT',
+    description: '',
+    amount: null,
+  });
+
   readonly showDeleteChargeConfirm = signal(false);
   readonly deletingChargeId = signal<string | null>(null);
 
   readonly canEdit = signal(false);
 
-  // Phase 2.5: Tabs for container detail
   readonly activeTab = signal<string>('overview');
   readonly tabs = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'costs', label: 'Costs' },
-    { id: 'rags', label: 'Rags / Bales' },
+    { id: 'overview', label: 'Shipment Overview' },
+    { id: 'costs', label: 'Charges & Financials' },
+    { id: 'rags', label: 'Rags / Bales Intake' },
   ];
 
-  readonly breadcrumbs = computed<BreadcrumbItem[]>(() => {
+  readonly chargeTypeOptions: Array<{ value: ChargeType; label: string }> = [
+    { value: 'CIF', label: 'CIF (Cost, Insurance, Freight)' },
+    { value: 'FREIGHT', label: 'Ocean Freight' },
+    { value: 'DUTY', label: 'Customs Duty' },
+    { value: 'TAX', label: 'Import Tax' },
+    { value: 'PORT_HANDLING', label: 'Port Handling' },
+    { value: 'MISC', label: 'Miscellaneous' },
+  ];
+
+  readonly icons = {
+    Truck,
+    Anchor,
+    Scale,
+    Calendar,
+    DollarSign,
+    Plus,
+    Pencil,
+    ArrowLeft,
+    CheckCircle2,
+    Lock,
+    FileText,
+    RefreshCw,
+    UserCheck,
+    Globe,
+    Trash2,
+    ShoppingBag,
+    Check,
+    X,
+    Loader2,
+  };
+
+  readonly breadcrumbs = computed(() => {
     const contNumber = this.container()?.containerNumber || 'Loading…';
-    const id = this.container()?.id;
     return [
-      { label: 'Home', route: '/dashboard' },
-      { label: 'Procurement', route: '/procurement/dashboard' },
-      { label: 'Containers', route: '/procurement/containers' },
-      { label: contNumber, route: id ? `/procurement/containers/${id}` : '/procurement/containers' },
+      { label: 'Procurement', route: '/app/procurement' },
+      { label: 'Containers', route: '/app/procurement/containers' },
+      { label: contNumber },
     ];
   });
 
-  readonly isEditable = computed(() => {
-    const container = this.container();
-    return container?.status !== 'CLOSED';
-  });
-
-  readonly isReadOnly = computed(() => {
-    const container = this.container();
-    return container?.status === 'CLOSED';
-  });
-
-  readonly statusOptions = [
-    { value: 'IN_TRANSIT', label: 'In Transit' },
-    { value: 'ARRIVED', label: 'Arrived' },
-    { value: 'CLEARED', label: 'Cleared' },
-    { value: 'CLOSED', label: 'Closed' },
-  ];
-
-  readonly chargeColumns: DataTableColumn[] = [
-    { key: 'chargeType', label: 'Type', sortable: true, filterable: true },
-    { key: 'description', label: 'Description', sortable: true, filterable: true },
-    { key: 'amount', label: 'Amount', align: 'right', sortable: true, getValue: (row) => (row as ContainerCharge).amount },
-  ];
+  readonly isEditable = computed(() => this.container()?.status !== 'CLOSED');
+  readonly isReadOnly = computed(() => this.container()?.status === 'CLOSED');
 
   readonly currencyCode = computed(
     () =>
       this.container()?.purchaseOrder?.currency ||
       this.costBreakdown()?.currency ||
       this.tenantService.tenant()?.currencyCode ||
-      '—',
+      'USD',
   );
 
   ngOnInit(): void {
@@ -189,20 +226,83 @@ export class ContainerDetailComponent implements OnInit {
         this.costBreakdown.set(breakdown);
         this.costLoading.set(false);
       },
-      error: () => {
-        this.costLoading.set(false);
-      },
+      error: () => this.costLoading.set(false),
     });
   }
 
   private loadCharges(containerId: string): void {
     this.procurementService.getContainerCharges(containerId).subscribe({
-      next: (charges) => {
-        this.charges.set(charges);
+      next: (charges) => this.charges.set(charges),
+    });
+  }
+
+  // Inline Charge Grid Operations
+  toggleAddChargeRow(): void {
+    if (this.isAddingChargeRow()) {
+      this.cancelInlineCharge();
+    } else {
+      this.draftCharge.set({
+        chargeType: 'FREIGHT',
+        description: '',
+        amount: null,
+      });
+      this.isAddingChargeRow.set(true);
+    }
+  }
+
+  cancelInlineCharge(): void {
+    this.isAddingChargeRow.set(false);
+    this.draftCharge.set({
+      chargeType: 'FREIGHT',
+      description: '',
+      amount: null,
+    });
+  }
+
+  saveInlineCharge(): void {
+    const container = this.container();
+    const draft = this.draftCharge();
+    if (!container || this.isSavingInlineCharge()) return;
+
+    if (!draft.description.trim()) {
+      this.error.set('Please enter a description for the charge');
+      return;
+    }
+
+    if (draft.amount === null || draft.amount <= 0) {
+      this.error.set('Please enter a valid charge amount greater than 0');
+      return;
+    }
+
+    this.isSavingInlineCharge.set(true);
+    this.error.set(null);
+
+    const requestData: CreateContainerChargeRequest = {
+      chargeType: draft.chargeType,
+      description: draft.description.trim(),
+      amount: Number(draft.amount),
+    };
+
+    this.procurementService.addContainerCharge(container.id, requestData).subscribe({
+      next: () => {
+        this.isSavingInlineCharge.set(false);
+        this.cancelInlineCharge();
+        this.loadCharges(container.id);
+        this.loadCostBreakdown(container.id);
+      },
+      error: (err) => {
+        this.error.set(err.message || 'Failed to add charge entry');
+        this.isSavingInlineCharge.set(false);
       },
     });
   }
 
+  updateDraftField(field: keyof DraftChargeRow, value: any): void {
+    this.draftCharge.update((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }
 
   openStatusModal(status: ContainerStatus): void {
     this.selectedStatus.set(status);
@@ -254,7 +354,6 @@ export class ContainerDetailComponent implements OnInit {
     this.deletingChargeId.set(null);
   }
 
-
   deleteCharge(chargeId: string): void {
     const container = this.container();
     if (!container) return;
@@ -270,16 +369,6 @@ export class ContainerDetailComponent implements OnInit {
     });
   }
 
-  getStatusVariant(status: ContainerStatus): 'default' | 'primary' | 'success' | 'warning' | 'danger' {
-    const variants: Record<ContainerStatus, 'default' | 'primary' | 'success' | 'warning' | 'danger'> = {
-      IN_TRANSIT: 'warning',
-      ARRIVED: 'primary',
-      CLEARED: 'success',
-      CLOSED: 'default',
-    };
-    return variants[status] || 'default';
-  }
-
   getStatusLabel(status: ContainerStatus | null | undefined): string {
     if (!status) return '';
     return status.replace('_', ' ');
@@ -291,10 +380,6 @@ export class ContainerDetailComponent implements OnInit {
     if (current === 'ARRIVED') return 'CLEARED';
     if (current === 'CLEARED') return 'CLOSED';
     return null;
-  }
-
-  private normalizeDate(value?: string | null): string | undefined {
-    return value ? value : undefined;
   }
 
   onTabChange(tabId: string): void {

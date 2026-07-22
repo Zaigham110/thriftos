@@ -1,134 +1,210 @@
-<app-stack direction="vertical" spacing="md">
+<div class="rag-list-container">
+  
   @if (error()) {
-    <app-error-state title="Rags failed to load" [message]="error()!" [action]="true">
-      <app-button action variant="secondary" (click)="clearError()">Dismiss</app-button>
-    </app-error-state>
+    <app-error-state
+      [message]="error()!"
+      (retry)="clearError()"
+    ></app-error-state>
   }
 
-  <app-card>
-    <app-stack direction="vertical" spacing="sm">
-      <app-stack direction="horizontal" spacing="sm">
-        <strong>Rags / Bales</strong>
-        <app-badge variant="default">{{ filteredRags().length }}</app-badge>
-        @if (sortedCount() > 0 && !showSorted()) {
-          <app-badge variant="warning">{{ sortedCount() }} hidden</app-badge>
-        }
-      </app-stack>
+  <!-- KPI Metric Summary Grid -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-icon kpi-icon-purple">
+        <lucide-icon [img]="icons.Package" [size]="20"></lucide-icon>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Registered Items</span>
+        <span class="kpi-value">{{ totalCount() }}</span>
+      </div>
+    </div>
 
-      <app-stack direction="horizontal" spacing="sm">
-        <app-button variant="secondary" (click)="toggleShowSorted()">
-          {{ showSorted() ? 'Hide Sorted' : 'Show Sorted' }}
-        </app-button>
+    <div class="kpi-card">
+      <div class="kpi-icon kpi-icon-blue">
+        <lucide-icon [img]="icons.Scale" [size]="20"></lucide-icon>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Total Weight</span>
+        <span class="kpi-value">{{ currentTotalWeight() | number:'1.2-2' }} <small>KG</small></span>
+      </div>
+    </div>
 
-        @if (canAddRags() && !isContainerClosed()) {
-          <app-button variant="primary" (click)="navigateToCreate()" [disabled]="actionLoading()">Add Rag / Bale</app-button>
-        }
-      </app-stack>
+    <div class="kpi-card">
+      <div class="kpi-icon kpi-icon-emerald">
+        <lucide-icon [img]="icons.CheckCircle2" [size]="20"></lucide-icon>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Sorted Items</span>
+        <span class="kpi-value">{{ sortedCount() }}</span>
+      </div>
+    </div>
+  </div>
 
-      @if (!canAddRags() && !isContainerClosed()) {
-        <div>
-          <app-badge variant="warning">Container must be Arrived or Cleared to add rags.</app-badge>
-        </div>
+  <!-- Main Table Section -->
+  <div class="section-toolbar">
+    <div class="toolbar-title">
+      <span class="section-label">Intake Items Directory</span>
+      <span class="results-count">{{ filteredRags().length }} items</span>
+    </div>
+
+    <div class="toolbar-actions-group">
+      <button class="btn btn-secondary btn-sm" (click)="toggleShowSorted()">
+        {{ showSorted() ? 'Hide Completed Sorted Items' : 'Show Completed Sorted Items' }}
+      </button>
+
+      @if (canAddRags() && !isContainerClosed()) {
+        <button class="btn btn-primary" (click)="navigateToCreate()" [disabled]="actionLoading()">
+          <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
+          Register Intake Rag / Bale
+        </button>
       }
-    </app-stack>
-  </app-card>
+    </div>
+  </div>
 
+  <div class="table-card">
+    @if (loading()) {
+      <app-loading message="Loading intake items…"></app-loading>
+    } @else if (filteredRags().length === 0) {
+      <app-empty-state
+        title="No Intake Items Recorded"
+        message="Register intake rags or bales for this container to calculate landed cost allocation and begin sorting."
+      >
+        @if (canAddRags() && !isContainerClosed()) {
+          <button class="btn btn-primary mt-3" (click)="navigateToCreate()">
+            <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
+            Register Intake Item
+          </button>
+        }
+      </app-empty-state>
+    } @else {
+      <div class="table-wrapper">
+        <table class="detail-table">
+          <thead>
+            <tr>
+              <th>Rag / Bale Code</th>
+              <th>Intake Type</th>
+              <th>Raw Category</th>
+              <th>Weight (KG)</th>
+              <th>Allocated Landed Cost</th>
+              <th>Sorting Status</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (rag of filteredRags(); track rag.id) {
+              <tr>
+                <td>
+                  <span class="code-badge">
+                    <lucide-icon [img]="icons.Package" [size]="13"></lucide-icon>
+                    {{ rag.ragCode }}
+                  </span>
+                </td>
+
+                <td>
+                  <span class="type-pill">{{ rag.ragBaleType }}</span>
+                </td>
+
+                <td>
+                  <span class="category-name">
+                    {{ rag.rawCategory?.name || 'Unassigned' }}
+                  </span>
+                </td>
+
+                <td>
+                  <span class="weight-text">{{ rag.weightKg | number:'1.2-2' }} KG</span>
+                </td>
+
+                <td>
+                  <span class="cost-text">{{ rag.allocatedCost | money }}</span>
+                </td>
+
+                <td>
+                  <span 
+                    class="status-pill"
+                    [class.status-pending]="rag.status === 'NOT_STARTED'"
+                    [class.status-sorting]="rag.status === 'IN_SORTING'"
+                    [class.status-sorted]="rag.status === 'SORTED'"
+                  >
+                    <span class="status-dot"></span>
+                    {{ getStatusLabel(rag.status) }}
+                  </span>
+                </td>
+
+                <td class="text-right">
+                  <div class="action-buttons-group">
+                    @if (canStartSorting(rag)) {
+                      <button 
+                        class="btn btn-secondary btn-xs" 
+                        title="Start Sorting Stage 1 Workspace"
+                        (click)="confirmStartSorting(rag)"
+                        [disabled]="actionLoading()"
+                      >
+                        <lucide-icon [img]="icons.Play" [size]="12"></lucide-icon>
+                        Start Sorting
+                      </button>
+                    }
+
+                    @if (isEditable(rag)) {
+                      <button 
+                        class="action-icon-btn" 
+                        title="Edit Item"
+                        (click)="navigateToEdit(rag)"
+                      >
+                        <lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>
+                      </button>
+
+                      <button 
+                        class="action-icon-btn danger" 
+                        title="Delete Item"
+                        (click)="confirmDelete(rag)"
+                      >
+                        <lucide-icon [img]="icons.Trash2" [size]="14"></lucide-icon>
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+
+  <!-- Delete Confirm Dialog -->
   <app-dialog
     [open]="showDeleteConfirm()"
-    title="Delete rag?"
-    [message]="deleteConfirmMessage()"
-    variant="danger"
-    confirmText="Delete"
-    cancelText="Cancel"
-    [loading]="actionLoading()"
-    (cancelled)="cancelDelete()"
-    (confirmed)="executeDelete()"
-  />
+    title="Delete Intake Item?"
+    (closed)="cancelDelete()"
+  >
+    <div class="dialog-content-body">
+      <p class="dialog-desc">{{ deleteConfirmMessage() }}</p>
+    </div>
 
+    <div slot="footer" class="dialog-actions">
+      <button class="btn btn-secondary" (click)="cancelDelete()">Cancel</button>
+      <button class="btn btn-danger" [disabled]="actionLoading()" (click)="executeDelete()">
+        Confirm Delete
+      </button>
+    </div>
+  </app-dialog>
+
+  <!-- Sorting Start Dialog -->
   <app-dialog
     [open]="showSortingConfirm()"
-    title="Start sorting?"
-    [message]="sortingConfirmMessage()"
-    variant="default"
-    confirmText="Start"
-    cancelText="Cancel"
-    [loading]="actionLoading()"
-    (cancelled)="cancelStartSorting()"
-    (confirmed)="executeStartSorting()"
-  />
+    title="Start Sorting Stage 1?"
+    (closed)="cancelStartSorting()"
+  >
+    <div class="dialog-content-body">
+      <p class="dialog-desc">{{ sortingConfirmMessage() }}</p>
+    </div>
 
-  @if (loading()) {
-    <app-loading message="Loading rags…" />
-  } @else if (filteredRags().length === 0) {
-    <app-empty-state title="No rags" message="No rags/bales recorded for this container." />
-  } @else {
-    <app-data-table
-      title="Rags / Bales"
-      [columns]="ragColumns"
-      [data]="filteredRags()"
-      [serverSide]="false"
-      [externalPageSize]="20"
-    >
-      <ng-template #cellTemplate let-row let-column="column">
-        @switch (column.key) {
-          @case ('ragCode') {
-            <app-stack direction="vertical" spacing="xs">
-              <strong>{{ row.ragCode }}</strong>
-              @if (row.notes) {
-                <span class="muted">{{ row.notes }}</span>
-              }
-            </app-stack>
-          }
-          @case ('ragBaleType') {
-            <app-badge variant="default">{{ row.ragBaleType }}</app-badge>
-          }
-          @case ('weightKg') {
-            <span class="tabular-nums">{{ row.weightKg | number:'1.2-2' }}</span>
-          }
-          @case ('allocatedCost') {
-            <span class="tabular-nums">{{ row.allocatedCost | money:{ minimumFractionDigits: 2, maximumFractionDigits: 2 } }}</span>
-          }
-          @case ('status') {
-            <app-badge [variant]="getStatusBadgeVariant(row.status)">{{ getStatusLabel(row.status) }}</app-badge>
-          }
-          @case ('createdAt') {
-            {{ row.createdAt | date:'shortDate' }}
-          }
-          @default {
-            {{ column.getValue ? column.getValue(row) : row[column.key] }}
-          }
-        }
-      </ng-template>
+    <div slot="footer" class="dialog-actions">
+      <button class="btn btn-secondary" (click)="cancelStartSorting()">Cancel</button>
+      <button class="btn btn-primary" [disabled]="actionLoading()" (click)="executeStartSorting()">
+        Open Sorting Workspace
+      </button>
+    </div>
+  </app-dialog>
 
-      <ng-template #rowActions let-row>
-        <app-stack direction="horizontal" spacing="sm">
-          @if (row.status === 'NOT_STARTED' && !isContainerClosed()) {
-            <app-button 
-              variant="secondary" 
-              size="sm" 
-              (click)="confirmStartSorting(row)" 
-              [disabled]="actionLoading()"
-              [title]="getSortingTooltip(row)"
-            >
-              Start Sorting
-            </app-button>
-          } @else {
-            <app-button 
-              variant="secondary" 
-              size="sm" 
-              [disabled]="true"
-              [title]="getSortingTooltip(row)"
-            >
-              Start Sorting
-            </app-button>
-          }
-
-          @if (isEditable(row)) {
-            <app-button variant="secondary" size="sm" (click)="navigateToEdit(row)" [disabled]="actionLoading()">Edit</app-button>
-            <app-button variant="danger" size="sm" (click)="confirmDelete(row)" [disabled]="actionLoading()">Delete</app-button>
-          }
-        </app-stack>
-      </ng-template>
-    </app-data-table>
-  }
-</app-stack>
+</div>

@@ -1,115 +1,169 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs()" />
-      <h1 class="page-title">Add container</h1>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs()"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Add Container Shipment</h1>
       @if (purchaseOrder(); as po) {
-        <p class="page-subtitle">{{ po.poNumber }}</p>
+        <p class="page-subtitle">Link an ocean freight container to purchase order <strong>{{ po.poNumber }}</strong>.</p>
       }
-    </app-stack>
+    </div>
 
-    <div class="actions">
-      <app-button variant="secondary" (click)="onCancel()">Cancel</app-button>
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="onCancel()" [disabled]="actionLoading()">
+        <lucide-icon [img]="icons.ArrowLeft" [size]="15"></lucide-icon>
+        Back to PO Details
+      </button>
     </div>
   </app-page-header>
 
   <app-page-body>
     @if (loading()) {
-      <app-loading message="Loading purchase order…" />
+      <app-loading message="Loading purchase order details…"></app-loading>
     } @else if (error()) {
-      <app-error-state title="Failed" [message]="error()!" [action]="true">
-        <app-button action variant="secondary" (click)="loadPurchaseOrder()">Retry</app-button>
-      </app-error-state>
-    } @else if (purchaseOrder(); as po) {
-      <app-card>
-        <app-form
-          [formGroup]="form"
-          (submitted)="onSubmit()"
-          title="Create Container"
-          subtitle="Container numbers are generated automatically."
-        >
-          <app-form-field label="Reference Number" hint="Optional">
-            <app-input formControlName="referenceNumber" placeholder="Optional reference" />
-          </app-form-field>
+      <app-error-state
+        [message]="error()!"
+        (retry)="loadPurchaseOrder()"
+      ></app-error-state>
+    } @else {
+      <div class="form-container-card">
+        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="add-container-form">
+          
+          <!-- Identification Group -->
+          <div class="form-section-title">
+            <lucide-icon [img]="icons.Truck" [size]="16" class="title-icon"></lucide-icon>
+            Container Identification
+          </div>
 
-          <app-form-field label="Container Type" hint="Optional">
-            <app-select formControlName="containerType" [options]="containerTypeOptions" />
-          </app-form-field>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Reference / Seal Number</label>
+              <input type="text" formControlName="referenceNumber" class="form-input" placeholder="e.g. SEAL-98402" />
+            </div>
 
-          <app-form-field label="Gross Weight (kg)" [required]="true">
-            <app-input type="number" formControlName="grossWeightKg" />
-          </app-form-field>
+            <div class="form-group">
+              <label class="form-label">Container Type</label>
+              <select formControlName="containerType" class="form-select">
+                @for (opt of containerTypeOptions; track opt.value) {
+                  <option [value]="opt.value">{{ opt.label }}</option>
+                }
+              </select>
+            </div>
 
-          <app-form-field label="Net Weight (kg)" [required]="true">
-            <app-input type="number" formControlName="netWeightKg" />
-          </app-form-field>
+            <div class="form-group">
+              <label class="form-label">Shipment Reference</label>
+              <input type="text" formControlName="shipmentReference" class="form-input" placeholder="e.g. SHIP-REF-1002" />
+            </div>
+          </div>
 
-          <app-form-field label="Tare Weight (kg)" hint="Optional">
-            <app-input type="number" formControlName="tareWeightKg" />
-          </app-form-field>
+          <!-- Shipment & Logistics -->
+          <div class="form-section-title mt-3">
+            <lucide-icon [img]="icons.Anchor" [size]="16" class="title-icon"></lucide-icon>
+            Shipment Logistics & Shipping Agent
+          </div>
 
-          <app-form-field label="ETA" hint="Optional">
-            <app-input type="date" formControlName="eta" />
-          </app-form-field>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Agent / Forwarder</label>
+              <app-autocomplete
+                formControlName="forwarder"
+                [options]="agentOptions()"
+                placeholder="Search or type Agent/Forwarder..."
+              ></app-autocomplete>
+              <span class="field-hint">Registered shipping agents auto-fetched from Vendors. Custom names auto-save to Vendors.</span>
+            </div>
 
-          <app-form-field label="ETD" hint="Optional">
-            <app-input type="date" formControlName="etd" />
-          </app-form-field>
+            <div class="form-group">
+              <label class="form-label">Bill of Lading (B/L)</label>
+              <input type="text" formControlName="billOfLadingNumber" class="form-input" placeholder="e.g. MSK9820491" />
+            </div>
 
-          <app-form-field label="Arrived At" hint="Optional">
-            <app-input type="date" formControlName="arrivedAt" />
-          </app-form-field>
+            <div class="form-group">
+              <label class="form-label">Shipping Line</label>
+              <input type="text" formControlName="shippingLine" class="form-input" placeholder="e.g. Maersk / MSC" />
+            </div>
 
-          <app-form-field label="Cleared At" hint="Optional">
-            <app-input type="date" formControlName="clearedAt" />
-          </app-form-field>
+            <div class="form-group">
+              <label class="form-label">Vessel Name</label>
+              <input type="text" formControlName="vesselName" class="form-input" placeholder="e.g. MSC Oscar" />
+            </div>
 
-          <app-form-field label="Released At" hint="Optional">
-            <app-input type="date" formControlName="releasedAt" />
-          </app-form-field>
+            <div class="form-group">
+              <label class="form-label">Port of Loading</label>
+              <input type="text" formControlName="portOfLoading" class="form-input" placeholder="e.g. Port of Rotterdam" />
+            </div>
 
-          <app-form-field label="Bill of Lading #" hint="Optional">
-            <app-input formControlName="billOfLadingNumber" />
-          </app-form-field>
+            <div class="form-group">
+              <label class="form-label">Port of Discharge</label>
+              <input type="text" formControlName="portOfDischarge" class="form-input" placeholder="e.g. Port of Karachi" />
+            </div>
+          </div>
 
-          <app-form-field label="Shipment Reference" hint="Optional">
-            <app-input formControlName="shipmentReference" />
-          </app-form-field>
+          <!-- Schedule & Dates -->
+          <div class="form-section-title mt-3">
+            <lucide-icon [img]="icons.Calendar" [size]="16" class="title-icon"></lucide-icon>
+            Shipment Transit Schedule & Dates
+          </div>
 
-          <app-form-field label="Shipping Line" hint="Optional">
-            <app-input formControlName="shippingLine" />
-          </app-form-field>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">ETD (Departure Date)</label>
+              <input type="date" formControlName="etd" class="form-input" />
+            </div>
 
-          <app-form-field label="Vessel Name" hint="Optional">
-            <app-input formControlName="vesselName" />
-          </app-form-field>
+            <div class="form-group">
+              <label class="form-label">ETA (Arrival Date)</label>
+              <input type="date" formControlName="eta" class="form-input" />
+            </div>
+          </div>
 
-          <app-form-field label="Port of Loading" hint="Optional">
-            <app-input formControlName="portOfLoading" />
-          </app-form-field>
+          <!-- Weights (KG) -->
+          <div class="form-section-title mt-3">
+            <lucide-icon [img]="icons.Scale" [size]="16" class="title-icon"></lucide-icon>
+            Weight Verification (KG)
+          </div>
 
-          <app-form-field label="Port of Discharge" hint="Optional">
-            <app-input formControlName="portOfDischarge" />
-          </app-form-field>
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label class="form-label required">Gross Weight (KG)</label>
+              <input type="number" step="0.01" min="0" formControlName="grossWeightKg" class="form-input" placeholder="0.00" />
+            </div>
 
-          <app-form-field label="Forwarder" hint="Optional">
-            <app-input formControlName="forwarder" />
-          </app-form-field>
+            <div class="form-group">
+              <label class="form-label required">Net Weight (KG)</label>
+              <input type="number" step="0.01" min="0" formControlName="netWeightKg" class="form-input" placeholder="0.00" />
+            </div>
 
-          <app-form-field label="Notes" hint="Optional">
-            <app-input formControlName="notes" />
-          </app-form-field>
+            <div class="form-group">
+              <label class="form-label">Tare Weight (KG)</label>
+              <input type="number" step="0.01" min="0" formControlName="tareWeightKg" class="form-input" placeholder="0.00" />
+            </div>
+          </div>
 
-          <app-stack direction="horizontal" spacing="sm">
-            <app-button variant="secondary" type="button" (click)="onCancel()" [disabled]="actionLoading()">
+          <!-- Notes -->
+          <div class="form-group mt-3">
+            <label class="form-label">Shipment Notes / Special Instructions</label>
+            <textarea formControlName="notes" class="form-input form-textarea" rows="2" placeholder="Add custom notes or handling instructions..."></textarea>
+          </div>
+
+          <!-- Form Actions -->
+          <div class="form-footer-actions">
+            <button class="btn btn-secondary" type="button" (click)="onCancel()" [disabled]="actionLoading()">
               Cancel
-            </app-button>
-            <app-button variant="primary" type="submit" [disabled]="form.invalid || actionLoading()">
-              Create
-            </app-button>
-          </app-stack>
-        </app-form>
-      </app-card>
+            </button>
+            <button class="btn btn-primary" type="submit" [disabled]="form.invalid || actionLoading()">
+              @if (actionLoading()) {
+                <lucide-icon [img]="icons.Loader2" [size]="15" class="animate-spin"></lucide-icon>
+                Saving Container...
+              } @else {
+                <lucide-icon [img]="icons.Save" [size]="15"></lucide-icon>
+                Add Container
+              }
+            </button>
+          </div>
+        </form>
+      </div>
     }
   </app-page-body>
 </app-page>

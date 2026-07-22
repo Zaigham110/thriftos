@@ -39,6 +39,7 @@ export interface CreateUserRequest {
 export interface UpdateUserRequest {
   name?: string;
   email?: string;
+  isActive?: boolean;
 }
 
 // =============================================================
@@ -175,10 +176,13 @@ export interface UpdateWarehouseRequest {
 // VENDOR MANAGEMENT
 // =============================================================
 
+export type VendorType = 'SUPPLIER' | 'CUSTOMER' | 'SHIPPER' | 'CONSIGNEE' | 'OTHER';
+
 export interface Vendor {
   id: string;
   tenantId: string;
   name: string;
+  vendorType?: VendorType;
   country?: string;
   contactInfo?: string;
   isActive: boolean;
@@ -188,12 +192,14 @@ export interface Vendor {
 
 export interface CreateVendorRequest {
   name: string;
+  vendorType?: VendorType;
   country?: string;
   contactInfo?: string;
 }
 
 export interface UpdateVendorRequest {
   name?: string;
+  vendorType?: VendorType;
   country?: string;
   contactInfo?: string;
   isActive?: boolean;

@@ -1,165 +1,293 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs()" />
-      <h1 class="page-title">Purchase Order</h1>
-      @if (purchaseOrder(); as po) {
-        <p class="page-subtitle">{{ po.poNumber }}</p>
-      }
-    </app-stack>
+    @if (purchaseOrder(); as po) {
+      <div class="header-left-group">
+        <div class="eyebrow-container">
+          <app-breadcrumb [items]="breadcrumbs()"></app-breadcrumb>
+        </div>
+        <div class="title-with-badges">
+          <h1 class="page-title">{{ po.poNumber }}</h1>
+          <span 
+            class="status-pill" 
+            [class.status-open]="po.status === 'OPEN'"
+            [class.status-received]="po.status === 'RECEIVED'"
+            [class.status-closed]="po.status === 'CLOSED'"
+          >
+            <span class="status-dot"></span>
+            {{ po.status }}
+          </span>
+          <span class="type-pill">
+            {{ getPoTypeLabel(po.poType) }}
+          </span>
+        </div>
+        <p class="page-subtitle">Procurement Purchase Order details, shipment containers, and loose bales intake.</p>
+      </div>
 
-    <div class="actions">
-      <app-button variant="secondary" [routerLink]="['/procurement/pos']">Back to list</app-button>
-      @if (purchaseOrder(); as po) {
+      <div class="header-right-actions">
+        <button class="btn btn-secondary" [routerLink]="['/app/procurement/pos']">
+          <lucide-icon [img]="icons.ArrowLeft" [size]="15"></lucide-icon>
+          Back to List
+        </button>
+
         @if (!isReadOnly() && canEdit()) {
           @if (po.status === 'OPEN') {
-            <app-button variant="secondary" (click)="openConfirmModal('receive')" [disabled]="actionLoading()">Mark received</app-button>
+            <button class="btn btn-primary" (click)="openConfirmModal('receive')" [disabled]="actionLoading()">
+              <lucide-icon [img]="icons.CheckCircle2" [size]="15"></lucide-icon>
+              Mark Received
+            </button>
           }
           @if (po.status === 'RECEIVED') {
-            <app-button variant="danger" (click)="openConfirmModal('close')" [disabled]="actionLoading()">Close PO</app-button>
+            <button class="btn btn-danger" (click)="openConfirmModal('close')" [disabled]="actionLoading()">
+              <lucide-icon [img]="icons.Lock" [size]="15"></lucide-icon>
+              Close PO
+            </button>
           }
         }
-      }
-    </div>
+      </div>
+    }
   </app-page-header>
 
   <app-page-body>
     @if (loading()) {
-      <app-loading message="Loading purchase order…" />
+      <app-loading message="Loading purchase order details…"></app-loading>
     } @else if (error()) {
-      <app-error-state title="Failed to load" [message]="error()!" [action]="true">
-        <app-button action variant="secondary" (click)="loadPurchaseOrder()">Retry</app-button>
-      </app-error-state>
+      <app-error-state
+        [message]="error()!"
+        (retry)="loadPurchaseOrder()"
+      ></app-error-state>
     } @else if (purchaseOrder(); as po) {
-      <app-section>
-        <app-section-header>
-          <h2 class="section-title">Details</h2>
-          <div class="actions"></div>
-        </app-section-header>
-        <app-section-body>
-          <app-card>
-            <app-stack direction="vertical" spacing="sm">
-              @if (isReadOnly()) {
-                <app-badge variant="warning">Closed (read-only)</app-badge>
-              }
-              <app-stack direction="horizontal" spacing="sm">
-                <app-badge [variant]="getStatusVariant(po.status)">{{ po.status }}</app-badge>
-                <app-badge variant="default">{{ getPoTypeLabel(po.poType) }}</app-badge>
-              </app-stack>
-              <div><strong>Vendor:</strong> {{ po.vendor?.name || '—' }}</div>
-              <div><strong>Currency:</strong> {{ po.currency }}</div>
-              <div><strong>Total Cost:</strong> {{ po.totalCost | currency:po.currency:'symbol':'1.2-2' }}</div>
-              <div><strong>Created:</strong> {{ po.createdAt | date:'medium' }}</div>
-            </app-stack>
-          </app-card>
+      
+      <!-- Closed PO Read-only Banner -->
+      @if (isReadOnly()) {
+        <div class="read-only-banner">
+          <lucide-icon [img]="icons.Lock" [size]="16" class="banner-icon"></lucide-icon>
+          <span>This Purchase Order is <strong>CLOSED</strong> and locked as read-only for historical auditing.</span>
+        </div>
+      }
 
-          <app-dialog
-            [open]="showConfirmModal()"
-            [title]="confirmAction() === 'receive' ? 'Mark as received?' : 'Close purchase order?'"
-            [message]="confirmAction() === 'receive'
-              ? 'This will mark the purchase order as received.'
-              : 'Closing makes this purchase order read-only.'"
-            [variant]="confirmAction() === 'close' ? 'danger' : 'default'"
-            [confirmText]="confirmAction() === 'receive' ? 'Confirm received' : 'Confirm close'"
-            cancelText="Cancel"
-            [loading]="actionLoading()"
-            (cancelled)="closeConfirmModal()"
-            (confirmed)="confirmStatusChange()"
-          />
-        </app-section-body>
-      </app-section>
+      <!-- Order Metadata Details Card -->
+      <div class="details-summary-card">
+        <div class="summary-item">
+          <span class="summary-label">Vendor / Supplier</span>
+          <div class="summary-value">
+            @if (po.vendor) {
+              <span class="vendor-name-badge">
+                <lucide-icon [img]="icons.Store" [size]="14"></lucide-icon>
+                {{ po.vendor.name }}
+              </span>
+            } @else {
+              <span class="text-subtle">Unassigned Vendor</span>
+            }
+          </div>
+        </div>
 
+        <div class="summary-item">
+          <span class="summary-label">Total Cost</span>
+          <span class="summary-value cost-value">
+            {{ po.totalCost | money:{ minimumFractionDigits: 2, maximumFractionDigits: 2 } }}
+          </span>
+        </div>
+
+        <div class="summary-item">
+          <span class="summary-label">Reporting Currency</span>
+          <span class="summary-value currency-badge">{{ po.currency }}</span>
+        </div>
+
+        <div class="summary-item">
+          <span class="summary-label">Order Created</span>
+          <span class="summary-value text-subtle">{{ po.createdAt | date:'medium' }}</span>
+        </div>
+      </div>
+
+      <!-- Loose Bales Sub-section -->
       @if (showLooseBaleSection()) {
         <app-section>
-          <app-section-header>
-            <h2 class="section-title">Loose Bales</h2>
-            <div class="actions">
-              @if (isEditable() && canUpdate()) {
-                <app-button variant="primary" [routerLink]="['/procurement/pos', po.id, 'bales', 'create']" [disabled]="actionLoading()">Add bale</app-button>
-              }
+          <div class="section-toolbar">
+            <div class="toolbar-title">
+              <span class="section-label">Loose Bales Intake</span>
+              <span class="results-count">{{ incomingBales().length }} bales</span>
             </div>
-          </app-section-header>
-          <app-section-body>
-            @if (incomingBales().length === 0) {
-              <app-empty-state title="No loose bales" message="No loose bales linked to this purchase order." />
-            } @else {
-              <app-data-table
-                title="Loose Bales"
-                [columns]="baleColumns"
-                [data]="incomingBales()"
-                [serverSide]="false"
-                [externalPageSize]="20"
-              >
-                <ng-template #cellTemplate let-row let-column="column">
-                  @switch (column.key) {
-                    @case ('weightKg') {
-                      <span class="tabular-nums">{{ row.weightKg | number:'1.2-2' }}</span>
-                    }
-                    @case ('cost') {
-                      <span class="tabular-nums">{{ row.cost | currency:po.currency:'symbol':'1.2-2' }}</span>
-                    }
-                    @default {
-                      {{ column.getValue ? column.getValue(row) : row[column.key] }}
-                    }
-                  }
-                </ng-template>
 
-                <ng-template #rowActions let-row>
-                  <app-button variant="secondary" size="sm" [routerLink]="['/procurement/loose-bales', row.id]">View</app-button>
-                  @if (canEditBale(row) && canUpdate()) {
-                    <app-button variant="primary" size="sm" [routerLink]="['/procurement/loose-bales', row.id, 'edit']">Edit</app-button>
-                  }
-                </ng-template>
-              </app-data-table>
+            @if (isEditable() && canUpdate()) {
+              <button class="btn btn-primary" [routerLink]="['/app/procurement/pos', po.id, 'bales', 'create']" [disabled]="actionLoading()">
+                <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
+                Add Loose Bale
+              </button>
             }
-          </app-section-body>
+          </div>
+
+          <div class="table-card">
+            @if (incomingBales().length === 0) {
+              <app-empty-state
+                title="No Loose Bales Linked"
+                message="No loose bales have been registered for this purchase order."
+              >
+                @if (isEditable() && canUpdate()) {
+                  <button class="btn btn-primary mt-3" [routerLink]="['/app/procurement/pos', po.id, 'bales', 'create']">
+                    <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
+                    Add Loose Bale
+                  </button>
+                }
+              </app-empty-state>
+            } @else {
+              <div class="table-wrapper">
+                <table class="detail-table">
+                  <thead>
+                    <tr>
+                      <th>Bale Code / Label</th>
+                      <th>Category</th>
+                      <th>Weight (KG)</th>
+                      <th>Cost</th>
+                      <th class="text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (bale of incomingBales(); track bale.id) {
+                      <tr>
+                        <td>
+                          <span class="item-id-badge">
+                            <lucide-icon [img]="icons.Package" [size]="13"></lucide-icon>
+                            {{ bale.baleCode || bale.id.slice(-6).toUpperCase() }}
+                          </span>
+                        </td>
+                        <td>{{ bale.rawCategory?.name || '—' }}</td>
+                        <td><span class="font-mono">{{ bale.weightKg }} KG</span></td>
+                        <td><span class="cost-text">{{ bale.cost | money }}</span></td>
+                        <td class="text-right">
+                          <div class="action-buttons">
+                            <button 
+                              class="action-icon-btn" 
+                              title="View Bale"
+                              [routerLink]="['/app/procurement/loose-bales', bale.id]"
+                            >
+                              <lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon>
+                            </button>
+                            @if (canEditBale(bale) && canUpdate()) {
+                              <button 
+                                class="action-icon-btn" 
+                                title="Edit Bale"
+                                [routerLink]="['/app/procurement/loose-bales', bale.id, 'edit']"
+                              >
+                                <lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>
+                              </button>
+                            }
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
         </app-section>
       }
 
+      <!-- Containers Sub-section -->
       @if (showContainerSection()) {
         <app-section>
-          <app-section-header>
-          <h2 class="section-title">Containers</h2>
-          <div class="actions">
+          <div class="section-toolbar">
+            <div class="toolbar-title">
+              <span class="section-label">Ocean Containers Shipment</span>
+              <span class="results-count">{{ containers().length }} containers</span>
+            </div>
+
             @if (isEditable() && canUpdate()) {
-              <app-button variant="primary" [routerLink]="['/procurement/pos', po.id, 'containers', 'create']" [disabled]="actionLoading()">Add container</app-button>
+              <button class="btn btn-primary" [routerLink]="['/app/procurement/pos', po.id, 'containers', 'create']" [disabled]="actionLoading()">
+                <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
+                Add Container
+              </button>
             }
           </div>
-        </app-section-header>
-        <app-section-body>
-          @if (containers().length === 0) {
-            <app-empty-state title="No containers" message="No containers linked to this purchase order." />
-          } @else {
-            <app-data-table
-              title="Containers"
-              [columns]="containerColumns"
-              [data]="containers()"
-              [serverSide]="false"
-              [externalPageSize]="20"
-            >
-              <ng-template #cellTemplate let-row let-column="column">
-                @switch (column.key) {
-                  @case ('status') {
-                    <app-badge [variant]="getContainerStatusVariant(row.status)">
-                      {{ row.status.replace('_', ' ') }}
-                    </app-badge>
-                  }
-                  @case ('netWeight') {
-                    <span class="tabular-nums">{{ row.netWeight | number:'1.2-2' }}</span>
-                  }
-                  @default {
-                    {{ column.getValue ? column.getValue(row) : row[column.key] }}
-                  }
-                }
-              </ng-template>
 
-              <ng-template #rowActions let-row>
-                <app-button variant="secondary" size="sm" [routerLink]="['/procurement/containers', row.id]">View</app-button>
-              </ng-template>
-            </app-data-table>
-          }
-        </app-section-body>
-      </app-section>
-      }    }
+          <div class="table-card">
+            @if (containers().length === 0) {
+              <app-empty-state
+                title="No Containers Linked"
+                message="No ocean freight containers have been added to this purchase order."
+              >
+                @if (isEditable() && canUpdate()) {
+                  <button class="btn btn-primary mt-3" [routerLink]="['/app/procurement/pos', po.id, 'containers', 'create']">
+                    <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
+                    Add Container
+                  </button>
+                }
+              </app-empty-state>
+            } @else {
+              <div class="table-wrapper">
+                <table class="detail-table">
+                  <thead>
+                    <tr>
+                      <th>Container Number</th>
+                      <th>Reference / Seal</th>
+                      <th>Net Weight (KG)</th>
+                      <th>Transit Status</th>
+                      <th class="text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (container of containers(); track container.id) {
+                      <tr>
+                        <td>
+                          <span class="item-id-badge">
+                            <lucide-icon [img]="icons.Truck" [size]="13"></lucide-icon>
+                            {{ container.containerNumber }}
+                          </span>
+                        </td>
+                        <td><span class="text-subtle">{{ container.referenceNumber || '—' }}</span></td>
+                        <td><span class="font-mono">{{ container.netWeight }} KG</span></td>
+                        <td>
+                          <span class="status-pill status-open">{{ container.status.replace('_', ' ') }}</span>
+                        </td>
+                        <td class="text-right">
+                          <button 
+                            class="action-icon-btn" 
+                            title="View Container Details"
+                            [routerLink]="['/app/procurement/containers', container.id]"
+                          >
+                            <lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon>
+                          </button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+        </app-section>
+      }
+
+    }
   </app-page-body>
 </app-page>
+
+<!-- Confirm Action Dialog -->
+<app-dialog
+  [open]="showConfirmModal()"
+  [title]="confirmAction() === 'receive' ? 'Mark Purchase Order as Received?' : 'Close Purchase Order?'"
+  (closed)="closeConfirmModal()"
+>
+  <div class="dialog-content-body">
+    <p class="dialog-desc">
+      @if (confirmAction() === 'receive') {
+        This will update the purchase order status to <strong>RECEIVED</strong> to confirm shipment arrival.
+      } @else {
+        Closing this purchase order locks it as <strong>READ-ONLY</strong> for permanent audit records.
+      }
+    </p>
+  </div>
+
+  <div slot="footer" class="dialog-actions">
+    <button class="btn btn-secondary" (click)="closeConfirmModal()">Cancel</button>
+    <button 
+      class="btn" 
+      [class.btn-primary]="confirmAction() === 'receive'" 
+      [class.btn-danger]="confirmAction() === 'close'"
+      [disabled]="actionLoading()" 
+      (click)="confirmStatusChange()"
+    >
+      @if (actionLoading()) { Processing... } @else { Confirm {{ confirmAction() === 'receive' ? 'Receipt' : 'Closure' }} }
+    </button>
+  </div>
+</app-dialog>

@@ -15,11 +15,14 @@ export class CostAllocationService {
    * Allocate container costs to all rags and incoming bales
    * Formula: allocatedCost = (itemWeightKg / containerNetWeightKg) × containerTotalCost
    */
-  async allocateContainerCosts(containerId: string, userId?: string): Promise<void> {
+  async allocateContainerCosts(containerId: string, tenantId?: string, userId?: string): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       // Get container with charges, rags, and incoming bales
-      const container = await tx.container.findUnique({
-        where: { id: containerId },
+      const container = await tx.container.findFirst({
+        where: {
+          id: containerId,
+          ...(tenantId && { purchaseOrder: { tenantId } }),
+        },
         include: {
           containerCharges: true,
           rags: true,
@@ -136,9 +139,12 @@ export class CostAllocationService {
    * Get cost breakdown for a container
    * Returns structure matching frontend CostBreakdown interface
    */
-  async getContainerCostBreakdown(containerId: string) {
-    const container = await this.prisma.container.findUnique({
-      where: { id: containerId },
+  async getContainerCostBreakdown(containerId: string, tenantId?: string) {
+    const container = await this.prisma.container.findFirst({
+      where: {
+        id: containerId,
+        ...(tenantId && { purchaseOrder: { tenantId } }),
+      },
       include: {
         containerCharges: true,
         purchaseOrder: {

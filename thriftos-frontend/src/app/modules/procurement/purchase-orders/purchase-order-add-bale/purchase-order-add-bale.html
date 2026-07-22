@@ -1,55 +1,152 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs()" />
-      <h1 class="page-title">Add bale</h1>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs()"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Add Loose Bale</h1>
       @if (purchaseOrder(); as po) {
-        <p class="page-subtitle">{{ po.poNumber }}</p>
+        <p class="page-subtitle">Register a loose bale intake under purchase order <strong>{{ po.poNumber }}</strong>.</p>
       }
-    </app-stack>
+    </div>
 
-    <div class="actions">
-      <app-button variant="secondary" (click)="onCancel()">Cancel</app-button>
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="onCancel()" [disabled]="actionLoading()">
+        <lucide-icon [img]="icons.ArrowLeft" [size]="15"></lucide-icon>
+        Back to PO Details
+      </button>
     </div>
   </app-page-header>
 
   <app-page-body>
     @if (loading()) {
-      <app-loading message="Loading purchase order…" />
+      <app-loading message="Loading purchase order details…"></app-loading>
     } @else if (error()) {
-      <app-error-state title="Failed" [message]="error()!" [action]="true">
-        <app-button action variant="secondary" (click)="loadPurchaseOrder()">Retry</app-button>
-      </app-error-state>
-    } @else if (purchaseOrder(); as po) {
-      <app-card>
-        <app-form
-          [formGroup]="form"
-          (submitted)="onSubmit()"
-          title="Create Loose Bale"
-          subtitle="Costs are enforced server-side in purchase order currency."
-        >
-          <app-form-field label="Raw Category" [required]="true">
-            <app-select formControlName="rawCategoryId" [options]="categoryOptions()" />
-          </app-form-field>
+      <app-error-state
+        [message]="error()!"
+        (retry)="loadPurchaseOrder()"
+      ></app-error-state>
+    } @else {
+      <div class="form-container-card">
+        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="add-bale-form">
+          
+          <!-- Category Selection -->
+          <div class="form-group">
+            <label class="form-label required">Raw Category</label>
+            <select formControlName="rawCategoryId" class="form-select">
+              <option value="">Select Raw Material Category...</option>
+              @for (cat of rawCategoriesSignal(); track cat.id) {
+                <option [value]="cat.id">{{ cat.name }} ({{ cat.rawType }})</option>
+              }
+            </select>
+            <span class="field-hint">Specify the procurement raw material category for this bale.</span>
+          </div>
 
-          <app-form-field label="Weight (kg)" [required]="true">
-            <app-input type="number" formControlName="weightKg" />
-          </app-form-field>
+          <!-- Weight (KG) -->
+          <div class="form-group">
+            <label class="form-label required">Bale Weight (KG)</label>
+            <div class="input-with-addon">
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                formControlName="weightKg"
+                class="form-input"
+                placeholder="0.00"
+              />
+              <span class="input-addon font-mono">KG</span>
+            </div>
+            <span class="field-hint">Gross weight measured at warehouse intake.</span>
+          </div>
 
-          <app-form-field label="Cost" [required]="true" [hint]="'Currency: ' + po.currency">
-            <app-input type="number" formControlName="cost" />
-          </app-form-field>
+          <!-- Pricing Option Segmented Selector -->
+          <div class="form-group">
+            <label class="form-label required">Pricing Calculation Mode</label>
+            <div class="pricing-mode-toggle">
+              <button 
+                type="button" 
+                class="mode-btn" 
+                [class.active]="priceType() === 'WHOLE'"
+                (click)="setPriceType('WHOLE')"
+              >
+                <lucide-icon [img]="icons.Tag" [size]="14"></lucide-icon>
+                Total Bale Price
+              </button>
+              <button 
+                type="button" 
+                class="mode-btn" 
+                [class.active]="priceType() === 'PER_UNIT'"
+                (click)="setPriceType('PER_UNIT')"
+              >
+                <lucide-icon [img]="icons.Calculator" [size]="14"></lucide-icon>
+                Price per Unit (Rate / KG)
+              </button>
+            </div>
+          </div>
 
-          <app-stack direction="horizontal" spacing="sm">
-            <app-button variant="secondary" type="button" (click)="onCancel()" [disabled]="actionLoading()">
+          <!-- Dynamic Pricing Inputs Grid -->
+          <div class="pricing-inputs-grid">
+            @if (priceType() === 'PER_UNIT') {
+              <div class="form-group">
+                <label class="form-label required">Price per KG (Rate)</label>
+                <div class="input-with-addon">
+                  <span class="input-addon-left">{{ purchaseOrder()?.currency || 'USD' }}</span>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    formControlName="pricePerKg"
+                    class="form-input has-left-addon"
+                    placeholder="0.0000"
+                  />
+                  <span class="input-addon font-mono">/ KG</span>
+                </div>
+                <span class="field-hint">Unit price charged per kilogram.</span>
+              </div>
+            }
+
+            <div class="form-group">
+              <label class="form-label required">Calculated Total Cost</label>
+              <div class="input-with-addon">
+                <span class="input-addon-left">{{ purchaseOrder()?.currency || 'USD' }}</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  formControlName="cost"
+                  class="form-input has-left-addon"
+                  [readonly]="priceType() === 'PER_UNIT'"
+                  [class.readonly-input]="priceType() === 'PER_UNIT'"
+                  placeholder="0.00"
+                />
+              </div>
+              <span class="field-hint">
+                @if (priceType() === 'PER_UNIT') {
+                  Auto-computed: Weight (KG) &times; Rate per KG.
+                } @else {
+                  Total purchased cost for the entire bale.
+                }
+              </span>
+            </div>
+          </div>
+
+          <!-- Form Actions -->
+          <div class="form-footer-actions">
+            <button class="btn btn-secondary" type="button" (click)="onCancel()" [disabled]="actionLoading()">
               Cancel
-            </app-button>
-            <app-button variant="primary" type="submit" [disabled]="form.invalid || actionLoading()">
-              Create
-            </app-button>
-          </app-stack>
-        </app-form>
-      </app-card>
+            </button>
+            <button class="btn btn-primary" type="submit" [disabled]="form.invalid || actionLoading()">
+              @if (actionLoading()) {
+                <lucide-icon [img]="icons.Loader2" [size]="15" class="animate-spin"></lucide-icon>
+                Saving Bale...
+              } @else {
+                <lucide-icon [img]="icons.Save" [size]="15"></lucide-icon>
+                Add Loose Bale
+              }
+            </button>
+          </div>
+        </form>
+      </div>
     }
   </app-page-body>
 </app-page>

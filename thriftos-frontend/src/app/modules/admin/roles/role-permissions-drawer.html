@@ -1,4 +1,4 @@
-<ui-drawer [isOpen]="isOpen()" [title]="title" size="lg" (closed)="close()">
+<ui-drawer [isOpen]="isOpen()" [title]="title" size="xl" (closed)="close()">
   <div class="permissions-drawer">
     @if (formError()) {
       <ui-alert variant="danger" [dismissible]="true" (dismissed)="formError.set(null)">

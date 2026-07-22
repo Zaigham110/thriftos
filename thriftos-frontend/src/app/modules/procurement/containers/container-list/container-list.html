@@ -1,63 +1,242 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs" />
-      <h1 class="page-title">Containers</h1>
-      <p class="page-subtitle">{{ totalCount() }} containers</p>
-    </app-stack>
-    <div class="actions"></div>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Containers & Ocean Freight</h1>
+      <p class="page-subtitle">Manage container shipments, bill of lading logistics, weight verification, and landed cost allocation.</p>
+    </div>
+
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="loadContainers(currentPage())" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="15" [class.animate-spin]="loading()"></lucide-icon>
+        Refresh
+      </button>
+    </div>
   </app-page-header>
 
   <app-page-body>
-    <app-section>
-      <app-section-header>
-        <h2 class="section-title">All Containers</h2>
-        <div class="actions"></div>
-      </app-section-header>
-      <app-section-body>
-        @if (loading()) {
-          <app-loading message="Loading containers…" />
-        } @else if (error()) {
-          <app-error-state title="Failed to load" [message]="error()!" [action]="true">
-            <app-button action variant="secondary" (click)="loadContainers(currentPage())">Retry</app-button>
-          </app-error-state>
-        } @else if (containers().length === 0) {
-          <app-empty-state title="No containers" message="No containers found for this tenant." />
-        } @else {
-          <app-data-table
-            title="All Containers"
-            [columns]="tableColumns"
-            [data]="containers()"
-            [loading]="loading()"
-            [serverSide]="true"
-            [totalCount]="totalCount()"
-            [externalPageIndex]="currentPage()"
-            (stateChange)="onTableStateChange($event)"
-            (rowClick)="onRowClick($event)"
-          >
-            <ng-template #cellTemplate let-row let-column="column">
-              @switch (column.key) {
-                @case ('status') {
-                  <app-badge [variant]="getStatusVariant(row.status)">{{ getStatusLabel(row.status) }}</app-badge>
-                }
-                @case ('netWeight') {
-                  <span class="tabular-nums">{{ row.netWeight | number:'1.2-2' }}</span>
-                }
-                @case ('eta') {
-                  {{ (row.eta | date:'mediumDate') || '—' }}
-                }
-                @default {
-                  {{ column.getValue ? column.getValue(row) : row[column.key] }}
-                }
-              }
-            </ng-template>
+    @if (error()) {
+      <app-error-state
+        [message]="error()!"
+        (retry)="loadContainers()"
+      ></app-error-state>
+    }
 
-            <ng-template #rowActions let-row>
-              <app-button variant="secondary" size="sm" [routerLink]="['/procurement/containers', row.id]">View</app-button>
-            </ng-template>
-          </app-data-table>
-        }
-      </app-section-body>
-    </app-section>
+    <!-- KPI Metrics Summary Grid -->
+    <div class="kpi-grid">
+      <div 
+        class="kpi-card" 
+        [class.active]="activeStatusFilter() === 'ALL'"
+        (click)="setStatusFilter('ALL')"
+      >
+        <div class="kpi-icon kpi-icon-purple">
+          <lucide-icon [img]="icons.Truck" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">All Containers</span>
+          <span class="kpi-value">{{ totalCount() }}</span>
+        </div>
+      </div>
+
+      <div 
+        class="kpi-card"
+        [class.active]="activeStatusFilter() === 'IN_TRANSIT'"
+        (click)="setStatusFilter('IN_TRANSIT')"
+      >
+        <div class="kpi-icon kpi-icon-amber">
+          <lucide-icon [img]="icons.Anchor" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">In Transit</span>
+          <span class="kpi-value">{{ inTransitCount() }}</span>
+        </div>
+      </div>
+
+      <div 
+        class="kpi-card"
+        [class.active]="activeStatusFilter() === 'ARRIVED_CLEARED'"
+        (click)="setStatusFilter('ARRIVED_CLEARED')"
+      >
+        <div class="kpi-icon kpi-icon-emerald">
+          <lucide-icon [img]="icons.CheckCircle2" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Arrived & Cleared</span>
+          <span class="kpi-value">{{ arrivedCount() }}</span>
+        </div>
+      </div>
+
+      <div 
+        class="kpi-card"
+        [class.active]="activeStatusFilter() === 'CLOSED'"
+        (click)="setStatusFilter('CLOSED')"
+      >
+        <div class="kpi-icon kpi-icon-slate">
+          <lucide-icon [img]="icons.Scale" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Verified Net Weight</span>
+          <span class="kpi-value">{{ totalNetWeightSum() | number:'1.2-2' }} <small>KG</small></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Container Directory Table -->
+    <div class="section-toolbar mt-4">
+      <div class="toolbar-title">
+        <span class="section-label">Ocean Container Directory</span>
+        <span class="results-count">{{ filteredContainers().length }} containers</span>
+      </div>
+
+      <div class="filter-pills-group">
+        <button 
+          class="pill-btn" 
+          [class.active]="activeStatusFilter() === 'ALL'"
+          (click)="setStatusFilter('ALL')"
+        >
+          All
+        </button>
+        <button 
+          class="pill-btn" 
+          [class.active]="activeStatusFilter() === 'IN_TRANSIT'"
+          (click)="setStatusFilter('IN_TRANSIT')"
+        >
+          In Transit
+        </button>
+        <button 
+          class="pill-btn" 
+          [class.active]="activeStatusFilter() === 'ARRIVED'"
+          (click)="setStatusFilter('ARRIVED')"
+        >
+          Arrived at Port
+        </button>
+        <button 
+          class="pill-btn" 
+          [class.active]="activeStatusFilter() === 'CLEARED'"
+          (click)="setStatusFilter('CLEARED')"
+        >
+          Customs Cleared
+        </button>
+        <button 
+          class="pill-btn" 
+          [class.active]="activeStatusFilter() === 'CLOSED'"
+          (click)="setStatusFilter('CLOSED')"
+        >
+          Closed
+        </button>
+      </div>
+    </div>
+
+    <div class="table-card">
+      @if (loading()) {
+        <app-loading message="Loading container directory…"></app-loading>
+      } @else if (filteredContainers().length === 0) {
+        <app-empty-state
+          title="No Containers Found"
+          message="No container shipments recorded matching the selected filter criteria."
+        ></app-empty-state>
+      } @else {
+        <div class="table-wrapper">
+          <table class="directory-table">
+            <thead>
+              <tr>
+                <th>Container #</th>
+                <th>Purchase Order & Supplier</th>
+                <th>Forwarder & B/L</th>
+                <th>Weight (Net / Gross)</th>
+                <th>ETA / Schedule</th>
+                <th>Status</th>
+                <th class="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (cont of filteredContainers(); track cont.id) {
+                <tr (click)="onRowClick(cont)" class="clickable-row">
+                  <td>
+                    <div class="container-number-group">
+                      <span class="code-badge">
+                        <lucide-icon [img]="icons.Truck" [size]="13"></lucide-icon>
+                        {{ cont.containerNumber }}
+                      </span>
+                      @if (cont.containerType) {
+                        <span class="type-pill">{{ cont.containerType }}</span>
+                      }
+                    </div>
+                  </td>
+
+                  <td>
+                    <div class="po-supplier-group">
+                      @if (cont.purchaseOrder) {
+                        <a 
+                          [routerLink]="['/app/procurement/pos', cont.purchaseOrder.id]" 
+                          (click)="$event.stopPropagation()"
+                          class="po-link"
+                        >
+                          {{ cont.purchaseOrder.poNumber }}
+                        </a>
+                      }
+                      <span class="supplier-name">{{ cont.purchaseOrder?.vendor?.name || '—' }}</span>
+                    </div>
+                  </td>
+
+                  <td>
+                    <div class="logistics-info">
+                      <span class="forwarder-name">{{ cont.forwarder || 'Direct Shipping' }}</span>
+                      @if (cont.billOfLadingNumber) {
+                        <span class="bl-number">B/L: {{ cont.billOfLadingNumber }}</span>
+                      }
+                    </div>
+                  </td>
+
+                  <td>
+                    <div class="weight-group">
+                      <span class="net-weight">{{ cont.netWeight | number:'1.2-2' }} KG <small class="text-muted">Net</small></span>
+                      <span class="gross-weight text-muted">{{ cont.grossWeight | number:'1.2-2' }} KG Gross</span>
+                    </div>
+                  </td>
+
+                  <td>
+                    <div class="schedule-group">
+                      <span class="eta-date">
+                        <lucide-icon [img]="icons.Calendar" [size]="12"></lucide-icon>
+                        {{ (cont.eta | date:'mediumDate') || 'TBD' }}
+                      </span>
+                      @if (cont.portOfDischarge) {
+                        <span class="port-name">{{ cont.portOfDischarge }}</span>
+                      }
+                    </div>
+                  </td>
+
+                  <td>
+                    <span 
+                      class="status-pill"
+                      [class.status-transit]="cont.status === 'IN_TRANSIT'"
+                      [class.status-arrived]="cont.status === 'ARRIVED'"
+                      [class.status-cleared]="cont.status === 'CLEARED'"
+                      [class.status-closed]="cont.status === 'CLOSED'"
+                    >
+                      <span class="status-dot"></span>
+                      {{ getStatusLabel(cont.status) }}
+                    </span>
+                  </td>
+
+                  <td class="text-right" (click)="$event.stopPropagation()">
+                    <a 
+                      [routerLink]="['/app/procurement/containers', cont.id]"
+                      class="btn btn-secondary btn-sm"
+                    >
+                      <lucide-icon [img]="icons.Eye" [size]="13"></lucide-icon>
+                      View Details
+                    </a>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
   </app-page-body>
 </app-page>

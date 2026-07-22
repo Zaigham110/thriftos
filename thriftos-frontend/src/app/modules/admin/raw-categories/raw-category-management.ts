@@ -6,24 +6,36 @@
  */
 
 import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { LucideAngularModule, Package, Plus, Pencil, Trash2, Search, RefreshCw, Filter } from 'lucide-angular';
+import { CommonModule, DatePipe } from '@angular/common';
+import {
+  LucideAngularModule,
+  Package,
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  RefreshCw,
+  Filter,
+  X,
+  Layers,
+  ArrowUpDown,
+  CheckCircle2,
+} from 'lucide-angular';
+
 import { TenantService } from '../../../core/tenant/tenant.service';
 import {
-  CardComponent,
-  BreadcrumbComponent,
-  EmptyStateComponent,
-  SkeletonComponent,
-  ConfirmDialogComponent,
-  ButtonComponent,
+  AppPageComponent,
+  AppPageHeaderComponent,
+  AppPageBodyComponent,
+  AppSectionComponent,
+  AppBreadcrumbComponent,
+  AppLoadingComponent,
+  AppErrorStateComponent,
+  AppEmptyStateComponent,
+  AppDialogComponent,
 } from '../../../shared/ui';
 import { RawCategoryFormDrawerComponent } from './raw-category-form-drawer';
 import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
-
-interface SelectOption {
-  value: string;
-  label: string;
-}
 
 export interface RawCategory {
   id: string;
@@ -41,15 +53,19 @@ export interface RawCategory {
   standalone: true,
   imports: [
     CommonModule,
+    DatePipe,
     LucideAngularModule,
-    CardComponent,
-    BreadcrumbComponent,
-    EmptyStateComponent,
-    SkeletonComponent,
-    ConfirmDialogComponent,
+    AppPageComponent,
+    AppPageHeaderComponent,
+    AppPageBodyComponent,
+    AppSectionComponent,
+    AppBreadcrumbComponent,
+    AppLoadingComponent,
+    AppErrorStateComponent,
+    AppEmptyStateComponent,
+    AppDialogComponent,
     RawCategoryFormDrawerComponent,
     HasPermissionDirective,
-    ButtonComponent,
   ],
   templateUrl: './raw-category-management.html',
   styleUrl: './raw-category-management.scss',
@@ -66,6 +82,10 @@ export class RawCategoryManagementComponent implements OnInit {
     Search,
     RefreshCw,
     Filter,
+    X,
+    Layers,
+    ArrowUpDown,
+    CheckCircle2,
   };
 
   readonly breadcrumbs = [
@@ -76,18 +96,29 @@ export class RawCategoryManagementComponent implements OnInit {
   readonly searchQuery = signal('');
   readonly typeFilter = signal<'RAG' | 'BALE' | 'BOTH' | 'ALL'>('ALL');
   readonly loading = signal(true);
+  readonly error = signal<string | null>(null);
+
   readonly drawerOpen = signal(false);
   readonly selectedCategory = signal<RawCategory | null>(null);
   readonly confirmDeleteOpen = signal(false);
   readonly categoryToDelete = signal<RawCategory | null>(null);
   readonly rawCategories = signal<RawCategory[]>([]);
 
-  readonly typeOptions: SelectOption[] = [
+  readonly typeOptions = [
     { value: 'ALL', label: 'All Types' },
     { value: 'RAG', label: 'Rag Only' },
     { value: 'BALE', label: 'Bale Only' },
     { value: 'BOTH', label: 'Both' },
   ];
+
+  // KPI Metrics
+  readonly totalCount = computed(() => this.rawCategories().length);
+  readonly ragCount = computed(
+    () => this.rawCategories().filter((c) => c.rawType === 'RAG' || c.rawType === 'BOTH').length
+  );
+  readonly baleCount = computed(
+    () => this.rawCategories().filter((c) => c.rawType === 'BALE' || c.rawType === 'BOTH').length
+  );
 
   readonly filteredCategories = computed(() => {
     let categories = this.rawCategories();
@@ -95,13 +126,13 @@ export class RawCategoryManagementComponent implements OnInit {
     // Apply type filter
     const typeFilter = this.typeFilter();
     if (typeFilter !== 'ALL') {
-      categories = categories.filter(cat => cat.rawType === typeFilter);
+      categories = categories.filter((cat) => cat.rawType === typeFilter);
     }
 
     // Apply search filter
-    const query = this.searchQuery().toLowerCase();
+    const query = this.searchQuery().toLowerCase().trim();
     if (query) {
-      categories = categories.filter(cat =>
+      categories = categories.filter((cat) =>
         cat.name.toLowerCase().includes(query)
       );
     }
@@ -115,17 +146,25 @@ export class RawCategoryManagementComponent implements OnInit {
 
   loadData(): void {
     this.loading.set(true);
+    this.error.set(null);
     this.tenantService.loadRawCategories().subscribe({
       next: (categories) => {
         this.rawCategories.set(categories);
         this.loading.set(false);
       },
-      error: () => this.loading.set(false),
+      error: (err) => {
+        this.error.set(err.message || 'Failed to load raw categories');
+        this.loading.set(false);
+      },
     });
   }
 
   refresh(): void {
     this.loadData();
+  }
+
+  clearSearch(): void {
+    this.searchQuery.set('');
   }
 
   openAddDrawer(): void {
@@ -172,18 +211,5 @@ export class RawCategoryManagementComponent implements OnInit {
         this.cancelDelete();
       },
     });
-  }
-
-  getRawTypeBadgeClass(type: 'RAG' | 'BALE' | 'BOTH'): string {
-    switch (type) {
-      case 'RAG':
-        return 'badge-blue';
-      case 'BALE':
-        return 'badge-green';
-      case 'BOTH':
-        return 'badge-purple';
-      default:
-        return 'badge-gray';
-    }
   }
 }

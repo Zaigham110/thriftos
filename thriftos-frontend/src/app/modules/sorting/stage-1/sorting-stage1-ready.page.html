@@ -55,10 +55,10 @@
                     </app-badge>
                   }
                   @case ('container') {
-                    <app-link [routerLink]="['/procurement/containers', row.container?.id]">{{ row.container?.containerNumber || '—' }}</app-link>
+                    <app-link [routerLink]="['/app/procurement/containers', row.container?.id]">{{ row.container?.containerNumber || '—' }}</app-link>
                   }
                   @case ('purchaseOrder') {
-                    <app-link [routerLink]="['/procurement/pos', row.container?.purchaseOrder?.id ?? row.purchaseOrder?.id]">{{ row.container?.purchaseOrder?.poNumber ?? row.purchaseOrder?.poNumber ?? '—' }}</app-link>
+                    <app-link [routerLink]="['/app/procurement/pos', row.container?.purchaseOrder?.id ?? row.purchaseOrder?.id]">{{ row.container?.purchaseOrder?.poNumber ?? row.purchaseOrder?.poNumber ?? '—' }}</app-link>
                   }
                   @case ('weightKg') {
                     <span class="tabular-nums">{{ row.weightKg | number:'1.2-2' }}</span>

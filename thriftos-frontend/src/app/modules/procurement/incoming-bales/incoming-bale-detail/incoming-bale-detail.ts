@@ -1,29 +1,40 @@
+/**
+ * Incoming Loose Bale Detail Component
+ * Phase 2: Procurement UI
+ * 
+ * Overview of loose bale details, weight specs, linked purchase order, container, and timeline audit logs.
+ */
+
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed } from '@angular/core';
-import { CommonModule, DatePipe, CurrencyPipe, DecimalPipe } from '@angular/common';
+import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import {
+  LucideAngularModule,
+  ArrowLeft,
+  Pencil,
+  Trash2,
+  Package,
+  Scale,
+  DollarSign,
+  Calendar,
+  Truck,
+  Layers,
+  Building2,
+} from 'lucide-angular';
+
 import { ProcurementService } from '../../procurement.service';
 import { IncomingBale } from '../../procurement.models';
 import { AuthService } from '../../../../core/auth/auth';
 import { TenantService } from '../../../../core/tenant/tenant.service';
+import { MoneyPipe } from '../../../../core/money/money.pipe';
 import {
-  AppBadgeComponent,
   AppBreadcrumbComponent,
-  AppButtonComponent,
-  AppCardComponent,
   AppDialogComponent,
   AppErrorStateComponent,
-  AppLinkComponent,
   AppLoadingComponent,
   AppPageBodyComponent,
   AppPageComponent,
   AppPageHeaderComponent,
-  AppSectionBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSplitAsideComponent,
-  AppSplitComponent,
-  AppSplitMainComponent,
-  AppStackComponent,
   type BreadcrumbItem,
 } from '../../../../shared/ui';
 
@@ -33,27 +44,17 @@ import {
   imports: [
     CommonModule,
     RouterLink,
+    DatePipe,
+    DecimalPipe,
+    MoneyPipe,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppStackComponent,
     AppBreadcrumbComponent,
-    AppButtonComponent,
-    AppCardComponent,
-    AppBadgeComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
     AppDialogComponent,
-    AppLinkComponent,
-    AppSplitComponent,
-    AppSplitMainComponent,
-    AppSplitAsideComponent,
-    DatePipe,
-    CurrencyPipe,
-    DecimalPipe,
   ],
   templateUrl: './incoming-bale-detail.html',
   styleUrl: './incoming-bale-detail.scss',
@@ -71,40 +72,43 @@ export class IncomingBaleDetailComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly deleting = signal(false);
   readonly showDeleteDialog = signal(false);
-  
+
+  readonly icons = {
+    ArrowLeft,
+    Pencil,
+    Trash2,
+    Package,
+    Scale,
+    DollarSign,
+    Calendar,
+    Truck,
+    Layers,
+    Building2,
+  };
+
   readonly breadcrumbs = computed<BreadcrumbItem[]>(() => {
     const b = this.bale();
     return [
-      { label: 'Home', route: '/dashboard' },
-      { label: 'Procurement', route: '/procurement/dashboard' },
-      { label: 'Loose Bales', route: '/procurement/loose-bales' },
+      { label: 'Procurement', route: '/app/procurement' },
+      { label: 'Loose Bales', route: '/app/procurement/loose-bales' },
       { label: b ? b.baleCode : 'Loading...' },
     ];
   });
 
-  readonly currencyCode = computed(() => 
-    this.bale()?.purchaseOrder?.currency || 
-    this.tenantService.tenant()?.currencyCode || 
-    '—'
-  );
-
   readonly costPerKg = computed(() => {
     const b = this.bale();
-    if (!b || b.weightKg === 0) return 0;
-    return b.cost / b.weightKg;
+    if (!b || !b.weightKg || b.weightKg === 0) return 0;
+    return (b.cost || 0) / b.weightKg;
   });
 
   readonly canEdit = computed(() => {
     const b = this.bale();
     if (!b) return false;
-    // Check permissions
     const permissions = this.authService.permissions();
     const isSuperAdmin = this.authService.isSuperAdmin();
     const hasPermission = permissions.includes('po.update') || isSuperAdmin;
     if (!hasPermission) return false;
-    // Cannot edit if bale has been sorted
     if (b.sortSessions && b.sortSessions.length > 0) return false;
-    // Cannot edit if PO is closed
     if (b.purchaseOrder?.status === 'CLOSED') return false;
     return true;
   });
@@ -114,11 +118,9 @@ export class IncomingBaleDetailComponent implements OnInit {
   ngOnInit(): void {
     this.checkPermissions();
     this.loadBale();
-    this.tenantService.loadTenant().subscribe();
   }
 
   private checkPermissions(): void {
-    const permissions = this.authService.permissions();
     const isSuperAdmin = this.authService.isSuperAdmin();
     this.canDelete = isSuperAdmin;
   }
@@ -134,14 +136,11 @@ export class IncomingBaleDetailComponent implements OnInit {
     this.loading.set(true);
     this.procurementService.getIncomingBale(id).subscribe({
       next: (bale: IncomingBale) => {
-        console.log('Bale data received:', bale);
-        console.log('Purchase Order:', bale.purchaseOrder);
-        console.log('Purchase Order ID:', bale.purchaseOrderId);
         this.bale.set(bale);
         this.loading.set(false);
       },
-      error: (err: { error?: { message?: string } }) => {
-        this.error.set(err.error?.message || 'Failed to load bale');
+      error: (err: any) => {
+        this.error.set(err.message || 'Failed to load bale');
         this.loading.set(false);
       },
     });
@@ -164,11 +163,11 @@ export class IncomingBaleDetailComponent implements OnInit {
       next: () => {
         this.deleting.set(false);
         this.showDeleteDialog.set(false);
-        this.router.navigate(['/procurement/loose-bales']);
+        this.router.navigate(['/app/procurement/loose-bales']);
       },
-      error: (err) => {
+      error: (err: any) => {
         this.deleting.set(false);
-        this.error.set(err.error?.message || 'Failed to delete bale');
+        this.error.set(err.message || 'Failed to delete bale');
         this.showDeleteDialog.set(false);
       },
     });

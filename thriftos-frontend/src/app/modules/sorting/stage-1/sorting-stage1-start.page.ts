@@ -361,7 +361,7 @@ export class SortingStage1StartPage implements OnInit, OnDestroy {
   }
 
   backToList(): void {
-    this.router.navigate(['/sorting/stage-1']);
+    this.router.navigate(['/app/sorting/stage-1']);
   }
 
   saveWasteLine(): void {

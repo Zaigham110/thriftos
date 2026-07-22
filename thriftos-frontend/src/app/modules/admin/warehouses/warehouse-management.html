@@ -1,106 +1,263 @@
 <app-page>
   <app-page-header>
-    <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Warehouse Management</h1>
+      <p class="page-subtitle">Configure storage facilities, default warehouse assignments, and facility locations across tenant operations.</p>
+    </div>
 
-    <app-stack direction="vertical">
-      <h1>Warehouse Management</h1>
-      @if (!loading()) {
-        <p class="page-subtitle">{{ filteredWarehouses().length }} warehouses</p>
-      }
-    </app-stack>
-
-    <div class="actions">
-      <app-button variant="secondary" (clickEvent)="refresh()">Refresh</app-button>
-      <app-button variant="primary" (clickEvent)="navigateToCreate()" *hasPermission="'warehouse.create'">New Warehouse</app-button>
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="refresh()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="15" [class.animate-spin]="loading()"></lucide-icon>
+        Refresh
+      </button>
+      <button class="btn btn-primary" (click)="navigateToCreate()" *hasPermission="'warehouse.create'">
+        <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
+        New Warehouse
+      </button>
     </div>
   </app-page-header>
 
   <app-page-body>
-    <app-section>
-      <app-section-header>
-        <h2 class="section-title">All Warehouses</h2>
-        <div class="section-actions">
-          <div class="search">
-            <input
-              type="text"
-              class="search-input"
-              placeholder="Search warehouses…"
-              [value]="searchQuery()"
-              (input)="searchQuery.set($any($event.target).value)"
-            />
-          </div>
-        </div>
-      </app-section-header>
+    @if (error()) {
+      <app-error-state
+        [message]="error()!"
+        (retry)="loadData()"
+        (dismiss)="clearError()"
+      ></app-error-state>
+    }
 
-      <app-section-body>
-        @if (loading()) {
-          <app-loading message="Loading warehouses…"></app-loading>
+    <!-- KPI Summary Grid -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-purple">
+          <lucide-icon [img]="icons.Building2" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Facilities</span>
+          <span class="kpi-value">{{ totalWarehousesCount() }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-emerald">
+          <lucide-icon [img]="icons.CheckCircle2" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Active Storage Sites</span>
+          <span class="kpi-value">{{ activeWarehousesCount() }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-amber">
+          <lucide-icon [img]="icons.Star" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Default Warehouse</span>
+          <span class="kpi-value kpi-value-sm">{{ defaultWarehouseName() }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Table Section -->
+    <app-section>
+      <div class="table-toolbar">
+        <div class="toolbar-title">
+          <span class="section-label">Warehouse Directory</span>
+          <span class="results-count">{{ filteredWarehouses().length }} warehouses</span>
+        </div>
+
+        <div class="search-box">
+          <lucide-icon [img]="icons.Search" [size]="15" class="search-icon"></lucide-icon>
+          <input
+            type="text"
+            class="search-input"
+            placeholder="Search warehouses by name, code, or location..."
+            [value]="searchQuery()"
+            (input)="searchQuery.set($any($event.target).value)"
+          />
+          @if (searchQuery()) {
+            <button class="search-clear-btn" (click)="clearSearch()">
+              <lucide-icon [img]="icons.X" [size]="14"></lucide-icon>
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="table-card">
+        @if (loading() && warehouses().length === 0) {
+          <app-loading></app-loading>
         } @else if (filteredWarehouses().length === 0) {
           <app-empty-state
-            title="No warehouses found"
-            [message]="searchQuery() ? 'No warehouses match your search criteria.' : 'Create your first warehouse to enable repack sealing and inventory storage.'"
+            title="No Warehouses Found"
+            [message]="searchQuery() ? 'No warehouse matches your search query' : 'Create your first warehouse facility to enable repack sealing and inventory storage.'"
           >
             @if (!searchQuery()) {
-              <app-button variant="primary" (clickEvent)="navigateToCreate()" *hasPermission="'warehouse.create'">Create Warehouse</app-button>
+              <button class="btn btn-primary mt-3" (click)="navigateToCreate()" *hasPermission="'warehouse.create'">
+                <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
+                Create Warehouse
+              </button>
             }
           </app-empty-state>
         } @else {
-          <app-data-table
-            [data]="filteredWarehouses()"
-            [columns]="tableColumns"
-            [loading]="loading()"
-            [serverSide]="false"
-          >
-            <ng-template #cellTemplate let-row let-column="column">
-              @if (column.key === 'location') {
-                <span class="text-sm">{{ row.location || '—' }}</span>
-              } @else if (column.key === 'status') {
-                <span class="text-sm" [class.text-green-600]="row.isActive" [class.text-gray-500]="!row.isActive">
-                  {{ row.isActive ? 'Active' : 'Inactive' }}@if (row.isDefault) { <span class="text-xs"> (Default)</span> }
-                </span>
-              }
-            </ng-template>
+          <div class="table-wrapper">
+            <table class="warehouse-table">
+              <thead>
+                <tr>
+                  <th>Facility Name</th>
+                  <th>Facility Code</th>
+                  <th>Location</th>
+                  <th>Status & Role</th>
+                  <th>Created Date</th>
+                  <th class="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (warehouse of filteredWarehouses(); track warehouse.id) {
+                  <tr>
+                    <td>
+                      <div class="warehouse-name-cell">
+                        <div class="warehouse-badge-icon" [class.is-default]="warehouse.isDefault">
+                          <lucide-icon [img]="icons.Building2" [size]="16"></lucide-icon>
+                        </div>
+                        <div class="name-column">
+                          <span class="warehouse-name">{{ warehouse.name }}</span>
+                          @if (warehouse.isDefault) {
+                            <span class="default-chip">
+                              <lucide-icon [img]="icons.Star" [size]="11"></lucide-icon>
+                              Default Warehouse
+                            </span>
+                          }
+                        </div>
+                      </div>
+                    </td>
 
-            <ng-template #rowActions let-row>
-              <app-button variant="secondary" size="sm" (clickEvent)="navigateToEdit(row)" *hasPermission="'warehouse.update'">Edit</app-button>
-              @if (row.isActive && !row.isDefault) {
-                <app-button variant="secondary" size="sm" (clickEvent)="setAsDefault(row)" *hasPermission="'warehouse.update'">Set Default</app-button>
-              }
-              @if (row.isActive) {
-                <app-button variant="danger" size="sm" (clickEvent)="confirmDeactivate(row)" *hasPermission="'warehouse.update'">Deactivate</app-button>
-              }
-              @if (!row.isActive) {
-                <app-button variant="danger" size="sm" (clickEvent)="confirmDelete(row)" *hasPermission="'warehouse.delete'">Delete</app-button>
-              }
-            </ng-template>
-          </app-data-table>
+                    <td>
+                      <span class="code-pill">{{ warehouse.code }}</span>
+                    </td>
+
+                    <td>
+                      @if (warehouse.location) {
+                        <span class="location-text">
+                          <lucide-icon [img]="icons.MapPin" [size]="13" class="location-icon"></lucide-icon>
+                          {{ warehouse.location }}
+                        </span>
+                      } @else {
+                        <span class="text-subtle">—</span>
+                      }
+                    </td>
+
+                    <td>
+                      <span 
+                        class="status-pill" 
+                        [class.status-active]="warehouse.isActive" 
+                        [class.status-inactive]="!warehouse.isActive"
+                      >
+                        <span class="status-dot"></span>
+                        {{ warehouse.isActive ? 'Active' : 'Inactive' }}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span class="text-subtle">{{ warehouse.createdAt | date:'mediumDate' }}</span>
+                    </td>
+
+                    <td class="text-right">
+                      <div class="action-buttons">
+                        @if (warehouse.isActive && !warehouse.isDefault) {
+                          <button 
+                            class="action-icon-btn star-btn" 
+                            title="Set as Default Warehouse"
+                            (click)="setAsDefault(warehouse)"
+                            *hasPermission="'warehouse.update'"
+                          >
+                            <lucide-icon [img]="icons.Star" [size]="15"></lucide-icon>
+                          </button>
+                        }
+
+                        <button 
+                          class="action-icon-btn" 
+                          title="Edit Warehouse Details"
+                          (click)="navigateToEdit(warehouse)"
+                          *hasPermission="'warehouse.update'"
+                        >
+                          <lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>
+                        </button>
+
+                        @if (warehouse.isActive) {
+                          <button 
+                            class="action-icon-btn danger" 
+                            [disabled]="warehouse.isDefault"
+                            [title]="warehouse.isDefault ? 'Cannot deactivate default warehouse' : 'Deactivate Warehouse'"
+                            (click)="confirmDeactivate(warehouse)"
+                            *hasPermission="'warehouse.update'"
+                          >
+                            <lucide-icon [img]="icons.Power" [size]="15"></lucide-icon>
+                          </button>
+                        } @else {
+                          <button 
+                            class="action-icon-btn danger" 
+                            title="Delete Warehouse"
+                            (click)="confirmDelete(warehouse)"
+                            *hasPermission="'warehouse.delete'"
+                          >
+                            <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+                          </button>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
         }
-      </app-section-body>
+      </div>
     </app-section>
   </app-page-body>
 </app-page>
 
+<!-- Deactivate Modal -->
 <app-dialog
   [open]="confirmDeactivateOpen()"
   title="Deactivate Warehouse"
-  [message]="'Deactivating ' + (selected()?.name || '') + ' will hide it from selection in new operations. Existing inventory references remain.'"
-  confirmText="Deactivate"
-  cancelText="Cancel"
-  variant="danger"
-  [loading]="actionLoading()"
-  (confirmed)="executeDeactivate()"
-  (cancelled)="cancelDialogs()"
-></app-dialog>
+  (closed)="cancelDialogs()"
+>
+  <div class="dialog-content-body">
+    <p class="dialog-desc">
+      Are you sure you want to deactivate <strong>{{ selected()?.name }}</strong>?
+      Deactivating this facility will hide it from selection in new operations. Existing inventory history remains intact.
+    </p>
+  </div>
 
+  <div slot="footer" class="dialog-actions">
+    <button class="btn btn-secondary" (click)="cancelDialogs()">Cancel</button>
+    <button class="btn btn-danger" [disabled]="actionLoading()" (click)="executeDeactivate()">
+      @if (actionLoading()) { Deactivating... } @else { Deactivate Warehouse }
+    </button>
+  </div>
+</app-dialog>
+
+<!-- Delete Modal -->
 <app-dialog
   [open]="confirmDeleteOpen()"
   title="Delete Warehouse"
-  [message]="'Deleting ' + (selected()?.name || '') + ' will permanently remove it. If it is referenced by inventory items, deletion will be blocked and you should deactivate instead.'"
-  confirmText="Delete"
-  cancelText="Cancel"
-  variant="danger"
-  [loading]="actionLoading()"
-  (confirmed)="executeDelete()"
-  (cancelled)="cancelDialogs()"
-></app-dialog>
+  (closed)="cancelDialogs()"
+>
+  <div class="dialog-content-body">
+    <p class="dialog-desc">
+      Are you sure you want to permanently delete <strong>{{ selected()?.name }}</strong>?
+      This action cannot be undone. If it is referenced by existing inventory items, deletion will be blocked by the system.
+    </p>
+  </div>
 
+  <div slot="footer" class="dialog-actions">
+    <button class="btn btn-secondary" (click)="cancelDialogs()">Cancel</button>
+    <button class="btn btn-danger" [disabled]="actionLoading()" (click)="executeDelete()">
+      @if (actionLoading()) { Deleting... } @else { Delete Warehouse }
+    </button>
+  </div>
+</app-dialog>

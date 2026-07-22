@@ -2,163 +2,66 @@
  * Vendor Management Component
  * Phase 8: Tenant Administration
  * 
- * Manage vendors/suppliers for procurement.
+ * Route: /app/admin/vendors
+ * 
+ * Manages procurement suppliers, origin countries, and contact notes.
  */
 
 import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { LucideAngularModule, Store, Plus, Pencil, Search, RefreshCw, ArrowLeft } from 'lucide-angular';
+import {
+  LucideAngularModule,
+  Store,
+  Globe,
+  CheckCircle2,
+  Plus,
+  RefreshCw,
+  Search,
+  Pencil,
+  Trash2,
+  Power,
+  X,
+  MapPin,
+  PhoneCall,
+} from 'lucide-angular';
+
 import { AdminService } from '../admin.service';
-import { Vendor } from '../admin.models';
+import type { Vendor } from '../admin.models';
+import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 import {
   AppPageComponent,
   AppPageHeaderComponent,
   AppPageBodyComponent,
   AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSectionBodyComponent,
-  AppDataTableComponent,
-  AppButtonComponent,
-  AppLoadingComponent,
-  AppEmptyStateComponent,
   AppBreadcrumbComponent,
-  AppStackComponent,
+  AppLoadingComponent,
+  AppErrorStateComponent,
+  AppEmptyStateComponent,
   AppDialogComponent,
-  type TableColumn,
-  type BreadcrumbItem,
 } from '../../../shared/ui';
-import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 
 @Component({
   selector: 'app-vendor-management',
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
+    DatePipe,
     LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
     AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppDataTableComponent,
-    AppButtonComponent,
-    AppLoadingComponent,
-    AppEmptyStateComponent,
     AppBreadcrumbComponent,
-    AppStackComponent,
+    AppLoadingComponent,
+    AppErrorStateComponent,
+    AppEmptyStateComponent,
     AppDialogComponent,
     HasPermissionDirective,
   ],
-  template: `
-    <app-page>
-      <app-page-header>
-        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
-
-        <app-stack direction="vertical">
-          <h1>Vendor Management</h1>
-          @if (!loading()) {
-            <p class="page-subtitle">{{ filteredVendors().length }} vendors</p>
-          }
-        </app-stack>
-
-        <div class="actions">
-          <app-button variant="secondary" (clickEvent)="refresh()">Refresh</app-button>
-          <app-button variant="primary" (clickEvent)="navigateToCreate()" *hasPermission="'vendor.create'">New Vendor</app-button>
-        </div>
-      </app-page-header>
-
-      <app-page-body>
-        <app-section>
-          <app-section-header>
-            <h2 class="section-title">All Vendors</h2>
-            <div class="section-actions">
-              <div class="search">
-                <input
-                  type="text"
-                  class="search-input"
-                  placeholder="Search vendors…"
-                  [value]="searchQuery()"
-                  (input)="searchQuery.set($any($event.target).value)"
-                />
-              </div>
-            </div>
-          </app-section-header>
-
-          <app-section-body>
-            @if (loading()) {
-              <app-loading message="Loading vendors…"></app-loading>
-            } @else if (filteredVendors().length === 0) {
-              <app-empty-state
-                title="No vendors found"
-                [message]="searchQuery() ? 'No vendors match your search criteria.' : 'Create your first vendor so it can be selected in Procurement.'"
-              >
-                @if (!searchQuery()) {
-                  <app-button variant="primary" (clickEvent)="navigateToCreate()" *hasPermission="'vendor.create'">Create Vendor</app-button>
-                }
-              </app-empty-state>
-            } @else {
-              <app-data-table
-                [data]="filteredVendors()"
-                [columns]="columns"
-                [loading]="loading()"
-                [serverSide]="false"
-              >
-                <ng-template #cellTemplate let-row let-column="column">
-                  @if (column.key === 'name') {
-                    <span class="font-medium">{{ row.name }}</span>
-                  } @else if (column.key === 'country') {
-                    <span class="text-sm">{{ row.country || '—' }}</span>
-                  } @else if (column.key === 'contactInfo') {
-                    <span class="text-sm">{{ row.contactInfo || '—' }}</span>
-                  } @else if (column.key === 'isActive') {
-                    <span class="text-sm" [class.text-green-600]="row.isActive" [class.text-gray-500]="!row.isActive">
-                      {{ row.isActive ? 'Active' : 'Inactive' }}
-                    </span>
-                  }
-                </ng-template>
-
-                <ng-template #rowActions let-row>
-                  <app-button variant="secondary" size="sm" (clickEvent)="navigateToEdit(row)" *hasPermission="'vendor.update'">Edit</app-button>
-                  @if (row.isActive) {
-                    <app-button variant="danger" size="sm" (clickEvent)="confirmDeactivate(row)" *hasPermission="'vendor.update'">Deactivate</app-button>
-                  }
-                  @if (!row.isActive) {
-                    <app-button variant="danger" size="sm" (clickEvent)="confirmDelete(row)" *hasPermission="'vendor.delete'">Delete</app-button>
-                  }
-                </ng-template>
-              </app-data-table>
-            }
-          </app-section-body>
-        </app-section>
-      </app-page-body>
-    </app-page>
-
-    <app-dialog
-      [open]="confirmDeactivateOpen()"
-      title="Deactivate Vendor"
-      [message]="'Deactivating ' + (selected()?.name || '') + ' will remove it from selection in Procurement. Existing purchase orders and reports remain.'"
-      confirmText="Deactivate"
-      cancelText="Cancel"
-      variant="danger"
-      [loading]="actionLoading()"
-      (confirmed)="executeDeactivate()"
-      (cancelled)="cancelDialogs()"
-    ></app-dialog>
-
-    <app-dialog
-      [open]="confirmDeleteOpen()"
-      title="Delete Vendor"
-      [message]="'Deleting ' + (selected()?.name || '') + ' will permanently remove it. If it is referenced by procurement history (purchase orders or incoming bales), deletion will be blocked and you should deactivate instead.'"
-      confirmText="Delete"
-      cancelText="Cancel"
-      variant="danger"
-      [loading]="actionLoading()"
-      (confirmed)="executeDelete()"
-      (cancelled)="cancelDialogs()"
-    ></app-dialog>
-  `,
+  templateUrl: './vendor-management.html',
   styleUrl: './vendor-management.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -166,29 +69,14 @@ export class VendorManagementComponent implements OnInit {
   private readonly adminService = inject(AdminService);
   private readonly router = inject(Router);
 
-  readonly icons = {
-    Store,
-    Plus,
-    Pencil,
-    Search,
-    RefreshCw,
-    ArrowLeft,
-  };
-
-  readonly breadcrumbs: BreadcrumbItem[] = [
+  readonly breadcrumbs = [
     { label: 'Administration', route: '/app/admin' },
     { label: 'Vendors' },
   ];
 
-  readonly columns: TableColumn[] = [
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'country', label: 'Country' },
-    { key: 'contactInfo', label: 'Contact Info' },
-    { key: 'isActive', label: 'Status' },
-  ];
-
   readonly searchQuery = signal('');
   readonly loading = signal(true);
+  readonly error = this.adminService.error;
 
   readonly confirmDeactivateOpen = signal(false);
   readonly confirmDeleteOpen = signal(false);
@@ -197,14 +85,40 @@ export class VendorManagementComponent implements OnInit {
 
   readonly vendors = this.adminService.vendors;
 
+  readonly icons = {
+    Store,
+    Globe,
+    CheckCircle2,
+    Plus,
+    RefreshCw,
+    Search,
+    Pencil,
+    Trash2,
+    Power,
+    X,
+    MapPin,
+    PhoneCall,
+  };
+
+  // KPI Calculations
+  readonly totalVendorsCount = computed(() => this.vendors().length);
+  readonly activeVendorsCount = computed(
+    () => this.vendors().filter((v) => v.isActive).length
+  );
+  readonly totalCountriesCount = computed(() => {
+    const countries = new Set(this.vendors().map((v) => v.country).filter(Boolean));
+    return countries.size;
+  });
+
   readonly filteredVendors = computed(() => {
-    const query = this.searchQuery().toLowerCase();
+    const query = this.searchQuery().toLowerCase().trim();
     if (!query) return this.vendors();
 
-    return this.vendors().filter(vendor =>
-      vendor.name.toLowerCase().includes(query) ||
-      vendor.country?.toLowerCase().includes(query) ||
-      vendor.contactInfo?.toLowerCase().includes(query)
+    return this.vendors().filter(
+      (v) =>
+        v.name.toLowerCase().includes(query) ||
+        (v.country || '').toLowerCase().includes(query) ||
+        (v.contactInfo || '').toLowerCase().includes(query)
     );
   });
 
@@ -222,6 +136,14 @@ export class VendorManagementComponent implements OnInit {
 
   refresh(): void {
     this.loadData();
+  }
+
+  clearSearch(): void {
+    this.searchQuery.set('');
+  }
+
+  clearError(): void {
+    this.adminService.clearError();
   }
 
   navigateToCreate(): void {
@@ -283,5 +205,14 @@ export class VendorManagementComponent implements OnInit {
         this.cancelDialogs();
       },
     });
+  }
+
+  getVendorInitials(name: string): string {
+    if (!name) return 'V';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
   }
 }

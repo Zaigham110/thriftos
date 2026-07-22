@@ -1,26 +1,41 @@
+/**
+ * Purchase Order Add Container Component
+ * Phase 2: Procurement UI
+ * 
+ * Route: /app/procurement/pos/:id/containers/create
+ * 
+ * Form to link an ocean freight container to a specific purchase order.
+ * Automatically fetches registered Agent/Forwarder vendors and auto-saves new forwarders into Vendors.
+ */
+
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  LucideAngularModule,
+  ArrowLeft,
+  Save,
+  Loader2,
+  Truck,
+  FileText,
+  Anchor,
+  Scale,
+  Calendar,
+  UserCheck,
+} from 'lucide-angular';
 
 import { ProcurementService } from '../../procurement.service';
 import { PurchaseOrder, CreateContainerRequest } from '../../procurement.models';
-
 import {
-  AppBreadcrumbComponent,
-  AppButtonComponent,
-  AppCardComponent,
-  AppErrorStateComponent,
-  AppFormComponent,
-  AppFormFieldComponent,
-  AppInputComponent,
-  AppLoadingComponent,
-  AppPageBodyComponent,
   AppPageComponent,
   AppPageHeaderComponent,
-  AppSelectComponent,
-  AppStackComponent,
-  type BreadcrumbItem,
+  AppPageBodyComponent,
+  AppBreadcrumbComponent,
+  AppLoadingComponent,
+  AppErrorStateComponent,
+  AppAutocompleteComponent,
+  type AutocompleteOption,
 } from '../../../../shared/ui';
 
 @Component({
@@ -29,21 +44,17 @@ import {
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
     AppBreadcrumbComponent,
-    AppStackComponent,
-    AppCardComponent,
-    AppFormComponent,
-    AppFormFieldComponent,
-    AppInputComponent,
-    AppSelectComponent,
-    AppButtonComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
+    AppAutocompleteComponent,
   ],
   templateUrl: './purchase-order-add-container.html',
+  styleUrl: './purchase-order-add-container.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseOrderAddContainerComponent implements OnInit {
@@ -57,6 +68,23 @@ export class PurchaseOrderAddContainerComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly actionLoading = signal(false);
 
+  readonly vendors = this.procurementService.activeVendors;
+  
+  // Auto-fetch shipping agents and forwarders
+  readonly agentVendors = computed(() => {
+    const all = this.vendors();
+    const shippers = all.filter((v) => v.vendorType === 'SHIPPER');
+    return shippers.length > 0 ? shippers : all;
+  });
+
+  readonly agentOptions = computed<AutocompleteOption[]>(() => {
+    return this.agentVendors().map((v) => ({
+      value: v.name,
+      label: v.name,
+      sublabel: v.country ? `Origin Country: ${v.country}` : 'Registered Agent',
+    }));
+  });
+
   readonly containerTypeOptions = [
     { value: '20ft', label: '20ft Standard' },
     { value: '40ft', label: '40ft Standard' },
@@ -64,21 +92,38 @@ export class PurchaseOrderAddContainerComponent implements OnInit {
     { value: '45HC', label: '45ft High Cube' },
   ];
 
-  readonly breadcrumbs = computed<BreadcrumbItem[]>(() => {
+  readonly icons = {
+    ArrowLeft,
+    Save,
+    Loader2,
+    Truck,
+    FileText,
+    Anchor,
+    Scale,
+    Calendar,
+    UserCheck,
+  };
+
+  readonly breadcrumbs = computed(() => {
     const po = this.purchaseOrder();
     const poLabel = po?.poNumber || 'Purchase Order';
     return [
-      { label: 'Home', route: '/dashboard' },
-      { label: 'Procurement', route: '/procurement/dashboard' },
-      { label: 'Purchase Orders', route: '/procurement/pos' },
-      { label: poLabel, route: po ? `/procurement/pos/${po.id}` : '/procurement/pos' },
-      { label: 'Add container', route: '' },
+      { label: 'Procurement', route: '/app/procurement' },
+      { label: 'Purchase Orders', route: '/app/procurement/pos' },
+      { label: poLabel, route: po ? `/app/procurement/pos/${po.id}` : '/app/procurement/pos' },
+      { label: 'Add Container' },
     ];
   });
 
   form!: FormGroup;
 
   ngOnInit(): void {
+    this.initForm();
+    this.procurementService.loadVendors().subscribe();
+    this.loadPurchaseOrder();
+  }
+
+  private initForm(): void {
     this.form = this.fb.group({
       referenceNumber: ['', Validators.maxLength(50)],
       containerType: ['40ft'],
@@ -99,8 +144,6 @@ export class PurchaseOrderAddContainerComponent implements OnInit {
       forwarder: ['', Validators.maxLength(50)],
       notes: ['', Validators.maxLength(500)],
     });
-
-    this.loadPurchaseOrder();
   }
 
   loadPurchaseOrder(): void {
@@ -135,6 +178,18 @@ export class PurchaseOrderAddContainerComponent implements OnInit {
 
     this.actionLoading.set(true);
 
+    const forwarderName = this.form.value.forwarder?.trim() || undefined;
+
+    // Auto-save forwarder into Vendors database if it's a new agent name
+    if (forwarderName) {
+      const existingVendor = this.vendors().find(
+        (v) => v.name.toLowerCase() === forwarderName.toLowerCase()
+      );
+      if (!existingVendor) {
+        this.procurementService.createVendor({ name: forwarderName, vendorType: 'SHIPPER' }).subscribe();
+      }
+    }
+
     const rawTare = this.form.value.tareWeightKg;
     const tareWeightKg = rawTare === '' || rawTare === null || rawTare === undefined ? undefined : Number(rawTare);
 
@@ -156,14 +211,14 @@ export class PurchaseOrderAddContainerComponent implements OnInit {
       vesselName: this.form.value.vesselName?.trim() || undefined,
       portOfLoading: this.form.value.portOfLoading?.trim() || undefined,
       portOfDischarge: this.form.value.portOfDischarge?.trim() || undefined,
-      forwarder: this.form.value.forwarder?.trim() || undefined,
+      forwarder: forwarderName,
       notes: this.form.value.notes?.trim() || undefined,
     };
 
     this.procurementService.createContainer(data).subscribe({
       next: () => {
         this.actionLoading.set(false);
-        this.router.navigate(['/procurement/pos', po.id]);
+        this.router.navigate(['/app/procurement/pos', po.id]);
       },
       error: (err) => {
         this.error.set(err.message || 'Failed to create container');
@@ -175,10 +230,10 @@ export class PurchaseOrderAddContainerComponent implements OnInit {
   onCancel(): void {
     const po = this.purchaseOrder();
     if (po) {
-      this.router.navigate(['/procurement/pos', po.id]);
+      this.router.navigate(['/app/procurement/pos', po.id]);
       return;
     }
-    this.router.navigate(['/procurement/pos']);
+    this.router.navigate(['/app/procurement/pos']);
   }
 
   private normalizeDate(value?: string | null): string | undefined {

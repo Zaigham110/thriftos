@@ -83,6 +83,13 @@ import type { CreateUserRequest, Role, UpdateUserRequest, User } from '../admin.
                 >
                   <app-password-input formControlName="password" placeholder="Minimum 8 characters" />
                 </app-form-field>
+              } @else {
+                <app-form-field label="Status">
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <app-checkbox formControlName="isActive"></app-checkbox>
+                    <span class="text-sm font-medium">User is Active</span>
+                  </label>
+                </app-form-field>
               }
 
               <app-form-field label="Roles" [required]="true">
@@ -155,6 +162,7 @@ export class UserFormComponent {
     name: ['', Validators.required],
     email: ['', Validators.required],
     password: ['', Validators.required],
+    isActive: [true],
   });
 
   ngOnInit() {
@@ -187,6 +195,7 @@ export class UserFormComponent {
         this.form.patchValue({
           name: data.name,
           email: data.email,
+          isActive: data.isActive,
         });
         const roleIds = (data.userRoles || []).map((ur) => ur.roleId).filter(Boolean);
         this._selectedRoleIds.set(roleIds);
@@ -216,6 +225,7 @@ export class UserFormComponent {
       const dto: UpdateUserRequest = {
         name: raw.name || undefined,
         email: raw.email || undefined,
+        isActive: raw.isActive ?? undefined,
       };
 
       this.adminService.updateUser(this.user()!.id, dto).subscribe({

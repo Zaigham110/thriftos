@@ -9,6 +9,7 @@
 // ENUMS
 // =============================================================
 
+export type VendorType = 'SUPPLIER' | 'CUSTOMER' | 'SHIPPER' | 'CONSIGNEE' | 'OTHER';
 export type PurchaseOrderType = 'CONTAINER' | 'LOOSE_BALE' | 'HYBRID';
 export type PurchaseOrderStatus = 'OPEN' | 'RECEIVED' | 'CLOSED';
 export type ContainerStatus = 'IN_TRANSIT' | 'ARRIVED' | 'CLEARED' | 'CLOSED';
@@ -22,6 +23,7 @@ export interface Vendor {
   id: string;
   tenantId: string;
   name: string;
+  vendorType?: VendorType | null;
   country: string | null;
   contactInfo: string | null;
   isActive: boolean;
@@ -31,6 +33,7 @@ export interface Vendor {
 
 export interface CreateVendorRequest {
   name: string;
+  vendorType?: VendorType;
   country?: string;
   contactInfo?: string;
 }

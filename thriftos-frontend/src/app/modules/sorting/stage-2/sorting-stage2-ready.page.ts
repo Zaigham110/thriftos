@@ -50,8 +50,8 @@ export class SortingStage2ReadyPage implements OnInit {
 
   // Breadcrumbs — matches Procurement pattern
   readonly breadcrumbs = [
-    { label: 'Sorting', link: '/sorting' },
-    { label: 'Stage 2', link: undefined },
+    { label: 'Sorting', link: '/app/sorting/stage-2' },
+    { label: 'Stage 2 — Grading Workspace', link: undefined },
   ];
 
   readonly rows = signal<AvailableForGrading[]>([]);
@@ -143,7 +143,7 @@ export class SortingStage2ReadyPage implements OnInit {
   }
 
   grade(output: AvailableForGrading): void {
-    this.router.navigate(['/sorting/stage-2', output.id]);
+    this.router.navigate(['/app/sorting/stage-2', output.id]);
   }
 
   clearError(): void {

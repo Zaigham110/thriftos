@@ -1,44 +1,63 @@
+/**
+ * Warehouse Management Component
+ * Phase 8: Tenant Administration
+ * 
+ * Route: /app/admin/warehouses
+ * 
+ * Manages tenant warehouses, default warehouse assignment, and status controls.
+ */
+
 import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import {
+  LucideAngularModule,
+  Building2,
+  MapPin,
+  CheckCircle2,
+  Star,
+  Plus,
+  RefreshCw,
+  Search,
+  Pencil,
+  Trash2,
+  Power,
+  X,
+  Building,
+} from 'lucide-angular';
+
 import { AdminService } from '../admin.service';
-import { Warehouse as WarehouseModel } from '../admin.models';
+import type { Warehouse } from '../admin.models';
+import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 import {
   AppPageComponent,
   AppPageHeaderComponent,
   AppPageBodyComponent,
   AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSectionBodyComponent,
-  AppDataTableComponent,
-  AppButtonComponent,
-  AppLoadingComponent,
-  AppEmptyStateComponent,
   AppBreadcrumbComponent,
-  AppStackComponent,
+  AppLoadingComponent,
+  AppErrorStateComponent,
+  AppEmptyStateComponent,
   AppDialogComponent,
-  type BreadcrumbItem,
-  type DataTableColumn,
 } from '../../../shared/ui';
-import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 
 @Component({
   selector: 'app-warehouse-management',
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
+    DatePipe,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
     AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppDataTableComponent,
-    AppButtonComponent,
-    AppLoadingComponent,
-    AppEmptyStateComponent,
     AppBreadcrumbComponent,
-    AppStackComponent,
+    AppLoadingComponent,
+    AppErrorStateComponent,
+    AppEmptyStateComponent,
     AppDialogComponent,
     HasPermissionDirective,
   ],
@@ -48,37 +67,58 @@ import { HasPermissionDirective } from '../../../shared/directives/has-permissio
 })
 export class WarehouseManagementComponent implements OnInit {
   private readonly adminService = inject(AdminService);
-
   private readonly router = inject(Router);
 
-  readonly breadcrumbs: BreadcrumbItem[] = [
+  readonly breadcrumbs = [
     { label: 'Administration', route: '/app/admin' },
     { label: 'Warehouses' },
   ];
 
   readonly searchQuery = signal('');
   readonly loading = signal(true);
+  readonly error = this.adminService.error;
+
   readonly confirmDeactivateOpen = signal(false);
   readonly confirmDeleteOpen = signal(false);
-  readonly selected = signal<WarehouseModel | null>(null);
+  readonly selected = signal<Warehouse | null>(null);
   readonly actionLoading = signal(false);
 
   readonly warehouses = this.adminService.warehouses;
 
-  readonly tableColumns: DataTableColumn[] = [
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'code', label: 'Code', sortable: true },
-    { key: 'location', label: 'Location' },
-    { key: 'status', label: 'Status', sortable: true },
-  ];
+  readonly icons = {
+    Building2,
+    MapPin,
+    CheckCircle2,
+    Star,
+    Plus,
+    RefreshCw,
+    Search,
+    Pencil,
+    Trash2,
+    Power,
+    X,
+    Building,
+  };
+
+  // KPI Calculations
+  readonly totalWarehousesCount = computed(() => this.warehouses().length);
+  readonly activeWarehousesCount = computed(
+    () => this.warehouses().filter((w) => w.isActive).length
+  );
+  readonly defaultWarehouseName = computed(() => {
+    const def = this.warehouses().find((w) => w.isDefault);
+    return def ? def.name : 'None';
+  });
 
   readonly filteredWarehouses = computed(() => {
     const query = this.searchQuery().toLowerCase().trim();
     if (!query) return this.warehouses();
-    return this.warehouses().filter((w) =>
-      w.name.toLowerCase().includes(query) ||
-      (w.location || '').toLowerCase().includes(query) ||
-      w.code.toLowerCase().includes(query)
+
+    return this.warehouses().filter(
+      (w) =>
+        w.name.toLowerCase().includes(query) ||
+        w.code.toLowerCase().includes(query) ||
+        (w.location || '').toLowerCase().includes(query)
     );
   });
 
@@ -98,20 +138,28 @@ export class WarehouseManagementComponent implements OnInit {
     this.loadData();
   }
 
+  clearSearch(): void {
+    this.searchQuery.set('');
+  }
+
+  clearError(): void {
+    this.adminService.clearError();
+  }
+
   navigateToCreate(): void {
     this.router.navigate(['/app/admin/warehouses/new']);
   }
 
-  navigateToEdit(warehouse: WarehouseModel): void {
+  navigateToEdit(warehouse: Warehouse): void {
     this.router.navigate(['/app/admin/warehouses', warehouse.id, 'edit']);
   }
 
-  confirmDeactivate(warehouse: WarehouseModel): void {
+  confirmDeactivate(warehouse: Warehouse): void {
     this.selected.set(warehouse);
     this.confirmDeactivateOpen.set(true);
   }
 
-  confirmDelete(warehouse: WarehouseModel): void {
+  confirmDelete(warehouse: Warehouse): void {
     this.selected.set(warehouse);
     this.confirmDeleteOpen.set(true);
   }
@@ -159,7 +207,7 @@ export class WarehouseManagementComponent implements OnInit {
     });
   }
 
-  setAsDefault(warehouse: WarehouseModel): void {
+  setAsDefault(warehouse: Warehouse): void {
     this.actionLoading.set(true);
     this.adminService.setDefaultWarehouse(warehouse.id).subscribe({
       next: () => {

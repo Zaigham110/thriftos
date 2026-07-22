@@ -1,51 +1,226 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs" />
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
       <h1 class="page-title">Purchase Orders</h1>
-      <p class="page-subtitle">{{ totalCount() }} orders</p>
-    </app-stack>
+      <p class="page-subtitle">Manage procurement purchase orders, vendor assignments, ocean freight containers, and loose bale intake.</p>
+    </div>
 
-    <div class="actions">
-      <app-button variant="secondary" (click)="refresh()" [disabled]="loading()">Refresh</app-button>
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="refresh()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="15" [class.animate-spin]="loading()"></lucide-icon>
+        Refresh
+      </button>
       @if (canCreate()) {
-        <app-button variant="primary" [routerLink]="['/procurement/pos/create']">New Purchase Order</app-button>
+        <button class="btn btn-primary" [routerLink]="['/app/procurement/pos/create']">
+          <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
+          New Purchase Order
+        </button>
       }
     </div>
   </app-page-header>
 
   <app-page-body>
-    <ng-container *ngIf="error(); else table">
-      <app-error-state title="Failed to load purchase orders" [message]="error() ?? undefined" />
-    </ng-container>
+    @if (error()) {
+      <app-error-state
+        [message]="error()!"
+        (retry)="refresh()"
+      ></app-error-state>
+    }
 
-    <ng-template #table>
-      <app-data-table
-        title="Purchase Orders"
-        [columns]="tableColumns"
-        [data]="purchaseOrders()"
-        [loading]="loading()"
-        [serverSide]="true"
-        [totalCount]="totalCount()"
-        [externalPageIndex]="currentPage()"
-        (stateChange)="onTableStateChange($event)"
-        (rowClick)="onRowClick($event)"
+    <!-- KPI Metric Summary Grid (Clickable Filters) -->
+    <div class="kpi-grid">
+      <div 
+        class="kpi-card clickable-card" 
+        [class.active-kpi]="statusFilter() === 'ALL'"
+        (click)="setStatusFilter('ALL')"
       >
-        <ng-template #cellTemplate let-row let-column="column">
-          <ng-container [ngSwitch]="column.key">
-            <span *ngSwitchCase="'totalCost'" class="tabular-nums">{{ row.totalCost | currency }}</span>
-            <app-badge *ngSwitchCase="'status'" [variant]="getStatusVariant(row.status)">{{ row.status }}</app-badge>
-            <ng-container *ngSwitchCase="'createdAt'">{{ row.createdAt | date: 'mediumDate' }}</ng-container>
-            <ng-container *ngSwitchDefault>
-              {{ column.getValue ? column.getValue(row) : row[column.key] }}
-            </ng-container>
-          </ng-container>
-        </ng-template>
+        <div class="kpi-icon kpi-icon-purple">
+          <lucide-icon [img]="icons.ShoppingBag" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">All Purchase Orders</span>
+          <span class="kpi-value">{{ totalCount() }}</span>
+        </div>
+      </div>
 
-        <ng-template #rowActions let-row>
-          <app-button variant="secondary" size="sm" (click)="$event.stopPropagation(); onRowClick(row)">View</app-button>
-        </ng-template>
-      </app-data-table>
-    </ng-template>
+      <div 
+        class="kpi-card clickable-card" 
+        [class.active-kpi]="statusFilter() === 'OPEN'"
+        (click)="setStatusFilter('OPEN')"
+      >
+        <div class="kpi-icon kpi-icon-blue">
+          <lucide-icon [img]="icons.Clock" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Open Active POs</span>
+          <span class="kpi-value">{{ openPosCount() }}</span>
+        </div>
+      </div>
+
+      <div 
+        class="kpi-card clickable-card" 
+        [class.active-kpi]="statusFilter() === 'RECEIVED'"
+        (click)="setStatusFilter('RECEIVED')"
+      >
+        <div class="kpi-icon kpi-icon-emerald">
+          <lucide-icon [img]="icons.CheckCircle2" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Received Orders</span>
+          <span class="kpi-value">{{ receivedPosCount() }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Table Section -->
+    <app-section>
+      <div class="table-toolbar">
+        <div class="toolbar-title">
+          <span class="section-label">Order Directory</span>
+          <span class="results-count">{{ filteredPurchaseOrders().length }} orders</span>
+        </div>
+
+        <div class="toolbar-actions-group">
+          <!-- Status Filter Tabs -->
+          <div class="filter-tabs">
+            <button 
+              class="tab-btn" 
+              [class.active]="statusFilter() === 'ALL'" 
+              (click)="setStatusFilter('ALL')"
+            >All</button>
+            <button 
+              class="tab-btn" 
+              [class.active]="statusFilter() === 'OPEN'" 
+              (click)="setStatusFilter('OPEN')"
+            >Open</button>
+            <button 
+              class="tab-btn" 
+              [class.active]="statusFilter() === 'RECEIVED'" 
+              (click)="setStatusFilter('RECEIVED')"
+            >Received</button>
+            <button 
+              class="tab-btn" 
+              [class.active]="statusFilter() === 'CLOSED'" 
+              (click)="setStatusFilter('CLOSED')"
+            >Closed</button>
+          </div>
+
+          <!-- Search Box -->
+          <div class="search-box">
+            <lucide-icon [img]="icons.Search" [size]="15" class="search-icon"></lucide-icon>
+            <input
+              type="text"
+              class="search-input"
+              placeholder="Search PO number or vendor..."
+              [value]="searchQuery()"
+              (input)="searchQuery.set($any($event.target).value)"
+            />
+            @if (searchQuery()) {
+              <button class="search-clear-btn" (click)="clearSearch()">
+                &times;
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="table-card">
+        @if (loading() && purchaseOrders().length === 0) {
+          <app-loading></app-loading>
+        } @else if (filteredPurchaseOrders().length === 0) {
+          <app-empty-state
+            title="No Purchase Orders Found"
+            [message]="searchQuery() ? 'No order matches your search query' : 'Create your first purchase order to begin receiving inventory.'"
+          >
+            @if (!searchQuery() && canCreate()) {
+              <button class="btn btn-primary mt-3" [routerLink]="['/app/procurement/pos/create']">
+                <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
+                Create Purchase Order
+              </button>
+            }
+          </app-empty-state>
+        } @else {
+          <div class="table-wrapper">
+            <table class="po-table">
+              <thead>
+                <tr>
+                  <th>PO Number</th>
+                  <th>Order Type</th>
+                  <th>Vendor / Supplier</th>
+                  <th>Total Cost</th>
+                  <th>Status</th>
+                  <th>Created Date</th>
+                  <th class="text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (po of filteredPurchaseOrders(); track po.id) {
+                  <tr (click)="navigateToDetail(po)" class="clickable-row">
+                    <td>
+                      <span class="po-number-badge">
+                        <lucide-icon [img]="icons.ShoppingBag" [size]="13"></lucide-icon>
+                        {{ po.poNumber }}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span class="type-pill" [class.type-container]="po.poType === 'CONTAINER'" [class.type-bale]="po.poType === 'LOOSE_BALE'">
+                        {{ getPoTypeLabel(po.poType) }}
+                      </span>
+                    </td>
+
+                    <td>
+                      @if (po.vendor) {
+                        <span class="vendor-pill">
+                          <lucide-icon [img]="icons.Store" [size]="12"></lucide-icon>
+                          {{ po.vendor.name }}
+                        </span>
+                      } @else {
+                        <span class="text-subtle">Unassigned</span>
+                      }
+                    </td>
+
+                    <td>
+                      <span class="cost-value">
+                        {{ po.totalCost | money:{ minimumFractionDigits: 2, maximumFractionDigits: 2 } }}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span 
+                        class="status-pill" 
+                        [class.status-open]="po.status === 'OPEN'"
+                        [class.status-received]="po.status === 'RECEIVED'"
+                        [class.status-closed]="po.status === 'CLOSED'"
+                      >
+                        <span class="status-dot"></span>
+                        {{ po.status }}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span class="text-subtle">{{ po.createdAt | date:'mediumDate' }}</span>
+                    </td>
+
+                    <td class="text-right">
+                      <button 
+                        class="action-icon-btn" 
+                        title="View PO Details"
+                        (click)="$event.stopPropagation(); navigateToDetail(po)"
+                      >
+                        <lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon>
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </app-section>
   </app-page-body>
 </app-page>

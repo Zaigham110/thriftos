@@ -95,6 +95,16 @@ export const ADMIN_ROUTES: Routes = [
     data: { permissions: ['role.update'] },
   },
   {
+    path: 'roles/:id/permissions',
+    loadComponent: () =>
+      import('./roles/role-permissions.component').then(
+        (m) => m.RolePermissionsComponent
+      ),
+    title: 'Role Permissions - ThriftOS',
+    canActivate: [permissionGuard],
+    data: { permissions: ['role.update'] },
+  },
+  {
     path: 'categories',
     loadComponent: () =>
       import('./categories/category-management').then(

@@ -1,41 +1,214 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs" />
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
       <h1 class="page-title">Create Purchase Order</h1>
-      <p class="page-subtitle">Start a new container or loose bale procurement</p>
-    </app-stack>
-    <div class="actions"></div>
+      <p class="page-subtitle">Initiate a new procurement order with complete ocean container shipment logistics, vendor assignment, and shipping agent tracking.</p>
+    </div>
+
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="cancel()" [disabled]="isSubmitting()">
+        <lucide-icon [img]="icons.ArrowLeft" [size]="15"></lucide-icon>
+        Back to Orders
+      </button>
+    </div>
   </app-page-header>
 
   <app-page-body>
-    <app-section>
-      <app-section-header>
-        <h2 class="section-title">Details</h2>
-        <div class="actions"></div>
-      </app-section-header>
-      <app-section-body>
-        @if (error()) {
-          <app-error-state title="Failed to create" [message]="error()!" />
+    @if (error()) {
+      <app-error-state
+        [message]="error()!"
+      ></app-error-state>
+    }
+
+    <div class="form-container-card">
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="po-create-form">
+        
+        <!-- Order Type Selection -->
+        <div class="form-group">
+          <label class="form-label required">Procurement Order Type</label>
+          
+          <div class="type-radio-grid">
+            <label class="type-radio-card" [class.selected]="form.get('poType')?.value === 'CONTAINER'">
+              <input type="radio" formControlName="poType" value="CONTAINER" class="radio-input" />
+              <div class="card-icon">
+                <lucide-icon [img]="icons.Truck" [size]="20"></lucide-icon>
+              </div>
+              <div class="card-content">
+                <span class="card-title">Ocean Containers</span>
+                <span class="card-desc">For full or partial container load shipments</span>
+              </div>
+            </label>
+
+            <label class="type-radio-card" [class.selected]="form.get('poType')?.value === 'LOOSE_BALE'">
+              <input type="radio" formControlName="poType" value="LOOSE_BALE" class="radio-input" />
+              <div class="card-icon">
+                <lucide-icon [img]="icons.Package" [size]="20"></lucide-icon>
+              </div>
+              <div class="card-content">
+                <span class="card-title">Loose Bales</span>
+                <span class="card-desc">For standalone loose bales intake</span>
+              </div>
+            </label>
+
+            <label class="type-radio-card" [class.selected]="form.get('poType')?.value === 'HYBRID'">
+              <input type="radio" formControlName="poType" value="HYBRID" class="radio-input" />
+              <div class="card-icon">
+                <lucide-icon [img]="icons.ShoppingBag" [size]="20"></lucide-icon>
+              </div>
+              <div class="card-content">
+                <span class="card-title">Mixed Shipments</span>
+                <span class="card-desc">Combined containers and standalone bales</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Vendor / Supplier Select -->
+        <div class="form-group">
+          <label class="form-label">Vendor / Supplier</label>
+          <select formControlName="vendorId" class="form-select">
+            <option value="">No Vendor Assigned (Optional)</option>
+            @for (vendor of vendors(); track vendor.id) {
+              <option [value]="vendor.id">
+                {{ vendor.name }} {{ vendor.country ? '(' + vendor.country + ')' : '' }}
+              </option>
+            }
+          </select>
+          <span class="field-hint">Select the registered supplier for this procurement order.</span>
+        </div>
+
+        <!-- Initial Shipment & Container Logistics Toggle -->
+        @if (form.get('poType')?.value === 'CONTAINER' || form.get('poType')?.value === 'HYBRID') {
+          <div class="shipment-toggle-card">
+            <label class="checkbox-label">
+              <input type="checkbox" formControlName="includeInitialContainer" class="checkbox-input" />
+              <div class="toggle-text">
+                <span class="toggle-title">Attach Initial Container Shipment Details</span>
+                <span class="toggle-desc">Provide shipping agent, bill of lading, dates, and weights to create initial container automatically.</span>
+              </div>
+            </label>
+          </div>
+
+          @if (form.get('includeInitialContainer')?.value) {
+            <div class="shipment-fields-card">
+              
+              <!-- Shipment & Agent Logistics -->
+              <div class="form-section-title">
+                <lucide-icon [img]="icons.Anchor" [size]="16" class="title-icon"></lucide-icon>
+                Shipment Logistics & Shipping Agent
+              </div>
+
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label class="form-label">Agent / Forwarder</label>
+                  <app-autocomplete
+                    formControlName="forwarder"
+                    [options]="agentOptions()"
+                    placeholder="Search or type Agent/Forwarder..."
+                  ></app-autocomplete>
+                  <span class="field-hint">Registered shipping agents auto-fetched. New names auto-save to Vendors.</span>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Bill of Lading (B/L)</label>
+                  <input type="text" formControlName="billOfLadingNumber" class="form-input" placeholder="e.g. MSK9820491" />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Shipping Line</label>
+                  <input type="text" formControlName="shippingLine" class="form-input" placeholder="e.g. Maersk / MSC" />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Vessel Name</label>
+                  <input type="text" formControlName="vesselName" class="form-input" placeholder="e.g. MSC Oscar" />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Port of Loading</label>
+                  <input type="text" formControlName="portOfLoading" class="form-input" placeholder="e.g. Port of Rotterdam" />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Port of Discharge</label>
+                  <input type="text" formControlName="portOfDischarge" class="form-input" placeholder="e.g. Port of Karachi" />
+                </div>
+              </div>
+
+              <!-- Container & Weights -->
+              <div class="form-section-title mt-3">
+                <lucide-icon [img]="icons.Truck" [size]="16" class="title-icon"></lucide-icon>
+                Container Specs & Dates
+              </div>
+
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label class="form-label">Reference / Seal Number</label>
+                  <input type="text" formControlName="referenceNumber" class="form-input" placeholder="e.g. SEAL-98402" />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Container Type</label>
+                  <select formControlName="containerType" class="form-select">
+                    @for (opt of containerTypeOptions; track opt.value) {
+                      <option [value]="opt.value">{{ opt.label }}</option>
+                    }
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">ETD (Departure Date)</label>
+                  <input type="date" formControlName="etd" class="form-input" />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">ETA (Arrival Date)</label>
+                  <input type="date" formControlName="eta" class="form-input" />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Gross Weight (KG)</label>
+                  <input type="number" step="0.01" min="0" formControlName="grossWeightKg" class="form-input" placeholder="0.00" />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Net Weight (KG)</label>
+                  <input type="number" step="0.01" min="0" formControlName="netWeightKg" class="form-input" placeholder="0.00" />
+                </div>
+              </div>
+
+            </div>
+          }
         }
 
-        <app-card>
-          <app-form [formGroup]="form" (submitted)="onSubmit()" title="Purchase Order" subtitle="Fields marked * are required.">
-            <app-form-field label="Procurement Type" [required]="true">
-              <app-select formControlName="poType" [options]="poTypeOptions" />
-            </app-form-field>
+        <!-- Info Callout Banner -->
+        <div class="info-callout">
+          <lucide-icon [img]="icons.Info" [size]="16" class="callout-icon"></lucide-icon>
+          <div class="callout-content">
+            <span class="callout-title">Auto-Generated Order Number</span>
+            <span class="callout-desc">Upon creation, a unique sequential PO number (e.g. PO-00104) will be automatically assigned.</span>
+          </div>
+        </div>
 
-            <app-form-field label="Vendor" hint="Optional">
-              <app-select formControlName="vendorId" [options]="vendorOptions()" />
-            </app-form-field>
-
-            <app-stack direction="horizontal" spacing="sm">
-              <app-button variant="secondary" type="button" (click)="cancel()">Cancel</app-button>
-              <app-button variant="primary" type="submit" [disabled]="form.invalid || isSubmitting()">Create</app-button>
-            </app-stack>
-          </app-form>
-        </app-card>
-      </app-section-body>
-    </app-section>
+        <!-- Form Actions -->
+        <div class="form-footer-actions">
+          <button class="btn btn-secondary" type="button" (click)="cancel()" [disabled]="isSubmitting()">
+            Cancel
+          </button>
+          <button class="btn btn-primary" type="submit" [disabled]="form.invalid || isSubmitting()">
+            @if (isSubmitting()) {
+              <lucide-icon [img]="icons.Loader2" [size]="15" class="animate-spin"></lucide-icon>
+              Creating Order...
+            } @else {
+              <lucide-icon [img]="icons.Save" [size]="15"></lucide-icon>
+              Create Purchase Order
+            }
+          </button>
+        </div>
+      </form>
+    </div>
   </app-page-body>
 </app-page>

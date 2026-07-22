@@ -37,6 +37,7 @@ export class SortSessionService {
       let inputWeight: Decimal;
       let containerId: string | null = null;
 
+      let targetRagId = ragId;
       if (ragId) {
         // Fetch Rag and validate status
         const rag = await tx.rag.findFirst({
@@ -64,14 +65,45 @@ export class SortSessionService {
           data: { status: RagStatus.IN_SORTING },
         });
       } else if (incomingBaleId) {
-        // Legacy IncomingBale support
+        // Legacy IncomingBale support - auto-link or create a Rag entry to maintain mandatory ragId traceability
         const bale = await tx.incomingBale.findFirst({
           where: { id: incomingBaleId, tenantId },
-          select: { weightKg: true, containerId: true },
         });
         if (!bale) {
           throw new BadRequestException('Source not found: incomingBaleId');
         }
+
+        let existingRag = await tx.rag.findFirst({
+          where: { tenantId, notes: `auto_migrated_bale:${incomingBaleId}` },
+        });
+
+        if (!existingRag) {
+          const rawCatId = bale.rawCategoryId || (await tx.rawCategory.findFirst({ where: { tenantId } }))?.id;
+          if (!rawCatId) {
+            throw new BadRequestException('Tenant requires at least one raw category for legacy bale conversion');
+          }
+          existingRag = await tx.rag.create({
+            data: {
+              tenantId,
+              containerId: bale.containerId,
+              sourceType: bale.containerId ? 'CONTAINER' : 'LOOSE_BALE',
+              ragCode: `BALE-${bale.baleCode || bale.id.slice(-6)}`,
+              ragBaleType: 'BALE',
+              rawCategoryId: rawCatId,
+              weightKg: bale.weightKg,
+              allocatedCost: bale.cost || new Decimal(0),
+              status: RagStatus.IN_SORTING,
+              notes: `auto_migrated_bale:${incomingBaleId}`,
+            },
+          });
+        } else {
+          await tx.rag.update({
+            where: { id: existingRag.id },
+            data: { status: RagStatus.IN_SORTING },
+          });
+        }
+
+        targetRagId = existingRag.id;
         inputWeight = bale.weightKg;
         containerId = bale.containerId;
       } else {
@@ -82,7 +114,7 @@ export class SortSessionService {
       const session = await tx.sortSession.create({
         data: {
           tenantId,
-          ragId: ragId || undefined,
+          ragId: targetRagId!,
           incomingBaleId: incomingBaleId || undefined,
           workerId,
           supervisorId,

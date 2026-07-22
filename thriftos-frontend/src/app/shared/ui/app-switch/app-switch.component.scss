@@ -11,7 +11,7 @@
     width: 0;
     height: 0;
 
-    &:checked + .switch-slider {
+    &:checked+.switch-slider {
       background: var(--app-primary);
 
       &::before {
@@ -19,7 +19,7 @@
       }
     }
 
-    &:disabled + .switch-slider {
+    &:disabled+.switch-slider {
       opacity: 0.5;
       cursor: not-allowed;
     }
@@ -47,7 +47,7 @@
   }
 
   .switch-label {
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-meta);
     color: var(--app-text-primary);
     user-select: none;
   }

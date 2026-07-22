@@ -53,8 +53,8 @@ export class SortingStage1ReadyPage implements OnInit {
 
   // Breadcrumbs — matches Procurement pattern
   readonly breadcrumbs = [
-    { label: 'Sorting', link: '/sorting' },
-    { label: 'Stage 1', link: undefined },
+    { label: 'Sorting', link: '/app/sorting/stage-1' },
+    { label: 'Stage 1 — Primary Breakdown', link: undefined },
   ];
 
   readonly rows = signal<Stage1QueueItem[]>([]);
@@ -147,12 +147,10 @@ export class SortingStage1ReadyPage implements OnInit {
   }
 
   start(item: Stage1QueueItem): void {
-    // Determine which ID to use for routing
     const id = item.sourceType === 'LOOSE_BALE' ? item.sourceId || item.id : item.id;
     const sourceType = item.sourceType || 'RAG';
     
-    // Navigate to the start page - it will call stage1Start with correct params
-    this.router.navigate(['/sorting/stage-1', id], { 
+    this.router.navigate(['/app/sorting/stage-1', id], { 
       state: { sourceType } 
     });
   }

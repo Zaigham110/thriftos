@@ -29,7 +29,7 @@ import { CommonModule } from '@angular/common';
   `,
   styles: [`
     .app-link {
-      font-size: var(--font-size-sm);
+      font-size: var(--font-size-meta);
       color: var(--app-text-secondary);
       text-decoration: none;
       transition: color 0.12s ease;

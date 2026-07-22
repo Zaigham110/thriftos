@@ -1,77 +1,114 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs" />
-      <h1 class="page-title">Procurement</h1>
-      <p class="page-subtitle">Procurement-only dashboard</p>
-    </app-stack>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Procurement Overview</h1>
+      <p class="page-subtitle">Track active purchase orders, ocean container shipments, loose bales intake, and vendor spend allocation.</p>
+    </div>
 
-    <div class="actions">
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="loadSummary()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="15" [class.animate-spin]="loading()"></lucide-icon>
+        Refresh
+      </button>
       @if (canCreate()) {
-        <app-button variant="primary" [routerLink]="['/procurement/pos/create']">
+        <button class="btn btn-primary" [routerLink]="['/app/procurement/pos/create']">
+          <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
           New Purchase Order
-        </app-button>
+        </button>
       }
     </div>
   </app-page-header>
 
   <app-page-body>
-    <app-section>
-      <app-section-header>
-        <h2 class="section-title">KPIs</h2>
-        <div class="actions"></div>
-      </app-section-header>
-      <app-section-body>
-        @if (loading()) {
-          <app-loading message="Loading procurement dashboard…" />
-        } @else if (error()) {
-          <app-error-state title="Failed to load" [message]="error()!" [action]="true">
-            <app-button action variant="secondary" (click)="loadSummary()">Retry</app-button>
-          </app-error-state>
-        } @else {
-          <app-grid [columns]="3" gap="md">
-            <app-kpi-card label="Active POs" [value]="kpiActivePos()" />
-            <app-kpi-card label="Containers in Transit" [value]="kpiContainersInTransit()" />
-            <app-kpi-card label="Loose Bales Received" [value]="kpiLooseBalesReceived()" />
-          </app-grid>
-        }
-      </app-section-body>
-    </app-section>
+    @if (error()) {
+      <app-error-state
+        [message]="error()!"
+        (retry)="loadSummary()"
+      ></app-error-state>
+    }
 
-    <app-section>
-      <app-section-header>
-        <h2 class="section-title">Analytics</h2>
-        <div class="actions"></div>
-      </app-section-header>
-      <app-section-body>
-        @if (loading()) {
-          <app-loading message="Loading analytics…" />
-        } @else if (error()) {
-          <app-error-state title="Failed to load" [message]="error()!" />
-        } @else {
-          <app-grid [columns]="2" gap="md">
-            <app-card>
-              <app-stack direction="vertical" spacing="sm">
-                <div class="dash-card-head">
-                  <h3 class="dash-card-title">PO spend vs allocated</h3>
-                  <p class="dash-card-subtitle">Utilization % by active PO (top 10)</p>
-                </div>
-                <app-chart [type]="'bar'" [variant]="'panel'" [points]="poUtilizationPoints()" />
-              </app-stack>
-            </app-card>
+    <!-- KPI Metric Summary Grid -->
+    <div class="kpi-grid">
+      <div class="kpi-card" [routerLink]="['/app/procurement/pos']">
+        <div class="kpi-icon kpi-icon-purple">
+          <lucide-icon [img]="icons.ShoppingBag" [size]="22"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Active Purchase Orders</span>
+          <span class="kpi-value">{{ kpiActivePos() }}</span>
+          <span class="kpi-link">View POs <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon></span>
+        </div>
+      </div>
 
-            <app-card>
-              <app-stack direction="vertical" spacing="sm">
-                <div class="dash-card-head">
-                  <h3 class="dash-card-title">Vendor distribution</h3>
-                  <p class="dash-card-subtitle">Spend share % in selected period (top 8)</p>
-                </div>
-                <app-chart [type]="'bar'" [variant]="'panel'" [points]="vendorDistributionPoints()" />
-              </app-stack>
-            </app-card>
-          </app-grid>
-        }
-      </app-section-body>
+      <div class="kpi-card" [routerLink]="['/app/procurement/containers']">
+        <div class="kpi-icon kpi-icon-blue">
+          <lucide-icon [img]="icons.Truck" [size]="22"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Containers in Transit</span>
+          <span class="kpi-value">{{ kpiContainersInTransit() }}</span>
+          <span class="kpi-link">View Containers <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon></span>
+        </div>
+      </div>
+
+      <div class="kpi-card" [routerLink]="['/app/procurement/loose-bales']">
+        <div class="kpi-icon kpi-icon-emerald">
+          <lucide-icon [img]="icons.PackageCheck" [size]="22"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Loose Bales Received</span>
+          <span class="kpi-value">{{ kpiLooseBalesReceived() }}</span>
+          <span class="kpi-link">View Bales <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analytics & Spend Share Section -->
+    <app-section>
+      <div class="analytics-grid">
+        <!-- PO Spend vs Allocated Chart -->
+        <div class="chart-panel-card">
+          <div class="panel-header">
+            <div class="title-with-icon">
+              <lucide-icon [img]="icons.BarChart3" [size]="18" class="panel-icon"></lucide-icon>
+              <div>
+                <h3 class="panel-title">PO Spend vs. Allocation</h3>
+                <p class="panel-subtitle">Top 10 active PO weight allocation utilization %</p>
+              </div>
+            </div>
+          </div>
+          <div class="panel-body">
+            @if (loading()) {
+              <app-loading></app-loading>
+            } @else {
+              <app-chart [type]="'bar'" [variant]="'panel'" [points]="poUtilizationPoints()"></app-chart>
+            }
+          </div>
+        </div>
+
+        <!-- Vendor Distribution Share -->
+        <div class="chart-panel-card">
+          <div class="panel-header">
+            <div class="title-with-icon">
+              <lucide-icon [img]="icons.Globe" [size]="18" class="panel-icon"></lucide-icon>
+              <div>
+                <h3 class="panel-title">Vendor Spend Share</h3>
+                <p class="panel-subtitle">Vendor procurement share % across active period</p>
+              </div>
+            </div>
+          </div>
+          <div class="panel-body">
+            @if (loading()) {
+              <app-loading></app-loading>
+            } @else {
+              <app-chart [type]="'bar'" [variant]="'panel'" [points]="vendorDistributionPoints()"></app-chart>
+            }
+          </div>
+        </div>
+      </div>
     </app-section>
   </app-page-body>
 </app-page>

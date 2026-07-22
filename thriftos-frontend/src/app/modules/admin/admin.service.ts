@@ -236,6 +236,19 @@ export class AdminService {
     );
   }
 
+  resetUserPassword(id: string): Observable<{ success: boolean; temporaryPassword?: string; message: string }> {
+    this._loading.set(true);
+    this._error.set(null);
+
+    return this.http.post<{ success: boolean; temporaryPassword?: string; message: string }>(
+      `${this.adminBaseUrl}/users/${id}/reset-password`,
+      {}
+    ).pipe(
+      tap(() => this._loading.set(false)),
+      catchError((error) => this.handleError(error))
+    );
+  }
+
   deleteUser(id: string): Observable<User> {
     this._loading.set(true);
     this._error.set(null);
@@ -350,8 +363,19 @@ export class AdminService {
   }
 
   loadPermissionsGrouped(): Observable<PermissionGroup[]> {
-    return this.http.get<PermissionGroup[]>(`${this.adminBaseUrl}/permissions/grouped`).pipe(
-      tap((groups) => this._permissionGroups.set(groups)),
+    return this.http.get<any>(`${this.adminBaseUrl}/permissions/grouped`).pipe(
+      tap((res) => {
+        let groups: PermissionGroup[] = [];
+        if (Array.isArray(res)) {
+          groups = res;
+        } else if (res && typeof res === 'object') {
+          groups = Object.entries(res).map(([name, permissions]) => ({
+            name,
+            permissions: (permissions as Permission[]) || [],
+          }));
+        }
+        this._permissionGroups.set(groups);
+      }),
       catchError((error) => this.handleError(error))
     );
   }
