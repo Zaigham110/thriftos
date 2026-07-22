@@ -1,5 +1,13 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+/**
+ * Sorting Outputs Report Component
+ * Phase 7: Reports & Analytics
+ * 
+ * Stage 1 Category Outputs and Stage 2 Finished Grade Outputs with lineage tracking.
+ * Route: /app/reports/sorting-outputs
+ */
+
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { CommonModule, DecimalPipe } from '@angular/common';
 
 import { ReportsService } from '../../reports.service';
 import { MoneyService } from '../../../../core/money/money.service';
@@ -10,6 +18,7 @@ import type {
   SortingStage2OutputRow,
 } from '../../reports.models';
 import { ReportFiltersComponent } from '../../shared/report-filters.component';
+import { MoneyPipe } from '../../../../core/money/money.pipe';
 import {
   AppPageComponent,
   AppPageHeaderComponent,
@@ -20,18 +29,20 @@ import {
   AppDataTableComponent,
   AppButtonComponent,
   AppErrorStateComponent,
-  AppLoadingComponent,
   AppBreadcrumbComponent,
-  AppStackComponent,
   type DataTableColumn,
   type BreadcrumbItem,
 } from '../../../../shared/ui';
+import { LucideAngularModule, BarChart3, Scale, RefreshCw, DollarSign, Layers } from 'lucide-angular';
 
 @Component({
   selector: 'app-sorting-outputs-report',
   standalone: true,
   imports: [
     CommonModule,
+    DecimalPipe,
+    MoneyPipe,
+    LucideAngularModule,
     ReportFiltersComponent,
     AppPageComponent,
     AppPageHeaderComponent,
@@ -43,7 +54,6 @@ import {
     AppButtonComponent,
     AppErrorStateComponent,
     AppBreadcrumbComponent,
-    AppStackComponent,
   ],
   templateUrl: './sorting-outputs-report.html',
   styleUrl: './sorting-outputs-report.scss',
@@ -53,10 +63,17 @@ export class SortingOutputsReportComponent implements OnInit {
   private readonly reportsService = inject(ReportsService);
   private readonly money = inject(MoneyService);
 
+  readonly icons = {
+    BarChart3,
+    Scale,
+    RefreshCw,
+    DollarSign,
+    Layers,
+  };
+
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Home', link: '/app/dashboard' },
-    { label: 'Reports', link: '/app/reports' },
-    { label: 'Sorting Outputs' },
+    { label: 'Reports', route: '/app/reports' },
+    { label: 'Sorting & Grading Output Directory' },
   ];
 
   readonly response = signal<SortingOutputsResponse | null>(null);
@@ -68,28 +85,45 @@ export class SortingOutputsReportComponent implements OnInit {
   protected currentFilters: ReportFilters = {};
 
   readonly stage1Columns: DataTableColumn[] = [
-    { label: 'Created', key: 'createdAt', sortable: true },
-    { label: 'Category', key: 'categoryName', sortable: true },
-    { label: 'RAG', key: 'ragCode', sortable: true },
-    { label: 'PO #', key: 'poNumber', sortable: true },
-    { label: 'Container', key: 'containerNumber', sortable: true },
-    { label: 'Weight (KG)', key: 'weightKg', sortable: true, align: 'right' },
+    { label: 'Created Date', key: 'createdAt', sortable: true },
+    { label: 'Raw Category', key: 'categoryName', sortable: true },
+    { label: 'RAG Code', key: 'ragCode', sortable: true },
+    { label: 'PO Number', key: 'poNumber', sortable: true },
+    { label: 'Container #', key: 'containerNumber', sortable: true },
+    { label: 'Net Weight (KG)', key: 'weightKg', sortable: true, align: 'right' },
     { label: 'Allocated Cost', key: 'allocatedCost', sortable: true, align: 'right' },
     { label: 'Sort Status', key: 'sortStatus', sortable: true },
   ];
 
   readonly stage2Columns: DataTableColumn[] = [
-    { label: 'Created', key: 'createdAt', sortable: true },
-    { label: 'Grade', key: 'gradeName', sortable: true },
-    { label: 'Category', key: 'categoryName', sortable: true },
-    { label: 'RAG', key: 'ragCode', sortable: true },
-    { label: 'PO #', key: 'poNumber', sortable: true },
-    { label: 'Container', key: 'containerNumber', sortable: true },
-    { label: 'Weight (KG)', key: 'weightKg', sortable: true, align: 'right' },
+    { label: 'Created Date', key: 'createdAt', sortable: true },
+    { label: 'Finished Grade', key: 'gradeName', sortable: true },
+    { label: 'Raw Category', key: 'categoryName', sortable: true },
+    { label: 'RAG Code', key: 'ragCode', sortable: true },
+    { label: 'PO Number', key: 'poNumber', sortable: true },
+    { label: 'Container #', key: 'containerNumber', sortable: true },
+    { label: 'Grade Weight (KG)', key: 'weightKg', sortable: true, align: 'right' },
     { label: 'Allocated Cost', key: 'allocatedCost', sortable: true, align: 'right' },
     { label: 'Measurement', key: 'measurementType', sortable: true },
-    { label: 'Status', key: 'status', sortable: true },
+    { label: 'Stock Status', key: 'status', sortable: true },
   ];
+
+  // Computed Summary Metrics
+  readonly s1TotalWeightKg = computed(() => {
+    return this.response()?.stage1?.summary?.totalWeightKg || 0;
+  });
+
+  readonly s1TotalCost = computed(() => {
+    return this.response()?.stage1?.summary?.totalAllocatedCost || 0;
+  });
+
+  readonly s2TotalWeightKg = computed(() => {
+    return this.response()?.stage2?.summary?.totalWeightKg || 0;
+  });
+
+  readonly s2TotalCost = computed(() => {
+    return this.response()?.stage2?.summary?.totalAllocatedCost || 0;
+  });
 
   protected get exporting(): boolean {
     return this.reportsService.exporting();

@@ -1,42 +1,237 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs" />
-      <h1 class="page-title">Reports & Analytics</h1>
-      <p class="page-subtitle">Table-first data analysis — reproducible, traceable, date-bounded</p>
-    </app-stack>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Enterprise Supply Chain & Financial Intelligence</h1>
+      <p class="page-subtitle">Auditable mass balance, category yield analytics, landed product costing, and stock valuation.</p>
+    </div>
+
+    <div class="header-right-actions">
+      <button class="btn btn-secondary" (click)="loadAllOverviewData()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="15" [class.animate-spin]="loading()"></lucide-icon>
+        Sync Live Data
+      </button>
+    </div>
   </app-page-header>
 
   <app-page-body>
-    <!-- Available Reports (Dense Table) -->
-    <app-section>
-      <app-section-header>
-        <h2 class="section-title">Available Reports</h2>
-      </app-section-header>
-      <app-section-body>
-        <app-data-table
-          [columns]="reportColumns"
-          [data]="reportLinks"
-          [loading]="false"
-          [serverSide]="false"
-        >
-          <ng-template #cellTemplate let-row let-column="column">
-            @if (column.key === 'title') {
-              <div class="report-title">
-                <lucide-icon [img]="row.icon" size="18" class="report-icon"></lucide-icon>
-                <strong>{{ row.title }}</strong>
+    @if (error()) {
+      <app-error-state
+        [message]="error()!"
+        (retry)="loadAllOverviewData()"
+      ></app-error-state>
+    }
+
+    @if (loading()) {
+      <app-loading message="Aggregating enterprise supply chain metrics and yield analytics…"></app-loading>
+    } @else {
+
+      <!-- Top Executive Hero KPI Grid -->
+      <div class="kpi-grid mb-5">
+        <div class="kpi-card hero-purple">
+          <div class="card-top-bar">
+            <span class="kpi-label">Stock Valuation Total</span>
+            <div class="kpi-badge badge-purple">
+              <lucide-icon [img]="icons.ShieldCheck" [size]="12"></lucide-icon>
+              Audited
+            </div>
+          </div>
+          <div class="card-main">
+            <span class="kpi-value text-purple">{{ totalInventoryValuation() | money }}</span>
+            <div class="kpi-meta text-muted">
+              <span>Sealed Volume: <strong>{{ totalSealedWeightKg() | number:'1.1-1' }} KG</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="kpi-card hero-emerald">
+          <div class="card-top-bar">
+            <span class="kpi-label">Processing Yield Efficiency</span>
+            <div class="kpi-badge badge-emerald">
+              <lucide-icon [img]="icons.TrendingUp" [size]="12"></lucide-icon>
+              {{ overallYieldPct() | number:'1.1-1' }}% High
+            </div>
+          </div>
+          <div class="card-main">
+            <span class="kpi-value text-emerald">{{ overallYieldPct() | number:'1.1-1' }}%</span>
+            <div class="kpi-meta text-muted">
+              <span>Net Yield: <strong>{{ totalYieldOutputKg() | number:'1.1-1' }} KG</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="kpi-card hero-blue">
+          <div class="card-top-bar">
+            <span class="kpi-label">Landed Unit Cost / KG</span>
+            <div class="kpi-badge badge-blue">
+              <lucide-icon [img]="icons.Scale" [size]="12"></lucide-icon>
+              COGS Basis
+            </div>
+          </div>
+          <div class="card-main">
+            <span class="kpi-value text-blue">{{ avgCostPerKg() | money }}</span>
+            <div class="kpi-meta text-muted">
+              <span>Sealed Units: <strong>{{ totalSealedUnits() | number:'1.0-0' }} Items</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="kpi-card hero-amber">
+          <div class="card-top-bar">
+            <span class="kpi-label">Recorded Waste & Material Loss</span>
+            <div class="kpi-badge badge-amber">
+              <lucide-icon [img]="icons.Trash2" [size]="12"></lucide-icon>
+              {{ wasteRatioPct() | number:'1.1-1' }}% Loss
+            </div>
+          </div>
+          <div class="card-main">
+            <span class="kpi-value text-amber">{{ totalYieldWasteKg() | number:'1.1-1' }} <small class="text-muted">KG</small></span>
+            <div class="kpi-meta text-muted">
+              <span>Intake Basis: <strong>{{ totalYieldInputKg() | number:'1.1-1' }} KG</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Analytics Charts & Mass Balance Grid -->
+      <div class="analytics-layout mb-6">
+
+        <!-- Visual Analytics Panel 1: Mass Balance & Category Yield Distribution -->
+        <div class="analytics-card flex-3">
+          <div class="card-header">
+            <div class="header-left">
+              <div class="header-icon bg-emerald-soft text-emerald">
+                <lucide-icon [img]="icons.TrendingUp" [size]="18"></lucide-icon>
               </div>
-            } @else if (column.key === 'description') {
-              <span class="text-muted">{{ row.description }}</span>
-            } @else if (column.key === 'action') {
-              <app-button variant="primary" [routerLink]="row.route">
-                <lucide-icon [img]="icons.FileBarChart"></lucide-icon>
-                View Report
-              </app-button>
-            }
-          </ng-template>
-        </app-data-table>
-      </app-section-body>
-    </app-section>
+              <div>
+                <h3 class="panel-title">Mass Balance & Category Yield Distribution</h3>
+                <span class="panel-subtitle">Raw bale weight intake vs output category conversion vs material waste</span>
+              </div>
+            </div>
+            <button class="btn btn-secondary btn-xs" (click)="openReport('/app/reports/yield')">
+              Full Yield Audit
+              <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon>
+            </button>
+          </div>
+
+          @if (yieldData().length === 0) {
+            <div class="empty-chart p-8 text-center text-muted">
+              No sorting category yield data recorded yet.
+            </div>
+          } @else {
+            <div class="chart-stack">
+              @for (row of yieldData(); track row.categoryId || row.categoryName) {
+                <div class="chart-row-card">
+                  <div class="row-top">
+                    <span class="cat-title font-bold text-primary">{{ row.categoryName || 'Raw Category' }}</span>
+                    <div class="row-badges">
+                      <span class="badge-pill bg-emerald-soft text-emerald font-mono font-bold">{{ getYieldPct(row) | number:'1.1-1' }}% Yield</span>
+                      <span class="badge-pill bg-amber-soft text-amber font-mono font-bold">{{ getWastePct(row) | number:'1.1-1' }}% Waste</span>
+                    </div>
+                  </div>
+
+                  <!-- Stacked Progress Bar -->
+                  <div class="progress-bar-track">
+                    <div class="bar-fill fill-output" [style.width.%]="getYieldPct(row)" title="Output Yield"></div>
+                    <div class="bar-fill fill-waste" [style.width.%]="getWastePct(row)" title="Material Waste"></div>
+                  </div>
+
+                  <div class="row-footer">
+                    <span class="text-xs text-muted">Intake: <strong class="text-dark">{{ row.inputWeightKg | number:'1.1-1' }} KG</strong></span>
+                    <span class="text-xs text-emerald">Output: <strong class="text-emerald">{{ row.outputWeightKg | number:'1.1-1' }} KG</strong></span>
+                    <span class="text-xs text-amber">Waste: <strong class="text-amber">{{ row.wasteWeightKg | number:'1.1-1' }} KG</strong></span>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Visual Analytics Panel 2: Financial Landed Cost Cascade Overview -->
+        <div class="analytics-card flex-2">
+          <div class="card-header">
+            <div class="header-left">
+              <div class="header-icon bg-purple-soft text-purple">
+                <lucide-icon [img]="icons.DollarSign" [size]="18"></lucide-icon>
+              </div>
+              <div>
+                <h3 class="panel-title">Sealed Product Financial Costing</h3>
+                <span class="panel-subtitle">COGS breakdown & unit valuation</span>
+              </div>
+            </div>
+            <button class="btn btn-secondary btn-xs" (click)="openReport('/app/reports/final-product-cost')">
+              Cost Details
+              <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon>
+            </button>
+          </div>
+
+          @if (productCostData(); as cost) {
+            <div class="cost-stack">
+              <div class="cost-tile border-purple">
+                <span class="tile-label">Cumulative Landed Valuation</span>
+                <span class="font-mono font-bold">{{ cost.summary.totalCost | money }}</span>
+              </div>
+              <div class="kpi-mini flex justify-between text-xs">
+                <span class="text-muted">Total Weight</span>
+                <span class="font-mono font-bold">{{ cost.summary.totalWeightKg | number:'1.2-2' }} KG</span>
+              </div>
+              <div class="kpi-mini flex justify-between text-xs">
+                <span class="text-muted">Landed Cost / KG</span>
+                <span class="font-mono font-bold text-emerald">{{ (cost.summary.totalCost / (cost.summary.totalWeightKg || 1)) | money }}</span>
+              </div>
+              <div class="kpi-mini flex justify-between text-xs">
+                <span class="text-muted">Sealed Units</span>
+                <span class="font-mono font-bold">{{ cost.summary.totalUnits || 0 }} Units</span>
+              </div>
+            </div>
+          } @else {
+            <div class="p-8 text-center text-muted">
+              No sealed product costing metrics recorded.
+            </div>
+          }
+        </div>
+
+      </div>
+
+      <!-- Enterprise Report Directory Cards Section -->
+      <div class="directory-section">
+        <div class="section-title-bar mb-4">
+          <div class="left-info">
+            <h2 class="section-heading">Detailed Analytics & Audit Reports Directory</h2>
+            <span class="section-subtext">Click any card to launch full data grid, filters, and CSV export tools</span>
+          </div>
+        </div>
+
+        <div class="report-cards-grid">
+          @for (card of enterpriseReportCards; track card.id) {
+            <div class="report-directory-card" (click)="openReport(card.route)">
+              <div class="card-top">
+                <div class="icon-circle" [class]="'cat-' + card.category.toLowerCase()">
+                  <lucide-icon [img]="card.icon" [size]="18"></lucide-icon>
+                </div>
+                <span class="category-tag" [class]="'cat-' + card.category.toLowerCase()">
+                  {{ card.tag }}
+                </span>
+              </div>
+
+              <div class="card-content">
+                <h4 class="card-heading">{{ card.title }}</h4>
+                <p class="card-summary">{{ card.description }}</p>
+              </div>
+
+              <div class="card-footer">
+                <span class="launch-btn">
+                  Launch Analytics
+                  <lucide-icon [img]="icons.ArrowRight" [size]="13"></lucide-icon>
+                </span>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+    }
   </app-page-body>
 </app-page>

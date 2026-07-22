@@ -1,12 +1,18 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs" />
-      <h1 class="page-title">Sorting Outputs</h1>
-      <p class="page-subtitle">Stage 1 category outputs and Stage 2 grade outputs</p>
-    </app-stack>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Sorting Outputs & Grade Breakdown Ledger</h1>
+      <p class="page-subtitle">Stage 1 Raw Category Outputs and Stage 2 Finished Quality Grade Outputs with full lineage and cost allocations.</p>
+    </div>
+
     <div class="actions">
-      <app-button variant="secondary" (click)="loadData()">Refresh</app-button>
+      <app-button variant="secondary" (click)="loadData()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="14" [class.animate-spin]="loading()"></lucide-icon>
+        Refresh Report
+      </app-button>
     </div>
   </app-page-header>
 
@@ -17,84 +23,161 @@
       </app-error-state>
     }
 
-    <app-section>
-      <app-section-body>
+    <!-- Summary KPI Grid -->
+    <div class="kpi-grid mb-4">
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-blue">
+          <lucide-icon [img]="icons.Scale" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Stage 1 Output Weight</span>
+          <span class="kpi-value">{{ s1TotalWeightKg() | number:'1.2-2' }} <small>KG</small></span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-purple">
+          <lucide-icon [img]="icons.DollarSign" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Stage 1 Allocated Cost</span>
+          <span class="kpi-value text-primary">{{ s1TotalCost() | money }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-emerald">
+          <lucide-icon [img]="icons.BarChart3" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Stage 2 Grade Weight</span>
+          <span class="kpi-value text-emerald">{{ s2TotalWeightKg() | number:'1.2-2' }} <small>KG</small></span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-amber">
+          <lucide-icon [img]="icons.Layers" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Stage 2 Allocated Cost</span>
+          <span class="kpi-value text-amber">{{ s2TotalCost() | money }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stage 1 Integrated Table Card -->
+    <div class="mb-5">
+      <app-data-table
+        title="Stage 1: Category Breakdown Outputs"
+        [data]="stage1Rows()"
+        [columns]="stage1Columns"
+        [loading]="loading()"
+        [enableSearch]="false"
+        [externalSearch]="searchText()"
+      >
         <app-report-filters
+          filters
           [showCategory]="true"
-          [showGrade]="true"
           [categories]="categories()"
-          [grades]="grades()"
           [showExport]="true"
           [exporting]="exporting"
           (filtersChange)="onFiltersChange($event)"
           (searchChange)="onSearchChange($event)"
           (onExport)="exportReport()"
-        />
-      </app-section-body>
-    </app-section>
+        ></app-report-filters>
 
-    <app-section>
-      <app-section-header>
-        <h2 class="section-title">Stage 1 Outputs</h2>
-      </app-section-header>
-      <app-section-body>
-        <app-data-table
-          [data]="stage1Rows()"
-          [columns]="stage1Columns"
-          [loading]="loading()"
-          [enableSearch]="false"
-          [externalSearch]="searchText()"
-        >
-          <ng-template #cellTemplate let-row let-column="column">
-            @switch (column.key) {
-              @case ('createdAt') {
-                {{ formatDate(row.createdAt) }}
-              }
-              @case ('weightKg') {
-                {{ formatWeight(row.weightKg) }}
-              }
-              @case ('allocatedCost') {
-                {{ formatCurrency(row.allocatedCost) }}
-              }
-              @default {
-                {{ row[column.key] ?? '—' }}
-              }
+        <ng-template #cellTemplate let-row let-column="column">
+          @switch (column.key) {
+            @case ('createdAt') {
+              <span class="text-muted text-xs">{{ formatDate(row.createdAt) }}</span>
             }
-          </ng-template>
-        </app-data-table>
-      </app-section-body>
-    </app-section>
+            @case ('categoryName') {
+              <strong class="text-primary">{{ row.categoryName || '—' }}</strong>
+            }
+            @case ('ragCode') {
+              <span class="font-mono text-xs">{{ row.ragCode || '—' }}</span>
+            }
+            @case ('poNumber') {
+              <span class="font-mono font-bold">{{ row.poNumber || '—' }}</span>
+            }
+            @case ('containerNumber') {
+              <span class="font-mono text-xs">{{ row.containerNumber || '—' }}</span>
+            }
+            @case ('weightKg') {
+              <span class="font-mono font-bold text-emerald">{{ formatWeight(row.weightKg) }}</span>
+            }
+            @case ('allocatedCost') {
+              <span class="font-mono font-bold text-primary">{{ formatCurrency(row.allocatedCost) }}</span>
+            }
+            @case ('sortStatus') {
+              <span class="status-badge">{{ row.sortStatus }}</span>
+            }
+            @default {
+              {{ row[column.key] ?? '—' }}
+            }
+          }
+        </ng-template>
+      </app-data-table>
+    </div>
 
-    <app-section>
-      <app-section-header>
-        <h2 class="section-title">Stage 2 Outputs</h2>
-      </app-section-header>
-      <app-section-body>
-        <app-data-table
-          [data]="stage2Rows()"
-          [columns]="stage2Columns"
-          [loading]="loading()"
-          [enableSearch]="false"
-          [externalSearch]="searchText()"
-        >
-          <ng-template #cellTemplate let-row let-column="column">
-            @switch (column.key) {
-              @case ('createdAt') {
-                {{ formatDate(row.createdAt) }}
-              }
-              @case ('weightKg') {
-                {{ formatWeight(row.weightKg) }}
-              }
-              @case ('allocatedCost') {
-                {{ formatCurrency(row.allocatedCost) }}
-              }
-              @default {
-                {{ row[column.key] ?? '—' }}
-              }
-            }
-          </ng-template>
-        </app-data-table>
-      </app-section-body>
-    </app-section>
+    <!-- Stage 2 Integrated Table Card -->
+    <app-data-table
+      title="Stage 2: Quality Grade Outputs"
+      [data]="stage2Rows()"
+      [columns]="stage2Columns"
+      [loading]="loading()"
+      [enableSearch]="false"
+      [externalSearch]="searchText()"
+    >
+      <app-report-filters
+        filters
+        [showGrade]="true"
+        [grades]="grades()"
+        [showExport]="true"
+        [exporting]="exporting"
+        (filtersChange)="onFiltersChange($event)"
+        (searchChange)="onSearchChange($event)"
+        (onExport)="exportReport()"
+      ></app-report-filters>
+
+      <ng-template #cellTemplate let-row let-column="column">
+        @switch (column.key) {
+          @case ('createdAt') {
+            <span class="text-muted text-xs">{{ formatDate(row.createdAt) }}</span>
+          }
+          @case ('gradeName') {
+            <span class="badge-grade">{{ row.gradeName || '—' }}</span>
+          }
+          @case ('categoryName') {
+            <strong class="text-primary">{{ row.categoryName || '—' }}</strong>
+          }
+          @case ('ragCode') {
+            <span class="font-mono text-xs">{{ row.ragCode || '—' }}</span>
+          }
+          @case ('poNumber') {
+            <span class="font-mono font-bold">{{ row.poNumber || '—' }}</span>
+          }
+          @case ('containerNumber') {
+            <span class="font-mono text-xs">{{ row.containerNumber || '—' }}</span>
+          }
+          @case ('weightKg') {
+            <span class="font-mono font-bold text-emerald">{{ formatWeight(row.weightKg) }}</span>
+          }
+          @case ('allocatedCost') {
+            <span class="font-mono font-bold text-primary">{{ formatCurrency(row.allocatedCost) }}</span>
+          }
+          @case ('measurementType') {
+            <span class="text-xs text-muted">{{ row.measurementType || '—' }}</span>
+          }
+          @case ('status') {
+            <span class="status-badge">{{ row.status }}</span>
+          }
+          @default {
+            {{ row[column.key] ?? '—' }}
+          }
+        }
+      </ng-template>
+    </app-data-table>
   </app-page-body>
 </app-page>

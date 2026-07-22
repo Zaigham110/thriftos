@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { CommonModule, DecimalPipe } from '@angular/common';
 
 import { ReportsService } from '../../reports.service';
 import { MoneyService } from '../../../../core/money/money.service';
 import type { FinalProductCostResponse, ReportFilters } from '../../reports.models';
 import { ReportFiltersComponent } from '../../shared/report-filters.component';
+import { MoneyPipe } from '../../../../core/money/money.pipe';
 import {
   AppPageComponent,
   AppPageHeaderComponent,
@@ -15,18 +16,20 @@ import {
   AppDataTableComponent,
   AppButtonComponent,
   AppErrorStateComponent,
-  AppLoadingComponent,
   AppBreadcrumbComponent,
-  AppStackComponent,
   type DataTableColumn,
   type BreadcrumbItem,
 } from '../../../../shared/ui';
+import { LucideAngularModule, DollarSign, Package, Scale, RefreshCw, Layers, ShieldCheck } from 'lucide-angular';
 
 @Component({
   selector: 'app-final-product-cost-report',
   standalone: true,
   imports: [
     CommonModule,
+    DecimalPipe,
+    MoneyPipe,
+    LucideAngularModule,
     ReportFiltersComponent,
     AppPageComponent,
     AppPageHeaderComponent,
@@ -38,7 +41,6 @@ import {
     AppButtonComponent,
     AppErrorStateComponent,
     AppBreadcrumbComponent,
-    AppStackComponent,
   ],
   templateUrl: './final-product-cost-report.html',
   styleUrl: './final-product-cost-report.scss',
@@ -48,10 +50,18 @@ export class FinalProductCostReportComponent implements OnInit {
   private readonly reportsService = inject(ReportsService);
   private readonly money = inject(MoneyService);
 
+  readonly icons = {
+    DollarSign,
+    Package,
+    Scale,
+    RefreshCw,
+    Layers,
+    ShieldCheck,
+  };
+
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Home', link: '/app/dashboard' },
-    { label: 'Reports', link: '/app/reports' },
-    { label: 'Final Product Cost' },
+    { label: 'Reports', route: '/app/reports' },
+    { label: 'Final Product Cost & COGS' },
   ];
 
   readonly response = signal<FinalProductCostResponse | null>(null);
@@ -63,20 +73,38 @@ export class FinalProductCostReportComponent implements OnInit {
   protected currentFilters: ReportFilters = {};
 
   readonly columns: DataTableColumn[] = [
-    { label: 'Sealed', key: 'dateSealed', sortable: true },
-    { label: 'Product', key: 'productCode', sortable: true },
-    { label: 'Unit Type', key: 'unitType', sortable: true },
+    { label: 'Sealed Date', key: 'dateSealed', sortable: true },
+    { label: 'Product Code', key: 'productCode', sortable: true },
     { label: 'Category', key: 'category', sortable: true },
     { label: 'Grade', key: 'grade', sortable: true },
-    { label: 'Qty', key: 'totalQty', sortable: true, align: 'right' },
-    { label: 'Weight (KG)', key: 'totalWeightKg', sortable: true, align: 'right' },
-    { label: 'Total Cost', key: 'totalCost', sortable: true, align: 'right' },
+    { label: 'Unit Type', key: 'unitType', sortable: true },
+    { label: 'Packed Qty', key: 'totalQty', sortable: true, align: 'right' },
+    { label: 'Net Weight (KG)', key: 'totalWeightKg', sortable: true, align: 'right' },
+    { label: 'Landed Cost', key: 'totalCost', sortable: true, align: 'right' },
     { label: 'Cost / KG', key: 'costPerKg', sortable: true, align: 'right' },
     { label: 'Cost / Unit', key: 'costPerUnit', sortable: true, align: 'right' },
-    { label: 'Allocations', key: 'allocationsCount', sortable: true, align: 'right' },
     { label: 'Src Ctrs', key: 'sourceContainers', sortable: true, align: 'right' },
     { label: 'Src Bales', key: 'sourceBales', sortable: true, align: 'right' },
   ];
+
+  // Computed KPI Summaries
+  readonly summaryTotalCost = computed(() => {
+    return this.response()?.summary?.totalCost || 0;
+  });
+
+  readonly summaryTotalWeightKg = computed(() => {
+    return this.response()?.summary?.totalWeightKg || 0;
+  });
+
+  readonly summaryTotalUnits = computed(() => {
+    return this.response()?.summary?.totalUnits || 0;
+  });
+
+  readonly summaryAvgCostPerKg = computed(() => {
+    const w = this.summaryTotalWeightKg();
+    if (w <= 0) return 0;
+    return this.summaryTotalCost() / w;
+  });
 
   protected get exporting(): boolean {
     return this.reportsService.exporting();

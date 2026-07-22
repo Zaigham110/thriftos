@@ -1,12 +1,18 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs" />
-      <h1 class="page-title">Inventory Movements</h1>
-      <p class="page-subtitle">Inventory movement ledger (auditable, backend-derived)</p>
-    </app-stack>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Auditable Inventory Movement Ledger</h1>
+      <p class="page-subtitle">Complete chronological trail of stock intake, repack sealing, warehouse transfer, reservation, and wholesale sales movements.</p>
+    </div>
+
     <div class="actions">
-      <app-button variant="secondary" (click)="loadData()">Refresh</app-button>
+      <app-button variant="secondary" (click)="loadData()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="14" [class.animate-spin]="loading()"></lucide-icon>
+        Refresh Report
+      </app-button>
     </div>
   </app-page-header>
 
@@ -17,53 +23,96 @@
       </app-error-state>
     }
 
-    <app-section>
-      <app-section-body>
-        <app-report-filters
-          [showWarehouse]="true"
-          [warehouses]="warehouses()"
-          [showExport]="true"
-          [exporting]="exporting"
-          (filtersChange)="onFiltersChange($event)"
-          (searchChange)="onSearchChange($event)"
-          (onExport)="exportReport()"
-        />
-      </app-section-body>
-    </app-section>
+    <!-- Summary KPI Grid -->
+    <div class="kpi-grid mb-4">
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-blue">
+          <lucide-icon [img]="icons.ArrowRight" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Audited Movements Count</span>
+          <span class="kpi-value text-primary">{{ summaryTotalMovements() | number:'1.0-0' }} <small>Records</small></span>
+        </div>
+      </div>
 
-    <app-section>
-      <app-section-header>
-        <h2 class="section-title">Movements</h2>
-      </app-section-header>
-      <app-section-body>
-        <app-data-table
-          [data]="response()?.data || []"
-          [columns]="columns"
-          [loading]="loading()"
-          [enableSearch]="false"
-          [externalSearch]="searchText()"
-        >
-          <ng-template #cellTemplate let-row let-column="column">
-            @switch (column.key) {
-              @case ('createdAt') {
-                {{ formatDate(row.createdAt) }}
-              }
-              @case ('quantityKg') {
-                {{ formatWeight(row.quantityKg) }}
-              }
-              @case ('quantityPcs') {
-                {{ formatNumber(row.quantityPcs) }}
-              }
-              @case ('avgCost') {
-                {{ formatCurrency(row.avgCost) }}
-              }
-              @default {
-                {{ row[column.key] ?? '—' }}
-              }
-            }
-          </ng-template>
-        </app-data-table>
-      </app-section-body>
-    </app-section>
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-emerald">
+          <lucide-icon [img]="icons.Scale" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Moved Weight</span>
+          <span class="kpi-value text-emerald">{{ summaryTotalKg() | number:'1.2-2' }} <small>KG</small></span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-purple">
+          <lucide-icon [img]="icons.Package" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Moved Pieces</span>
+          <span class="kpi-value text-primary">{{ summaryTotalPcs() | number:'1.0-0' }} <small>PCS</small></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Integrated Data Table with Embedded Filters -->
+    <app-data-table
+      title="Inventory Stock Movement Audit Ledger"
+      [data]="response()?.data || []"
+      [columns]="columns"
+      [loading]="loading()"
+      [enableSearch]="false"
+      [externalSearch]="searchText()"
+    >
+      <app-report-filters
+        filters
+        [showWarehouse]="true"
+        [warehouses]="warehouses()"
+        [showExport]="true"
+        [exporting]="exporting"
+        (filtersChange)="onFiltersChange($event)"
+        (searchChange)="onSearchChange($event)"
+        (onExport)="exportReport()"
+      ></app-report-filters>
+
+      <ng-template #cellTemplate let-row let-column="column">
+        @switch (column.key) {
+          @case ('createdAt') {
+            <span class="text-muted text-xs">{{ formatDate(row.createdAt) }}</span>
+          }
+          @case ('movementType') {
+            <span class="mtype-badge {{ getMovementTypeClass(row.movementType) }}">{{ row.movementType }}</span>
+          }
+          @case ('unitCode') {
+            <strong class="text-primary font-mono text-xs">{{ row.unitCode || '—' }}</strong>
+          }
+          @case ('unitType') {
+            <span class="text-xs text-muted">{{ row.unitType || '—' }}</span>
+          }
+          @case ('categoryName') {
+            <span class="font-bold">{{ row.categoryName || '—' }}</span>
+          }
+          @case ('gradeName') {
+            <span class="badge-grade">{{ row.gradeName || '—' }}</span>
+          }
+          @case ('warehouseName') {
+            <span class="text-dark font-mono text-xs">{{ row.warehouseName || '—' }}</span>
+          }
+          @case ('quantityKg') {
+            <span class="font-mono font-bold text-emerald">{{ formatWeight(row.quantityKg) }}</span>
+          }
+          @case ('quantityPcs') {
+            <span class="font-mono font-bold">{{ formatNumber(row.quantityPcs) }}</span>
+          }
+          @case ('avgCost') {
+            <span class="font-mono font-bold text-primary">{{ formatCurrency(row.avgCost) }}</span>
+          }
+          @default {
+            {{ row[column.key] ?? '—' }}
+          }
+        }
+      </ng-template>
+    </app-data-table>
   </app-page-body>
 </app-page>

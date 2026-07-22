@@ -3,12 +3,12 @@
  * Phase 7: Reports & Analytics
  * 
  * Category yield analysis from sorting operations.
- * Shows input/output weights and yield percentages.
+ * Shows input/output weights, material loss, and yield percentages.
  * Route: /app/reports/yield
  */
 
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { CommonModule, DecimalPipe } from '@angular/common';
 import {
   LucideAngularModule,
   TrendingUp,
@@ -18,6 +18,7 @@ import {
   Scale,
   Package,
   Trash2,
+  Layers,
 } from 'lucide-angular';
 import { ReportsService } from '../../reports.service';
 import { YieldReportRow, ReportFilters } from '../../reports.models';
@@ -33,9 +34,8 @@ import {
   AppButtonComponent,
   AppErrorStateComponent,
   AppBreadcrumbComponent,
-  AppStackComponent,
   type DataTableColumn,
-  type BreadcrumbItem
+  type BreadcrumbItem,
 } from '../../../../shared/ui';
 
 @Component({
@@ -43,6 +43,7 @@ import {
   standalone: true,
   imports: [
     CommonModule,
+    DecimalPipe,
     LucideAngularModule,
     ReportFiltersComponent,
     AppPageComponent,
@@ -55,7 +56,6 @@ import {
     AppButtonComponent,
     AppErrorStateComponent,
     AppBreadcrumbComponent,
-    AppStackComponent,
   ],
   templateUrl: './yield-report.html',
   styleUrl: './yield-report.scss',
@@ -72,6 +72,7 @@ export class YieldReportComponent implements OnInit {
     Scale,
     Package,
     Trash2,
+    Layers,
   };
 
   readonly data = signal<YieldReportRow[]>([]);
@@ -82,18 +83,36 @@ export class YieldReportComponent implements OnInit {
   protected currentFilters: ReportFilters = {};
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Home', link: '/app/dashboard' },
-    { label: 'Reports', link: '/app/reports' },
-    { label: 'Yield Report' },
+    { label: 'Reports', route: '/app/reports' },
+    { label: 'Yield Audit & Mass Balance' },
   ];
 
   readonly columns: DataTableColumn[] = [
-    { label: 'Category', key: 'categoryName', sortable: true },
-    { label: 'Input (KG)', key: 'inputWeightKg', sortable: true, align: 'right' },
-    { label: 'Output (KG)', key: 'outputWeightKg', sortable: true, align: 'right' },
-    { label: 'Waste (KG)', key: 'wasteWeightKg', sortable: true, align: 'right' },
-    { label: 'Yield %', key: 'yieldPct', sortable: true, align: 'right' },
+    { label: 'Category Name', key: 'categoryName', sortable: true },
+    { label: 'Raw Intake (KG)', key: 'inputWeightKg', sortable: true, align: 'right' },
+    { label: 'Category Output (KG)', key: 'outputWeightKg', sortable: true, align: 'right' },
+    { label: 'Material Waste (KG)', key: 'wasteWeightKg', sortable: true, align: 'right' },
+    { label: 'Yield Conversion %', key: 'yieldPct', sortable: true, align: 'right' },
   ];
+
+  // Summary Metrics
+  readonly totalInputKg = computed(() => {
+    return this.data().reduce((sum, r) => sum + Number(r.inputWeightKg || 0), 0);
+  });
+
+  readonly totalOutputKg = computed(() => {
+    return this.data().reduce((sum, r) => sum + Number(r.outputWeightKg || 0), 0);
+  });
+
+  readonly totalWasteKg = computed(() => {
+    return this.data().reduce((sum, r) => sum + Number(r.wasteWeightKg || 0), 0);
+  });
+
+  readonly averageYieldPct = computed(() => {
+    const input = this.totalInputKg();
+    if (input <= 0) return 0;
+    return Math.min(100, (this.totalOutputKg() / input) * 100);
+  });
 
   protected get exporting(): boolean {
     return this.reportsService.exporting();
@@ -105,7 +124,6 @@ export class YieldReportComponent implements OnInit {
         this.categories.set(lookups.categories);
       },
       error: () => {
-        // Keep report usable even if lookups fail
         this.categories.set([]);
       },
     });

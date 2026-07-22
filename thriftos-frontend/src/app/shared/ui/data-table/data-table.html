@@ -1,44 +1,51 @@
-<div class="app-data-table">
-  @if (title() || subtitle()) {
-    <div class="dt-header">
-      <div class="dt-title">
+<div class="app-data-table-card">
+  <!-- Integrated Enterprise Header & Filter Toolbar -->
+  @if (title() || subtitle() || enableSearch() || hasAnyFilters() || cellTemplate) {
+    <div class="dt-integrated-toolbar">
+      <!-- Title & Item Count -->
+      <div class="dt-brand-group">
         @if (title()) {
-          <div class="dt-title-text">{{ title() }}</div>
+          <div class="dt-title-row">
+            <h3 class="dt-title-text">{{ title() }}</h3>
+            @if (serverSide() ? (totalCount() !== null) : filteredData().length) {
+              <span class="dt-count-badge">
+                {{ serverSide() ? (totalCount() || 0) : filteredData().length }} Items
+              </span>
+            }
+          </div>
         }
         @if (subtitle()) {
           <div class="dt-subtitle">{{ subtitle() }}</div>
         }
       </div>
-      <div class="dt-actions">
+
+      <!-- Filter Controls Slot -->
+      <div class="dt-toolbar-controls">
+        <ng-content select="[filters]"></ng-content>
         <ng-content select="[tableActions]"></ng-content>
+
+        @if (enableSearch() && !externalSearch()) {
+          <div class="dt-search-input-wrap">
+            <app-form-field>
+              <app-input [formControl]="searchControl" placeholder="Search..." />
+            </app-form-field>
+          </div>
+        }
+
+        @if (hasAnyFilters()) {
+          <button type="button" class="btn-clear-table-filters" (click)="clearFilters()" title="Clear Table Filters">
+            Clear
+          </button>
+        }
       </div>
     </div>
   }
 
-  <div class="dt-filters" [class.has-filters]="enableSearch() || enableColumnFilters()">
-    @if (enableSearch()) {
-      <div class="dt-search">
-        <app-form-field>
-          <app-input [formControl]="searchControl" placeholder="Search…" />
-        </app-form-field>
-      </div>
-    }
-
-    <div class="dt-filter-slot">
-      <ng-content select="[filters]"></ng-content>
-    </div>
-
-    @if (hasAnyFilters()) {
-      <div class="dt-filter-actions">
-        <app-button variant="secondary" type="button" (click)="clearFilters()">Clear</app-button>
-      </div>
-    }
-  </div>
-
-  <app-table [loading]="false" [empty]="false">
-    <table>
+  <!-- Main Enterprise Data Table -->
+  <div class="dt-table-container">
+    <table class="oracle-table">
       <thead>
-        <tr>
+        <tr class="oracle-th-row">
           @for (column of columns(); track column.key) {
             <th
               [class]="getAlignClass(column)"
@@ -46,24 +53,26 @@
               [class.is-sortable]="column.sortable"
               (click)="onHeaderClick(column)"
             >
-              <span class="th-label">{{ column.label }}</span>
-              @if (column.sortable) {
-                <span class="th-sort">
-                  <app-icon [name]="sortIconName(column)" size="sm" />
-                </span>
-              }
+              <div class="th-content" [class.justify-end]="column.align === 'right'" [class.justify-center]="column.align === 'center'">
+                <span class="th-label">{{ column.label }}</span>
+                @if (column.sortable) {
+                  <span class="th-sort-icon">
+                    <app-icon [name]="sortIconName(column)" size="sm" />
+                  </span>
+                }
+              </div>
             </th>
           }
 
           @if (rowActionsTemplate) {
-            <th class="text-right actions" width="120">
+            <th class="text-right actions-th" width="90">
               Actions
             </th>
           }
         </tr>
 
         @if (enableColumnFilters() && filterableColumns().length) {
-          <tr class="data-table-filter-row">
+          <tr class="oracle-filter-row">
             @for (column of columns(); track column.key) {
               <th [class]="getAlignClass(column)">
                 @if (column.filterable) {
@@ -80,7 +89,7 @@
                       <app-input
                         [formControl]="filterControlFor(column)"
                         [type]="(column.filterType === 'number') ? 'number' : 'text'"
-                        placeholder="Filter…"
+                        placeholder="Filter..."
                       />
                     </app-form-field>
                   }
@@ -95,23 +104,23 @@
         }
       </thead>
 
-      <tbody class="data-table-body">
+      <tbody class="oracle-tbody">
         @if (loading()) {
-          @for (i of [1,2,3,4,5]; track i) {
-            <tr>
+          @for (i of [1,2,3,4,5,6]; track i) {
+            <tr class="loading-skeleton-row">
               @for (column of columns(); track column.key) {
                 <td>
-                  <div class="skeleton"></div>
+                  <div class="skeleton-bar"></div>
                 </td>
               }
               @if (rowActionsTemplate) {
-                <td class="text-right"><div class="skeleton"></div></td>
+                <td class="text-right"><div class="skeleton-bar"></div></td>
               }
             </tr>
           }
         } @else {
           @for (row of visibleRows(); track $index) {
-            <tr (click)="onRowClick(row)">
+            <tr class="oracle-tr" (click)="onRowClick(row)">
               @for (column of columns(); track column.key) {
                 <td [class]="getAlignClass(column)">
                   @if (cellTemplate) {
@@ -126,7 +135,7 @@
               }
 
               @if (rowActionsTemplate) {
-                <td class="text-right actions" (click)="$event.stopPropagation()">
+                <td class="text-right actions-td" (click)="$event.stopPropagation()">
                   <ng-container
                     [ngTemplateOutlet]="rowActionsTemplate"
                     [ngTemplateOutletContext]="{ $implicit: row }"
@@ -136,10 +145,10 @@
             </tr>
           } @empty {
             <tr>
-              <td [attr.colspan]="columns().length + (rowActionsTemplate ? 1 : 0)" class="data-table-empty">
+              <td [attr.colspan]="columns().length + (rowActionsTemplate ? 1 : 0)" class="oracle-empty-cell">
                 <ng-content select="[emptyState]"></ng-content>
                 <div class="dt-empty-fallback">
-                  <app-empty-state title="No results" message="Try adjusting your filters." />
+                  <app-empty-state title="No records found" message="No data matches the selected filter audit criteria." />
                 </div>
               </td>
             </tr>
@@ -147,40 +156,52 @@
         }
       </tbody>
     </table>
-  </app-table>
+  </div>
 
-  <div class="dt-footer">
-    <div class="dt-pagination">
-      <app-button variant="secondary" type="button" (click)="prevPage()" [disabled]="pageIndex() <= 1">
-        Previous
-      </app-button>
-
-      <div class="dt-page-meta">
-        Page {{ pageIndex() }} of {{ totalPages() }}
-      </div>
-
-      <app-button variant="secondary" type="button" (click)="nextPage()" [disabled]="pageIndex() >= totalPages()">
-        Next
-      </app-button>
-    </div>
-
-    <div class="dt-counts">
-      <span class="dt-count">
-        @if (serverSide()) {
-          {{ totalCount() || 0 }} rows
-        } @else {
-          {{ filteredData().length }} rows
-        }
+  <!-- Integrated Enterprise Pagination Footer -->
+  <div class="dt-integrated-footer">
+    <div class="footer-left-info">
+      <span class="dt-count-text">
+        Showing
+        <strong>{{ visibleRows().length }}</strong>
+        of
+        <strong>{{ serverSide() ? (totalCount() || 0) : filteredData().length }}</strong>
+        records
       </span>
 
-      <div class="dt-page-size">
-        <app-form-field>
-          <app-select
-            [options]="pageSizeSelectOptions()"
-            [formControl]="pageSizeControl"
-          />
-        </app-form-field>
+      <div class="page-size-selector">
+        <span class="size-label">Rows:</span>
+        <app-select
+          [options]="pageSizeSelectOptions()"
+          [formControl]="pageSizeControl"
+        />
       </div>
+    </div>
+
+    <div class="footer-right-pagination">
+      <button 
+        type="button" 
+        class="pg-btn" 
+        (click)="prevPage()" 
+        [disabled]="pageIndex() <= 1"
+        title="Previous Page"
+      >
+        ‹ Prev
+      </button>
+
+      <span class="pg-info">
+        Page <strong>{{ pageIndex() }}</strong> of <strong>{{ totalPages() }}</strong>
+      </span>
+
+      <button 
+        type="button" 
+        class="pg-btn" 
+        (click)="nextPage()" 
+        [disabled]="pageIndex() >= totalPages()"
+        title="Next Page"
+      >
+        Next ›
+      </button>
     </div>
   </div>
 </div>

@@ -1,13 +1,17 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs" />
-      <h1 class="page-title">Yield Report</h1>
-      <p class="page-subtitle">Category yield analysis from sorting operations</p>
-    </app-stack>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Category Yield Audit & Mass Balance Ledger</h1>
+      <p class="page-subtitle">Raw container intake weight vs sorting output conversion yield % and material loss audit.</p>
+    </div>
+
     <div class="actions">
-      <app-button variant="secondary" (click)="loadData()">
-        Refresh
+      <app-button variant="secondary" (click)="loadData()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="14" [class.animate-spin]="loading()"></lucide-icon>
+        Refresh Report
       </app-button>
     </div>
   </app-page-header>
@@ -19,55 +23,93 @@
       </app-error-state>
     }
 
-    <!-- Filters -->
-    <app-section>
-      <app-section-body>
-        <app-report-filters
-          [showCategory]="true"
-          [categories]="categories()"
-          [showExport]="true"
-          [exporting]="exporting"
-          (filtersChange)="onFiltersChange($event)"
-          (searchChange)="onSearchChange($event)"
-          (onExport)="exportReport()"
-        />
-      </app-section-body>
-    </app-section>
+    <!-- Summary KPI Grid -->
+    <div class="kpi-grid mb-4">
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-blue">
+          <lucide-icon [img]="icons.Scale" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Raw Intake Weight</span>
+          <span class="kpi-value">{{ totalInputKg() | number:'1.2-2' }} <small>KG</small></span>
+        </div>
+      </div>
 
-    <!-- Data Table -->
-    <app-section>
-      <app-section-header>
-        <h2 class="section-title">Yield by Category</h2>
-      </app-section-header>
-      <app-section-body>
-        <app-data-table
-          [data]="data()"
-          [columns]="columns"
-          [loading]="loading()"
-          [enableSearch]="false"
-          [externalSearch]="searchText()"
-        >
-          <ng-template #cellTemplate let-row let-column="column">
-            @switch (column.key) {
-              @case ('inputWeightKg') {
-                {{ formatWeight(row.inputWeightKg) }}
-              }
-              @case ('outputWeightKg') {
-                {{ formatWeight(row.outputWeightKg) }}
-              }
-              @case ('wasteWeightKg') {
-                {{ formatWeight(row.wasteWeightKg) }}
-              }
-              @case ('yieldPct') {
-                {{ formatPercent(row.yieldPct) }}
-              }
-              @default {
-                {{ row[column.key] }}
-              }
-            }
-          </ng-template>
-        </app-data-table>
-      </app-section-body>
-    </app-section>
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-emerald">
+          <lucide-icon [img]="icons.Layers" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Output Weight</span>
+          <span class="kpi-value text-emerald">{{ totalOutputKg() | number:'1.2-2' }} <small>KG</small></span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-amber">
+          <lucide-icon [img]="icons.Trash2" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Material Waste Loss</span>
+          <span class="kpi-value text-amber">{{ totalWasteKg() | number:'1.2-2' }} <small>KG</small></span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-purple">
+          <lucide-icon [img]="icons.TrendingUp" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Overall Conversion Yield</span>
+          <span class="kpi-value text-primary">{{ averageYieldPct() | number:'1.1-1' }}<small>%</small></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Integrated Data Table with Embedded Filters -->
+    <app-data-table
+      title="Mass Balance Yield Conversion Ledger"
+      [data]="data()"
+      [columns]="columns"
+      [loading]="loading()"
+      [enableSearch]="false"
+      [externalSearch]="searchText()"
+    >
+      <app-report-filters
+        filters
+        [showCategory]="true"
+        [categories]="categories()"
+        [showExport]="true"
+        [exporting]="exporting"
+        (filtersChange)="onFiltersChange($event)"
+        (searchChange)="onSearchChange($event)"
+        (onExport)="exportReport()"
+      ></app-report-filters>
+
+      <ng-template #cellTemplate let-row let-column="column">
+        @switch (column.key) {
+          @case ('categoryName') {
+            <strong class="text-primary">{{ row.categoryName || '—' }}</strong>
+          }
+          @case ('inputWeightKg') {
+            <span class="font-mono font-bold">{{ formatWeight(row.inputWeightKg) }}</span>
+          }
+          @case ('outputWeightKg') {
+            <span class="font-mono font-bold text-emerald">{{ formatWeight(row.outputWeightKg) }}</span>
+          }
+          @case ('wasteWeightKg') {
+            <span class="font-mono font-bold text-amber">{{ formatWeight(row.wasteWeightKg) }}</span>
+          }
+          @case ('yieldPct') {
+            <span class="yield-badge" [class.high]="row.yieldPct >= 90" [class.medium]="row.yieldPct >= 75 && row.yieldPct < 90" [class.low]="row.yieldPct < 75">
+              {{ row.yieldPct | number:'1.1-1' }}%
+            </span>
+          }
+          @default {
+            {{ row[column.key] ?? '—' }}
+          }
+        }
+      </ng-template>
+    </app-data-table>
   </app-page-body>
 </app-page>

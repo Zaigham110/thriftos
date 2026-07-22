@@ -1,13 +1,17 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs" />
-      <h1 class="page-title">Procurement Report</h1>
-      <p class="page-subtitle">Vendor summary and cost analysis</p>
-    </app-stack>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Supplier Vendor Procurement & Cost Analysis</h1>
+      <p class="page-subtitle">Vendor volume performance, container intake, cumulative landed costs, and unit rates.</p>
+    </div>
+
     <div class="actions">
-      <app-button variant="secondary" (click)="loadData()">
-        Refresh
+      <app-button variant="secondary" (click)="loadData()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="14" [class.animate-spin]="loading()"></lucide-icon>
+        Refresh Report
       </app-button>
     </div>
   </app-page-header>
@@ -19,58 +23,89 @@
       </app-error-state>
     }
 
-    <!-- Filters -->
-    <app-section>
-      <app-section-body>
-        <app-report-filters
-          [showExport]="true"
-          [exporting]="exporting"
-          (filtersChange)="onFiltersChange($event)"
-          (searchChange)="onSearchChange($event)"
-          (onExport)="exportReport()"
-        />
-      </app-section-body>
-    </app-section>
+    <!-- Summary KPI Grid -->
+    <div class="kpi-grid mb-4">
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-purple">
+          <lucide-icon [img]="icons.DollarSign" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Cumulative Procurement Cost</span>
+          <span class="kpi-value text-primary">{{ summaryTotalCost() | money }}</span>
+        </div>
+      </div>
 
-    <!-- Data Table -->
-    <app-section>
-      <app-section-header>
-        <h2 class="section-title">Vendor Summary</h2>
-      </app-section-header>
-      <app-section-body>
-        <app-data-table
-          [data]="vendors()"
-          [columns]="vendorColumns"
-          [loading]="loading()"
-          [enableSearch]="false"
-          [externalSearch]="searchText()"
-        >
-          <ng-template #cellTemplate let-row let-column="column">
-            @switch (column.key) {
-              @case ('vendorName') {
-                <div class="flex flex-col">
-                  <span class="font-medium text-gray-900">{{ row.vendorName }}</span>
-                  @if (row.vendorCode) {
-                    <span class="text-xs text-gray-500">{{ row.vendorCode }}</span>
-                  }
-                </div>
-              }
-              @case ('totalWeightKg') {
-                {{ formatWeight(row.totalWeightKg) }}
-              }
-              @case ('totalCost') {
-                {{ formatCurrency(row.totalCost) }}
-              }
-              @case ('avgCostPerKg') {
-                {{ formatCurrency(row.avgCostPerKg) }}
-              }
-              @default {
-                {{ row[column.key] }}
-              }
-            }
-          </ng-template>
-        </app-data-table>
-      </app-section-body>
-    </app-section>
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-blue">
+          <lucide-icon [img]="icons.Scale" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Intake Weight</span>
+          <span class="kpi-value">{{ summaryTotalWeightKg() | number:'1.2-2' }} <small>KG</small></span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-emerald">
+          <lucide-icon [img]="icons.Truck" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Containers Handled</span>
+          <span class="kpi-value text-emerald">{{ summaryTotalContainers() | number:'1.0-0' }} <small>Containers</small></span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-amber">
+          <lucide-icon [img]="icons.Layers" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Weighted Average Cost / KG</span>
+          <span class="kpi-value text-amber">{{ summaryAvgCostPerKg() | money }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Integrated Data Table with Embedded Filters -->
+    <app-data-table
+      title="Supplier Vendor Performance & Cost Breakdown Ledger"
+      [data]="vendors()"
+      [columns]="vendorColumns"
+      [loading]="loading()"
+      [enableSearch]="false"
+      [externalSearch]="searchText()"
+    >
+      <app-report-filters
+        filters
+        [showExport]="true"
+        [exporting]="exporting"
+        (filtersChange)="onFiltersChange($event)"
+        (searchChange)="onSearchChange($event)"
+        (onExport)="exportReport()"
+      ></app-report-filters>
+
+      <ng-template #cellTemplate let-row let-column="column">
+        @switch (column.key) {
+          @case ('vendorName') {
+            <strong class="text-primary">{{ row.vendorName || '—' }}</strong>
+          }
+          @case ('totalContainers') {
+            <span class="font-mono font-bold">{{ formatNumber(row.totalContainers) }}</span>
+          }
+          @case ('totalWeightKg') {
+            <span class="font-mono font-bold text-emerald">{{ formatWeight(row.totalWeightKg) }}</span>
+          }
+          @case ('totalCost') {
+            <span class="font-mono font-bold text-primary">{{ formatCurrency(row.totalCost) }}</span>
+          }
+          @case ('avgCostPerKg') {
+            <span class="font-mono font-bold text-amber">{{ formatCurrency(row.avgCostPerKg) }}</span>
+          }
+          @default {
+            {{ row[column.key] ?? '—' }}
+          }
+        }
+      </ng-template>
+    </app-data-table>
   </app-page-body>
 </app-page>

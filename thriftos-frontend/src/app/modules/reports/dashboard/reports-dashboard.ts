@@ -1,6 +1,14 @@
-import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+/**
+ * Enterprise Executive Reports & Analytics Dashboard Component
+ * Phase 7: Reports & Analytics
+ * 
+ * Enterprise-level supply chain intelligence dashboard with visual analytics,
+ * yield breakdown progress bars, cost flow waterfalls, and dynamic KPIs.
+ */
+
+import { CommonModule, DecimalPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
 import {
   LucideAngularModule,
   BarChart3,
@@ -10,30 +18,39 @@ import {
   DollarSign,
   FileBarChart,
   ArrowRight,
+  Sparkles,
+  Layers,
+  Scale,
+  RefreshCw,
+  PieChart,
+  Activity,
+  Boxes,
+  Truck,
+  Zap,
+  ShieldCheck,
 } from 'lucide-angular';
-import { MoneyService } from '../../../core/money/money.service';
+
+import { ReportsService } from '../reports.service';
+import type { YieldReportRow, FinalProductCostResponse, InventorySnapshotResponse } from '../reports.models';
+import { MoneyPipe } from '../../../core/money/money.pipe';
 import {
+  AppBreadcrumbComponent,
+  AppErrorStateComponent,
+  AppLoadingComponent,
+  AppPageBodyComponent,
   AppPageComponent,
   AppPageHeaderComponent,
-  AppPageBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSectionBodyComponent,
-  AppStackComponent,
-  AppBreadcrumbComponent,
-  AppButtonComponent,
-  AppDataTableComponent,
   type BreadcrumbItem,
-  type TableColumn,
 } from '../../../shared/ui';
 
-interface ReportLink {
+interface EnterpriseReportCard {
   id: string;
   title: string;
   description: string;
   route: string;
   icon: any;
-  color: 'primary' | 'blue' | 'green' | 'amber' | 'red';
+  category: 'OPERATIONS' | 'FINANCIAL' | 'INVENTORY' | 'QUALITY';
+  tag: string;
 }
 
 @Component({
@@ -42,24 +59,24 @@ interface ReportLink {
   imports: [
     CommonModule,
     RouterLink,
+    DecimalPipe,
+    MoneyPipe,
     LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
-    AppStackComponent,
     AppBreadcrumbComponent,
-    AppButtonComponent,
-    AppDataTableComponent,
+    AppLoadingComponent,
+    AppErrorStateComponent,
   ],
   templateUrl: './reports-dashboard.html',
   styleUrl: './reports-dashboard-erp.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReportsDashboardComponent implements OnInit {
-    constructor(private readonly money: MoneyService) {}
+  private readonly router = inject(Router);
+  private readonly reportsService = inject(ReportsService);
+
   readonly icons = {
     BarChart3,
     TrendingUp,
@@ -68,132 +85,204 @@ export class ReportsDashboardComponent implements OnInit {
     DollarSign,
     FileBarChart,
     ArrowRight,
+    Sparkles,
+    Layers,
+    Scale,
+    RefreshCw,
+    PieChart,
+    Activity,
+    Boxes,
+    Truck,
+    Zap,
+    ShieldCheck,
   };
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Home', link: '/app/dashboard' },
-    { label: 'Reports' },
+    { label: 'Reports', route: '/app/reports' },
+    { label: 'Enterprise Intelligence Dashboard' },
   ];
 
-  readonly reportColumns: TableColumn[] = [
-    { key: 'title', label: 'Report', sortable: true },
-    { key: 'description', label: 'Description' },
-    { key: 'action', label: 'Action', width: '120px' },
-  ];
+  // State Signals
+  readonly loading = signal<boolean>(true);
+  readonly error = signal<string | null>(null);
 
-  formatNumber(value: number): string {
-    return new Intl.NumberFormat('en-US').format(value);
-  }
+  readonly yieldData = signal<YieldReportRow[]>([]);
+  readonly productCostData = signal<FinalProductCostResponse | null>(null);
+  readonly inventorySnapshot = signal<InventorySnapshotResponse | null>(null);
 
-  readonly reportLinks: ReportLink[] = [
-    {
-      id: 'procurement-summary',
-      title: 'Procurement Summary',
-      description: 'Purchase orders reconciled to computed procurement costs',
-      route: '/reports/procurement-summary',
-      icon: DollarSign,
-      color: 'amber',
-    },
+  // Aggregated Key Metrics
+  readonly totalYieldInputKg = computed(() => {
+    return this.yieldData().reduce((sum, r) => sum + Number(r.inputWeightKg || 0), 0);
+  });
+
+  readonly totalYieldOutputKg = computed(() => {
+    return this.yieldData().reduce((sum, r) => sum + Number(r.outputWeightKg || 0), 0);
+  });
+
+  readonly totalYieldWasteKg = computed(() => {
+    return this.yieldData().reduce((sum, r) => sum + Number(r.wasteWeightKg || 0), 0);
+  });
+
+  readonly overallYieldPct = computed(() => {
+    const input = this.totalYieldInputKg();
+    if (input <= 0) return 0;
+    return Math.min(100, (this.totalYieldOutputKg() / input) * 100);
+  });
+
+  readonly wasteRatioPct = computed(() => {
+    const input = this.totalYieldInputKg();
+    if (input <= 0) return 0;
+    return Math.min(100, (this.totalYieldWasteKg() / input) * 100);
+  });
+
+  readonly totalInventoryValuation = computed(() => {
+    const costResp = this.productCostData();
+    if (costResp?.summary) {
+      return costResp.summary.totalCost || 0;
+    }
+    return 0;
+  });
+
+  readonly avgCostPerKg = computed(() => {
+    const costResp = this.productCostData();
+    if (costResp?.summary && costResp.summary.totalWeightKg > 0) {
+      return costResp.summary.totalCost / costResp.summary.totalWeightKg;
+    }
+    return 0;
+  });
+
+  readonly totalSealedUnits = computed(() => {
+    const costResp = this.productCostData();
+    return costResp?.summary?.totalUnits || 0;
+  });
+
+  readonly totalSealedWeightKg = computed(() => {
+    const costResp = this.productCostData();
+    return costResp?.summary?.totalWeightKg || 0;
+  });
+
+  // Enterprise Report Cards Directory
+  readonly enterpriseReportCards: EnterpriseReportCard[] = [
     {
       id: 'yield',
-      title: 'Yield Report',
-      description: 'Category yield analysis from sorting operations',
-      route: '/reports/yield',
+      title: 'Yield Audit & Mass Balance',
+      description: 'Raw bale intake vs Stage 1 category yield vs Stage 2 quality grade conversion and waste ratio.',
+      route: '/app/reports/yield',
       icon: TrendingUp,
-      color: 'green',
-    },
-    {
-      id: 'sorting-outputs',
-      title: 'Sorting Outputs',
-      description: 'Stage 1 category outputs and Stage 2 grade outputs',
-      route: '/reports/sorting-outputs',
-      icon: BarChart3,
-      color: 'blue',
-    },
-    {
-      id: 'sorting-waste',
-      title: 'Sorting Waste',
-      description: 'Legacy + categorized waste with combined totals',
-      route: '/reports/sorting-waste',
-      icon: Trash2,
-      color: 'red',
-    },
-    {
-      id: 'waste',
-      title: 'Waste Report',
-      description: 'Waste by stage and cost impact analysis',
-      route: '/reports/waste',
-      icon: Trash2,
-      color: 'red',
-    },
-    {
-      id: 'inventory',
-      title: 'Inventory Report',
-      description: 'Stock levels, valuation, and aging analysis',
-      route: '/reports/inventory',
-      icon: Package,
-      color: 'blue',
-    },
-    {
-      id: 'inventory-movements',
-      title: 'Inventory Movements',
-      description: 'Auditable inventory movement ledger (in/out)',
-      route: '/reports/inventory-movements',
-      icon: ArrowRight,
-      color: 'blue',
-    },
-    {
-      id: 'procurement',
-      title: 'Procurement Report',
-      description: 'Cost analysis and supplier performance',
-      route: '/reports/procurement',
-      icon: DollarSign,
-      color: 'amber',
-    },
-    {
-      id: 'repack-summary',
-      title: 'Repack Summary',
-      description: 'Draft vs sealed repacks grouped by status',
-      route: '/reports/repack-summary',
-      icon: Package,
-      color: 'green',
+      category: 'OPERATIONS',
+      tag: 'High Impact',
     },
     {
       id: 'final-product-cost',
-      title: 'Final Product Cost',
-      description: 'Backend-derived sealed unit costs and traceability counts',
-      route: '/reports/final-product-cost',
-      icon: FileBarChart,
-      color: 'primary',
+      title: 'Final Sealed Goods Cost & COGS',
+      description: 'Backend-derived sealed unit landed cost, labor allocations, container cost cascade, and margins.',
+      route: '/app/reports/final-product-cost',
+      icon: DollarSign,
+      category: 'FINANCIAL',
+      tag: 'COGS Audit',
+    },
+    {
+      id: 'inventory',
+      title: 'Finished Inventory Valuation',
+      description: 'Warehouse stock levels, grade distribution, storage location valuation ($), and inventory aging.',
+      route: '/app/reports/inventory',
+      icon: Package,
+      category: 'INVENTORY',
+      tag: 'Stock Valuation',
+    },
+    {
+      id: 'procurement-summary',
+      title: 'Procurement & Container Costs',
+      description: 'PO total landed costs, ocean freight allocations, supplier volume performance, and bale intake.',
+      route: '/app/reports/procurement-summary',
+      icon: Truck,
+      category: 'FINANCIAL',
+      tag: 'Procurement',
+    },
+    {
+      id: 'repack-summary',
+      title: 'Repack & Batch Production',
+      description: 'Draft vs sealed repack units grouped by category, quality grade, sealed dates, and batch counts.',
+      route: '/app/reports/repack-summary',
+      icon: Layers,
+      category: 'OPERATIONS',
+      tag: 'Batch Repack',
+    },
+    {
+      id: 'sorting-outputs',
+      title: 'Sorting Outputs & Grade Breakdown',
+      description: 'Stage 1 category outputs and Stage 2 finished grade outputs distribution with lineage tracking.',
+      route: '/app/reports/sorting-outputs',
+      icon: BarChart3,
+      category: 'QUALITY',
+      tag: 'Output Quality',
+    },
+    {
+      id: 'waste',
+      title: 'Waste & Material Loss Audit',
+      description: 'Stage 1 & Stage 2 categorized waste weight, disposal cost impact, and waste reduction metrics.',
+      route: '/app/reports/waste',
+      icon: Trash2,
+      category: 'QUALITY',
+      tag: 'Loss Control',
+    },
+    {
+      id: 'inventory-movements',
+      title: 'Inventory Movement Ledger',
+      description: 'Auditable stock intake, allocation, repack reservation, and wholesale sales movement ledger.',
+      route: '/app/reports/inventory-movements',
+      icon: ArrowRight,
+      category: 'INVENTORY',
+      tag: 'Audit Trail',
     },
   ];
 
   ngOnInit(): void {
-    // No dashboard-level aggregation. Report pages are the source of truth.
+    this.loadAllOverviewData();
   }
 
-  private toNumber(value: unknown): number | null {
-    if (value === null || value === undefined) return null;
-    const n = typeof value === 'number' ? value : Number(String(value));
-    return Number.isFinite(n) ? n : null;
+  loadAllOverviewData(): void {
+    this.loading.set(true);
+    this.error.set(null);
+
+    this.reportsService.loadYieldReport().subscribe({
+      next: (rows) => {
+        this.yieldData.set(rows || []);
+      },
+      error: () => {},
+    });
+
+    this.reportsService.fetchFinalProductCost().subscribe({
+      next: (res) => {
+        this.productCostData.set(res);
+      },
+      error: () => {},
+    });
+
+    this.reportsService.loadInventorySnapshot().subscribe({
+      next: (snap) => {
+        this.inventorySnapshot.set(snap);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.loading.set(false);
+      },
+    });
   }
 
-  formatCurrency(value: unknown): string {
-    const n = this.toNumber(value);
-    if (n === null) return '—';
-    return this.money.format(n, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  openReport(route: string): void {
+    this.router.navigate([route]);
   }
 
-  formatWeight(weight: unknown): string {
-    const n = this.toNumber(weight);
-    if (n === null) return '—';
-    if (n >= 1000) return `${(n / 1000).toFixed(2)} T`;
-    return `${n.toFixed(2)} KG`;
+  getYieldPct(row: YieldReportRow): number {
+    const input = Number(row.inputWeightKg || 0);
+    if (input <= 0) return 0;
+    return Math.min(100, (Number(row.outputWeightKg || 0) / input) * 100);
   }
 
-  formatPercent(value: unknown): string {
-    const n = this.toNumber(value);
-    if (n === null) return '—';
-    return `${n.toFixed(1)}%`;
+  getWastePct(row: YieldReportRow): number {
+    const input = Number(row.inputWeightKg || 0);
+    if (input <= 0) return 0;
+    return Math.min(100, (Number(row.wasteWeightKg || 0) / input) * 100);
   }
 }

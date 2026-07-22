@@ -51,13 +51,11 @@ export interface DataTableState {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    AppButtonComponent,
     AppEmptyStateComponent,
     AppFormFieldComponent,
     AppIconComponent,
     AppInputComponent,
     AppSelectComponent,
-    AppTableComponent,
   ],
   templateUrl: './data-table.html',
   styleUrl: './data-table.scss',

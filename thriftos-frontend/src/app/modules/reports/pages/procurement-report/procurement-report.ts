@@ -2,17 +2,17 @@
  * Procurement Report Component
  * Phase 7: Reports & Analytics
  * 
- * Vendor summary and procurement cost analysis.
- * Shows cost breakdown by vendor and container.
+ * Supplier vendor summary and container procurement cost analysis.
  * Route: /app/reports/procurement
  */
 
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { CommonModule, DecimalPipe } from '@angular/common';
 import { ReportsService } from '../../reports.service';
 import { MoneyService } from '../../../../core/money/money.service';
 import { VendorSummaryRow, ReportFilters } from '../../reports.models';
 import { ReportFiltersComponent } from '../../shared/report-filters.component';
+import { MoneyPipe } from '../../../../core/money/money.pipe';
 import {
   AppPageComponent,
   AppPageHeaderComponent,
@@ -23,18 +23,20 @@ import {
   AppDataTableComponent,
   AppButtonComponent,
   AppErrorStateComponent,
-  AppLoadingComponent,
   AppBreadcrumbComponent,
-  AppStackComponent,
   type DataTableColumn,
-  type BreadcrumbItem
+  type BreadcrumbItem,
 } from '../../../../shared/ui';
+import { LucideAngularModule, DollarSign, Truck, RefreshCw, Scale, Layers } from 'lucide-angular';
 
 @Component({
   selector: 'app-procurement-report',
   standalone: true,
   imports: [
     CommonModule,
+    DecimalPipe,
+    MoneyPipe,
+    LucideAngularModule,
     ReportFiltersComponent,
     AppPageComponent,
     AppPageHeaderComponent,
@@ -46,7 +48,6 @@ import {
     AppButtonComponent,
     AppErrorStateComponent,
     AppBreadcrumbComponent,
-    AppStackComponent
   ],
   templateUrl: './procurement-report.html',
   styleUrl: './procurement-report.scss',
@@ -56,6 +57,14 @@ export class ProcurementReportComponent implements OnInit {
   private readonly reportsService = inject(ReportsService);
   private readonly money = inject(MoneyService);
 
+  readonly icons = {
+    DollarSign,
+    Truck,
+    RefreshCw,
+    Scale,
+    Layers,
+  };
+
   readonly vendors = signal<VendorSummaryRow[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
@@ -63,42 +72,36 @@ export class ProcurementReportComponent implements OnInit {
   protected currentFilters: ReportFilters = {};
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Home', link: '/app/dashboard' },
-    { label: 'Reports', link: '/app/reports' },
-    { label: 'Procurement Report' },
+    { label: 'Reports', route: '/app/reports' },
+    { label: 'Supplier Vendor Procurement Summary' },
   ];
 
   readonly vendorColumns: DataTableColumn[] = [
-    {
-      key: 'vendorName',
-      label: 'Vendor',
-      sortable: true,
-    },
-    {
-      key: 'totalContainers',
-      label: 'Containers',
-      sortable: true,
-      align: 'right'
-    },
-    {
-      key: 'totalWeightKg',
-      label: 'Weight',
-      sortable: true,
-      align: 'right',
-    },
-    {
-      key: 'totalCost',
-      label: 'Total Cost',
-      sortable: true,
-      align: 'right',
-    },
-    {
-      key: 'avgCostPerKg',
-      label: 'Cost/KG',
-      sortable: true,
-      align: 'right',
-    }
+    { key: 'vendorName', label: 'Supplier Vendor Name', sortable: true },
+    { key: 'totalContainers', label: 'Containers Count', sortable: true, align: 'right' },
+    { key: 'totalWeightKg', label: 'Total Weight (KG)', sortable: true, align: 'right' },
+    { key: 'totalCost', label: 'Cumulative PO Cost', sortable: true, align: 'right' },
+    { key: 'avgCostPerKg', label: 'Average Cost / KG', sortable: true, align: 'right' },
   ];
+
+  // Computed Summaries
+  readonly summaryTotalCost = computed(() => {
+    return this.vendors().reduce((sum, r) => sum + Number(r.totalCost || 0), 0);
+  });
+
+  readonly summaryTotalWeightKg = computed(() => {
+    return this.vendors().reduce((sum, r) => sum + Number(r.totalWeightKg || 0), 0);
+  });
+
+  readonly summaryTotalContainers = computed(() => {
+    return this.vendors().reduce((sum, r) => sum + Number(r.totalContainers || 0), 0);
+  });
+
+  readonly summaryAvgCostPerKg = computed(() => {
+    const w = this.summaryTotalWeightKg();
+    if (w <= 0) return 0;
+    return this.summaryTotalCost() / w;
+  });
 
   protected get exporting(): boolean {
     return this.reportsService.exporting();
@@ -159,6 +162,4 @@ export class ProcurementReportComponent implements OnInit {
     if (n === null) return '—';
     return this.money.format(n, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
-
-  // No frontend rollups or chart calculations.
 }

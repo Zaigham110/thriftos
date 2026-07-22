@@ -1,12 +1,18 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs" />
-      <h1 class="page-title">Final Product Cost</h1>
-      <p class="page-subtitle">Final-unit costs derived from backend allocation chain</p>
-    </app-stack>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Final Product Landed Cost & COGS Audit</h1>
+      <p class="page-subtitle">Backend-derived sealed product unit landed costs, container cost allocations, and valuation rates.</p>
+    </div>
+
     <div class="actions">
-      <app-button variant="secondary" (click)="loadData()">Refresh</app-button>
+      <app-button variant="secondary" (click)="loadData()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="14" [class.animate-spin]="loading()"></lucide-icon>
+        Refresh Report
+      </app-button>
     </div>
   </app-page-header>
 
@@ -17,70 +23,114 @@
       </app-error-state>
     }
 
-    <app-section>
-      <app-section-body>
-        <app-report-filters
-          [showCategory]="true"
-          [showGrade]="true"
-          [categories]="categories()"
-          [grades]="grades()"
-          [showExport]="true"
-          [exporting]="exporting"
-          (filtersChange)="onFiltersChange($event)"
-          (searchChange)="onSearchChange($event)"
-          (onExport)="exportReport()"
-        />
-      </app-section-body>
-    </app-section>
+    <!-- Summary KPI Grid -->
+    <div class="kpi-grid mb-4">
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-purple">
+          <lucide-icon [img]="icons.DollarSign" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Cumulative Landed Cost</span>
+          <span class="kpi-value text-primary">{{ summaryTotalCost() | money }}</span>
+        </div>
+      </div>
 
-    <app-section>
-      <app-section-header>
-        <h2 class="section-title">Units</h2>
-      </app-section-header>
-      <app-section-body>
-        <app-data-table
-          [data]="response()?.data || []"
-          [columns]="columns"
-          [loading]="loading()"
-          [enableSearch]="false"
-          [externalSearch]="searchText()"
-        >
-          <ng-template #cellTemplate let-row let-column="column">
-            @switch (column.key) {
-              @case ('dateSealed') {
-                {{ formatDate(row.dateSealed) }}
-              }
-              @case ('totalQty') {
-                {{ formatNumber(row.totalQty) }}
-              }
-              @case ('totalWeightKg') {
-                {{ formatWeight(row.totalWeightKg) }}
-              }
-              @case ('totalCost') {
-                {{ formatCurrency(row.totalCost) }}
-              }
-              @case ('costPerKg') {
-                {{ formatCurrency(row.costPerKg) }}
-              }
-              @case ('costPerUnit') {
-                {{ formatCurrency(row.costPerUnit) }}
-              }
-              @case ('allocationsCount') {
-                {{ formatNumber(row.allocationsCount) }}
-              }
-              @case ('sourceContainers') {
-                {{ formatNumber(row.sourceContainers) }}
-              }
-              @case ('sourceBales') {
-                {{ formatNumber(row.sourceBales) }}
-              }
-              @default {
-                {{ row[column.key] ?? '—' }}
-              }
-            }
-          </ng-template>
-        </app-data-table>
-      </app-section-body>
-    </app-section>
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-blue">
+          <lucide-icon [img]="icons.Scale" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Sealed Net Weight</span>
+          <span class="kpi-value">{{ summaryTotalWeightKg() | number:'1.2-2' }} <small>KG</small></span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-emerald">
+          <lucide-icon [img]="icons.ShieldCheck" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Average Cost / KG</span>
+          <span class="kpi-value text-emerald">{{ summaryAvgCostPerKg() | money }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-amber">
+          <lucide-icon [img]="icons.Package" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Sealed Product Units</span>
+          <span class="kpi-value text-amber">{{ summaryTotalUnits() | number:'1.0-0' }} <small>Units</small></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Integrated Data Table with Embedded Filters Toolbar -->
+    <app-data-table
+      title="Final Product Sealed Units Costing Ledger"
+      [data]="response()?.data || []"
+      [columns]="columns"
+      [loading]="loading()"
+      [enableSearch]="false"
+      [externalSearch]="searchText()"
+    >
+      <app-report-filters
+        filters
+        [showCategory]="true"
+        [showGrade]="true"
+        [categories]="categories()"
+        [grades]="grades()"
+        [showExport]="true"
+        [exporting]="exporting"
+        (filtersChange)="onFiltersChange($event)"
+        (searchChange)="onSearchChange($event)"
+        (onExport)="exportReport()"
+      ></app-report-filters>
+
+      <ng-template #cellTemplate let-row let-column="column">
+        @switch (column.key) {
+          @case ('dateSealed') {
+            <span class="text-muted text-xs">{{ formatDate(row.dateSealed) }}</span>
+          }
+          @case ('productCode') {
+            <strong class="text-primary font-mono">{{ row.productCode || '—' }}</strong>
+          }
+          @case ('category') {
+            <span class="font-bold">{{ row.category || '—' }}</span>
+          }
+          @case ('grade') {
+            <span class="badge-grade">{{ row.grade || '—' }}</span>
+          }
+          @case ('unitType') {
+            <span class="text-xs text-muted">{{ row.unitType || '—' }}</span>
+          }
+          @case ('totalQty') {
+            <span class="font-mono font-bold">{{ formatNumber(row.totalQty) }}</span>
+          }
+          @case ('totalWeightKg') {
+            <span class="font-mono font-bold">{{ formatWeight(row.totalWeightKg) }}</span>
+          }
+          @case ('totalCost') {
+            <span class="font-mono font-bold text-primary">{{ formatCurrency(row.totalCost) }}</span>
+          }
+          @case ('costPerKg') {
+            <span class="font-mono font-bold text-emerald">{{ formatCurrency(row.costPerKg) }}</span>
+          }
+          @case ('costPerUnit') {
+            <span class="font-mono font-bold text-amber">{{ formatCurrency(row.costPerUnit) }}</span>
+          }
+          @case ('sourceContainers') {
+            <span class="text-xs font-mono">{{ formatNumber(row.sourceContainers) }}</span>
+          }
+          @case ('sourceBales') {
+            <span class="text-xs font-mono">{{ formatNumber(row.sourceBales) }}</span>
+          }
+          @default {
+            {{ row[column.key] ?? '—' }}
+          }
+        }
+      </ng-template>
+    </app-data-table>
   </app-page-body>
 </app-page>

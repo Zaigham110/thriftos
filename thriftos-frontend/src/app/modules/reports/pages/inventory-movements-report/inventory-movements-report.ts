@@ -1,10 +1,19 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+/**
+ * Inventory Movements Report Component
+ * Phase 7: Reports & Analytics
+ * 
+ * Auditable inventory movement ledger (in/out movements across warehouses).
+ * Route: /app/reports/inventory-movements
+ */
+
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { CommonModule, DecimalPipe } from '@angular/common';
 
 import { ReportsService } from '../../reports.service';
 import { MoneyService } from '../../../../core/money/money.service';
 import type { InventoryMovementsResponse, ReportFilters } from '../../reports.models';
 import { ReportFiltersComponent } from '../../shared/report-filters.component';
+import { MoneyPipe } from '../../../../core/money/money.pipe';
 import {
   AppPageComponent,
   AppPageHeaderComponent,
@@ -15,18 +24,20 @@ import {
   AppDataTableComponent,
   AppButtonComponent,
   AppErrorStateComponent,
-  AppLoadingComponent,
   AppBreadcrumbComponent,
-  AppStackComponent,
   type DataTableColumn,
   type BreadcrumbItem,
 } from '../../../../shared/ui';
+import { LucideAngularModule, ArrowRight, Scale, RefreshCw, Package, Layers } from 'lucide-angular';
 
 @Component({
   selector: 'app-inventory-movements-report',
   standalone: true,
   imports: [
     CommonModule,
+    DecimalPipe,
+    MoneyPipe,
+    LucideAngularModule,
     ReportFiltersComponent,
     AppPageComponent,
     AppPageHeaderComponent,
@@ -38,7 +49,6 @@ import {
     AppButtonComponent,
     AppErrorStateComponent,
     AppBreadcrumbComponent,
-    AppStackComponent,
   ],
   templateUrl: './inventory-movements-report.html',
   styleUrl: './inventory-movements-report.scss',
@@ -48,10 +58,17 @@ export class InventoryMovementsReportComponent implements OnInit {
   private readonly reportsService = inject(ReportsService);
   private readonly money = inject(MoneyService);
 
+  readonly icons = {
+    ArrowRight,
+    Scale,
+    RefreshCw,
+    Package,
+    Layers,
+  };
+
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Home', link: '/app/dashboard' },
-    { label: 'Reports', link: '/app/reports' },
-    { label: 'Inventory Movements' },
+    { label: 'Reports', route: '/app/reports' },
+    { label: 'Auditable Inventory Movement Ledger' },
   ];
 
   readonly response = signal<InventoryMovementsResponse | null>(null);
@@ -62,17 +79,30 @@ export class InventoryMovementsReportComponent implements OnInit {
   protected currentFilters: ReportFilters = {};
 
   readonly columns: DataTableColumn[] = [
-    { label: 'Created', key: 'createdAt', sortable: true },
-    { label: 'Type', key: 'movementType', sortable: true },
-    { label: 'Unit', key: 'unitCode', sortable: true },
+    { label: 'Movement Date', key: 'createdAt', sortable: true },
+    { label: 'Movement Type', key: 'movementType', sortable: true },
+    { label: 'Unit Code', key: 'unitCode', sortable: true },
     { label: 'Unit Type', key: 'unitType', sortable: true },
     { label: 'Category', key: 'categoryName', sortable: true },
     { label: 'Grade', key: 'gradeName', sortable: true },
     { label: 'Warehouse', key: 'warehouseName', sortable: true },
-    { label: 'KG', key: 'quantityKg', sortable: true, align: 'right' },
-    { label: 'PCS', key: 'quantityPcs', sortable: true, align: 'right' },
-    { label: 'Avg Cost', key: 'avgCost', sortable: true, align: 'right' },
+    { label: 'Moved KG', key: 'quantityKg', sortable: true, align: 'right' },
+    { label: 'Moved PCS', key: 'quantityPcs', sortable: true, align: 'right' },
+    { label: 'Avg Unit Cost', key: 'avgCost', sortable: true, align: 'right' },
   ];
+
+  // Computed Summary Metrics
+  readonly summaryTotalMovements = computed(() => {
+    return this.response()?.summary?.totalMovements || 0;
+  });
+
+  readonly summaryTotalKg = computed(() => {
+    return this.response()?.summary?.totalKg || 0;
+  });
+
+  readonly summaryTotalPcs = computed(() => {
+    return this.response()?.summary?.totalPcs || 0;
+  });
 
   protected get exporting(): boolean {
     return this.reportsService.exporting();
@@ -149,5 +179,20 @@ export class InventoryMovementsReportComponent implements OnInit {
     const d = value instanceof Date ? value : new Date(String(value));
     if (Number.isNaN(d.getTime())) return '—';
     return d.toISOString().slice(0, 10);
+  }
+
+  getMovementTypeClass(type: string): string {
+    switch (type) {
+      case 'INTAKE':
+      case 'RECEIVE':
+        return 'mtype--in';
+      case 'SEAL_REPACK':
+        return 'mtype--repack';
+      case 'RESERVE':
+      case 'SALE':
+        return 'mtype--out';
+      default:
+        return 'mtype--default';
+    }
   }
 }

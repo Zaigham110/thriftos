@@ -7,8 +7,8 @@
  * Route: /app/reports/waste
  */
 
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { CommonModule, DecimalPipe } from '@angular/common';
 import {
   LucideAngularModule,
   Trash2,
@@ -17,11 +17,13 @@ import {
   DollarSign,
   Layers,
   Scale,
+  RefreshCw,
 } from 'lucide-angular';
 import { ReportsService } from '../../reports.service';
 import { MoneyService } from '../../../../core/money/money.service';
 import { WasteReportRow, ReportFilters } from '../../reports.models';
 import { ReportFiltersComponent } from '../../shared/report-filters.component';
+import { MoneyPipe } from '../../../../core/money/money.pipe';
 import {
   AppPageComponent,
   AppPageHeaderComponent,
@@ -33,9 +35,8 @@ import {
   AppButtonComponent,
   AppErrorStateComponent,
   AppBreadcrumbComponent,
-  AppStackComponent,
   type DataTableColumn,
-  type BreadcrumbItem
+  type BreadcrumbItem,
 } from '../../../../shared/ui';
 
 @Component({
@@ -43,6 +44,8 @@ import {
   standalone: true,
   imports: [
     CommonModule,
+    DecimalPipe,
+    MoneyPipe,
     LucideAngularModule,
     ReportFiltersComponent,
     AppPageComponent,
@@ -55,7 +58,6 @@ import {
     AppButtonComponent,
     AppErrorStateComponent,
     AppBreadcrumbComponent,
-    AppStackComponent,
   ],
   templateUrl: './waste-report.html',
   styleUrl: './waste-report.scss',
@@ -63,7 +65,7 @@ import {
 })
 export class WasteReportComponent implements OnInit {
   private readonly reportsService = inject(ReportsService);
-    private readonly money = inject(MoneyService);
+  private readonly money = inject(MoneyService);
 
   readonly icons = {
     Trash2,
@@ -72,6 +74,7 @@ export class WasteReportComponent implements OnInit {
     DollarSign,
     Layers,
     Scale,
+    RefreshCw,
   };
 
   readonly wasteByStage = signal<WasteReportRow[]>([]);
@@ -83,16 +86,24 @@ export class WasteReportComponent implements OnInit {
   protected currentFilters: ReportFilters = {};
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Home', link: '/app/dashboard' },
-    { label: 'Reports', link: '/app/reports' },
-    { label: 'Waste Report' },
+    { label: 'Reports', route: '/app/reports' },
+    { label: 'Waste & Loss Analysis' },
   ];
 
   readonly columns: DataTableColumn[] = [
-    { label: 'Stage', key: 'stage', sortable: true },
-    { label: 'Waste (KG)', key: 'wasteKg', sortable: true, align: 'right' },
-    { label: 'Cost Impact', key: 'wasteCost', sortable: true, align: 'right' },
+    { label: 'Supply Chain Stage', key: 'stage', sortable: true },
+    { label: 'Material Waste (KG)', key: 'wasteKg', sortable: true, align: 'right' },
+    { label: 'Waste Cost Impact', key: 'wasteCost', sortable: true, align: 'right' },
   ];
+
+  // Computed Summaries
+  readonly summaryTotalWasteKg = computed(() => {
+    return this.wasteByStage().reduce((sum, r) => sum + Number(r.wasteKg || 0), 0);
+  });
+
+  readonly summaryTotalWasteCost = computed(() => {
+    return this.wasteCostImpact().reduce((sum, r) => sum + Number(r.wasteCost || 0), 0);
+  });
 
   protected get currentData(): WasteReportRow[] {
     return this.activeView() === 'by-stage' ? this.wasteByStage() : this.wasteCostImpact();
@@ -111,7 +122,6 @@ export class WasteReportComponent implements OnInit {
     this.error.set(null);
     this.currentFilters = filters || {};
 
-    // Load both reports
     this.reportsService.loadWasteByStage(filters).subscribe({
       next: (rows) => {
         this.wasteByStage.set(rows);
@@ -175,6 +185,4 @@ export class WasteReportComponent implements OnInit {
     if (n === null) return '—';
     return this.money.format(n, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
-
-  // No frontend rollups, percentages, or chart scaling.
 }

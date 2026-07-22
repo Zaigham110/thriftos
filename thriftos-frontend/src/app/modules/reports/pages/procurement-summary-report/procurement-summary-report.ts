@@ -1,10 +1,19 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+/**
+ * Procurement Summary Report Component
+ * Phase 7: Reports & Analytics
+ * 
+ * PO total costs reconciled against computed container/bale costs.
+ * Route: /app/reports/procurement-summary
+ */
+
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { CommonModule, DecimalPipe } from '@angular/common';
 
 import { ReportsService } from '../../reports.service';
 import type { ProcurementSummaryResponse, ProcurementSummaryRow, ReportFilters } from '../../reports.models';
 import { ReportFiltersComponent } from '../../shared/report-filters.component';
 import { MoneyService } from '../../../../core/money/money.service';
+import { MoneyPipe } from '../../../../core/money/money.pipe';
 import {
   AppPageComponent,
   AppPageHeaderComponent,
@@ -15,18 +24,20 @@ import {
   AppDataTableComponent,
   AppButtonComponent,
   AppErrorStateComponent,
-  AppLoadingComponent,
   AppBreadcrumbComponent,
-  AppStackComponent,
   type DataTableColumn,
   type BreadcrumbItem,
 } from '../../../../shared/ui';
+import { LucideAngularModule, DollarSign, Truck, RefreshCw, CheckCircle, AlertTriangle, Layers } from 'lucide-angular';
 
 @Component({
   selector: 'app-procurement-summary-report',
   standalone: true,
   imports: [
     CommonModule,
+    DecimalPipe,
+    MoneyPipe,
+    LucideAngularModule,
     ReportFiltersComponent,
     AppPageComponent,
     AppPageHeaderComponent,
@@ -38,7 +49,6 @@ import {
     AppButtonComponent,
     AppErrorStateComponent,
     AppBreadcrumbComponent,
-    AppStackComponent,
   ],
   templateUrl: './procurement-summary-report.html',
   styleUrl: './procurement-summary-report.scss',
@@ -48,10 +58,18 @@ export class ProcurementSummaryReportComponent implements OnInit {
   private readonly reportsService = inject(ReportsService);
   private readonly money = inject(MoneyService);
 
+  readonly icons = {
+    DollarSign,
+    Truck,
+    RefreshCw,
+    CheckCircle,
+    AlertTriangle,
+    Layers,
+  };
+
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Home', link: '/app/dashboard' },
-    { label: 'Reports', link: '/app/reports' },
-    { label: 'Procurement Summary' },
+    { label: 'Reports', route: '/app/reports' },
+    { label: 'Procurement Summary & Cost Reconciliation' },
   ];
 
   readonly response = signal<ProcurementSummaryResponse | null>(null);
@@ -62,11 +80,10 @@ export class ProcurementSummaryReportComponent implements OnInit {
 
   readonly columns: DataTableColumn[] = [
     { label: 'PO #', key: 'poNumber', sortable: true },
-    { label: 'Type', key: 'poType', sortable: true },
+    { label: 'PO Type', key: 'poType', sortable: true },
     { label: 'Status', key: 'status', sortable: true },
-    { label: 'Vendor', key: 'vendorName', sortable: true },
-    { label: 'Created', key: 'createdAt', sortable: true },
-
+    { label: 'Supplier Vendor', key: 'vendorName', sortable: true },
+    { label: 'Created Date', key: 'createdAt', sortable: true },
     {
       label: 'Containers',
       key: 'containersCount',
@@ -75,7 +92,7 @@ export class ProcurementSummaryReportComponent implements OnInit {
       getValue: (row) => (row as ProcurementSummaryRow).containers?.count,
     },
     {
-      label: 'Container KG',
+      label: 'Container Weight',
       key: 'containersWeightKg',
       sortable: true,
       align: 'right',
@@ -88,7 +105,6 @@ export class ProcurementSummaryReportComponent implements OnInit {
       align: 'right',
       getValue: (row) => (row as ProcurementSummaryRow).containers?.cost,
     },
-
     {
       label: 'Loose Bales',
       key: 'looseBalesCount',
@@ -97,25 +113,38 @@ export class ProcurementSummaryReportComponent implements OnInit {
       getValue: (row) => (row as ProcurementSummaryRow).looseBales?.count,
     },
     {
-      label: 'Loose KG',
-      key: 'looseBalesWeightKg',
+      label: 'PO Cost Total',
+      key: 'poTotalCost',
       sortable: true,
       align: 'right',
-      getValue: (row) => (row as ProcurementSummaryRow).looseBales?.weightKg,
     },
     {
-      label: 'Loose Cost',
-      key: 'looseBalesCost',
+      label: 'Computed Landed Cost',
+      key: 'computedProcurementCost',
       sortable: true,
       align: 'right',
-      getValue: (row) => (row as ProcurementSummaryRow).looseBales?.cost,
     },
-
-    { label: 'PO Total', key: 'poTotalCost', sortable: true, align: 'right' },
-    { label: 'Computed', key: 'computedProcurementCost', sortable: true, align: 'right' },
-    { label: 'Delta', key: 'costDelta', sortable: true, align: 'right' },
-    { label: 'Matches', key: 'matchesPoTotal', sortable: true },
+    { label: 'Reconciliation', key: 'matchesPoTotal', sortable: true },
   ];
+
+  // Computed Summaries
+  readonly summaryTotalPoCost = computed(() => {
+    return this.response()?.summary?.totalPoCost || 0;
+  });
+
+  readonly summaryTotalComputedCost = computed(() => {
+    return this.response()?.summary?.totalComputedProcurementCost || 0;
+  });
+
+  readonly summaryTotalContainers = computed(() => {
+    const data = this.response()?.data || [];
+    return data.reduce((sum, r) => sum + (r.containers?.count || 0), 0);
+  });
+
+  readonly summaryMatchingCount = computed(() => {
+    const data = this.response()?.data || [];
+    return data.filter((r) => r.matchesPoTotal).length;
+  });
 
   protected get exporting(): boolean {
     return this.reportsService.exporting();

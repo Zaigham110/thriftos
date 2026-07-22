@@ -1,12 +1,18 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs" />
-      <h1 class="page-title">Procurement Summary</h1>
-      <p class="page-subtitle">Purchase orders reconciled to computed procurement costs</p>
-    </app-stack>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Procurement Summary & Cost Reconciliation</h1>
+      <p class="page-subtitle">Purchase orders reconciled against container allocation landed costs and vendor volume.</p>
+    </div>
+
     <div class="actions">
-      <app-button variant="secondary" (click)="loadData()">Refresh</app-button>
+      <app-button variant="secondary" (click)="loadData()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="14" [class.animate-spin]="loading()"></lucide-icon>
+        Refresh Report
+      </app-button>
     </div>
   </app-page-header>
 
@@ -17,72 +23,120 @@
       </app-error-state>
     }
 
-    <app-section>
-      <app-section-body>
-        <app-report-filters
-          [showExport]="true"
-          [exporting]="exporting"
-          (filtersChange)="onFiltersChange($event)"
-          (searchChange)="onSearchChange($event)"
-          (onExport)="exportReport()"
-        />
-      </app-section-body>
-    </app-section>
+    <!-- Summary KPI Grid -->
+    <div class="kpi-grid mb-4">
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-purple">
+          <lucide-icon [img]="icons.DollarSign" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Purchase Orders Cost</span>
+          <span class="kpi-value text-primary">{{ summaryTotalPoCost() | money }}</span>
+        </div>
+      </div>
 
-    <app-section>
-      <app-section-header>
-        <h2 class="section-title">Purchase Orders</h2>
-      </app-section-header>
-      <app-section-body>
-        <app-data-table
-          [data]="response()?.data || []"
-          [columns]="columns"
-          [loading]="loading()"
-          [enableSearch]="false"
-          [externalSearch]="searchText()"
-        >
-          <ng-template #cellTemplate let-row let-column="column">
-            @switch (column.key) {
-              @case ('createdAt') {
-                {{ formatDate(row.createdAt) }}
-              }
-              @case ('containersCount') {
-                {{ formatNumber(row.containers?.count) }}
-              }
-              @case ('containersWeightKg') {
-                {{ formatWeight(row.containers?.weightKg) }}
-              }
-              @case ('containersCost') {
-                {{ formatCurrency(row.containers?.cost) }}
-              }
-              @case ('looseBalesCount') {
-                {{ formatNumber(row.looseBales?.count) }}
-              }
-              @case ('looseBalesWeightKg') {
-                {{ formatWeight(row.looseBales?.weightKg) }}
-              }
-              @case ('looseBalesCost') {
-                {{ formatCurrency(row.looseBales?.cost) }}
-              }
-              @case ('poTotalCost') {
-                {{ formatCurrency(row.poTotalCost) }}
-              }
-              @case ('computedProcurementCost') {
-                {{ formatCurrency(row.computedProcurementCost) }}
-              }
-              @case ('costDelta') {
-                {{ formatCurrency(row.costDelta) }}
-              }
-              @case ('matchesPoTotal') {
-                {{ row.matchesPoTotal ? 'Yes' : 'No' }}
-              }
-              @default {
-                {{ row[column.key] ?? '—' }}
-              }
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-emerald">
+          <lucide-icon [img]="icons.Truck" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Computed Landed Cost</span>
+          <span class="kpi-value text-emerald">{{ summaryTotalComputedCost() | money }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-blue">
+          <lucide-icon [img]="icons.Layers" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Ocean Containers</span>
+          <span class="kpi-value">{{ summaryTotalContainers() | number:'1.0-0' }} <small>Containers</small></span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-amber">
+          <lucide-icon [img]="icons.CheckCircle" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Reconciled PO Count</span>
+          <span class="kpi-value text-amber">{{ summaryMatchingCount() | number:'1.0-0' }} <small>Orders</small></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Integrated Data Table with Embedded Filters -->
+    <app-data-table
+      title="Purchase Orders Landed Cost Reconciliation Ledger"
+      [data]="response()?.data || []"
+      [columns]="columns"
+      [loading]="loading()"
+      [enableSearch]="false"
+      [externalSearch]="searchText()"
+    >
+      <app-report-filters
+        filters
+        [showExport]="true"
+        [exporting]="exporting"
+        (filtersChange)="onFiltersChange($event)"
+        (searchChange)="onSearchChange($event)"
+        (onExport)="exportReport()"
+      ></app-report-filters>
+
+      <ng-template #cellTemplate let-row let-column="column">
+        @switch (column.key) {
+          @case ('poNumber') {
+            <strong class="text-primary font-mono">{{ row.poNumber }}</strong>
+          }
+          @case ('poType') {
+            <span class="type-badge">{{ row.poType }}</span>
+          }
+          @case ('status') {
+            <span class="status-badge">{{ row.status }}</span>
+          }
+          @case ('vendorName') {
+            <span class="font-bold">{{ row.vendorName || '—' }}</span>
+          }
+          @case ('createdAt') {
+            <span class="text-muted text-xs">{{ formatDate(row.createdAt) }}</span>
+          }
+          @case ('containersCount') {
+            <span class="font-mono font-bold">{{ formatNumber(row.containers?.count) }}</span>
+          }
+          @case ('containersWeightKg') {
+            <span class="font-mono font-bold">{{ formatWeight(row.containers?.weightKg) }}</span>
+          }
+          @case ('containersCost') {
+            <span class="font-mono font-bold text-emerald">{{ formatCurrency(row.containers?.cost) }}</span>
+          }
+          @case ('looseBalesCount') {
+            <span class="font-mono">{{ formatNumber(row.looseBales?.count) }}</span>
+          }
+          @case ('poTotalCost') {
+            <span class="font-mono font-bold text-primary">{{ formatCurrency(row.poTotalCost) }}</span>
+          }
+          @case ('computedProcurementCost') {
+            <span class="font-mono font-bold text-emerald">{{ formatCurrency(row.computedProcurementCost) }}</span>
+          }
+          @case ('matchesPoTotal') {
+            @if (row.matchesPoTotal) {
+              <span class="match-pill match--true">
+                <lucide-icon [img]="icons.CheckCircle" [size]="12"></lucide-icon>
+                Reconciled
+              </span>
+            } @else {
+              <span class="match-pill match--false">
+                <lucide-icon [img]="icons.AlertTriangle" [size]="12"></lucide-icon>
+                Variance
+              </span>
             }
-          </ng-template>
-        </app-data-table>
-      </app-section-body>
-    </app-section>
+          }
+          @default {
+            {{ row[column.key] ?? '—' }}
+          }
+        }
+      </ng-template>
+    </app-data-table>
   </app-page-body>
 </app-page>

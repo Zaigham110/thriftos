@@ -1,13 +1,17 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs" />
-      <h1 class="page-title">Inventory Report</h1>
-      <p class="page-subtitle">Inventory snapshot and aging analysis</p>
-    </app-stack>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Finished Goods Stock Valuation & Aging Audit</h1>
+      <p class="page-subtitle">Real-time inventory snapshot, warehouse storage distribution, and stock aging buckets.</p>
+    </div>
+
     <div class="actions">
-      <app-button variant="secondary" (click)="loadData()">
-        Refresh
+      <app-button variant="secondary" (click)="loadData()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="14" [class.animate-spin]="loading()"></lucide-icon>
+        Refresh Report
       </app-button>
     </div>
   </app-page-header>
@@ -19,99 +23,161 @@
       </app-error-state>
     }
 
-    <!-- Filters -->
-    <app-section>
-      <app-section-body>
-        <app-report-filters
-          [showCategory]="true"
-          [showGrade]="true"
-          [showWarehouse]="true"
-          [categories]="categories()"
-          [grades]="grades()"
-          [warehouses]="warehouses()"
-          [showExport]="true"
-          [exporting]="exporting"
-          (filtersChange)="onFiltersChange($event)"
-          (searchChange)="onSearchChange($event)"
-          (onExport)="exportReport()"
-        />
-      </app-section-body>
-    </app-section>
-
-    <!-- View Toggle & Data Table -->
-    <app-section>
-      <app-section-header>
-        <div class="flex items-center justify-between w-full">
-          <h2 class="section-title">Inventory Details</h2>
-          <div class="flex gap-2">
-            <app-button 
-              [variant]="activeView() === 'snapshot' ? 'primary' : 'secondary'" 
-              (click)="setView('snapshot')">
-              Snapshot
-            </app-button>
-            <app-button 
-              [variant]="activeView() === 'aging' ? 'primary' : 'secondary'" 
-              (click)="setView('aging')">
-              Aging
-            </app-button>
-          </div>
+    <!-- Summary KPI Grid -->
+    <div class="kpi-grid mb-4">
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-purple">
+          <lucide-icon [img]="icons.Package" [size]="20"></lucide-icon>
         </div>
-      </app-section-header>
-      <app-section-body>
-        @if (activeView() === 'snapshot') {
-          <app-data-table
-            [data]="snapshot()?.data || []"
-            [columns]="snapshotColumns"
-            [loading]="loading()"
-            [enableSearch]="false"
-            [externalSearch]="searchText()"
-          >
-            <ng-template #cellTemplate let-row let-column="column">
-              @switch (column.key) {
-                @case ('status') {
-                  <span class="status-badge {{ getStatusClass(row.status) }}">{{ row.status }}</span>
-                }
-                @case ('totalWeightKg') {
-                  {{ formatWeight(row.totalWeightKg) }}
-                }
-                @case ('totalValue') {
-                  {{ formatCurrency(row.totalValue) }}
-                }
-                @default {
-                  {{ row[column.key] }}
-                }
-              }
-            </ng-template>
-          </app-data-table>
-        } @else {
-          <app-data-table
-            [data]="aging()?.data || []"
-            [columns]="agingColumns"
-            [loading]="loading()"
-            [enableSearch]="false"
-            [externalSearch]="searchText()"
-          >
-            <ng-template #cellTemplate let-row let-column="column">
-              @switch (column.key) {
-                @case ('ageRangeDays') {
-                  <span class="aging-badge {{ getAgingClass(row.ageRangeDays) }}">
-                    {{ row.ageRangeDays }} days
-                  </span>
-                }
-                @case ('totalWeightKg') {
-                  {{ formatWeight(row.totalWeightKg) }}
-                }
-                @case ('totalValue') {
-                  {{ formatCurrency(row.totalValue) }}
-                }
-                @default {
-                  {{ row[column.key] }}
-                }
-              }
-            </ng-template>
-          </app-data-table>
-        }
-      </app-section-body>
-    </app-section>
+        <div class="kpi-content">
+          <span class="kpi-label">Sealed Product Units</span>
+          <span class="kpi-value text-primary">{{ summaryTotalUnits() | number:'1.0-0' }} <small>Units</small></span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-blue">
+          <lucide-icon [img]="icons.Scale" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Inventory Weight</span>
+          <span class="kpi-value">{{ summaryTotalWeightKg() | number:'1.2-2' }} <small>KG</small></span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-emerald">
+          <lucide-icon [img]="icons.Layers" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Pieces Count</span>
+          <span class="kpi-value text-emerald">{{ summaryTotalPcs() | number:'1.0-0' }} <small>PCS</small></span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-amber">
+          <lucide-icon [img]="icons.Clock" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Active Stock Categories</span>
+          <span class="kpi-value text-amber">{{ summaryCategoriesCount() | number:'1.0-0' }} <small>Categories</small></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Integrated Data Table Card with View Switcher & Filters -->
+    @if (activeView() === 'snapshot') {
+      <app-data-table
+        title="Stock Valuation Snapshot Ledger"
+        [data]="snapshot()?.data || []"
+        [columns]="snapshotColumns"
+        [loading]="loading()"
+        [enableSearch]="false"
+        [externalSearch]="searchText()"
+      >
+        <div filters class="flex items-center gap-2">
+          <div class="view-switch-btns mr-2">
+            <button class="switch-btn" [class.active]="activeView() === 'snapshot'" (click)="setView('snapshot')">Snapshot</button>
+            <button class="switch-btn" [class.active]="activeView() === 'aging'" (click)="setView('aging')">Aging</button>
+          </div>
+
+          <app-report-filters
+            [showCategory]="true"
+            [showGrade]="true"
+            [showWarehouse]="true"
+            [categories]="categories()"
+            [grades]="grades()"
+            [warehouses]="warehouses()"
+            [showExport]="true"
+            [exporting]="exporting"
+            (filtersChange)="onFiltersChange($event)"
+            (searchChange)="onSearchChange($event)"
+            (onExport)="exportReport()"
+          ></app-report-filters>
+        </div>
+
+        <ng-template #cellTemplate let-row let-column="column">
+          @switch (column.key) {
+            @case ('categoryName') {
+              <strong class="text-primary">{{ row.categoryName || '—' }}</strong>
+            }
+            @case ('gradeName') {
+              <span class="badge-grade">{{ row.gradeName || '—' }}</span>
+            }
+            @case ('warehouseName') {
+              <span class="text-dark font-mono text-xs">{{ row.warehouseName || '—' }}</span>
+            }
+            @case ('status') {
+              <span class="status-badge {{ getStatusClass(row.status) }}">{{ row.status }}</span>
+            }
+            @case ('totalUnits') {
+              <span class="font-mono font-bold">{{ formatNumber(row.totalUnits) }}</span>
+            }
+            @case ('totalWeightKg') {
+              <span class="font-mono font-bold text-emerald">{{ formatWeight(row.totalWeightKg) }}</span>
+            }
+            @case ('totalPcs') {
+              <span class="font-mono font-bold">{{ formatNumber(row.totalPcs) }}</span>
+            }
+            @default {
+              {{ row[column.key] ?? '—' }}
+            }
+          }
+        </ng-template>
+      </app-data-table>
+    } @else {
+      <app-data-table
+        title="Stock Aging Buckets Ledger"
+        [data]="aging()?.data || []"
+        [columns]="agingColumns"
+        [loading]="loading()"
+        [enableSearch]="false"
+        [externalSearch]="searchText()"
+      >
+        <div filters class="flex items-center gap-2">
+          <div class="view-switch-btns mr-2">
+            <button class="switch-btn" [class.active]="activeView() === 'snapshot'" (click)="setView('snapshot')">Snapshot</button>
+            <button class="switch-btn" [class.active]="activeView() === 'aging'" (click)="setView('aging')">Aging</button>
+          </div>
+
+          <app-report-filters
+            [showCategory]="true"
+            [showGrade]="true"
+            [showWarehouse]="true"
+            [categories]="categories()"
+            [grades]="grades()"
+            [warehouses]="warehouses()"
+            [showExport]="true"
+            [exporting]="exporting"
+            (filtersChange)="onFiltersChange($event)"
+            (searchChange)="onSearchChange($event)"
+            (onExport)="exportReport()"
+          ></app-report-filters>
+        </div>
+
+        <ng-template #cellTemplate let-row let-column="column">
+          @switch (column.key) {
+            @case ('ageRangeDays') {
+              <span class="aging-badge {{ getAgingClass(row.ageRangeDays) }}">
+                {{ row.ageRangeDays }} Days Aged
+              </span>
+            }
+            @case ('unitsCount') {
+              <span class="font-mono font-bold">{{ formatNumber(row.unitsCount) }}</span>
+            }
+            @case ('totalWeightKg') {
+              <span class="font-mono font-bold text-emerald">{{ formatWeight(row.totalWeightKg) }}</span>
+            }
+            @case ('totalValue') {
+              <span class="font-mono font-bold text-primary">{{ formatCurrency(row.totalValue) }}</span>
+            }
+            @default {
+              {{ row[column.key] ?? '—' }}
+            }
+          }
+        </ng-template>
+      </app-data-table>
+    }
   </app-page-body>
 </app-page>

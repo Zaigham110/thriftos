@@ -7,12 +7,13 @@
  * Route: /app/reports/inventory
  */
 
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { CommonModule, DecimalPipe } from '@angular/common';
 import { ReportsService } from '../../reports.service';
 import { MoneyService } from '../../../../core/money/money.service';
-import { InventorySnapshotResponse, InventoryAgingResponse, ReportFilters, InventorySnapshotRow, InventoryAgingRow } from '../../reports.models';
+import { InventorySnapshotResponse, InventoryAgingResponse, ReportFilters } from '../../reports.models';
 import { ReportFiltersComponent } from '../../shared/report-filters.component';
+import { MoneyPipe } from '../../../../core/money/money.pipe';
 import {
   AppPageComponent,
   AppPageHeaderComponent,
@@ -24,15 +25,19 @@ import {
   AppButtonComponent,
   AppErrorStateComponent,
   AppBreadcrumbComponent,
-  AppStackComponent,
   type DataTableColumn,
+  type BreadcrumbItem,
 } from '../../../../shared/ui';
+import { LucideAngularModule, Package, Scale, RefreshCw, Layers, ShieldCheck, Clock } from 'lucide-angular';
 
 @Component({
   selector: 'app-inventory-report',
   standalone: true,
   imports: [
     CommonModule,
+    DecimalPipe,
+    MoneyPipe,
+    LucideAngularModule,
     ReportFiltersComponent,
     AppPageComponent,
     AppPageHeaderComponent,
@@ -44,7 +49,6 @@ import {
     AppButtonComponent,
     AppErrorStateComponent,
     AppBreadcrumbComponent,
-    AppStackComponent,
   ],
   templateUrl: './inventory-report.html',
   styleUrl: './inventory-report.scss',
@@ -54,9 +58,18 @@ export class InventoryReportComponent implements OnInit {
   private readonly reportsService = inject(ReportsService);
   private readonly money = inject(MoneyService);
 
-  readonly breadcrumbs = [
-    { label: 'Reports', link: '/reports' },
-    { label: 'Inventory', link: undefined },
+  readonly icons = {
+    Package,
+    Scale,
+    RefreshCw,
+    Layers,
+    ShieldCheck,
+    Clock,
+  };
+
+  readonly breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Reports', route: '/app/reports' },
+    { label: 'Finished Goods Inventory Report' },
   ];
 
   readonly snapshot = signal<InventorySnapshotResponse | null>(null);
@@ -73,19 +86,37 @@ export class InventoryReportComponent implements OnInit {
   readonly snapshotColumns: DataTableColumn[] = [
     { label: 'Category', key: 'categoryName', sortable: true },
     { label: 'Grade', key: 'gradeName', sortable: true },
-    { label: 'Warehouse', key: 'warehouseName', sortable: true },
-    { label: 'Status', key: 'status', sortable: true },
-    { label: 'Units', key: 'totalUnits', sortable: true, align: 'right' },
-    { label: 'Weight', key: 'totalWeightKg', sortable: true, align: 'right' },
-    { label: 'Pieces', key: 'totalPcs', sortable: true, align: 'right' },
+    { label: 'Warehouse Location', key: 'warehouseName', sortable: true },
+    { label: 'Stock Status', key: 'status', sortable: true },
+    { label: 'Sealed Units', key: 'totalUnits', sortable: true, align: 'right' },
+    { label: 'Total Weight (KG)', key: 'totalWeightKg', sortable: true, align: 'right' },
+    { label: 'Pieces Count', key: 'totalPcs', sortable: true, align: 'right' },
   ];
 
   readonly agingColumns: DataTableColumn[] = [
-    { label: 'Age Range', key: 'ageRangeDays', sortable: true },
-    { label: 'Units', key: 'unitsCount', sortable: true, align: 'right' },
-    { label: 'Weight', key: 'totalWeightKg', sortable: true, align: 'right' },
-    { label: 'Total Value', key: 'totalValue', sortable: true, align: 'right' },
+    { label: 'Age Range Bucket', key: 'ageRangeDays', sortable: true },
+    { label: 'Stock Units', key: 'unitsCount', sortable: true, align: 'right' },
+    { label: 'Net Weight (KG)', key: 'totalWeightKg', sortable: true, align: 'right' },
+    { label: 'Aging Valuation', key: 'totalValue', sortable: true, align: 'right' },
   ];
+
+  // Computed KPI Metrics
+  readonly summaryTotalUnits = computed(() => {
+    return this.snapshot()?.summary?.totalUnits || 0;
+  });
+
+  readonly summaryTotalWeightKg = computed(() => {
+    return this.snapshot()?.summary?.totalWeightKg || 0;
+  });
+
+  readonly summaryTotalPcs = computed(() => {
+    return this.snapshot()?.summary?.totalPcs || 0;
+  });
+
+  readonly summaryCategoriesCount = computed(() => {
+    const data = this.snapshot()?.data || [];
+    return new Set(data.map((d) => d.categoryId)).size;
+  });
 
   protected get exporting(): boolean {
     return this.reportsService.exporting();
@@ -112,7 +143,6 @@ export class InventoryReportComponent implements OnInit {
     this.error.set(null);
     this.currentFilters = filters || {};
 
-    // Load snapshot
     this.reportsService.loadInventorySnapshot(filters).subscribe({
       next: (data) => {
         this.snapshot.set(data);

@@ -1,12 +1,18 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <app-breadcrumb [items]="breadcrumbs" />
-      <h1 class="page-title">Repack Summary</h1>
-      <p class="page-subtitle">Repack totals grouped by status</p>
-    </app-stack>
+    <div class="header-left-group">
+      <div class="eyebrow-container">
+        <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
+      </div>
+      <h1 class="page-title">Repack Production & Batch Summary</h1>
+      <p class="page-subtitle">Batch production metrics grouped by repack status, packed volume, and inventory valuation.</p>
+    </div>
+
     <div class="actions">
-      <app-button variant="secondary" (click)="loadData()">Refresh</app-button>
+      <app-button variant="secondary" (click)="loadData()" [disabled]="loading()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="14" [class.animate-spin]="loading()"></lucide-icon>
+        Refresh Report
+      </app-button>
     </div>
   </app-page-header>
 
@@ -17,51 +23,89 @@
       </app-error-state>
     }
 
-    <app-section>
-      <app-section-body>
-        <app-report-filters
-          [showExport]="true"
-          [exporting]="exporting"
-          (filtersChange)="onFiltersChange($event)"
-          (searchChange)="onSearchChange($event)"
-          (onExport)="exportReport()"
-        />
-      </app-section-body>
-    </app-section>
+    <!-- Summary KPI Grid -->
+    <div class="kpi-grid mb-4">
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-purple">
+          <lucide-icon [img]="icons.Layers" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Repack Units</span>
+          <span class="kpi-value text-primary">{{ summaryTotalUnits() | number:'1.0-0' }} <small>Units</small></span>
+        </div>
+      </div>
 
-    <app-section>
-      <app-section-header>
-        <h2 class="section-title">By Status</h2>
-      </app-section-header>
-      <app-section-body>
-        <app-data-table
-          [data]="response()?.data || []"
-          [columns]="columns"
-          [loading]="loading()"
-          [enableSearch]="false"
-          [externalSearch]="searchText()"
-        >
-          <ng-template #cellTemplate let-row let-column="column">
-            @switch (column.key) {
-              @case ('units') {
-                {{ formatNumber(row.units) }}
-              }
-              @case ('totalWeightKg') {
-                {{ formatWeight(row.totalWeightKg) }}
-              }
-              @case ('totalPcs') {
-                {{ formatNumber(row.totalPcs) }}
-              }
-              @case ('totalCost') {
-                {{ formatCurrency(row.totalCost) }}
-              }
-              @default {
-                {{ row[column.key] ?? '—' }}
-              }
-            }
-          </ng-template>
-        </app-data-table>
-      </app-section-body>
-    </app-section>
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-blue">
+          <lucide-icon [img]="icons.Scale" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Packed Weight</span>
+          <span class="kpi-value">{{ summaryTotalWeightKg() | number:'1.2-2' }} <small>KG</small></span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-emerald">
+          <lucide-icon [img]="icons.Package" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total Pieces Packed</span>
+          <span class="kpi-value text-emerald">{{ summaryTotalPcs() | number:'1.0-0' }} <small>PCS</small></span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-amber">
+          <lucide-icon [img]="icons.DollarSign" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Cumulative Repack Value</span>
+          <span class="kpi-value text-amber">{{ summaryTotalCost() | money }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Integrated Data Table with Embedded Filters -->
+    <app-data-table
+      title="Repack Production Status Breakdown Ledger"
+      [data]="response()?.data || []"
+      [columns]="columns"
+      [loading]="loading()"
+      [enableSearch]="false"
+      [externalSearch]="searchText()"
+    >
+      <app-report-filters
+        filters
+        [showExport]="true"
+        [exporting]="exporting"
+        (filtersChange)="onFiltersChange($event)"
+        (searchChange)="onSearchChange($event)"
+        (onExport)="exportReport()"
+      ></app-report-filters>
+
+      <ng-template #cellTemplate let-row let-column="column">
+        @switch (column.key) {
+          @case ('status') {
+            <span class="status-badge {{ getStatusClass(row.status) }}">{{ row.status }}</span>
+          }
+          @case ('units') {
+            <span class="font-mono font-bold">{{ formatNumber(row.units) }}</span>
+          }
+          @case ('totalWeightKg') {
+            <span class="font-mono font-bold text-emerald">{{ formatWeight(row.totalWeightKg) }}</span>
+          }
+          @case ('totalPcs') {
+            <span class="font-mono font-bold">{{ formatNumber(row.totalPcs) }}</span>
+          }
+          @case ('totalCost') {
+            <span class="font-mono font-bold text-primary">{{ formatCurrency(row.totalCost) }}</span>
+          }
+          @default {
+            {{ row[column.key] ?? '—' }}
+          }
+        }
+      </ng-template>
+    </app-data-table>
   </app-page-body>
 </app-page>
