@@ -633,3 +633,58 @@ lucide-icon {
     display: block;
   }
 }
+
+.milestone-pipeline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.milestone-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+
+  .step-dot {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 9999px;
+    background: #e2e8f0;
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .step-lbl {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+  }
+
+  &.completed {
+    .step-dot {
+      background: #714b67;
+      color: white;
+    }
+
+    .step-lbl {
+      color: #714b67;
+      font-weight: 700;
+    }
+  }
+}
+
+.step-connector {
+  flex: 1;
+  height: 3px;
+  background: #e2e8f0;
+  margin-top: -1rem;
+
+  &.active {
+    background: #714b67;
+  }
+}

@@ -241,11 +241,47 @@ export class ContainerService {
       throw new ConflictException('Cannot modify a closed container');
     }
 
+    // Weighbridge Audit Calculations
+    let weighbridgeNetWeight: Prisma.Decimal | null = container.weighbridgeNetWeight;
+    let weightVarianceKg: Prisma.Decimal | null = container.weightVarianceKg;
+    let weightVariancePct: Prisma.Decimal | null = container.weightVariancePct;
+    let varianceAlertStatus: string | null = container.varianceAlertStatus;
+
+    const wbGross = dto.weighbridgeGrossWeight !== undefined ? dto.weighbridgeGrossWeight : (container.weighbridgeGrossWeight ? Number(container.weighbridgeGrossWeight) : null);
+    const wbTare = dto.weighbridgeTareWeight !== undefined ? dto.weighbridgeTareWeight : (container.weighbridgeTareWeight ? Number(container.weighbridgeTareWeight) : 0);
+
+    if (wbGross !== null && wbGross > 0) {
+      const wbNetVal = Math.max(0, wbGross - (wbTare || 0));
+      weighbridgeNetWeight = new Prisma.Decimal(wbNetVal);
+      const blNet = Number(container.netWeight || 0);
+      if (blNet > 0) {
+        const diffKg = Number((wbNetVal - blNet).toFixed(2));
+        const diffPct = Number(((diffKg / blNet) * 100).toFixed(2));
+        weightVarianceKg = new Prisma.Decimal(diffKg);
+        weightVariancePct = new Prisma.Decimal(diffPct);
+
+        const absPct = Math.abs(diffPct);
+        varianceAlertStatus = absPct <= 2.0 ? 'OK' : absPct <= 5.0 ? 'VARIANCE_WARNING' : 'CRITICAL_DISCREPANCY';
+      }
+    }
+
+    // Landed Cost Per KG Calculation
+    const chargesSum = (container.containerCharges || []).reduce((acc, c) => acc + Number(c.amount || 0), 0);
+    const fxRateVal = dto.fxRate !== undefined ? dto.fxRate : Number(container.fxRate || 1);
+    const blNetKg = Number(container.netWeight || 0);
+    let landedCostPerKg: Prisma.Decimal | null = container.landedCostPerKg;
+
+    if (blNetKg > 0) {
+      const totalBaseCost = chargesSum * fxRateVal;
+      landedCostPerKg = new Prisma.Decimal((totalBaseCost / blNetKg).toFixed(4));
+    }
+
     const updated = await this.prisma.container.update({
       where: { id },
       data: {
         ...(dto.referenceNumber !== undefined && { referenceNumber: dto.referenceNumber }),
         ...(dto.containerType !== undefined && { containerType: dto.containerType }),
+        ...(dto.status !== undefined && { status: dto.status }),
         ...(dto.billOfLadingNumber !== undefined && { billOfLadingNumber: dto.billOfLadingNumber }),
         ...(dto.shipmentReference !== undefined && { shipmentReference: dto.shipmentReference }),
         ...(dto.shippingLine !== undefined && { shippingLine: dto.shippingLine }),
@@ -259,6 +295,14 @@ export class ContainerService {
         ...(dto.arrivedAt !== undefined && { arrivedAt: this.toDate(dto.arrivedAt) }),
         ...(dto.clearedAt !== undefined && { clearedAt: this.toDate(dto.clearedAt) }),
         ...(dto.releasedAt !== undefined && { releasedAt: this.toDate(dto.releasedAt) }),
+        ...(dto.weighbridgeGrossWeight !== undefined && { weighbridgeGrossWeight: new Prisma.Decimal(dto.weighbridgeGrossWeight) }),
+        ...(dto.weighbridgeTareWeight !== undefined && { weighbridgeTareWeight: new Prisma.Decimal(dto.weighbridgeTareWeight) }),
+        ...(weighbridgeNetWeight !== null && { weighbridgeNetWeight }),
+        ...(weightVarianceKg !== null && { weightVarianceKg }),
+        ...(weightVariancePct !== null && { weightVariancePct }),
+        ...(varianceAlertStatus !== null && { varianceAlertStatus }),
+        ...(dto.fxRate !== undefined && { fxRate: new Prisma.Decimal(dto.fxRate) }),
+        ...(landedCostPerKg !== null && { landedCostPerKg }),
       },
       include: {
         purchaseOrder: {

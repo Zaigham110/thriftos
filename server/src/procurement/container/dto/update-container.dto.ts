@@ -1,4 +1,5 @@
-import { IsString, IsOptional, IsDateString, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsNumber, MaxLength, Min, IsEnum } from 'class-validator';
+import { ContainerStatus } from '@prisma/client';
 
 export class UpdateContainerDto {
   @IsString()
@@ -10,6 +11,10 @@ export class UpdateContainerDto {
   @IsOptional()
   @MaxLength(20)
   containerType?: string;
+
+  @IsEnum(ContainerStatus)
+  @IsOptional()
+  status?: ContainerStatus;
 
   @IsDateString()
   @IsOptional()
@@ -70,5 +75,20 @@ export class UpdateContainerDto {
   @IsOptional()
   @MaxLength(500)
   notes?: string;
-}
 
+  // Weighbridge Audit Scale Fields
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  weighbridgeGrossWeight?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  weighbridgeTareWeight?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0.0001)
+  fxRate?: number;
+}

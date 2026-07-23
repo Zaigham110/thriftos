@@ -17,7 +17,6 @@ export class CustomersService {
     if (filters?.isActive === true) params = params.set('isActive', 'true');
     if (filters?.isActive === false) params = params.set('isActive', 'false');
 
-    // Backend currently ignores filters; harmless if unused.
     return this.http.get<Customer[]>(this.API, { params });
   }
 
@@ -33,6 +32,8 @@ export class CustomersService {
     contactEmail: string;
     contactPhone: string;
     taxId?: string | null;
+    creditLimit?: number | null;
+    paymentTerms?: string | null;
   }): Observable<Customer> {
     return this.http.post<Customer>(this.API, dto);
   }
@@ -47,6 +48,8 @@ export class CustomersService {
       contactEmail: string;
       contactPhone: string;
       taxId: string | null;
+      creditLimit: number | null;
+      paymentTerms: string | null;
       isActive: boolean;
     }>,
   ): Observable<Customer> {

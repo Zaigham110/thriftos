@@ -95,6 +95,7 @@ export class ThriftShellComponent {
         icon: 'layers',
         items: [
           { id: 'stage1', label: 'Stage 1 — Category', route: '/app/sorting/stage-1', icon: 'layers' },
+          { id: 'workstation', label: 'Scanner Workstation', route: '/app/sorting/workstation', icon: 'zap' },
           { id: 'stage2', label: 'Stage 2 — Grading', route: '/app/sorting/stage-2', icon: 'tag' },
           { id: 'outputs', label: 'Output Registry', route: '/app/sorting/outputs', icon: 'file-text' },
         ],

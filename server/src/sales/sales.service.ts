@@ -399,6 +399,33 @@ export class SalesService {
       throw new BadRequestException('Cannot issue an empty sale');
     }
 
+    // Customer Credit Limit Validation Check
+    const custData = await this.prisma.customer.findFirst({
+      where: { id: sale.customerId, tenantId },
+      select: { creditLimit: true, paymentTerms: true },
+    });
+
+    if (custData && custData.paymentTerms !== 'PREPAID' && custData.creditLimit && Number(custData.creditLimit) > 0) {
+      const unpaidAggregate = await this.prisma.sale.aggregate({
+        where: {
+          tenantId,
+          customerId: sale.customerId,
+          status: { in: [SaleStatus.ISSUED, SaleStatus.PARTIALLY_PAID] },
+        },
+        _sum: { totalAmount: true },
+      });
+
+      const currentUnpaid = Number(unpaidAggregate._sum.totalAmount || 0);
+      const newTotal = currentUnpaid + Number(sale.totalAmount);
+      const limit = Number(custData.creditLimit);
+
+      if (newTotal > limit) {
+        throw new BadRequestException(
+          `Customer credit limit exceeded! Outstanding balance ($${currentUnpaid.toLocaleString()}) plus this order ($${Number(sale.totalAmount).toLocaleString()}) exceeds total credit limit ($${limit.toLocaleString()}).`
+        );
+      }
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const lines = await tx.saleLine.findMany({
         where: { saleId: sale.id },

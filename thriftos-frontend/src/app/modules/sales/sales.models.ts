@@ -17,6 +17,8 @@ export interface Customer {
   contactEmail: string;
   contactPhone: string;
   taxId?: string | null;
+  creditLimit?: number | string | null;
+  paymentTerms?: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -42,6 +44,13 @@ export interface SaleListItem {
   totalCost?: number | string;
   totalProfit?: number | string;
   issuedAt?: string | null;
+  billOfLadingNumber?: string | null;
+  containerSealNumber?: string | null;
+  vesselName?: string | null;
+  portOfLoading?: string | null;
+  portOfDischarge?: string | null;
+  freightForwarder?: string | null;
+  destinationCountry?: string | null;
   createdAt: string;
   updatedAt: string;
 
@@ -92,6 +101,13 @@ export interface SaleDetail {
   totalProfit?: number | string;
   issuedAt?: string | null;
   createdBy: string;
+  billOfLadingNumber?: string | null;
+  containerSealNumber?: string | null;
+  vesselName?: string | null;
+  portOfLoading?: string | null;
+  portOfDischarge?: string | null;
+  freightForwarder?: string | null;
+  destinationCountry?: string | null;
   createdAt: string;
   updatedAt: string;
 

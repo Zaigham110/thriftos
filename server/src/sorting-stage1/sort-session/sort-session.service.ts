@@ -406,4 +406,67 @@ export class SortSessionService {
 
     return result;
   }
+
+  async getProductivity(tenantId: string) {
+    const sessions = await this.prisma.sortSession.findMany({
+      where: { tenantId },
+      include: {
+        worker: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    let totalInputKg = 0;
+    let totalOutputKg = 0;
+    let totalWasteKg = 0;
+    let totalActiveHours = 0;
+
+    const operatorMap = new Map<string, { id: string; name: string; processedKg: number; activeHours: number; sessionsCount: number }>();
+
+    for (const s of sessions) {
+      const input = Number(s.totalInputWeight || 0);
+      const output = Number(s.totalOutputWeight || 0);
+      const waste = Number(s.wasteWeight || 0);
+      totalInputKg += input;
+      totalOutputKg += output;
+      totalWasteKg += waste;
+
+      const start = s.startTime ? new Date(s.startTime).getTime() : 0;
+      const end = s.endTime ? new Date(s.endTime).getTime() : Date.now();
+      const hours = Math.max(0.1, (end - start) / (1000 * 60 * 60));
+
+      if (s.status === SortStatus.CLOSED) {
+        totalActiveHours += hours;
+      }
+
+      const wId = s.workerId;
+      const wName = s.worker?.name || 'Standard Operator';
+      const existing = operatorMap.get(wId) || { id: wId, name: wName, processedKg: 0, activeHours: 0, sessionsCount: 0 };
+      existing.processedKg += input;
+      existing.activeHours += hours;
+      existing.sessionsCount += 1;
+      operatorMap.set(wId, existing);
+    }
+
+    const kgPerHour = totalActiveHours > 0 ? Number((totalInputKg / totalActiveHours).toFixed(2)) : 0;
+    const conversionYieldPct = totalInputKg > 0 ? Number(((totalOutputKg / totalInputKg) * 100).toFixed(1)) : 0;
+    const wasteRatioPct = totalInputKg > 0 ? Number(((totalWasteKg / totalInputKg) * 100).toFixed(1)) : 0;
+
+    const operatorLeaderboard = Array.from(operatorMap.values()).map((op) => ({
+      ...op,
+      kgPerHour: op.activeHours > 0 ? Number((op.processedKg / op.activeHours).toFixed(2)) : 0,
+    })).sort((a, b) => b.kgPerHour - a.kgPerHour);
+
+    return {
+      totalInputKg,
+      totalOutputKg,
+      totalWasteKg,
+      totalActiveHours: Number(totalActiveHours.toFixed(2)),
+      kgPerHour,
+      conversionYieldPct,
+      wasteRatioPct,
+      operatorLeaderboard,
+    };
+  }
 }

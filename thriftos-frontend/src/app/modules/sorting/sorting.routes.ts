@@ -2,7 +2,14 @@ import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/guards/permission-guard';
 
 export const SORTING_ROUTES: Routes = [
-  // Canonical routes (locked)
+  {
+    path: 'workstation',
+    loadComponent: () =>
+      import('./workstation/sorting-workstation.page').then((m) => m.SortingWorkstationPage),
+    title: 'Barcode & Touch Workstation - ThriftOS',
+    canActivate: [permissionGuard],
+    data: { permissions: ['SORTING_STAGE1_VIEW'] },
+  },
   {
     path: 'stage-1',
     loadComponent: () =>

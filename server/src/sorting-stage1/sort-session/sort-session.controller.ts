@@ -21,6 +21,13 @@ export class SortSessionController {
     return this.sortSessionService.create(tenantId, dto, user.userId);
   }
 
+  @Get('productivity')
+  @RequirePermissions('SORTING_STAGE1_VIEW')
+  async getProductivity(@CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    return this.sortSessionService.getProductivity(tenantId);
+  }
+
   @Get()
   @RequirePermissions('SORTING_STAGE1_VIEW')
   async findAll(

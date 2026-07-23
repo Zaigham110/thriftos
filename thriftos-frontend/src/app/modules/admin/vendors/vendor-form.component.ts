@@ -4,7 +4,7 @@
  * 
  * Route: /app/admin/vendors/new or /app/admin/vendors/:id/edit
  * 
- * Form for creating and editing procurement vendors/suppliers.
+ * Specialized multi-type procurement vendor & supplier creation form.
  */
 
 import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
@@ -19,6 +19,13 @@ import {
   Store,
   Globe,
   PhoneCall,
+  Truck,
+  Package,
+  Wrench,
+  Building2,
+  CreditCard,
+  Mail,
+  FileText,
 } from 'lucide-angular';
 
 import {
@@ -29,7 +36,7 @@ import {
 } from '../../../shared/ui';
 
 import { AdminService } from '../admin.service';
-import type { Vendor, CreateVendorRequest, UpdateVendorRequest } from '../admin.models';
+import type { Vendor, CreateVendorRequest, UpdateVendorRequest, VendorType } from '../admin.models';
 
 @Component({
   selector: 'app-vendor-form',
@@ -50,8 +57,8 @@ import type { Vendor, CreateVendorRequest, UpdateVendorRequest } from '../admin.
           <div class="eyebrow-container">
             <app-breadcrumb [items]="breadcrumbs()"></app-breadcrumb>
           </div>
-          <h1 class="page-title">{{ isEditMode() ? 'Edit Vendor Supplier' : 'New Vendor Supplier' }}</h1>
-          <p class="page-subtitle">Configure procurement vendor name, origin country, and contact notes.</p>
+          <h1 class="page-title">{{ isEditMode() ? 'Edit Vendor & Trade Partner' : 'New Procurement Vendor' }}</h1>
+          <p class="page-subtitle">Configure supplier classification, remittance banking, tax IDs, and commercial payment terms.</p>
         </div>
 
         <div class="header-right-actions">
@@ -66,60 +73,174 @@ import type { Vendor, CreateVendorRequest, UpdateVendorRequest } from '../admin.
         <div class="form-container-card">
           <form [formGroup]="form" (ngSubmit)="onSubmit()" class="vendor-form">
             
-            <!-- Vendor Name -->
+            <!-- Vendor Classification & Type -->
             <div class="form-group">
-              <label class="form-label required">Vendor / Supplier Name</label>
-              <input
-                type="text"
-                formControlName="name"
-                class="form-input"
-                placeholder="e.g. ABC Global Traders, Tex Export LLC"
-                [class.has-error]="form.get('name')?.invalid && form.get('name')?.touched"
-              />
-              @if (form.get('name')?.invalid && form.get('name')?.touched) {
-                <span class="field-error">Vendor name is required</span>
-              }
-            </div>
-
-            <!-- Vendor Type / Role -->
-            <div class="form-group">
-              <label class="form-label required">Vendor Role / Classification</label>
-              <select formControlName="vendorType" class="form-select">
-                <option value="SUPPLIER">Supplier (Procurement Vendor)</option>
-                <option value="CUSTOMER">Customer (Buyer)</option>
-                <option value="SHIPPER">Shipper / Freight Logistics Partner</option>
-                <option value="CONSIGNEE">Consignee (Destination Receiver)</option>
-                <option value="OTHER">Other Partner</option>
+              <label class="form-label required">Vendor Operational Classification</label>
+              <select formControlName="vendorType" class="form-select font-bold">
+                <option value="SUPPLIER">🌍 Raw Intake & Ocean Bale Supplier</option>
+                <option value="FREIGHT_CARRIER">🚢 Freight & Ocean Line Carrier / Trucking</option>
+                <option value="PACKAGING_SUPPLIER">📦 Packaging & Consumables Supplier</option>
+                <option value="EQUIPMENT_VENDOR">🛠️ Equipment & Machinery Baler Vendor</option>
+                <option value="SERVICE_PROVIDER">💼 Service & Utilities Provider</option>
+                <option value="CUSTOMER">🛍️ Trade Customer & Wholesale Partner</option>
+                <option value="OTHER">🏢 Other Enterprise Partner</option>
               </select>
-              <span class="field-hint">Classifies the operational role of this partner across procurement and logistics.</span>
+              <span class="field-hint">Dynamically configures procurement & logistics tracking workflows.</span>
             </div>
 
-            <!-- Country -->
-            <div class="form-group">
-              <label class="form-label">Origin Country</label>
-              <input
-                type="text"
-                formControlName="country"
-                class="form-input"
-                placeholder="e.g. Pakistan, United States, United Arab Emirates"
-              />
-              <span class="field-hint">Country of operation or shipment origin for incoming procurement.</span>
+            <div class="grid grid-cols-2 gap-4">
+              <!-- Vendor Display Name -->
+              <div class="form-group">
+                <label class="form-label required">Vendor Display Name</label>
+                <input
+                  type="text"
+                  formControlName="name"
+                  class="form-input"
+                  placeholder="e.g. Tex Export LLC"
+                  [class.has-error]="form.get('name')?.invalid && form.get('name')?.touched"
+                />
+              </div>
+
+              <!-- Registered Company Name -->
+              <div class="form-group">
+                <label class="form-label">Registered Legal Company Name</label>
+                <input
+                  type="text"
+                  formControlName="companyName"
+                  class="form-input"
+                  placeholder="e.g. Tex Export International Corp"
+                />
+              </div>
             </div>
 
-            <!-- Contact Info -->
+            <div class="grid grid-cols-3 gap-4">
+              <!-- Origin Country -->
+              <div class="form-group">
+                <label class="form-label">Origin Country</label>
+                <input
+                  type="text"
+                  formControlName="country"
+                  class="form-input"
+                  placeholder="e.g. United States, Pakistan, UAE"
+                />
+              </div>
+
+              <!-- Tax ID / VAT -->
+              <div class="form-group">
+                <label class="form-label">Tax ID / VAT Registration #</label>
+                <input
+                  type="text"
+                  formControlName="taxId"
+                  class="form-input font-mono"
+                  placeholder="US-98203910"
+                />
+              </div>
+
+              <!-- Default Operating Currency -->
+              <div class="form-group">
+                <label class="form-label">Operating Currency</label>
+                <select formControlName="defaultCurrency" class="form-select font-mono">
+                  <option value="USD">USD ($)</option>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="GBP">GBP (£)</option>
+                  <option value="CAD">CAD ($)</option>
+                  <option value="JPY">JPY (¥)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Contact Specs Section Header -->
+            <div class="section-title border-t pt-3">
+              <lucide-icon [img]="icons.PhoneCall" [size]="14" class="text-primary"></lucide-icon>
+              <span>Key Contact Persons & Communication</span>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4">
+              <div class="form-group">
+                <label class="form-label">Primary Contact Person</label>
+                <input
+                  type="text"
+                  formControlName="contactPerson"
+                  class="form-input"
+                  placeholder="e.g. Alex Rivera"
+                />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Contact Email</label>
+                <input
+                  type="email"
+                  formControlName="contactEmail"
+                  class="form-input"
+                  placeholder="orders@supplier.com"
+                />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Contact Phone</label>
+                <input
+                  type="text"
+                  formControlName="contactPhone"
+                  class="form-input"
+                  placeholder="+1 (555) 234-5678"
+                />
+              </div>
+            </div>
+
+            <!-- Financial & Banking Remittance Specs Header -->
+            <div class="section-title border-t pt-3">
+              <lucide-icon [img]="icons.CreditCard" [size]="14" class="text-primary"></lucide-icon>
+              <span>Commercial Terms & Bank Remittance</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div class="form-group">
+                <label class="form-label">Procurement Payment Terms</label>
+                <select formControlName="paymentTerms" class="form-select">
+                  <option value="NET_30">NET 30 Days</option>
+                  <option value="NET_60">NET 60 Days</option>
+                  <option value="NET_15">NET 15 Days</option>
+                  <option value="PREPAID">100% Advance / Prepaid</option>
+                  <option value="COD">Cash on Delivery (COD)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Bank Remittance Account / IBAN</label>
+                <input
+                  type="text"
+                  formControlName="remittanceAccount"
+                  class="form-input font-mono"
+                  placeholder="US38 WACH 9081 2938 1029 38"
+                />
+              </div>
+            </div>
+
+            <!-- Physical Address -->
             <div class="form-group">
-              <label class="form-label">Contact Details & Notes</label>
+              <label class="form-label">Physical Warehouse / Facility Address</label>
               <textarea
-                formControlName="contactInfo"
+                formControlName="physicalAddress"
                 class="form-textarea"
-                rows="4"
-                placeholder="Contact person, phone numbers, email addresses, payment terms, or warehouse location notes..."
+                rows="2"
+                placeholder="Facility Street, Dock Numbers, City, State, Country"
+              ></textarea>
+            </div>
+
+            <!-- Notes -->
+            <div class="form-group">
+              <label class="form-label">Special Delivery & Quality Notes</label>
+              <textarea
+                formControlName="notes"
+                class="form-textarea"
+                rows="2"
+                placeholder="Intake bale quality instructions, container loading preferences..."
               ></textarea>
             </div>
 
             <!-- Active Status (Edit Mode) -->
             @if (isEditMode()) {
-              <div class="form-group">
+              <div class="form-group border-t pt-3">
                 <label class="checkbox-container">
                   <input
                     type="checkbox"
@@ -127,7 +248,7 @@ import type { Vendor, CreateVendorRequest, UpdateVendorRequest } from '../admin.
                     class="custom-checkbox"
                   />
                   <div class="checkbox-text">
-                    <span class="checkbox-title">Active Supplier Status</span>
+                    <span class="checkbox-title">Active Vendor Account</span>
                     <span class="checkbox-desc">Inactive vendors are hidden from selection in new procurement purchase orders.</span>
                   </div>
                 </label>
@@ -145,7 +266,7 @@ import type { Vendor, CreateVendorRequest, UpdateVendorRequest } from '../admin.
                   Saving...
                 } @else {
                   <lucide-icon [img]="icons.Save" [size]="15"></lucide-icon>
-                  {{ isEditMode() ? 'Update Vendor' : 'Create Vendor' }}
+                  {{ isEditMode() ? 'Update Vendor Specs' : 'Save Vendor Specs' }}
                 }
               </button>
             </div>
@@ -158,7 +279,7 @@ import type { Vendor, CreateVendorRequest, UpdateVendorRequest } from '../admin.
     @use '../../../../styles/variables' as *;
 
     .form-container-card {
-      max-width: 680px;
+      max-width: 780px;
       background: white;
       border: 1px solid #e2e8f0;
       border-radius: 0.5rem;
@@ -169,7 +290,18 @@ import type { Vendor, CreateVendorRequest, UpdateVendorRequest } from '../admin.
     .vendor-form {
       display: flex;
       flex-direction: column;
-      gap: 1.25rem;
+      gap: 1.15rem;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      color: #714b67;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
     .form-group {
@@ -217,12 +349,6 @@ import type { Vendor, CreateVendorRequest, UpdateVendorRequest } from '../admin.
     .field-hint {
       font-size: 0.75rem;
       color: #64748b;
-    }
-
-    .field-error {
-      font-size: 0.75rem;
-      font-weight: 500;
-      color: #ef4444;
     }
 
     .checkbox-container {
@@ -326,19 +452,36 @@ export class VendorFormComponent implements OnInit {
     Store,
     Globe,
     PhoneCall,
+    Truck,
+    Package,
+    Wrench,
+    Building2,
+    CreditCard,
+    Mail,
+    FileText,
   };
 
   readonly breadcrumbs = signal([
     { label: 'Administration', route: '/app/admin' },
     { label: 'Vendors', route: '/app/admin/vendors' },
-    { label: 'New' },
+    { label: 'New Vendor' },
   ]);
 
   readonly form = this.fb.group({
     name: ['', Validators.required],
+    companyName: [''],
     vendorType: ['SUPPLIER', Validators.required],
     country: [''],
+    taxId: [''],
+    contactPerson: [''],
+    contactEmail: [''],
+    contactPhone: [''],
     contactInfo: [''],
+    paymentTerms: ['NET_30'],
+    defaultCurrency: ['USD'],
+    remittanceAccount: [''],
+    physicalAddress: [''],
+    notes: [''],
     isActive: [true],
   });
 
@@ -349,7 +492,7 @@ export class VendorFormComponent implements OnInit {
       this.breadcrumbs.set([
         { label: 'Administration', route: '/app/admin' },
         { label: 'Vendors', route: '/app/admin/vendors' },
-        { label: 'Edit' },
+        { label: 'Edit Vendor' },
       ]);
       this.loadVendor(id);
     }
@@ -361,9 +504,19 @@ export class VendorFormComponent implements OnInit {
         this.vendor.set(data);
         this.form.patchValue({
           name: data.name,
-          vendorType: data.vendorType || 'SUPPLIER',
+          companyName: data.companyName || '',
+          vendorType: (data.vendorType as any) || 'SUPPLIER',
           country: data.country || '',
+          taxId: data.taxId || '',
+          contactPerson: data.contactPerson || '',
+          contactEmail: data.contactEmail || '',
+          contactPhone: data.contactPhone || '',
           contactInfo: data.contactInfo || '',
+          paymentTerms: data.paymentTerms || 'NET_30',
+          defaultCurrency: data.defaultCurrency || 'USD',
+          remittanceAccount: data.remittanceAccount || '',
+          physicalAddress: data.physicalAddress || '',
+          notes: data.notes || '',
           isActive: data.isActive,
         });
       },
@@ -379,9 +532,19 @@ export class VendorFormComponent implements OnInit {
     if (this.isEditMode()) {
       const dto: UpdateVendorRequest = {
         name: raw.name || undefined,
+        companyName: raw.companyName || undefined,
         vendorType: (raw.vendorType as any) || undefined,
         country: raw.country || undefined,
+        taxId: raw.taxId || undefined,
+        contactPerson: raw.contactPerson || undefined,
+        contactEmail: raw.contactEmail || undefined,
+        contactPhone: raw.contactPhone || undefined,
         contactInfo: raw.contactInfo || undefined,
+        paymentTerms: raw.paymentTerms || undefined,
+        defaultCurrency: raw.defaultCurrency || undefined,
+        remittanceAccount: raw.remittanceAccount || undefined,
+        physicalAddress: raw.physicalAddress || undefined,
+        notes: raw.notes || undefined,
         isActive: raw.isActive === true,
       };
 
@@ -394,9 +557,19 @@ export class VendorFormComponent implements OnInit {
 
     const dto: CreateVendorRequest = {
       name: raw.name!,
+      companyName: raw.companyName || undefined,
       vendorType: (raw.vendorType as any) || 'SUPPLIER',
       country: raw.country || undefined,
+      taxId: raw.taxId || undefined,
+      contactPerson: raw.contactPerson || undefined,
+      contactEmail: raw.contactEmail || undefined,
+      contactPhone: raw.contactPhone || undefined,
       contactInfo: raw.contactInfo || undefined,
+      paymentTerms: raw.paymentTerms || undefined,
+      defaultCurrency: raw.defaultCurrency || undefined,
+      remittanceAccount: raw.remittanceAccount || undefined,
+      physicalAddress: raw.physicalAddress || undefined,
+      notes: raw.notes || undefined,
     };
 
     this.adminService.createVendor(dto).subscribe({

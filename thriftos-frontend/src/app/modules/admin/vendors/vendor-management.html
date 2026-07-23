@@ -4,8 +4,8 @@
       <div class="eyebrow-container">
         <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
       </div>
-      <h1 class="page-title">Vendor Management</h1>
-      <p class="page-subtitle">Configure procurement suppliers, origin countries, contact details, and supplier status.</p>
+      <h1 class="page-title">Vendor & Trade Partner Management</h1>
+      <p class="page-subtitle">Configure procurement suppliers, freight carriers, packaging vendors, equipment suppliers, and commercial payment terms.</p>
     </div>
 
     <div class="header-right-actions">
@@ -30,7 +30,7 @@
     }
 
     <!-- KPI Summary Grid -->
-    <div class="kpi-grid">
+    <div class="kpi-grid mb-4">
       <div class="kpi-card">
         <div class="kpi-icon kpi-icon-purple">
           <lucide-icon [img]="icons.Store" [size]="20"></lucide-icon>
@@ -107,12 +107,12 @@
             <table class="vendor-table">
               <thead>
                 <tr>
-                  <th>Vendor Name</th>
+                  <th>Vendor & Legal Company</th>
                   <th>Partner Classification</th>
+                  <th>Contact Person & Info</th>
+                  <th>Payment & Remittance</th>
                   <th>Origin Country</th>
-                  <th>Contact Details</th>
                   <th>Status</th>
-                  <th>Created Date</th>
                   <th class="text-right">Actions</th>
                 </tr>
               </thead>
@@ -124,7 +124,10 @@
                         <div class="vendor-avatar">
                           {{ getVendorInitials(vendor.name) }}
                         </div>
-                        <span class="vendor-name">{{ vendor.name }}</span>
+                        <div class="flex flex-col">
+                          <span class="vendor-name font-bold">{{ vendor.name }}</span>
+                          <span class="text-xs text-gray-500">{{ vendor.companyName || vendor.name }}</span>
+                        </div>
                       </div>
                     </td>
 
@@ -133,12 +136,24 @@
                         class="type-pill" 
                         [class.pill-supplier]="!vendor.vendorType || vendor.vendorType === 'SUPPLIER'"
                         [class.pill-customer]="vendor.vendorType === 'CUSTOMER'"
-                        [class.pill-shipper]="vendor.vendorType === 'SHIPPER'"
-                        [class.pill-consignee]="vendor.vendorType === 'CONSIGNEE'"
-                        [class.pill-other]="vendor.vendorType === 'OTHER'"
+                        [class.pill-shipper]="vendor.vendorType === 'FREIGHT_CARRIER' || vendor.vendorType === 'SHIPPER'"
+                        [class.pill-consignee]="vendor.vendorType === 'PACKAGING_SUPPLIER' || vendor.vendorType === 'EQUIPMENT_VENDOR'"
+                        [class.pill-other]="vendor.vendorType === 'SERVICE_PROVIDER' || vendor.vendorType === 'OTHER'"
                       >
                         {{ vendor.vendorType || 'SUPPLIER' }}
                       </span>
+                    </td>
+
+                    <td>
+                      <div class="text-xs font-bold text-gray-800">{{ vendor.contactPerson || 'General Contact' }}</div>
+                      <div class="text-xs text-gray-600">{{ vendor.contactEmail || vendor.contactPhone || vendor.contactInfo || 'N/A' }}</div>
+                    </td>
+
+                    <td>
+                      <div class="text-xs font-mono font-bold text-primary">{{ vendor.paymentTerms || 'NET_30' }} ({{ vendor.defaultCurrency || 'USD' }})</div>
+                      @if (vendor.taxId) {
+                        <div class="text-xs font-mono text-gray-500">TAX: {{ vendor.taxId }}</div>
+                      }
                     </td>
 
                     <td>
@@ -146,17 +161,6 @@
                         <span class="country-pill">
                           <lucide-icon [img]="icons.Globe" [size]="12"></lucide-icon>
                           {{ vendor.country }}
-                        </span>
-                      } @else {
-                        <span class="text-subtle">—</span>
-                      }
-                    </td>
-
-                    <td>
-                      @if (vendor.contactInfo) {
-                        <span class="contact-text" [title]="vendor.contactInfo">
-                          <lucide-icon [img]="icons.PhoneCall" [size]="12" class="contact-icon"></lucide-icon>
-                          {{ vendor.contactInfo }}
                         </span>
                       } @else {
                         <span class="text-subtle">—</span>
@@ -174,15 +178,11 @@
                       </span>
                     </td>
 
-                    <td>
-                      <span class="text-subtle">{{ vendor.createdAt | date:'mediumDate' }}</span>
-                    </td>
-
                     <td class="text-right">
                       <div class="action-buttons">
                         <button 
                           class="action-icon-btn" 
-                          title="Edit Vendor Details"
+                          title="Edit Vendor Specs"
                           (click)="navigateToEdit(vendor)"
                           *hasPermission="'vendor.update'"
                         >

@@ -12,7 +12,6 @@ export class VendorService {
   ) {}
 
   async create(tenantId: string, dto: CreateVendorDto, userId: string) {
-    // Check for duplicate name
     const existing = await this.prisma.vendor.findFirst({
       where: { tenantId, name: dto.name },
     });
@@ -25,9 +24,19 @@ export class VendorService {
       data: {
         tenantId,
         name: dto.name,
+        companyName: dto.companyName,
         vendorType: dto.vendorType || 'SUPPLIER',
         country: dto.country,
+        taxId: dto.taxId,
+        contactPerson: dto.contactPerson,
+        contactEmail: dto.contactEmail,
+        contactPhone: dto.contactPhone,
         contactInfo: dto.contactInfo,
+        paymentTerms: dto.paymentTerms || 'NET_30',
+        defaultCurrency: dto.defaultCurrency || 'USD',
+        remittanceAccount: dto.remittanceAccount,
+        physicalAddress: dto.physicalAddress,
+        notes: dto.notes,
       },
     });
 
@@ -68,7 +77,6 @@ export class VendorService {
   async update(tenantId: string, id: string, dto: UpdateVendorDto, userId: string) {
     const vendor = await this.findOne(tenantId, id);
 
-    // Check for duplicate name if changing
     if (dto.name && dto.name !== vendor.name) {
       const existing = await this.prisma.vendor.findFirst({
         where: { tenantId, name: dto.name, id: { not: id } },
@@ -83,9 +91,19 @@ export class VendorService {
       where: { id },
       data: {
         ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.companyName !== undefined && { companyName: dto.companyName }),
         ...(dto.vendorType !== undefined && { vendorType: dto.vendorType }),
         ...(dto.country !== undefined && { country: dto.country }),
+        ...(dto.taxId !== undefined && { taxId: dto.taxId }),
+        ...(dto.contactPerson !== undefined && { contactPerson: dto.contactPerson }),
+        ...(dto.contactEmail !== undefined && { contactEmail: dto.contactEmail }),
+        ...(dto.contactPhone !== undefined && { contactPhone: dto.contactPhone }),
         ...(dto.contactInfo !== undefined && { contactInfo: dto.contactInfo }),
+        ...(dto.paymentTerms !== undefined && { paymentTerms: dto.paymentTerms }),
+        ...(dto.defaultCurrency !== undefined && { defaultCurrency: dto.defaultCurrency }),
+        ...(dto.remittanceAccount !== undefined && { remittanceAccount: dto.remittanceAccount }),
+        ...(dto.physicalAddress !== undefined && { physicalAddress: dto.physicalAddress }),
+        ...(dto.notes !== undefined && { notes: dto.notes }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
       },
     });
@@ -137,4 +155,3 @@ export class VendorService {
     return { id, deleted: true };
   }
 }
-

@@ -1,0 +1,106 @@
+@use '../../../../styles/variables' as *;
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+}
+
+.kpi-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.375rem;
+
+  &.kpi-icon-purple {
+    background: rgba(113, 75, 103, 0.1);
+    color: #714b67;
+  }
+
+  &.kpi-icon-emerald {
+    background: hsl(142 76% 94%);
+    color: hsl(142 71% 33%);
+  }
+
+  &.kpi-icon-blue {
+    background: hsl(217 91% 95%);
+    color: hsl(217 91% 40%);
+  }
+}
+
+.kpi-content {
+  display: flex;
+  flex-direction: column;
+
+  .kpi-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+  }
+
+  .kpi-value {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #111827;
+  }
+}
+
+.directory-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+
+  th {
+    padding: 0.65rem 1rem;
+    font-size: 0.725rem;
+    font-weight: 700;
+    color: #6b7280;
+    text-transform: uppercase;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: left;
+  }
+
+  td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    vertical-align: middle;
+  }
+
+  tr:hover td {
+    background: #fdfafd;
+  }
+}
+
+.status-pill {
+  display: inline-flex;
+  padding: 0.15rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  background: #f3f4f6;
+  color: #4b5563;
+
+  &.status-issued {
+    background: hsl(217 91% 95%);
+    color: hsl(217 91% 35%);
+  }
+}
+
+.btn-xs {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.725rem;
+}

@@ -6,6 +6,10 @@ export const SALES_ROUTES: Routes = [
     loadComponent: () => import('./sales-index/sales-index.page').then((m) => m.SalesIndexPage),
   },
   {
+    path: 'customers',
+    loadComponent: () => import('./customers-index/customers-index.page').then((m) => m.CustomersIndexPage),
+  },
+  {
     path: 'new',
     loadComponent: () => import('./sales-new/sales-new.page').then((m) => m.SalesNewPage),
   },

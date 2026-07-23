@@ -1,4 +1,4 @@
-import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 export class CreateCustomerDto {
   @IsString()
@@ -33,6 +33,46 @@ export class CreateCustomerDto {
   @IsOptional()
   @MaxLength(50)
   taxId?: string;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  creditLimit?: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  paymentTerms?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  creditStatus?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(10)
+  currencyCode?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(200)
+  bankName?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  bankAccountNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  swiftBic?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(1000)
+  notes?: string;
 }
 
 export class UpdateCustomerDto {
@@ -69,6 +109,46 @@ export class UpdateCustomerDto {
   @IsOptional()
   @MaxLength(50)
   taxId?: string;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  creditLimit?: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  paymentTerms?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  creditStatus?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(10)
+  currencyCode?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(200)
+  bankName?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  bankAccountNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  swiftBic?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(1000)
+  notes?: string;
 
   @IsBoolean()
   @IsOptional()

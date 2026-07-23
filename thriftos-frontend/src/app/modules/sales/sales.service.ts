@@ -30,7 +30,20 @@ export class SalesService {
     return this.http.post<SaleDetail>(this.API, dto);
   }
 
-  update(id: string, dto: Partial<{ customerId: string; type: SaleType }>): Observable<SaleDetail> {
+  update(
+    id: string,
+    dto: Partial<{
+      customerId: string;
+      type: SaleType;
+      billOfLadingNumber: string;
+      containerSealNumber: string;
+      vesselName: string;
+      portOfLoading: string;
+      portOfDischarge: string;
+      freightForwarder: string;
+      destinationCountry: string;
+    }>,
+  ): Observable<SaleDetail> {
     return this.http.patch<SaleDetail>(`${this.API}/${id}`, dto);
   }
 
@@ -73,8 +86,6 @@ export class SalesService {
     return this.http.get<InventoryScanResult>(`${this.API}/scan/qr/${encodeURIComponent(clean)}`);
   }
 
-  // Optional convenience: fetch only available inventory via inventory module API.
-  // Kept here to avoid cross-module coupling in components.
   listAvailableInventory(params?: { page?: number; limit?: number }): Observable<any> {
     const base = API_ENDPOINTS.inventory;
     let httpParams = new HttpParams();

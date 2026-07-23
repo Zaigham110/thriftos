@@ -8,6 +8,11 @@ generator client {
   provider = "prisma-client-js"
 }
 
+generator serverClient {
+  provider = "prisma-client-js"
+  output   = "../server/node_modules/.prisma/client"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -19,6 +24,10 @@ datasource db {
 
 enum VendorType {
   SUPPLIER
+  FREIGHT_CARRIER
+  PACKAGING_SUPPLIER
+  EQUIPMENT_VENDOR
+  SERVICE_PROVIDER
   CUSTOMER
   SHIPPER
   CONSIGNEE
@@ -239,18 +248,26 @@ model Tenant {
 // =============================================================
 
 model Customer {
-  id              String   @id @default(cuid())
-  tenantId        String
-  name            String
-  companyName     String
-  billingAddress  String
-  shippingAddress String
-  contactEmail    String
-  contactPhone    String
-  taxId           String?
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                String   @id @default(cuid())
+  tenantId          String
+  name              String
+  companyName       String
+  billingAddress    String
+  shippingAddress   String
+  contactEmail      String
+  contactPhone      String
+  taxId             String?
+  creditLimit       Decimal? @default(0) @db.Decimal(12, 2)
+  paymentTerms      String?  @default("PREPAID")
+  creditStatus      String?  @default("GOOD_STANDING")
+  currencyCode      String?  @default("USD")
+  bankName          String?
+  bankAccountNumber String?
+  swiftBic          String?
+  notes             String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   sales  Sale[]
@@ -261,20 +278,27 @@ model Customer {
 }
 
 model Sale {
-  id           String     @id @default(cuid())
-  tenantId     String
-  saleNumber   String
-  customerId   String
-  type         SaleType
-  status       SaleStatus @default(DRAFT)
-  currencyCode String
-  totalAmount  Decimal    @default(0) @db.Decimal(12, 2)
-  totalCost    Decimal    @default(0) @db.Decimal(12, 2)
-  totalProfit  Decimal    @default(0) @db.Decimal(12, 2)
-  issuedAt     DateTime?
-  createdBy    String
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id                  String     @id @default(cuid())
+  tenantId            String
+  saleNumber          String
+  customerId          String
+  type                SaleType
+  status              SaleStatus @default(DRAFT)
+  currencyCode        String
+  totalAmount         Decimal    @default(0) @db.Decimal(12, 2)
+  totalCost           Decimal    @default(0) @db.Decimal(12, 2)
+  totalProfit         Decimal    @default(0) @db.Decimal(12, 2)
+  issuedAt            DateTime?
+  createdBy           String
+  billOfLadingNumber  String?
+  containerSealNumber String?
+  vesselName          String?
+  portOfLoading       String?
+  portOfDischarge     String?
+  freightForwarder    String?
+  destinationCountry  String?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
 
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   customer  Customer @relation(fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
@@ -636,15 +660,25 @@ model Warehouse {
 // =============================================================
 
 model Vendor {
-  id          String     @id @default(cuid())
-  tenantId    String
-  name        String
-  vendorType  VendorType @default(SUPPLIER)
-  country     String?
-  contactInfo String?
-  isActive    Boolean    @default(true)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id                String     @id @default(cuid())
+  tenantId          String
+  name              String
+  companyName       String?
+  vendorType        VendorType @default(SUPPLIER)
+  country           String?
+  taxId             String?
+  contactPerson     String?
+  contactEmail      String?
+  contactPhone      String?
+  contactInfo       String?
+  paymentTerms      String?    @default("NET_30")
+  defaultCurrency   String?    @default("USD")
+  remittanceAccount String?
+  physicalAddress   String?
+  notes             String?
+  isActive          Boolean    @default(true)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
   // Relations
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -707,6 +741,17 @@ model Container {
   forwarder          String?
   notes              String?
   status          ContainerStatus @default(IN_TRANSIT)
+
+  // Gate Weighbridge Scale Variance Audit Fields
+  weighbridgeGrossWeight Decimal? @db.Decimal(10, 2)
+  weighbridgeTareWeight  Decimal? @db.Decimal(10, 2)
+  weighbridgeNetWeight   Decimal? @db.Decimal(10, 2)
+  weightVarianceKg       Decimal? @db.Decimal(10, 2)
+  weightVariancePct      Decimal? @db.Decimal(5, 2)
+  varianceAlertStatus    String?
+  fxRate                 Decimal  @default(1.0000) @db.Decimal(10, 4)
+  landedCostPerKg        Decimal? @db.Decimal(12, 4)
+
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 

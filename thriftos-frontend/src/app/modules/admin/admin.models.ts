@@ -176,15 +176,34 @@ export interface UpdateWarehouseRequest {
 // VENDOR MANAGEMENT
 // =============================================================
 
-export type VendorType = 'SUPPLIER' | 'CUSTOMER' | 'SHIPPER' | 'CONSIGNEE' | 'OTHER';
+export type VendorType =
+  | 'SUPPLIER'
+  | 'FREIGHT_CARRIER'
+  | 'PACKAGING_SUPPLIER'
+  | 'EQUIPMENT_VENDOR'
+  | 'SERVICE_PROVIDER'
+  | 'CUSTOMER'
+  | 'SHIPPER'
+  | 'CONSIGNEE'
+  | 'OTHER';
 
 export interface Vendor {
   id: string;
   tenantId: string;
   name: string;
+  companyName?: string | null;
   vendorType?: VendorType;
-  country?: string;
-  contactInfo?: string;
+  country?: string | null;
+  taxId?: string | null;
+  contactPerson?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  contactInfo?: string | null;
+  paymentTerms?: string | null;
+  defaultCurrency?: string | null;
+  remittanceAccount?: string | null;
+  physicalAddress?: string | null;
+  notes?: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -192,16 +211,36 @@ export interface Vendor {
 
 export interface CreateVendorRequest {
   name: string;
+  companyName?: string;
   vendorType?: VendorType;
   country?: string;
+  taxId?: string;
+  contactPerson?: string;
+  contactEmail?: string;
+  contactPhone?: string;
   contactInfo?: string;
+  paymentTerms?: string;
+  defaultCurrency?: string;
+  remittanceAccount?: string;
+  physicalAddress?: string;
+  notes?: string;
 }
 
 export interface UpdateVendorRequest {
   name?: string;
+  companyName?: string;
   vendorType?: VendorType;
   country?: string;
+  taxId?: string;
+  contactPerson?: string;
+  contactEmail?: string;
+  contactPhone?: string;
   contactInfo?: string;
+  paymentTerms?: string;
+  defaultCurrency?: string;
+  remittanceAccount?: string;
+  physicalAddress?: string;
+  notes?: string;
   isActive?: boolean;
 }
 
@@ -241,7 +280,6 @@ export interface TenantStats {
   warehouses: number;
 }
 
-// Note: Tenant updates are limited - no status/billing changes allowed here
 export interface UpdateTenantRequest {
   name?: string;
   currencyCode?: string;

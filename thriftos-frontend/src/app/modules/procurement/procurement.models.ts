@@ -107,6 +107,17 @@ export interface Container {
   forwarder: string | null;
   notes: string | null;
   status: ContainerStatus;
+
+  // Gate Weighbridge Scale Audit & Landed Cost FX
+  weighbridgeGrossWeight?: number | null;
+  weighbridgeTareWeight?: number | null;
+  weighbridgeNetWeight?: number | null;
+  weightVarianceKg?: number | null;
+  weightVariancePct?: number | null;
+  varianceAlertStatus?: 'OK' | 'VARIANCE_WARNING' | 'CRITICAL_DISCREPANCY' | null;
+  fxRate?: number;
+  landedCostPerKg?: number | null;
+
   createdAt: string;
   updatedAt: string;
   purchaseOrder?: PurchaseOrder;
@@ -139,11 +150,15 @@ export interface CreateContainerRequest {
   portOfDischarge?: string;
   forwarder?: string;
   notes?: string;
+  weighbridgeGrossWeight?: number;
+  weighbridgeTareWeight?: number;
+  fxRate?: number;
 }
 
 export interface UpdateContainerRequest {
   referenceNumber?: string;
   containerType?: string;
+  status?: ContainerStatus;
   eta?: string;
   etd?: string;
   arrivedAt?: string;
@@ -157,6 +172,9 @@ export interface UpdateContainerRequest {
   portOfDischarge?: string;
   forwarder?: string;
   notes?: string;
+  weighbridgeGrossWeight?: number;
+  weighbridgeTareWeight?: number;
+  fxRate?: number;
 }
 
 export interface UpdateContainerWeightsRequest {

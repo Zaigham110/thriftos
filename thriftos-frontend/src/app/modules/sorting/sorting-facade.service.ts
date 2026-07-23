@@ -108,7 +108,7 @@ export class SortingFacadeService {
     return this.http.get<WasteCategory[]>(API_ENDPOINTS.wasteCategories);
   }
 
-  stage1Queue(page: number, limit: number, query?: Stage1QueueQuery) {
+  stage1Queue(page: number = 1, limit: number = 100, query?: Stage1QueueQuery) {
     let params = new HttpParams().set('page', String(page)).set('limit', String(limit));
     if (query?.status) params = params.set('status', query.status);
     return this.http.get<PagedResponse<Stage1QueueItem>>(`${API_ENDPOINTS.sortingFacadeStage1}/queue`, { params });
@@ -244,5 +244,9 @@ export class SortingFacadeService {
 
   markOutputReadyForRepack(outputId: string) {
     return this.http.patch<GradeOutput>(`${API_ENDPOINTS.sortingOutputs}/${outputId}/mark-ready`, {});
+  }
+
+  getProductivity() {
+    return this.http.get<any>(`${API_ENDPOINTS.sortingStage1}/sessions/productivity`);
   }
 }
