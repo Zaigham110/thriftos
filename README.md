@@ -23,11 +23,12 @@ ThriftOS is a multi-tenant ERP for thrift, textile recycling, and resale operati
 
 ```text
 .
+├── docker-compose.yml    # PostgreSQL Docker Compose configuration
 ├── prisma/               # Shared Prisma schema, migrations, seed script
 ├── server/               # NestJS backend API
 ├── thriftos-frontend/    # Angular frontend
 ├── docs/                 # Architecture and implementation notes
-├── scripts/              # Shared scripts
+├── scripts/              # Setup scripts (setup-db.sh)
 ├── package.json          # Root Prisma/database scripts
 └── .env                  # Local database connection
 ```
@@ -35,6 +36,7 @@ ThriftOS is a multi-tenant ERP for thrift, textile recycling, and resale operati
 ## Tech stack
 
 - Node.js / npm
+- Docker & Docker Compose
 - PostgreSQL
 - Prisma
 - NestJS
@@ -47,9 +49,9 @@ Install these before starting:
 
 - Node.js 20+ recommended
 - npm
-- PostgreSQL 14+ recommended
+- Docker Desktop (or Docker daemon with Docker Compose) / PostgreSQL 14+
 
-## Local environment
+## Local environment & Database Setup
 
 The backend reads the database connection from the root `.env` file.
 
@@ -59,7 +61,25 @@ Default local value:
 DATABASE_URL="postgresql://labur:labur_dev_password@localhost:5432/thriftos?schema=public"
 ```
 
-Create the `thriftos` database in PostgreSQL and update the username/password if needed.
+### Automated Docker & Database Setup (Recommended)
+
+You can automatically spin up the PostgreSQL Docker container, verify/create the `thriftos` database, generate Prisma client, push schema, and seed default data using a single command:
+
+```bash
+npm run db:setup
+```
+
+Alternatively, to manually manage Docker:
+
+```bash
+# Start PostgreSQL via Docker Compose
+docker compose up -d
+
+# Run Prisma schema push & seed
+npm run db:generate
+npm run db:push
+npm run db:seed
+```
 
 ## First-time setup
 
@@ -69,14 +89,9 @@ Run these commands from the repository root:
 npm install
 npm --prefix server install
 npm --prefix thriftos-frontend install
-```
 
-Then prepare the database:
-
-```bash
-npm run db:generate
-npm run db:migrate
-npm run db:seed
+# Automated Database & Docker Setup
+npm run db:setup
 ```
 
 ## How to run the project
@@ -111,7 +126,7 @@ The frontend uses `thriftos-frontend/proxy.conf.json` to proxy `/api` requests t
 
 ## Seeded login accounts
 
-After `npm run db:seed`, you can use:
+After `npm run db:setup` (or `npm run db:seed`), you can use:
 
 ### Super admin
 
@@ -128,13 +143,14 @@ After `npm run db:seed`, you can use:
 ### Root
 
 ```bash
-npm run db:generate
-npm run db:migrate
+npm run db:setup     # Automated Docker start + Database creation + Schema push + Seeding
+npm run db:generate  # Generate Prisma client
+npm run db:migrate   # Run development migrations
 npm run db:migrate:prod
-npm run db:push
-npm run db:seed
-npm run db:studio
-npm run db:reset
+npm run db:push      # Push Prisma schema to DB
+npm run db:seed      # Seed database
+npm run db:studio    # Launch Prisma Studio GUI
+npm run db:reset     # Reset database (WARNING: clears data)
 ```
 
 ### Backend

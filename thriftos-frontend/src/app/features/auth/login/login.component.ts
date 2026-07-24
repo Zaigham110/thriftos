@@ -1,16 +1,8 @@
 /**
- * ===============================
- * LOGIN COMPONENT - PHASE 0
- * ===============================
+ * Login Component - ThriftOS Enterprise ERP
  * 
- * DESIGN SYSTEM COMPLIANCE:
- * ✓ Uses app-page hierarchy
- * ✓ Uses app-form + app-form-field
- * ✓ Uses app-button
- * ✓ Uses app-card
- * ✓ NO custom layout
- * ✓ NO spacing utilities
- * ✓ NO tenant selector
+ * High-density modern authentication screen.
+ * Complies with ThriftOS Design System & Brand Guidelines (#714b67 deep plum purple).
  */
 
 import { Component, signal, OnInit, DestroyRef, inject } from '@angular/core';
@@ -19,20 +11,23 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { Router, ActivatedRoute } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter, take } from 'rxjs/operators';
-
-// Design System Primitives ONLY
 import {
-  AppAuthLayoutComponent,
-  AppBrandPanelComponent,
-  AppSectionComponent,
-  AppCardComponent,
-  AppFormComponent,
-  AppFormFieldComponent,
-  AppButtonComponent,
-  AppInputComponent,
-  AppPasswordInputComponent,
-  AppLinkComponent,
- } from '../../../shared/ui';
+  LucideAngularModule,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  Loader2,
+  ShieldCheck,
+  CheckCircle2,
+  Layers,
+  Building2,
+  Sparkles,
+  AlertCircle,
+  Truck,
+  BarChart3,
+} from 'lucide-angular';
 
 import { AuthService } from '../../../core/auth';
 
@@ -42,25 +37,33 @@ import { AuthService } from '../../../core/auth';
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    // Design System Primitives
-    AppAuthLayoutComponent,
-    AppBrandPanelComponent,
-    AppSectionComponent,
-    AppCardComponent,
-    AppFormComponent,
-    AppFormFieldComponent,
-    AppButtonComponent,
-    AppInputComponent,
-    AppPasswordInputComponent,
-    AppLinkComponent,
+    LucideAngularModule,
   ],
   templateUrl: './login.component.html',
-  styles: []
+  styleUrl: './login.component.scss',
 })
 export class LoginComponent implements OnInit {
   protected readonly loginForm: FormGroup;
   protected readonly isLoading = signal<boolean>(false);
   protected readonly authError = signal<string>('');
+  protected readonly showPassword = signal<boolean>(false);
+
+  readonly icons = {
+    Mail,
+    Lock,
+    Eye,
+    EyeOff,
+    ArrowRight,
+    Loader2,
+    ShieldCheck,
+    CheckCircle2,
+    Layers,
+    Building2,
+    Sparkles,
+    AlertCircle,
+    Truck,
+    BarChart3,
+  };
 
   private readonly destroyRef = inject(DestroyRef);
   private returnUrl = '/';
@@ -74,6 +77,7 @@ export class LoginComponent implements OnInit {
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(6)]],
+      rememberMe: [true],
     });
   }
 
@@ -91,6 +95,21 @@ export class LoginComponent implements OnInit {
         this.redirectAfterLogin();
       }
     });
+  }
+
+  togglePasswordVisibility(): void {
+    this.showPassword.update((val) => !val);
+  }
+
+  fillDemoCredentials(role: 'admin' | 'sorter' | 'sales'): void {
+    const creds = {
+      admin: { email: 'admin@thriftos.com', password: 'password123' },
+      sorter: { email: 'sorter@thriftos.com', password: 'password123' },
+      sales: { email: 'sales@thriftos.com', password: 'password123' },
+    };
+    const chosen = creds[role] || creds.admin;
+    this.loginForm.patchValue(chosen);
+    this.authError.set('');
   }
 
   onSubmit(): void {
@@ -111,7 +130,7 @@ export class LoginComponent implements OnInit {
       },
       error: (error) => {
         this.isLoading.set(false);
-        this.authError.set(error?.message || 'Invalid email or password');
+        this.authError.set(error?.message || 'Invalid email or password. Please check your credentials.');
       },
     });
   }
@@ -119,10 +138,10 @@ export class LoginComponent implements OnInit {
   getEmailError(): string | undefined {
     const control = this.loginForm.get('email');
     if (control?.hasError('required') && control?.touched) {
-      return 'Email is required';
+      return 'Email address is required';
     }
     if (control?.hasError('email') && control?.touched) {
-      return 'Please enter a valid email';
+      return 'Please enter a valid email address';
     }
     return undefined;
   }
@@ -151,7 +170,6 @@ export class LoginComponent implements OnInit {
 
     const normalizeLegacy = (url: string): string => {
       if (!url || url === '/') return '/';
-      // Legacy (pre /app) routes
       const legacyPrefixes = ['/dashboard', '/procurement', '/sorting', '/packaging', '/inventory', '/reports', '/admin'];
       if (!legacyPrefixes.some((p) => url.startsWith(p))) return url;
 
@@ -161,7 +179,6 @@ export class LoginComponent implements OnInit {
       if (url.startsWith('/packaging')) return `/app${url}`;
       if (url.startsWith('/inventory')) return `/app${url}`;
       if (url.startsWith('/reports')) return `/app${url}`;
-      // Tenant admin legacy routes now live under /app/admin
       if (url === '/admin') return '/app/admin';
       if (url.startsWith('/admin/')) return `/app${url}`;
 
@@ -171,7 +188,6 @@ export class LoginComponent implements OnInit {
     const requested = normalizeLegacy(this.returnUrl);
 
     if (isSuperAdmin && !isImpersonating) {
-      // SuperAdmin is restricted to /admin/**
       if (requested.startsWith('/admin')) {
         void this.router.navigateByUrl(requested);
         return;
@@ -180,7 +196,6 @@ export class LoginComponent implements OnInit {
       return;
     }
 
-    // Tenant user OR impersonating super admin: requires tenant context
     const effectiveTenantId = user?.tenantId ?? user?.impersonatedTenantId ?? null;
     if (!effectiveTenantId) {
       void this.router.navigate(['/auth/no-tenant']);

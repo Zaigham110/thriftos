@@ -7,7 +7,7 @@
 
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import {
   LucideAngularModule,
@@ -16,6 +16,8 @@ import {
   UserCheck,
   CheckCircle2,
   Tag,
+  Plus,
+  Users,
 } from 'lucide-angular';
 
 import { CustomersService } from '../customers.service';
@@ -23,6 +25,7 @@ import { SalesService } from '../sales.service';
 import type { Customer, SaleType } from '../sales.models';
 import {
   AppBreadcrumbComponent,
+  AppDialogComponent,
   AppErrorStateComponent,
   AppLoadingComponent,
   AppPageBodyComponent,
@@ -45,6 +48,7 @@ import {
     AppBreadcrumbComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
+    AppDialogComponent,
   ],
   templateUrl: './sales-new.page.html',
   styleUrl: './sales-new.page.scss',
@@ -67,6 +71,8 @@ export class SalesNewPage implements OnInit {
     UserCheck,
     CheckCircle2,
     Tag,
+    Plus,
+    Users,
   };
 
   readonly loading = signal<boolean>(false);
@@ -74,9 +80,22 @@ export class SalesNewPage implements OnInit {
   readonly error = signal<string | null>(null);
 
   readonly customers = signal<Customer[]>([]);
+  readonly isQuickAddOpen = signal<boolean>(false);
+  readonly creatingCustomer = signal<boolean>(false);
 
   readonly customerId = new FormControl<string>('', { nonNullable: true, validators: [Validators.required] });
   readonly type = new FormControl<SaleType>('WHOLESALE', { nonNullable: true, validators: [Validators.required] });
+
+  readonly newCustomerForm = new FormGroup({
+    name: new FormControl<string>('', { nonNullable: true, validators: [Validators.required] }),
+    companyName: new FormControl<string>('', { nonNullable: true, validators: [Validators.required] }),
+    contactEmail: new FormControl<string>('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
+    contactPhone: new FormControl<string>('', { nonNullable: true, validators: [Validators.required] }),
+    billingAddress: new FormControl<string>('', { nonNullable: true, validators: [Validators.required] }),
+    shippingAddress: new FormControl<string>('', { nonNullable: true, validators: [Validators.required] }),
+    paymentTerms: new FormControl<string>('NET_30', { nonNullable: true }),
+    creditLimit: new FormControl<number>(10000, { nonNullable: true, validators: [Validators.min(0)] }),
+  });
 
   readonly customerOptions = computed<SelectOption[]>(() => {
     const rows = this.customers();
@@ -113,6 +132,55 @@ export class SalesNewPage implements OnInit {
         this.loading.set(false);
       },
     });
+  }
+
+  openQuickAddModal(): void {
+    this.newCustomerForm.reset({
+      name: '',
+      companyName: '',
+      contactEmail: '',
+      contactPhone: '',
+      billingAddress: '',
+      shippingAddress: '',
+      paymentTerms: 'NET_30',
+      creditLimit: 10000,
+    });
+    this.isQuickAddOpen.set(true);
+  }
+
+  closeQuickAddModal(): void {
+    this.isQuickAddOpen.set(false);
+  }
+
+  saveNewCustomer(): void {
+    if (this.newCustomerForm.invalid) return;
+
+    const val = this.newCustomerForm.getRawValue();
+    this.creatingCustomer.set(true);
+
+    this.customersService
+      .create({
+        name: val.name,
+        companyName: val.companyName,
+        contactEmail: val.contactEmail,
+        contactPhone: val.contactPhone,
+        billingAddress: val.billingAddress,
+        shippingAddress: val.shippingAddress,
+        paymentTerms: val.paymentTerms,
+        creditLimit: val.creditLimit,
+      })
+      .subscribe({
+        next: (created) => {
+          this.creatingCustomer.set(false);
+          this.closeQuickAddModal();
+          this.customers.update((prev) => [created, ...prev]);
+          this.customerId.setValue(created.id);
+        },
+        error: (err) => {
+          this.creatingCustomer.set(false);
+          this.error.set(err?.message || 'Failed to create customer');
+        },
+      });
   }
 
   createDraft(): void {

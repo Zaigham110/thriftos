@@ -4,6 +4,7 @@
   "description": "ThriftOS V3 - Industrial-grade ERP for textile recycling businesses",
   "private": true,
   "scripts": {
+    "db:setup": "bash scripts/setup-db.sh",
     "db:generate": "prisma generate && node scripts/ensure-prisma-client-link.js",
     "db:migrate": "prisma migrate dev",
     "db:migrate:prod": "prisma migrate deploy",

@@ -18,59 +18,56 @@
 
   <app-page-body>
     @if (error()) {
-      <app-error-state
-        [message]="error()!"
-        (retry)="loadCustomers()"
-      ></app-error-state>
+    <app-error-state [message]="error()!" (retry)="loadCustomers()"></app-error-state>
     }
 
     @if (loading()) {
-      <app-loading message="Loading customer directory…"></app-loading>
+    <app-loading message="Loading customer directory…"></app-loading>
     } @else {
-      <div class="form-container">
-        <div class="form-card">
-          <div class="card-header">
-            <lucide-icon [img]="icons.ShoppingBag" [size]="18" class="header-icon"></lucide-icon>
-            <h3>Order Specification</h3>
+    <div class="form-container">
+      <div class="form-card">
+        <div class="card-header">
+          <lucide-icon [img]="icons.ShoppingBag" [size]="18" class="header-icon"></lucide-icon>
+          <h3>Order Specification</h3>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group col-full">
+            <label class="form-label required">Wholesale Customer / Buyer</label>
+            <select [formControl]="customerId" class="form-select">
+              @for (opt of customerOptions(); track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+            <span class="field-hint">Select the registered wholesale buyer for this commercial sales order.</span>
           </div>
 
-          <div class="form-grid">
-            <div class="form-group col-full">
-              <label class="form-label required">Wholesale Customer / Buyer</label>
-              <select [formControl]="customerId" class="form-select">
-                @for (opt of customerOptions(); track opt.value) {
-                  <option [value]="opt.value">{{ opt.label }}</option>
-                }
-              </select>
-              <span class="field-hint">Select the registered wholesale buyer for this commercial sales order.</span>
-            </div>
+          <div class="form-group col-full mt-3">
+            <label class="form-label required">Order Channel / Type</label>
+            <select [formControl]="type" class="form-select">
+              @for (opt of typeOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+            <span class="field-hint">Wholesale batch sale or international export shipment.</span>
+          </div>
 
-            <div class="form-group col-full mt-3">
-              <label class="form-label required">Order Channel / Type</label>
-              <select [formControl]="type" class="form-select">
-                @for (opt of typeOptions; track opt.value) {
-                  <option [value]="opt.value">{{ opt.label }}</option>
-                }
-              </select>
-              <span class="field-hint">Wholesale batch sale or international export shipment.</span>
-            </div>
-
-            <div class="form-actions mt-4">
-              <button class="btn btn-secondary" (click)="goBack()" [disabled]="saving()">
-                Cancel
-              </button>
-              <button class="btn btn-primary" (click)="createDraft()" [disabled]="saving() || customerId.invalid">
-                <lucide-icon [img]="icons.CheckCircle2" [size]="15"></lucide-icon>
-                @if (saving()) {
-                  Creating Order Draft…
-                } @else {
-                  Create & Open Order
-                }
-              </button>
-            </div>
+          <div class="form-actions mt-4">
+            <button class="btn btn-secondary" (click)="goBack()" [disabled]="saving()">
+              Cancel
+            </button>
+            <button class="btn btn-primary" (click)="createDraft()" [disabled]="saving() || customerId.invalid">
+              <lucide-icon [img]="icons.CheckCircle2" [size]="15"></lucide-icon>
+              @if (saving()) {
+              Creating Order Draft…
+              } @else {
+              Create & Open Order
+              }
+            </button>
           </div>
         </div>
       </div>
+    </div>
     }
   </app-page-body>
 </app-page>

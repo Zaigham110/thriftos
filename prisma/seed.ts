@@ -573,7 +573,72 @@ async function main() {
     },
   });
 
-  console.log('   ✅ 2 Container Rags + 1 Loose Bale created (all NOT_STARTED)');
+  // =========================================================
+  // 14. SEED DEMO CUSTOMERS (Sales Module)
+  // =========================================================
+  console.log('📦 Seeding Demo Customers...');
+
+  const demoCustomer1 = await prisma.customer.upsert({
+    where: { tenantId_name: { tenantId: demoTenant.id, name: 'Apex Wholesale Outlets' } },
+    update: {},
+    create: {
+      tenantId: demoTenant.id,
+      name: 'Apex Wholesale Outlets',
+      companyName: 'Apex Outlets Inc',
+      billingAddress: '100 Industrial Blvd, Suite 400, Chicago, IL 60601',
+      shippingAddress: '100 Industrial Blvd, Port Dock 4, Chicago, IL 60601',
+      contactEmail: 'orders@apexoutlets.com',
+      contactPhone: '+1 (555) 234-5678',
+      taxId: 'US-8874129',
+      creditLimit: 50000.00,
+      paymentTerms: 'NET_30',
+      creditStatus: 'GOOD_STANDING',
+      currencyCode: 'USD',
+      isActive: true,
+    },
+  });
+
+  const demoCustomer2 = await prisma.customer.upsert({
+    where: { tenantId_name: { tenantId: demoTenant.id, name: 'Global Thrift Exports LLC' } },
+    update: {},
+    create: {
+      tenantId: demoTenant.id,
+      name: 'Global Thrift Exports LLC',
+      companyName: 'Global Thrift Exports',
+      billingAddress: '450 Harbor Way, Miami, FL 33132',
+      shippingAddress: '450 Harbor Way, Terminal 2, Miami, FL 33132',
+      contactEmail: 'logistics@globalshippers.com',
+      contactPhone: '+1 (555) 987-6543',
+      taxId: 'US-9982341',
+      creditLimit: 100000.00,
+      paymentTerms: 'NET_60',
+      creditStatus: 'GOOD_STANDING',
+      currencyCode: 'USD',
+      isActive: true,
+    },
+  });
+
+  const demoCustomer3 = await prisma.customer.upsert({
+    where: { tenantId_name: { tenantId: demoTenant.id, name: 'Vintage Apparel Buyers' } },
+    update: {},
+    create: {
+      tenantId: demoTenant.id,
+      name: 'Vintage Apparel Buyers',
+      companyName: 'Vintage Apparel Co',
+      billingAddress: '782 Fashion District, New York, NY 10018',
+      shippingAddress: '782 Fashion District, New York, NY 10018',
+      contactEmail: 'buyers@vintageapparel.com',
+      contactPhone: '+1 (555) 345-6789',
+      taxId: 'US-1122334',
+      creditLimit: 25000.00,
+      paymentTerms: 'PREPAID',
+      creditStatus: 'GOOD_STANDING',
+      currencyCode: 'USD',
+      isActive: true,
+    },
+  });
+
+  console.log('   ✅ 3 Demo Customers created: Apex Wholesale, Global Thrift Exports, Vintage Apparel');
 
   console.log('\n✅ Database seeding completed successfully!');
   console.log('\n📋 Summary:');

@@ -1,23 +1,43 @@
 /**
- * ===============================
- * DASHBOARD - PHASE 1 (READ-ONLY)
- * ===============================
- *
- * DESIGN SYSTEM COMPLIANCE:
- * ✓ app-page hierarchy
- * ✓ app-section, app-card, app-kpi-card
- * ✓ app-select/app-input filters (read-only)
- * ✓ app-chart (internal, no chart libs)
- * ✓ app-table wrapper
- * ✗ No mutations
+ * Executive Dashboard - Company Owner Cockpit
+ * Phase 1 & 2: Financial, Production, and Operational Risk Overview
  */
 
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import {
+  LucideAngularModule,
+  DollarSign,
+  TrendingUp,
+  Truck,
+  Scale,
+  ShieldAlert,
+  Package,
+  BarChart3,
+  Layers,
+  ShoppingBag,
+  Users,
+  CheckCircle2,
+  RefreshCw,
+  ArrowRight,
+  Sparkles,
+  Award,
+  Zap,
+  Clock,
+  AlertTriangle,
+  ChevronRight,
+  Download,
+  Filter,
+  X,
+  FileText,
+  Building2,
+  Activity,
+} from 'lucide-angular';
 
 import {
   AppPageComponent,
@@ -42,7 +62,17 @@ import {
 
 import { TenantService } from '../../../core/tenant/tenant.service';
 import { MoneyService } from '../../../core/money/money.service';
-import { DashboardDataService, type DashboardFilters, type DashboardCategoryYieldRow } from './dashboard-data.service';
+import {
+  DashboardDataService,
+  type DashboardFilters,
+  type DashboardCategoryYieldRow,
+  type ExecutiveOverview,
+  type MaterialBalanceFlow,
+  type OperatorLeaderboardRow,
+  type ContainerAuditRow,
+  type CustomerRiskRow,
+  type InventoryGradeRow,
+} from './dashboard-data.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -50,6 +80,8 @@ import { DashboardDataService, type DashboardFilters, type DashboardCategoryYiel
   imports: [
     CommonModule,
     FormsModule,
+    RouterLink,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
@@ -78,6 +110,42 @@ export class DashboardComponent {
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
 
+  // Interactive View Tabs
+  protected readonly activeView = signal<'overview' | 'financial' | 'operations' | 'logistics' | 'customers'>('overview');
+
+  // Interactive Side Control Drawers
+  protected readonly selectedContainer = signal<ContainerAuditRow | null>(null);
+  protected readonly selectedCustomer = signal<CustomerRiskRow | null>(null);
+
+  // Icons
+  readonly icons = {
+    DollarSign,
+    TrendingUp,
+    Truck,
+    Scale,
+    ShieldAlert,
+    Package,
+    BarChart3,
+    Layers,
+    ShoppingBag,
+    Users,
+    CheckCircle2,
+    RefreshCw,
+    ArrowRight,
+    Sparkles,
+    Award,
+    Zap,
+    Clock,
+    AlertTriangle,
+    ChevronRight,
+    Download,
+    Filter,
+    X,
+    FileText,
+    Building2,
+    Activity,
+  };
+
   // Filters
   protected readonly period = signal<'7d' | '30d' | '90d' | 'custom'>('30d');
   protected readonly categoryId = signal<string>('');
@@ -92,8 +160,8 @@ export class DashboardComponent {
     { value: 'custom', label: 'Custom range' },
   ];
 
-  // Data
-  protected readonly tenantName = computed(() => this.tenantService.tenant()?.name ?? '');
+  // Data Signals
+  protected readonly tenantName = computed(() => this.tenantService.tenant()?.name ?? 'Enterprise Workspace');
   protected readonly categoryOptions = computed<SelectOption[]>(() => {
     const cats = this.tenantService.categories();
     const opts = cats
@@ -104,28 +172,46 @@ export class DashboardComponent {
     return [{ value: '', label: 'All categories' }, ...opts];
   });
 
+  // KPIs
+  protected readonly kpiSalesRevenue = signal(0);
   protected readonly kpiProcurementCost = signal(0);
+  protected readonly kpiNetMargin = signal(0);
   protected readonly kpiSortedWeightKg = signal(0);
   protected readonly kpiYieldPct = signal(0);
   protected readonly kpiWastePct = signal(0);
 
+  protected readonly kpiSalesRevenueChange = signal<string | undefined>(undefined);
   protected readonly kpiProcurementCostChange = signal<string | undefined>(undefined);
+  protected readonly kpiNetMarginChange = signal<string | undefined>(undefined);
   protected readonly kpiSortedWeightChange = signal<string | undefined>(undefined);
   protected readonly kpiYieldChange = signal<string | undefined>(undefined);
   protected readonly kpiWasteChange = signal<string | undefined>(undefined);
 
+  protected readonly kpiSalesRevenueChangeType = computed(() => this.changeType(this.kpiSalesRevenueChange()));
   protected readonly kpiProcurementCostChangeType = computed(() => this.changeType(this.kpiProcurementCostChange()));
+  protected readonly kpiNetMarginChangeType = computed(() => this.changeType(this.kpiNetMarginChange()));
   protected readonly kpiSortedWeightChangeType = computed(() => this.changeType(this.kpiSortedWeightChange()));
   protected readonly kpiYieldChangeType = computed(() => this.changeType(this.kpiYieldChange()));
   protected readonly kpiWasteChangeType = computed(() => this.changeType(this.kpiWasteChange()));
 
-  protected readonly volumePoints = signal<ChartPoint[]>([]);
-  protected readonly categoryYieldPoints = signal<ChartPoint[]>([]);
-
+  protected readonly salesSparkline = signal<number[]>([]);
   protected readonly procurementSparkline = signal<number[]>([]);
   protected readonly sortedWeightSparkline = signal<number[]>([]);
   protected readonly yieldSparkline = signal<number[]>([]);
   protected readonly wasteSparkline = signal<number[]>([]);
+
+  // Charts
+  protected readonly revenuePoints = signal<ChartPoint[]>([]);
+  protected readonly volumePoints = signal<ChartPoint[]>([]);
+  protected readonly categoryYieldPoints = signal<ChartPoint[]>([]);
+
+  // Detailed Datasets
+  protected readonly materialFlow = signal<MaterialBalanceFlow | null>(null);
+  protected readonly executiveOverview = signal<ExecutiveOverview | null>(null);
+  protected readonly operatorLeaderboard = signal<OperatorLeaderboardRow[]>([]);
+  protected readonly containerAudits = signal<ContainerAuditRow[]>([]);
+  protected readonly customerRisks = signal<CustomerRiskRow[]>([]);
+  protected readonly inventoryGrades = signal<InventoryGradeRow[]>([]);
 
   constructor(
     private readonly tenantService: TenantService,
@@ -135,7 +221,6 @@ export class DashboardComponent {
     this.tenantService.loadCategories().pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
 
     effect(() => {
-      // Trigger reload when filters change.
       void this.period();
       void this.categoryId();
       void this.workerId();
@@ -143,6 +228,10 @@ export class DashboardComponent {
       void this.customEnd();
       this.reload();
     });
+  }
+
+  onViewChange(view: 'overview' | 'financial' | 'operations' | 'logistics' | 'customers'): void {
+    this.activeView.set(view);
   }
 
   onPeriodChange(value: string | number): void {
@@ -165,6 +254,26 @@ export class DashboardComponent {
     this.customEnd.set(value ?? '');
   }
 
+  openContainerDrawer(cont: ContainerAuditRow): void {
+    this.selectedContainer.set(cont);
+  }
+
+  closeContainerDrawer(): void {
+    this.selectedContainer.set(null);
+  }
+
+  openCustomerDrawer(cust: CustomerRiskRow): void {
+    this.selectedCustomer.set(cust);
+  }
+
+  closeCustomerDrawer(): void {
+    this.selectedCustomer.set(null);
+  }
+
+  exportExecutiveSummary(): void {
+    window.print();
+  }
+
   protected readonly activeFilters = computed<DashboardFilters>(() => {
     const { startDate, endDate } = this.resolveRange();
     return {
@@ -178,7 +287,6 @@ export class DashboardComponent {
   private resolveRange(): { startDate?: string; endDate?: string; days: number } {
     const today = new Date();
     const end = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
-
     const presetDays = this.period() === '7d' ? 7 : this.period() === '90d' ? 90 : this.period() === 'custom' ? 0 : 30;
 
     if (this.period() === 'custom') {
@@ -189,15 +297,12 @@ export class DashboardComponent {
 
     const start = new Date(end);
     start.setUTCDate(start.getUTCDate() - (presetDays - 1));
-
     const toIso = (d: Date) => d.toISOString().slice(0, 10);
     return { startDate: toIso(start), endDate: toIso(end), days: presetDays };
   }
 
   private reload(): void {
     const filters = this.activeFilters();
-
-    // Avoid firing requests when custom range is incomplete.
     if (this.period() === 'custom' && (!filters.startDate || !filters.endDate)) {
       return;
     }
@@ -213,8 +318,8 @@ export class DashboardComponent {
           const status = e?.status;
           const message =
             status === 403
-              ? 'Missing REPORTS_VIEW permission for analytics.'
-              : e?.error?.message || e?.message || 'Failed to load dashboard data';
+              ? 'Missing REPORTS_VIEW permission for dashboard analytics.'
+              : e?.error?.message || e?.message || 'Failed to load executive dashboard data';
           this.error.set(message);
           this.loading.set(false);
           return of(null);
@@ -225,23 +330,36 @@ export class DashboardComponent {
 
         const summary = res.data;
 
-        this.kpiProcurementCost.set(Number(summary.kpis.procurementCost.value ?? 0));
-        this.kpiSortedWeightKg.set(Number(summary.kpis.sortedWeightKg.value ?? 0));
-        this.kpiYieldPct.set(Number(summary.kpis.yieldPct.value ?? 0));
-        this.kpiWastePct.set(Number(summary.kpis.wastePct.value ?? 0));
+        this.kpiSalesRevenue.set(Number(summary.kpis.salesRevenue?.value ?? 0));
+        this.kpiProcurementCost.set(Number(summary.kpis.procurementCost?.value ?? 0));
+        this.kpiNetMargin.set(Number(summary.kpis.netOperationalMargin?.value ?? 0));
+        this.kpiSortedWeightKg.set(Number(summary.kpis.sortedWeightKg?.value ?? 0));
+        this.kpiYieldPct.set(Number(summary.kpis.yieldPct?.value ?? 0));
+        this.kpiWastePct.set(Number(summary.kpis.wastePct?.value ?? 0));
 
-        this.kpiProcurementCostChange.set(summary.kpis.procurementCost.change);
-        this.kpiSortedWeightChange.set(summary.kpis.sortedWeightKg.change);
-        this.kpiYieldChange.set(summary.kpis.yieldPct.change);
-        this.kpiWasteChange.set(summary.kpis.wastePct.change);
+        this.kpiSalesRevenueChange.set(summary.kpis.salesRevenue?.change);
+        this.kpiProcurementCostChange.set(summary.kpis.procurementCost?.change);
+        this.kpiNetMarginChange.set(summary.kpis.netOperationalMargin?.change);
+        this.kpiSortedWeightChange.set(summary.kpis.sortedWeightKg?.change);
+        this.kpiYieldChange.set(summary.kpis.yieldPct?.change);
+        this.kpiWasteChange.set(summary.kpis.wastePct?.change);
 
-        this.procurementSparkline.set(summary.kpis.procurementCost.sparkline ?? []);
-        this.sortedWeightSparkline.set(summary.kpis.sortedWeightKg.sparkline ?? []);
-        this.yieldSparkline.set(summary.kpis.yieldPct.sparkline ?? []);
-        this.wasteSparkline.set(summary.kpis.wastePct.sparkline ?? []);
+        this.salesSparkline.set(summary.kpis.salesRevenue?.sparkline ?? []);
+        this.procurementSparkline.set(summary.kpis.procurementCost?.sparkline ?? []);
+        this.sortedWeightSparkline.set(summary.kpis.sortedWeightKg?.sparkline ?? []);
+        this.yieldSparkline.set(summary.kpis.yieldPct?.sparkline ?? []);
+        this.wasteSparkline.set(summary.kpis.wastePct?.sparkline ?? []);
 
+        this.revenuePoints.set((summary.analytics.salesRevenueTrend ?? []).map((r) => ({ label: r.bucket, value: Number(r.value) })));
         this.volumePoints.set((summary.analytics.sortedVolumeTrend ?? []).map((r) => ({ label: r.bucket, value: Number(r.value) })));
         this.categoryYieldPoints.set(this.mapCategoryYieldToChartPoints(summary.analytics.categoryYield ?? []));
+
+        this.materialFlow.set(summary.materialBalanceFlow ?? null);
+        this.executiveOverview.set(summary.executiveOverview ?? null);
+        this.operatorLeaderboard.set(summary.operatorLeaderboard ?? []);
+        this.containerAudits.set(summary.containerAudits ?? []);
+        this.customerRisks.set(summary.customerRisks ?? []);
+        this.inventoryGrades.set(summary.inventoryGrades ?? []);
 
         this.loading.set(false);
       });
@@ -266,9 +384,10 @@ export class DashboardComponent {
     return this.money.format(v || 0, { maximumFractionDigits: 0 });
   }
 
-  protected formatKg(v: number): string {
+  protected formatKg(v: number | string | null | undefined): string {
+    const num = typeof v === 'number' ? v : parseFloat(String(v ?? '0')) || 0;
     const nf = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
-    return `${nf.format(v)} kg`;
+    return `${nf.format(num)} kg`;
   }
 
   protected formatPct(v: number): string {

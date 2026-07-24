@@ -272,6 +272,7 @@ model Customer {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   sales  Sale[]
 
+  @@unique([tenantId, name])
   @@index([tenantId])
   @@index([tenantId, isActive])
   @@index([contactEmail])

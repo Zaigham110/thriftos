@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
@@ -32,23 +32,27 @@ import { SearchModule } from './search/search.module';
     }),
 
     // Rate limiting
-    ThrottlerModule.forRoot([
-      {
-        name: 'short',
-        ttl: 1000,
-        limit: 3,
-      },
-      {
-        name: 'medium',
-        ttl: 10000,
-        limit: 20,
-      },
-      {
-        name: 'long',
-        ttl: 60000,
-        limit: 100,
-      },
-    ]),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => [
+        {
+          name: 'short',
+          ttl: parseInt(configService.get<string>('THROTTLE_TTL_SHORT') || '1000', 10),
+          limit: parseInt(configService.get<string>('THROTTLE_LIMIT_SHORT') || '30', 10),
+        },
+        {
+          name: 'medium',
+          ttl: parseInt(configService.get<string>('THROTTLE_TTL_MEDIUM') || '10000', 10),
+          limit: parseInt(configService.get<string>('THROTTLE_LIMIT_MEDIUM') || '150', 10),
+        },
+        {
+          name: 'long',
+          ttl: parseInt(configService.get<string>('THROTTLE_TTL_LONG') || '60000', 10),
+          limit: parseInt(configService.get<string>('THROTTLE_LIMIT_LONG') || '500', 10),
+        },
+      ],
+    }),
 
     // Core modules
     PrismaModule,

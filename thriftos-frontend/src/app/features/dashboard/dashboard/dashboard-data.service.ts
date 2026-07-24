@@ -16,16 +16,82 @@ export interface DashboardTrendPoint {
   value: string;
 }
 
+export interface ExecutiveOverview {
+  inTransitContainersCount: number;
+  weighbridgeVarianceAlertsCount: number;
+  blockedCustomersCount: number;
+  availableInventoryKg: string;
+  availableInventoryUnitsCount: number;
+}
+
+export interface MaterialBalanceFlow {
+  intakeKg: string;
+  sortedKg: string;
+  gradedKg: string;
+  repackedKg: string;
+  shippedKg: string;
+}
+
+export interface OperatorLeaderboardRow {
+  workerId: string;
+  workerName: string;
+  sessionCount: number;
+  totalInputKg: string;
+  totalOutputKg: string;
+  avgKgPerHour: string;
+}
+
+export interface ContainerAuditRow {
+  id: string;
+  containerNumber: string;
+  shippingLine: string | null;
+  status: string;
+  netWeightKg: string;
+  scaleNetKg: string | null;
+  varianceKg: string;
+  variancePct: string;
+  varianceAlertStatus: string;
+  forwarder?: string | null;
+  billOfLadingNumber?: string | null;
+}
+
+export interface CustomerRiskRow {
+  id: string;
+  name: string;
+  companyName: string | null;
+  creditLimit: string;
+  creditStatus: string;
+  paymentTerms: string;
+  unpaidBalance?: string;
+}
+
+export interface InventoryGradeRow {
+  gradeName: string;
+  categoryName: string;
+  totalWeightKg: string;
+  unitCount: number;
+}
+
 export interface DashboardSummary {
   range: { startDate: string; endDate: string };
   previousRange: { startDate: string; endDate: string };
   kpis: {
+    salesRevenue: { value: string; change?: string; sparkline: number[] };
     procurementCost: { value: string; change?: string; sparkline: number[] };
+    netOperationalMargin: { value: string; change?: string; sparkline: number[] };
     sortedWeightKg: { value: string; change?: string; sparkline: number[] };
     yieldPct: { value: string; change?: string; sparkline: number[] };
     wastePct: { value: string; change?: string; sparkline: number[] };
   };
+  materialBalanceFlow?: MaterialBalanceFlow;
+  executiveOverview: ExecutiveOverview;
+  operatorLeaderboard: OperatorLeaderboardRow[];
+  containerAudits: ContainerAuditRow[];
+  customerRisks: CustomerRiskRow[];
+  inventoryGrades: InventoryGradeRow[];
   analytics: {
+    salesRevenueTrend: DashboardTrendPoint[];
+    procurementCostTrend: DashboardTrendPoint[];
     sortedVolumeTrend: DashboardTrendPoint[];
     categoryYield: DashboardCategoryYieldRow[];
   };

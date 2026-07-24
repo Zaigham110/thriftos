@@ -1,146 +1,620 @@
 <app-page>
   <app-page-header>
-    <app-stack direction="vertical" spacing="xs">
-      <h1 class="page-title">Dashboard</h1>
-      <p class="page-subtitle">Operational overview @if (tenantName()) { for {{ tenantName() }} }</p>
-    </app-stack>
-    <div class="actions">
-      <!-- Reserved for Phase-1 (read-only). Intentionally empty. -->
+    <div class="flex justify-between items-center w-full">
+      <app-stack direction="vertical" spacing="xs">
+        <h1 class="page-title text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
+          <lucide-icon [img]="icons.TrendingUp" [size]="24" class="text-primary"></lucide-icon>
+          Executive Company Cockpit
+        </h1>
+        <p class="page-subtitle text-sm text-gray-600">
+          Complete end-to-end enterprise view of financials, sorting throughput, weighbridge scale audits, and credit risk @if (tenantName()) { for <strong class="text-gray-900">{{ tenantName() }}</strong> }
+        </p>
+      </app-stack>
+
+      <div class="actions flex items-center gap-2">
+        <button class="btn btn-secondary btn-sm" (click)="exportExecutiveSummary()">
+          <lucide-icon [img]="icons.Download" [size]="14"></lucide-icon>
+          Export Summary
+        </button>
+        <button class="btn btn-primary btn-sm" (click)="onPeriodChange(period())">
+          <lucide-icon [img]="icons.RefreshCw" [size]="14" [class.animate-spin]="loading()"></lucide-icon>
+          Refresh Data
+        </button>
+      </div>
     </div>
   </app-page-header>
 
   <app-page-body>
-    <app-section>
-      <app-section-header>
-        <h2 class="section-title">KPIs</h2>
-        <div class="actions">
-          <app-stack direction="horizontal" spacing="md">
-            <app-form-field label="Period">
-              <app-select
-                [options]="periodOptions"
-                [ngModel]="period()"
-                (ngModelChange)="onPeriodChange($event)"
-              />
-            </app-form-field>
 
-            @if (period() === 'custom') {
-              <app-form-field label="Start">
-                <app-input
-                  type="date"
-                  [ngModel]="customStart()"
-                  (ngModelChange)="onCustomStartChange($event)"
-                />
-              </app-form-field>
+    <!-- Sub-Navigation View Tabs -->
+    <div class="tabs-bar mb-4 flex items-center gap-2 border-b pb-2">
+      <button
+        class="tab-btn font-bold text-xs px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+        [class.bg-purple-900]="activeView() === 'overview'"
+        [class.text-white]="activeView() === 'overview'"
+        [class.bg-gray-100]="activeView() !== 'overview'"
+        [class.text-gray-700]="activeView() !== 'overview'"
+        (click)="onViewChange('overview')"
+      >
+        <lucide-icon [img]="icons.TrendingUp" [size]="14"></lucide-icon>
+        Overview Cockpit
+      </button>
 
-              <app-form-field label="End">
-                <app-input
-                  type="date"
-                  [ngModel]="customEnd()"
-                  (ngModelChange)="onCustomEndChange($event)"
-                />
-              </app-form-field>
-            }
+      <button
+        class="tab-btn font-bold text-xs px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+        [class.bg-purple-900]="activeView() === 'financial'"
+        [class.text-white]="activeView() === 'financial'"
+        [class.bg-gray-100]="activeView() !== 'financial'"
+        [class.text-gray-700]="activeView() !== 'financial'"
+        (click)="onViewChange('financial')"
+      >
+        <lucide-icon [img]="icons.DollarSign" [size]="14"></lucide-icon>
+        Financial & Margins
+      </button>
 
-            <app-form-field label="Category">
-              <app-select
-                [options]="categoryOptions()"
-                [ngModel]="categoryId()"
-                (ngModelChange)="onCategoryChange($event)"
-              />
-            </app-form-field>
+      <button
+        class="tab-btn font-bold text-xs px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+        [class.bg-purple-900]="activeView() === 'operations'"
+        [class.text-white]="activeView() === 'operations'"
+        [class.bg-gray-100]="activeView() !== 'operations'"
+        [class.text-gray-700]="activeView() !== 'operations'"
+        (click)="onViewChange('operations')"
+      >
+        <lucide-icon [img]="icons.Zap" [size]="14"></lucide-icon>
+        Sorting Throughput & Leaderboard
+      </button>
 
-            <app-form-field label="Worker">
+      <button
+        class="tab-btn font-bold text-xs px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+        [class.bg-purple-900]="activeView() === 'logistics'"
+        [class.text-white]="activeView() === 'logistics'"
+        [class.bg-gray-100]="activeView() !== 'logistics'"
+        [class.text-gray-700]="activeView() !== 'logistics'"
+        (click)="onViewChange('logistics')"
+      >
+        <lucide-icon [img]="icons.Truck" [size]="14"></lucide-icon>
+        Logistics & Scale Audits
+      </button>
+
+      <button
+        class="tab-btn font-bold text-xs px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+        [class.bg-purple-900]="activeView() === 'customers'"
+        [class.text-white]="activeView() === 'customers'"
+        [class.bg-gray-100]="activeView() !== 'customers'"
+        [class.text-gray-700]="activeView() !== 'customers'"
+        (click)="onViewChange('customers')"
+      >
+        <lucide-icon [img]="icons.Users" [size]="14"></lucide-icon>
+        Customer Credit Risk
+      </button>
+    </div>
+
+    <!-- Filter Controls Bar -->
+    <app-section class="mb-4">
+      <div class="p-3 bg-white border border-gray-200 rounded-xl shadow-xs">
+        <app-stack direction="horizontal" spacing="md" class="items-center flex-wrap">
+          <app-form-field label="Reporting Period">
+            <app-select
+              [options]="periodOptions"
+              [ngModel]="period()"
+              (ngModelChange)="onPeriodChange($event)"
+            />
+          </app-form-field>
+
+          @if (period() === 'custom') {
+            <app-form-field label="Start Date">
               <app-input
-                placeholder="Worker ID"
-                [ngModel]="workerId()"
-                (ngModelChange)="onWorkerChange($event)"
+                type="date"
+                [ngModel]="customStart()"
+                (ngModelChange)="onCustomStartChange($event)"
               />
             </app-form-field>
-          </app-stack>
+
+            <app-form-field label="End Date">
+              <app-input
+                type="date"
+                [ngModel]="customEnd()"
+                (ngModelChange)="onCustomEndChange($event)"
+              />
+            </app-form-field>
+          }
+
+          <app-form-field label="Category Filter">
+            <app-select
+              [options]="categoryOptions()"
+              [ngModel]="categoryId()"
+              (ngModelChange)="onCategoryChange($event)"
+            />
+          </app-form-field>
+
+          <app-form-field label="Operator / Worker">
+            <app-input
+              placeholder="Search Worker ID"
+              [ngModel]="workerId()"
+              (ngModelChange)="onWorkerChange($event)"
+            />
+          </app-form-field>
+        </app-stack>
+      </div>
+    </app-section>
+
+    <!-- MATERIAL BALANCE SUPPLY CHAIN FLOW TRACKER -->
+    @if (materialFlow(); as flow) {
+      <div class="card p-4 mb-6 bg-white border border-gray-200 rounded-xl shadow-xs">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="font-bold text-xs uppercase tracking-wider text-gray-700 flex items-center gap-2">
+            <lucide-icon [img]="icons.Activity" [size]="16" class="text-primary"></lucide-icon>
+            Textile Enterprise Supply Chain Material Balance Pipeline
+          </h3>
+          <span class="text-xs font-mono font-bold text-purple-900 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+            Real-Time Material Traceability
+          </span>
         </div>
-      </app-section-header>
 
-      <app-section-body>
-        @if (loading()) {
-          <app-loading message="Loading dashboard…" />
-        } @else if (error()) {
-          <app-error-state [message]="error()!" />
-        } @else {
-          <app-grid [columns]="4" gap="md">
-            <app-kpi-card
-              label="Procurement Cost"
-              [value]="formatCurrency(kpiProcurementCost())"
-              [change]="kpiProcurementCostChange()"
-              [changeType]="kpiProcurementCostChangeType()"
-              [sparkline]="procurementSparkline()"
-              sparklineAriaLabel="Procurement cost trend"
-            />
+        <div class="grid grid-cols-5 gap-2 items-center text-center p-3 bg-gray-50 rounded-lg">
+          
+          <div class="flow-step p-2 bg-white border rounded-lg shadow-2xs">
+            <span class="text-xs text-gray-500 font-bold uppercase block">1. Container Intake</span>
+            <span class="font-mono text-base font-extrabold text-blue-900">{{ formatKg(flow.intakeKg) }}</span>
+            <span class="text-3xs text-gray-400 block">Gate Scale Intake</span>
+          </div>
 
-            <app-kpi-card
-              label="Sorted Weight"
-              [value]="formatKg(kpiSortedWeightKg())"
-              [change]="kpiSortedWeightChange()"
-              [changeType]="kpiSortedWeightChangeType()"
-              [sparkline]="sortedWeightSparkline()"
-              sparklineAriaLabel="Sorted weight trend"
-            />
+          <div class="flow-arrow text-gray-400 font-bold flex justify-center">&rarr;</div>
 
-            <app-kpi-card
-              label="Yield"
-              [value]="formatPct(kpiYieldPct())"
-              [change]="kpiYieldChange()"
-              [changeType]="kpiYieldChangeType()"
-              [sparkline]="yieldSparkline()"
-              sparklineAriaLabel="Yield trend"
-            />
+          <div class="flow-step p-2 bg-white border rounded-lg shadow-2xs">
+            <span class="text-xs text-gray-500 font-bold uppercase block">2. Stage-1 Sorted</span>
+            <span class="font-mono text-base font-extrabold text-purple-900">{{ formatKg(flow.sortedKg) }}</span>
+            <span class="text-3xs text-gray-400 block">Category Sorting</span>
+          </div>
 
-            <app-kpi-card
-              label="Waste"
-              [value]="formatPct(kpiWastePct())"
-              [change]="kpiWasteChange()"
-              [changeType]="kpiWasteChangeType()"
-              [sparkline]="wasteSparkline()"
-              sparklineAriaLabel="Waste trend"
-            />
-          </app-grid>
-        }
-      </app-section-body>
-    </app-section>
+          <div class="flow-arrow text-gray-400 font-bold flex justify-center">&rarr;</div>
 
-    <app-section>
-      <app-section-header>
-        <h2 class="section-title">Analytics</h2>
-        <div class="actions"></div>
-      </app-section-header>
-      <app-section-body>
-        @if (loading()) {
-          <app-loading message="Loading analytics…" />
-        } @else if (error()) {
-          <app-error-state [message]="error()!" />
-        } @else {
-          <app-grid [columns]="2" gap="md">
-            <app-card>
-              <app-stack direction="vertical" spacing="sm">
-                <div class="dash-card-head">
-                  <h3 class="dash-card-title">Category Yield</h3>
-                  <p class="dash-card-subtitle">Top categories by output (yield %)</p>
-                </div>
-                <app-chart [type]="'bar'" [variant]="'panel'" [points]="categoryYieldPoints()" />
-              </app-stack>
-            </app-card>
+          <div class="flow-step p-2 bg-white border rounded-lg shadow-2xs">
+            <span class="text-xs text-gray-500 font-bold uppercase block">3. Stage-2 Graded</span>
+            <span class="font-mono text-base font-extrabold text-purple-900">{{ formatKg(flow.gradedKg) }}</span>
+            <span class="text-3xs text-gray-400 block">Quality Grading</span>
+          </div>
 
-            <app-card>
-              <app-stack direction="vertical" spacing="sm">
-                <div class="dash-card-head">
-                  <h3 class="dash-card-title">Sorted Volume Trend</h3>
-                  <p class="dash-card-subtitle">Total input weight by day</p>
-                </div>
-                <app-chart [type]="'line'" [variant]="'panel'" [points]="volumePoints()" />
-              </app-stack>
-            </app-card>
-          </app-grid>
-        }
-      </app-section-body>
-    </app-section>
+        </div>
+      </div>
+    }
+
+    <!-- TAB 1: OVERVIEW COCKPIT -->
+    @if (activeView() === 'overview' || activeView() === 'financial') {
+      <app-section class="mb-6">
+        <app-section-header>
+          <h2 class="section-title text-base font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+            <lucide-icon [img]="icons.DollarSign" [size]="18" class="text-emerald-600"></lucide-icon>
+            Financial & Material Flow Executive KPIs
+          </h2>
+        </app-section-header>
+
+        <app-section-body>
+          @if (loading()) {
+            <app-loading message="Loading executive KPIs…" />
+          } @else if (error()) {
+            <app-error-state [message]="error()!" />
+          } @else {
+            <app-grid [columns]="4" gap="md">
+              <app-kpi-card
+                label="Commercial Sales Revenue"
+                [value]="formatCurrency(kpiSalesRevenue())"
+                [change]="kpiSalesRevenueChange()"
+                [changeType]="kpiSalesRevenueChangeType()"
+                [sparkline]="salesSparkline()"
+                sparklineAriaLabel="Commercial sales revenue trend"
+              />
+
+              <app-kpi-card
+                label="Procurement Spend & Freight"
+                [value]="formatCurrency(kpiProcurementCost())"
+                [change]="kpiProcurementCostChange()"
+                [changeType]="kpiProcurementCostChangeType()"
+                [sparkline]="procurementSparkline()"
+                sparklineAriaLabel="Procurement cost trend"
+              />
+
+              <app-kpi-card
+                label="Estimated Net Margin"
+                [value]="formatCurrency(kpiNetMargin())"
+                [change]="kpiNetMarginChange()"
+                [changeType]="kpiNetMarginChangeType()"
+                sparklineAriaLabel="Net margin"
+              />
+
+              <app-kpi-card
+                label="Sorted Weight Processed"
+                [value]="formatKg(kpiSortedWeightKg())"
+                [change]="kpiSortedWeightChange()"
+                [changeType]="kpiSortedWeightChangeType()"
+                [sparkline]="sortedWeightSparkline()"
+                sparklineAriaLabel="Sorted weight trend"
+              />
+            </app-grid>
+
+            <div class="mt-4">
+              <app-grid [columns]="4" gap="md">
+                <app-kpi-card
+                  label="Conversion Yield Rate"
+                  [value]="formatPct(kpiYieldPct())"
+                  [change]="kpiYieldChange()"
+                  [changeType]="kpiYieldChangeType()"
+                  [sparkline]="yieldSparkline()"
+                  sparklineAriaLabel="Yield trend"
+                />
+
+                <app-kpi-card
+                  label="Scrap & Waste Ratio"
+                  [value]="formatPct(kpiWastePct())"
+                  [change]="kpiWasteChange()"
+                  [changeType]="kpiWasteChangeType()"
+                  [sparkline]="wasteSparkline()"
+                  sparklineAriaLabel="Waste trend"
+                />
+
+                @if (executiveOverview(); as overview) {
+                  <app-kpi-card
+                    label="Ready Inventory Stock"
+                    [value]="formatKg(overview.availableInventoryKg)"
+                    sparklineAriaLabel="Available warehouse stock"
+                  />
+
+                  <app-kpi-card
+                    label="Gate Scale Discrepancies"
+                    [value]="overview.weighbridgeVarianceAlertsCount + ' Alerts'"
+                    sparklineAriaLabel="Scale audit discrepancy alerts"
+                  />
+                }
+              </app-grid>
+            </div>
+          }
+        </app-section-body>
+      </app-section>
+
+      <!-- EXECUTIVE CHARTS -->
+      <app-section class="mb-6">
+        <app-section-header>
+          <h2 class="section-title text-base font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+            <lucide-icon [img]="icons.BarChart3" [size]="18" class="text-primary"></lucide-icon>
+            Executive Financial & Production Trends
+          </h2>
+        </app-section-header>
+
+        <app-section-body>
+          @if (!loading() && !error()) {
+            <app-grid [columns]="2" gap="md">
+              <app-card>
+                <app-stack direction="vertical" spacing="sm">
+                  <div class="dash-card-head flex justify-between items-center">
+                    <div>
+                      <h3 class="dash-card-title text-sm font-bold text-gray-900">Commercial Revenue Trend ($)</h3>
+                      <p class="dash-card-subtitle text-xs text-gray-500">Daily sales order revenue across the period</p>
+                    </div>
+                    <span class="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded">Sales Trend</span>
+                  </div>
+                  <app-chart [type]="'line'" [variant]="'panel'" [points]="revenuePoints()" />
+                </app-stack>
+              </app-card>
+
+              <app-card>
+                <app-stack direction="vertical" spacing="sm">
+                  <div class="dash-card-head flex justify-between items-center">
+                    <div>
+                      <h3 class="dash-card-title text-sm font-bold text-gray-900">Top Category Conversion Yield (%)</h3>
+                      <p class="dash-card-subtitle text-xs text-gray-500">Yield percentage achieved across top categories</p>
+                    </div>
+                    <span class="text-xs font-mono font-bold text-purple-700 bg-purple-50 px-2 py-1 rounded">Category Yield</span>
+                  </div>
+                  <app-chart [type]="'bar'" [variant]="'panel'" [points]="categoryYieldPoints()" />
+                </app-stack>
+              </app-card>
+            </app-grid>
+          }
+        </app-section-body>
+      </app-section>
+    }
+
+    <!-- TAB 2: OPERATOR LEADERBOARD & THROUGHPUT (OPERATIONS) -->
+    @if (activeView() === 'overview' || activeView() === 'operations') {
+      <app-section class="mb-6">
+        <app-section-header>
+          <div class="flex justify-between items-center w-full">
+            <h2 class="section-title text-base font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+              <lucide-icon [img]="icons.Award" [size]="18" class="text-amber-500"></lucide-icon>
+              Shift Operator Throughput & Efficiency Leaderboard
+            </h2>
+            <a [routerLink]="['/app/sorting/workstation']" class="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+              Open Workstation <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon>
+            </a>
+          </div>
+        </app-section-header>
+
+        <app-section-body>
+          <div class="bg-white border rounded-xl overflow-hidden shadow-xs">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-gray-50 border-b uppercase text-gray-500 font-bold">
+                <tr>
+                  <th class="p-3">Rank</th>
+                  <th class="p-3">Operator Name</th>
+                  <th class="p-3 text-center">Closed Sessions</th>
+                  <th class="p-3 text-right">Processed Intake</th>
+                  <th class="p-3 text-right">Graded Output</th>
+                  <th class="p-3 text-right">Throughput Speed</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y">
+                @for (op of operatorLeaderboard(); track op.workerId; let i = $index) {
+                  <tr class="hover:bg-purple-50/30 transition-colors">
+                    <td class="p-3 font-mono font-bold">
+                      <span class="w-6 h-6 rounded-full inline-flex items-center justify-center text-xs" [class.bg-amber-100]="i === 0" [class.text-amber-800]="i === 0" [class.bg-gray-100]="i > 0">
+                        #{{ i + 1 }}
+                      </span>
+                    </td>
+                    <td class="p-3 font-bold text-gray-900 flex items-center gap-2">
+                      <lucide-icon [img]="icons.Users" [size]="14" class="text-gray-400"></lucide-icon>
+                      {{ op.workerName }}
+                    </td>
+                    <td class="p-3 text-center font-mono font-bold text-gray-700">{{ op.sessionCount }}</td>
+                    <td class="p-3 text-right font-mono font-bold text-gray-900">{{ formatKg(op.totalInputKg) }}</td>
+                    <td class="p-3 text-right font-mono font-bold text-purple-900">{{ formatKg(op.totalOutputKg) }}</td>
+                    <td class="p-3 text-right">
+                      <span class="font-mono font-extrabold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200">
+                        {{ op.avgKgPerHour }} KG/hr
+                      </span>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="6" class="p-4 text-center text-gray-500">No shift operator session data found for this period.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </app-section-body>
+      </app-section>
+    }
+
+    <!-- TAB 3: LOGISTICS & SCALE AUDITS -->
+    @if (activeView() === 'overview' || activeView() === 'logistics') {
+      <app-section class="mb-6">
+        <app-section-header>
+          <div class="flex justify-between items-center w-full">
+            <h2 class="section-title text-base font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+              <lucide-icon [img]="icons.Scale" [size]="18" class="text-primary"></lucide-icon>
+              Gate Weighbridge Scale Variance Audit Log
+            </h2>
+            <a [routerLink]="['/app/procurement/containers']" class="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+              View All Containers <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon>
+            </a>
+          </div>
+        </app-section-header>
+
+        <app-section-body>
+          <div class="bg-white border rounded-xl overflow-hidden shadow-xs">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-gray-50 border-b uppercase text-gray-500 font-bold">
+                <tr>
+                  <th class="p-3">Container #</th>
+                  <th class="p-3">Shipping Line</th>
+                  <th class="p-3">Status</th>
+                  <th class="p-3 text-right">BL Net Wt</th>
+                  <th class="p-3 text-right">Gate Scale Wt</th>
+                  <th class="p-3 text-right">Variance</th>
+                  <th class="p-3 text-center">Variance Alert</th>
+                  <th class="p-3 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y">
+                @for (cont of containerAudits(); track cont.id) {
+                  <tr class="hover:bg-gray-50 transition-colors cursor-pointer" (click)="openContainerDrawer(cont)">
+                    <td class="p-3">
+                      <span class="font-mono font-bold text-primary">
+                        {{ cont.containerNumber }}
+                      </span>
+                    </td>
+                    <td class="p-3 text-gray-600 font-medium">{{ cont.shippingLine || '—' }}</td>
+                    <td class="p-3">
+                      <span class="status-pill status-active">{{ cont.status }}</span>
+                    </td>
+                    <td class="p-3 text-right font-mono font-bold text-gray-900">{{ formatKg(cont.netWeightKg) }}</td>
+                    <td class="p-3 text-right font-mono font-bold text-purple-900">
+                      {{ cont.scaleNetKg ? formatKg(cont.scaleNetKg) : '—' }}
+                    </td>
+                    <td class="p-3 text-right font-mono font-bold" [class.text-emerald-600]="+cont.varianceKg >= 0" [class.text-red-600]="+cont.varianceKg < 0">
+                      {{ cont.varianceKg }} KG ({{ cont.variancePct }}%)
+                    </td>
+                    <td class="p-3 text-center">
+                      <span
+                        class="status-pill"
+                        [class.status-active]="cont.varianceAlertStatus === 'OK'"
+                        [class.status-pending]="cont.varianceAlertStatus === 'VARIANCE_WARNING'"
+                        [class.status-closed]="cont.varianceAlertStatus === 'CRITICAL_DISCREPANCY'"
+                      >
+                        <span class="status-dot"></span>
+                        {{ cont.varianceAlertStatus }}
+                      </span>
+                    </td>
+                    <td class="p-3 text-center">
+                      <button class="btn btn-secondary btn-xs" (click)="$event.stopPropagation(); openContainerDrawer(cont)">Inspect</button>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="8" class="p-4 text-center text-gray-500">No container scale intake audits found.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </app-section-body>
+      </app-section>
+    }
+
+    <!-- TAB 4: CUSTOMER CREDIT RISK -->
+    @if (activeView() === 'overview' || activeView() === 'customers') {
+      <app-section class="mb-6">
+        <app-section-header>
+          <div class="flex justify-between items-center w-full">
+            <h2 class="section-title text-base font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+              <lucide-icon [img]="icons.ShieldAlert" [size]="18" class="text-red-600"></lucide-icon>
+              High-Risk Customer Financial Credit Controls
+            </h2>
+            <a [routerLink]="['/app/sales/customers']" class="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+              Customer Directory <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon>
+            </a>
+          </div>
+        </app-section-header>
+
+        <app-section-body>
+          <div class="bg-white border rounded-xl overflow-hidden shadow-xs">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-gray-50 border-b uppercase text-gray-500 font-bold">
+                <tr>
+                  <th class="p-3">Customer Name</th>
+                  <th class="p-3">Company / Business</th>
+                  <th class="p-3">Payment Terms</th>
+                  <th class="p-3 text-right">Approved Credit Limit</th>
+                  <th class="p-3 text-center">Credit Status</th>
+                  <th class="p-3 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y">
+                @for (cust of customerRisks(); track cust.id) {
+                  <tr class="hover:bg-red-50/20 transition-colors cursor-pointer" (click)="openCustomerDrawer(cust)">
+                    <td class="p-3 font-bold text-gray-900">{{ cust.name }}</td>
+                    <td class="p-3 text-gray-600 font-medium">{{ cust.companyName || '—' }}</td>
+                    <td class="p-3 font-mono font-bold text-gray-700">{{ cust.paymentTerms }}</td>
+                    <td class="p-3 text-right font-mono font-bold text-gray-900">${{ cust.creditLimit | number:'1.2-2' }}</td>
+                    <td class="p-3 text-center">
+                      <span class="status-pill status-closed">
+                        <span class="status-dot"></span>
+                        {{ cust.creditStatus }}
+                      </span>
+                    </td>
+                    <td class="p-3 text-center">
+                      <button class="btn btn-secondary btn-xs" (click)="$event.stopPropagation(); openCustomerDrawer(cust)">Review</button>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="6" class="p-4 text-center text-gray-500">No high-risk or credit-blocked customer accounts found. All accounts operating normally.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </app-section-body>
+      </app-section>
+    }
+
   </app-page-body>
 </app-page>
+
+<!-- SLIDE-OUT DRAWER: CONTAINER SCALE AUDIT INSPECTOR -->
+@if (selectedContainer(); as cont) {
+  <div class="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex justify-end" (click)="closeContainerDrawer()">
+    <div class="w-full max-w-md bg-white h-full shadow-2xl p-6 flex flex-col justify-between overflow-y-auto" (click)="$event.stopPropagation()">
+      <div class="flex flex-col gap-4">
+        <div class="flex justify-between items-center pb-3 border-b">
+          <div class="flex items-center gap-2">
+            <lucide-icon [img]="icons.Scale" [size]="20" class="text-primary"></lucide-icon>
+            <h3 class="font-extrabold text-base text-gray-900">Container Scale Intake Audit</h3>
+          </div>
+          <button class="btn btn-secondary btn-xs" (click)="closeContainerDrawer()">
+            <lucide-icon [img]="icons.X" [size]="14"></lucide-icon>
+          </button>
+        </div>
+
+        <div class="p-3 bg-purple-50 rounded-lg border border-purple-200 flex flex-col gap-1">
+          <span class="text-xs font-bold text-purple-900 uppercase">Container Reference</span>
+          <span class="font-mono text-xl font-extrabold text-purple-950">{{ cont.containerNumber }}</span>
+          <span class="text-xs text-gray-600">Shipping Line: {{ cont.shippingLine || 'Standard Ocean Line' }}</span>
+        </div>
+
+        <div class="flex flex-col gap-3 text-xs">
+          <div class="flex justify-between p-2 bg-gray-50 rounded">
+            <span class="text-gray-500 font-bold uppercase">Bill of Lading Net Wt:</span>
+            <span class="font-mono font-bold text-gray-900">{{ formatKg(cont.netWeightKg) }}</span>
+          </div>
+
+          <div class="flex justify-between p-2 bg-purple-50 rounded">
+            <span class="text-purple-800 font-bold uppercase">Scale Net Intake:</span>
+            <span class="font-mono font-bold text-purple-900">{{ cont.scaleNetKg ? formatKg(cont.scaleNetKg) : '—' }}</span>
+          </div>
+
+          <div class="p-3 border rounded-lg flex justify-between items-center">
+            <div>
+              <span class="text-gray-500 font-bold uppercase block">Scale Discrepancy</span>
+              <span class="font-mono text-lg font-extrabold" [class.text-emerald-600]="+cont.varianceKg >= 0" [class.text-red-600]="+cont.varianceKg < 0">
+                {{ cont.varianceKg }} KG ({{ cont.variancePct }}%)
+              </span>
+            </div>
+
+            <span class="status-pill status-closed">{{ cont.varianceAlertStatus }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-4 border-t flex gap-2">
+        <button class="btn btn-secondary w-full" (click)="closeContainerDrawer()">Close</button>
+        <a [routerLink]="['/app/procurement/containers', cont.id]" (click)="closeContainerDrawer()" class="btn btn-primary w-full text-center">
+          Open Container Page
+        </a>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- SLIDE-OUT DRAWER: CUSTOMER CREDIT CONTROL INSPECTOR -->
+@if (selectedCustomer(); as cust) {
+  <div class="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex justify-end" (click)="closeCustomerDrawer()">
+    <div class="w-full max-w-md bg-white h-full shadow-2xl p-6 flex flex-col justify-between overflow-y-auto" (click)="$event.stopPropagation()">
+      <div class="flex flex-col gap-4">
+        <div class="flex justify-between items-center pb-3 border-b">
+          <div class="flex items-center gap-2">
+            <lucide-icon [img]="icons.ShieldAlert" [size]="20" class="text-red-600"></lucide-icon>
+            <h3 class="font-extrabold text-base text-gray-900">Customer Credit Control</h3>
+          </div>
+          <button class="btn btn-secondary btn-xs" (click)="closeCustomerDrawer()">
+            <lucide-icon [img]="icons.X" [size]="14"></lucide-icon>
+          </button>
+        </div>
+
+        <div class="p-3 bg-red-50 rounded-lg border border-red-200 flex flex-col gap-1">
+          <span class="text-xs font-bold text-red-900 uppercase">Customer Account</span>
+          <span class="font-extrabold text-lg text-red-950">{{ cust.name }}</span>
+          <span class="text-xs text-gray-600">{{ cust.companyName || 'Private Wholesale Buyer' }}</span>
+        </div>
+
+        <div class="flex flex-col gap-3 text-xs">
+          <div class="flex justify-between p-2 bg-gray-50 rounded">
+            <span class="text-gray-500 font-bold uppercase">Approved Payment Terms:</span>
+            <span class="font-mono font-bold text-gray-900">{{ cust.paymentTerms }}</span>
+          </div>
+
+          <div class="flex justify-between p-2 bg-gray-50 rounded">
+            <span class="text-gray-500 font-bold uppercase">Financial Credit Limit:</span>
+            <span class="font-mono font-bold text-gray-900">${{ cust.creditLimit | number:'1.2-2' }}</span>
+          </div>
+
+          <div class="p-3 border rounded-lg flex justify-between items-center bg-red-50/50">
+            <div>
+              <span class="text-red-900 font-bold uppercase block">Credit Status</span>
+              <span class="font-mono text-base font-extrabold text-red-950">{{ cust.creditStatus }}</span>
+            </div>
+
+            <span class="status-pill status-closed">Credit Hold</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-4 border-t flex gap-2">
+        <button class="btn btn-secondary w-full" (click)="closeCustomerDrawer()">Close</button>
+        <a [routerLink]="['/app/sales/customers']" (click)="closeCustomerDrawer()" class="btn btn-primary w-full text-center">
+          Open Customers Directory
+        </a>
+      </div>
+    </div>
+  </div>
+}
