@@ -18,6 +18,45 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - thriftos-net
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: thriftos-server
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://labur:labur_dev_password@postgres:5432/thriftos?schema=public
+      JWT_SECRET: super_secret_jwt_key_thriftos_v3
+      CORS_ORIGIN: "http://localhost:4200,http://localhost:3000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - thriftos-net
+
+  frontend:
+    build:
+      context: .
+      dockerfile: thriftos-frontend/Dockerfile
+    container_name: thriftos-frontend
+    restart: always
+    ports:
+      - "4200:80"
+    depends_on:
+      - server
+    networks:
+      - thriftos-net
 
 volumes:
   postgres_data:
+
+networks:
+  thriftos-net:
+    driver: bridge

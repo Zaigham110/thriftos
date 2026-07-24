@@ -47,11 +47,37 @@ ThriftOS is a multi-tenant ERP for thrift, textile recycling, and resale operati
 
 Install these before starting:
 
-- Node.js 20+ recommended
-- npm
-- Docker Desktop (or Docker daemon with Docker Compose) / PostgreSQL 14+
+- **Option A (Full System in Docker)**: Only Docker Desktop (or Docker with Docker Compose) is required!
+- **Option B (Local Dev)**: Node.js 20+, npm, and Docker / PostgreSQL 14+.
 
-## Local environment & Database Setup
+## 🚀 Running the Whole System in Docker (Zero Local Setup)
+
+If you don't want to install Node.js, npm, or setup local environment files, you can launch the **entire application stack** (PostgreSQL Database + NestJS Backend API + Angular Frontend) with a single Docker command:
+
+```bash
+docker compose up -d --build
+```
+
+This will automatically:
+1. Start PostgreSQL database container on port `5432`.
+2. Build and start NestJS API server container on port `3000` (auto-applies schema and seeds initial database).
+3. Build and serve Angular frontend container via Nginx on port `4200`.
+
+Access the application:
+- **Frontend Web App**: http://localhost:4200
+- **Backend API Docs (Swagger)**: http://localhost:3000/api/docs
+- **API Health**: http://localhost:3000/api/health
+
+To stop all services:
+```bash
+docker compose down
+```
+
+---
+
+## Local Development & Database Setup
+
+If you are developing locally with Node.js and only want PostgreSQL in Docker:
 
 The backend reads the database connection from the root `.env` file.
 
@@ -61,27 +87,15 @@ Default local value:
 DATABASE_URL="postgresql://labur:labur_dev_password@localhost:5432/thriftos?schema=public"
 ```
 
-### Automated Docker & Database Setup (Recommended)
+### Automated Database Setup Command
 
-You can automatically spin up the PostgreSQL Docker container, verify/create the `thriftos` database, generate Prisma client, push schema, and seed default data using a single command:
+Spin up the PostgreSQL container, sync Prisma schema, and seed default data:
 
 ```bash
 npm run db:setup
 ```
 
-Alternatively, to manually manage Docker:
-
-```bash
-# Start PostgreSQL via Docker Compose
-docker compose up -d
-
-# Run Prisma schema push & seed
-npm run db:generate
-npm run db:push
-npm run db:seed
-```
-
-## First-time setup
+## First-time local setup
 
 Run these commands from the repository root:
 
