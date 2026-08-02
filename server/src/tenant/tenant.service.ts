@@ -85,6 +85,81 @@ export class TenantService {
     };
   }
 
+  async getWorkQueue(tenantId: string, userId: string) {
+    const [readyRags, activeSorting, activeGrading, draftRepacks, availableInventory, blockedRepacks] = await Promise.all([
+      this.prisma.rag.count({ where: { tenantId, status: 'NOT_STARTED' } }),
+      this.prisma.sortSession.count({ where: { tenantId, status: 'OPEN' } }),
+      this.prisma.gradeSession.count({ where: { tenantId, status: 'OPEN' } }),
+      this.prisma.repackUnit.count({ where: { tenantId, status: 'DRAFT' } }),
+      this.prisma.inventoryItem.count({ where: { tenantId, status: 'AVAILABLE' } }),
+      this.prisma.repackUnit.count({
+        where: { tenantId, status: 'DRAFT', inputAllocations: { none: {} } },
+      }),
+    ]);
+
+    const [assignedSorting, assignedGrading, assignedRepack] = await Promise.all([
+      this.prisma.sortSession.findMany({
+        where: { tenantId, workerId: userId, status: 'OPEN' },
+        take: 6,
+        orderBy: { updatedAt: 'desc' },
+        select: { id: true, updatedAt: true, rag: { select: { ragCode: true } } },
+      }),
+      this.prisma.gradeSession.findMany({
+        where: { tenantId, workerId: userId, status: 'OPEN' },
+        take: 6,
+        orderBy: { updatedAt: 'desc' },
+        select: { id: true, updatedAt: true, categoryOutput: { select: { category: { select: { name: true } } } } },
+      }),
+      this.prisma.repackSession.findMany({
+        where: { tenantId, workerId: userId, status: 'OPEN' },
+        take: 4,
+        orderBy: { updatedAt: 'desc' },
+        select: { id: true, updatedAt: true },
+      }),
+    ]);
+
+    return {
+      summary: { readyRags, activeSorting, activeGrading, draftRepacks, availableInventory, blockedRepacks },
+      blockers: blockedRepacks > 0
+        ? [{
+          type: 'REPACK_ALLOCATION_REQUIRED',
+          count: blockedRepacks,
+          title: `${blockedRepacks} repack ${blockedRepacks === 1 ? 'draft needs' : 'drafts need'} source allocation`,
+          detail: 'A repack unit cannot be sealed or become sellable until its graded source is allocated.',
+          route: '/app/lite/repack',
+        }]
+        : [],
+      tasks: [
+        ...assignedSorting.map((session) => ({
+          id: session.id,
+          type: 'SORTING_SESSION',
+          title: `Resume sorting ${session.rag.ragCode}`,
+          route: `/app/lite/sorting?resumeSort=${session.id}`,
+          updatedAt: session.updatedAt,
+        })),
+        ...assignedGrading.map((session) => ({
+          id: session.id,
+          type: 'GRADING_SESSION',
+          title: `Resume grading ${session.categoryOutput.category.name}`,
+          route: `/app/lite/sorting?stage=2&resumeGrade=${session.id}`,
+          updatedAt: session.updatedAt,
+        })),
+        ...assignedRepack.map((session) => ({
+          id: session.id,
+          type: 'REPACK_SESSION',
+          title: 'Resume repack session',
+          route: `/app/lite/repack?resume=${session.id}`,
+          updatedAt: session.updatedAt,
+        })),
+      ].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()),
+      nextAction: readyRags > 0
+        ? { label: 'Start category sorting', route: '/app/lite/sorting' }
+        : draftRepacks > 0
+          ? { label: 'Complete repack drafts', route: '/app/lite/repack' }
+          : { label: 'Review available stock', route: '/app/lite/lookup' },
+    };
+  }
+
   async updateSettings(tenantId: string, dto: UpdateTenantSettingsDto, userId: string) {
     const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
     if (!tenant) {
@@ -110,6 +185,11 @@ export class TenantService {
       data: {
         ...(desiredCurrency ? { currency: desiredCurrency } : {}),
         ...(dto.locale ? { locale: dto.locale } : {}),
+        ...(dto.operationMode ? { operationMode: dto.operationMode } : {}),
+        ...(dto.connectivityPolicy ? { connectivityPolicy: dto.connectivityPolicy } : {}),
+        ...(dto.capturePolicy ? { capturePolicy: dto.capturePolicy } : {}),
+        ...(dto.guidancePolicy ? { guidancePolicy: dto.guidancePolicy } : {}),
+        ...(dto.operationalModules ? { operationalModules: dto.operationalModules } : {}),
       },
       include: {
         _count: {
@@ -138,6 +218,11 @@ export class TenantService {
           changes: {
             ...(desiredCurrency ? { currencyCode: desiredCurrency } : {}),
             ...(dto.locale ? { locale: dto.locale } : {}),
+            ...(dto.operationMode ? { operationMode: dto.operationMode } : {}),
+            ...(dto.connectivityPolicy ? { connectivityPolicy: dto.connectivityPolicy } : {}),
+            ...(dto.capturePolicy ? { capturePolicy: dto.capturePolicy } : {}),
+            ...(dto.guidancePolicy ? { guidancePolicy: dto.guidancePolicy } : {}),
+            ...(dto.operationalModules ? { operationalModules: dto.operationalModules } : {}),
           },
         },
       },
@@ -534,4 +619,3 @@ export class TenantService {
     };
   }
 }
-

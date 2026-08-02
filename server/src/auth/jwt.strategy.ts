@@ -22,7 +22,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET') || 'thriftos-secret-change-in-production',
+      secretOrKey: configService.get<string>('JWT_SECRET') || 'thriftOSerp',
     });
   }
 
@@ -53,4 +53,3 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     };
   }
 }
-

@@ -19,7 +19,7 @@ async function bootstrap() {
       if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
         callback(null, true);
       } else {
-        callback(null, true); // Allow for demo deployment accessibility
+        callback(null, false);
       }
     },
     credentials: true,
@@ -115,4 +115,3 @@ Super Admins can impersonate tenants to access tenant-scoped data.
 }
 
 bootstrap();
-

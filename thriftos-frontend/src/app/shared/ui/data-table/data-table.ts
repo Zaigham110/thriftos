@@ -103,6 +103,7 @@ export class AppDataTableComponent<T = unknown> {
   private readonly sortDir = signal<DataTableSortDir>('asc');
   readonly pageIndex = signal<number>(1);
   private readonly columnFilterValues = signal<Record<string, string>>({});
+  private readonly columnFilterControls = new Map<string, FormControl<string>>();
 
   readonly hasAnyFilters = computed(() => {
     const search = (this.searchText() ?? '').trim();
@@ -299,6 +300,9 @@ export class AppDataTableComponent<T = unknown> {
     this.searchText.set('');
     this.searchControl.setValue('', { emitEvent: false });
     this.columnFilterValues.set({});
+    for (const control of this.columnFilterControls.values()) {
+      control.setValue('', { emitEvent: false });
+    }
     this.pageIndex.set(1);
     this.emitState();
   }
@@ -366,12 +370,16 @@ export class AppDataTableComponent<T = unknown> {
   }
 
   filterControlFor(column: DataTableColumn): FormControl<string> {
-    // Lightweight per-column filter control; mirrored into signal map.
     const key = column.key;
-    const current = this.columnFilterValues()[key] ?? '';
-    const ctrl = new FormControl<string>(current, { nonNullable: true });
-    ctrl.valueChanges.subscribe((v) => this.setColumnFilter(key, v));
-    return ctrl;
+    const existing = this.columnFilterControls.get(key);
+    if (existing) return existing;
+
+    // Template methods run during change detection. Keep one control per column
+    // instead of allocating controls and subscriptions on every render.
+    const control = new FormControl<string>(this.columnFilterValues()[key] ?? '', { nonNullable: true });
+    control.valueChanges.subscribe((value) => this.setColumnFilter(key, value));
+    this.columnFilterControls.set(key, control);
+    return control;
   }
 }
 

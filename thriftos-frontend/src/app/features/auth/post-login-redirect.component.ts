@@ -4,7 +4,8 @@
  *
  * Rules:
  * - SUPERADMIN (not impersonating) -> /admin
- * - TENANT (or impersonating)      -> /app/dashboard
+ * - Operational tenant user         -> /app/lite/home (My Work)
+ * - Administration-only tenant user -> /app/dashboard
  * - Authenticated w/o tenant       -> /auth/no-tenant
  */
 
@@ -12,6 +13,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/cor
 import { Router } from '@angular/router';
 
 import { AuthService } from '../../core/auth';
+import { OperationModeService } from '../../core/config/operation-mode.service';
 
 @Component({
   selector: 'app-post-login-redirect',
@@ -21,6 +23,7 @@ import { AuthService } from '../../core/auth';
 })
 export class PostLoginRedirectComponent implements OnInit {
   private readonly authService = inject(AuthService);
+  private readonly modeService = inject(OperationModeService);
   private readonly router = inject(Router);
 
   ngOnInit(): void {
@@ -46,6 +49,17 @@ export class PostLoginRedirectComponent implements OnInit {
       return;
     }
 
-    void this.router.navigate(['/app/dashboard']);
+    if (this.modeService.isSimplifiedMobile() || this.isOperationalUser()) {
+      void this.router.navigate(['/app/lite/home']);
+    } else {
+      void this.router.navigate(['/app/dashboard']);
+    }
+  }
+
+  private isOperationalUser(): boolean {
+    const operationalPrefixes = ['rag.', 'sorting.', 'repack.', 'inventory.', 'sales.'];
+    return this.authService.permissions().some((permission) =>
+      operationalPrefixes.some((prefix) => permission.startsWith(prefix)),
+    );
   }
 }

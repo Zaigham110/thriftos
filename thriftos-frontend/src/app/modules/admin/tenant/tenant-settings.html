@@ -163,6 +163,94 @@
               </div>
             </div>
 
+            <!-- Operational Interface Mode Settings Group -->
+            <div class="currency-settings-box" style="margin-top: 1.25rem;">
+              <div class="currency-header">
+                <lucide-icon [img]="icons.Globe" [size]="16" class="currency-icon"></lucide-icon>
+                <div class="currency-title-group">
+                  <span class="currency-title">Default Operational Interface Mode</span>
+                  <span class="currency-subtitle">Controls whether users land in Full Desktop ERP Mode, Touch Simplified Mobile Mode, or have permission to toggle between both modes.</span>
+                </div>
+              </div>
+
+              <div class="currency-action-row">
+                <select
+                  [formControl]="operationModeControl"
+                  class="currency-select"
+                >
+                  @for (opt of modeOptions; track opt.value) {
+                    <option [value]="opt.value">{{ opt.label }}</option>
+                  }
+                </select>
+
+                <button
+                  class="btn btn-primary"
+                  (click)="saveOperationMode()"
+                  [disabled]="saving() || !modeChanged()"
+                >
+                  @if (saving()) {
+                    <lucide-icon [img]="icons.Loader2" [size]="15" class="animate-spin"></lucide-icon>
+                    Saving...
+                  } @else {
+                    <lucide-icon [img]="icons.Save" [size]="15"></lucide-icon>
+                    Save Operation Mode
+                  }
+                </button>
+              </div>
+            </div>
+
+            <div class="currency-settings-box" style="margin-top: 1.25rem;">
+              <div class="currency-header">
+                <lucide-icon [img]="icons.Layers" [size]="16" class="currency-icon"></lucide-icon>
+                <div class="currency-title-group">
+                  <span class="currency-title">Operational Profile</span>
+                  <span class="currency-subtitle">Sets the connection, capture, and guidance rules for floor operations. Permissions and server validation remain authoritative.</span>
+                </div>
+              </div>
+
+              <div class="currency-action-row" style="align-items: end; flex-wrap: wrap;">
+                <label class="currency-title-group" style="gap: .35rem; min-width: 11rem;">
+                  <span class="currency-subtitle">Connectivity</span>
+                  <select [formControl]="connectivityPolicyControl" class="currency-select">
+                    @for (opt of connectivityOptions; track opt.value) {
+                      <option [value]="opt.value">{{ opt.label }}</option>
+                    }
+                  </select>
+                </label>
+                <label class="currency-title-group" style="gap: .35rem; min-width: 11rem;">
+                  <span class="currency-subtitle">Capture</span>
+                  <select [formControl]="capturePolicyControl" class="currency-select">
+                    @for (opt of captureOptions; track opt.value) {
+                      <option [value]="opt.value">{{ opt.label }}</option>
+                    }
+                  </select>
+                </label>
+                <label class="currency-title-group" style="gap: .35rem; min-width: 11rem;">
+                  <span class="currency-subtitle">Guidance</span>
+                  <select [formControl]="guidancePolicyControl" class="currency-select">
+                    @for (opt of guidanceOptions; track opt.value) {
+                      <option [value]="opt.value">{{ opt.label }}</option>
+                    }
+                  </select>
+                </label>
+                <button class="btn btn-primary" (click)="saveOperationalProfile()" [disabled]="saving() || !operationalProfileChanged()">
+                  <lucide-icon [img]="icons.Save" [size]="15"></lucide-icon>
+                  Save Profile
+                </button>
+              </div>
+              <div class="operational-modules" aria-label="Enabled operational modules">
+                <span class="currency-subtitle">Enabled modules</span>
+                <div class="operational-module-grid">
+                  @for (module of operationalModuleOptions; track module.value) {
+                    <label class="operational-module-option" [class.is-required]="module.value === 'WORK'">
+                      <input type="checkbox" [checked]="isOperationalModuleEnabled(module.value)" [disabled]="module.value === 'WORK'" (change)="toggleOperationalModule(module.value)" />
+                      <span><strong>{{ module.label }}</strong><small>{{ module.desc }}</small></span>
+                    </label>
+                  }
+                </div>
+              </div>
+            </div>
+
           </div>
         }
       </div>

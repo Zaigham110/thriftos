@@ -18,7 +18,7 @@ import { CommonModule } from '../common/common.module';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'thriftos-secret-change-in-production',
+        secret: configService.get<string>('JWT_SECRET') || 'thriftOSerp',
         signOptions: {
           expiresIn: configService.get<string>('JWT_ACCESS_EXPIRES_IN') || '900s',
         },
@@ -45,4 +45,3 @@ import { CommonModule } from '../common/common.module';
   exports: [AuthService, PasswordService, JwtModule],
 })
 export class AuthModule {}
-

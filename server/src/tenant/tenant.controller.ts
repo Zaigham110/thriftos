@@ -31,6 +31,13 @@ export class TenantController {
     return this.tenantService.findOne(tenantId);
   }
 
+  @Get('work-queue')
+  @SkipPermissionCheck()
+  async getWorkQueue(@CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    return this.tenantService.getWorkQueue(tenantId, user.userId);
+  }
+
   @Patch('settings')
   @RequirePermissions('tenant.update')
   async updateTenantSettings(
@@ -197,4 +204,3 @@ export class TenantController {
     return this.tenantService.getStats(tenantId);
   }
 }
-

@@ -1,117 +1,26 @@
-.tenant-detail-page {
-  max-width: 900px;
+:host {
+  display: block;
 }
 
-.back-link {
+.status-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
-  font-size: 0.875rem;
-  color: hsl(var(--muted-foreground));
-  text-decoration: none;
-  margin-bottom: 1.5rem;
-  transition: color 0.15s ease;
-
-  &:hover {
-    color: hsl(var(--primary));
-  }
-}
-
-.loading-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.loading-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.page-title-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.title-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.page-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: hsl(var(--foreground));
-  margin: 0;
-}
-
-.company-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.875rem;
-  color: hsl(var(--muted-foreground));
-  margin: 0;
-}
-
-.page-actions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.detail-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-}
-
-.detail-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.detail-label {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: hsl(var(--muted-foreground));
+  gap: 0.35rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.025em;
 }
 
-.detail-value {
-  font-size: 0.9375rem;
-  color: hsl(var(--foreground));
-
-  &.code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  }
+.status-active {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
 }
 
-.confirm-message {
-  font-size: 0.9375rem;
-  color: hsl(var(--muted-foreground));
-  line-height: 1.6;
-  margin: 0;
-}
-
-.modal-footer {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: flex-end;
-  padding-top: 1rem;
-  margin-top: 1.5rem;
-  border-top: 1px solid hsl(var(--border));
+.status-closed {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
 }

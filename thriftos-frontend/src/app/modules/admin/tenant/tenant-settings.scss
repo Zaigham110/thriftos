@@ -356,3 +356,31 @@ lucide-icon {
     display: block;
   }
 }
+
+.operational-modules {
+  margin-top: 1rem;
+}
+
+.operational-module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: .5rem;
+  margin-top: .5rem;
+}
+
+.operational-module-option {
+  display: flex;
+  align-items: flex-start;
+  gap: .5rem;
+  padding: .6rem;
+  border: 1px solid #e2e8f0;
+  border-radius: .45rem;
+  cursor: pointer;
+
+  input { margin-top: .2rem; }
+  strong, small { display: block; }
+  strong { font-size: .78rem; color: #334155; }
+  small { margin-top: .1rem; font-size: .7rem; color: #64748b; }
+
+  &.is-required { background: #f8fafc; cursor: default; }
+}

@@ -6,13 +6,16 @@ echo "🚀 Starting ThriftOS Backend Container..."
 # Generate Prisma client if needed
 npx prisma generate --schema /app/prisma/schema.prisma
 
-# Apply database schema
-echo "🔄 Pushing Prisma schema to PostgreSQL..."
-npx prisma db push --schema /app/prisma/schema.prisma --accept-data-loss
+# Apply reviewed database migrations. `db push --accept-data-loss` is deliberately
+# not used in containers because it can silently alter a production schema.
+echo "🔄 Applying Prisma migrations..."
+npx prisma migrate deploy --schema /app/prisma/schema.prisma
 
-# Seed initial database
-echo "🌱 Seeding database..."
-npx ts-node --compiler-options '{"module":"CommonJS"}' /app/prisma/seed.ts || echo "Seed execution completed."
+# Seed data contains known demo credentials, so it must be explicitly enabled.
+if [ "${SEED_DATABASE:-false}" = "true" ]; then
+  echo "🌱 Seeding database..."
+  npx ts-node --compiler-options '{"module":"CommonJS"}' /app/prisma/seed.ts
+fi
 
 echo "🚀 Starting NestJS API Server on port 3000..."
 exec node dist/main.js

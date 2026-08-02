@@ -50,6 +50,15 @@
         ></ui-select>
       </div>
 
+      <div class="form-row">
+        <ui-select
+          formControlName="operationMode"
+          label="Default Operational Interface Mode"
+          [options]="operationModes"
+          [required]="true"
+        ></ui-select>
+      </div>
+
       @if (isEditMode()) {
         <div class="form-row">
           <ui-select

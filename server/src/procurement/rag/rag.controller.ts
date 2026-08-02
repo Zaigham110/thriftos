@@ -38,6 +38,30 @@ export class RagController {
     return this.ragService.create(tenantId, { ...dto, containerId }, user.userId);
   }
 
+  @Post('rags')
+  @RequirePermissions('rag.create')
+  @HttpCode(HttpStatus.CREATED)
+  async createLooseRag(
+    @Body() dto: CreateRagDto,
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+  ) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    return this.ragService.createIdempotent(tenantId, dto, user.userId, req.header('idempotency-key'));
+  }
+
+  @Post('loose-bales')
+  @RequirePermissions('rag.create')
+  @HttpCode(HttpStatus.CREATED)
+  async createLooseBale(
+    @Body() dto: CreateRagDto,
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+  ) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    return this.ragService.create(tenantId, { ...dto, ragBaleType: dto.ragBaleType || 'BALE' }, user.userId);
+  }
+
   /**
    * Get all rags for a tenant.
    * 
@@ -89,4 +113,3 @@ export class RagController {
     return this.ragService.delete(tenantId, id, user.userId);
   }
 }
-

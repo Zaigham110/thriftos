@@ -24,7 +24,13 @@ export interface TenantProfile {
   currency: CurrencyMeta;
   currencyLocked?: boolean;
   locale: string;
+  connectivityPolicy?: 'ONLINE_ONLY' | 'OFFLINE_CAPABLE' | 'AUTOMATIC';
+  capturePolicy?: 'HARDWARE_SCANNER' | 'CAMERA_SCAN' | 'MANUAL_ENTRY' | 'ALL';
+  guidancePolicy?: 'GUIDED' | 'FLEXIBLE' | 'STRICT';
+  operationalModules?: OperationalModule[];
 }
+
+export type OperationalModule = 'WORK' | 'INTAKE' | 'SORTING' | 'REPACK' | 'STOCK' | 'SALES' | 'INSIGHTS' | 'ADMINISTRATION';
 
 export interface TenantCategory {
   id: string;

@@ -679,7 +679,7 @@ export class AdminService {
     );
   }
 
-  updateTenantSettings(data: { currencyCode?: string; locale?: string }): Observable<Tenant> {
+  updateTenantSettings(data: Partial<Pick<Tenant, 'currencyCode' | 'locale' | 'operationMode' | 'connectivityPolicy' | 'capturePolicy' | 'guidancePolicy' | 'operationalModules'>>): Observable<Tenant> {
     this._loading.set(true);
     this._error.set(null);
 

@@ -34,6 +34,7 @@ import {
   ArrowRight,
   Tag,
   Users,
+  Smartphone,
 } from 'lucide-angular';
 
 import { AppTopbarComponent } from '../app-topbar/app-topbar.component';
@@ -70,6 +71,21 @@ interface CmdSearchItem {
       </div>
 
       <div class="shell-main">
+        @if (showImpersonationBanner) {
+          <div class="impersonation-banner-strip">
+            <div class="impersonation-content">
+              <lucide-icon [img]="icons.Shield" [size]="16" class="impersonation-icon"></lucide-icon>
+              <span class="impersonation-text">
+                <strong>SUPERADMIN IMPERSONATION:</strong> {{ impersonationBannerText || ('Operating under ' + tenantName) }}
+              </span>
+            </div>
+            <button type="button" class="btn-exit-impersonation" (click)="exitImpersonation.emit()">
+              <lucide-icon [img]="icons.LogOut" [size]="14"></lucide-icon>
+              <span>Exit Impersonation</span>
+            </button>
+          </div>
+        }
+
         <div class="shell-topbar">
           <app-topbar>
             <!-- Left Slot: Tenant Badge, Environment Tag & Global Search Trigger -->
@@ -133,6 +149,16 @@ interface CmdSearchItem {
 
               <!-- Notifications & System Actions -->
               <div class="header-actions">
+                <button
+                  type="button"
+                  class="mode-switch-pill-btn"
+                  (click)="profile.emit()"
+                  title="Switch to Touch Simplified Mobile Mode"
+                >
+                  <lucide-icon [img]="icons.Smartphone" [size]="14"></lucide-icon>
+                  <span>Mobile Mode</span>
+                </button>
+
                 <button type="button" class="header-icon-btn" title="Notifications" aria-label="Notifications">
                   <lucide-icon [img]="icons.Bell" [size]="17"></lucide-icon>
                   <span class="notification-dot"></span>
@@ -179,8 +205,8 @@ interface CmdSearchItem {
                         role="menuitem"
                         (click)="profile.emit(); closeUserMenu()"
                       >
-                        <lucide-icon [img]="icons.User" [size]="14"></lucide-icon>
-                        <span>My Account</span>
+                        <lucide-icon [img]="icons.Smartphone" [size]="14"></lucide-icon>
+                        <span>Switch to Mobile Mode</span>
                       </button>
 
                       @if (showSwitchTenant) {
@@ -225,22 +251,6 @@ interface CmdSearchItem {
             </div>
           </app-topbar>
         </div>
-
-        @if (showImpersonationBanner) {
-          <div class="impersonation-banner" role="status" aria-live="polite">
-            <div class="impersonation-text">
-              <lucide-icon [img]="icons.Shield" [size]="16"></lucide-icon>
-              <span>{{ impersonationBannerText }}</span>
-            </div>
-            <button
-              type="button"
-              class="impersonation-exit"
-              (click)="exitImpersonation.emit()"
-            >
-              Exit Impersonation
-            </button>
-          </div>
-        }
 
         <div class="shell-workspace">
           <router-outlet />
@@ -323,6 +333,62 @@ interface CmdSearchItem {
         display: flex;
         flex-direction: column;
         overflow: hidden;
+      }
+
+      .impersonation-banner-strip {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.45rem 1.25rem;
+        background: linear-gradient(90deg, #991b1b 0%, #714b67 100%);
+        color: #ffffff;
+        font-size: 0.8125rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        z-index: 100;
+        flex-shrink: 0;
+
+        .impersonation-content {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+
+          .impersonation-icon {
+            color: #fef08a;
+          }
+
+          .impersonation-text {
+            font-weight: 500;
+            letter-spacing: 0.01em;
+
+            strong {
+              color: #fef08a;
+              font-weight: 800;
+              letter-spacing: 0.03em;
+            }
+          }
+        }
+
+        .btn-exit-impersonation {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          padding: 0.25rem 0.65rem;
+          font-size: 0.75rem;
+          font-weight: 700;
+          color: #991b1b;
+          background: #ffffff;
+          border: 1px solid #fecaca;
+          border-radius: 0.375rem;
+          cursor: pointer;
+          transition: all 0.15s ease;
+
+          &:hover {
+            background: #fef2f2;
+            color: #7f1d1d;
+            border-color: #fca5a5;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+          }
+        }
       }
 
       .shell-topbar {
@@ -525,6 +591,28 @@ interface CmdSearchItem {
         display: flex;
         align-items: center;
         gap: 0.25rem;
+      }
+
+      .mode-switch-pill-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 4px 10px;
+        background: rgba(113, 75, 103, 0.08);
+        border: 1px solid rgba(113, 75, 103, 0.25);
+        color: #714b67;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        margin-right: 0.25rem;
+
+        &:hover {
+          background: #714b67;
+          color: #ffffff;
+          border-color: #714b67;
+        }
       }
 
       .header-icon-btn {
@@ -961,6 +1049,7 @@ export class AppShellLayoutComponent {
     ArrowRight,
     Tag,
     Users,
+    Smartphone,
   };
 
   private readonly totalIndexItems: CmdSearchItem[] = [
@@ -996,7 +1085,7 @@ export class AppShellLayoutComponent {
 
     // System Admin
     { id: 'admin-users', title: 'User Management & Permissions', subtitle: 'Manage ERP system users, roles and security permissions', route: '/app/admin/users', group: 'Navigation', icon: 'Users', keywords: ['user', 'admin', 'permission', 'role', 'security'] },
-    { id: 'admin-tenants', title: 'Tenant Organization Settings', subtitle: 'Company profile, currency formatting & facility configuration', route: '/app/admin/tenants', group: 'Navigation', icon: 'Building2', keywords: ['tenant', 'org', 'setting', 'company', 'facility'] },
+    { id: 'admin-tenants', title: 'Tenant Organization Settings', subtitle: 'Company profile, currency formatting & facility configuration', route: '/app/admin/tenant', group: 'Navigation', icon: 'Building2', keywords: ['tenant', 'org', 'setting', 'company', 'facility'] },
   ];
 
   readonly filteredNavItems = computed(() => {

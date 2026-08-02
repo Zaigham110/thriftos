@@ -17,6 +17,7 @@ import {
   ImpersonationResponse,
 } from './auth.models';
 import { API_ENDPOINTS } from '../config/api.config';
+import { OperationModeService } from '../config/operation-mode.service';
 
 @Injectable({
   providedIn: 'root',
@@ -51,7 +52,8 @@ export class AuthService {
   constructor(
     private readonly http: HttpClient,
     private readonly tokenService: TokenService,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly operationModeService: OperationModeService
   ) {
     this.initializeAuth();
   }
@@ -217,6 +219,8 @@ export class AuthService {
           this.tokenService.isImpersonating() ||
           !!response.user.impersonatedTenantId ||
           !!this.tokenService.getImpersonationContext().tenantId;
+        
+        this.operationModeService.initFromMeResponse(response.user);
         
         this._state.set({
           user: response.user,

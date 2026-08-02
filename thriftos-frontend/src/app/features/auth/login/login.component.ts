@@ -207,6 +207,13 @@ export class LoginComponent implements OnInit {
       return;
     }
 
-    void this.router.navigate(['/app/dashboard']);
+    void this.router.navigate([this.isOperationalUser() ? '/app/lite/home' : '/app/dashboard']);
+  }
+
+  private isOperationalUser(): boolean {
+    const operationalPrefixes = ['rag.', 'sorting.', 'repack.', 'inventory.', 'sales.'];
+    return this.authService.permissions().some((permission) =>
+      operationalPrefixes.some((prefix) => permission.startsWith(prefix)),
+    );
   }
 }

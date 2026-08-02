@@ -1,4 +1,5 @@
-import { IsString, IsNotEmpty, IsEmail, IsOptional, MinLength, MaxLength, IsArray } from 'class-validator';
+import { IsString, IsNotEmpty, IsEmail, IsOptional, MinLength, MaxLength, IsArray, IsEnum } from 'class-validator';
+import { OperationMode } from '@prisma/client';
 
 export class CreateUserDto {
   @IsString()
@@ -20,5 +21,8 @@ export class CreateUserDto {
   @IsOptional()
   @IsString({ each: true })
   roleIds?: string[];
-}
 
+  @IsEnum(OperationMode)
+  @IsOptional()
+  preferredOperationMode?: OperationMode;
+}

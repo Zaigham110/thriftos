@@ -50,9 +50,15 @@ Install these before starting:
 - **Option A (Full System in Docker)**: Only Docker Desktop (or Docker with Docker Compose) is required!
 - **Option B (Local Dev)**: Node.js 20+, npm, and Docker / PostgreSQL 14+.
 
-## 🚀 Running the Whole System in Docker (Zero Local Setup)
+## 🚀 Running the Whole System in Docker
 
-If you don't want to install Node.js, npm, or setup local environment files, you can launch the **entire application stack** (PostgreSQL Database + NestJS Backend API + Angular Frontend) with a single Docker command:
+Create your local environment file first. Replace all placeholder secrets before starting; do not commit this file.
+
+```bash
+cp .env.example .env
+```
+
+Then launch the **entire application stack** (PostgreSQL Database + NestJS Backend API + Angular Frontend):
 
 ```bash
 docker compose up -d --build
@@ -60,7 +66,7 @@ docker compose up -d --build
 
 This will automatically:
 1. Start PostgreSQL database container on port `5432`.
-2. Build and start NestJS API server container on port `3000` (auto-applies schema and seeds initial database).
+2. Build and start NestJS API server container on port `3000` (applies reviewed migrations).
 3. Build and serve Angular frontend container via Nginx on port `4200`.
 
 Access the application:
@@ -79,13 +85,7 @@ docker compose down
 
 If you are developing locally with Node.js and only want PostgreSQL in Docker:
 
-The backend reads the database connection from the root `.env` file.
-
-Default local value:
-
-```env
-DATABASE_URL="postgresql://labur:labur_dev_password@localhost:5432/thriftos?schema=public"
-```
+The backend reads the database connection from the root `.env` file. Start from `.env.example`; use `SEED_DATABASE=true` only for a local/demo Docker environment.
 
 ### Automated Database Setup Command
 

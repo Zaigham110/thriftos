@@ -1,0 +1,90 @@
+<app-page>
+  <app-page-header>
+    <div class="flex justify-between items-center w-full">
+      <div>
+        <h1 class="page-title text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
+          <lucide-icon [img]="icons.Shield" [size]="24" class="text-emerald-600"></lucide-icon>
+          Global Security & Audit Stream
+        </h1>
+        <p class="page-subtitle text-sm text-gray-600">
+          Real-time security log inspection, tenant creation audits, and impersonation access history.
+        </p>
+      </div>
+
+      <div class="actions flex items-center gap-2">
+        <button class="btn btn-secondary btn-sm" (click)="loadLogs()" [disabled]="loading()">
+          <lucide-icon [img]="icons.RefreshCw" [size]="14" [class.animate-spin]="loading()"></lucide-icon>
+          Refresh Stream
+        </button>
+      </div>
+    </div>
+  </app-page-header>
+
+  <app-page-body>
+    @if (error()) {
+      <app-error-state [message]="error()!" (retry)="loadLogs()" />
+    } @else if (loading()) {
+      <app-loading message="Loading platform security audit stream..." />
+    } @else {
+      <div class="bg-white border rounded-xl overflow-hidden shadow-xs">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-gray-50 border-b uppercase text-gray-500 font-bold">
+            <tr>
+              <th class="p-3">Event Action</th>
+              <th class="p-3">Entity Type</th>
+              <th class="p-3">User</th>
+              <th class="p-3">Organization</th>
+              <th class="p-3">IP Address</th>
+              <th class="p-3 text-right">Timestamp</th>
+              <th class="p-3 text-center">Inspect</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y">
+            @for (log of logs(); track log.id) {
+              <tr class="hover:bg-purple-50/20 transition-colors cursor-pointer" (click)="inspectLog(log)">
+                <td class="p-3 font-mono font-bold text-purple-900">{{ log.action }}</td>
+                <td class="p-3 font-mono font-medium text-gray-700">{{ log.entityType || 'System' }}</td>
+                <td class="p-3 font-bold text-gray-900">{{ log.userName }}</td>
+                <td class="p-3 text-gray-700 font-medium">{{ log.tenantName }}</td>
+                <td class="p-3 font-mono text-gray-500">{{ log.ipAddress || '127.0.0.1' }}</td>
+                <td class="p-3 text-right font-mono text-gray-500">{{ log.createdAt | date:'medium' }}</td>
+                <td class="p-3 text-center">
+                  <button class="btn btn-secondary btn-xs" (click)="$event.stopPropagation(); inspectLog(log)">
+                    <lucide-icon [img]="icons.Eye" [size]="12"></lucide-icon>
+                    Metadata
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="7" class="p-4 text-center text-gray-500">No audit logs found.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <!-- METADATA INSPECTOR DIALOG -->
+    <app-dialog [open]="!!selectedLog()" title="Security Audit Event Inspector" (close)="closeInspector()">
+      @if (selectedLog(); as log) {
+        <div class="p-4 flex flex-col gap-3">
+          <div class="p-3 bg-purple-50 rounded-lg border border-purple-200 flex flex-col gap-1">
+            <span class="text-xs font-bold text-purple-900 uppercase">Event Action</span>
+            <span class="font-mono text-lg font-extrabold text-purple-950">{{ log.action }}</span>
+            <span class="text-xs text-gray-600">User: {{ log.userName }} | Organization: {{ log.tenantName }}</span>
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <span class="text-xs font-bold text-gray-700 uppercase">Metadata JSON Payload</span>
+            <pre class="p-3 bg-gray-900 text-emerald-400 font-mono text-xs rounded-lg overflow-x-auto max-h-64">{{ formatJson(log.metadataJson) }}</pre>
+          </div>
+
+          <div class="flex justify-end pt-3 border-t">
+            <button class="btn btn-secondary btn-sm" (click)="closeInspector()">Close</button>
+          </div>
+        </div>
+      }
+    </app-dialog>
+  </app-page-body>
+</app-page>

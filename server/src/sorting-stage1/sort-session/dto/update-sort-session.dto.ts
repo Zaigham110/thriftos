@@ -8,6 +8,9 @@ export class UpdateSortSessionDto {
   @IsString()
   @IsOptional()
   supervisorId?: string;
-}
 
+  @IsString()
+  @IsOptional()
+  reason?: string;
+}
 

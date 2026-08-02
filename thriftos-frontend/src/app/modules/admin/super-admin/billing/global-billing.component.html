@@ -1,0 +1,102 @@
+<app-page>
+  <app-page-header>
+    <div class="flex justify-between items-center w-full">
+      <div>
+        <h1 class="page-title text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
+          <lucide-icon [img]="icons.ShoppingBag" [size]="24" class="text-primary"></lucide-icon>
+          Global SaaS Billing & Revenue Console
+        </h1>
+        <p class="page-subtitle text-sm text-gray-600">
+          Platform MRR/ARR metrics, active tenant subscriptions, and invoice statuses.
+        </p>
+      </div>
+
+      <div class="actions flex items-center gap-2">
+        <button class="btn btn-secondary btn-sm" (click)="loadBilling()" [disabled]="loading()">
+          <lucide-icon [img]="icons.RefreshCw" [size]="14" [class.animate-spin]="loading()"></lucide-icon>
+          Refresh Revenue
+        </button>
+      </div>
+    </div>
+  </app-page-header>
+
+  <app-page-body>
+    @if (error()) {
+      <app-error-state [message]="error()!" (retry)="loadBilling()" />
+    } @else if (loading()) {
+      <app-loading message="Loading global billing and subscription metrics..." />
+    } @else if (summary(); as s) {
+      
+      <!-- BILLING KPIS GRID -->
+      <app-section class="mb-6">
+        <app-grid [columns]="4" gap="md">
+          <app-kpi-card
+            label="Monthly Recurring Revenue (MRR)"
+            [value]="formatCurrency(s.kpis.mrr)"
+            sparklineAriaLabel="MRR"
+          />
+
+          <app-kpi-card
+            label="Annual Run Rate (ARR)"
+            [value]="formatCurrency(s.kpis.arr)"
+            sparklineAriaLabel="ARR"
+          />
+
+          <app-kpi-card
+            label="Active Subscriptions"
+            [value]="s.kpis.activeSubscriptions + ' Tenants'"
+            sparklineAriaLabel="Active subscriptions"
+          />
+
+          <app-kpi-card
+            label="Outstanding / Overdue Invoices"
+            [value]="formatCurrency(s.kpis.outstandingAmount)"
+            sparklineAriaLabel="Overdue amount"
+          />
+        </app-grid>
+      </app-section>
+
+      <!-- SUBSCRIPTIONS TABLE -->
+      <app-section>
+        <div class="bg-white border rounded-xl overflow-hidden shadow-xs">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-gray-50 border-b uppercase text-gray-500 font-bold">
+              <tr>
+                <th class="p-3">Organization</th>
+                <th class="p-3">Subscription Tier</th>
+                <th class="p-3">Billing Cycle</th>
+                <th class="p-3 text-right">Monthly Fee</th>
+                <th class="p-3 text-center">Status</th>
+                <th class="p-3 text-right">Next Renewal</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y">
+              @for (sub of s.subscriptions; track sub.id) {
+                <tr class="hover:bg-purple-50/20 transition-colors">
+                  <td class="p-3">
+                    <span class="font-bold text-gray-900 block">{{ sub.tenantName }}</span>
+                    <span class="font-mono text-2xs text-purple-900 font-bold">{{ sub.companyCode }}</span>
+                  </td>
+                  <td class="p-3 font-medium text-gray-800">{{ sub.planName }}</td>
+                  <td class="p-3 font-mono font-bold text-gray-600">{{ sub.billingCycle }}</td>
+                  <td class="p-3 text-right font-extrabold text-gray-900">{{ formatCurrency(sub.monthlyAmount) }}</td>
+                  <td class="p-3 text-center">
+                    <span class="status-pill" [class.status-active]="sub.status === 'PAID'" [class.status-closed]="sub.status !== 'PAID'">
+                      {{ sub.status }}
+                    </span>
+                  </td>
+                  <td class="p-3 text-right font-mono text-gray-600">{{ sub.nextBillingDate | date:'mediumDate' }}</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="6" class="p-4 text-center text-gray-500">No active subscriptions found.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </app-section>
+
+    }
+  </app-page-body>
+</app-page>

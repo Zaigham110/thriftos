@@ -1,0 +1,114 @@
+<app-page>
+  <app-page-header>
+    <div class="flex justify-between items-center w-full">
+      <div>
+        <h1 class="page-title text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
+          <lucide-icon [img]="icons.Settings" [size]="24" class="text-primary"></lucide-icon>
+          SuperAdmin System Settings & Security Governance
+        </h1>
+        <p class="page-subtitle text-sm text-gray-600">
+          Configure platform branding, session security, audit log retention, and system maintenance.
+        </p>
+      </div>
+    </div>
+  </app-page-header>
+
+  <app-page-body>
+    @if (error()) {
+      <app-error-state [message]="error()!" (retry)="loadSettings()" />
+    } @else if (loading()) {
+      <app-loading message="Loading system settings..." />
+    } @else {
+      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        
+        @if (successMessage()) {
+          <ui-alert variant="success" [dismissible]="true" class="mb-4" (dismissed)="successMessage.set(null)">
+            {{ successMessage() }}
+          </ui-alert>
+        }
+
+        <!-- BRANDING & GENERAL SETTINGS -->
+        <app-section class="mb-6">
+          <app-section-header>
+            <h2 class="section-title text-base font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+              <lucide-icon [img]="icons.Building2" [size]="18" class="text-primary"></lucide-icon>
+              Platform Identity & Support Details
+            </h2>
+          </app-section-header>
+
+          <app-section-body>
+            <div class="bg-white border rounded-xl p-6 shadow-xs grid grid-cols-2 gap-4">
+              <div class="form-group">
+                <label class="form-label text-xs font-bold text-gray-700 block mb-1">Platform Brand Name</label>
+                <input type="text" formControlName="platformName" class="form-input text-xs w-full p-2 border rounded-lg" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label text-xs font-bold text-gray-700 block mb-1">Support Email Address</label>
+                <input type="email" formControlName="supportEmail" class="form-input text-xs w-full p-2 border rounded-lg" />
+              </div>
+
+              <div class="form-group col-span-2">
+                <label class="form-label text-xs font-bold text-gray-700 block mb-1">Legal Operating Entity</label>
+                <input type="text" formControlName="companyLegalName" class="form-input text-xs w-full p-2 border rounded-lg" />
+              </div>
+            </div>
+          </app-section-body>
+        </app-section>
+
+        <!-- SECURITY & AUDIT GOVERNANCE -->
+        <app-section class="mb-6">
+          <app-section-header>
+            <h2 class="section-title text-base font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+              <lucide-icon [img]="icons.Shield" [size]="18" class="text-emerald-600"></lucide-icon>
+              Security Governance & Audit Policies
+            </h2>
+          </app-section-header>
+
+          <app-section-body>
+            <div class="bg-white border rounded-xl p-6 shadow-xs grid grid-cols-2 gap-4">
+              <div class="form-group">
+                <label class="form-label text-xs font-bold text-gray-700 block mb-1">Session Inactivity Timeout (Minutes)</label>
+                <input type="number" formControlName="sessionTimeoutMinutes" class="form-input text-xs w-full p-2 border rounded-lg" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label text-xs font-bold text-gray-700 block mb-1">Audit Log Retention Policy (Days)</label>
+                <input type="number" formControlName="auditLogRetentionDays" class="form-input text-xs w-full p-2 border rounded-lg" />
+              </div>
+
+              <div class="form-group col-span-2 flex items-center gap-3 pt-2">
+                <input type="checkbox" id="require2FAForAdmins" formControlName="require2FAForAdmins" class="w-4 h-4 rounded text-primary" />
+                <label for="require2FAForAdmins" class="text-xs font-bold text-gray-800 cursor-pointer">
+                  Require Mandatory 2-Factor Authentication (2FA) for Tenant Admins
+                </label>
+              </div>
+
+              <div class="form-group col-span-2 flex items-center gap-3 pt-2 border-t">
+                <input type="checkbox" id="maintenanceMode" formControlName="maintenanceMode" class="w-4 h-4 rounded text-amber-600" />
+                <label for="maintenanceMode" class="text-xs font-bold text-amber-900 cursor-pointer flex items-center gap-1">
+                  <lucide-icon [img]="icons.AlertTriangle" [size]="14" class="text-amber-600"></lucide-icon>
+                  System Maintenance Mode (Restricts Tenant Users while keeping SuperAdmin access open)
+                </label>
+              </div>
+            </div>
+          </app-section-body>
+        </app-section>
+
+        <!-- SUBMIT ACTIONS -->
+        <div class="flex justify-end gap-2">
+          <button type="submit" class="btn btn-primary" [disabled]="saving() || form.invalid">
+            @if (saving()) {
+              <lucide-icon [img]="icons.Loader2" class="icon-spin"></lucide-icon>
+              Saving Changes...
+            } @else {
+              <lucide-icon [img]="icons.Save"></lucide-icon>
+              Save SuperAdmin Settings
+            }
+          </button>
+        </div>
+
+      </form>
+    }
+  </app-page-body>
+</app-page>

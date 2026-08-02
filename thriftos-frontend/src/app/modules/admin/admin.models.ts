@@ -7,8 +7,10 @@
  */
 
 // =============================================================
-// USER MANAGEMENT
-// =============================================================
+export type OperationMode = 'FULL_ERP' | 'SIMPLIFIED_MOBILE' | 'USER_CHOICE';
+export type ConnectivityPolicy = 'ONLINE_ONLY' | 'OFFLINE_CAPABLE' | 'AUTOMATIC';
+export type CapturePolicy = 'HARDWARE_SCANNER' | 'CAMERA_SCAN' | 'MANUAL_ENTRY' | 'ALL';
+export type GuidancePolicy = 'GUIDED' | 'FLEXIBLE' | 'STRICT';
 
 export interface User {
   id: string;
@@ -16,6 +18,7 @@ export interface User {
   name: string;
   email: string;
   isActive: boolean;
+  preferredOperationMode?: 'FULL_ERP' | 'SIMPLIFIED_MOBILE' | 'USER_CHOICE' | null;
   createdAt: string;
   updatedAt: string;
   userRoles?: UserRole[];
@@ -34,12 +37,14 @@ export interface CreateUserRequest {
   email: string;
   password?: string;
   roleIds?: string[];
+  preferredOperationMode?: 'FULL_ERP' | 'SIMPLIFIED_MOBILE' | 'USER_CHOICE' | null;
 }
 
 export interface UpdateUserRequest {
   name?: string;
   email?: string;
   isActive?: boolean;
+  preferredOperationMode?: 'FULL_ERP' | 'SIMPLIFIED_MOBILE' | 'USER_CHOICE' | null;
 }
 
 // =============================================================
@@ -261,6 +266,11 @@ export interface Tenant {
   currencyLocked?: boolean;
   locale: string;
   status: 'ACTIVE' | 'INACTIVE';
+  operationMode?: 'FULL_ERP' | 'SIMPLIFIED_MOBILE' | 'USER_CHOICE';
+  connectivityPolicy?: ConnectivityPolicy;
+  capturePolicy?: CapturePolicy;
+  guidancePolicy?: GuidancePolicy;
+  operationalModules?: OperationalModule[];
   createdAt: string;
   updatedAt: string;
   _count?: {
@@ -284,4 +294,11 @@ export interface UpdateTenantRequest {
   name?: string;
   currencyCode?: string;
   locale?: string;
+  operationMode?: 'FULL_ERP' | 'SIMPLIFIED_MOBILE' | 'USER_CHOICE';
+  connectivityPolicy?: ConnectivityPolicy;
+  capturePolicy?: CapturePolicy;
+  guidancePolicy?: GuidancePolicy;
+  operationalModules?: OperationalModule[];
 }
+
+export type OperationalModule = 'WORK' | 'INTAKE' | 'SORTING' | 'REPACK' | 'STOCK' | 'SALES' | 'INSIGHTS' | 'ADMINISTRATION';

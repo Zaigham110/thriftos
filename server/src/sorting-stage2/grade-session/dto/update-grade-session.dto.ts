@@ -8,6 +8,9 @@ export class UpdateGradeSessionDto {
   @IsString()
   @IsOptional()
   supervisorId?: string;
-}
 
+  @IsString()
+  @IsOptional()
+  reason?: string;
+}
 

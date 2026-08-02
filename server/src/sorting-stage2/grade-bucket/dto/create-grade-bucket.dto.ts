@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsNumber, IsString, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class CreateGradeBucketDto {
   @IsString()
@@ -11,7 +11,8 @@ export class CreateGradeBucketDto {
 
   @IsInt()
   @Min(0)
-  outputCount: number;
+  @IsOptional()
+  outputCount?: number;
 }
 
 

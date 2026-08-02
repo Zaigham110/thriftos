@@ -161,9 +161,14 @@ export class GradeSessionService {
     if (!session) throw new NotFoundException('Grade session not found');
     if (session.status !== GradeStatus.OPEN) throw new ConflictException('Cannot update a CLOSED grade session');
 
+    const { reason, ...changes } = dto;
+    if ((changes.workerId || changes.supervisorId) && !reason?.trim()) {
+      throw new BadRequestException('A reason is required when reassigning a grading session');
+    }
+
     const updated = await this.prisma.gradeSession.update({
       where: { id },
-      data: dto,
+      data: changes,
     });
 
     await this.auditService.log({
@@ -172,7 +177,7 @@ export class GradeSessionService {
       action: 'GRADE_SESSION_UPDATED',
       entityType: 'GradeSession',
       entityId: id,
-      metadataJson: { changes: dto },
+      metadataJson: { changes, reason: reason?.trim() || null },
     });
 
     return updated;
@@ -323,5 +328,4 @@ export class GradeSessionService {
     return result;
   }
 }
-
 

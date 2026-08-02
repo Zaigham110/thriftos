@@ -1,0 +1,97 @@
+<app-page>
+  <app-page-header>
+    <div class="flex justify-between items-center w-full">
+      <div>
+        <h1 class="page-title text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
+          <lucide-icon [img]="icons.Tag" [size]="24" class="text-primary"></lucide-icon>
+          SaaS Subscription Tier Catalog
+        </h1>
+        <p class="page-subtitle text-sm text-gray-600">
+          Manage pricing tiers, feature allotments, and resource limits per subscription plan.
+        </p>
+      </div>
+
+      <div class="actions flex items-center gap-2">
+        <button class="btn btn-secondary btn-sm" (click)="loadPlans()" [disabled]="loading()">
+          <lucide-icon [img]="icons.RefreshCw" [size]="14" [class.animate-spin]="loading()"></lucide-icon>
+          Refresh Catalog
+        </button>
+      </div>
+    </div>
+  </app-page-header>
+
+  <app-page-body>
+    @if (error()) {
+      <app-error-state [message]="error()!" (retry)="loadPlans()" />
+    } @else if (loading()) {
+      <app-loading message="Loading subscription plans..." />
+    } @else {
+      <app-section>
+        <div class="grid grid-cols-2 gap-6">
+          @for (plan of plans(); track plan.id) {
+            <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-xs flex flex-col justify-between hover:border-purple-300 transition-all">
+              <div>
+                <div class="flex items-center justify-between border-b pb-4 mb-4">
+                  <div>
+                    <h2 class="text-lg font-bold text-gray-900">{{ plan.name }}</h2>
+                    <span class="font-mono text-xs font-bold text-purple-900 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                      {{ plan.code }}
+                    </span>
+                  </div>
+                  <div class="text-right">
+                    <span class="text-2xl font-extrabold text-gray-900">${{ plan.monthlyPrice }}</span>
+                    <span class="text-xs text-gray-500 font-medium block">/ month</span>
+                  </div>
+                </div>
+
+                <!-- Limits Grid -->
+                <div class="grid grid-cols-3 gap-2 mb-4 bg-gray-50 p-3 rounded-lg border border-gray-100 text-xs">
+                  <div>
+                    <span class="text-gray-500 font-medium block">Max Users</span>
+                    <span class="font-bold text-gray-900 flex items-center gap-1 mt-0.5">
+                      <lucide-icon [img]="icons.Users" [size]="12"></lucide-icon>
+                      {{ plan.maxUsers }}
+                    </span>
+                  </div>
+                  <div>
+                    <span class="text-gray-500 font-medium block">Warehouses</span>
+                    <span class="font-bold text-gray-900 flex items-center gap-1 mt-0.5">
+                      <lucide-icon [img]="icons.Warehouse" [size]="12"></lucide-icon>
+                      {{ plan.maxWarehouses }}
+                    </span>
+                  </div>
+                  <div>
+                    <span class="text-gray-500 font-medium block">Containers/mo</span>
+                    <span class="font-bold text-gray-900 flex items-center gap-1 mt-0.5">
+                      <lucide-icon [img]="icons.Container" [size]="12"></lucide-icon>
+                      {{ plan.maxContainersPerMonth }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Features list -->
+                <div class="flex flex-col gap-1.5 mb-6">
+                  <span class="text-xs font-bold text-gray-700 uppercase tracking-wider">Features Included</span>
+                  @for (f of plan.features; track f) {
+                    <span class="text-xs text-gray-600 flex items-center gap-2">
+                      <lucide-icon [img]="icons.CheckCircle2" [size]="14" class="text-emerald-600 flex-shrink-0"></lucide-icon>
+                      {{ f }}
+                    </span>
+                  }
+                </div>
+              </div>
+
+              <!-- Footer -->
+              <div class="pt-4 border-t flex items-center justify-between">
+                <span class="text-xs font-bold text-gray-500 flex items-center gap-1">
+                  <lucide-icon [img]="icons.Building2" [size]="14" class="text-primary"></lucide-icon>
+                  {{ plan.activeTenantsCount }} Active Tenant Subscriptions
+                </span>
+              </div>
+            </div>
+          }
+        </div>
+      </app-section>
+    }
+  </app-page-body>
+</app-page>

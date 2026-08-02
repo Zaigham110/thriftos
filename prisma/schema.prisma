@@ -113,6 +113,11 @@ enum SaleStatus {
   CANCELLED
 }
 
+enum FulfillmentStatus {
+  PENDING
+  FULFILLED
+}
+
 // =============================================================
 // 🗑️ WASTE (Tenant-configured categories + line items)
 // =============================================================
@@ -157,6 +162,31 @@ enum InventoryStatus {
 enum TenantStatus {
   ACTIVE
   INACTIVE
+}
+
+enum OperationMode {
+  FULL_ERP
+  SIMPLIFIED_MOBILE
+  USER_CHOICE
+}
+
+enum ConnectivityPolicy {
+  ONLINE_ONLY
+  OFFLINE_CAPABLE
+  AUTOMATIC
+}
+
+enum CapturePolicy {
+  HARDWARE_SCANNER
+  CAMERA_SCAN
+  MANUAL_ENTRY
+  ALL
+}
+
+enum GuidancePolicy {
+  GUIDED
+  FLEXIBLE
+  STRICT
 }
 
 enum SourceType {
@@ -204,9 +234,14 @@ model Tenant {
   name        String
   companyCode String       @unique
   currency    String       @default("USD")
-  locale      String       @default("en-US")
-  status      TenantStatus @default(ACTIVE)
-  createdAt   DateTime     @default(now())
+  locale      String        @default("en-US")
+  status      TenantStatus  @default(ACTIVE)
+  operationMode OperationMode @default(FULL_ERP)
+  connectivityPolicy ConnectivityPolicy @default(AUTOMATIC)
+  capturePolicy CapturePolicy @default(ALL)
+  guidancePolicy GuidancePolicy @default(GUIDED)
+  operationalModules String[] @default(["WORK", "INTAKE", "SORTING", "REPACK", "STOCK", "SALES", "INSIGHTS", "ADMINISTRATION"])
+  createdAt   DateTime      @default(now())
   updatedAt   DateTime     @updatedAt
 
   // Relations
@@ -241,6 +276,20 @@ model Tenant {
   wasteLineItems  WasteLineItem[]
 
   @@index([companyCode])
+}
+
+/// Deduplicates client retry/sync requests within a tenant and operational scope.
+model IdempotencyKey {
+  id           String   @id @default(cuid())
+  tenantId     String
+  scope        String
+  key          String
+  responseJson Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([tenantId, scope, key])
+  @@index([tenantId, createdAt])
 }
 
 // =============================================================
@@ -285,6 +334,9 @@ model Sale {
   customerId          String
   type                SaleType
   status              SaleStatus @default(DRAFT)
+  fulfillmentStatus   FulfillmentStatus @default(PENDING)
+  fulfilledAt         DateTime?
+  fulfillmentReference String?
   currencyCode        String
   totalAmount         Decimal    @default(0) @db.Decimal(12, 2)
   totalCost           Decimal    @default(0) @db.Decimal(12, 2)
@@ -481,8 +533,9 @@ model User {
   name         String
   email        String
   passwordHash String
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  isActive     Boolean        @default(true)
+  preferredOperationMode OperationMode?
+  createdAt    DateTime       @default(now())
   updatedAt    DateTime @updatedAt
 
   // Relations

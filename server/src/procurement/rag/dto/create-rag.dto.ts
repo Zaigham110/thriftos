@@ -18,6 +18,15 @@ export class CreateRagDto {
   @Min(0.01)
   weightKg: number;
 
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  allocatedCost?: number;
+
+  @IsString()
+  @IsOptional()
+  vendorId?: string;
+
   @IsString()
   @IsOptional()
   @MaxLength(500)

@@ -34,17 +34,17 @@ export class AdminShellComponent {
 
   protected readonly nav: SidebarNavConfig = {
     productName: 'ThriftOS',
-    productSubtitle: 'SuperAdmin',
+    productSubtitle: 'SuperAdmin Console',
     logoUrl: '/os_logo.png',
-    dashboard: { id: 'tenants', label: 'Tenants', route: '/admin/tenants', icon: 'layers' },
+    dashboard: { id: 'dashboard', label: 'Dashboard', route: '/admin/dashboard', icon: 'layout-dashboard' },
     groups: [
       {
         id: 'management',
-        label: 'Management',
+        label: 'Platform Governance',
         icon: 'layers',
         items: [
-          { id: 'tenants', label: 'Tenants', route: '/admin/tenants', icon: 'layers' },
-          { id: 'users', label: 'Users', route: '/admin/users', icon: 'file-text' },
+          { id: 'tenants', label: 'Tenants Directory', route: '/admin/tenants', icon: 'layers' },
+          { id: 'users', label: 'Global Users', route: '/admin/users', icon: 'users' },
         ],
       },
       {
@@ -58,10 +58,10 @@ export class AdminShellComponent {
       },
       {
         id: 'system',
-        label: 'System',
+        label: 'Security & Audit',
         icon: 'settings',
         items: [
-          { id: 'audit', label: 'Audit', route: '/admin/audit', icon: 'file-text' },
+          { id: 'audit', label: 'Audit Stream', route: '/admin/audit', icon: 'shield' },
           { id: 'settings', label: 'Settings', route: '/admin/settings', icon: 'settings' },
         ],
       },
@@ -71,11 +71,9 @@ export class AdminShellComponent {
   constructor(
     private readonly authService: AuthService,
     private readonly router: Router,
-  ) { }
+  ) {}
 
-  onProfile(): void {
-    // Intentionally not implemented in this hardening pass.
-  }
+  onProfile(): void {}
 
   onSignOut(): void {
     this.authService.logout().subscribe();

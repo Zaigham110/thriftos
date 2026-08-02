@@ -23,14 +23,24 @@ import {
   ChevronDown,
   ChevronsUpDown,
   X,
+  Building2,
+  Users,
+  Shield,
+  Truck,
+  Trash2,
+  Box,
+  Zap,
+  TrendingUp,
+  DollarSign,
+  ArrowRight,
+  ShoppingBag,
 } from 'lucide-angular';
 
 type IconSize = 'sm' | 'md' | 'lg';
 
 /**
  * app-icon
- * Phase-0 locked: lucide-angular ONLY, via <app-icon name="..." />.
- * Icons inherit text color (no colored icons).
+ * Lucide-angular icon mapping.
  */
 @Component({
   selector: 'app-icon',
@@ -59,7 +69,6 @@ export class AppIconComponent {
   }
 
   get icon() {
-    // Small, explicit Phase-0 icon set (extend intentionally).
     switch (this.name) {
       case 'alert-triangle':
         return AlertTriangle;
@@ -103,6 +112,28 @@ export class AppIconComponent {
         return ChevronsUpDown;
       case 'x':
         return X;
+      case 'building-2':
+        return Building2;
+      case 'users':
+        return Users;
+      case 'shield':
+        return Shield;
+      case 'truck':
+        return Truck;
+      case 'trash-2':
+        return Trash2;
+      case 'box':
+        return Box;
+      case 'zap':
+        return Zap;
+      case 'trending-up':
+        return TrendingUp;
+      case 'dollar-sign':
+        return DollarSign;
+      case 'arrow-right':
+        return ArrowRight;
+      case 'shopping-bag':
+        return ShoppingBag;
       default:
         return FileText;
     }

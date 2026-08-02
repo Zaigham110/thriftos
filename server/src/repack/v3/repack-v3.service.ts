@@ -199,7 +199,9 @@ export class RepackV3Service {
       // Allow any amount - can be less than, equal to, or more than target
       // Users can add multiple allocations from different sources to reach target
 
-      const { openSessionId, unitCode } = await this.ensureOpenSessionAndUnitCode(tx, tenantId, dto.categoryId, dto.gradeId, userId);
+      const { openSessionId, unitCode } = await this.ensureOpenSessionAndUnitCode(
+        tx, tenantId, dto.categoryId, dto.gradeId, userId, dto.repackSessionId,
+      );
       const unit = await tx.repackUnit.create({
         data: {
           tenantId,
@@ -419,6 +421,7 @@ export class RepackV3Service {
     categoryId: string,
     gradeId: string,
     userId: string,
+    requestedSessionId?: string,
   ): Promise<{ openSessionId: string; unitCode: string }> {
     // Ensure category/grade are valid and active
     const [tenant, category, grade] = await Promise.all([
@@ -430,12 +433,21 @@ export class RepackV3Service {
     if (!category) throw new BadRequestException('Invalid category');
     if (!grade) throw new BadRequestException('Invalid grade');
 
-    // Find or create an OPEN session (auto-managed)
-    let session = await tx.repackSession.findFirst({
-      where: { tenantId, status: RepackSessionStatus.OPEN },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true },
-    });
+    // A resumed task must remain in its original OPEN tenant session. New work
+    // retains the auto-managed latest-open-session behaviour.
+    let session = requestedSessionId
+      ? await tx.repackSession.findFirst({
+          where: { id: requestedSessionId, tenantId, status: RepackSessionStatus.OPEN },
+          select: { id: true },
+        })
+      : await tx.repackSession.findFirst({
+          where: { tenantId, status: RepackSessionStatus.OPEN },
+          orderBy: { createdAt: 'desc' },
+          select: { id: true },
+        });
+    if (requestedSessionId && !session) {
+      throw new ConflictException('The repack session is unavailable or already closed');
+    }
     if (!session) {
       session = await tx.repackSession.create({
         data: { tenantId, workerId: userId, supervisorId: userId, status: RepackSessionStatus.OPEN },

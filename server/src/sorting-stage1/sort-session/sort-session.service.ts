@@ -37,12 +37,14 @@ export class SortSessionService {
       let inputWeight: Decimal;
       let containerId: string | null = null;
 
+      let resolvedIncomingBaleId = incomingBaleId;
+
       let targetRagId = ragId;
       if (ragId) {
         // Fetch Rag and validate status
         const rag = await tx.rag.findFirst({
           where: { id: ragId, tenantId },
-          select: { id: true, weightKg: true, status: true, containerId: true },
+          select: { id: true, weightKg: true, status: true, containerId: true, ragCode: true },
         });
 
         if (!rag) {
@@ -58,6 +60,17 @@ export class SortSessionService {
 
         inputWeight = rag.weightKg;
         containerId = rag.containerId;
+
+        // Auto-link incomingBaleId for loose bales if it exists to maintain PO traceability
+        if (!resolvedIncomingBaleId && !rag.containerId) {
+          const matchingBale = await tx.incomingBale.findFirst({
+            where: { tenantId, baleCode: rag.ragCode },
+            select: { id: true },
+          });
+          if (matchingBale) {
+            resolvedIncomingBaleId = matchingBale.id;
+          }
+        }
 
         // Phase 2.5: Transition Rag status to IN_SORTING
         await tx.rag.update({
@@ -104,6 +117,7 @@ export class SortSessionService {
         }
 
         targetRagId = existingRag.id;
+        resolvedIncomingBaleId = incomingBaleId;
         inputWeight = bale.weightKg;
         containerId = bale.containerId;
       } else {
@@ -115,7 +129,7 @@ export class SortSessionService {
         data: {
           tenantId,
           ragId: targetRagId!,
-          incomingBaleId: incomingBaleId || undefined,
+          incomingBaleId: resolvedIncomingBaleId || undefined,
           workerId,
           supervisorId,
           totalInputWeight: inputWeight,
@@ -218,9 +232,14 @@ export class SortSessionService {
       throw new ConflictException('Cannot update a CLOSED sort session');
     }
 
+    const { reason, ...changes } = dto;
+    if ((changes.workerId || changes.supervisorId) && !reason?.trim()) {
+      throw new BadRequestException('A reason is required when reassigning a sorting session');
+    }
+
     const updated = await this.prisma.sortSession.update({
       where: { id },
-      data: dto,
+      data: changes,
     });
 
     await this.auditService.log({
@@ -229,7 +248,7 @@ export class SortSessionService {
       action: 'SORT_SESSION_UPDATED',
       entityType: 'SortSession',
       entityId: id,
-      metadataJson: { changes: dto },
+      metadataJson: { changes, reason: reason?.trim() || null },
     });
 
     return updated;

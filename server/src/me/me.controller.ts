@@ -1,5 +1,7 @@
-import { Controller, Get, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { OperationMode } from '@prisma/client';
+import { IsEnum, IsOptional } from 'class-validator';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
@@ -8,13 +10,12 @@ import { TenantGuard } from '../common/guards/tenant.guard';
 import { PermissionGuard } from '../common/guards/permission.guard';
 import { SkipPermissionCheck } from '../common/decorators/permissions.decorator';
 
-/**
- * MeController - Returns the currently authenticated user's data.
- * 
- * Security: TenantGuard + PermissionGuard applied for guard consistency.
- * Uses SkipPermissionCheck since any authenticated user should be able 
- * to retrieve their own profile - this is not a privileged operation.
- */
+class UpdatePreferencesDto {
+  @IsEnum(OperationMode)
+  @IsOptional()
+  preferredOperationMode?: OperationMode | null;
+}
+
 @ApiTags('Me')
 @ApiBearerAuth('JWT-auth')
 @Controller('me')
@@ -39,11 +40,24 @@ export class MeController {
         name: true,
         tenantId: true,
         isActive: true,
+        preferredOperationMode: true,
       },
     });
 
     if (!user || !user.isActive) {
       throw new UnauthorizedException('User not found or inactive');
+    }
+
+    const effectiveTenantId = currentUser.impersonatedTenantId || user.tenantId;
+    let tenantOperationMode: OperationMode = 'FULL_ERP';
+    if (effectiveTenantId) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: effectiveTenantId },
+        select: { operationMode: true },
+      });
+      if (tenant) {
+        tenantOperationMode = tenant.operationMode;
+      }
     }
 
     const permissions = currentUser.isSuperAdmin
@@ -58,8 +72,32 @@ export class MeController {
         tenantId: currentUser.isSuperAdmin ? null : user.tenantId,
         isSuperAdmin: currentUser.isSuperAdmin,
         impersonatedTenantId: currentUser.impersonatedTenantId ?? null,
+        preferredOperationMode: user.preferredOperationMode ?? null,
+        tenantOperationMode,
       },
       permissions,
     };
   }
+
+  @Patch('preferences')
+  @SkipPermissionCheck()
+  @ApiOperation({ summary: 'Update current user preferences', description: 'Updates preferred operation mode for current user' })
+  async updatePreferences(
+    @CurrentUser() currentUser: CurrentUserData,
+    @Body() dto: UpdatePreferencesDto,
+  ) {
+    const updated = await this.prisma.user.update({
+      where: { id: currentUser.userId },
+      data: {
+        preferredOperationMode: dto.preferredOperationMode ?? null,
+      },
+      select: {
+        id: true,
+        preferredOperationMode: true,
+      },
+    });
+
+    return updated;
+  }
 }
+

@@ -19,6 +19,7 @@ export class UsersService {
     name: true,
     email: true,
     isActive: true,
+    preferredOperationMode: true,
     createdAt: true,
     updatedAt: true,
     userRoles: {
@@ -57,6 +58,7 @@ export class UsersService {
         email: dto.email.toLowerCase(),
         passwordHash,
         isActive: true,
+        ...(dto.preferredOperationMode && { preferredOperationMode: dto.preferredOperationMode }),
       },
       select: this.userSelect,
     });
@@ -134,6 +136,7 @@ export class UsersService {
         ...(dto.name !== undefined && { name: dto.name }),
         ...(dto.email !== undefined && { email: dto.email.toLowerCase() }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+        ...(dto.preferredOperationMode !== undefined && { preferredOperationMode: dto.preferredOperationMode }),
       },
       select: this.userSelect,
     });

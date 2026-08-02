@@ -37,7 +37,7 @@ export class GradeBucketService {
         gradeSessionId: sessionId,
         gradeId: dto.gradeId,
         outputWeightKg: dto.outputWeightKg,
-        outputCount: dto.outputCount,
+        outputCount: dto.outputCount !== undefined && dto.outputCount !== null ? Number(dto.outputCount) : 1,
       },
     });
 

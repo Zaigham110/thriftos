@@ -12,6 +12,11 @@ export class ManualAllocationDto {
 }
 
 export class CreateRepackUnitV2Dto {
+  /** Optional explicit OPEN session when an operator resumes work. */
+  @IsOptional()
+  @IsString()
+  repackSessionId?: string;
+
   @IsString()
   categoryId: string;
 

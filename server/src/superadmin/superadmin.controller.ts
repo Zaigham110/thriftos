@@ -1,9 +1,9 @@
 import {
+  Body,
   Controller,
   Get,
   Post,
   Patch,
-  Body,
   Param,
   Query,
   UseGuards,
@@ -23,7 +23,7 @@ import { SuperAdminOnly } from '../common/decorators/super-admin.decorator';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 import { BootstrapResult } from './tenant-bootstrap.service';
 
-@Controller('superadmin/tenants')
+@Controller('superadmin')
 @UseGuards(TenantGuard)
 @SuperAdminOnly()
 export class SuperAdminController {
@@ -32,23 +32,62 @@ export class SuperAdminController {
     private readonly authService: AuthService,
   ) {}
 
-  @Post()
+  @Get('summary')
+  async getSummary() {
+    return this.superAdminService.getPlatformSummary();
+  }
+
+  @Get('users')
+  async getGlobalUsers(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('search') search?: string,
+  ) {
+    return this.superAdminService.getGlobalUsers(page || 1, limit || 20, search);
+  }
+
+  @Get('audit-logs')
+  async getGlobalAuditLogs(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('action') action?: string,
+  ) {
+    return this.superAdminService.getGlobalAuditLogs(page || 1, limit || 20, action);
+  }
+
+  @Get('plans')
+  async getPlans() {
+    return this.superAdminService.getPlansCatalog();
+  }
+
+  @Get('billing')
+  async getBilling() {
+    return this.superAdminService.getBillingSummary();
+  }
+
+  @Get('settings')
+  async getSettings() {
+    return this.superAdminService.getSystemSettings();
+  }
+
+  @Patch('settings')
+  async updateSettings(
+    @Body() dto: any,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.superAdminService.updateSystemSettings(dto, user.userId);
+  }
+
+  @Post('tenants')
   @HttpCode(HttpStatus.CREATED)
   async create(
     @Body() dto: CreateTenantDto,
     @CurrentUser() user: CurrentUserData,
   ): Promise<TenantResponseDto & { bootstrap: BootstrapResult }> {
-    try {
-      const result = await this.superAdminService.createTenant(dto, user.userId);
-      console.log('Tenant created successfully:', result);
-      return result;
-    } catch (error) {
-      console.error('Error creating tenant:', error);
-      throw error;
-    }
+    return this.superAdminService.createTenant(dto, user.userId);
   }
 
-  @Get()
+  @Get('tenants')
   async findAll(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
@@ -57,12 +96,12 @@ export class SuperAdminController {
     return this.superAdminService.findAll(page || 1, limit || 20, status);
   }
 
-  @Get(':id')
+  @Get('tenants/:id')
   async findOne(@Param('id') id: string): Promise<TenantResponseDto> {
     return this.superAdminService.findOne(id);
   }
 
-  @Patch(':id')
+  @Patch('tenants/:id')
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateTenantDto,
@@ -71,7 +110,7 @@ export class SuperAdminController {
     return this.superAdminService.update(id, dto, user.userId);
   }
 
-  @Post(':id/deactivate')
+  @Post('tenants/:id/deactivate')
   @HttpCode(HttpStatus.OK)
   async deactivate(
     @Param('id') id: string,
@@ -80,7 +119,7 @@ export class SuperAdminController {
     return this.superAdminService.deactivate(id, user.userId);
   }
 
-  @Post(':id/activate')
+  @Post('tenants/:id/activate')
   @HttpCode(HttpStatus.OK)
   async activate(
     @Param('id') id: string,
@@ -89,7 +128,7 @@ export class SuperAdminController {
     return this.superAdminService.activate(id, user.userId);
   }
 
-  @Post(':id/impersonate')
+  @Post('tenants/:id/impersonate')
   @HttpCode(HttpStatus.OK)
   async impersonate(
     @Param('id') id: string,
@@ -109,4 +148,3 @@ export class SuperAdminController {
     };
   }
 }
-

@@ -147,7 +147,7 @@ export class SalesService {
   }
 
   async listSales(tenantId: string) {
-    return this.prisma.sale.findMany({
+    const sales = await this.prisma.sale.findMany({
       where: { tenantId },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -155,6 +155,11 @@ export class SalesService {
         payments: { select: { id: true, amount: true, method: true, receivedAt: true } },
       },
     });
+
+    return sales.map((sale) => ({
+      ...sale,
+      paidAmount: sale.payments.reduce((total, payment) => total + Number(payment.amount), 0),
+    }));
   }
 
   async getSale(tenantId: string, id: string) {
@@ -552,6 +557,41 @@ export class SalesService {
 
       return updated;
     });
+  }
+
+  /** Records physical handover separately from financial and inventory issue states. */
+  async fulfill(tenantId: string, saleId: string, fulfillmentReference: string | undefined, userId: string) {
+    const sale = await this.prisma.sale.findFirst({
+      where: { id: saleId, tenantId },
+      select: { id: true, saleNumber: true, status: true, fulfillmentStatus: true },
+    });
+    if (!sale) throw new NotFoundException('Sale not found');
+    const fulfillableStatuses: SaleStatus[] = [SaleStatus.ISSUED, SaleStatus.PARTIALLY_PAID, SaleStatus.PAID];
+    if (!fulfillableStatuses.includes(sale.status)) {
+      throw new ConflictException('A sale must be issued before it can be fulfilled');
+    }
+    if (sale.fulfillmentStatus === 'FULFILLED') {
+      throw new ConflictException('This sale has already been fulfilled');
+    }
+
+    const updated = await this.prisma.sale.update({
+      where: { id: sale.id },
+      data: {
+        fulfillmentStatus: 'FULFILLED',
+        fulfilledAt: new Date(),
+        fulfillmentReference: fulfillmentReference?.trim() || null,
+      },
+    });
+
+    await this.audit.log({
+      tenantId,
+      userId,
+      action: 'SALE_FULFILLED',
+      entityType: 'Sale',
+      entityId: sale.id,
+      metadataJson: { saleNumber: sale.saleNumber, fulfillmentReference: fulfillmentReference?.trim() || null },
+    });
+    return updated;
   }
 
   async addPayment(tenantId: string, saleId: string, dto: { amount: number; method: string }, userId: string) {

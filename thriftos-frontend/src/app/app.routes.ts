@@ -1,37 +1,14 @@
-/**
- * ===============================
- * APPLICATION ROUTES - PHASE 0
- * ===============================
- * 
- * Route Structure:
- * - /auth/login - Public login page
- * - /auth/no-tenant - No tenant assigned
- * - /auth/unauthorized - Access restricted
- * - /* - Authenticated routes with shell
- */
-
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth-guard';
-import { adminAreaGuard } from './core/guards/admin-area.guard';
 import { tenantAreaGuard } from './core/guards/tenant-area.guard';
-
-const LEGACY_TENANT_ROOTS = new Set(['dashboard', 'procurement', 'sorting', 'packaging', 'inventory', 'reports']);
-
-const legacyTenantMatcher = (segments: import('@angular/router').UrlSegment[]): import('@angular/router').UrlMatchResult | null => {
-  if (!segments.length) return null;
-  const first = segments[0]?.path;
-  if (!first) return null;
-  if (!LEGACY_TENANT_ROOTS.has(first)) return null;
-  return { consumed: segments };
-};
+import { operationalModuleGuard } from './core/guards/operational-module.guard';
+import { superAdminGuard } from './core/guards/super-admin-guard';
 
 export const routes: Routes = [
-  // Default landing (role-aware)
+  // Default redirect to /app
   {
     path: '',
-    loadComponent: () =>
-      import('./features/auth/post-login-redirect.component').then((m) => m.PostLoginRedirectComponent),
-    canActivate: [authGuard],
+    redirectTo: 'app',
     pathMatch: 'full',
   },
 
@@ -62,12 +39,14 @@ export const routes: Routes = [
     pathMatch: 'full',
   },
 
-  // SuperAdmin route space (isolated)
+  // Super-admin route space must be defined outside /app. Without this route,
+  // the wildcard sends /admin to /app while tenantAreaGuard sends super admins
+  // back to /admin, creating an infinite navigation loop.
   {
     path: 'admin',
     loadComponent: () =>
       import('./features/admin-shell/admin-shell.component').then((m) => m.AdminShellComponent),
-    canActivate: [authGuard, adminAreaGuard],
+    canActivate: [authGuard, superAdminGuard],
     children: [
       {
         path: '',
@@ -75,6 +54,112 @@ export const routes: Routes = [
           import('./modules/admin/super-admin/super-admin.routes').then((m) => m.SUPER_ADMIN_ROUTES),
       },
     ],
+  },
+
+  // Lite ERP Mode route space (isolated responsive shell)
+  {
+    path: 'app/lite',
+    loadComponent: () =>
+      import('./features/simplified-shell/simplified-shell.component').then((m) => m.SimplifiedShellComponent),
+    canActivate: [authGuard, tenantAreaGuard],
+    children: [
+      {
+        path: '',
+        redirectTo: 'home',
+        pathMatch: 'full',
+      },
+      {
+        path: 'home',
+        canActivate: [operationalModuleGuard],
+        data: { operationalModule: 'WORK' },
+        loadComponent: () =>
+          import('./features/simplified-mode/mobile-home/mobile-home.component').then((m) => m.MobileHomeComponent),
+        title: 'Lite ERP Home - ThriftOS',
+      },
+      {
+        path: 'buying',
+        canActivate: [operationalModuleGuard],
+        data: { operationalModule: 'INTAKE' },
+        loadComponent: () =>
+          import('./features/simplified-mode/mobile-buying/mobile-buying.component').then((m) => m.MobileBuyingComponent),
+        title: 'Raw Bale Buying & Intake - ThriftOS Lite',
+      },
+      {
+        path: 'sorting',
+        canActivate: [operationalModuleGuard],
+        data: { operationalModule: 'SORTING' },
+        loadComponent: () =>
+          import('./features/simplified-mode/mobile-sorting/mobile-sorting.component').then((m) => m.MobileSortingComponent),
+        title: 'Sorting Workstation - ThriftOS Lite',
+      },
+      {
+        path: 'repack',
+        canActivate: [operationalModuleGuard],
+        data: { operationalModule: 'REPACK' },
+        loadComponent: () =>
+          import('./features/simplified-mode/mobile-repack/mobile-repack.component').then((m) => m.MobileRepackComponent),
+        title: 'Repack & QR Generator - ThriftOS Lite',
+      },
+      {
+        path: 'lookup',
+        canActivate: [operationalModuleGuard],
+        data: { operationalModule: 'STOCK' },
+        loadComponent: () =>
+          import('./features/simplified-mode/mobile-inventory/mobile-inventory.component').then((m) => m.MobileInventoryComponent),
+        title: 'QR Lookup & Stock - ThriftOS Lite',
+      },
+      {
+        path: 'quick-sale',
+        canActivate: [operationalModuleGuard],
+        data: { operationalModule: 'SALES' },
+        loadComponent: () =>
+          import('./features/simplified-mode/mobile-sales/mobile-quick-sale.component').then((m) => m.MobileQuickSaleComponent),
+        title: 'POS Quick Sale - ThriftOS Lite',
+      },
+      {
+        path: 'more',
+        loadComponent: () =>
+          import('./features/simplified-mode/mobile-more/mobile-more.component').then((m) => m.MobileMoreComponent),
+        title: 'More Operations - ThriftOS Lite',
+      },
+    ],
+  },
+
+  // Backward compatibility redirects from /app/mobile/* to /app/lite/*
+  {
+    path: 'app/mobile/home',
+    redirectTo: 'app/lite/home',
+    pathMatch: 'full',
+  },
+  {
+    path: 'app/mobile/buying',
+    redirectTo: 'app/lite/buying',
+    pathMatch: 'full',
+  },
+  {
+    path: 'app/mobile/sorting',
+    redirectTo: 'app/lite/sorting',
+    pathMatch: 'full',
+  },
+  {
+    path: 'app/mobile/repack',
+    redirectTo: 'app/lite/repack',
+    pathMatch: 'full',
+  },
+  {
+    path: 'app/mobile/lookup',
+    redirectTo: 'app/lite/lookup',
+    pathMatch: 'full',
+  },
+  {
+    path: 'app/mobile/quick-sale',
+    redirectTo: 'app/lite/quick-sale',
+    pathMatch: 'full',
+  },
+  {
+    path: 'app/mobile',
+    redirectTo: 'app/lite/home',
+    pathMatch: 'full',
   },
 
   // Tenant app route space (isolated)
@@ -149,16 +234,9 @@ export const routes: Routes = [
     ],
   },
 
-  // Legacy tenant route space (redirect into /app while preserving deep-link segments)
-  {
-    matcher: legacyTenantMatcher,
-    loadComponent: () =>
-      import('./features/legacy/legacy-tenant-redirect.component').then((m) => m.LegacyTenantRedirectComponent),
-  },
-
-  // Fallback
+  // Fallback route
   {
     path: '**',
-    redirectTo: '/',
+    redirectTo: '/app',
   },
 ];

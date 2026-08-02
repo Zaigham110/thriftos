@@ -1,5 +1,10 @@
 node_modules
 
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example
+
 # Legacy backup artifacts (never commit)
 *.bak
 

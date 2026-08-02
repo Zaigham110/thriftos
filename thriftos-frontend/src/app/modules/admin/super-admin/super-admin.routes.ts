@@ -1,6 +1,6 @@
 /**
  * Super Admin Routes
- * Phase 1: Authentication & Shell
+ * Multi-tenant SuperAdmin operations and platform governance.
  */
 
 import { Routes } from '@angular/router';
@@ -8,8 +8,14 @@ import { Routes } from '@angular/router';
 export const SUPER_ADMIN_ROUTES: Routes = [
   {
     path: '',
-    redirectTo: 'tenants',
+    redirectTo: 'dashboard',
     pathMatch: 'full',
+  },
+  {
+    path: 'dashboard',
+    loadComponent: () =>
+      import('./dashboard/super-admin-dashboard.component').then((m) => m.SuperAdminDashboardComponent),
+    title: 'SuperAdmin Operations Cockpit - ThriftOS',
   },
   {
     path: 'tenants',
@@ -18,56 +24,31 @@ export const SUPER_ADMIN_ROUTES: Routes = [
   {
     path: 'users',
     loadComponent: () =>
-      import('../../../features/admin-shell/admin-placeholder.component').then((m) => m.AdminPlaceholderComponent),
-    data: {
-      title: 'Users',
-      subtitle: 'SuperAdmin',
-      message: 'User administration is not configured yet in this workspace.',
-    },
-    title: 'Users - ThriftOS Admin',
+      import('./users/global-users.component').then((m) => m.GlobalUsersComponent),
+    title: 'Global Users Directory - ThriftOS Admin',
   },
   {
     path: 'plans',
     loadComponent: () =>
-      import('../../../features/admin-shell/admin-placeholder.component').then((m) => m.AdminPlaceholderComponent),
-    data: {
-      title: 'Plans',
-      subtitle: 'SuperAdmin',
-      message: 'Plan configuration is not configured yet in this workspace.',
-    },
-    title: 'Plans - ThriftOS Admin',
+      import('./plans/plans-management.component').then((m) => m.PlansManagementComponent),
+    title: 'Subscription Tiers & Plans - ThriftOS Admin',
   },
   {
     path: 'billing',
     loadComponent: () =>
-      import('../../../features/admin-shell/admin-placeholder.component').then((m) => m.AdminPlaceholderComponent),
-    data: {
-      title: 'Billing',
-      subtitle: 'SuperAdmin',
-      message: 'Billing configuration is not configured yet in this workspace.',
-    },
-    title: 'Billing - ThriftOS Admin',
+      import('./billing/global-billing.component').then((m) => m.GlobalBillingComponent),
+    title: 'Global SaaS Billing - ThriftOS Admin',
   },
   {
     path: 'audit',
     loadComponent: () =>
-      import('../../../features/admin-shell/admin-placeholder.component').then((m) => m.AdminPlaceholderComponent),
-    data: {
-      title: 'Audit',
-      subtitle: 'SuperAdmin',
-      message: 'Audit logs are not configured yet in this workspace.',
-    },
-    title: 'Audit - ThriftOS Admin',
+      import('./audit/global-audit.component').then((m) => m.GlobalAuditComponent),
+    title: 'Security Audit Stream - ThriftOS Admin',
   },
   {
     path: 'settings',
     loadComponent: () =>
-      import('../../../features/admin-shell/admin-placeholder.component').then((m) => m.AdminPlaceholderComponent),
-    data: {
-      title: 'Settings',
-      subtitle: 'SuperAdmin',
-      message: 'SuperAdmin settings are not configured yet in this workspace.',
-    },
-    title: 'Settings - ThriftOS Admin',
+      import('./settings/super-admin-settings.component').then((m) => m.SuperAdminSettingsComponent),
+    title: 'System Settings - ThriftOS Admin',
   },
 ];

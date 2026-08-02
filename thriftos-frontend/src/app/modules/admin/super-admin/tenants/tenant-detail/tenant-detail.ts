@@ -1,15 +1,33 @@
 /**
- * Tenant Detail Page - View tenant details
- * Phase 1: Authentication & Shell
+ * Tenant Detail Page - View & manage tenant details, users, and audit trail
  */
 
 import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { TenantsService } from '../tenants';
 import { Tenant, TenantStatus } from '../tenant.models';
 import { AuthService } from '../../../../../core/auth';
+import { AdminService } from '../../../admin.service';
 import { TenantFormDrawerComponent } from '../tenant-form-drawer/tenant-form-drawer';
+import {
+  LucideAngularModule,
+  Building2,
+  Users,
+  Warehouse,
+  Container,
+  Layers,
+  Tag,
+  Shield,
+  KeyRound,
+  Eye,
+  RefreshCw,
+  ArrowLeft,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Lock,
+} from 'lucide-angular';
 
 import {
   AppBadgeComponent,
@@ -26,6 +44,8 @@ import {
   AppSectionComponent,
   AppSectionHeaderComponent,
   AppStackComponent,
+  AppGridComponent,
+  AppKpiCardComponent,
 } from '../../../../../shared/ui';
 
 @Component({
@@ -34,6 +54,7 @@ import {
   imports: [
     CommonModule,
     RouterModule,
+    LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
@@ -48,6 +69,8 @@ import {
     AppDialogComponent,
     AppErrorStateComponent,
     AppLoadingComponent,
+    AppGridComponent,
+    AppKpiCardComponent,
     TenantFormDrawerComponent,
     DatePipe,
   ],
@@ -64,10 +87,35 @@ export class TenantDetailComponent implements OnInit {
   protected readonly confirmAction = signal<'activate' | 'deactivate' | 'impersonate' | null>(null);
   protected readonly isActionLoading = signal(false);
 
+  // User Reset Password State
+  protected readonly resetUser = signal<{ id: string; name: string; email: string } | null>(null);
+  protected readonly tempPassword = signal<string | null>(null);
+  protected readonly resettingPassword = signal(false);
+
+  readonly icons = {
+    Building2,
+    Users,
+    Warehouse,
+    Container,
+    Layers,
+    Tag,
+    Shield,
+    KeyRound,
+    Eye,
+    RefreshCw,
+    ArrowLeft,
+    CheckCircle2,
+    XCircle,
+    AlertTriangle,
+    Lock,
+  };
+
   constructor(
     private readonly route: ActivatedRoute,
+    private readonly router: Router,
     private readonly tenantsService: TenantsService,
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
+    private readonly adminService: AdminService
   ) {}
 
   ngOnInit(): void {
@@ -94,7 +142,10 @@ export class TenantDetailComponent implements OnInit {
   }
 
   openEditDrawer(): void {
-    this.showEditDrawer.set(true);
+    const t = this.tenant();
+    if (t) {
+      void this.router.navigate(['/admin/tenants', t.id, 'edit']);
+    }
   }
 
   closeEditDrawer(): void {
@@ -103,16 +154,16 @@ export class TenantDetailComponent implements OnInit {
 
   onDrawerSaved(): void {
     this.closeEditDrawer();
-    const tenant = this.tenant();
-    if (tenant) {
-      this.loadTenant(tenant.id);
+    const current = this.tenant();
+    if (current) {
+      this.loadTenant(current.id);
     }
   }
 
   confirmToggleStatus(): void {
-    const tenant = this.tenant();
-    if (!tenant) return;
-    this.confirmAction.set(tenant.status === 'ACTIVE' ? 'deactivate' : 'activate');
+    const t = this.tenant();
+    if (!t) return;
+    this.confirmAction.set(t.status === 'ACTIVE' ? 'deactivate' : 'activate');
     this.showConfirmModal.set(true);
   }
 
@@ -127,58 +178,66 @@ export class TenantDetailComponent implements OnInit {
   }
 
   executeConfirmedAction(): void {
-    const tenant = this.tenant();
+    const t = this.tenant();
     const action = this.confirmAction();
-
-    if (!tenant || !action) return;
+    if (!t || !action) return;
 
     this.isActionLoading.set(true);
 
     if (action === 'activate') {
-      this.tenantsService.activateTenant(tenant.id).subscribe({
-        next: (updated) => {
-          this.tenant.set(updated);
+      this.tenantsService.activateTenant(t.id).subscribe({
+        next: () => {
           this.isActionLoading.set(false);
           this.closeConfirmModal();
+          this.loadTenant(t.id);
         },
-        error: () => {
-          this.isActionLoading.set(false);
-        },
+        error: () => this.isActionLoading.set(false),
       });
     } else if (action === 'deactivate') {
-      this.tenantsService.deactivateTenant(tenant.id).subscribe({
-        next: (updated) => {
-          this.tenant.set(updated);
+      this.tenantsService.deactivateTenant(t.id).subscribe({
+        next: () => {
           this.isActionLoading.set(false);
           this.closeConfirmModal();
+          this.loadTenant(t.id);
         },
-        error: () => {
-          this.isActionLoading.set(false);
-        },
+        error: () => this.isActionLoading.set(false),
       });
     } else if (action === 'impersonate') {
-      this.authService.impersonateTenant(tenant.id).subscribe({
+      this.authService.impersonateTenant(t.id).subscribe({
         next: () => {
           this.isActionLoading.set(false);
           this.closeConfirmModal();
         },
-        error: () => {
-          this.isActionLoading.set(false);
-        },
+        error: () => this.isActionLoading.set(false),
       });
     }
   }
 
+  resetUserPassword(user: { id: string; name: string; email: string }): void {
+    this.resetUser.set(user);
+    this.tempPassword.set(null);
+    this.resettingPassword.set(true);
+
+    this.adminService.resetUserPassword(user.id).subscribe({
+      next: (res: any) => {
+        this.resettingPassword.set(false);
+        this.tempPassword.set(res.temporaryPassword || 'Password reset successfully');
+      },
+      error: () => this.resettingPassword.set(false),
+    });
+  }
+
+  closeResetModal(): void {
+    this.resetUser.set(null);
+    this.tempPassword.set(null);
+  }
+
   getStatusBadgeType(status: TenantStatus): 'success' | 'warning' | 'danger' | 'default' {
     switch (status) {
-      case 'ACTIVE':
-        return 'success';
-      case 'INACTIVE':
-        return 'warning';
-      case 'SUSPENDED':
-        return 'danger';
-      default:
-        return 'default';
+      case 'ACTIVE': return 'success';
+      case 'INACTIVE': return 'warning';
+      case 'SUSPENDED': return 'danger';
+      default: return 'default';
     }
   }
 
@@ -186,25 +245,18 @@ export class TenantDetailComponent implements OnInit {
     const action = this.confirmAction();
     if (action === 'activate') return 'Activate Tenant';
     if (action === 'deactivate') return 'Deactivate Tenant';
-    if (action === 'impersonate') return 'Impersonate Tenant';
-    return '';
+    if (action === 'impersonate') return 'Impersonate Tenant Context';
+    return 'Confirm Action';
   }
 
   getConfirmMessage(): string {
-    const tenant = this.tenant();
+    const t = this.tenant();
     const action = this.confirmAction();
+    if (!t || !action) return '';
 
-    if (!tenant) return '';
-
-    if (action === 'activate') {
-      return `Are you sure you want to activate "${tenant.name}"?`;
-    }
-    if (action === 'deactivate') {
-      return `Are you sure you want to deactivate "${tenant.name}"?`;
-    }
-    if (action === 'impersonate') {
-      return `You are about to impersonate "${tenant.name}". Are you sure?`;
-    }
+    if (action === 'activate') return `Are you sure you want to activate "${t.name}"? Users will be allowed to log in.`;
+    if (action === 'deactivate') return `Are you sure you want to deactivate "${t.name}"? Active user sessions will be restricted.`;
+    if (action === 'impersonate') return `You are entering context for "${t.name}" (${t.companyCode}). SuperAdmin actions will be audited.`;
     return '';
   }
 
@@ -212,13 +264,13 @@ export class TenantDetailComponent implements OnInit {
     const action = this.confirmAction();
     if (action === 'activate') return 'Activate';
     if (action === 'deactivate') return 'Deactivate';
-    if (action === 'impersonate') return 'Start Impersonation';
+    if (action === 'impersonate') return 'Impersonate Now';
     return 'Confirm';
   }
 
-  getConfirmButtonVariant(): 'primary' | 'danger' {
+  getConfirmButtonVariant(): 'primary' | 'danger' | 'secondary' {
     const action = this.confirmAction();
-    if (action === 'deactivate' || action === 'impersonate') return 'danger';
+    if (action === 'deactivate') return 'danger';
     return 'primary';
   }
 }

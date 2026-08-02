@@ -15,6 +15,41 @@ export class RagService {
     private tenantSequenceService: TenantSequenceService,
   ) {}
 
+  async createIdempotent(tenantId: string, dto: CreateRagDto, userId: string, idempotencyKey?: string) {
+    const key = idempotencyKey?.trim().slice(0, 128);
+    if (!key) return this.create(tenantId, dto, userId);
+
+    const scope = 'RAG_INTAKE';
+    let requestId: string;
+    try {
+      const request = await this.prisma.idempotencyKey.create({
+        data: { tenantId, scope, key },
+        select: { id: true },
+      });
+      requestId = request.id;
+    } catch (error: any) {
+      if (error?.code !== 'P2002') throw error;
+      const existing = await this.prisma.idempotencyKey.findFirst({
+        where: { tenantId, scope, key },
+        select: { responseJson: true },
+      });
+      if (existing?.responseJson) return existing.responseJson;
+      throw new ConflictException('This intake request is already being processed. Refresh before retrying.');
+    }
+
+    try {
+      const result = await this.create(tenantId, dto, userId);
+      await this.prisma.idempotencyKey.update({
+        where: { id: requestId },
+        data: { responseJson: JSON.parse(JSON.stringify(result)) },
+      });
+      return result;
+    } catch (error) {
+      await this.prisma.idempotencyKey.delete({ where: { id: requestId } }).catch(() => undefined);
+      throw error;
+    }
+  }
+
   async create(tenantId: string, dto: CreateRagDto, userId: string) {
     let container: any = null;
 
@@ -88,6 +123,49 @@ export class RagService {
       },
     );
 
+    let createdPo: any = null;
+
+    if (!dto.containerId) {
+      // Automatically generate a Purchase Order for standalone loose bale intake
+      const { code: poNumber } = await this.tenantSequenceService.generateCode(
+        tenantId,
+        SequenceScope.PURCHASE_ORDER,
+        { prefix: 'PO', padSize: 3 },
+        async (candidate) => {
+          const collision = await this.prisma.purchaseOrder.findFirst({
+            where: { tenantId, poNumber: candidate },
+            select: { id: true },
+          });
+          return !collision;
+        },
+      );
+
+      createdPo = await this.prisma.purchaseOrder.create({
+        data: {
+          tenantId,
+          vendorId: dto.vendorId || null,
+          poNumber,
+          poType: 'LOOSE_BALE',
+          currency: 'USD',
+          totalCost: dto.allocatedCost ? Number(dto.allocatedCost) : 0,
+          status: 'RECEIVED',
+        },
+      });
+
+      // Create linked IncomingBale record
+      await this.prisma.incomingBale.create({
+        data: {
+          tenantId,
+          rawCategoryId: dto.rawCategoryId,
+          purchaseOrderId: createdPo.id,
+          vendorId: dto.vendorId || null,
+          baleCode: ragCode,
+          weightKg: dto.weightKg,
+          cost: dto.allocatedCost ? Number(dto.allocatedCost) : 0,
+        },
+      });
+    }
+
     const rag = await this.prisma.rag.create({
       data: {
         tenantId,
@@ -97,8 +175,8 @@ export class RagService {
         ragBaleType: dto.ragBaleType,
         rawCategoryId: dto.rawCategoryId,
         weightKg: dto.weightKg,
-        allocatedCost: 0, // Will be calculated if container exists
-        notes: dto.notes,
+        allocatedCost: dto.allocatedCost ? Number(dto.allocatedCost) : 0,
+        notes: dto.notes || (createdPo ? `Auto-created from Mobile PO ${createdPo.poNumber}` : undefined),
       },
       include: {
         container: {
@@ -122,6 +200,9 @@ export class RagService {
         container: {
           select: { containerNumber: true },
         },
+        rawCategory: {
+          select: { id: true, name: true, rawType: true },
+        },
       },
     });
 
@@ -133,12 +214,17 @@ export class RagService {
       entityId: rag.id,
       metadataJson: {
         ragCode: rag.ragCode,
-        containerNumber: container.containerNumber,
+        poNumber: createdPo?.poNumber || null,
+        containerNumber: container?.containerNumber || null,
         weightKg: dto.weightKg,
       },
     });
 
-    return updatedRag;
+    return {
+      ...(updatedRag || rag),
+      autoPoNumber: createdPo?.poNumber || null,
+      autoPoId: createdPo?.id || null,
+    };
   }
 
   /**
@@ -269,4 +355,3 @@ export class RagService {
     return { success: true };
   }
 }
-

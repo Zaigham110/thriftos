@@ -28,7 +28,7 @@ import { SearchModule } from './search/search.module';
     // Configuration
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '../.env',
+      envFilePath: ['.env', '../.env', 'server/.env'],
     }),
 
     // Rate limiting

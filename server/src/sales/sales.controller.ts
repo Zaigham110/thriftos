@@ -105,6 +105,16 @@ export class SalesController {
     return this.sales.issue(tenantId, id, user.userId);
   }
 
+  @Post(':id/fulfill')
+  async fulfill(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id') id: string,
+    @Body() body: { fulfillmentReference?: string },
+  ) {
+    const tenantId = this.requireTenant(user);
+    return this.sales.fulfill(tenantId, id, body?.fulfillmentReference, user.userId);
+  }
+
   @Post(':id/cancel')
   async cancel(
     @CurrentUser() user: CurrentUserData,

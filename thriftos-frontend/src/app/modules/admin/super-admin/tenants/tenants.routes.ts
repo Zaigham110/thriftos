@@ -1,6 +1,5 @@
 /**
  * Super Admin Tenants Routes
- * Phase 1: Authentication & Shell
  */
 
 import { Routes } from '@angular/router';
@@ -10,7 +9,19 @@ export const TENANTS_ROUTES: Routes = [
     path: '',
     loadComponent: () =>
       import('./tenants-list/tenants-list').then((m) => m.TenantsListComponent),
-    title: 'Tenants - ThriftOS Admin',
+    title: 'Tenants Directory - ThriftOS Admin',
+  },
+  {
+    path: 'new',
+    loadComponent: () =>
+      import('./tenant-create/tenant-create.component').then((m) => m.TenantCreateComponent),
+    title: 'Provision New Tenant - ThriftOS Admin',
+  },
+  {
+    path: ':id/edit',
+    loadComponent: () =>
+      import('./tenant-edit/tenant-edit.component').then((m) => m.TenantEditComponent),
+    title: 'Edit Tenant Configuration - ThriftOS Admin',
   },
   {
     path: ':id',

@@ -170,7 +170,7 @@ export class TenantsListComponent implements OnInit {
 
   onRowAction(tenant: Tenant, action: string): void {
     if (action === 'view') return void this.router.navigate(['/admin/tenants', tenant.id]);
-    if (action === 'edit') return this.openEditDrawer(tenant);
+    if (action === 'edit') return void this.router.navigate(['/admin/tenants', tenant.id, 'edit']);
     if (action === 'toggle') return this.confirmToggleStatus(tenant);
     if (action === 'impersonate') return this.confirmImpersonate(tenant);
   }
@@ -180,8 +180,7 @@ export class TenantsListComponent implements OnInit {
   }
 
   openCreateDrawer(): void {
-    this.editingTenant.set(null);
-    this.showDrawer.set(true);
+    void this.router.navigate(['/admin/tenants', 'new']);
   }
 
   openEditDrawer(tenant: Tenant): void {

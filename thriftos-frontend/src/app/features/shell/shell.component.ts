@@ -19,6 +19,7 @@ import { Router } from '@angular/router';
 import { AppShellLayoutComponent, type SidebarNavConfig } from '../../shared/ui';
 import { AuthService } from '../../core/auth';
 import { TenantService } from '../../core/tenant/tenant.service';
+import { OperationModeService } from '../../core/config/operation-mode.service';
 
 @Component({
   selector: 'app-thrift-shell',
@@ -35,7 +36,7 @@ import { TenantService } from '../../core/tenant/tenant.service';
       [showImpersonationBanner]="isImpersonating()"
       [impersonationBannerText]="impersonationBannerText()"
       [nav]="nav"
-      (profile)="onProfile()"
+      (profile)="toggleOperationMode()"
       (switchTenant)="onSwitchTenant()"
       (exitImpersonation)="onExitImpersonation()"
       (signOut)="onSignOut()"
@@ -73,9 +74,10 @@ export class ThriftShellComponent {
       {
         id: 'sales',
         label: 'Sales',
-        icon: 'file-text',
+        icon: 'shopping-bag',
         items: [
           { id: 'sales', label: 'Sales Orders', route: '/app/sales', icon: 'file-text' },
+          { id: 'customers', label: 'Customers', route: '/app/sales/customers', icon: 'users' },
         ],
       },
       {
@@ -136,6 +138,7 @@ export class ThriftShellComponent {
         label: 'Administration',
         icon: 'settings',
         items: [
+          { id: 'tenant', label: 'Tenant Settings', route: '/app/admin/tenant', icon: 'building-2' },
           { id: 'users', label: 'Users', route: '/app/admin/users', icon: 'users' },
           { id: 'roles', label: 'Roles', route: '/app/admin/roles', icon: 'shield' },
           { id: 'warehouses', label: 'Warehouses', route: '/app/admin/warehouses', icon: 'warehouse' },
@@ -152,6 +155,7 @@ export class ThriftShellComponent {
   constructor(
     private readonly authService: AuthService,
     private readonly tenantService: TenantService,
+    private readonly modeService: OperationModeService,
     private readonly router: Router
   ) {
     // Phase-0: load tenant profile only for displaying company name in topbar.
@@ -167,8 +171,14 @@ export class ThriftShellComponent {
     });
   }
 
+  toggleOperationMode(): void {
+    if (this.modeService.tenantMode() !== 'USER_CHOICE') return;
+    this.modeService.setMode('SIMPLIFIED_MOBILE');
+    this.router.navigate(['/app/lite/home']);
+  }
+
   onProfile(): void {
-    // Phase-0: no profile UI
+    this.toggleOperationMode();
   }
 
   onSwitchTenant(): void {
