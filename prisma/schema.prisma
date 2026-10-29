@@ -240,6 +240,7 @@ model Tenant {
   connectivityPolicy ConnectivityPolicy @default(AUTOMATIC)
   capturePolicy CapturePolicy @default(ALL)
   guidancePolicy GuidancePolicy @default(GUIDED)
+  flowEnabled Boolean @default(false)
   operationalModules String[] @default(["WORK", "INTAKE", "SORTING", "REPACK", "STOCK", "SALES", "INSIGHTS", "ADMINISTRATION"])
   createdAt   DateTime      @default(now())
   updatedAt   DateTime     @updatedAt

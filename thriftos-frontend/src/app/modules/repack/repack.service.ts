@@ -47,14 +47,14 @@ export class RepackService {
    * Get available grading outputs for allocation
    */
   getAvailableStock(
-    categoryId: string,
-    gradeId: string,
-    measurementType: MeasurementType
+    categoryId?: string,
+    gradeId?: string,
+    measurementType?: MeasurementType,
   ): Observable<AvailableStock[]> {
-    const params = new HttpParams()
-      .set('categoryId', categoryId)
-      .set('gradeId', gradeId)
-      .set('measurementType', measurementType);
+    let params = new HttpParams();
+    if (categoryId) params = params.set('categoryId', categoryId);
+    if (gradeId) params = params.set('gradeId', gradeId);
+    if (measurementType) params = params.set('measurementType', measurementType);
 
     return this.http.get<AvailableStock[]>(`${API}/available-stock`, { params }).pipe(
       catchError(this.handleError)
@@ -68,8 +68,9 @@ export class RepackService {
   /**
    * Get all draft units
    */
-  getDrafts(): Observable<RepackUnit[]> {
-    return this.http.get<RepackUnit[]>(`${API}/units/drafts`).pipe(
+  getDrafts(sessionId?: string): Observable<RepackUnit[]> {
+    const params = sessionId ? new HttpParams().set('sessionId', sessionId) : undefined;
+    return this.http.get<RepackUnit[]>(`${API}/units/drafts`, { params }).pipe(
       catchError(this.handleError)
     );
   }
@@ -151,14 +152,16 @@ export class RepackService {
    */
   createDraftWithAllocation(
     dto: CreateDraftRequest,
-    firstAllocation: { gradingOutputId: string; amountUsed: number }
+    firstAllocation: { gradingOutputId: string; amountUsed: number },
+    repackSessionId?: string,
   ): Observable<RepackUnit> {
     const body = {
       categoryId: dto.categoryId,
       gradeId: dto.gradeId,
       measurementType: dto.measurementType,
       targetAmount: dto.targetAmount,
-      manualAllocations: [firstAllocation]
+      manualAllocations: [firstAllocation],
+      ...(repackSessionId ? { repackSessionId } : {}),
     };
 
     return this.http.post<{ repackUnit: RepackUnit }>(`${API}/units/manual`, body).pipe(
@@ -214,7 +217,10 @@ export class RepackService {
       body.warehouseId = warehouseId;
     }
 
-    return this.http.patch<RepackUnit>(`${API}/units/${draftId}/seal`, body).pipe(
+    // V3 responds with { repackUnit, inventoryItem, qrLabel }; expose the unit
+    // consistently to old and Flow callers.
+    return this.http.patch<RepackUnit | { repackUnit: RepackUnit }>(`${API}/units/${draftId}/seal`, body).pipe(
+      map((result) => 'repackUnit' in result ? result.repackUnit : result),
       catchError(this.handleError)
     );
   }

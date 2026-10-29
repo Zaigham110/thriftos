@@ -540,14 +540,16 @@ export class RepackUnitService {
   /**
    * Get draft units
    */
-  async getDraftUnits(tenantId: string) {
+  async getDraftUnits(tenantId: string, sessionId?: string) {
     const units = await this.prisma.repackUnit.findMany({
       where: {
         tenantId,
         status: RepackStatus.DRAFT,
+        ...(sessionId ? { repackSessionId: sessionId } : {}),
       },
       select: {
         id: true,
+        repackSessionId: true,
         unitCode: true,
         status: true,
         categoryId: true,
@@ -569,6 +571,7 @@ export class RepackUnitService {
       const allocatedAmount = (u.inputAllocations ?? []).reduce((sum: number, a: any) => sum + Number(a.amountUsed), 0);
       return {
         id: u.id,
+        repackSessionId: u.repackSessionId,
         unitCode: u.unitCode,
         status: u.status || 'DRAFT',
         categoryId: u.categoryId,
@@ -785,6 +788,5 @@ export class RepackUnitService {
     });
   }
 }
-
 
 

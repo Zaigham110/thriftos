@@ -233,6 +233,10 @@
                     }
                   </select>
                 </label>
+                <label class="operational-module-option" style="min-width: 13rem;">
+                  <input type="checkbox" [formControl]="flowEnabledControl" />
+                  <span><strong>Enable Flow rollout</strong><small>Allow this tenant to use the new Flow workspace while Lite remains available.</small></span>
+                </label>
                 <button class="btn btn-primary" (click)="saveOperationalProfile()" [disabled]="saving() || !operationalProfileChanged()">
                   <lucide-icon [img]="icons.Save" [size]="15"></lucide-icon>
                   Save Profile

@@ -72,26 +72,20 @@ export class RepackV3Service {
 
   async getAvailableStock(
     tenantId: string,
-    categoryId: string,
-    gradeId: string,
-    measurementType: MeasurementType,
+    categoryId?: string,
+    gradeId?: string,
+    measurementType?: MeasurementType,
   ): Promise<AvailableStockRow[]> {
-    if (!categoryId || !gradeId || !measurementType) {
-      throw new BadRequestException('categoryId, gradeId and measurementType are required');
-    }
-
     const rows = await this.prisma.gradeOutput.findMany({
       where: {
         tenantId,
-        gradeId,
-        measurementType,
+        ...(gradeId ? { gradeId } : {}),
+        ...(measurementType ? { measurementType } : {}),
         status: { in: [GradingOutputStatus.AVAILABLE, GradingOutputStatus.PARTIALLY_USED, GradingOutputStatus.READY_FOR_REPACK] },
         remainingAmount: { gt: 0 },
         gradeBucket: {
           gradeSession: {
-            categoryOutput: {
-              categoryId,
-            },
+            categoryOutput: categoryId ? { categoryId } : {},
           },
         },
       },
@@ -151,7 +145,7 @@ export class RepackV3Service {
       return {
         id: o.id,
         tenantId: o.tenantId,
-        categoryId: co?.category?.id ?? categoryId,
+        categoryId: co?.category?.id ?? categoryId ?? '',
         categoryName: co?.category?.name ?? 'Unknown',
         gradeId: o.gradeId,
         gradeName: o.grade?.name ?? 'Unknown',

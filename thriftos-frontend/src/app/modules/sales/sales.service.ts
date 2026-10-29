@@ -81,6 +81,10 @@ export class SalesService {
     return this.http.post<SaleDetail>(`${this.API}/${saleId}/payments`, dto);
   }
 
+  fulfill(saleId: string, fulfillmentReference?: string): Observable<SaleDetail> {
+    return this.http.post<SaleDetail>(`${this.API}/${saleId}/fulfill`, { fulfillmentReference });
+  }
+
   scanQr(code: string): Observable<InventoryScanResult> {
     const clean = String(code ?? '').trim();
     return this.http.get<InventoryScanResult>(`${this.API}/scan/qr/${encodeURIComponent(clean)}`);

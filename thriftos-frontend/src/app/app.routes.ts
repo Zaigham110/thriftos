@@ -3,6 +3,7 @@ import { authGuard } from './core/guards/auth-guard';
 import { tenantAreaGuard } from './core/guards/tenant-area.guard';
 import { operationalModuleGuard } from './core/guards/operational-module.guard';
 import { superAdminGuard } from './core/guards/super-admin-guard';
+import { flowEnabledGuard } from './core/guards/flow-enabled.guard';
 
 export const routes: Routes = [
   // Default redirect to /app
@@ -121,6 +122,62 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/simplified-mode/mobile-more/mobile-more.component').then((m) => m.MobileMoreComponent),
         title: 'More Operations - ThriftOS Lite',
+      },
+    ],
+  },
+
+  // Flow is the parallel operational redesign. It reuses the existing guarded
+  // workflow pages until each Flow page reaches acceptance.
+  {
+    path: 'app/flow',
+    loadComponent: () =>
+      import('./features/flow-shell/flow-shell.component').then((m) => m.FlowShellComponent),
+    canActivate: [authGuard, tenantAreaGuard, flowEnabledGuard],
+    children: [
+      { path: '', redirectTo: 'work', pathMatch: 'full' },
+      {
+        path: 'work', canActivate: [operationalModuleGuard], data: { operationalModule: 'WORK' },
+        loadComponent: () => import('./features/flow/work/flow-work.component').then((m) => m.FlowWorkComponent), title: 'My Work · Flow - ThriftOS',
+      },
+      {
+        path: 'receive', canActivate: [operationalModuleGuard], data: { operationalModule: 'INTAKE' },
+        loadComponent: () => import('./features/flow/receive/flow-receive.component').then((m) => m.FlowReceiveComponent), title: 'Receive · Flow - ThriftOS',
+      },
+      {
+        path: 'receive/container', canActivate: [operationalModuleGuard], data: { operationalModule: 'INTAKE' },
+        loadComponent: () => import('./features/flow/receive/flow-container-receive.component').then((m) => m.FlowContainerReceiveComponent), title: 'Receive container · Flow - ThriftOS',
+      },
+      {
+        path: 'transform', canActivate: [operationalModuleGuard], data: { operationalModule: 'SORTING' },
+        loadComponent: () => import('./features/flow/transform/flow-transform.component').then((m) => m.FlowTransformComponent), title: 'Transform · Flow - ThriftOS',
+      },
+      {
+        path: 'grade', canActivate: [operationalModuleGuard], data: { operationalModule: 'SORTING' },
+        loadComponent: () => import('./features/flow/grade/flow-grade.component').then((m) => m.FlowGradeComponent), title: 'Quality Grade · Flow - ThriftOS',
+      },
+      {
+        path: 'seal', canActivate: [operationalModuleGuard], data: { operationalModule: 'REPACK' },
+        loadComponent: () => import('./features/flow/seal/flow-seal.component').then((m) => m.FlowSealComponent), title: 'Seal · Flow - ThriftOS',
+      },
+      {
+        path: 'stock', canActivate: [operationalModuleGuard], data: { operationalModule: 'STOCK' },
+        loadComponent: () => import('./features/flow/stock/flow-stock.component').then((m) => m.FlowStockComponent), title: 'Stock · Flow - ThriftOS',
+      },
+      {
+        path: 'dispatch', canActivate: [operationalModuleGuard], data: { operationalModule: 'SALES' },
+        loadComponent: () => import('./features/flow/dispatch/flow-dispatch.component').then((m) => m.FlowDispatchComponent), title: 'Dispatch · Flow - ThriftOS',
+      },
+      {
+        path: 'insights', canActivate: [operationalModuleGuard], data: { operationalModule: 'INSIGHTS' },
+        loadComponent: () => import('./features/flow/insights/flow-insights.component').then((m) => m.FlowInsightsComponent), title: 'Insights · Flow - ThriftOS',
+      },
+      {
+        path: 'sale', canActivate: [operationalModuleGuard], data: { operationalModule: 'SALES' },
+        loadComponent: () => import('./features/flow/sale/flow-sale.component').then((m) => m.FlowSaleComponent), title: 'Create sale · Flow - ThriftOS',
+      },
+      {
+        path: 'control', canActivate: [operationalModuleGuard], data: { operationalModule: 'ADMINISTRATION' },
+        loadComponent: () => import('./features/flow/control/flow-control.component').then((m) => m.FlowControlComponent), title: 'Control · Flow - ThriftOS',
       },
     ],
   },

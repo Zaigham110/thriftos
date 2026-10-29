@@ -25,6 +25,7 @@ export class InventoryService {
       status?: string;
       fromDate?: string;
       toDate?: string;
+      query?: string;
       page?: number;
       limit?: number;
     },
@@ -39,6 +40,15 @@ export class InventoryService {
     if (filters?.gradeId) where.gradeId = filters.gradeId;
     if (filters?.warehouseId) where.warehouseId = filters.warehouseId;
     if (filters?.status) where.status = filters.status;
+
+    if (filters?.query?.trim()) {
+      const query = filters.query.trim();
+      where.OR = [
+        { id: query },
+        { repackUnit: { is: { unitCode: { contains: query, mode: 'insensitive' } } } },
+        { repackUnit: { is: { qrLabel: { is: { qrCode: { contains: query, mode: 'insensitive' } } } } } },
+      ];
+    }
 
     if (filters?.fromDate || filters?.toDate) {
       where.createdAt = {};

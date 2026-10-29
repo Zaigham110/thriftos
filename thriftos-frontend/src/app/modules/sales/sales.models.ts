@@ -53,6 +53,9 @@ export interface SaleListItem {
   destinationCountry?: string | null;
   createdAt: string;
   updatedAt: string;
+  fulfillmentStatus?: 'PENDING' | 'FULFILLED';
+  fulfilledAt?: string | null;
+  fulfillmentReference?: string | null;
 
   customer?: Customer;
   payments?: Array<Pick<Payment, 'id' | 'amount' | 'method' | 'receivedAt'>>;

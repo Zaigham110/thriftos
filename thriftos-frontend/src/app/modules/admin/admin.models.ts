@@ -271,6 +271,7 @@ export interface Tenant {
   capturePolicy?: CapturePolicy;
   guidancePolicy?: GuidancePolicy;
   operationalModules?: OperationalModule[];
+  flowEnabled?: boolean;
   createdAt: string;
   updatedAt: string;
   _count?: {
@@ -299,6 +300,7 @@ export interface UpdateTenantRequest {
   capturePolicy?: CapturePolicy;
   guidancePolicy?: GuidancePolicy;
   operationalModules?: OperationalModule[];
+  flowEnabled?: boolean;
 }
 
 export type OperationalModule = 'WORK' | 'INTAKE' | 'SORTING' | 'REPACK' | 'STOCK' | 'SALES' | 'INSIGHTS' | 'ADMINISTRATION';

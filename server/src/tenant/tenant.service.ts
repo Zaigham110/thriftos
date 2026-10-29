@@ -189,6 +189,7 @@ export class TenantService {
         ...(dto.connectivityPolicy ? { connectivityPolicy: dto.connectivityPolicy } : {}),
         ...(dto.capturePolicy ? { capturePolicy: dto.capturePolicy } : {}),
         ...(dto.guidancePolicy ? { guidancePolicy: dto.guidancePolicy } : {}),
+        ...(dto.flowEnabled !== undefined ? { flowEnabled: dto.flowEnabled } : {}),
         ...(dto.operationalModules ? { operationalModules: dto.operationalModules } : {}),
       },
       include: {
@@ -222,6 +223,7 @@ export class TenantService {
             ...(dto.connectivityPolicy ? { connectivityPolicy: dto.connectivityPolicy } : {}),
             ...(dto.capturePolicy ? { capturePolicy: dto.capturePolicy } : {}),
             ...(dto.guidancePolicy ? { guidancePolicy: dto.guidancePolicy } : {}),
+            ...(dto.flowEnabled !== undefined ? { flowEnabled: dto.flowEnabled } : {}),
             ...(dto.operationalModules ? { operationalModules: dto.operationalModules } : {}),
           },
         },

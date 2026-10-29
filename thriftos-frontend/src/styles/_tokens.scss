@@ -42,6 +42,28 @@
     --app-danger: #dc2626;          // Danger/destructive actions
     --app-danger-hover: #b91c1c;    // Darker red hover
     --app-danger-light: #fee2e2;    // Light red
+
+    // ===========================
+    // FLOW OPERATIONAL EXPERIENCE
+    // ===========================
+    // These tokens are intentionally additive. Legacy ERP screens continue to
+    // use --app-* while Flow routes can be rolled out tenant by tenant.
+    --flow-ink: #172126;
+    --flow-ink-soft: #45545a;
+    --flow-canvas: #f6f4ef;
+    --flow-surface: #ffffff;
+    --flow-line: #d9dedb;
+    --flow-teal: #147d73;
+    --flow-teal-soft: #dff3ef;
+    --flow-blue: #2e5b9a;
+    --flow-blue-soft: #e7eff9;
+    --flow-amber: #a66713;
+    --flow-amber-soft: #fff1d6;
+    --flow-clay: #b44b3d;
+    --flow-clay-soft: #fbe8e4;
+    --flow-radius: 14px;
+    --flow-radius-sm: 10px;
+    --flow-shadow: 0 10px 30px rgb(23 33 38 / 0.08);
     
     // ===========================
     // SPACING SCALE (ABSOLUTE)

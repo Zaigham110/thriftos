@@ -54,6 +54,7 @@ export class InventoryController {
     @Query('status') status: string,
     @Query('fromDate') fromDate: string,
     @Query('toDate') toDate: string,
+    @Query('query') query: string,
     @Query('page') page: string,
     @Query('limit') limit: string,
     @CurrentUser() user: CurrentUserData,
@@ -67,6 +68,7 @@ export class InventoryController {
       status,
       fromDate,
       toDate,
+      query,
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
     });

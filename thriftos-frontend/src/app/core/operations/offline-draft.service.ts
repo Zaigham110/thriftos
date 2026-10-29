@@ -48,6 +48,13 @@ export class OfflineDraftService {
         this.onlineState.set(navigator.onLine);
         if (navigator.onLine) this.syncPending();
       });
+
+    // A reload can happen after connectivity was restored. Browser `online`
+    // does not fire in that case, so replay known idempotent drafts once the
+    // operational service is constructed for the authenticated Flow session.
+    if (navigator.onLine && this.draftsState().length) {
+      queueMicrotask(() => this.syncPending());
+    }
   }
 
   enqueue<T>(type: string, payload: T): OfflineDraft<T> {

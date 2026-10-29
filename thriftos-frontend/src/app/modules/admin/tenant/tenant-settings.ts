@@ -67,6 +67,7 @@ export class TenantSettingsComponent implements OnInit {
   readonly capturePolicyControl = new FormControl<CapturePolicy>('ALL', { nonNullable: true });
   readonly guidancePolicyControl = new FormControl<GuidancePolicy>('GUIDED', { nonNullable: true });
   readonly operationalModulesControl = new FormControl<OperationalModule[]>(['WORK', 'INTAKE', 'SORTING', 'REPACK', 'STOCK', 'SALES', 'INSIGHTS', 'ADMINISTRATION'], { nonNullable: true });
+  readonly flowEnabledControl = new FormControl<boolean>(false, { nonNullable: true });
 
   readonly currencyOptions = [
     { value: 'USD', label: 'USD - US Dollar ($)' },
@@ -148,6 +149,7 @@ export class TenantSettingsComponent implements OnInit {
         this.capturePolicyControl.setValue(tenant.capturePolicy || 'ALL', { emitEvent: false });
         this.guidancePolicyControl.setValue(tenant.guidancePolicy || 'GUIDED', { emitEvent: false });
         this.operationalModulesControl.setValue(tenant.operationalModules?.length ? tenant.operationalModules : this.operationalModuleOptions.map((module) => module.value), { emitEvent: false });
+        this.flowEnabledControl.setValue(Boolean(tenant.flowEnabled), { emitEvent: false });
       },
     });
     this.adminService.loadTenantStats().subscribe();
@@ -181,6 +183,7 @@ export class TenantSettingsComponent implements OnInit {
     return this.connectivityPolicyControl.value !== (tenant.connectivityPolicy || 'AUTOMATIC')
       || this.capturePolicyControl.value !== (tenant.capturePolicy || 'ALL')
       || this.guidancePolicyControl.value !== (tenant.guidancePolicy || 'GUIDED')
+      || this.flowEnabledControl.value !== Boolean(tenant.flowEnabled)
       || !this.sameModules(this.operationalModulesControl.value, tenant.operationalModules);
   });
 
@@ -244,12 +247,14 @@ export class TenantSettingsComponent implements OnInit {
       capturePolicy: this.capturePolicyControl.value,
       guidancePolicy: this.guidancePolicyControl.value,
       operationalModules: this.operationalModulesControl.value,
+      flowEnabled: this.flowEnabledControl.value,
     }).subscribe({
       next: (updated) => {
         this.connectivityPolicyControl.setValue(updated.connectivityPolicy || 'AUTOMATIC', { emitEvent: false });
         this.capturePolicyControl.setValue(updated.capturePolicy || 'ALL', { emitEvent: false });
         this.guidancePolicyControl.setValue(updated.guidancePolicy || 'GUIDED', { emitEvent: false });
         this.operationalModulesControl.setValue(updated.operationalModules?.length ? updated.operationalModules : this.operationalModuleOptions.map((module) => module.value), { emitEvent: false });
+        this.flowEnabledControl.setValue(Boolean(updated.flowEnabled), { emitEvent: false });
         this.saving.set(false);
       },
       error: () => this.saving.set(false),

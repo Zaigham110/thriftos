@@ -186,9 +186,13 @@ export class RepackUnitController {
   // IMPORTANT: static routes must be declared before `units/:id` to avoid shadowing.
   @Get('units/drafts')
   @RequirePermissions('REPACK_VIEW')
-  async getDrafts(@CurrentUser() user: CurrentUserData, @Req() req: Request) {
+  async getDrafts(
+    @Query('sessionId') sessionId: string | undefined,
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+  ) {
     const tenantId = (req as any).tenantId || user.tenantId;
-    return this.service.getDraftUnits(tenantId);
+    return this.service.getDraftUnits(tenantId, sessionId);
   }
 
   @Get('units/sealed')
@@ -212,9 +216,9 @@ export class RepackUnitController {
   @Get('available-stock')
   @RequirePermissions('REPACK_VIEW')
   async getAvailableStock(
-    @Query('categoryId') categoryId: string,
-    @Query('gradeId') gradeId: string,
-    @Query('measurementType') measurementType: MeasurementType,
+    @Query('categoryId') categoryId: string | undefined,
+    @Query('gradeId') gradeId: string | undefined,
+    @Query('measurementType') measurementType: MeasurementType | undefined,
     @CurrentUser() user: CurrentUserData,
     @Req() req: Request,
   ) {
@@ -294,6 +298,3 @@ export class RepackUnitController {
     return this.service.deleteDraft(tenantId, id, user.userId);
   }
 }
-
-
-

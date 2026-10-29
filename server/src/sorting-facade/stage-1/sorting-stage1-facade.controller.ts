@@ -144,6 +144,18 @@ export class SortingStage1FacadeController {
     };
   }
 
+  /** Read-only resume context for an already-open category-sort session. */
+  @Get('sessions/:id')
+  @RequirePermissions('SORTING_STAGE1_VIEW')
+  async sessionSummary(
+    @Param('id') sessionId: string,
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+  ) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    return this.getSessionSummary(tenantId, sessionId);
+  }
+
   /**
    * Stage-1 Summary: fetch current OPEN sort session + buckets for a rag (used to resume).
    */

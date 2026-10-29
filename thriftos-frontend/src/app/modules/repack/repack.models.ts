@@ -18,6 +18,7 @@ export type MeasurementType = 'WEIGHT' | 'QUANTITY';
 /** Repack Unit (The main document) */
 export interface RepackUnit {
   id: string;
+  repackSessionId?: string;
   unitCode: string;
   status: RepackStatus;
   categoryId: string;

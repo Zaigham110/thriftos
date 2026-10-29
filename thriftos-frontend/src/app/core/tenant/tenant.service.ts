@@ -28,6 +28,7 @@ export interface TenantProfile {
   capturePolicy?: 'HARDWARE_SCANNER' | 'CAMERA_SCAN' | 'MANUAL_ENTRY' | 'ALL';
   guidancePolicy?: 'GUIDED' | 'FLEXIBLE' | 'STRICT';
   operationalModules?: OperationalModule[];
+  flowEnabled?: boolean;
 }
 
 export type OperationalModule = 'WORK' | 'INTAKE' | 'SORTING' | 'REPACK' | 'STOCK' | 'SALES' | 'INSIGHTS' | 'ADMINISTRATION';

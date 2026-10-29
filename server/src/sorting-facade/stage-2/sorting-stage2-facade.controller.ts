@@ -59,6 +59,18 @@ export class SortingStage2FacadeController {
     return this.getSessionSummary(tenantId, session.id);
   }
 
+  /** Read-only resume context for an already-open grade session. */
+  @Get('sessions/:id')
+  @RequirePermissions('SORTING_STAGE2_VIEW')
+  async sessionSummary(
+    @Param('id') sessionId: string,
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+  ) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    return this.getSessionSummary(tenantId, sessionId);
+  }
+
   /**
    * Stage-2 Allocate: add weight to a grade bucket (aggregated per grade).
    */

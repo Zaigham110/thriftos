@@ -37,6 +37,7 @@ export class InventoryService {
     status?: string;
     fromDate?: string;
     toDate?: string;
+    query?: string;
     page?: number;
     limit?: number;
   }): Observable<{
@@ -58,6 +59,7 @@ export class InventoryService {
     if (filters?.status) params = params.set('status', filters.status);
     if (filters?.fromDate) params = params.set('fromDate', filters.fromDate);
     if (filters?.toDate) params = params.set('toDate', filters.toDate);
+    if (filters?.query) params = params.set('query', filters.query);
     if (filters?.page) params = params.set('page', filters.page.toString());
     if (filters?.limit) params = params.set('limit', filters.limit.toString());
 

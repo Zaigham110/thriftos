@@ -90,6 +90,12 @@ export interface Stage2Summary {
     id: string;
     status: string;
     categoryOutputId: string;
+    categoryOutput?: {
+      id: string;
+      weightKg: string | number;
+      category?: { id: string; name: string };
+      rag?: { id: string; ragCode: string } | null;
+    };
     totalGradeOutputWeight: string;
     wasteWeight: string;
     declaredWasteAmount?: string;
@@ -117,6 +123,10 @@ export class SortingFacadeService {
   stage1Summary(ragId: string) {
     const params = new HttpParams().set('ragId', ragId);
     return this.http.get<Stage1Summary>(`${API_ENDPOINTS.sortingFacadeStage1}/summary`, { params });
+  }
+
+  stage1SessionSummary(sessionId: string) {
+    return this.http.get<Stage1Summary>(`${API_ENDPOINTS.sortingFacadeStage1}/sessions/${sessionId}`);
   }
 
   stage1Start(sourceId: string, sourceType: 'RAG' | 'LOOSE_BALE', workerId?: string, supervisorId?: string) {
@@ -181,6 +191,10 @@ export class SortingFacadeService {
       workerId,
       supervisorId,
     });
+  }
+
+  stage2Summary(sessionId: string) {
+    return this.http.get<Stage2Summary>(`${API_ENDPOINTS.sortingFacadeStage2}/sessions/${sessionId}`);
   }
 
   stage2Allocate(sessionId: string, gradeId: string, amountKg: number, outputCount?: number) {

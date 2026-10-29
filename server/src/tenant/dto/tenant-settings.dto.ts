@@ -1,4 +1,4 @@
-import { ArrayContains, ArrayNotEmpty, IsArray, IsEnum, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { ArrayContains, ArrayNotEmpty, IsArray, IsBoolean, IsEnum, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import { OperationMode, ConnectivityPolicy, CapturePolicy, GuidancePolicy } from '@prisma/client';
 import { SUPPORTED_CURRENCY_CODES } from '../../common/currency/currency';
 
@@ -30,4 +30,8 @@ export class UpdateTenantSettingsDto {
   @IsIn(OPERATIONAL_MODULES, { each: true })
   @IsOptional()
   operationalModules?: string[];
+
+  @IsBoolean()
+  @IsOptional()
+  flowEnabled?: boolean;
 }
