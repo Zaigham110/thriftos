@@ -60,7 +60,7 @@ export class CustomersIndexPage implements OnInit {
 
   readonly breadcrumbs: BreadcrumbItem[] = [
     { label: 'Sales', route: '/sell/records' },
-    { label: 'Customers & Credit Terms' },
+    { label: 'Customers' },
   ];
 
   readonly icons = {
@@ -88,34 +88,23 @@ export class CustomersIndexPage implements OnInit {
   readonly isModalOpen = signal<boolean>(false);
   readonly editingCustomer = signal<Customer | null>(null);
 
+  /** Only the name is required; phone is the WhatsApp number. */
   readonly customerForm = new FormGroup({
     name: new FormControl<string>('', { nonNullable: true, validators: [Validators.required] }),
-    companyName: new FormControl<string>('', { nonNullable: true, validators: [Validators.required] }),
-    contactEmail: new FormControl<string>('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
-    contactPhone: new FormControl<string>('', { nonNullable: true, validators: [Validators.required] }),
-    billingAddress: new FormControl<string>('', { nonNullable: true, validators: [Validators.required] }),
-    shippingAddress: new FormControl<string>('', { nonNullable: true, validators: [Validators.required] }),
-    taxId: new FormControl<string>(''),
-    creditLimit: new FormControl<number>(0, { nonNullable: true, validators: [Validators.min(0)] }),
-    paymentTerms: new FormControl<string>('PREPAID', { nonNullable: true }),
+    phone: new FormControl<string>('', { nonNullable: true }),
+    city: new FormControl<string>('', { nonNullable: true }),
+    openingBalance: new FormControl<number | null>(null),
   });
 
   readonly totalCustomers = computed(() => this.customers().length);
   readonly activeCustomers = computed(() => this.customers().filter((c) => c.isActive).length);
-  readonly totalCreditExtended = computed(() => {
-    return this.customers().reduce((sum, c) => sum + Number(c.creditLimit || 0), 0);
-  });
+  readonly totalOpening = computed(() => this.customers().reduce((sum, c) => sum + Number(c.openingBalance || 0), 0));
 
   readonly filteredCustomers = computed(() => {
     const text = this.filterText().trim().toLowerCase();
     if (!text) return this.customers();
-
     return this.customers().filter(
-      (c) =>
-        c.name.toLowerCase().includes(text) ||
-        c.companyName.toLowerCase().includes(text) ||
-        c.contactEmail.toLowerCase().includes(text) ||
-        (c.paymentTerms || '').toLowerCase().includes(text)
+      (c) => c.name.toLowerCase().includes(text) || (c.phone || '').includes(text) || (c.city || '').toLowerCase().includes(text),
     );
   });
 
@@ -141,32 +130,17 @@ export class CustomersIndexPage implements OnInit {
 
   openCreateModal(): void {
     this.editingCustomer.set(null);
-    this.customerForm.reset({
-      name: '',
-      companyName: '',
-      contactEmail: '',
-      contactPhone: '',
-      billingAddress: '',
-      shippingAddress: '',
-      taxId: '',
-      creditLimit: 0,
-      paymentTerms: 'PREPAID',
-    });
+    this.customerForm.reset({ name: '', phone: '', city: '', openingBalance: null });
     this.isModalOpen.set(true);
   }
 
   openEditModal(customer: Customer): void {
     this.editingCustomer.set(customer);
-    this.customerForm.patchValue({
+    this.customerForm.reset({
       name: customer.name,
-      companyName: customer.companyName,
-      contactEmail: customer.contactEmail,
-      contactPhone: customer.contactPhone,
-      billingAddress: customer.billingAddress,
-      shippingAddress: customer.shippingAddress,
-      taxId: customer.taxId || '',
-      creditLimit: Number(customer.creditLimit || 0),
-      paymentTerms: customer.paymentTerms || 'PREPAID',
+      phone: customer.phone || '',
+      city: customer.city || '',
+      openingBalance: Number(customer.openingBalance || 0),
     });
     this.isModalOpen.set(true);
   }
@@ -178,60 +152,25 @@ export class CustomersIndexPage implements OnInit {
 
   saveCustomer(): void {
     if (this.customerForm.invalid) return;
-
     const val = this.customerForm.getRawValue();
-    this.saving.set(true);
-
+    const body = {
+      name: val.name.trim(),
+      phone: val.phone.trim(),
+      city: val.city.trim(),
+      openingBalance: val.openingBalance ?? 0,
+    };
     const edit = this.editingCustomer();
-
-    if (edit) {
-      this.customersService
-        .update(edit.id, {
-          name: val.name,
-          companyName: val.companyName,
-          contactEmail: val.contactEmail,
-          contactPhone: val.contactPhone,
-          billingAddress: val.billingAddress,
-          shippingAddress: val.shippingAddress,
-          taxId: val.taxId || null,
-          creditLimit: val.creditLimit,
-          paymentTerms: val.paymentTerms,
-        })
-        .subscribe({
-          next: () => {
-            this.saving.set(false);
-            this.closeModal();
-            this.loadCustomers();
-          },
-          error: (err) => {
-            this.saving.set(false);
-            this.error.set(err?.message || 'Failed to update customer');
-          },
-        });
-    } else {
-      this.customersService
-        .create({
-          name: val.name,
-          companyName: val.companyName,
-          contactEmail: val.contactEmail,
-          contactPhone: val.contactPhone,
-          billingAddress: val.billingAddress,
-          shippingAddress: val.shippingAddress,
-          taxId: val.taxId || null,
-          creditLimit: val.creditLimit,
-          paymentTerms: val.paymentTerms,
-        })
-        .subscribe({
-          next: () => {
-            this.saving.set(false);
-            this.closeModal();
-            this.loadCustomers();
-          },
-          error: (err) => {
-            this.saving.set(false);
-            this.error.set(err?.message || 'Failed to create customer');
-          },
-        });
-    }
+    this.saving.set(true);
+    (edit ? this.customersService.update(edit.id, body) : this.customersService.create(body)).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.closeModal();
+        this.loadCustomers();
+      },
+      error: (err) => {
+        this.saving.set(false);
+        this.error.set(err?.error?.message || 'Could not save the customer');
+      },
+    });
   }
 }

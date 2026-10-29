@@ -159,16 +159,7 @@ export class SalesNewPage implements OnInit {
     this.creatingCustomer.set(true);
 
     this.customersService
-      .create({
-        name: val.name,
-        companyName: val.companyName,
-        contactEmail: val.contactEmail,
-        contactPhone: val.contactPhone,
-        billingAddress: val.billingAddress,
-        shippingAddress: val.shippingAddress,
-        paymentTerms: val.paymentTerms,
-        creditLimit: val.creditLimit,
-      })
+      .create({ name: val.name, phone: val.contactPhone })
       .subscribe({
         next: (created) => {
           this.creatingCustomer.set(false);

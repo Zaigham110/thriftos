@@ -112,14 +112,7 @@ describe('cost chain (tasks 1.3 + 1.4)', () => {
 
   it('sale: line cost is the bale cost and profit is price minus cost', async () => {
     const customer = await api(app, owner)
-      .post('/customers', {
-        name: 'Peshawar Landa House',
-        companyName: 'Peshawar Landa House',
-        billingAddress: 'Karkhano Market',
-        shippingAddress: 'Karkhano Market',
-        contactEmail: 'buyer@example.pk',
-        contactPhone: '+923001234567',
-      })
+      .post('/customers', { name: 'Peshawar Landa House', phone: '+923001234567' })
       .expect(201);
     const sale = await api(app, owner).post('/sales', { customerId: customer.body.id, type: 'WHOLESALE' }).expect(201);
     ids.sale = sale.body.id;

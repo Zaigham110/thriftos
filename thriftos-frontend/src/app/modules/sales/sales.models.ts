@@ -11,26 +11,37 @@ export type MeasurementType = 'WEIGHT' | 'QUANTITY';
 export interface Customer {
   id: string;
   name: string;
-  companyName: string;
-  billingAddress: string;
-  shippingAddress: string;
-  contactEmail: string;
-  contactPhone: string;
-  taxId?: string | null;
-  creditLimit?: number | string | null;
-  paymentTerms?: string | null;
+  /** WhatsApp number, E.164 (+923001234567). */
+  phone?: string | null;
+  city?: string | null;
+  /** Udhaar carried from the old register (negative = advance). */
+  openingBalance: string;
+  companyName?: string | null;
+  notes?: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
+export type PaymentMethod = 'CASH' | 'BANK' | 'RAAST' | 'JAZZCASH' | 'EASYPAISA' | 'OTHER';
+
 export interface Payment {
   id: string;
-  amount: number | string;
-  method: string;
+  customerId: string;
+  saleId?: string | null;
+  amount: string;
+  method: PaymentMethod;
+  reference?: string | null;
+  hasPhoto?: boolean;
   receivedAt: string;
   createdAt?: string;
-  updatedAt?: string;
+}
+
+export interface PaymentResult {
+  payment: Payment;
+  /** What the customer owes now (negative = advance). */
+  balance: string;
+  advance: string;
 }
 
 export interface SaleListItem {

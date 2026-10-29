@@ -21,8 +21,10 @@ import {
   Plus,
 } from 'lucide-angular';
 
+import { switchMap } from 'rxjs';
+import { KhataService } from '../khata.service';
 import { SalesService } from '../sales.service';
-import type { SaleDetail, SaleStatus } from '../sales.models';
+import type { PaymentMethod, SaleDetail, SaleStatus } from '../sales.models';
 import { MoneyPipe } from '../../../core/money/money.pipe';
 import {
   AppBreadcrumbComponent,
@@ -61,6 +63,7 @@ export class SaleInvoicePage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly salesService = inject(SalesService);
+  private readonly khata = inject(KhataService);
 
   readonly icons = {
     Printer,
@@ -95,7 +98,7 @@ export class SaleInvoicePage implements OnInit {
 
   // Payment form
   readonly paymentAmount = new FormControl<string>('0', { nonNullable: true });
-  readonly paymentMethod = new FormControl<string>('cash', { nonNullable: true });
+  readonly paymentMethod = new FormControl<string>('CASH', { nonNullable: true });
 
   readonly paidAmount = computed(() => {
     const s = this.sale();
@@ -158,11 +161,11 @@ export class SaleInvoicePage implements OnInit {
     this.saving.set(true);
     this.error.set(null);
 
-    this.salesService.addPayment(s.id, { amount, method }).subscribe({
+    this.khata.recordPayment({ customerId: s.customerId, saleId: s.id, amount, method: method as PaymentMethod }).pipe(switchMap(() => this.salesService.getById(s.id))).subscribe({
       next: (updated) => {
         this.sale.set(updated);
         this.paymentAmount.setValue('0', { emitEvent: false });
-        this.paymentMethod.setValue('cash', { emitEvent: false });
+        this.paymentMethod.setValue('CASH', { emitEvent: false });
         this.saving.set(false);
       },
       error: (err) => {

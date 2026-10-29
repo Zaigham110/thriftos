@@ -596,51 +596,6 @@ export class SalesService {
     return updated;
   }
 
-  async addPayment(tenantId: string, saleId: string, dto: { amount: number; method: string }, userId: string) {
-    const sale = await this.prisma.sale.findFirst({
-      where: { id: saleId, tenantId },
-      select: { id: true, status: true, totalAmount: true, saleNumber: true },
-    });
-    if (!sale) throw new NotFoundException('Sale not found');
-
-    const payableStatuses = new Set<SaleStatus>([SaleStatus.ISSUED, SaleStatus.PARTIALLY_PAID, SaleStatus.PAID]);
-    if (!payableStatuses.has(sale.status)) {
-      throw new ForbiddenException('Payments can only be recorded after the sale is ISSUED');
-    }
-
-    const amount = new Prisma.Decimal(dto.amount);
-    if (amount.lte(0)) throw new BadRequestException('amount must be > 0');
-
-    return this.prisma.$transaction(async (tx) => {
-      await tx.payment.create({
-        data: {
-          saleId: sale.id,
-          amount,
-          method: dto.method,
-          receivedAt: new Date(),
-        },
-      });
-
-      const paidAgg = await tx.payment.aggregate({ where: { saleId: sale.id }, _sum: { amount: true } });
-      const paid = paidAgg._sum.amount ?? new Prisma.Decimal(0);
-      const due = new Prisma.Decimal(sale.totalAmount);
-
-      const nextStatus = paid.gte(due) ? SaleStatus.PAID : SaleStatus.PARTIALLY_PAID;
-      const updated = await tx.sale.update({ where: { id: sale.id }, data: { status: nextStatus } });
-
-      await this.audit.log({
-        tenantId,
-        userId,
-        action: 'SALE_PAYMENT_RECORDED',
-        entityType: 'Sale',
-        entityId: sale.id,
-        metadataJson: { saleNumber: sale.saleNumber, amount: amount.toString(), method: dto.method },
-      });
-
-      return updated;
-    });
-  }
-
   async resolveQrToInventoryItem(tenantId: string, qrCodeOrUnitCode: string) {
     const item = await this.prisma.inventoryItem.findFirst({
       where: {

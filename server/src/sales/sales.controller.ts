@@ -12,7 +12,6 @@ import { MeasurementType } from '@prisma/client';
 import { SalesService } from './sales.service';
 import {
   AddSaleLineDto,
-  CreatePaymentDto,
   CreateSaleDto,
   UpdateSaleDto,
 } from './dto';
@@ -122,15 +121,5 @@ export class SalesController {
   ) {
     const tenantId = this.requireTenant(user);
     return this.sales.cancel(tenantId, id, user.userId);
-  }
-
-  @Post(':id/payments')
-  async addPayment(
-    @CurrentUser() user: CurrentUserData,
-    @Param('id') id: string,
-    @Body() dto: CreatePaymentDto,
-  ) {
-    const tenantId = this.requireTenant(user);
-    return this.sales.addPayment(tenantId, id, { amount: dto.amount, method: dto.method }, user.userId);
   }
 }

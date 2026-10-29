@@ -91,6 +91,10 @@ Auth/RBAC tables, `AuditLog`, `RefreshToken`, `IdempotencyKey`, `TenantSequence`
 - `InventoryItem` keeps its whole cost (`totalCost`) and how much of it is gone (`usedQuantity`, sold or opened; check `0 ≤ usedQuantity ≤ quantity`). Selling or opening part of an item costs the cumulative share (`takeCost`, same rule as bale takes), so the parts always add up to the item's cost. `status` is `SOLD` once nothing is left. `weightKg` and `avgCost` (per kg) are optional: pieces and counted bales may have no weight.
 - Bales made here become one item each: `unit = BALE`, `quantity = 1`, `totalCost` = the bale's cost (kept in step by the costing recalculation; a change after the bale was sold or opened is logged as `COST_ADJUSTMENT`).
 - Opening a bale shares its cost across the pieces **by piece count** (`pieceCosts`, largest remainder): every piece of an opened bale costs the same, whatever its price tier. Pieces are new items (`unit = PIECE`, `parentItemId` = the bale), so a bale can be opened one at a time.
+- `Customer.phone` is the WhatsApp number in E.164; any Pakistani format is accepted and converted (`common/phone/phone.ts`, same rules in migration `v2_02` for old `contactPhone` values). `openingBalance` may be negative (an advance).
+- Payments are applied by fixed rules (`sales/khata.ts`, unit-tested): money paid with a sale pays that sale; payments on account and anything paid over a sale's total pay the opening balance first, then the oldest unpaid sales. Each sale's `status` (ISSUED / PARTIALLY_PAID / PAID) is refreshed in the same transaction as any sale, payment or opening-balance change; the balance itself is never stored. The customer row is locked (`FOR UPDATE`) during these writes so two payments for one customer apply in order.
+- `Payment.attachmentUrl` holds a storage key (`local:payments/<tenant>/<id>.<ext>`), not a public URL; the photo is served only through the authenticated `GET /khata/payments/:id/photo`.
+- `Payment.saleId` is `ON DELETE RESTRICT` (sales are cancelled, never deleted).
 
 ## Rules for the migration work
 - One migration per logical change, named clearly (e.g., `v1_01_remove_incoming_bale`).

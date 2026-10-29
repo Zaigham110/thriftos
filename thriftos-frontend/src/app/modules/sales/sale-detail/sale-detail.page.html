@@ -250,17 +250,8 @@
               }
 
               <div class="spec-row">
-                <span class="spec-label">Credit Terms</span>
-                <span class="status-pill text-xs" [class.status-issued]="s.customer?.paymentTerms !== 'PREPAID'">
-                  {{ s.customer?.paymentTerms || 'PREPAID' }}
-                </span>
-              </div>
-
-              <div class="spec-row">
-                <span class="spec-label">Approved Credit Limit</span>
-                <span class="spec-val font-mono font-bold text-purple">
-                  {{ (s.customer?.creditLimit || 0) | money }}
-                </span>
+                <span class="spec-label">WhatsApp</span>
+                <span class="spec-val">{{ s.customer?.phone || '—' }}</span>
               </div>
 
               <div class="spec-row">
@@ -369,8 +360,8 @@
               <span class="font-bold text-gray-700 block uppercase">Consignee / Customer:</span>
               <div class="font-bold text-gray-900">{{ s.customer?.name }}</div>
               <div>{{ s.customer?.companyName }}</div>
-              <div>{{ s.customer?.shippingAddress }}</div>
-              <div>Contact: {{ s.customer?.contactPhone }}</div>
+              <div>{{ s.customer?.city }}</div>
+              <div>Contact: {{ s.customer?.phone }}</div>
             </div>
           </div>
 

@@ -76,11 +76,11 @@
               @if (s.customer?.companyName) {
                 <p class="company-name">{{ s.customer!.companyName }}</p>
               }
-              @if (s.customer?.billingAddress) {
-                <p class="address">{{ s.customer!.billingAddress }}</p>
+              @if (s.customer?.city) {
+                <p class="address">{{ s.customer!.city }}</p>
               }
-              @if (s.customer?.contactEmail) {
-                <p class="email">{{ s.customer!.contactEmail }}</p>
+              @if (s.customer?.phone) {
+                <p class="email">{{ s.customer!.phone }}</p>
               }
             </div>
 
@@ -145,16 +145,19 @@
               <div class="add-payment-card mb-3 p-3">
                 <div class="add-payment-grid">
                   <div class="form-group flex-1">
-                    <label class="form-label">Payment Amount ($)</label>
+                    <label class="form-label">Payment amount</label>
                     <input type="number" [formControl]="paymentAmount" class="form-input font-mono text-right" placeholder="0.00" />
                   </div>
 
                   <div class="form-group flex-1">
                     <label class="form-label">Payment Method</label>
                     <select [formControl]="paymentMethod" class="form-select">
-                      <option value="cash">Cash / Bank Wire</option>
-                      <option value="check">Check</option>
-                      <option value="card">Credit Card</option>
+                      <option value="CASH">Cash</option>
+                      <option value="BANK">Bank</option>
+                      <option value="RAAST">Raast</option>
+                      <option value="JAZZCASH">JazzCash</option>
+                      <option value="EASYPAISA">Easypaisa</option>
+                      <option value="OTHER">Other</option>
                     </select>
                   </div>
 

@@ -20,7 +20,7 @@ Work phase by phase, in order. Each task ends with: typecheck clean (server + fr
 
 ## Phase 2 — Direct stock, sales, khata (weeks 3–4)
 - [x] 2.1 `InventoryItem` changes (optional repack/category/grade, `source`, `unit`, `quantity`, `unitCost`, `salePrice`, `parentItemId`). Receive "Ready stock" endpoint + "Open bale into pieces" endpoint.
-- [ ] 2.2 Customer simplification (name required, phone, city, opening balance). Payment changes (customer-level, method enum, attachment upload to local disk/S3-compatible storage).
+- [x] 2.2 Customer simplification (name required, phone, city, opening balance). Payment changes (customer-level, method enum, attachment upload to local disk/S3-compatible storage).
 - [ ] 2.3 Sale flow: LOCAL type default, CASH/CREDIT/PARTIAL, last-price default, sell by kg/bale/piece, stock deduction + movement, profit per line.
 - [ ] 2.4 Khata service: balances, ledger lines, overdue days; WhatsApp links (`https://wa.me/<phone>?text=...`) for bill and reminder, Urdu/English templates; public bill page by `billToken` (read-only, no login).
 - [ ] 2.5 Tests for sale, payment, ledger balance, direct stock.

@@ -5,9 +5,9 @@
         <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
       </div>
       <div class="title-with-code">
-        <h1 class="page-title">Commercial Customers & Financial Credit Terms</h1>
+        <h1 class="page-title">Customers</h1>
       </div>
-      <p class="page-subtitle">Manage customer directory, payment terms (Net 30/60), and customer credit limit controls.</p>
+      <p class="page-subtitle">Name and WhatsApp number are enough. Enter old udhaar as the opening balance.</p>
     </div>
 
     <div class="header-right-actions">
@@ -33,7 +33,7 @@
             <lucide-icon [img]="icons.Users" [size]="20"></lucide-icon>
           </div>
           <div class="kpi-content">
-            <span class="kpi-label">Total Registered Customers</span>
+            <span class="kpi-label">Customers</span>
             <span class="kpi-value">{{ totalCustomers() }}</span>
           </div>
         </div>
@@ -43,7 +43,7 @@
             <lucide-icon [img]="icons.CheckCircle2" [size]="20"></lucide-icon>
           </div>
           <div class="kpi-content">
-            <span class="kpi-label">Active Trade Accounts</span>
+            <span class="kpi-label">Active</span>
             <span class="kpi-value">{{ activeCustomers() }}</span>
           </div>
         </div>
@@ -53,8 +53,8 @@
             <lucide-icon [img]="icons.DollarSign" [size]="20"></lucide-icon>
           </div>
           <div class="kpi-content">
-            <span class="kpi-label">Total Extended Credit Limit</span>
-            <span class="kpi-value">{{ totalCreditExtended() | money }}</span>
+            <span class="kpi-label">Opening balances</span>
+            <span class="kpi-value">{{ totalOpening() | money }}</span>
           </div>
         </div>
       </div>
@@ -64,14 +64,14 @@
         <div class="card-header p-4 border-b flex justify-between items-center">
           <div class="flex items-center gap-2">
             <lucide-icon [img]="icons.Building2" [size]="16" class="text-primary"></lucide-icon>
-            <h3 class="font-bold text-base">Commercial Customer Directory</h3>
+            <h3 class="font-bold text-base">All customers</h3>
           </div>
 
           <div class="relative w-64">
             <input
               type="text"
               class="form-input text-xs pl-8"
-              placeholder="Filter by name, company..."
+              placeholder="Name, phone or city"
               [value]="filterText()"
               (input)="filterText.set($any($event.target).value)"
             />
@@ -87,52 +87,24 @@
             <table class="directory-table">
               <thead>
                 <tr>
-                  <th>Customer / Company</th>
-                  <th>Contact Information</th>
-                  <th>Billing & Shipping Address</th>
-                  <th>Payment Terms</th>
-                  <th class="text-right">Credit Limit</th>
+                  <th>Name</th>
+                  <th>WhatsApp</th>
+                  <th>City</th>
+                  <th class="text-right">Opening balance</th>
                   <th class="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 @for (c of filteredCustomers(); track c.id) {
                   <tr>
-                    <td>
-                      <div class="font-bold text-gray-900">{{ c.name }}</div>
-                      <div class="text-xs text-muted">{{ c.companyName }}</div>
-                    </td>
-
-                    <td>
-                      <div class="text-xs flex items-center gap-1 text-gray-700">
-                        <lucide-icon [img]="icons.Mail" [size]="12"></lucide-icon>
-                        {{ c.contactEmail }}
-                      </div>
-                      <div class="text-xs flex items-center gap-1 text-gray-500">
-                        <lucide-icon [img]="icons.Phone" [size]="12"></lucide-icon>
-                        {{ c.contactPhone }}
-                      </div>
-                    </td>
-
-                    <td>
-                      <div class="text-xs text-gray-800 font-medium truncate max-w-xs">{{ c.billingAddress }}</div>
-                      <div class="text-xs text-gray-500 truncate max-w-xs">{{ c.shippingAddress }}</div>
-                    </td>
-
-                    <td>
-                      <span class="status-pill text-xs" [class.status-issued]="c.paymentTerms !== 'PREPAID'">
-                        {{ c.paymentTerms || 'PREPAID' }}
-                      </span>
-                    </td>
-
-                    <td class="text-right font-mono font-bold text-primary">
-                      {{ (c.creditLimit || 0) | money }}
-                    </td>
-
+                    <td><div class="font-bold text-gray-900">{{ c.name }}</div></td>
+                    <td class="text-xs">{{ c.phone || '—' }}</td>
+                    <td class="text-xs">{{ c.city || '—' }}</td>
+                    <td class="text-right font-mono font-bold">{{ c.openingBalance | money }}</td>
                     <td class="text-right">
                       <button class="btn btn-secondary btn-xs" (click)="openEditModal(c)">
                         <lucide-icon [img]="icons.Edit2" [size]="12"></lucide-icon>
-                        Edit Specs
+                        Edit
                       </button>
                     </td>
                   </tr>
@@ -146,61 +118,26 @@
       <!-- Add / Edit Customer Dialog -->
       <app-dialog
         [open]="isModalOpen()"
-        [title]="editingCustomer() ? 'Edit Commercial Customer & Credit Terms' : 'Create New Commercial Customer'"
+        [title]="editingCustomer() ? 'Edit customer' : 'New customer'"
         (close)="closeModal()"
       >
         <form [formGroup]="customerForm" (ngSubmit)="saveCustomer()">
-          <div class="dialog-body grid grid-cols-2 gap-4">
+          <div class="dialog-body grid gap-4">
             <div class="form-group">
-              <label class="form-label">Contact Person Name</label>
-              <input type="text" formControlName="name" class="form-input" placeholder="e.g. John Smith" />
+              <label class="form-label">Name</label>
+              <input type="text" formControlName="name" class="form-input" placeholder="e.g. Haji Bashir" />
             </div>
-
             <div class="form-group">
-              <label class="form-label">Company Name</label>
-              <input type="text" formControlName="companyName" class="form-input" placeholder="e.g. Acme Wholesale LLC" />
+              <label class="form-label">WhatsApp number</label>
+              <input type="tel" inputmode="tel" formControlName="phone" class="form-input" placeholder="0300 1234567" />
             </div>
-
             <div class="form-group">
-              <label class="form-label">Contact Email</label>
-              <input type="email" formControlName="contactEmail" class="form-input" placeholder="buyer@acme.com" />
+              <label class="form-label">City</label>
+              <input type="text" formControlName="city" class="form-input" placeholder="Karachi" />
             </div>
-
             <div class="form-group">
-              <label class="form-label">Contact Phone</label>
-              <input type="text" formControlName="contactPhone" class="form-input" placeholder="+1 (555) 019-2834" />
-            </div>
-
-            <div class="form-group col-span-2">
-              <label class="form-label">Billing Address</label>
-              <textarea formControlName="billingAddress" class="form-input" rows="2" placeholder="Street, City, State, ZIP"></textarea>
-            </div>
-
-            <div class="form-group col-span-2">
-              <label class="form-label">Shipping Address</label>
-              <textarea formControlName="shippingAddress" class="form-input" rows="2" placeholder="Warehouse Facility / Delivery Docks"></textarea>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Tax ID / VAT Code</label>
-              <input type="text" formControlName="taxId" class="form-input" placeholder="US928340192" />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Credit Terms</label>
-              <select formControlName="paymentTerms" class="form-select">
-                <option value="PREPAID">PREPAID (100% Advance)</option>
-                <option value="COD">COD (Cash on Delivery)</option>
-                <option value="NET_15">NET 15 Days</option>
-                <option value="NET_30">NET 30 Days</option>
-                <option value="NET_60">NET 60 Days</option>
-              </select>
-            </div>
-
-            <div class="form-group col-span-2">
-              <label class="form-label">Approved Credit Limit ($ USD)</label>
-              <input type="number" formControlName="creditLimit" class="form-input font-mono font-bold" placeholder="50000" />
-              <p class="text-xs text-gray-500 mt-1">Orders exceeding credit limit will be blocked during issuance.</p>
+              <label class="form-label">Opening balance (old udhaar, Rs)</label>
+              <input type="number" inputmode="decimal" formControlName="openingBalance" class="form-input font-mono font-bold" placeholder="0" />
             </div>
           </div>
 
@@ -208,9 +145,9 @@
             <button type="button" class="btn btn-secondary" (click)="closeModal()" [disabled]="saving()">Cancel</button>
             <button type="submit" class="btn btn-primary" [disabled]="saving() || customerForm.invalid">
               @if (saving()) {
-                Saving Specs…
+                Saving…
               } @else {
-                Save Customer Specs
+                Save
               }
             </button>
           </div>

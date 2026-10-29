@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
+import { IdempotencyModule } from './common/idempotency/idempotency.module';
 import { AuthModule } from './auth/auth.module';
 import { SuperAdminModule } from './superadmin/superadmin.module';
 import { RolesModule } from './roles/roles.module';
@@ -55,6 +56,7 @@ import { SearchModule } from './search/search.module';
     // Core modules
     PrismaModule,
     AuditModule,
+    IdempotencyModule,
     HealthModule,
 
     // Auth & RBAC

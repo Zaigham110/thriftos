@@ -43,6 +43,11 @@ Running log of the v1 reshape. Newest entries at the bottom of each section.
   - `POST /stock/items` receives ready stock (name or category, unit, quantity, total cost; supplier, weight and sale price optional). `POST /stock/items/:id/open` opens whole bales into pieces by price tier (`pieceCosts` in `costing/`, unit-tested). Both scoped to the tenant, with e2e tests for costs to the paisa, validation, permissions and tenant isolation (`test/e2e/direct-stock.e2e-spec.ts`).
   - Recalculation keeps a bale's stock item cost in step; `cost-chain-check.sql` also checks stock item vs bale and opened bale vs its pieces. Stock value in (hidden) reports now uses the cost of what is left instead of per-kg cost × piece count.
   - Frontend: `/receive/ready` (what, counted in, how many, total cost; supplier/weight/sale price under "More") and "Open a bale into pieces" on the same screen.
+- 2026-10-30 — 2.2 Customers and payments (migration `v2_02_customers_and_payments`, `thriftos_test` only): customer needs only a name; `phone` (WhatsApp, E.164 from any local format), `city`, `openingBalance` added; old contact fields optional; currency default PKR. Payments get `tenantId`, `customerId`, optional `saleId` (on account), `method` enum (CASH/BANK/RAAST/JAZZCASH/EASYPAISA/OTHER; old free-text methods mapped, unknown → OTHER with the old text kept as `reference`), `reference`, `attachmentUrl`, `receivedBy`, and a positive-amount check.
+  - `CustomersService` (controller no longer talks to Prisma): list with search by name/phone/city, create/update (opening-balance change re-applies payments and is audited), delete only without sales/payments (else 409).
+  - `POST /khata/payments` (replaces `POST /sales/:id/payments`) honours `Idempotency-Key`: `common/idempotency` stores the response in the same transaction as the write, so a repeated or simultaneous request with the same key records one payment and gets the same response. Receipt photo: `POST/GET /khata/payments/:id/photo` (JPEG/PNG/WebP/PDF ≤ 5 MB, local disk under `UPLOAD_DIR`, `FileStorageService` keeps a storage key so S3 can be added later).
+  - Payment rules in `sales/khata.ts` (`applyPayments`, `overdueDays`) with unit tests incl. a randomised check that the balance always equals opening + sales − payments; added to the 100% coverage gate. E2E `customers-payments.e2e-spec.ts`: name-only customer, phone formats, oldest-first application and statuses, opening-balance change, idempotency (sequential and simultaneous, per tenant), photo upload/download, tenant isolation for every endpoint, delete rules.
+  - Frontend: customer form is name, WhatsApp, city, opening balance; payment buttons (dispatch, sale screen, invoice) post to `/khata/payments` with a fresh idempotency key and the new method list.
 
 ## Decisions
 - Test DB lives on the same Postgres server as dev, named `<db>_test`; never the dev DB.
@@ -62,6 +67,8 @@ Running log of the v1 reshape. Newest entries at the bottom of each section.
 - ts-jest runs with `isolatedModules: false` (tests are type-checked; needed for honest coverage of Nest services). Full suite ≈ 45 s.
 - `src/costing/recompute.ts` is a command-line entry point and is excluded from the coverage gate; it is exercised by the migration rehearsal.
 - Lot corrections use the existing `rag.create` permission (there is no `rag.update`).
+- Customer, sale and khata endpoints need a tenant login but no specific permission (as the sales endpoints already did); roles for munshi vs owner come with phone + PIN login (3.7).
+- The old credit-limit check on issuing a sale is dropped with the draft sale flow (2.3); credit limits stay as optional data only.
 
 ## Before first deploy
 - Rotate `JWT_SECRET` and the DB password (old values remain in git history). Postponed by the owner; not blocking development.

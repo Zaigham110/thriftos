@@ -17,3 +17,7 @@ server/*.tsbuildinfo
 
 # Test coverage reports
 server/coverage/
+
+# Uploaded files (payment screenshots)
+server/uploads/
+uploads/

@@ -116,6 +116,15 @@ enum SaleStatus {
   CANCELLED
 }
 
+enum PaymentMethod {
+  CASH
+  BANK
+  RAAST
+  JAZZCASH
+  EASYPAISA
+  OTHER
+}
+
 enum FulfillmentStatus {
   PENDING
   FULFILLED
@@ -253,6 +262,7 @@ model Tenant {
   // Sales
   customers             Customer[]
   sales                 Sale[]
+  payments              Payment[]
   inventoryReservations InventoryReservation[]
 
   // Waste configuration + line items
@@ -284,16 +294,19 @@ model Customer {
   id                String   @id @default(cuid())
   tenantId          String
   name              String
-  companyName       String
-  billingAddress    String
-  shippingAddress   String
-  contactEmail      String
-  contactPhone      String
+  phone             String? // WhatsApp number, E.164 (+923001234567)
+  city              String?
+  openingBalance    Decimal  @default(0) @db.Decimal(14, 2) // udhaar carried from the old register (negative = advance)
+  companyName       String?
+  billingAddress    String?
+  shippingAddress   String?
+  contactEmail      String?
+  contactPhone      String?
   taxId             String?
   creditLimit       Decimal? @default(0) @db.Decimal(14, 2)
   paymentTerms      String?  @default("PREPAID")
   creditStatus      String?  @default("GOOD_STANDING")
-  currencyCode      String?  @default("USD")
+  currencyCode      String?  @default("PKR")
   bankName          String?
   bankAccountNumber String?
   swiftBic          String?
@@ -302,12 +315,14 @@ model Customer {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  sales  Sale[]
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sales    Sale[]
+  payments Payment[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
   @@index([tenantId, isActive])
+  @@index([tenantId, phone])
   @@index([contactEmail])
 }
 
@@ -392,17 +407,27 @@ model InventoryReservation {
   @@index([createdAt])
 }
 
+/// Money received from a customer: against a sale, or on account. Applied to the oldest unpaid sales first.
 model Payment {
-  id         String   @id @default(cuid())
-  saleId     String
-  amount     Decimal  @db.Decimal(14, 2)
-  method     String
-  receivedAt DateTime @default(now())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id            String        @id @default(cuid())
+  tenantId      String
+  customerId    String
+  saleId        String? // set when paid with a sale; null = on account
+  amount        Decimal       @db.Decimal(14, 2)
+  method        PaymentMethod @default(CASH)
+  reference     String? // bank/Raast/JazzCash transaction id
+  attachmentUrl String? // storage key of a receipt screenshot, e.g. local:payments/<tenant>/<id>.jpg
+  receivedBy    String? // user id
+  receivedAt    DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
-  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sale     Sale?    @relation(fields: [saleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
+  @@index([tenantId])
+  @@index([customerId])
   @@index([saleId])
   @@index([receivedAt])
 }

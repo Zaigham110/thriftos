@@ -71,16 +71,6 @@ export class SalesService {
     return this.http.post<SaleDetail>(`${this.API}/${saleId}/cancel`, {});
   }
 
-  addPayment(
-    saleId: string,
-    dto: {
-      amount: number;
-      method: string;
-    },
-  ): Observable<SaleDetail> {
-    return this.http.post<SaleDetail>(`${this.API}/${saleId}/payments`, dto);
-  }
-
   fulfill(saleId: string, fulfillmentReference?: string): Observable<SaleDetail> {
     return this.http.post<SaleDetail>(`${this.API}/${saleId}/fulfill`, { fulfillmentReference });
   }
