@@ -54,8 +54,8 @@ export class SortingWasteReportComponent implements OnInit {
   private readonly money = inject(MoneyService);
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Home', link: '/app/dashboard' },
-    { label: 'Reports', link: '/app/reports' },
+    { label: 'Home', link: '/home/overview' },
+    { label: 'Reports', link: '/reports/detail' },
     { label: 'Sorting Waste' },
   ];
 

@@ -68,7 +68,7 @@ export class ProcurementSummaryReportComponent implements OnInit {
   };
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Reports', route: '/app/reports' },
+    { label: 'Reports', route: '/reports/detail' },
     { label: 'Procurement Summary & Cost Reconciliation' },
   ];
 

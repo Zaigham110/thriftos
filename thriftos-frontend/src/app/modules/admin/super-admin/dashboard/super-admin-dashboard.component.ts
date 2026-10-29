@@ -130,7 +130,7 @@ export class SuperAdminDashboardComponent implements OnInit {
       .subscribe({
         next: () => {
           this.impersonatingId.set(null);
-          void this.router.navigate(['/app/dashboard']);
+          void this.router.navigate(['/home/overview']);
         },
         error: () => this.impersonatingId.set(null),
       });

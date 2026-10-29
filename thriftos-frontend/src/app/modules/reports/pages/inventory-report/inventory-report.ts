@@ -68,7 +68,7 @@ export class InventoryReportComponent implements OnInit {
   };
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Reports', route: '/app/reports' },
+    { label: 'Reports', route: '/reports/detail' },
     { label: 'Finished Goods Inventory Report' },
   ];
 

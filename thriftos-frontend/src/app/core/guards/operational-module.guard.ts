@@ -3,7 +3,7 @@ import { inject } from '@angular/core';
 import { catchError, map, Observable, of } from 'rxjs';
 import { OperationalModule, TenantService } from '../tenant/tenant.service';
 
-/** Prevents stale Lite bookmarks from bypassing a tenant's enabled-module profile. */
+/** Keeps users out of modules the tenant has not enabled (the server enforces this too). */
 export const operationalModuleGuard: CanActivateFn = (route): Observable<boolean | UrlTree> => {
   const tenantService = inject(TenantService);
   const router = inject(Router);
@@ -16,8 +16,8 @@ export const operationalModuleGuard: CanActivateFn = (route): Observable<boolean
       const enabledModules = tenant.operationalModules;
       return !enabledModules?.length || enabledModules.includes(requiredModule)
         ? true
-        : router.createUrlTree(['/app/lite/home']);
+        : router.createUrlTree(['/home']);
     }),
-    catchError(() => of(router.createUrlTree(['/app/lite/home']))),
+    catchError(() => of(router.createUrlTree(['/home']))),
   );
 };

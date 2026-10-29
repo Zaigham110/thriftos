@@ -389,8 +389,8 @@ export class WasteCategoryFormComponent implements OnInit {
   };
 
   readonly breadcrumbs = signal([
-    { label: 'Administration', route: '/app/admin' },
-    { label: 'Waste Categories', route: '/app/admin/waste-categories' },
+    { label: 'Administration', route: '/settings/admin' },
+    { label: 'Waste Categories', route: '/settings/admin/waste-categories' },
     { label: 'New' },
   ]);
 
@@ -406,8 +406,8 @@ export class WasteCategoryFormComponent implements OnInit {
     if (id) {
       this.isEditMode.set(true);
       this.breadcrumbs.set([
-        { label: 'Administration', route: '/app/admin' },
-        { label: 'Waste Categories', route: '/app/admin/waste-categories' },
+        { label: 'Administration', route: '/settings/admin' },
+        { label: 'Waste Categories', route: '/settings/admin/waste-categories' },
         { label: 'Edit' },
       ]);
       this.loadCategory(id);
@@ -464,7 +464,7 @@ export class WasteCategoryFormComponent implements OnInit {
       }
 
       this.service.update(this.category()!.id, dto).subscribe({
-        next: () => this.router.navigate(['/app/admin/waste-categories']),
+        next: () => this.router.navigate(['/settings/admin/waste-categories']),
         error: () => this.submitting.set(false),
       });
     } else {
@@ -475,13 +475,13 @@ export class WasteCategoryFormComponent implements OnInit {
       };
 
       this.service.create(dto).subscribe({
-        next: () => this.router.navigate(['/app/admin/waste-categories']),
+        next: () => this.router.navigate(['/settings/admin/waste-categories']),
         error: () => this.submitting.set(false),
       });
     }
   }
 
   onCancel(): void {
-    this.router.navigate(['/app/admin/waste-categories']);
+    this.router.navigate(['/settings/admin/waste-categories']);
   }
 }

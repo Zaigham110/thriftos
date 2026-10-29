@@ -14,7 +14,7 @@
         Refresh
       </button>
       @if (canCreate()) {
-        <button class="btn btn-primary" [routerLink]="['/app/procurement/pos/create']">
+        <button class="btn btn-primary" [routerLink]="['/receive/records/pos/create']">
           <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
           New Purchase Order
         </button>
@@ -32,7 +32,7 @@
 
     <!-- KPI Metric Summary Grid -->
     <div class="kpi-grid">
-      <div class="kpi-card" [routerLink]="['/app/procurement/pos']">
+      <div class="kpi-card" [routerLink]="['/receive/records/pos']">
         <div class="kpi-icon kpi-icon-purple">
           <lucide-icon [img]="icons.ShoppingBag" [size]="22"></lucide-icon>
         </div>
@@ -43,7 +43,7 @@
         </div>
       </div>
 
-      <div class="kpi-card" [routerLink]="['/app/procurement/containers']">
+      <div class="kpi-card" [routerLink]="['/receive/records/containers']">
         <div class="kpi-icon kpi-icon-blue">
           <lucide-icon [img]="icons.Truck" [size]="22"></lucide-icon>
         </div>
@@ -54,7 +54,7 @@
         </div>
       </div>
 
-      <div class="kpi-card" [routerLink]="['/app/procurement/loose-bales']">
+      <div class="kpi-card" [routerLink]="['/receive/records/loose-bales']">
         <div class="kpi-icon kpi-icon-emerald">
           <lucide-icon [img]="icons.PackageCheck" [size]="22"></lucide-icon>
         </div>

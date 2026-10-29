@@ -69,7 +69,7 @@ export class GradeManagementComponent implements OnInit {
   private readonly router = inject(Router);
 
   readonly breadcrumbs = [
-    { label: 'Administration', route: '/app/admin' },
+    { label: 'Administration', route: '/settings/admin' },
     { label: 'Grades' },
   ];
 
@@ -143,11 +143,11 @@ export class GradeManagementComponent implements OnInit {
   }
 
   navigateToCreate(): void {
-    this.router.navigate(['/app/admin/grades/new']);
+    this.router.navigate(['/settings/admin/grades/new']);
   }
 
   navigateToEdit(grade: Grade): void {
-    this.router.navigate(['/app/admin/grades', grade.id, 'edit']);
+    this.router.navigate(['/settings/admin/grades', grade.id, 'edit']);
   }
 
   confirmDelete(grade: Grade): void {

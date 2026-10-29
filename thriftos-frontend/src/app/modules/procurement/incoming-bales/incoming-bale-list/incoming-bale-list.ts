@@ -79,8 +79,8 @@ export class IncomingBaleListComponent implements OnInit {
   };
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Procurement', route: '/app/procurement' },
-    { label: 'Loose Bales', route: '/app/procurement/loose-bales' },
+    { label: 'Procurement', route: '/receive/records' },
+    { label: 'Loose Bales', route: '/receive/records/loose-bales' },
   ];
 
   // KPI Metrics computed from incoming bales dataset
@@ -107,7 +107,7 @@ export class IncomingBaleListComponent implements OnInit {
   }
 
   onRowClick(bale: IncomingBale): void {
-    this.router.navigate(['/app/procurement/loose-bales', bale.id]);
+    this.router.navigate(['/receive/records/loose-bales', bale.id]);
   }
 
   getCostPerKg(bale: IncomingBale): number {

@@ -68,7 +68,7 @@ export class ProcurementDashboardComponent implements OnInit {
   readonly error = signal<string | null>(null);
 
   readonly breadcrumbs = [
-    { label: 'Procurement', route: '/app/procurement' },
+    { label: 'Procurement', route: '/receive/records' },
     { label: 'Dashboard' },
   ];
 

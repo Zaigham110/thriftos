@@ -67,7 +67,7 @@ export class InventoryIndexPage implements OnInit {
   private readonly authService = inject(AuthService);
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Inventory', route: '/app/inventory' },
+    { label: 'Inventory', route: '/stock/items' },
     { label: 'Finished Goods' },
   ];
 
@@ -199,7 +199,7 @@ export class InventoryIndexPage implements OnInit {
   }
 
   viewDetails(item: InventoryItem): void {
-    this.router.navigate(['/app/inventory', item.id]);
+    this.router.navigate(['/stock/items', item.id]);
   }
 
   itemCode(item: InventoryItem): string {

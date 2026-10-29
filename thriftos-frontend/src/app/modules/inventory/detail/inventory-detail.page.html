@@ -146,7 +146,7 @@
               <div class="spec-row">
                 <span class="spec-label">Source Repack Unit</span>
                 @if (t.repackUnit; as r) {
-                  <a [routerLink]="['/app/flow/seal', r.id]" class="link-badge purple">
+                  <a [routerLink]="['/stock/bale', r.id]" class="link-badge purple">
                     <lucide-icon [img]="icons.Package" [size]="12"></lucide-icon>
                     {{ r.unitCode }}
                   </a>
@@ -158,7 +158,7 @@
               <div class="spec-row">
                 <span class="spec-label">Source Ocean Container</span>
                 @if (sourceContainer(); as c) {
-                  <a [routerLink]="['/app/procurement/containers', c.id]" class="link-badge blue">
+                  <a [routerLink]="['/receive/records/containers', c.id]" class="link-badge blue">
                     <lucide-icon [img]="icons.Truck" [size]="12"></lucide-icon>
                     {{ c.containerNumber }}
                   </a>

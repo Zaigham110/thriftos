@@ -312,8 +312,8 @@ export class GradeFormComponent implements OnInit {
   };
 
   readonly breadcrumbs = signal([
-    { label: 'Administration', route: '/app/admin' },
-    { label: 'Grades', route: '/app/admin/grades' },
+    { label: 'Administration', route: '/settings/admin' },
+    { label: 'Grades', route: '/settings/admin/grades' },
     { label: 'New' },
   ]);
 
@@ -329,8 +329,8 @@ export class GradeFormComponent implements OnInit {
     if (id) {
       this.isEditMode.set(true);
       this.breadcrumbs.set([
-        { label: 'Administration', route: '/app/admin' },
-        { label: 'Grades', route: '/app/admin/grades' },
+        { label: 'Administration', route: '/settings/admin' },
+        { label: 'Grades', route: '/settings/admin/grades' },
         { label: 'Edit' },
       ]);
       this.loadGrade(id);
@@ -366,7 +366,7 @@ export class GradeFormComponent implements OnInit {
       };
 
       this.adminService.updateGrade(this.grade()!.id, dto).subscribe({
-        next: () => this.router.navigate(['/app/admin/grades']),
+        next: () => this.router.navigate(['/settings/admin/grades']),
         error: () => this.submitting.set(false),
       });
       return;
@@ -379,12 +379,12 @@ export class GradeFormComponent implements OnInit {
     };
 
     this.adminService.createGrade(dto).subscribe({
-      next: () => this.router.navigate(['/app/admin/grades']),
+      next: () => this.router.navigate(['/settings/admin/grades']),
       error: () => this.submitting.set(false),
     });
   }
 
   onCancel(): void {
-    this.router.navigate(['/app/admin/grades']);
+    this.router.navigate(['/settings/admin/grades']);
   }
 }

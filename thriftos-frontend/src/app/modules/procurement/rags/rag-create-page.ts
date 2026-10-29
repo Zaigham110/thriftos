@@ -63,9 +63,9 @@ export class RagCreatePageComponent implements OnInit {
     const label = cont?.containerNumber || 'Container';
     const id = cont?.id;
     return [
-      { label: 'Procurement', route: '/app/procurement' },
-      { label: 'Containers', route: '/app/procurement/containers' },
-      { label, route: id ? `/app/procurement/containers/${id}` : '/app/procurement/containers' },
+      { label: 'Procurement', route: '/receive/records' },
+      { label: 'Containers', route: '/receive/records/containers' },
+      { label, route: id ? `/receive/records/containers/${id}` : '/receive/records/containers' },
       { label: 'Register Intake Item' },
     ];
   });
@@ -111,15 +111,15 @@ export class RagCreatePageComponent implements OnInit {
   onCreated(): void {
     const cont = this.container();
     if (!cont) return;
-    this.router.navigate(['/app/procurement/containers', cont.id]);
+    this.router.navigate(['/receive/records/containers', cont.id]);
   }
 
   onCancel(): void {
     const cont = this.container();
     if (cont) {
-      this.router.navigate(['/app/procurement/containers', cont.id]);
+      this.router.navigate(['/receive/records/containers', cont.id]);
       return;
     }
-    this.router.navigate(['/app/procurement/containers']);
+    this.router.navigate(['/receive/records/containers']);
   }
 }

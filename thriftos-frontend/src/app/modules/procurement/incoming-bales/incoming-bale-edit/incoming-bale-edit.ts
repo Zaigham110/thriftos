@@ -106,9 +106,9 @@ export class IncomingBaleEditComponent implements OnInit {
     const b = this.bale();
     const baleLabel = b?.baleCode || 'Loose Bale';
     return [
-      { label: 'Procurement', route: '/app/procurement' },
-      { label: 'Loose Bales', route: '/app/procurement/loose-bales' },
-      { label: baleLabel, route: b ? `/app/procurement/loose-bales/${b.id}` : '/app/procurement/loose-bales' },
+      { label: 'Procurement', route: '/receive/records' },
+      { label: 'Loose Bales', route: '/receive/records/loose-bales' },
+      { label: baleLabel, route: b ? `/receive/records/loose-bales/${b.id}` : '/receive/records/loose-bales' },
       { label: 'Edit' },
     ];
   });
@@ -180,7 +180,7 @@ export class IncomingBaleEditComponent implements OnInit {
     this.procurementService.updateIncomingBale(b.id, data).subscribe({
       next: () => {
         this.actionLoading.set(false);
-        this.router.navigate(['/app/procurement/loose-bales', b.id]);
+        this.router.navigate(['/receive/records/loose-bales', b.id]);
       },
       error: (err) => {
         this.error.set(err.message || 'Failed to update bale');
@@ -192,9 +192,9 @@ export class IncomingBaleEditComponent implements OnInit {
   onCancel(): void {
     const b = this.bale();
     if (b) {
-      this.router.navigate(['/app/procurement/loose-bales', b.id]);
+      this.router.navigate(['/receive/records/loose-bales', b.id]);
       return;
     }
-    this.router.navigate(['/app/procurement/loose-bales']);
+    this.router.navigate(['/receive/records/loose-bales']);
   }
 }

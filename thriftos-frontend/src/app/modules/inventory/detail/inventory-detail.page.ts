@@ -84,8 +84,8 @@ export class InventoryDetailPage implements OnInit {
     const i = this.item();
     const code = i ? (i.unitCode || `INV-${String(i.id).slice(0, 8).toUpperCase()}`) : 'Detail';
     return [
-      { label: 'Inventory', route: '/app/inventory' },
-      { label: 'Finished Goods', route: '/app/inventory' },
+      { label: 'Inventory', route: '/stock/items' },
+      { label: 'Finished Goods', route: '/stock/items' },
       { label: code },
     ];
   });
@@ -154,7 +154,7 @@ export class InventoryDetailPage implements OnInit {
   });
 
   goBack(): void {
-    this.router.navigate(['/app/inventory']);
+    this.router.navigate(['/stock/items']);
   }
 
   itemCode(i: InventoryItem | null): string {

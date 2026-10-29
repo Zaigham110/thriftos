@@ -34,17 +34,17 @@ export class FlowWorkComponent implements OnInit {
   protected flowRoute(route: string): string {
     if (route.includes('/sorting?stage=2')) {
       const resumeId = route.match(/[?&]resumeGrade=([^&]+)/)?.[1];
-      return resumeId ? `/app/flow/grade?resumeGrade=${encodeURIComponent(resumeId)}` : '/app/flow/grade';
+      return resumeId ? `/sort/grade?resumeGrade=${encodeURIComponent(resumeId)}` : '/sort/grade';
     }
     if (route.includes('/sorting')) {
       const resumeId = route.match(/[?&]resumeSort=([^&]+)/)?.[1];
-      return resumeId ? `/app/flow/transform?resumeSort=${encodeURIComponent(resumeId)}` : '/app/flow/transform';
+      return resumeId ? `/sort?resumeSort=${encodeURIComponent(resumeId)}` : '/sort';
     }
     if (route.includes('/repack')) {
       const resumeId = route.match(/[?&]resume=([^&]+)/)?.[1];
-      return resumeId ? `/app/flow/seal?resume=${encodeURIComponent(resumeId)}` : '/app/flow/seal';
+      return resumeId ? `/stock/bale?resume=${encodeURIComponent(resumeId)}` : '/stock/bale';
     }
-    if (route.includes('/lookup')) return '/app/flow/stock';
+    if (route.includes('/lookup')) return '/stock';
     return route;
   }
 }

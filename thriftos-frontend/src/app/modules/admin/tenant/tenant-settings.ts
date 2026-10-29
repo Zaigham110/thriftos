@@ -132,7 +132,7 @@ export class TenantSettingsComponent implements OnInit {
   readonly error = this.adminService.error;
 
   readonly breadcrumbs = [
-    { label: 'Administration', route: '/app/admin' },
+    { label: 'Administration', route: '/settings/admin' },
     { label: 'Tenant Settings' },
   ];
 

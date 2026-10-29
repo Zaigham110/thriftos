@@ -87,9 +87,9 @@ export class PurchaseOrderAddBaleComponent implements OnInit {
     const po = this.purchaseOrder();
     const poLabel = po?.poNumber || 'Purchase Order';
     return [
-      { label: 'Procurement', route: '/app/procurement' },
-      { label: 'Purchase Orders', route: '/app/procurement/pos' },
-      { label: poLabel, route: po ? `/app/procurement/pos/${po.id}` : '/app/procurement/pos' },
+      { label: 'Procurement', route: '/receive/records' },
+      { label: 'Purchase Orders', route: '/receive/records/pos' },
+      { label: poLabel, route: po ? `/receive/records/pos/${po.id}` : '/receive/records/pos' },
       { label: 'Add Bale' },
     ];
   });
@@ -188,7 +188,7 @@ export class PurchaseOrderAddBaleComponent implements OnInit {
     this.procurementService.createIncomingBale(data).subscribe({
       next: () => {
         this.actionLoading.set(false);
-        this.router.navigate(['/app/procurement/pos', po.id]);
+        this.router.navigate(['/receive/records/pos', po.id]);
       },
       error: (err) => {
         this.error.set(err.message || 'Failed to create loose bale');
@@ -200,9 +200,9 @@ export class PurchaseOrderAddBaleComponent implements OnInit {
   onCancel(): void {
     const po = this.purchaseOrder();
     if (po) {
-      this.router.navigate(['/app/procurement/pos', po.id]);
+      this.router.navigate(['/receive/records/pos', po.id]);
       return;
     }
-    this.router.navigate(['/app/procurement/pos']);
+    this.router.navigate(['/receive/records/pos']);
   }
 }

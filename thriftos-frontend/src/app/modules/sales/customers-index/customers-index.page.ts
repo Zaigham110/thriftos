@@ -59,7 +59,7 @@ export class CustomersIndexPage implements OnInit {
   private readonly customersService = inject(CustomersService);
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Sales', route: '/app/sales' },
+    { label: 'Sales', route: '/sell/records' },
     { label: 'Customers & Credit Terms' },
   ];
 

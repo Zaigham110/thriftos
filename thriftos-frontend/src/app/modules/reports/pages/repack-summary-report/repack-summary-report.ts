@@ -68,7 +68,7 @@ export class RepackSummaryReportComponent implements OnInit {
   };
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Reports', route: '/app/reports' },
+    { label: 'Reports', route: '/reports/detail' },
     { label: 'Repack Production & Batch Summary' },
   ];
 

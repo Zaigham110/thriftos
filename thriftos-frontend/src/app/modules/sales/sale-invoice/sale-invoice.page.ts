@@ -84,9 +84,9 @@ export class SaleInvoicePage implements OnInit {
     const s = this.sale();
     const code = s ? (s.saleNumber || `SO-${String(s.id).slice(0, 8).toUpperCase()}`) : 'Invoice';
     return [
-      { label: 'Sales', route: '/app/sales' },
-      { label: 'Orders', route: '/app/sales' },
-      { label: code, route: s ? `/app/sales/${s.id}` : undefined },
+      { label: 'Sales', route: '/sell/records' },
+      { label: 'Orders', route: '/sell/records' },
+      { label: code, route: s ? `/sell/records/${s.id}` : undefined },
       { label: 'Commercial Invoice' },
     ];
   });
@@ -111,7 +111,7 @@ export class SaleInvoicePage implements OnInit {
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
     if (!id) {
-      this.router.navigate(['/app/sales']);
+      this.router.navigate(['/sell/records']);
       return;
     }
     this.saleId.set(id);
@@ -179,9 +179,9 @@ export class SaleInvoicePage implements OnInit {
   goBack(): void {
     const id = this.saleId();
     if (id) {
-      this.router.navigate(['/app/sales', id]);
+      this.router.navigate(['/sell/records', id]);
     } else {
-      this.router.navigate(['/app/sales']);
+      this.router.navigate(['/sell/records']);
     }
   }
 

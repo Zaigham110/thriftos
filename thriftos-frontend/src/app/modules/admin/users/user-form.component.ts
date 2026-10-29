@@ -150,8 +150,8 @@ export class UserFormComponent {
   readonly roles = this.adminService.roles;
 
   readonly breadcrumbs = signal([
-    { label: 'Administration', route: '/app/admin' },
-    { label: 'Users', route: '/app/admin/users' },
+    { label: 'Administration', route: '/settings/admin' },
+    { label: 'Users', route: '/settings/admin/users' },
     { label: 'New' },
   ]);
 
@@ -175,8 +175,8 @@ export class UserFormComponent {
     if (id) {
       this.isEditMode.set(true);
       this.breadcrumbs.set([
-        { label: 'Administration', route: '/app/admin' },
-        { label: 'Users', route: '/app/admin/users' },
+        { label: 'Administration', route: '/settings/admin' },
+        { label: 'Users', route: '/settings/admin/users' },
         { label: 'Edit' },
       ]);
       const passwordCtrl = this.form.get('password');
@@ -231,7 +231,7 @@ export class UserFormComponent {
       this.adminService.updateUser(this.user()!.id, dto).subscribe({
         next: (updated) => {
           this.adminService.assignUserRoles(updated.id, this._selectedRoleIds()).subscribe({
-            next: () => this.router.navigate(['/app/admin/users']),
+            next: () => this.router.navigate(['/settings/admin/users']),
             error: () => this.submitting.set(false),
           });
         },
@@ -248,12 +248,12 @@ export class UserFormComponent {
     };
 
     this.adminService.createUser(dto).subscribe({
-      next: () => this.router.navigate(['/app/admin/users']),
+      next: () => this.router.navigate(['/settings/admin/users']),
       error: () => this.submitting.set(false),
     });
   }
 
   onCancel() {
-    this.router.navigate(['/app/admin/users']);
+    this.router.navigate(['/settings/admin/users']);
   }
 }

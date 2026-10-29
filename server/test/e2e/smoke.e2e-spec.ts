@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
-import { api, createTenantWithOwner, createTestApp } from './fixtures';
+import { api, createTenantWithOwner, createTestApp, createUserWithoutPermissions } from './fixtures';
 
 describe('API smoke', () => {
   let app: INestApplication;
@@ -33,5 +33,12 @@ describe('API smoke', () => {
 
     const seenByA = await api(app, a).get('/procurement/vendors').expect(200);
     expect(JSON.stringify(seenByA.body)).toContain('Only In A');
+  });
+
+  it('needs category permissions to change raw categories', async () => {
+    const owner = await createTenantWithOwner(app);
+    const plain = await createUserWithoutPermissions(app, owner.tenantId);
+    await api(app, plain).post('/tenant/raw-categories', { name: 'Mixed', rawType: 'BALE' }).expect(403);
+    await api(app, plain).get('/tenant/raw-categories').expect(200);
   });
 });

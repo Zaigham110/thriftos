@@ -20,6 +20,13 @@ Running log of the v1 reshape. Newest entries at the bottom of each section.
   - Bugs fixed on the way: sorting/grading kg was saved before the over-limit check (now checked and written in one transaction, and outputs + declared waste can't exceed input); v2 FIFO ignored the category filter and only used READY_FOR_REPACK stock; bale costing used JS numbers (now Decimal).
   - Frontend: services repointed (`API_ENDPOINTS.sortingStage1/2`, `bales`, `stockItems`); new `modules/stock/bale.service.ts`; flow `seal` makes a bale in one call. Deleted screens that only used removed endpoints: unrouted `modules/sorting-stage1|2`, desktop `modules/sorting/*` pages (duplicates of flow transform/grade), draft-based `modules/repack/*`, and the lite `sorting` route. Dead nav links repointed to flow screens.
   - Tests: `test/e2e/sort-and-bale.e2e-spec.ts` (sort → grade → FIFO bale → stock item, over-limit rejection, tenant isolation for sorting and `stock/*`).
+- 2026-10-29 — 0.5 One app shell:
+  - New `src/app/shell/app-shell.component.ts` (based on the Flow shell): phone = top bar with sync badge + 5 bottom tabs (Home, Receive, Sort, Sell, Khata) and a "More" sheet (Stock, Reports, Settings, Sign out); tablet = icon rail; desktop = side nav. Tabs for modules the tenant has not enabled are hidden.
+  - Routes: `/home` (+ `/home/overview` old dashboard), `/receive` (+ `/container`, `/records/*` procurement), `/sort` (+ `/grade`), `/stock` (+ `/bale`, `/items/*`), `/sell` (+ `/new`, `/records/*`), `/khata`, `/reports` (+ `/detail/*`), `/settings` (+ `/admin/*`). Flow screens are the phone base; desktop ERP modules are mounted under them as owner/admin views.
+  - Deleted: `features/simplified-mode` + `simplified-shell` (`/app/lite`, `/app/mobile/*`), `features/flow-shell` (`/app/flow`), `features/shell` (`/app`), `features/legacy`, `flow-enabled.guard`, `operation-mode.service`, unused `post-login-redirect`. Login always lands on `/home` (or the requested URL). ~470 hard-coded `/app/...` links rewritten to the new routes.
+  - Backend duplicates removed: `/tenant/categories` and `/tenant/warehouses` writes + `/all` lists (same service as `/admin/*`), `/tenant/waste-categories` CRUD (kept the picker list; `/admin/waste-categories` manages). Raw-category writes now need `category.*` permissions (were open to any tenant user) — test added.
+  - Verified in Chromium (390px and 1366px): login → every route renders with no failed API calls or console errors; sort a lot → close with waste → grade → make bale → bale shows in Stock, all through the UI.
+- Phase 0 acceptance: met — app builds and runs with one shell; sorting/repack/inventory/settings route and service duplicates removed; server tests run in CI-style (10 passing). Remaining copy ("Material conversion", "Lifecycle-ready") and layouts are the old ERP voice; they are rewritten in 3.3/3.4.
 
 ## Decisions
 - Test DB lives on the same Postgres server as dev, named `<db>_test`; never the dev DB.
@@ -29,6 +36,9 @@ Running log of the v1 reshape. Newest entries at the bottom of each section.
 - Bale codes keep the existing `TENANT-CAT-GRADE-YYYYMMDD-NNNN` format for now; short `B-0001` codes come with QR labels (task 3.5).
 - Sort/grade cost split is still plain proportional Decimal; largest-remainder rounding arrives with `costing/` in task 1.2.
 - Open question for Phase 1/2: tenants with `sortingStages = 1` have no grade outputs, so bales must also be makeable from category outputs (`RepackInputAllocation.gradingOutputId` is required today).
+- Super-admin area (`/admin`) keeps its own layout (`shared/ui/app-shell-layout` via `admin-shell`): it is the platform operator's console, not the tenant app.
+- Tab visibility still uses the old `operationalModules` values (INTAKE, SORTING, ...); switches to `enabledModules` (RECEIVE, SORT, ...) with the Tenant migration in 1.1. Tenant policy fields (capture/guidance/connectivity) are still read by flow receive/control/offline-draft and are removed with that migration.
+- Found: the base seed creates no waste categories, so a lot with a remainder cannot be closed. Journey 2 needs the waste tile always present: the setup wizard (3.8) and demo seed (4.1) must always create a default "Waste/Katran" type.
 
 ## Blockers
 - `JWT_SECRET` and DB password rotation must be done by the owner (old values remain in git history; history rewrite not done because it is irreversible and needs a force-push).

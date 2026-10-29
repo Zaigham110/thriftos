@@ -117,7 +117,7 @@ export class UserListComponent implements OnInit {
   };
 
   readonly breadcrumbs = [
-    { label: 'Administration', route: '/app/admin' },
+    { label: 'Administration', route: '/settings/admin' },
     { label: 'User Management' },
   ];
 

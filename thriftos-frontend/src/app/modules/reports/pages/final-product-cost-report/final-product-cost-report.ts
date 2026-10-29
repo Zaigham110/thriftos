@@ -60,7 +60,7 @@ export class FinalProductCostReportComponent implements OnInit {
   };
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Reports', route: '/app/reports' },
+    { label: 'Reports', route: '/reports/detail' },
     { label: 'Final Product Cost & COGS' },
   ];
 

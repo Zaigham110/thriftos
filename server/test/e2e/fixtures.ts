@@ -53,6 +53,20 @@ export async function createTenantWithOwner(app: INestApplication): Promise<Test
   return { tenantId: tenant.id, userId: user.id, email, token: res.body.accessToken };
 }
 
+/** A logged-in user in an existing tenant with no roles (so no permissions). */
+export async function createUserWithoutPermissions(app: INestApplication, tenantId: string): Promise<TestTenant> {
+  const prisma = app.get(PrismaService);
+  const email = `plain-${randomUUID().slice(0, 8)}@test.local`;
+  const user = await prisma.user.create({
+    data: { tenantId, name: 'Plain', email, passwordHash: await bcrypt.hash(PASSWORD, 4) },
+  });
+  const res = await request(app.getHttpServer())
+    .post('/api/auth/login')
+    .send({ email, password: PASSWORD })
+    .expect(200);
+  return { tenantId, userId: user.id, email, token: res.body.accessToken };
+}
+
 export function api(app: INestApplication, tenant: TestTenant) {
   const server = app.getHttpServer();
   const auth = { Authorization: `Bearer ${tenant.token}` };

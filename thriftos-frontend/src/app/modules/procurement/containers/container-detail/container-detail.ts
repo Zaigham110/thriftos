@@ -165,8 +165,8 @@ export class ContainerDetailComponent implements OnInit {
   readonly breadcrumbs = computed(() => {
     const contNumber = this.container()?.containerNumber || 'Loading…';
     return [
-      { label: 'Procurement', route: '/app/procurement' },
-      { label: 'Containers', route: '/app/procurement/containers' },
+      { label: 'Procurement', route: '/receive/records' },
+      { label: 'Containers', route: '/receive/records/containers' },
       { label: contNumber },
     ];
   });

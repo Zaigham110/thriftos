@@ -60,8 +60,8 @@ export class SalesNewPage implements OnInit {
   private readonly salesService = inject(SalesService);
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Sales', route: '/app/sales' },
-    { label: 'Orders', route: '/app/sales' },
+    { label: 'Sales', route: '/sell/records' },
+    { label: 'Orders', route: '/sell/records' },
     { label: 'New Sales Order' },
   ];
 
@@ -198,7 +198,7 @@ export class SalesNewPage implements OnInit {
       .subscribe({
         next: (sale) => {
           this.saving.set(false);
-          this.router.navigate(['/app/sales', sale.id]);
+          this.router.navigate(['/sell/records', sale.id]);
         },
         error: (err) => {
           this.saving.set(false);
@@ -208,6 +208,6 @@ export class SalesNewPage implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/app/sales']);
+    this.router.navigate(['/sell/records']);
   }
 }

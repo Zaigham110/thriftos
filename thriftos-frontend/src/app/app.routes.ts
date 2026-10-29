@@ -3,16 +3,8 @@ import { authGuard } from './core/guards/auth-guard';
 import { tenantAreaGuard } from './core/guards/tenant-area.guard';
 import { operationalModuleGuard } from './core/guards/operational-module.guard';
 import { superAdminGuard } from './core/guards/super-admin-guard';
-import { flowEnabledGuard } from './core/guards/flow-enabled.guard';
 
 export const routes: Routes = [
-  // Default redirect to /app
-  {
-    path: '',
-    redirectTo: 'app',
-    pathMatch: 'full',
-  },
-
   // Auth routes (public)
   {
     path: 'auth/login',
@@ -33,13 +25,6 @@ export const routes: Routes = [
     title: 'Access Restricted - ThriftOS',
   },
 
-  // Legacy login redirect
-  {
-    path: 'login',
-    redirectTo: '/auth/login',
-    pathMatch: 'full',
-  },
-
   // Super-admin route space must be defined outside /app. Without this route,
   // the wildcard sends /admin to /app while tenantAreaGuard sends super admins
   // back to /admin, creating an infinite navigation loop.
@@ -57,202 +42,142 @@ export const routes: Routes = [
     ],
   },
 
-  // Lite ERP Mode route space (isolated responsive shell)
+  // The tenant app: one shell, one route per job.
   {
-    path: 'app/lite',
-    loadComponent: () =>
-      import('./features/simplified-shell/simplified-shell.component').then((m) => m.SimplifiedShellComponent),
+    path: '',
+    loadComponent: () => import('./shell/app-shell.component').then((m) => m.AppShellComponent),
     canActivate: [authGuard, tenantAreaGuard],
     children: [
-      {
-        path: '',
-        redirectTo: 'home',
-        pathMatch: 'full',
-      },
+      { path: '', redirectTo: 'home', pathMatch: 'full' },
       {
         path: 'home',
-        canActivate: [operationalModuleGuard],
-        data: { operationalModule: 'WORK' },
-        loadComponent: () =>
-          import('./features/simplified-mode/mobile-home/mobile-home.component').then((m) => m.MobileHomeComponent),
-        title: 'Lite ERP Home - ThriftOS',
+        loadComponent: () => import('./features/flow/work/flow-work.component').then((m) => m.FlowWorkComponent),
+        title: 'Home - ThriftOS',
       },
       {
-        path: 'buying',
+        path: 'home/overview',
+        loadComponent: () => import('./features/dashboard/dashboard/dashboard').then((m) => m.DashboardComponent),
+        title: 'Overview - ThriftOS',
+      },
+      {
+        path: 'receive',
         canActivate: [operationalModuleGuard],
         data: { operationalModule: 'INTAKE' },
-        loadComponent: () =>
-          import('./features/simplified-mode/mobile-buying/mobile-buying.component').then((m) => m.MobileBuyingComponent),
-        title: 'Raw Bale Buying & Intake - ThriftOS Lite',
+        children: [
+          {
+            path: '',
+            loadComponent: () => import('./features/flow/receive/flow-receive.component').then((m) => m.FlowReceiveComponent),
+            title: 'Receive - ThriftOS',
+          },
+          {
+            path: 'container',
+            loadComponent: () =>
+              import('./features/flow/receive/flow-container-receive.component').then((m) => m.FlowContainerReceiveComponent),
+            title: 'Receive container - ThriftOS',
+          },
+          {
+            path: 'records',
+            loadChildren: () => import('./modules/procurement/procurement.routes').then((m) => m.PROCUREMENT_ROUTES),
+          },
+        ],
       },
       {
-        path: 'repack',
+        path: 'sort',
         canActivate: [operationalModuleGuard],
-        data: { operationalModule: 'REPACK' },
-        loadComponent: () =>
-          import('./features/simplified-mode/mobile-repack/mobile-repack.component').then((m) => m.MobileRepackComponent),
-        title: 'Repack & QR Generator - ThriftOS Lite',
+        data: { operationalModule: 'SORTING' },
+        children: [
+          {
+            path: '',
+            loadComponent: () => import('./features/flow/transform/flow-transform.component').then((m) => m.FlowTransformComponent),
+            title: 'Sort - ThriftOS',
+          },
+          {
+            path: 'grade',
+            loadComponent: () => import('./features/flow/grade/flow-grade.component').then((m) => m.FlowGradeComponent),
+            title: 'Grade - ThriftOS',
+          },
+        ],
       },
       {
-        path: 'lookup',
+        path: 'stock',
         canActivate: [operationalModuleGuard],
         data: { operationalModule: 'STOCK' },
-        loadComponent: () =>
-          import('./features/simplified-mode/mobile-inventory/mobile-inventory.component').then((m) => m.MobileInventoryComponent),
-        title: 'QR Lookup & Stock - ThriftOS Lite',
+        children: [
+          {
+            path: '',
+            loadComponent: () => import('./features/flow/stock/flow-stock.component').then((m) => m.FlowStockComponent),
+            title: 'Stock - ThriftOS',
+          },
+          {
+            path: 'bale',
+            loadComponent: () => import('./features/flow/seal/flow-seal.component').then((m) => m.FlowSealComponent),
+            title: 'Make bale - ThriftOS',
+          },
+          {
+            path: 'items',
+            loadChildren: () => import('./modules/inventory/inventory.routes').then((m) => m.INVENTORY_ROUTES),
+          },
+        ],
       },
       {
-        path: 'quick-sale',
+        path: 'sell',
         canActivate: [operationalModuleGuard],
         data: { operationalModule: 'SALES' },
-        loadComponent: () =>
-          import('./features/simplified-mode/mobile-sales/mobile-quick-sale.component').then((m) => m.MobileQuickSaleComponent),
-        title: 'POS Quick Sale - ThriftOS Lite',
+        children: [
+          {
+            path: '',
+            loadComponent: () => import('./features/flow/dispatch/flow-dispatch.component').then((m) => m.FlowDispatchComponent),
+            title: 'Sell - ThriftOS',
+          },
+          {
+            path: 'new',
+            loadComponent: () => import('./features/flow/sale/flow-sale.component').then((m) => m.FlowSaleComponent),
+            title: 'New sale - ThriftOS',
+          },
+          {
+            path: 'records',
+            loadChildren: () => import('./modules/sales/sales.routes').then((m) => m.SALES_ROUTES),
+          },
+        ],
       },
       {
-        path: 'more',
-        loadComponent: () =>
-          import('./features/simplified-mode/mobile-more/mobile-more.component').then((m) => m.MobileMoreComponent),
-        title: 'More Operations - ThriftOS Lite',
-      },
-    ],
-  },
-
-  // Flow is the parallel operational redesign. It reuses the existing guarded
-  // workflow pages until each Flow page reaches acceptance.
-  {
-    path: 'app/flow',
-    loadComponent: () =>
-      import('./features/flow-shell/flow-shell.component').then((m) => m.FlowShellComponent),
-    canActivate: [authGuard, tenantAreaGuard, flowEnabledGuard],
-    children: [
-      { path: '', redirectTo: 'work', pathMatch: 'full' },
-      {
-        path: 'work', canActivate: [operationalModuleGuard], data: { operationalModule: 'WORK' },
-        loadComponent: () => import('./features/flow/work/flow-work.component').then((m) => m.FlowWorkComponent), title: 'My Work · Flow - ThriftOS',
-      },
-      {
-        path: 'receive', canActivate: [operationalModuleGuard], data: { operationalModule: 'INTAKE' },
-        loadComponent: () => import('./features/flow/receive/flow-receive.component').then((m) => m.FlowReceiveComponent), title: 'Receive · Flow - ThriftOS',
-      },
-      {
-        path: 'receive/container', canActivate: [operationalModuleGuard], data: { operationalModule: 'INTAKE' },
-        loadComponent: () => import('./features/flow/receive/flow-container-receive.component').then((m) => m.FlowContainerReceiveComponent), title: 'Receive container · Flow - ThriftOS',
-      },
-      {
-        path: 'transform', canActivate: [operationalModuleGuard], data: { operationalModule: 'SORTING' },
-        loadComponent: () => import('./features/flow/transform/flow-transform.component').then((m) => m.FlowTransformComponent), title: 'Transform · Flow - ThriftOS',
-      },
-      {
-        path: 'grade', canActivate: [operationalModuleGuard], data: { operationalModule: 'SORTING' },
-        loadComponent: () => import('./features/flow/grade/flow-grade.component').then((m) => m.FlowGradeComponent), title: 'Quality Grade · Flow - ThriftOS',
-      },
-      {
-        path: 'seal', canActivate: [operationalModuleGuard], data: { operationalModule: 'REPACK' },
-        loadComponent: () => import('./features/flow/seal/flow-seal.component').then((m) => m.FlowSealComponent), title: 'Seal · Flow - ThriftOS',
-      },
-      {
-        path: 'stock', canActivate: [operationalModuleGuard], data: { operationalModule: 'STOCK' },
-        loadComponent: () => import('./features/flow/stock/flow-stock.component').then((m) => m.FlowStockComponent), title: 'Stock · Flow - ThriftOS',
-      },
-      {
-        path: 'dispatch', canActivate: [operationalModuleGuard], data: { operationalModule: 'SALES' },
-        loadComponent: () => import('./features/flow/dispatch/flow-dispatch.component').then((m) => m.FlowDispatchComponent), title: 'Dispatch · Flow - ThriftOS',
-      },
-      {
-        path: 'insights', canActivate: [operationalModuleGuard], data: { operationalModule: 'INSIGHTS' },
-        loadComponent: () => import('./features/flow/insights/flow-insights.component').then((m) => m.FlowInsightsComponent), title: 'Insights · Flow - ThriftOS',
-      },
-      {
-        path: 'sale', canActivate: [operationalModuleGuard], data: { operationalModule: 'SALES' },
-        loadComponent: () => import('./features/flow/sale/flow-sale.component').then((m) => m.FlowSaleComponent), title: 'Create sale · Flow - ThriftOS',
-      },
-      {
-        path: 'control', canActivate: [operationalModuleGuard], data: { operationalModule: 'ADMINISTRATION' },
-        loadComponent: () => import('./features/flow/control/flow-control.component').then((m) => m.FlowControlComponent), title: 'Control · Flow - ThriftOS',
-      },
-    ],
-  },
-
-  // Backward compatibility redirects from /app/mobile/* to /app/lite/*
-  {
-    path: 'app/mobile/home',
-    redirectTo: 'app/lite/home',
-    pathMatch: 'full',
-  },
-  {
-    path: 'app/mobile/buying',
-    redirectTo: 'app/lite/buying',
-    pathMatch: 'full',
-  },
-  {
-    path: 'app/mobile/sorting',
-    redirectTo: 'app/lite/sorting',
-    pathMatch: 'full',
-  },
-  {
-    path: 'app/mobile/repack',
-    redirectTo: 'app/lite/repack',
-    pathMatch: 'full',
-  },
-  {
-    path: 'app/mobile/lookup',
-    redirectTo: 'app/lite/lookup',
-    pathMatch: 'full',
-  },
-  {
-    path: 'app/mobile/quick-sale',
-    redirectTo: 'app/lite/quick-sale',
-    pathMatch: 'full',
-  },
-  {
-    path: 'app/mobile',
-    redirectTo: 'app/lite/home',
-    pathMatch: 'full',
-  },
-
-  // Tenant app route space (isolated)
-  {
-    path: 'app',
-    loadComponent: () =>
-      import('./features/shell/shell.component').then((m) => m.ThriftShellComponent),
-    canActivate: [authGuard, tenantAreaGuard],
-    children: [
-      {
-        path: '',
-        redirectTo: 'dashboard',
-        pathMatch: 'full',
-      },
-      {
-        path: 'dashboard',
-        loadComponent: () =>
-          import('./features/dashboard/dashboard/dashboard').then((m) => m.DashboardComponent),
-        title: 'Dashboard - ThriftOS',
-      },
-      {
-        path: 'procurement',
-        loadChildren: () =>
-          import('./modules/procurement/procurement.routes').then((m) => m.PROCUREMENT_ROUTES),
-      },
-      {
-        path: 'inventory',
-        loadChildren: () =>
-          import('./modules/inventory/inventory.routes').then((m) => m.INVENTORY_ROUTES),
+        path: 'khata',
+        canActivate: [operationalModuleGuard],
+        data: { operationalModule: 'SALES' },
+        loadComponent: () => import('./modules/sales/customers-index/customers-index.page').then((m) => m.CustomersIndexPage),
+        title: 'Khata - ThriftOS',
       },
       {
         path: 'reports',
-        loadChildren: () =>
-          import('./modules/reports/reports.routes').then((m) => m.REPORTS_ROUTES),
+        canActivate: [operationalModuleGuard],
+        data: { operationalModule: 'INSIGHTS' },
+        children: [
+          {
+            path: '',
+            loadComponent: () => import('./features/flow/insights/flow-insights.component').then((m) => m.FlowInsightsComponent),
+            title: 'Reports - ThriftOS',
+          },
+          {
+            path: 'detail',
+            loadChildren: () => import('./modules/reports/reports.routes').then((m) => m.REPORTS_ROUTES),
+          },
+        ],
       },
       {
-        path: 'sales',
-        loadChildren: () =>
-          import('./modules/sales/sales.routes').then((m) => m.SALES_ROUTES),
-      },
-      {
-        path: 'admin',
-        loadChildren: () =>
-          import('./modules/admin/admin.routes').then((m) => m.ADMIN_ROUTES),
+        path: 'settings',
+        canActivate: [operationalModuleGuard],
+        data: { operationalModule: 'ADMINISTRATION' },
+        children: [
+          {
+            path: '',
+            loadComponent: () => import('./features/flow/control/flow-control.component').then((m) => m.FlowControlComponent),
+            title: 'Settings - ThriftOS',
+          },
+          {
+            path: 'admin',
+            loadChildren: () => import('./modules/admin/admin.routes').then((m) => m.ADMIN_ROUTES),
+          },
+        ],
       },
     ],
   },
@@ -260,6 +185,6 @@ export const routes: Routes = [
   // Fallback route
   {
     path: '**',
-    redirectTo: '/app',
+    redirectTo: '/home',
   },
 ];

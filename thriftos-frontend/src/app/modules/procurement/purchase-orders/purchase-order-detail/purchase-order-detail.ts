@@ -116,8 +116,8 @@ export class PurchaseOrderDetailComponent implements OnInit {
   readonly breadcrumbs = computed(() => {
     const poNumber = this.purchaseOrder()?.poNumber || 'Loading…';
     return [
-      { label: 'Procurement', route: '/app/procurement' },
-      { label: 'Purchase Orders', route: '/app/procurement/pos' },
+      { label: 'Procurement', route: '/receive/records' },
+      { label: 'Purchase Orders', route: '/receive/records/pos' },
       { label: poNumber },
     ];
   });

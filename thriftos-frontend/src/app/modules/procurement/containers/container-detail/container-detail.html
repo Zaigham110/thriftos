@@ -22,13 +22,13 @@
     </div>
 
     <div class="header-right-actions">
-      <button class="btn btn-secondary" [routerLink]="['/app/procurement/containers']">
+      <button class="btn btn-secondary" [routerLink]="['/receive/records/containers']">
         <lucide-icon [img]="icons.ArrowLeft" [size]="15"></lucide-icon>
         Back to List
       </button>
 
       @if (isEditable() && canEdit()) {
-      <button class="btn btn-secondary" [routerLink]="['/app/procurement/containers', cont.id, 'edit']">
+      <button class="btn btn-secondary" [routerLink]="['/receive/records/containers', cont.id, 'edit']">
         <lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>
         Edit Container
       </button>
@@ -122,7 +122,7 @@
               <span class="detail-label">Linked Purchase Order</span>
               <div class="detail-value">
                 @if (cont.purchaseOrder) {
-                <a [routerLink]="['/app/procurement/pos', cont.purchaseOrderId]" class="po-link-badge">
+                <a [routerLink]="['/receive/records/pos', cont.purchaseOrderId]" class="po-link-badge">
                   <lucide-icon [img]="icons.ShoppingBag" [size]="13"></lucide-icon>
                   {{ cont.purchaseOrder.poNumber }}
                 </a>

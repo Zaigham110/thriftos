@@ -462,8 +462,8 @@ export class VendorFormComponent implements OnInit {
   };
 
   readonly breadcrumbs = signal([
-    { label: 'Administration', route: '/app/admin' },
-    { label: 'Vendors', route: '/app/admin/vendors' },
+    { label: 'Administration', route: '/settings/admin' },
+    { label: 'Vendors', route: '/settings/admin/vendors' },
     { label: 'New Vendor' },
   ]);
 
@@ -490,8 +490,8 @@ export class VendorFormComponent implements OnInit {
     if (id) {
       this.isEditMode.set(true);
       this.breadcrumbs.set([
-        { label: 'Administration', route: '/app/admin' },
-        { label: 'Vendors', route: '/app/admin/vendors' },
+        { label: 'Administration', route: '/settings/admin' },
+        { label: 'Vendors', route: '/settings/admin/vendors' },
         { label: 'Edit Vendor' },
       ]);
       this.loadVendor(id);
@@ -549,7 +549,7 @@ export class VendorFormComponent implements OnInit {
       };
 
       this.adminService.updateVendor(this.vendor()!.id, dto).subscribe({
-        next: () => this.router.navigate(['/app/admin/vendors']),
+        next: () => this.router.navigate(['/settings/admin/vendors']),
         error: () => this.submitting.set(false),
       });
       return;
@@ -573,12 +573,12 @@ export class VendorFormComponent implements OnInit {
     };
 
     this.adminService.createVendor(dto).subscribe({
-      next: () => this.router.navigate(['/app/admin/vendors']),
+      next: () => this.router.navigate(['/settings/admin/vendors']),
       error: () => this.submitting.set(false),
     });
   }
 
   onCancel(): void {
-    this.router.navigate(['/app/admin/vendors']);
+    this.router.navigate(['/settings/admin/vendors']);
   }
 }

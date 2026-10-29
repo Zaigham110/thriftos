@@ -118,7 +118,7 @@
                     <div class="po-supplier-group">
                       @if (bale.purchaseOrder) {
                         <a 
-                          [routerLink]="['/app/procurement/pos', bale.purchaseOrder.id]" 
+                          [routerLink]="['/receive/records/pos', bale.purchaseOrder.id]" 
                           (click)="$event.stopPropagation()"
                           class="po-link"
                         >
@@ -132,7 +132,7 @@
                   <td>
                     @if (bale.container) {
                       <a 
-                        [routerLink]="['/app/procurement/containers', bale.container.id]"
+                        [routerLink]="['/receive/records/containers', bale.container.id]"
                         (click)="$event.stopPropagation()"
                         class="container-link"
                       >
@@ -157,7 +157,7 @@
 
                   <td class="text-right" (click)="$event.stopPropagation()">
                     <a 
-                      [routerLink]="['/app/procurement/loose-bales', bale.id]"
+                      [routerLink]="['/receive/records/loose-bales', bale.id]"
                       class="btn btn-secondary btn-sm"
                     >
                       <lucide-icon [img]="icons.Eye" [size]="13"></lucide-icon>

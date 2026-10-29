@@ -763,7 +763,7 @@ export class WasteCategoryListComponent implements OnInit {
   private readonly service = inject(WasteCategoryService);
 
   readonly breadcrumbs = [
-    { label: 'Administration', route: '/app/admin' },
+    { label: 'Administration', route: '/settings/admin' },
     { label: 'Waste Categories' },
   ];
 
@@ -837,11 +837,11 @@ export class WasteCategoryListComponent implements OnInit {
   }
 
   navigateToCreate(): void {
-    this.router.navigate(['/app/admin/waste-categories/new']);
+    this.router.navigate(['/settings/admin/waste-categories/new']);
   }
 
   navigateToEdit(id: string): void {
-    this.router.navigate(['/app/admin/waste-categories', id, 'edit']);
+    this.router.navigate(['/settings/admin/waste-categories', id, 'edit']);
   }
 
   confirmDeactivate(category: WasteCategory): void {

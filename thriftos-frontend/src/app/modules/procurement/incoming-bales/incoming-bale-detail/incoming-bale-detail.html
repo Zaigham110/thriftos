@@ -17,14 +17,14 @@
     </div>
 
     <div class="header-right-actions">
-      <button class="btn btn-secondary" [routerLink]="['/app/procurement/loose-bales']">
+      <button class="btn btn-secondary" [routerLink]="['/receive/records/loose-bales']">
         <lucide-icon [img]="icons.ArrowLeft" [size]="15"></lucide-icon>
         Back to List
       </button>
 
       @if (bale(); as b) {
         @if (canEdit()) {
-          <button class="btn btn-primary" [routerLink]="['/app/procurement/loose-bales', b.id, 'edit']">
+          <button class="btn btn-primary" [routerLink]="['/receive/records/loose-bales', b.id, 'edit']">
             <lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>
             Edit Bale
           </button>
@@ -126,7 +126,7 @@
               <div class="spec-item">
                 <span class="spec-label">Purchase Order</span>
                 @if (b.purchaseOrder) {
-                  <a [routerLink]="['/app/procurement/pos', b.purchaseOrder.id]" class="link-badge">
+                  <a [routerLink]="['/receive/records/pos', b.purchaseOrder.id]" class="link-badge">
                     {{ b.purchaseOrder.poNumber }}
                   </a>
                 } @else {
@@ -137,7 +137,7 @@
               <div class="spec-item">
                 <span class="spec-label">Ocean Container</span>
                 @if (b.container) {
-                  <a [routerLink]="['/app/procurement/containers', b.container.id]" class="link-badge blue">
+                  <a [routerLink]="['/receive/records/containers', b.container.id]" class="link-badge blue">
                     <lucide-icon [img]="icons.Truck" [size]="12"></lucide-icon>
                     {{ b.container.containerNumber }}
                   </a>

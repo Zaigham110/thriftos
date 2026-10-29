@@ -72,7 +72,7 @@ export class ProcurementReportComponent implements OnInit {
   protected currentFilters: ReportFilters = {};
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Reports', route: '/app/reports' },
+    { label: 'Reports', route: '/reports/detail' },
     { label: 'Supplier Vendor Procurement Summary' },
   ];
 

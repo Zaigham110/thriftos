@@ -70,7 +70,7 @@ export class VendorManagementComponent implements OnInit {
   private readonly router = inject(Router);
 
   readonly breadcrumbs = [
-    { label: 'Administration', route: '/app/admin' },
+    { label: 'Administration', route: '/settings/admin' },
     { label: 'Vendors' },
   ];
 
@@ -147,11 +147,11 @@ export class VendorManagementComponent implements OnInit {
   }
 
   navigateToCreate(): void {
-    this.router.navigate(['/app/admin/vendors/new']);
+    this.router.navigate(['/settings/admin/vendors/new']);
   }
 
   navigateToEdit(vendor: Vendor): void {
-    this.router.navigate(['/app/admin/vendors', vendor.id, 'edit']);
+    this.router.navigate(['/settings/admin/vendors', vendor.id, 'edit']);
   }
 
   confirmDeactivate(vendor: Vendor): void {

@@ -132,7 +132,7 @@ export class SaleDetailPage implements OnInit {
   });
 
   readonly breadcrumbs = computed<BreadcrumbItem[]>(() => [
-    { label: 'Sales', route: '/app/sales' },
+    { label: 'Sales', route: '/sell/records' },
     { label: 'Order Workspace' },
   ]);
 
@@ -246,12 +246,12 @@ export class SaleDetailPage implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/app/sales']);
+    this.router.navigate(['/sell/records']);
   }
 
   openInvoice(): void {
     const s = this.sale();
-    if (s) this.router.navigate(['/app/sales', s.id, 'invoice']);
+    if (s) this.router.navigate(['/sell/records', s.id, 'invoice']);
   }
 
   openBolModal(): void {

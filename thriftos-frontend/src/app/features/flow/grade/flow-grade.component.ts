@@ -12,7 +12,7 @@ import { AvailableForGrading, Grade } from '../../../modules/sorting/sorting.mod
   imports: [CommonModule, DecimalPipe, FormsModule, RouterLink, LucideAngularModule],
   template: `
     <section class="grade">
-      <header class="intro"><div><span>Quality allocation</span><h1>Quality grade</h1><p>Convert sealed category output into approved grades, then make it available for Seal.</p></div><a routerLink="/app/flow/transform">Category sort <lucide-icon [img]="icons.ArrowLeft" [size]="15"/></a></header>
+      <header class="intro"><div><span>Quality allocation</span><h1>Quality grade</h1><p>Convert sealed category output into approved grades, then make it available for Seal.</p></div><a routerLink="/sort">Category sort <lucide-icon [img]="icons.ArrowLeft" [size]="15"/></a></header>
       @if (message(); as text) { <div class="message" [class.error]="hasError()"><lucide-icon [img]="hasError() ? icons.AlertTriangle : icons.CheckCircle2" [size]="17"/><span>{{ text }}</span><button type="button" (click)="message.set('')">Dismiss</button></div> }
       @if (!summary()) {
         <section class="card"><header><div><span>Ready output</span><h2>Grade queue</h2></div><button type="button" (click)="load()" [disabled]="loading()"><lucide-icon [img]="icons.RefreshCw" [size]="16"/>Refresh</button></header>

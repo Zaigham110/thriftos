@@ -125,19 +125,19 @@ interface CmdSearchItem {
                 @if (quickMenuOpen) {
                   <div class="quick-menu-dropdown" role="menu">
                     <div class="menu-label">Create Record</div>
-                    <button type="button" class="menu-btn" (click)="navTo('/app/sales/new')">
+                    <button type="button" class="menu-btn" (click)="navTo('/sell/records/new')">
                       <lucide-icon [img]="icons.ShoppingBag" [size]="14" class="text-purple"></lucide-icon>
                       <span>New Sales Order</span>
                     </button>
-                    <button type="button" class="menu-btn" (click)="navTo('/app/procurement/pos')">
+                    <button type="button" class="menu-btn" (click)="navTo('/receive/records/pos')">
                       <lucide-icon [img]="icons.Truck" [size]="14" class="text-blue"></lucide-icon>
                       <span>New Purchase Order</span>
                     </button>
-                    <button type="button" class="menu-btn" (click)="navTo('/app/flow/transform')">
+                    <button type="button" class="menu-btn" (click)="navTo('/sort')">
                       <lucide-icon [img]="icons.Layers" [size]="14" class="text-emerald"></lucide-icon>
                       <span>Stage 1 Sorting Session</span>
                     </button>
-                    <button type="button" class="menu-btn" (click)="navTo('/app/flow/seal')">
+                    <button type="button" class="menu-btn" (click)="navTo('/stock/bale')">
                       <lucide-icon [img]="icons.Package" [size]="14" class="text-amber"></lucide-icon>
                       <span>Repack Production Batch</span>
                     </button>
@@ -1054,38 +1054,38 @@ export class AppShellLayoutComponent {
 
   private readonly totalIndexItems: CmdSearchItem[] = [
     // Navigation & General
-    { id: 'dashboard', title: 'Executive Operations Dashboard', subtitle: 'Main system operational KPIs, cost summary & quick stats', route: '/app/dashboard', group: 'Navigation', icon: 'Zap', keywords: ['dash', 'main', 'kpi', 'home', 'overview'] },
-    { id: 'reports-dir', title: 'Reports & Analytics Directory', subtitle: 'Master directory of all 10 Landed cost & valuation audit reports', route: '/app/reports', group: 'Reports', icon: 'TrendingUp', keywords: ['report', 'analytics', 'audit', 'dir'] },
+    { id: 'dashboard', title: 'Executive Operations Dashboard', subtitle: 'Main system operational KPIs, cost summary & quick stats', route: '/home/overview', group: 'Navigation', icon: 'Zap', keywords: ['dash', 'main', 'kpi', 'home', 'overview'] },
+    { id: 'reports-dir', title: 'Reports & Analytics Directory', subtitle: 'Master directory of all 10 Landed cost & valuation audit reports', route: '/reports/detail', group: 'Reports', icon: 'TrendingUp', keywords: ['report', 'analytics', 'audit', 'dir'] },
 
     // Reports Breakdown
-    { id: 'rep-yield', title: 'Category Yield Audit & Mass Balance', subtitle: 'Raw intake weight vs sorting output conversion yield %', route: '/app/reports/yield', group: 'Reports', icon: 'TrendingUp', keywords: ['yield', 'conversion', 'mass', 'balance', 'sort'] },
-    { id: 'rep-cogs', title: 'Final Product Landed Cost & COGS Audit', subtitle: 'Unit landed costs, container cost allocations & valuation rates', route: '/app/reports/final-product-cost', group: 'Reports', icon: 'DollarSign', keywords: ['cost', 'cogs', 'landed', 'final', 'unit'] },
-    { id: 'rep-inv', title: 'Finished Goods Stock Valuation & Aging', subtitle: 'Real-time inventory snapshot & stock aging breakdown', route: '/app/reports/inventory', group: 'Reports', icon: 'Warehouse', keywords: ['inventory', 'stock', 'valuation', 'aging', 'snapshot'] },
-    { id: 'rep-proc-sum', title: 'Procurement Summary & Cost Reconciliation', subtitle: 'Purchase orders reconciled against container landed costs', route: '/app/reports/procurement-summary', group: 'Reports', icon: 'Truck', keywords: ['procurement', 'po', 'reconciliation', 'container'] },
-    { id: 'rep-repack', title: 'Repack Production & Batch Summary', subtitle: 'Batch production metrics grouped by repack status & cost', route: '/app/reports/repack-summary', group: 'Reports', icon: 'Package', keywords: ['repack', 'batch', 'production', 'pack'] },
-    { id: 'rep-sort-out', title: 'Sorting Outputs & Grade Breakdown', subtitle: 'Stage 1 Category & Stage 2 Quality Grade output ledgers', route: '/app/reports/sorting-outputs', group: 'Reports', icon: 'Layers', keywords: ['sorting', 'stage1', 'stage2', 'grade', 'output'] },
-    { id: 'rep-waste', title: 'Waste & Material Loss Analysis', subtitle: 'Categorized waste volume and financial cost impact', route: '/app/reports/waste', group: 'Reports', icon: 'Trash2', keywords: ['waste', 'loss', 'scrap', 'financial'] },
-    { id: 'rep-move', title: 'Auditable Inventory Movement Ledger', subtitle: 'Chronological trail of intake, repack, transfer & sales', route: '/app/reports/inventory-movements', group: 'Reports', icon: 'ArrowRight', keywords: ['movement', 'trail', 'history', 'transfer'] },
-    { id: 'rep-vend', title: 'Supplier Vendor Procurement Analysis', subtitle: 'Vendor volume performance, containers & average cost/KG', route: '/app/reports/procurement', group: 'Reports', icon: 'Users', keywords: ['vendor', 'supplier', 'volume', 'intake'] },
+    { id: 'rep-yield', title: 'Category Yield Audit & Mass Balance', subtitle: 'Raw intake weight vs sorting output conversion yield %', route: '/reports/detail/yield', group: 'Reports', icon: 'TrendingUp', keywords: ['yield', 'conversion', 'mass', 'balance', 'sort'] },
+    { id: 'rep-cogs', title: 'Final Product Landed Cost & COGS Audit', subtitle: 'Unit landed costs, container cost allocations & valuation rates', route: '/reports/detail/final-product-cost', group: 'Reports', icon: 'DollarSign', keywords: ['cost', 'cogs', 'landed', 'final', 'unit'] },
+    { id: 'rep-inv', title: 'Finished Goods Stock Valuation & Aging', subtitle: 'Real-time inventory snapshot & stock aging breakdown', route: '/reports/detail/inventory', group: 'Reports', icon: 'Warehouse', keywords: ['inventory', 'stock', 'valuation', 'aging', 'snapshot'] },
+    { id: 'rep-proc-sum', title: 'Procurement Summary & Cost Reconciliation', subtitle: 'Purchase orders reconciled against container landed costs', route: '/reports/detail/procurement-summary', group: 'Reports', icon: 'Truck', keywords: ['procurement', 'po', 'reconciliation', 'container'] },
+    { id: 'rep-repack', title: 'Repack Production & Batch Summary', subtitle: 'Batch production metrics grouped by repack status & cost', route: '/reports/detail/repack-summary', group: 'Reports', icon: 'Package', keywords: ['repack', 'batch', 'production', 'pack'] },
+    { id: 'rep-sort-out', title: 'Sorting Outputs & Grade Breakdown', subtitle: 'Stage 1 Category & Stage 2 Quality Grade output ledgers', route: '/reports/detail/sorting-outputs', group: 'Reports', icon: 'Layers', keywords: ['sorting', 'stage1', 'stage2', 'grade', 'output'] },
+    { id: 'rep-waste', title: 'Waste & Material Loss Analysis', subtitle: 'Categorized waste volume and financial cost impact', route: '/reports/detail/waste', group: 'Reports', icon: 'Trash2', keywords: ['waste', 'loss', 'scrap', 'financial'] },
+    { id: 'rep-move', title: 'Auditable Inventory Movement Ledger', subtitle: 'Chronological trail of intake, repack, transfer & sales', route: '/reports/detail/inventory-movements', group: 'Reports', icon: 'ArrowRight', keywords: ['movement', 'trail', 'history', 'transfer'] },
+    { id: 'rep-vend', title: 'Supplier Vendor Procurement Analysis', subtitle: 'Vendor volume performance, containers & average cost/KG', route: '/reports/detail/procurement', group: 'Reports', icon: 'Users', keywords: ['vendor', 'supplier', 'volume', 'intake'] },
 
     // Commercial Sales
-    { id: 'sales-list', title: 'Wholesale Sales Orders Directory', subtitle: 'Commercial sales orders, inventory allocation & invoicing', route: '/app/sales', group: 'Sales', icon: 'ShoppingBag', keywords: ['sales', 'order', 'so', 'wholesale', 'invoice'] },
-    { id: 'sales-new', title: 'Create New Sales Order', subtitle: 'Reserve finished inventory and issue customer invoice', route: '/app/sales/new', group: 'Sales', icon: 'Plus', keywords: ['new sales', 'create order', 'issue'] },
-    { id: 'sales-cust', title: 'Wholesale Customers Directory', subtitle: 'Customer Directory, billing addresses & credit terms', route: '/app/sales/customers', group: 'Sales', icon: 'Users', keywords: ['customer', 'buyer', 'client', 'credit'] },
+    { id: 'sales-list', title: 'Wholesale Sales Orders Directory', subtitle: 'Commercial sales orders, inventory allocation & invoicing', route: '/sell/records', group: 'Sales', icon: 'ShoppingBag', keywords: ['sales', 'order', 'so', 'wholesale', 'invoice'] },
+    { id: 'sales-new', title: 'Create New Sales Order', subtitle: 'Reserve finished inventory and issue customer invoice', route: '/sell/records/new', group: 'Sales', icon: 'Plus', keywords: ['new sales', 'create order', 'issue'] },
+    { id: 'sales-cust', title: 'Wholesale Customers Directory', subtitle: 'Customer Directory, billing addresses & credit terms', route: '/khata', group: 'Sales', icon: 'Users', keywords: ['customer', 'buyer', 'client', 'credit'] },
 
     // Procurement
-    { id: 'proc-pos', title: 'Purchase Orders & Containers', subtitle: 'Supplier purchase order intake, containers & landed cost', route: '/app/procurement/pos', group: 'Procurement', icon: 'Truck', keywords: ['purchase', 'po', 'procurement', 'order'] },
-    { id: 'proc-containers', title: 'Container Intake & Ocean Shipments', subtitle: 'Container gate arrival, weighbridge & container cost allocations', route: '/app/procurement/containers', group: 'Procurement', icon: 'Package', keywords: ['container', 'shipment', 'vessel', 'intake'] },
+    { id: 'proc-pos', title: 'Purchase Orders & Containers', subtitle: 'Supplier purchase order intake, containers & landed cost', route: '/receive/records/pos', group: 'Procurement', icon: 'Truck', keywords: ['purchase', 'po', 'procurement', 'order'] },
+    { id: 'proc-containers', title: 'Container Intake & Ocean Shipments', subtitle: 'Container gate arrival, weighbridge & container cost allocations', route: '/receive/records/containers', group: 'Procurement', icon: 'Package', keywords: ['container', 'shipment', 'vessel', 'intake'] },
 
     // Operations & Warehouse
-    { id: 'sort-stage1', title: 'Stage 1 Raw Category Sorting Workstation', subtitle: 'Initial raw container sorting into category bales', route: '/app/flow/transform', group: 'Inventory & Operations', icon: 'Layers', keywords: ['stage1', 'raw', 'sorting', 'bale'] },
-    { id: 'sort-stage2', title: 'Stage 2 Quality Grading Workstation', subtitle: 'Detailed quality grading (Grade A, B, Vintage, Waste)', route: '/app/flow/grade', group: 'Inventory & Operations', icon: 'Tag', keywords: ['stage2', 'grading', 'vintage', 'quality'] },
-    { id: 'pack-repack', title: 'Repack & Packaging Production Workspace', subtitle: 'Bale breakdown, sorting and repacking into retail units', route: '/app/flow/seal', group: 'Inventory & Operations', icon: 'Package', keywords: ['repack', 'package', 'sku', 'unit'] },
-    { id: 'inv-stock', title: 'Finished Goods Warehouse Inventory', subtitle: 'Stock list, warehouse distribution & bin locations', route: '/app/inventory', group: 'Inventory & Operations', icon: 'Warehouse', keywords: ['inventory', 'stock', 'warehouse', 'location'] },
+    { id: 'sort-stage1', title: 'Stage 1 Raw Category Sorting Workstation', subtitle: 'Initial raw container sorting into category bales', route: '/sort', group: 'Inventory & Operations', icon: 'Layers', keywords: ['stage1', 'raw', 'sorting', 'bale'] },
+    { id: 'sort-stage2', title: 'Stage 2 Quality Grading Workstation', subtitle: 'Detailed quality grading (Grade A, B, Vintage, Waste)', route: '/sort/grade', group: 'Inventory & Operations', icon: 'Tag', keywords: ['stage2', 'grading', 'vintage', 'quality'] },
+    { id: 'pack-repack', title: 'Repack & Packaging Production Workspace', subtitle: 'Bale breakdown, sorting and repacking into retail units', route: '/stock/bale', group: 'Inventory & Operations', icon: 'Package', keywords: ['repack', 'package', 'sku', 'unit'] },
+    { id: 'inv-stock', title: 'Finished Goods Warehouse Inventory', subtitle: 'Stock list, warehouse distribution & bin locations', route: '/stock/items', group: 'Inventory & Operations', icon: 'Warehouse', keywords: ['inventory', 'stock', 'warehouse', 'location'] },
 
     // System Admin
-    { id: 'admin-users', title: 'User Management & Permissions', subtitle: 'Manage ERP system users, roles and security permissions', route: '/app/admin/users', group: 'Navigation', icon: 'Users', keywords: ['user', 'admin', 'permission', 'role', 'security'] },
-    { id: 'admin-tenants', title: 'Tenant Organization Settings', subtitle: 'Company profile, currency formatting & facility configuration', route: '/app/admin/tenant', group: 'Navigation', icon: 'Building2', keywords: ['tenant', 'org', 'setting', 'company', 'facility'] },
+    { id: 'admin-users', title: 'User Management & Permissions', subtitle: 'Manage ERP system users, roles and security permissions', route: '/settings/admin/users', group: 'Navigation', icon: 'Users', keywords: ['user', 'admin', 'permission', 'role', 'security'] },
+    { id: 'admin-tenants', title: 'Tenant Organization Settings', subtitle: 'Company profile, currency formatting & facility configuration', route: '/settings/admin/tenant', group: 'Navigation', icon: 'Building2', keywords: ['tenant', 'org', 'setting', 'company', 'facility'] },
   ];
 
   readonly filteredNavItems = computed(() => {

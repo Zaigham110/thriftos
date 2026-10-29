@@ -78,7 +78,7 @@ export class PurchaseOrderListComponent implements OnInit {
   readonly statusFilter = signal<string>('ALL');
 
   readonly breadcrumbs = [
-    { label: 'Procurement', route: '/app/procurement' },
+    { label: 'Procurement', route: '/receive/records' },
     { label: 'Purchase Orders' },
   ];
 
@@ -155,7 +155,7 @@ export class PurchaseOrderListComponent implements OnInit {
   }
 
   navigateToDetail(po: PurchaseOrder): void {
-    this.router.navigate(['/app/procurement/pos', po.id]);
+    this.router.navigate(['/receive/records/pos', po.id]);
   }
 
   getPoTypeLabel(type: string): string {

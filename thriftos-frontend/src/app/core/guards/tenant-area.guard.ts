@@ -1,7 +1,7 @@
 /**
  * Tenant Area Guard
  *
- * Allows access to /app/** ONLY when:
+ * Allows access to the tenant app ONLY when:
  * - authenticated
  * - (tenant user) OR (super admin impersonating)
  * - tenant context exists

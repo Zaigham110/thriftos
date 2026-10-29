@@ -168,7 +168,7 @@ export class RagListComponent implements OnInit {
 
   navigateToCreate(): void {
     const containerId = this.container().id;
-    this.router.navigate(['/app/procurement/containers', containerId, 'rags', 'create']);
+    this.router.navigate(['/receive/records/containers', containerId, 'rags', 'create']);
   }
 
   navigateToEdit(rag: Rag): void {
@@ -176,7 +176,7 @@ export class RagListComponent implements OnInit {
       this.error.set('Only intake items with status "Not Started" can be edited');
       return;
     }
-    this.router.navigate(['/app/procurement/rags', rag.id, 'edit']);
+    this.router.navigate(['/receive/records/rags', rag.id, 'edit']);
   }
 
   confirmDelete(rag: Rag): void {
@@ -236,7 +236,7 @@ export class RagListComponent implements OnInit {
     this.showSortingConfirm.set(false);
     this.actionLoading.set(false);
     this.sortingRag.set(null);
-    this.router.navigate(['/app/flow/transform', rag.id]);
+    this.router.navigate(['/sort', rag.id]);
   }
 
   getStatusLabel(status: RagStatus): string {

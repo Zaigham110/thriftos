@@ -89,7 +89,7 @@ export class RawCategoryManagementComponent implements OnInit {
   };
 
   readonly breadcrumbs = [
-    { label: 'Administration', route: '/app/admin' },
+    { label: 'Administration', route: '/settings/admin' },
     { label: 'Raw Categories' },
   ];
 

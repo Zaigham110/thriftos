@@ -168,24 +168,7 @@ export class LoginComponent implements OnInit {
     const isSuperAdmin = this.authService.isSuperAdmin();
     const isImpersonating = this.authService.isImpersonating();
 
-    const normalizeLegacy = (url: string): string => {
-      if (!url || url === '/') return '/';
-      const legacyPrefixes = ['/dashboard', '/procurement', '/sorting', '/packaging', '/inventory', '/reports', '/admin'];
-      if (!legacyPrefixes.some((p) => url.startsWith(p))) return url;
-
-      if (url === '/dashboard') return '/app/dashboard';
-      if (url.startsWith('/procurement')) return `/app${url}`;
-      if (url.startsWith('/sorting')) return `/app${url}`;
-      if (url.startsWith('/packaging')) return `/app${url}`;
-      if (url.startsWith('/inventory')) return `/app${url}`;
-      if (url.startsWith('/reports')) return `/app${url}`;
-      if (url === '/admin') return '/app/admin';
-      if (url.startsWith('/admin/')) return `/app${url}`;
-
-      return url;
-    };
-
-    const requested = normalizeLegacy(this.returnUrl);
+    const requested = this.returnUrl || '/';
 
     if (isSuperAdmin && !isImpersonating) {
       if (requested.startsWith('/admin')) {
@@ -202,18 +185,11 @@ export class LoginComponent implements OnInit {
       return;
     }
 
-    if (requested.startsWith('/app')) {
+    if (requested !== '/' && !requested.startsWith('/admin') && !requested.startsWith('/auth')) {
       void this.router.navigateByUrl(requested);
       return;
     }
 
-    void this.router.navigate([this.isOperationalUser() ? '/app/lite/home' : '/app/dashboard']);
-  }
-
-  private isOperationalUser(): boolean {
-    const operationalPrefixes = ['rag.', 'sorting.', 'repack.', 'inventory.', 'sales.'];
-    return this.authService.permissions().some((permission) =>
-      operationalPrefixes.some((prefix) => permission.startsWith(prefix)),
-    );
+    void this.router.navigate(['/home']);
   }
 }

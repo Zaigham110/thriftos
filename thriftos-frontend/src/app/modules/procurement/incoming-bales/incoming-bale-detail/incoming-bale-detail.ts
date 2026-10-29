@@ -89,8 +89,8 @@ export class IncomingBaleDetailComponent implements OnInit {
   readonly breadcrumbs = computed<BreadcrumbItem[]>(() => {
     const b = this.bale();
     return [
-      { label: 'Procurement', route: '/app/procurement' },
-      { label: 'Loose Bales', route: '/app/procurement/loose-bales' },
+      { label: 'Procurement', route: '/receive/records' },
+      { label: 'Loose Bales', route: '/receive/records/loose-bales' },
       { label: b ? b.baleCode : 'Loading...' },
     ];
   });
@@ -163,7 +163,7 @@ export class IncomingBaleDetailComponent implements OnInit {
       next: () => {
         this.deleting.set(false);
         this.showDeleteDialog.set(false);
-        this.router.navigate(['/app/procurement/loose-bales']);
+        this.router.navigate(['/receive/records/loose-bales']);
       },
       error: (err: any) => {
         this.deleting.set(false);

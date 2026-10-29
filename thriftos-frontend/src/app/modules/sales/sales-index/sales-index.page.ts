@@ -66,7 +66,7 @@ export class SalesIndexPage implements OnInit {
   private readonly salesService = inject(SalesService);
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Sales', route: '/app/sales' },
+    { label: 'Sales', route: '/sell/records' },
     { label: 'Orders Directory' },
   ];
 
@@ -145,11 +145,11 @@ export class SalesIndexPage implements OnInit {
   }
 
   createOrder(): void {
-    this.router.navigate(['/app/sales/new']);
+    this.router.navigate(['/sell/records/new']);
   }
 
   openOrder(sale: SaleListItem): void {
-    this.router.navigate(['/app/sales', sale.id]);
+    this.router.navigate(['/sell/records', sale.id]);
   }
 
   openCancel(sale: SaleListItem, event: Event): void {

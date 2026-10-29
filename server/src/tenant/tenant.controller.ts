@@ -7,17 +7,12 @@ import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.
 import { RequirePermissions, SkipPermissionCheck } from '../common/decorators/permissions.decorator';
 import { RagBaleType } from '@prisma/client';
 import { CreateRawCategoryDto, UpdateRawCategoryDto } from './dto/raw-category.dto';
-import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
-import { CreateWarehouseDto, UpdateWarehouseDto } from './dto/warehouse.dto';
 import { UpdateTenantSettingsDto } from './dto/tenant-settings.dto';
 
 /**
- * TenantController - Returns current tenant information and lookup data.
- * 
- * Security: TenantGuard + PermissionGuard applied.
- * Uses SkipPermissionCheck since these are basic lookups needed by all 
- * authenticated users for dropdowns, filters, and tenant context.
- * This is not sensitive data - just categories, grades, warehouses, and stats.
+ * TenantController - the current tenant, its settings, and lookup lists for pickers
+ * (categories, raw categories, grades, warehouses). Lookups are open to every tenant user;
+ * writes need permissions. Managing categories and warehouses lives under /admin.
  */
 @Controller('tenant')
 @UseGuards(TenantGuard, PermissionGuard)
@@ -56,46 +51,9 @@ export class TenantController {
     return this.tenantService.getCategories(tenantId);
   }
 
-  @Get('categories/all')
-  @RequirePermissions('category.read')
-  async getAllCategories(@CurrentUser() user: CurrentUserData, @Req() req: Request) {
-    const tenantId = (req as any).tenantId || user.tenantId;
-    return this.tenantService.getAllCategories(tenantId);
-  }
 
-  @Post('categories')
-  @RequirePermissions('category.create')
-  async createCategory(
-    @CurrentUser() user: CurrentUserData,
-    @Req() req: Request,
-    @Body() dto: CreateCategoryDto,
-  ) {
-    const tenantId = (req as any).tenantId || user.tenantId;
-    return this.tenantService.createCategory(tenantId, dto);
-  }
 
-  @Patch('categories/:id')
-  @RequirePermissions('category.update')
-  async updateCategory(
-    @CurrentUser() user: CurrentUserData,
-    @Req() req: Request,
-    @Param('id') id: string,
-    @Body() dto: UpdateCategoryDto,
-  ) {
-    const tenantId = (req as any).tenantId || user.tenantId;
-    return this.tenantService.updateCategory(tenantId, id, dto);
-  }
 
-  @Delete('categories/:id')
-  @RequirePermissions('category.delete')
-  async deleteCategory(
-    @CurrentUser() user: CurrentUserData,
-    @Req() req: Request,
-    @Param('id') id: string,
-  ) {
-    const tenantId = (req as any).tenantId || user.tenantId;
-    return this.tenantService.deleteCategory(tenantId, id);
-  }
 
   @Get('raw-categories')
   @SkipPermissionCheck()
@@ -109,7 +67,7 @@ export class TenantController {
   }
 
   @Post('raw-categories')
-  @SkipPermissionCheck()
+  @RequirePermissions('category.create')
   async createRawCategory(
     @CurrentUser() user: CurrentUserData,
     @Req() req: Request,
@@ -120,7 +78,7 @@ export class TenantController {
   }
 
   @Put('raw-categories/:id')
-  @SkipPermissionCheck()
+  @RequirePermissions('category.update')
   async updateRawCategory(
     @CurrentUser() user: CurrentUserData,
     @Req() req: Request,
@@ -132,7 +90,7 @@ export class TenantController {
   }
 
   @Delete('raw-categories/:id')
-  @SkipPermissionCheck()
+  @RequirePermissions('category.delete')
   async deleteRawCategory(
     @CurrentUser() user: CurrentUserData,
     @Req() req: Request,
@@ -156,46 +114,9 @@ export class TenantController {
     return this.tenantService.getWarehouses(tenantId);
   }
 
-  @Get('warehouses/all')
-  @RequirePermissions('warehouse.read')
-  async getAllWarehouses(@CurrentUser() user: CurrentUserData, @Req() req: Request) {
-    const tenantId = (req as any).tenantId || user.tenantId;
-    return this.tenantService.getAllWarehouses(tenantId);
-  }
 
-  @Post('warehouses')
-  @RequirePermissions('warehouse.create')
-  async createWarehouse(
-    @CurrentUser() user: CurrentUserData,
-    @Req() req: Request,
-    @Body() dto: CreateWarehouseDto,
-  ) {
-    const tenantId = (req as any).tenantId || user.tenantId;
-    return this.tenantService.createWarehouse(tenantId, dto);
-  }
 
-  @Patch('warehouses/:id')
-  @RequirePermissions('warehouse.update')
-  async updateWarehouse(
-    @CurrentUser() user: CurrentUserData,
-    @Req() req: Request,
-    @Param('id') id: string,
-    @Body() dto: UpdateWarehouseDto,
-  ) {
-    const tenantId = (req as any).tenantId || user.tenantId;
-    return this.tenantService.updateWarehouse(tenantId, id, dto);
-  }
 
-  @Delete('warehouses/:id')
-  @RequirePermissions('warehouse.delete')
-  async deleteWarehouse(
-    @CurrentUser() user: CurrentUserData,
-    @Req() req: Request,
-    @Param('id') id: string,
-  ) {
-    const tenantId = (req as any).tenantId || user.tenantId;
-    return this.tenantService.deleteWarehouse(tenantId, id);
-  }
 
   @Get('stats')
   @SkipPermissionCheck()
