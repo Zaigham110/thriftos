@@ -4,7 +4,7 @@ Branch: `v1-reshape` (snapshot of previous work: branch `snapshot/pre-v1-reshape
 Work phase by phase, in order. Each task ends with: typecheck clean (server + frontend), tests green, app runs, a commit with a clear message. Tick boxes here as tasks finish.
 
 ## Phase 0 — Clean foundation (week 1)
-- [ ] 0.1 Secrets: remove root `.env` from git index (`git rm --cached .env`), confirm `.gitignore`, add note in README to rotate `JWT_SECRET` and DB password. Fix docker-compose healthcheck user (`labur` → `${POSTGRES_USER}`).
+- [x] 0.1 Secrets: remove root `.env` from git index (`git rm --cached .env`), confirm `.gitignore`, add note in README to rotate `JWT_SECRET` and DB password. Fix docker-compose healthcheck user (`labur` → `${POSTGRES_USER}`).
 - [ ] 0.2 Archive docs: move everything in `docs/` except `docs/v1/` into `docs/archive/`. Replace `.agents/AGENTS.md` content with a pointer to `docs/v1/` + the architecture rules (keep its useful schema notes only if still true).
 - [ ] 0.3 Test harness: Jest config for `server/` (unit + e2e against a separate test database via docker), `npm test` works in CI-style run. Add a GitHub Actions workflow: install, prisma generate, typecheck, test, frontend build.
 - [ ] 0.4 Backend dedupe: merge `sorting-stage1`, `sorting-stage2`, `sorting-facade` into one `sorting` module with services holding all logic (controllers thin). Merge repack v1/v2/v3 into one `stock`/bale service (keep v2 allocation logic). Delete dead code and commented-out endpoints.

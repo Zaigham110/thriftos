@@ -30,7 +30,7 @@ ThriftOS is a multi-tenant ERP for thrift, textile recycling, and resale operati
 ├── docs/                 # Architecture and implementation notes
 ├── scripts/              # Setup scripts (setup-db.sh)
 ├── package.json          # Root Prisma/database scripts
-└── .env                  # Local database connection
+└── .env                  # Local secrets (never committed; copy from .env.example)
 ```
 
 ## Tech stack
@@ -53,6 +53,8 @@ Install these before starting:
 ## 🚀 Running the Whole System in Docker
 
 Create your local environment file first. Replace all placeholder secrets before starting; do not commit this file.
+
+> **Security note:** an older `.env` was committed to git history. If you ran ThriftOS with it, rotate `JWT_SECRET` and the database password (`POSTGRES_PASSWORD` / `DATABASE_URL`) before any shared or production use.
 
 ```bash
 cp .env.example .env
