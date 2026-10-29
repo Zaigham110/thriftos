@@ -76,6 +76,11 @@ export const routes: Routes = [
             title: 'Receive container - ThriftOS',
           },
           {
+            path: 'ready',
+            loadComponent: () => import('./features/flow/receive/flow-ready-stock.component').then((m) => m.FlowReadyStockComponent),
+            title: 'Ready stock - ThriftOS',
+          },
+          {
             path: 'records',
             loadChildren: () => import('./modules/procurement/procurement.routes').then((m) => m.PROCUREMENT_ROUTES),
           },

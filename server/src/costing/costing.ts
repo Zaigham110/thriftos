@@ -120,6 +120,14 @@ export function takeCost(source: { cost: DecimalLike; kg: DecimalLike }, usedKg:
   return costAt(after).sub(costAt(before));
 }
 
+/**
+ * Opening a bale into pieces: the bale's cost is shared by piece count (every piece of an opened
+ * bale costs the same, whatever its price tier). Largest-remainder, so the tiers add up exactly.
+ */
+export function pieceCosts<K>(baleCost: DecimalLike, tiers: { key: K; pieces: number }[]): Allocation<K>[] {
+  return allocateByWeight(baleCost, tiers.map((t) => ({ key: t.key, weight: t.pieces })));
+}
+
 export interface FifoSource<K> {
   key: K;
   /** kg still available in this source. */

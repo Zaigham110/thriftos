@@ -87,6 +87,11 @@ Auth/RBAC tables, `AuditLog`, `RefreshToken`, `IdempotencyKey`, `TenantSequence`
 - Every tenant has a waste type named `Waste/Katran` (migration `v1_04`, seed, tenant bootstrap).
 - Loose lots have no purchase order; old loose-bale purchase orders keep their stored total in reports.
 
+## Added during Phase 2 (decisions)
+- `InventoryItem` keeps its whole cost (`totalCost`) and how much of it is gone (`usedQuantity`, sold or opened; check `0 ≤ usedQuantity ≤ quantity`). Selling or opening part of an item costs the cumulative share (`takeCost`, same rule as bale takes), so the parts always add up to the item's cost. `status` is `SOLD` once nothing is left. `weightKg` and `avgCost` (per kg) are optional: pieces and counted bales may have no weight.
+- Bales made here become one item each: `unit = BALE`, `quantity = 1`, `totalCost` = the bale's cost (kept in step by the costing recalculation; a change after the bale was sold or opened is logged as `COST_ADJUSTMENT`).
+- Opening a bale shares its cost across the pieces **by piece count** (`pieceCosts`, largest remainder): every piece of an opened bale costs the same, whatever its price tier. Pieces are new items (`unit = PIECE`, `parentItemId` = the bale), so a bale can be opened one at a time.
+
 ## Rules for the migration work
 - One migration per logical change, named clearly (e.g., `v1_01_remove_incoming_bale`).
 - Data migration SQL must be safe on the demo database and on an empty database.

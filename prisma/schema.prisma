@@ -156,6 +156,19 @@ enum MovementType {
   EXPORT
 }
 
+/// Where a stock item came from: made here from sorted stock, or bought ready to sell.
+enum StockSource {
+  PROCESSED
+  PURCHASED
+}
+
+/// How a stock item is counted and sold.
+enum StockUnit {
+  KG
+  BALE
+  PIECE
+}
+
 enum InventoryStatus {
   AVAILABLE
   RESERVED
@@ -709,6 +722,7 @@ model Vendor {
   purchaseOrders PurchaseOrder[]
   containers     Container[]
   rags           Rag[]
+  stockItems     InventoryItem[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -1243,34 +1257,41 @@ model QRLabel {
 model InventoryItem {
   id           String          @id @default(cuid())
   tenantId     String
-  repackUnitId String
-  categoryId   String
+  source       StockSource     @default(PROCESSED)
+  repackUnitId String? // set for PROCESSED bales made here; null for bought stock and opened pieces
+  categoryId   String?
   gradeId      String? // null for bales from 1-stage sorting (category only)
-  weightKg     Decimal         @db.Decimal(10, 2)
+  vendorId     String? // supplier of PURCHASED stock
+  name         String? // e.g. "Jeans A grade bale", "Ladies tops"
+  unit         StockUnit
+  quantity     Decimal         @db.Decimal(14, 2) // received, in `unit`
+  usedQuantity Decimal         @default(0) @db.Decimal(14, 2) // sold or opened, in `unit`
+  totalCost    Decimal         @db.Decimal(14, 2) // cost of the whole quantity
+  unitCost     Decimal         @db.Decimal(14, 4)
+  salePrice    Decimal?        @db.Decimal(14, 2)
+  priceTier    String? // pieces opened from a bale, e.g. "300"
+  parentItemId String? // the bale these pieces were opened from
+  weightKg     Decimal?        @db.Decimal(14, 2)
   pcsCount     Int             @default(0)
-  avgCost      Decimal         @db.Decimal(14, 2)
+  avgCost      Decimal?        @db.Decimal(14, 2) // per kg, when the weight is known
   warehouseId  String? // Optional - can be assigned later
   status       InventoryStatus @default(AVAILABLE)
 
-  // =============================================================
-  // Phase 2.5: Traceability Chain (MANDATORY)
-  // =============================================================
-  // Every downstream entity MUST reference its source chain
-  // These are denormalized for efficient querying
-  // containerId: Optional (null for loose bale origins)
-  // ragId: REQUIRED - Links back to source Rag/Bale
-  // =============================================================
-  containerId String? // Nullable: null for loose bale origins
-  ragId       String? // Source Rag/Bale traceability
+  // Lineage (denormalised): null for bought stock and loose-lot origins.
+  containerId String?
+  ragId       String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  repackUnit     RepackUnit      @relation(fields: [repackUnitId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  category       Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  repackUnit     RepackUnit?     @relation(fields: [repackUnitId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  category       Category?       @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   grade          Grade?          @relation(fields: [gradeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  vendor         Vendor?         @relation(fields: [vendorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  parentItem     InventoryItem?  @relation("OpenedPieces", fields: [parentItemId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  pieces         InventoryItem[] @relation("OpenedPieces")
   warehouse      Warehouse?      @relation(fields: [warehouseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   stockMovements StockMovement[]
 
@@ -1279,9 +1300,12 @@ model InventoryItem {
   reservation InventoryReservation?
 
   @@index([tenantId])
+  @@index([tenantId, source, status])
   @@index([repackUnitId])
   @@index([categoryId])
   @@index([gradeId])
+  @@index([vendorId])
+  @@index([parentItemId])
   @@index([warehouseId])
   @@index([status])
   @@index([ragId]) // Index for rag-level analytics

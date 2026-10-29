@@ -2,15 +2,9 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { API_ENDPOINTS } from '../../core/config/api.config';
-import { InventoryItem, InventorySummary, TraceabilityChain } from './inventory.models';
+import { InventoryItem, InventorySummary, OpenBaleRequest, ReceiveReadyStockRequest, TraceabilityChain } from './inventory.models';
 
-/**
- * INVENTORY SERVICE - READ-ONLY
- * ==============================
- * Provides read-only access to finalized goods inventory.
- * NO create, update, or delete methods.
- * Inventory is created automatically when repack units are sealed.
- */
+/** Sellable stock: lists, ready stock received, bales opened into pieces. */
 
 @Injectable({
   providedIn: 'root',
@@ -31,6 +25,7 @@ export class InventoryService {
    * List inventory items with filters
    */
   getAll(filters?: {
+    source?: 'PROCESSED' | 'PURCHASED';
     categoryId?: string;
     gradeId?: string;
     warehouseId?: string;
@@ -53,6 +48,7 @@ export class InventoryService {
   }> {
     let params = new HttpParams();
 
+    if (filters?.source) params = params.set('source', filters.source);
     if (filters?.categoryId) params = params.set('categoryId', filters.categoryId);
     if (filters?.gradeId) params = params.set('gradeId', filters.gradeId);
     if (filters?.warehouseId) params = params.set('warehouseId', filters.warehouseId);
@@ -89,5 +85,15 @@ export class InventoryService {
     warehouses: Array<{ id: string; name: string }>;
   }> {
     return this.http.get<any>(`${this.API}/filter-options`);
+  }
+
+  /** Stock bought ready to sell (journey 5). */
+  receiveReadyStock(body: ReceiveReadyStockRequest): Observable<InventoryItem> {
+    return this.http.post<InventoryItem>(this.API, body);
+  }
+
+  /** Opens bales into pieces by price tier. */
+  openBale(id: string, body: OpenBaleRequest): Observable<{ cost: string; pieces: InventoryItem[] }> {
+    return this.http.post<{ cost: string; pieces: InventoryItem[] }>(`${this.API}/${id}/open`, body);
   }
 }

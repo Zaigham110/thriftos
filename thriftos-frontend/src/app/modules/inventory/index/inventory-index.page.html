@@ -190,8 +190,8 @@
                     <span
                       class="status-pill"
                       [class.status-available]="item.status === 'AVAILABLE'"
-                      [class.status-moved]="item.status === 'MOVED'"
-                      [class.status-consumed]="item.status === 'CONSUMED'"
+                      [class.status-moved]="item.status === 'RESERVED'"
+                      [class.status-consumed]="item.status === 'SOLD'"
                     >
                       <span class="status-dot"></span>
                       {{ item.status }}

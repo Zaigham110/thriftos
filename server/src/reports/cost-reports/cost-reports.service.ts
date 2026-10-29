@@ -90,7 +90,7 @@ export class CostReportsService {
     >(
       `
       SELECT
-        COALESCE(SUM(i."avgCost" * (CASE WHEN i."pcsCount" > 0 THEN i."pcsCount" ELSE i."weightKg" END)), 0) AS "lockedCost",
+        COALESCE(SUM(i."totalCost" * (i."quantity" - i."usedQuantity") / i."quantity"), 0) AS "lockedCost",
         COALESCE(SUM(CASE WHEN i."pcsCount" = 0 THEN i."weightKg" ELSE 0 END), 0) AS "denomKg",
         COALESCE(SUM(CASE WHEN i."pcsCount" > 0 THEN i."pcsCount" ELSE 0 END), 0)::int AS "denomPcs"
       FROM "InventoryItem" i
@@ -184,8 +184,8 @@ export class CostReportsService {
         g."name" AS "gradeName",
         COUNT(*)::int AS "unitsReady",
         COALESCE(SUM(i."weightKg"), 0) AS "totalWeightKg",
-        COALESCE(SUM(i."avgCost" * i."weightKg"), 0) AS "totalCost",
-        CASE WHEN COALESCE(SUM(i."weightKg"), 0) = 0 THEN 0 ELSE (COALESCE(SUM(i."avgCost" * i."weightKg"), 0) / COALESCE(SUM(i."weightKg"), 0)) END AS "avgCostPerKg"
+        COALESCE(SUM(i."totalCost" * (i."quantity" - i."usedQuantity") / i."quantity"), 0) AS "totalCost",
+        CASE WHEN COALESCE(SUM(i."weightKg"), 0) = 0 THEN 0 ELSE (COALESCE(SUM(i."totalCost" * (i."quantity" - i."usedQuantity") / i."quantity"), 0) / COALESCE(SUM(i."weightKg"), 0)) END AS "avgCostPerKg"
       FROM "InventoryItem" i
       JOIN "Category" c ON c."id" = i."categoryId"
       JOIN "Grade" g ON g."id" = i."gradeId"

@@ -9,6 +9,8 @@ import {
   RepackSessionStatus,
   RepackStatus,
   SortStatus,
+  StockSource,
+  StockUnit,
   UnitType,
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -25,7 +27,7 @@ const ZERO = new Decimal(0);
 const OPEN_GRADE_STATUSES = [GradingOutputStatus.AVAILABLE, GradingOutputStatus.PARTIALLY_USED, GradingOutputStatus.READY_FOR_REPACK];
 
 /** A sorted output a bale can take kg from: a grade output (2 stages) or an ungraded category output (1 stage). */
-interface StockSource {
+interface SortedSource {
   kind: 'GRADE' | 'CATEGORY';
   id: string;
   /** Total kg the output weighed and the cost it carries. */
@@ -155,9 +157,14 @@ export class BaleService {
       const item = await tx.inventoryItem.create({
         data: {
           tenantId,
+          source: StockSource.PROCESSED,
           repackUnitId: sealed.id,
           categoryId: dto.categoryId,
           gradeId: dto.gradeId ?? null,
+          unit: StockUnit.BALE,
+          quantity: 1,
+          totalCost,
+          unitCost: totalCost,
           weightKg,
           pcsCount: sealed.pcsCount,
           avgCost: money(costPerKg(totalCost, weightKg)),
@@ -273,7 +280,7 @@ export class BaleService {
    * Stock a bale of this category (and grade) can take from, oldest first.
    * With a grade: open grade outputs. Without: closed-lot category outputs that were never graded.
    */
-  private async loadSources(db: Tx | PrismaService, tenantId: string, categoryId?: string, gradeId?: string): Promise<StockSource[]> {
+  private async loadSources(db: Tx | PrismaService, tenantId: string, categoryId?: string, gradeId?: string): Promise<SortedSource[]> {
     if (gradeId) {
       const rows = await db.gradeOutput.findMany({
         where: {
@@ -361,7 +368,7 @@ export class BaleService {
       }));
   }
 
-  private pickFifo(sources: StockSource[], weightKg: Decimal) {
+  private pickFifo(sources: SortedSource[], weightKg: Decimal) {
     try {
       return fifoTake(sources.map((s) => ({ key: s, availableKg: s.kg.sub(s.usedKg) })), weightKg).map((t) => ({ source: t.key, kg: t.kg }));
     } catch (error) {
@@ -374,7 +381,7 @@ export class BaleService {
   }
 
   /** Stock picked by hand: each pick names exactly one source, and the picks add up to the bale weight. */
-  private pickManual(sources: StockSource[], picks: BaleAllocationDto[], weightKg: Decimal) {
+  private pickManual(sources: SortedSource[], picks: BaleAllocationDto[], weightKg: Decimal) {
     const takes = picks.map((pick) => {
       if (!!pick.gradingOutputId === !!pick.categoryOutputId) {
         throw new BadRequestException('Each pick needs exactly one of gradingOutputId or categoryOutputId');
@@ -397,7 +404,7 @@ export class BaleService {
   }
 
   /** Deducts kg from the source; fails if someone else used it at the same time. */
-  private async consume(tx: Tx, tenantId: string, source: StockSource, kg: Decimal) {
+  private async consume(tx: Tx, tenantId: string, source: SortedSource, kg: Decimal) {
     const usedAfter = source.usedKg.add(kg);
     const updated =
       source.kind === 'GRADE'

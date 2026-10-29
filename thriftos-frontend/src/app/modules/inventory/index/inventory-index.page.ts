@@ -107,8 +107,8 @@ export class InventoryIndexPage implements OnInit {
   readonly statusOptions: SelectOption[] = [
     { value: '', label: 'All Statuses' },
     { value: 'AVAILABLE', label: 'Available' },
-    { value: 'MOVED', label: 'Moved' },
-    { value: 'CONSUMED', label: 'Consumed' },
+    { value: 'RESERVED', label: 'Reserved' },
+    { value: 'SOLD', label: 'Sold' },
   ];
 
   readonly hasPermission = computed(() => this.authService.hasPermission('INVENTORY_VIEW'));

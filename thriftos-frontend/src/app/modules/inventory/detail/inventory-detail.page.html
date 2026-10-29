@@ -117,8 +117,8 @@
               <span
                 class="status-pill"
                 [class.status-available]="i.status === 'AVAILABLE'"
-                [class.status-moved]="i.status === 'MOVED'"
-                [class.status-consumed]="i.status === 'CONSUMED'"
+                [class.status-moved]="i.status === 'RESERVED'"
+                [class.status-consumed]="i.status === 'SOLD'"
               >
                 <span class="status-dot"></span>
                 {{ i.status }}

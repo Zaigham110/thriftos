@@ -2,11 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 /**
- * INVENTORY SERVICE - READ-ONLY
- * ==============================
- * Inventory is NOT a workflow.
- * Inventory is created ONLY when repack units are SEALED.
- * This service provides READ-ONLY access to finalized goods.
+ * Read-only views of sellable stock. Items are created when a bale is made (BaleService) or when
+ * stock is bought ready to sell or opened into pieces (DirectStockService).
  */
 
 @Injectable()
@@ -19,6 +16,7 @@ export class InventoryService {
   async findAll(
     tenantId: string,
     filters?: {
+      source?: string;
       categoryId?: string;
       gradeId?: string;
       warehouseId?: string;
@@ -36,6 +34,7 @@ export class InventoryService {
 
     const where: any = { tenantId };
 
+    if (filters?.source) where.source = filters.source;
     if (filters?.categoryId) where.categoryId = filters.categoryId;
     if (filters?.gradeId) where.gradeId = filters.gradeId;
     if (filters?.warehouseId) where.warehouseId = filters.warehouseId;
@@ -45,6 +44,7 @@ export class InventoryService {
       const query = filters.query.trim();
       where.OR = [
         { id: query },
+        { name: { contains: query, mode: 'insensitive' } },
         { repackUnit: { is: { unitCode: { contains: query, mode: 'insensitive' } } } },
         { repackUnit: { is: { qrLabel: { is: { qrCode: { contains: query, mode: 'insensitive' } } } } } },
       ];
@@ -65,6 +65,7 @@ export class InventoryService {
         include: {
           category: { select: { id: true, name: true } },
           grade: { select: { id: true, name: true } },
+          vendor: { select: { id: true, name: true } },
           warehouse: { select: { id: true, name: true, code: true } },
           repackUnit: {
             select: {
@@ -83,6 +84,7 @@ export class InventoryService {
     // Compatibility fields: clients expect these at the top level.
     const itemsWithCodes = items.map((item: any) => ({
       ...item,
+      remainingQuantity: item.quantity.sub(item.usedQuantity),
       unitCode: item?.repackUnit?.unitCode ?? null,
       measurementType: item?.repackUnit?.measurementType ?? null,
       qrCode: item?.repackUnit?.qrLabel?.qrCode ?? null,
@@ -117,6 +119,8 @@ export class InventoryService {
       include: {
         category: { select: { id: true, name: true } },
         grade: { select: { id: true, name: true } },
+        vendor: { select: { id: true, name: true } },
+        parentItem: { select: { id: true, name: true, unit: true } },
         warehouse: { select: { id: true, name: true, code: true } },
         repackUnit: {
           select: {
@@ -150,6 +154,7 @@ export class InventoryService {
 
     return {
       ...item,
+      remainingQuantity: item.quantity.sub(item.usedQuantity),
       unitCode: (item as any)?.repackUnit?.unitCode ?? null,
       measurementType: (item as any)?.repackUnit?.measurementType ?? null,
       qrCode: (item as any)?.repackUnit?.qrLabel?.qrCode ?? null,
@@ -289,10 +294,10 @@ export class InventoryService {
         where: { tenantId, status: 'AVAILABLE' },
       }),
 
-      // Total weight
-      this.prisma.inventoryItem.aggregate({
-        where: { tenantId, status: 'AVAILABLE' },
-        _sum: { weightKg: true },
+      // Weight still in stock (part of a KG item or of a multi-bale item may be sold)
+      this.prisma.inventoryItem.findMany({
+        where: { tenantId, status: 'AVAILABLE', weightKg: { not: null } },
+        select: { weightKg: true, quantity: true, usedQuantity: true },
       }),
 
       // Total pieces
@@ -335,7 +340,7 @@ export class InventoryService {
 
     return {
       totalItems,
-      totalWeight: Number(totalWeight._sum.weightKg || 0),
+      totalWeight: totalWeight.reduce((kg, i) => kg + Number(i.weightKg.mul(i.quantity.sub(i.usedQuantity)).div(i.quantity)), 0),
       totalPcs: totalPcs._sum.pcsCount || 0,
       warehouseCount: warehouses.length,
       warehouses: warehouses.map((w) => w.warehouse),

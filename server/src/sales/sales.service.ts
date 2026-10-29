@@ -465,7 +465,8 @@ export class SalesService {
 
       const updateRes = await tx.inventoryItem.updateMany({
         where: { tenantId, id: { in: inventoryIds }, status: InventoryStatus.RESERVED },
-        data: { status: InventoryStatus.SOLD },
+        // Whole items (one bale each) are sold here.
+        data: { status: InventoryStatus.SOLD, usedQuantity: 1 },
       });
 
       if (updateRes.count !== inventoryIds.length) {

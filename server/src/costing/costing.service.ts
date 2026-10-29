@@ -36,7 +36,8 @@ const emptyResult = (): RecalculationResult => ({
  * container → lots → category outputs → grade outputs → bale inputs → bales → stock items.
  * Sorting and baling use the same rules when they create rows, so recalculating unchanged data
  * changes nothing. Only rows whose cost differs are written. Sold lines keep their cost; a bale
- * whose cost changes after a sale is reported as a cost adjustment (AuditLog COST_ADJUSTMENT).
+ * whose cost changes after it was sold or opened is reported as a cost adjustment
+ * (AuditLog COST_ADJUSTMENT).
  */
 @Injectable()
 export class CostingService {
@@ -186,7 +187,7 @@ export class CostingService {
           totalCost: true,
           weightKg: true,
           inputAllocations: { select: { allocatedCost: true } },
-          inventoryItems: { select: { _count: { select: { saleLines: true } } } },
+          inventoryItems: { select: { usedQuantity: true } },
         },
       });
       const total = money(sum(unit.inputAllocations.map((a) => a.allocatedCost)));
@@ -194,10 +195,11 @@ export class CostingService {
       await tx.repackUnit.update({ where: { id: unitId }, data: { totalCost: total } });
       await tx.inventoryItem.updateMany({
         where: { repackUnitId: unitId },
-        data: { avgCost: money(costPerKg(total, unit.weightKg)) },
+        data: { totalCost: total, unitCost: total, avgCost: money(costPerKg(total, unit.weightKg)) },
       });
       result.changed.bales += 1;
-      if (unit.inventoryItems.some((i) => i._count.saleLines > 0)) {
+      // Sold (or opened into pieces): those keep the cost they had, so the change is reported.
+      if (unit.inventoryItems.some((i) => i.usedQuantity.greaterThan(0))) {
         result.adjustments.push({ repackUnitId: unitId, previousCost: unit.totalCost, newCost: total });
       }
     }

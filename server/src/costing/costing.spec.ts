@@ -9,6 +9,7 @@ import {
   lotCosts,
   money,
   outputCosts,
+  pieceCosts,
   saleProfit,
   sum,
   takeCost,
@@ -161,6 +162,27 @@ describe('takeCost', () => {
   it('rejects empty and oversized takes', () => {
     expect(() => takeCost(source, 0, 0)).toThrow('more than zero');
     expect(() => takeCost(source, 2, 2)).toThrow('more than the output weighs');
+  });
+});
+
+describe('pieceCosts', () => {
+  it('shares an opened bale by piece count, to the paisa', () => {
+    const tiers = pieceCosts('10000.00', [
+      { key: '300', pieces: 30 },
+      { key: '500', pieces: 20 },
+      { key: '800', pieces: 7 },
+    ]);
+    expect(amounts(tiers)).toEqual(['5263.16', '3508.77', '1228.07']);
+    expect(total(tiers)).toBe('10000.00');
+  });
+
+  it('gives the left-over paisa by largest remainder', () => {
+    const tiers = pieceCosts('1000.00', [
+      { key: 'a', pieces: 1 },
+      { key: 'b', pieces: 1 },
+      { key: 'c', pieces: 1 },
+    ]);
+    expect(amounts(tiers)).toEqual(['333.34', '333.33', '333.33']);
   });
 });
 

@@ -78,7 +78,7 @@ export class InventoryReportsService {
         COUNT(*)::int AS "totalUnits",
         COALESCE(SUM(i."weightKg"), 0)::float8 AS "totalWeightKg",
         COALESCE(SUM(i."pcsCount"), 0)::int AS "totalPcs",
-        COALESCE(SUM(i."avgCost" * (CASE WHEN i."pcsCount" > 0 THEN i."pcsCount" ELSE i."weightKg" END)), 0)::float8 AS "totalValue",
+        COALESCE(SUM(i."totalCost" * (i."quantity" - i."usedQuantity") / i."quantity"), 0)::float8 AS "totalValue",
         COALESCE(SUM((CASE WHEN i."pcsCount" > 0 THEN i."pcsCount" ELSE i."weightKg" END)), 0)::float8 AS "denom"
       FROM "InventoryItem" i
       LEFT JOIN "Warehouse" w ON w."id" = i."warehouseId"
@@ -163,7 +163,7 @@ export class InventoryReportsService {
         SELECT
           i.*,
           EXTRACT(DAY FROM ($2::timestamptz - i."createdAt"))::int AS "ageDays",
-          (i."avgCost" * (CASE WHEN i."pcsCount" > 0 THEN i."pcsCount" ELSE i."weightKg" END)) AS "lockedCost"
+          (i."totalCost" * (i."quantity" - i."usedQuantity") / i."quantity") AS "lockedCost"
         FROM "InventoryItem" i
         WHERE ${whereClause}
       )

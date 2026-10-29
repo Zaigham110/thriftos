@@ -3,8 +3,9 @@ import { CurrentUser, CurrentUserData, RequirePermissions, TenantId } from '../c
 import { PermissionGuard } from '../common/guards/permission.guard';
 import { TenantGuard } from '../common/guards/tenant.guard';
 import { BaleService } from './bale.service';
+import { DirectStockService } from './direct-stock.service';
 import { InventoryService } from './inventory.service';
-import { AvailableStockQueryDto, MakeBaleDto, StockItemsQueryDto } from './stock.dto';
+import { AvailableStockQueryDto, MakeBaleDto, OpenBaleDto, ReceiveReadyStockDto, StockItemsQueryDto } from './stock.dto';
 
 @Controller('stock/bales')
 @UseGuards(TenantGuard, PermissionGuard)
@@ -45,7 +46,23 @@ export class BalesController {
 @Controller('stock/items')
 @UseGuards(TenantGuard, PermissionGuard)
 export class StockItemsController {
-  constructor(private readonly inventory: InventoryService) {}
+  constructor(
+    private readonly inventory: InventoryService,
+    private readonly directStock: DirectStockService,
+  ) {}
+
+  /** Receive stock bought ready to sell. */
+  @Post()
+  @RequirePermissions('INVENTORY_INTAKE')
+  receive(@TenantId() tenantId: string, @Body() dto: ReceiveReadyStockDto, @CurrentUser() user: CurrentUserData) {
+    return this.directStock.receive(tenantId, dto, user.userId);
+  }
+
+  @Post(':id/open')
+  @RequirePermissions('INVENTORY_ADJUST')
+  open(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: OpenBaleDto, @CurrentUser() user: CurrentUserData) {
+    return this.directStock.open(tenantId, id, dto, user.userId);
+  }
 
   @Get('summary')
   @RequirePermissions('INVENTORY_VIEW')

@@ -41,6 +41,17 @@ used_up AS (
   FROM "CategoryOutput" co JOIN "RepackInputAllocation" a ON a."categoryOutputId" = co.id
   WHERE co."usedKg" = co."weightKg"
   GROUP BY co.id
+),
+stock_items AS (
+  SELECT i.id, i."tenantId", u."unitCode" AS ref, u."totalCost" AS expected, i."totalCost" AS stored
+  FROM "InventoryItem" i JOIN "RepackUnit" u ON u.id = i."repackUnitId"
+),
+opened AS (
+  -- A fully opened bale's cost is in its pieces.
+  SELECT b.id, b."tenantId", COALESCE(b.name, b.id) AS ref, b."totalCost" AS expected, SUM(p."totalCost") AS stored
+  FROM "InventoryItem" b JOIN "InventoryItem" p ON p."parentItemId" = b.id
+  WHERE b."usedQuantity" = b.quantity AND NOT EXISTS (SELECT 1 FROM "SaleLine" l WHERE l."inventoryItemId" = b.id)
+  GROUP BY b.id
 )
 SELECT 'container landed cost' AS stage, "tenantId", ref, expected, stored FROM landed WHERE stored <> expected
 UNION ALL SELECT 'lots vs container', "tenantId", ref, expected, stored FROM lots WHERE stored <> expected
@@ -48,4 +59,6 @@ UNION ALL SELECT 'category outputs vs lot', "tenantId", ref, expected, stored FR
 UNION ALL SELECT 'grade outputs vs category output', "tenantId", ref, expected, stored FROM grades WHERE stored <> expected
 UNION ALL SELECT 'bale vs its inputs', "tenantId", ref, expected, stored FROM bales WHERE stored <> expected
 UNION ALL SELECT 'used-up output vs its bale inputs', "tenantId", ref, expected, stored FROM used_up WHERE stored <> expected
+UNION ALL SELECT 'stock item vs its bale', "tenantId", ref, expected, stored FROM stock_items WHERE stored <> expected
+UNION ALL SELECT 'opened bale vs its pieces', "tenantId", ref, expected, stored FROM opened WHERE stored <> expected
 ORDER BY 1, 2, 3;
