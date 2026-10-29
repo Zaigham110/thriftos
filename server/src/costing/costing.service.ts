@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service';
@@ -6,19 +6,37 @@ import { costPerKg, landedCost, lotCosts, money, outputCosts, sum, takeCost } fr
 
 type Tx = Prisma.TransactionClient;
 
-/** A bale whose cost changed after part of it was sold. */
+/** A bale whose cost changed after it was sold. */
 export interface CostAdjustment {
   repackUnitId: string;
   previousCost: Decimal;
   newCost: Decimal;
 }
 
+/** What a recalculation changed (rows whose stored cost differed from the rules). */
+export interface RecalculationResult {
+  changed: {
+    containers: number;
+    lots: number;
+    categoryOutputs: number;
+    gradeOutputs: number;
+    baleInputs: number;
+    bales: number;
+  };
+  adjustments: CostAdjustment[];
+}
+
+const emptyResult = (): RecalculationResult => ({
+  changed: { containers: 0, lots: 0, categoryOutputs: 0, gradeOutputs: 0, baleInputs: 0, bales: 0 },
+  adjustments: [],
+});
+
 /**
  * Applies the costing rules (./costing.ts) to stored data, top-down:
  * container → lots → category outputs → grade outputs → bale inputs → bales → stock items.
  * Sorting and baling use the same rules when they create rows, so recalculating unchanged data
- * reproduces the stored costs exactly. Sold lines keep their cost; a changed bale cost after a sale
- * is reported as a cost adjustment (AuditLog COST_ADJUSTMENT).
+ * changes nothing. Only rows whose cost differs are written. Sold lines keep their cost; a bale
+ * whose cost changes after a sale is reported as a cost adjustment (AuditLog COST_ADJUSTMENT).
  */
 @Injectable()
 export class CostingService {
@@ -29,13 +47,14 @@ export class CostingService {
     return this.prisma.$transaction((tx) => this.recalculateContainerTx(tx, tenantId, containerId, userId));
   }
 
-  async recalculateContainerTx(tx: Tx, tenantId: string, containerId: string, userId?: string) {
+  async recalculateContainerTx(tx: Tx, tenantId: string, containerId: string, userId?: string): Promise<RecalculationResult> {
     const container = await tx.container.findFirst({
       where: { id: containerId, tenantId },
       include: { containerCharges: true, rags: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } },
     });
     if (!container) throw new NotFoundException('Container not found');
 
+    const result = emptyResult();
     const landed = landedCost({
       purchaseCost: container.purchaseCost,
       purchaseCurrency: container.purchaseCurrency,
@@ -43,50 +62,65 @@ export class CostingService {
       charges: container.containerCharges.map((c) => c.amount),
     });
     const lotKg = sum(container.rags.map((r) => r.weightKg));
-    await tx.container.update({
-      where: { id: container.id },
-      data: { landedCostPKR: landed, landedCostPerKg: costPerKg(landed, lotKg.isZero() ? container.netWeight : lotKg) },
-    });
+    const perKg = costPerKg(landed, container.rags.length ? lotKg : container.netWeight);
+    if (!landed.equals(container.landedCostPKR) || !container.landedCostPerKg?.equals(perKg)) {
+      await tx.container.update({ where: { id: container.id }, data: { landedCostPKR: landed, landedCostPerKg: perKg } });
+      result.changed.containers += 1;
+    }
 
-    const adjustments: CostAdjustment[] = [];
     if (container.rags.length) {
-      if (lotKg.isZero()) throw new BadRequestException('Lots in this container have no weight');
-      for (const lot of lotCosts(landed, container.rags.map((r) => ({ key: r.id, weightKg: r.weightKg })))) {
-        adjustments.push(...(await this.recalculateLotTx(tx, tenantId, lot.key, lot.amount)));
+      for (const lot of lotCosts(landed, container.rags.map((r) => ({ key: r, weightKg: r.weightKg })))) {
+        await this.recalculateLotTx(tx, tenantId, lot.key, lot.amount, result);
       }
     }
-    await this.logAdjustments(tx, tenantId, adjustments, userId);
+    await this.logAdjustments(tx, tenantId, result.adjustments, userId);
     if (container.purchaseOrderId) await this.syncPurchaseOrderTotalTx(tx, container.purchaseOrderId);
-    return { landedCostPKR: landed, adjustments };
+    return result;
   }
 
-  /** A loose lot's cost is its purchase price; recalculates everything made from it. */
-  async recalculateLooseLot(tenantId: string, ragId: string, userId?: string) {
-    return this.prisma.$transaction(async (tx) => {
-      const lot = await tx.rag.findFirst({ where: { id: ragId, tenantId }, select: { purchaseCost: true, containerId: true } });
-      if (!lot) throw new NotFoundException('Lot not found');
-      if (lot.containerId) return this.recalculateContainerTx(tx, tenantId, lot.containerId, userId);
-      const adjustments = await this.recalculateLotTx(tx, tenantId, ragId, money(lot.purchaseCost ?? 0));
-      await this.logAdjustments(tx, tenantId, adjustments, userId);
-      return { adjustments };
-    });
+  /** Recalculates everything made from a lot: its container's chain, or for a loose lot its own. */
+  async recalculateLot(tenantId: string, ragId: string, userId?: string) {
+    return this.prisma.$transaction((tx) => this.recalculateLotChainTx(tx, tenantId, ragId, userId));
   }
 
-  private async recalculateLotTx(tx: Tx, tenantId: string, ragId: string, lotCost: Decimal): Promise<CostAdjustment[]> {
-    await tx.rag.update({ where: { id: ragId }, data: { allocatedCost: lotCost } });
-    const outputs = await tx.categoryOutput.findMany({
-      where: { tenantId, ragId },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      select: { id: true, weightKg: true },
-    });
-    if (!outputs.length) return [];
-    const adjustments: CostAdjustment[] = [];
-    for (const share of outputCosts(lotCost, outputs.map((o) => ({ key: o.id, kg: o.weightKg })))) {
-      const output = outputs.find((o) => o.id === share.key)!;
-      await tx.categoryOutput.update({ where: { id: output.id }, data: { allocatedCost: share.amount } });
-      adjustments.push(...(await this.recalculateCategoryOutputTx(tx, tenantId, output.id, share.amount, output.weightKg)));
+  async recalculateLotChainTx(tx: Tx, tenantId: string, ragId: string, userId?: string): Promise<RecalculationResult> {
+    const lot = await tx.rag.findFirst({ where: { id: ragId, tenantId } });
+    if (!lot) throw new NotFoundException('Lot not found');
+    if (lot.containerId) return this.recalculateContainerTx(tx, tenantId, lot.containerId, userId);
+    const result = emptyResult();
+    // A loose lot costs its purchase price; one recorded without a price keeps its current cost.
+    await this.recalculateLotTx(tx, tenantId, lot, lot.purchaseCost ? money(lot.purchaseCost) : lot.allocatedCost, result);
+    await this.logAdjustments(tx, tenantId, result.adjustments, userId);
+    return result;
+  }
+
+  private async recalculateLotTx(
+    tx: Tx,
+    tenantId: string,
+    lot: { id: string; allocatedCost: Decimal },
+    lotCost: Decimal,
+    result: RecalculationResult,
+  ) {
+    if (!lotCost.equals(lot.allocatedCost)) {
+      await tx.rag.update({ where: { id: lot.id }, data: { allocatedCost: lotCost } });
+      result.changed.lots += 1;
     }
-    return adjustments;
+    const outputs = await tx.categoryOutput.findMany({
+      where: { tenantId, ragId: lot.id },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      select: { id: true, weightKg: true, allocatedCost: true },
+    });
+    if (!outputs.length) return;
+    const units = new Set<string>();
+    for (const share of outputCosts(lotCost, outputs.map((o) => ({ key: o, kg: o.weightKg })))) {
+      const output = share.key;
+      if (!share.amount.equals(output.allocatedCost)) {
+        await tx.categoryOutput.update({ where: { id: output.id }, data: { allocatedCost: share.amount } });
+        result.changed.categoryOutputs += 1;
+      }
+      await this.recalculateCategoryOutputTx(tx, tenantId, output.id, share.amount, output.weightKg, units, result);
+    }
+    await this.recalculateBalesTx(tx, [...units], result);
   }
 
   private async recalculateCategoryOutputTx(
@@ -95,24 +129,27 @@ export class CostingService {
     categoryOutputId: string,
     cost: Decimal,
     kg: Decimal,
-  ): Promise<CostAdjustment[]> {
-    const units = new Set<string>();
+    units: Set<string>,
+    result: RecalculationResult,
+  ) {
     // Stage 2: grades share the category output's cost by kg.
     const grades = await tx.gradeOutput.findMany({
       where: { tenantId, gradeBucket: { gradeSession: { categoryOutputId } } },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      select: { id: true, weightKg: true },
+      select: { id: true, weightKg: true, allocatedCost: true },
     });
     if (grades.length) {
-      for (const share of outputCosts(cost, grades.map((g) => ({ key: g.id, kg: g.weightKg })))) {
-        const grade = grades.find((g) => g.id === share.key)!;
-        await tx.gradeOutput.update({ where: { id: grade.id }, data: { allocatedCost: share.amount } });
-        await this.recalculateTakesTx(tx, { gradingOutputId: grade.id }, share.amount, grade.weightKg, units);
+      for (const share of outputCosts(cost, grades.map((g) => ({ key: g, kg: g.weightKg })))) {
+        const grade = share.key;
+        if (!share.amount.equals(grade.allocatedCost)) {
+          await tx.gradeOutput.update({ where: { id: grade.id }, data: { allocatedCost: share.amount } });
+          result.changed.gradeOutputs += 1;
+        }
+        await this.recalculateTakesTx(tx, { gradingOutputId: grade.id }, share.amount, grade.weightKg, units, result);
       }
     }
     // One-stage sorting: bales taken straight from the category output.
-    await this.recalculateTakesTx(tx, { categoryOutputId }, cost, kg, units);
-    return this.recalculateBalesTx(tx, [...units]);
+    await this.recalculateTakesTx(tx, { categoryOutputId }, cost, kg, units, result);
   }
 
   /** Re-costs every bale input taken from one source, in the order they were taken. */
@@ -122,6 +159,7 @@ export class CostingService {
     cost: Decimal,
     kg: Decimal,
     units: Set<string>,
+    result: RecalculationResult,
   ) {
     const takes = await tx.repackInputAllocation.findMany({
       where: source,
@@ -130,17 +168,17 @@ export class CostingService {
     });
     let used = new Decimal(0);
     for (const take of takes) {
-      const takeCostNow = takeCost({ cost, kg }, used, take.amountUsed);
+      const cost_ = takeCost({ cost, kg }, used, take.amountUsed);
       used = used.add(take.amountUsed);
-      if (!takeCostNow.equals(take.allocatedCost)) {
-        await tx.repackInputAllocation.update({ where: { id: take.id }, data: { allocatedCost: takeCostNow } });
+      if (!cost_.equals(take.allocatedCost)) {
+        await tx.repackInputAllocation.update({ where: { id: take.id }, data: { allocatedCost: cost_ } });
+        result.changed.baleInputs += 1;
       }
       units.add(take.repackUnitId);
     }
   }
 
-  private async recalculateBalesTx(tx: Tx, unitIds: string[]): Promise<CostAdjustment[]> {
-    const adjustments: CostAdjustment[] = [];
+  private async recalculateBalesTx(tx: Tx, unitIds: string[], result: RecalculationResult) {
     for (const unitId of unitIds) {
       const unit = await tx.repackUnit.findUniqueOrThrow({
         where: { id: unitId },
@@ -148,7 +186,7 @@ export class CostingService {
           totalCost: true,
           weightKg: true,
           inputAllocations: { select: { allocatedCost: true } },
-          inventoryItems: { select: { id: true, _count: { select: { saleLines: true } } } },
+          inventoryItems: { select: { _count: { select: { saleLines: true } } } },
         },
       });
       const total = money(sum(unit.inputAllocations.map((a) => a.allocatedCost)));
@@ -158,11 +196,11 @@ export class CostingService {
         where: { repackUnitId: unitId },
         data: { avgCost: money(costPerKg(total, unit.weightKg)) },
       });
+      result.changed.bales += 1;
       if (unit.inventoryItems.some((i) => i._count.saleLines > 0)) {
-        adjustments.push({ repackUnitId: unitId, previousCost: unit.totalCost, newCost: total });
+        result.adjustments.push({ repackUnitId: unitId, previousCost: unit.totalCost, newCost: total });
       }
     }
-    return adjustments;
   }
 
   private async logAdjustments(tx: Tx, tenantId: string, adjustments: CostAdjustment[], userId?: string) {
@@ -170,7 +208,7 @@ export class CostingService {
       await tx.auditLog.create({
         data: {
           tenantId,
-          userId: userId ?? null,
+          userId,
           action: 'COST_ADJUSTMENT',
           entityType: 'RepackUnit',
           entityId: a.repackUnitId,
@@ -186,8 +224,9 @@ export class CostingService {
 
   /** A purchase order's total is the landed cost of its containers. */
   private async syncPurchaseOrderTotalTx(tx: Tx, purchaseOrderId: string) {
+    // Called for a container's own purchase order, so the sum is never empty.
     const totals = await tx.container.aggregate({ where: { purchaseOrderId }, _sum: { landedCostPKR: true } });
-    await tx.purchaseOrder.update({ where: { id: purchaseOrderId }, data: { totalCost: totals._sum.landedCostPKR ?? 0 } });
+    await tx.purchaseOrder.update({ where: { id: purchaseOrderId }, data: { totalCost: totals._sum.landedCostPKR! } });
   }
 
   /** Landed cost, charges and each lot's share, for the container screen. */
@@ -200,7 +239,6 @@ export class CostingService {
       },
     });
     if (!container) throw new NotFoundException('Container not found');
-    const lotKg = sum(container.rags.map((r) => r.weightKg));
     return {
       containerId: container.id,
       containerNumber: container.containerNumber,
@@ -209,7 +247,7 @@ export class CostingService {
       purchaseCurrency: container.purchaseCurrency,
       fxRate: container.fxRate,
       totalCost: container.landedCostPKR,
-      totalWeight: lotKg.isZero() ? container.netWeight : lotKg,
+      totalWeight: container.rags.length ? sum(container.rags.map((r) => r.weightKg)) : container.netWeight,
       costPerKg: container.landedCostPerKg,
       charges: container.containerCharges,
       rags: container.rags.map((r) => ({ id: r.id, code: r.ragCode, weightKg: r.weightKg, allocatedCost: r.allocatedCost })),

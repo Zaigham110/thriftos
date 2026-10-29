@@ -14,6 +14,7 @@ import {
   SaleType,
   SequenceScope,
 } from '@prisma/client';
+import { money, saleProfit } from '../costing/costing';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantSequenceService } from '../procurement/shared/tenant-sequence.service';
 import { AuditService } from '../audit/audit.service';
@@ -39,12 +40,11 @@ export class SalesService {
   private computeLineAmounts(params: {
     quantity: Prisma.Decimal;
     unitPrice: Prisma.Decimal;
-    avgCost: Prisma.Decimal;
+    itemCost: Prisma.Decimal;
   }): { lineTotal: Prisma.Decimal; lineCost: Prisma.Decimal; profit: Prisma.Decimal } {
-    const lineTotal = this.toMoney2(params.quantity.mul(params.unitPrice));
-    const lineCost = this.toMoney2(params.quantity.mul(params.avgCost));
-    const profit = this.toMoney2(lineTotal.sub(lineCost));
-    return { lineTotal, lineCost, profit };
+    const lineTotal = money(params.quantity.mul(params.unitPrice));
+    const lineCost = money(params.itemCost);
+    return { lineTotal, lineCost, profit: saleProfit(lineTotal, lineCost) };
   }
 
   private async recomputeSaleTotals(tx: Prisma.TransactionClient, saleId: string): Promise<void> {
@@ -230,7 +230,7 @@ export class SalesService {
 
       const inventory = await tx.inventoryItem.findFirst({
         where: { id: dto.inventoryItemId, tenantId },
-        include: { repackUnit: { select: { measurementType: true, unitCode: true } } },
+        include: { repackUnit: { select: { measurementType: true, unitCode: true, totalCost: true } } },
       });
       if (!inventory) throw new NotFoundException('Inventory item not found');
 
@@ -253,8 +253,9 @@ export class SalesService {
         }
       }
 
-      const avgCost = new Prisma.Decimal(inventory.avgCost);
-      if (avgCost.lte(0)) {
+      // The whole item is sold, so its cost is the bale's exact cost (not kg × rounded avgCost).
+      const itemCost = inventory.repackUnit.totalCost;
+      if (itemCost.lte(0)) {
         throw new BadRequestException('Inventory item cost is missing or invalid');
       }
 
@@ -263,7 +264,7 @@ export class SalesService {
         throw new BadRequestException('unitPrice must be >= 0');
       }
 
-      const { lineTotal, lineCost, profit } = this.computeLineAmounts({ quantity: qty, unitPrice, avgCost });
+      const { lineTotal, lineCost, profit } = this.computeLineAmounts({ quantity: qty, unitPrice, itemCost });
 
       const existingReservation = await tx.inventoryReservation.findFirst({
         where: { inventoryItemId: inventory.id },

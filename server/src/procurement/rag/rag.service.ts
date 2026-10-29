@@ -3,7 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../audit/audit.service';
 import { CostingService } from '../../costing/costing.service';
 import { Prisma } from '@prisma/client';
-import { CreateRagDto } from './dto/create-rag.dto';
+import { CreateRagDto, UpdateRagDto } from './dto';
 import { ContainerStatus, RagStatus, RagSourceType, SequenceScope } from '@prisma/client';
 import { TenantSequenceService } from '../shared/tenant-sequence.service';
 
@@ -260,6 +260,67 @@ export class RagService {
     }
 
     return rag;
+  }
+
+  /** Corrects a lot and re-runs costs for everything made from it, in one transaction. */
+  async update(tenantId: string, id: string, dto: UpdateRagDto, userId: string) {
+    const rag = await this.findOne(tenantId, id);
+    const reshapes = dto.weightKg !== undefined || dto.rawCategoryId !== undefined;
+    if (reshapes && rag.status !== RagStatus.NOT_STARTED) {
+      throw new ConflictException('Weight and type can only change before the lot is sorted');
+    }
+    if (dto.purchaseCost !== undefined && rag.containerId) {
+      throw new BadRequestException('A container lot takes its cost from the container. Change the container purchase cost or charges.');
+    }
+    if (dto.rawCategoryId) {
+      const raw = await this.prisma.rawCategory.findFirst({ where: { id: dto.rawCategoryId, tenantId, isActive: true } });
+      if (!raw) throw new BadRequestException('Raw category not found or inactive');
+    }
+    if (dto.weightKg !== undefined && rag.containerId) {
+      const others = await this.prisma.rag.aggregate({
+        where: { containerId: rag.containerId, NOT: { id: rag.id } },
+        _sum: { weightKg: true },
+      });
+      const container = await this.prisma.container.findUniqueOrThrow({ where: { id: rag.containerId }, select: { netWeight: true } });
+      const available = container.netWeight.sub(others._sum.weightKg ?? 0);
+      if (new Prisma.Decimal(dto.weightKg).greaterThan(available)) {
+        throw new BadRequestException(
+          `Weight is more than the container has left (${available.toFixed(2)} kg). Enter ${available.toFixed(2)} or less.`,
+        );
+      }
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.rag.update({
+        where: { id },
+        data: {
+          ...(dto.rawCategoryId !== undefined && { rawCategoryId: dto.rawCategoryId }),
+          ...(dto.weightKg !== undefined && { weightKg: new Prisma.Decimal(dto.weightKg) }),
+          ...(dto.purchaseCost !== undefined && { purchaseCost: new Prisma.Decimal(dto.purchaseCost) }),
+          ...(dto.notes !== undefined && { notes: dto.notes }),
+        },
+      });
+      if (dto.weightKg !== undefined || dto.purchaseCost !== undefined) {
+        await this.costing.recalculateLotChainTx(tx, tenantId, id, userId);
+      }
+      return tx.rag.findUniqueOrThrow({
+        where: { id },
+        include: {
+          container: { select: { containerNumber: true } },
+          rawCategory: { select: { id: true, name: true, rawType: true } },
+        },
+      });
+    });
+
+    await this.auditService.log({
+      userId,
+      tenantId,
+      action: 'RAG_UPDATED',
+      entityType: 'Rag',
+      entityId: id,
+      metadataJson: { ragCode: rag.ragCode, changes: { ...dto } },
+    });
+    return updated;
   }
 
   async delete(tenantId: string, id: string, userId: string) {

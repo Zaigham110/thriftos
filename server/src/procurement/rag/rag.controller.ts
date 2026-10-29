@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Delete,
+  Patch,
   Body,
   Param,
   Query,
@@ -13,11 +14,12 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { RagService } from './rag.service';
-import { CreateRagDto } from './dto/create-rag.dto';
+import { CreateRagDto, UpdateRagDto } from './dto';
 import { TenantGuard } from '../../common/guards/tenant.guard';
 import { PermissionGuard } from '../../common/guards/permission.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
+import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { RagStatus } from '@prisma/client';
 
 @Controller('procurement')
@@ -75,6 +77,12 @@ export class RagController {
   ) {
     const tenantId = (req as any).tenantId || user.tenantId;
     return this.ragService.findOne(tenantId, id);
+  }
+
+  @Patch('rags/:id')
+  @RequirePermissions('rag.create')
+  update(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: UpdateRagDto, @CurrentUser() user: CurrentUserData) {
+    return this.ragService.update(tenantId, id, dto, user.userId);
   }
 
   @Delete('rags/:id')

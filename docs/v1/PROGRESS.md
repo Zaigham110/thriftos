@@ -34,6 +34,11 @@ Running log of the v1 reshape. Newest entries at the bottom of each section.
   - Code: `costing/costing.service.ts` (whole-chain recalculation) replaces `procurement/cost-allocation`; containers can be created from a supplier without a PO; one lot endpoint (`POST /procurement/rags`, removed `containers/:id/rags` and `loose-bales`); sort/grade close use largest-remainder; `BaleService` takes FIFO from grade outputs or (no grade) ungraded category outputs; deleted incoming-bale module/screens and one-off scripts on removed tables (`audit_db.js`, `fix_sort_sessions_po_link.js`, waste backfill, `verify-reports-http.js`); reports rewritten for the new fields; settings screen now edits sorting stages, default language and modules.
   - Fixed on the way: deleting a loose lot crashed (null container); recalculation got the user id as tenant id; flow-transform sent loose lots as `incomingBaleId`; tenant-settings "changed" checks used computed() over FormControls (never updated); supplier forms could not set origin.
   - Tests: `v1-data-model.e2e-spec.ts` — fresh tenant (created via super admin) closes a lot with a remainder on Waste/Katran; container from a supplier with USD/FX and charges, lots split by weight to the paisa, tenant isolation; 1-stage FIFO bales from category outputs (27,777.78 + 18,412.69 + 17,142.86 = 63,333.33), exactly-one-source check in service and DB, no grading of baled stock.
+- 2026-10-30 — 1.3 Recalculation: `CostingService` writes only rows whose cost differs and reports what changed; adding/removing a charge, changing purchase cost/currency/FX or container weights, adding/removing/editing a lot re-runs the chain in the same transaction. New `PATCH /procurement/rags/:id` (the edit screen already called it; it did not exist): weight/type only before sorting, price only for loose lots, re-costs everything made from the lot. New `npm run costing:recompute` (dry run by default, `APPLY=1` writes, `TENANT_ID` optional) replaces `scripts/maintenance/recompute-cost-chain.js` (deleted). Sold bales keep their sale cost; a later change is logged as `COST_ADJUSTMENT`. Sale line cost is now the bale's exact `totalCost` (was weight × avgCost rounded per kg, off by paisa).
+  - Fixed: a loose lot without a stored price would have been recalculated to zero (it now keeps its cost).
+  - `prisma/checks/cost-chain-check.sql` lists every stage that does not reconcile (empty = all good). Rehearsed on old-style data: migrate → check flags the old net-weight lot split → recompute dry run → apply → check empty.
+- 2026-10-30 — 1.4 E2E (`test/e2e/cost-chain.e2e-spec.ts`): container (USD × FX + duty + clearing) → 3 lots → stage 1 → stage 2 → 4 FIFO bales → sale; at every stage the parts equal the parent to the paisa (figures cross-checked in Python); recalculating changes nothing (parity); a late transport charge re-costs every stage and the PO, the sold line keeps its cost and a COST_ADJUSTMENT is logged; lot-edit rules; service-level tenant isolation.
+- Phase 1 acceptance: met — costs reconcile to the landed cost at every stage, proven by tests; `npm run test:costing` holds src/costing (rules + service) at 100% coverage on unit + e2e runs. 58 server tests.
 
 ## Decisions
 - Test DB lives on the same Postgres server as dev, named `<db>_test`; never the dev DB.
@@ -50,6 +55,9 @@ Running log of the v1 reshape. Newest entries at the bottom of each section.
 - A purchase in PKR ignores fxRate; old containers become PKR purchases so their totals are unchanged.
 - Default waste type is ensured by name ("Waste/Katran") everywhere, because tenant bootstrap already creates "<category> Waste" types.
 - Container lots keep their old (net-weight) allocated costs until recalculated; task 1.3 adds the recompute command to run once after applying the migrations.
+- ts-jest runs with `isolatedModules: false` (tests are type-checked; needed for honest coverage of Nest services). Full suite ≈ 45 s.
+- `src/costing/recompute.ts` is a command-line entry point and is excluded from the coverage gate; it is exercised by the migration rehearsal.
+- Lot corrections use the existing `rag.create` permission (there is no `rag.update`).
 
 ## Blockers
 - `JWT_SECRET` and DB password rotation must be done by the owner (old values remain in git history; history rewrite not done because it is irreversible and needs a force-push).

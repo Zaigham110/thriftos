@@ -1,11 +1,11 @@
 // Unit tests live next to the code (src/**/*.spec.ts); e2e tests run against a separate *_test database.
-const tsJest = { '^.+\\.ts$': ['ts-jest', { tsconfig: 'tsconfig.json', isolatedModules: true }] };
+const tsJest = { '^.+\\.ts$': ['ts-jest', { tsconfig: 'tsconfig.json', isolatedModules: false }] };
 
 module.exports = {
-  // `npm run test:costing` runs unit + e2e and enforces full coverage of the costing rules.
-  collectCoverageFrom: ['src/costing/**/*.ts', '!src/costing/**/*.spec.ts'],
+  // `npm run test:costing` runs unit + e2e and enforces full coverage of src/costing (the rules and the service that applies them).
+  collectCoverageFrom: ['src/costing/**/*.ts', '!src/costing/**/*.spec.ts', '!src/costing/recompute.ts'],
   coverageThreshold: {
-    './src/costing/costing.ts': { branches: 100, functions: 100, lines: 100, statements: 100 },
+    './src/costing/': { branches: 100, functions: 100, lines: 100, statements: 100 },
   },
   projects: [
     {
