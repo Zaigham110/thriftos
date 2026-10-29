@@ -59,5 +59,8 @@ Running log of the v1 reshape. Newest entries at the bottom of each section.
 - `src/costing/recompute.ts` is a command-line entry point and is excluded from the coverage gate; it is exercised by the migration rehearsal.
 - Lot corrections use the existing `rag.create` permission (there is no `rag.update`).
 
+## Before first deploy
+- Rotate `JWT_SECRET` and the DB password (old values remain in git history). Postponed by the owner; not blocking development.
+
 ## Blockers
-- `JWT_SECRET` and DB password rotation must be done by the owner (old values remain in git history; history rewrite not done because it is irreversible and needs a force-push).
+- None.
