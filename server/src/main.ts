@@ -1,13 +1,12 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { configureApp } from './app.setup';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Global prefix
-  app.setGlobalPrefix('api');
+  configureApp(app);
 
   // Enable CORS
   const allowedOrigins = process.env.CORS_ORIGIN
@@ -24,18 +23,6 @@ async function bootstrap() {
     },
     credentials: true,
   });
-
-  // Global validation pipe
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-    }),
-  );
 
   // Swagger API Documentation
   const config = new DocumentBuilder()

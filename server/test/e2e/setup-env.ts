@@ -1,0 +1,8 @@
+import { resolveTestDatabaseUrl } from './test-db';
+
+process.env.DATABASE_URL = resolveTestDatabaseUrl();
+process.env.JWT_SECRET ??= 'e2e-test-secret';
+process.env.NODE_ENV = 'test';
+process.env.THROTTLE_LIMIT_SHORT ??= '100000';
+process.env.THROTTLE_LIMIT_MEDIUM ??= '100000';
+process.env.THROTTLE_LIMIT_LONG ??= '100000';

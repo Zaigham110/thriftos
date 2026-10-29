@@ -12,8 +12,12 @@ Running log of the v1 reshape. Newest entries at the bottom of each section.
 ## Log
 - 2026-10-29 — 0.1 Secrets: `git rm --cached .env` (`.gitignore` already ignores `.env`/`.env.*` except `.env.example`). Compose healthcheck now uses `$${POSTGRES_USER}`/`$${POSTGRES_DB}` instead of hard-coded `labur`; removed obsolete `version` key. README notes that `JWT_SECRET` and the DB password must be rotated because `.env` exists in git history.
 - 2026-10-29 — 0.2 Archive docs: moved all of `docs/` except `docs/v1/` into `docs/archive/` (git mv, history kept). Rewrote `.agents/AGENTS.md` as a pointer to `docs/v1/` plus the architecture rules; kept only still-true domain notes (lineage chain, one-time sorting, denormalised lineage ids). Dropped operation modes, `SortingWaste`, and the old 'allocate by container net weight' formula (doc 03 says by lot weight).
+- 2026-10-29 — 0.3 Test harness: Jest (ts-jest) in `server/` with two projects — `unit` (`src/**/*.spec.ts`) and `e2e` (`test/**/*.e2e-spec.ts`). E2E global setup runs `prisma migrate reset --force` (with base seed) on a separate `*_test` database (`TEST_DATABASE_URL`, else `DATABASE_URL` + `_test`; refuses any DB not ending in `_test`). `test/e2e/fixtures.ts` creates a tenant + owner with all permissions and logs in. Extracted `configureApp()` (`src/app.setup.ts`) so tests run the same pipes/prefix as `main.ts`. Added `tsconfig.build.json` so specs stay out of `dist/`. Scripts: `test`, `test:unit`, `test:e2e`, `typecheck`. CI: `.github/workflows/ci.yml` (Postgres service, migration-drift check, typecheck, tests, nest build; frontend tsc + ng build).
+  - Found: migrations did not produce `schema.prisma` (columns added via `db push`), so `migrate reset` + seed failed on an empty DB. Added `20261029000000_v1_00_catch_up_schema_drift` with `IF NOT EXISTS` guards (no-op on the existing dev DB, which already has these columns). CI now fails on any future drift.
 
 ## Decisions
+- Test DB lives on the same Postgres server as dev, named `<db>_test`; never the dev DB.
+- Frontend has no specs yet, so CI only typechecks and builds it; frontend unit tests are added with the services they cover (offline queue, i18n).
 
 ## Blockers
 - `JWT_SECRET` and DB password rotation must be done by the owner (old values remain in git history; history rewrite not done because it is irreversible and needs a force-push).
