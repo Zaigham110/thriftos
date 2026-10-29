@@ -11,6 +11,7 @@ Running log of the v1 reshape. Newest entries at the bottom of each section.
 
 ## Log
 - 2026-10-29 — 0.1 Secrets: `git rm --cached .env` (`.gitignore` already ignores `.env`/`.env.*` except `.env.example`). Compose healthcheck now uses `$${POSTGRES_USER}`/`$${POSTGRES_DB}` instead of hard-coded `labur`; removed obsolete `version` key. README notes that `JWT_SECRET` and the DB password must be rotated because `.env` exists in git history.
+- 2026-10-29 — 0.2 Archive docs: moved all of `docs/` except `docs/v1/` into `docs/archive/` (git mv, history kept). Rewrote `.agents/AGENTS.md` as a pointer to `docs/v1/` plus the architecture rules; kept only still-true domain notes (lineage chain, one-time sorting, denormalised lineage ids). Dropped operation modes, `SortingWaste`, and the old 'allocate by container net weight' formula (doc 03 says by lot weight).
 
 ## Decisions
 

@@ -27,7 +27,8 @@ ThriftOS is a multi-tenant ERP for thrift, textile recycling, and resale operati
 ├── prisma/               # Shared Prisma schema, migrations, seed script
 ├── server/               # NestJS backend API
 ├── thriftos-frontend/    # Angular frontend
-├── docs/                 # Architecture and implementation notes
+├── docs/v1/              # v1 product and engineering docs (source of truth)
+├── docs/archive/         # Older docs (history only)
 ├── scripts/              # Setup scripts (setup-db.sh)
 ├── package.json          # Root Prisma/database scripts
 └── .env                  # Local secrets (never committed; copy from .env.example)
