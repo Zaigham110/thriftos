@@ -20,7 +20,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "jest --runInBand",
     "test:unit": "jest --selectProjects unit",
-    "test:e2e": "jest --selectProjects e2e --runInBand"
+    "test:e2e": "jest --selectProjects e2e --runInBand",
+    "test:costing": "jest --selectProjects unit --coverage src/costing"
   },
   "prisma": {
     "schema": "../prisma/schema.prisma"

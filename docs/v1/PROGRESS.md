@@ -27,6 +27,7 @@ Running log of the v1 reshape. Newest entries at the bottom of each section.
   - Backend duplicates removed: `/tenant/categories` and `/tenant/warehouses` writes + `/all` lists (same service as `/admin/*`), `/tenant/waste-categories` CRUD (kept the picker list; `/admin/waste-categories` manages). Raw-category writes now need `category.*` permissions (were open to any tenant user) — test added.
   - Verified in Chromium (390px and 1366px): login → every route renders with no failed API calls or console errors; sort a lot → close with waste → grade → make bale → bale shows in Stock, all through the UI.
 - Phase 0 acceptance: met — app builds and runs with one shell; sorting/repack/inventory/settings route and service duplicates removed; server tests run in CI-style (10 passing). Remaining copy ("Material conversion", "Lifecycle-ready") and layouts are the old ERP voice; they are rewritten in 3.3/3.4.
+- 2026-10-29 — 1.2 Costing rules (`server/src/costing/costing.ts`, pure functions on Decimal): `landedCost` (purchase × fxRate unless PKR + charges), `allocateByWeight` (largest-remainder in paisa, ties → heavier part → input order), `lotCosts` (by lot weight), `outputCosts` (stage 1 and 2; waste carries no cost), `takeCost` (cumulative share, so a fully used output's takes add up to its cost exactly), `fifoTake`, `baleCost`, `saleProfit`, `costPerKg`. 32 tests incl. a randomised exact-sum check and whole-chain scenarios for 1-stage (FIFO bales from category outputs) and 2-stage sorting; `npm run test:costing` enforces 100% coverage (also in CI). Expected values were cross-checked with Python `decimal`.
 
 ## Decisions
 - Test DB lives on the same Postgres server as dev, named `<db>_test`; never the dev DB.
@@ -39,6 +40,7 @@ Running log of the v1 reshape. Newest entries at the bottom of each section.
 - Super-admin area (`/admin`) keeps its own layout (`shared/ui/app-shell-layout` via `admin-shell`): it is the platform operator's console, not the tenant app.
 - Tab visibility still uses the old `operationalModules` values (INTAKE, SORTING, ...); switches to `enabledModules` (RECEIVE, SORT, ...) with the Tenant migration in 1.1. Tenant policy fields (capture/guidance/connectivity) are still read by flow receive/control/offline-draft and are removed with that migration.
 - Found: the base seed creates no waste categories, so a lot with a remainder cannot be closed. Journey 2 needs the waste tile always present: the setup wizard (3.8) and demo seed (4.1) must always create a default "Waste/Katran" type.
+- Bale take cost is the cumulative share of the source output (`cost(usedAfter) − cost(usedBefore)`), not `kg × rounded rate`, so bales from an output always add up to the output's cost to the paisa.
 
 ## Blockers
 - `JWT_SECRET` and DB password rotation must be done by the owner (old values remain in git history; history rewrite not done because it is irreversible and needs a force-push).

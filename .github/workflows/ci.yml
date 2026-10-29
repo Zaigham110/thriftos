@@ -46,6 +46,9 @@ jobs:
         working-directory: server
       - run: npm test
         working-directory: server
+      - name: Costing rules fully covered
+        run: npm run test:costing
+        working-directory: server
       - run: npx nest build
         working-directory: server
 

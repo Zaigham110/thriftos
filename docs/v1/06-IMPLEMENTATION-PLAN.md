@@ -13,7 +13,7 @@ Work phase by phase, in order. Each task ends with: typecheck clean (server + fr
 
 ## Phase 1 — Correct money (week 2)
 - [ ] 1.1 Data model per `04-DATA-MODEL.md` sections Tenant, Container, Rag, ChargeType, money precision (migrations + data migrations). Remove `IncomingBale`, `RepackItem`, `SortingWaste` with data migration.
-- [ ] 1.2 `costing/` pure functions: landed cost, allocate-by-weight with largest-remainder rounding, stage outputs, bale cost (FIFO), sale profit. 100% unit-test coverage for this folder, including edge cases (zero weight, single lot, remainder pennies, USD with FX).
+- [x] 1.2 `costing/` pure functions: landed cost, allocate-by-weight with largest-remainder rounding, stage outputs, bale cost (FIFO), sale profit. 100% unit-test coverage for this folder, including edge cases (zero weight, single lot, remainder pennies, USD with FX).
 - [ ] 1.3 Recalculation: changing a charge or purchase cost re-runs the chain for that container in one transaction; delete `server/scripts/maintenance/recompute-cost-chain.js` after parity is proven by a test.
 - [ ] 1.4 E2E test: container → 3 lots → sort (2 stages) → bales → sale; assert totals match to the paisa at every step.
 - Acceptance: sum of costs at every stage equals landed cost exactly; tests prove it.
