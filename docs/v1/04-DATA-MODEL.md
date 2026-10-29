@@ -1,0 +1,86 @@
+# ThriftOS v1 — Data Model Changes
+
+Current schema: `prisma/schema.prisma` (43 models). v1 simplifies it. Table names are kept where possible (UI labels change, not tables) to limit migration risk. Every change ships as a Prisma migration plus a data migration for existing rows, plus updated seed.
+
+## UI word → table
+| UI (English / Urdu) | Table |
+|---|---|
+| Supplier / سپلائر | `Vendor` |
+| Container / کنٹینر | `Container` |
+| Lot (a bale or group of bales to sort) / لاٹ | `Rag` |
+| Sorting session / چھانٹی | `SortSession` (stage 1), `GradeSession` (stage 2) |
+| Sorted stock | `CategoryOutput`, `GradeOutput` |
+| Bale (finished, QR) / گانٹھ | `RepackUnit` + `QRLabel` |
+| Stock item (sellable) | `InventoryItem` |
+| Customer / گاہک | `Customer` |
+| Payment / وصولی | `Payment` |
+
+## Remove (delete code + drop tables after data migration)
+| Remove | Why | Data migration |
+|---|---|---|
+| `IncomingBale` | Duplicate of `Rag` with `sourceType = LOOSE_BALE` | Copy each row into `Rag` (sourceType LOOSE_BALE, purchaseCost = cost, vendorId), re-point `SortSession.incomingBaleId` users, then drop column + table |
+| `RepackItem` + `SourceType` enum | Repack v1, replaced by `RepackInputAllocation` | Convert rows to allocations if any exist, else drop |
+| `SortingWaste` | Duplicate of `WasteLineItem` (stage 1) | Ensure a STAGE_1 WasteLineItem exists per row, then drop |
+| `RepackSession` (optional) | Extra step for the user | Keep table for now; v1 UI auto-creates one session per day per user (no screen) |
+| Tenant fields `operationMode`, `connectivityPolicy`, `capturePolicy`, `guidancePolicy`, `flowEnabled`, `User.preferredOperationMode` | Replaced by one simple setting set (below) | Drop after frontend uses new fields |
+| Enums `OperationMode`, `ConnectivityPolicy`, `CapturePolicy`, `GuidancePolicy` | Same | Drop |
+
+## Change
+### Tenant
+- `currency` default `"PKR"`, `locale` default `"ur-PK"`.
+- Rename `operationalModules` → `enabledModules` (String[]) with values: `RECEIVE, SORT, STOCK, SELL, KHATA, REPORTS, EXPORT, WAREHOUSES, PAYROLL`. Default for new tenants: first five.
+- Add `sortingStages Int @default(2)` — 0 (no sorting, trading only), 1 (category only), 2 (category + grade).
+- Add `defaultLanguage String @default("ur")`.
+
+### User
+- Add `phone String?` and `pinHash String?` for fast munshi login (phone + 4–6 digit PIN), unique per tenant on phone.
+- Add `language String?` (overrides tenant default).
+
+### Vendor (Supplier)
+- Only `name` required in UI. Add `originCountry String?` (default origin for its containers). Default currency `PKR`.
+
+### Container
+- `purchaseOrderId` becomes optional (PO is an advanced feature; a container can be created directly with a supplier).
+- Add `vendorId String?` (direct), `originCountry String?`, `purchaseCost Decimal(14,2)` (in purchase currency), `purchaseCurrency String @default("PKR")`. Keep `fxRate`.
+- `landedCostPKR Decimal(14,2)` = purchaseCost × fxRate + sum(charges) — stored, recomputed by costing engine.
+- `ChargeType` enum: add `CLEARING`, `TRANSPORT`, `LABOUR`; keep `CIF` for backward compatibility but new UI uses `purchaseCost` instead of a CIF charge (data migration: if purchaseCost is null and CIF charges exist, move their sum into purchaseCost and delete those charges).
+- Status simplified in UI to: On the way / Arrived / Sorting / Done (map to existing enum values; add `SORTING` if needed).
+
+### Rag (Lot)
+- Add `vendorId String?`, `purchaseCost Decimal(14,2)?` (for loose lots bought without a container), `originCountry String?`.
+- `allocatedCost` stays: cost from container allocation (container lots) or purchaseCost (loose lots).
+
+### InventoryItem (sellable stock) — key change for small merchants
+- `repackUnitId`, `categoryId`, `gradeId` become **optional**.
+- Add `source StockSource` enum: `PROCESSED` (from a bale/repack) | `PURCHASED` (direct stock).
+- Add `vendorId String?`, `name String?` (e.g., "Jeans A grade bale", "Ladies tops"), `unit StockUnit` enum: `KG | BALE | PIECE`, `quantity Decimal(14,2)`, `unitCost Decimal(14,4)`, `salePrice Decimal(14,2)?`, `priceTier String?`, `parentItemId String?` (pieces opened from a bale).
+- `avgCost` widened to `Decimal(14,2)`.
+
+### Customer
+- Required: `name` only. Make `companyName`, `billingAddress`, `shippingAddress`, `contactEmail`, `contactPhone` optional; add `phone String?` (WhatsApp, E.164) and `city String?`.
+- `currencyCode` default `PKR`. Add `openingBalance Decimal(14,2) @default(0)` (udhaar carried from the register).
+
+### Sale
+- `SaleType`: add `LOCAL` (default). `EXPORT` fields stay but hidden unless EXPORT module enabled.
+- Add `paymentMode` enum: `CASH | CREDIT | PARTIAL`.
+- Add `billToken String @unique` (random, for public bill link shared on WhatsApp).
+
+### Payment
+- Add `tenantId`, `customerId` (required), make `saleId` optional (payments on account).
+- `method` becomes enum `PaymentMethod`: `CASH | BANK | RAAST | JAZZCASH | EASYPAISA | OTHER`.
+- Add `reference String?`, `attachmentUrl String?`, `receivedBy String?`.
+
+### Money precision
+- Amount columns `Decimal(12,2)` → `Decimal(14,2)` (PKR totals can exceed 10 digits). Rates per kg `Decimal(14,4)`.
+
+## Add
+- `CustomerLedger` is a **view/query**, not a table: balance = openingBalance + sum(credit sales) − sum(payments). Implement as a service query (optionally a SQL view).
+- `CategoryTemplate` seed: a default Karachi category list (e.g., Jeans, Trousers, T-shirts, Shirts, Ladies tops, Kids, Jackets, Sweaters, Shoes, Bags, Bedsheets, Curtains, Rags/Katran, Waste) and default grades (Cream, A, B, C). Use existing `GlobalCategoryTemplate`.
+
+## Keep as is
+Auth/RBAC tables, `AuditLog`, `RefreshToken`, `IdempotencyKey`, `TenantSequence`, `Warehouse` (hidden unless WAREHOUSES module), `RepackInputAllocation`, `QRLabel`, `StockMovement`, `InventoryReservation`, `WasteCategory`, `WasteLineItem`, `GlobalConfig`.
+
+## Rules for the migration work
+- One migration per logical change, named clearly (e.g., `v1_01_remove_incoming_bale`).
+- Data migration SQL must be safe on the demo database and on an empty database.
+- After each migration: `prisma generate`, backend typecheck, tests green, seed works.
