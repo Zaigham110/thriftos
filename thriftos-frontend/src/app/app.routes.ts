@@ -86,14 +86,6 @@ export const routes: Routes = [
         title: 'Raw Bale Buying & Intake - ThriftOS Lite',
       },
       {
-        path: 'sorting',
-        canActivate: [operationalModuleGuard],
-        data: { operationalModule: 'SORTING' },
-        loadComponent: () =>
-          import('./features/simplified-mode/mobile-sorting/mobile-sorting.component').then((m) => m.MobileSortingComponent),
-        title: 'Sorting Workstation - ThriftOS Lite',
-      },
-      {
         path: 'repack',
         canActivate: [operationalModuleGuard],
         data: { operationalModule: 'REPACK' },
@@ -243,22 +235,6 @@ export const routes: Routes = [
           import('./modules/procurement/procurement.routes').then((m) => m.PROCUREMENT_ROUTES),
       },
       {
-        path: 'sorting',
-        loadChildren: () =>
-          import('./modules/sorting/sorting.routes').then((m) => m.SORTING_ROUTES),
-      },
-      {
-        path: 'packaging/repack',
-        loadChildren: () =>
-          import('./modules/repack/repack.routes').then((m) => m.REPACK_ROUTES),
-      },
-      {
-        path: 'packaging/draft-packs',
-        loadComponent: () =>
-          import('./features/shell/module-placeholder.component').then((m) => m.ModulePlaceholderComponent),
-        title: 'Draft Packs - ThriftOS',
-      },
-      {
         path: 'inventory',
         loadChildren: () =>
           import('./modules/inventory/inventory.routes').then((m) => m.INVENTORY_ROUTES),
@@ -277,16 +253,6 @@ export const routes: Routes = [
         path: 'admin',
         loadChildren: () =>
           import('./modules/admin/admin.routes').then((m) => m.ADMIN_ROUTES),
-      },
-      {
-        path: 'sorting',
-        redirectTo: 'sorting/stage-1',
-        pathMatch: 'full',
-      },
-      {
-        path: 'packaging',
-        redirectTo: 'packaging/repack',
-        pathMatch: 'full',
       },
     ],
   },

@@ -96,10 +96,10 @@ export class ThriftShellComponent {
         label: 'Sorting',
         icon: 'layers',
         items: [
-          { id: 'stage1', label: 'Stage 1 — Category', route: '/app/sorting/stage-1', icon: 'layers' },
-          { id: 'workstation', label: 'Scanner Workstation', route: '/app/sorting/workstation', icon: 'zap' },
-          { id: 'stage2', label: 'Stage 2 — Grading', route: '/app/sorting/stage-2', icon: 'tag' },
-          { id: 'outputs', label: 'Output Registry', route: '/app/sorting/outputs', icon: 'file-text' },
+          { id: 'stage1', label: 'Stage 1 — Category', route: '/app/flow/transform', icon: 'layers' },
+          { id: 'workstation', label: 'Scanner Workstation', route: '/app/flow/transform', icon: 'zap' },
+          { id: 'stage2', label: 'Stage 2 — Grading', route: '/app/flow/grade', icon: 'tag' },
+          { id: 'outputs', label: 'Output Registry', route: '/app/flow/seal', icon: 'file-text' },
         ],
       },
       {
@@ -107,7 +107,7 @@ export class ThriftShellComponent {
         label: 'Packaging',
         icon: 'package',
         items: [
-          { id: 'packaging', label: 'Packaging', route: '/app/packaging/repack', icon: 'package' },
+          { id: 'packaging', label: 'Packaging', route: '/app/flow/seal', icon: 'package' },
         ],
       },
       {

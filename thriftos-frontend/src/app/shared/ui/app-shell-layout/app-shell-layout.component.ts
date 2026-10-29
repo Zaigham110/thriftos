@@ -133,11 +133,11 @@ interface CmdSearchItem {
                       <lucide-icon [img]="icons.Truck" [size]="14" class="text-blue"></lucide-icon>
                       <span>New Purchase Order</span>
                     </button>
-                    <button type="button" class="menu-btn" (click)="navTo('/app/sorting/stage-1')">
+                    <button type="button" class="menu-btn" (click)="navTo('/app/flow/transform')">
                       <lucide-icon [img]="icons.Layers" [size]="14" class="text-emerald"></lucide-icon>
                       <span>Stage 1 Sorting Session</span>
                     </button>
-                    <button type="button" class="menu-btn" (click)="navTo('/app/packaging/repack')">
+                    <button type="button" class="menu-btn" (click)="navTo('/app/flow/seal')">
                       <lucide-icon [img]="icons.Package" [size]="14" class="text-amber"></lucide-icon>
                       <span>Repack Production Batch</span>
                     </button>
@@ -1078,9 +1078,9 @@ export class AppShellLayoutComponent {
     { id: 'proc-containers', title: 'Container Intake & Ocean Shipments', subtitle: 'Container gate arrival, weighbridge & container cost allocations', route: '/app/procurement/containers', group: 'Procurement', icon: 'Package', keywords: ['container', 'shipment', 'vessel', 'intake'] },
 
     // Operations & Warehouse
-    { id: 'sort-stage1', title: 'Stage 1 Raw Category Sorting Workstation', subtitle: 'Initial raw container sorting into category bales', route: '/app/sorting/stage-1', group: 'Inventory & Operations', icon: 'Layers', keywords: ['stage1', 'raw', 'sorting', 'bale'] },
-    { id: 'sort-stage2', title: 'Stage 2 Quality Grading Workstation', subtitle: 'Detailed quality grading (Grade A, B, Vintage, Waste)', route: '/app/sorting/stage-2', group: 'Inventory & Operations', icon: 'Tag', keywords: ['stage2', 'grading', 'vintage', 'quality'] },
-    { id: 'pack-repack', title: 'Repack & Packaging Production Workspace', subtitle: 'Bale breakdown, sorting and repacking into retail units', route: '/app/packaging/repack', group: 'Inventory & Operations', icon: 'Package', keywords: ['repack', 'package', 'sku', 'unit'] },
+    { id: 'sort-stage1', title: 'Stage 1 Raw Category Sorting Workstation', subtitle: 'Initial raw container sorting into category bales', route: '/app/flow/transform', group: 'Inventory & Operations', icon: 'Layers', keywords: ['stage1', 'raw', 'sorting', 'bale'] },
+    { id: 'sort-stage2', title: 'Stage 2 Quality Grading Workstation', subtitle: 'Detailed quality grading (Grade A, B, Vintage, Waste)', route: '/app/flow/grade', group: 'Inventory & Operations', icon: 'Tag', keywords: ['stage2', 'grading', 'vintage', 'quality'] },
+    { id: 'pack-repack', title: 'Repack & Packaging Production Workspace', subtitle: 'Bale breakdown, sorting and repacking into retail units', route: '/app/flow/seal', group: 'Inventory & Operations', icon: 'Package', keywords: ['repack', 'package', 'sku', 'unit'] },
     { id: 'inv-stock', title: 'Finished Goods Warehouse Inventory', subtitle: 'Stock list, warehouse distribution & bin locations', route: '/app/inventory', group: 'Inventory & Operations', icon: 'Warehouse', keywords: ['inventory', 'stock', 'warehouse', 'location'] },
 
     // System Admin

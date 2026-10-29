@@ -3,8 +3,7 @@ import { inject, Injectable } from '@angular/core';
 
 import { API_ENDPOINTS } from '../../core/config/api.config';
 import type { Rag } from '../procurement/rags/rag.models';
-import type { SortCategoryBucket, SortSession } from '../sorting-stage1/sorting-stage1.models';
-import type { AvailableForGrading, Grade, GradeBucket, GradeSession, GradeOutput } from '../sorting-stage2/sorting-stage2.models';
+import type { AvailableForGrading, Grade, GradeBucket, GradeSession, SortCategoryBucket, SortSession } from './sorting.models';
 
 export type WasteUnitType = 'KG' | 'PCS';
 
@@ -33,14 +32,6 @@ export interface PagedResponse<T> {
   limit: number;
 }
 
-export interface OutputsQuery {
-  search?: string;
-  status?: string;
-  gradeId?: string;
-  ragCode?: string;
-  containerNumber?: string;
-  categoryId?: string;
-}
 
 export interface Stage1Summary {
   session:
@@ -117,16 +108,16 @@ export class SortingFacadeService {
   stage1Queue(page: number = 1, limit: number = 100, query?: Stage1QueueQuery) {
     let params = new HttpParams().set('page', String(page)).set('limit', String(limit));
     if (query?.status) params = params.set('status', query.status);
-    return this.http.get<PagedResponse<Stage1QueueItem>>(`${API_ENDPOINTS.sortingFacadeStage1}/queue`, { params });
+    return this.http.get<PagedResponse<Stage1QueueItem>>(`${API_ENDPOINTS.sortingStage1}/queue`, { params });
   }
 
   stage1Summary(ragId: string) {
     const params = new HttpParams().set('ragId', ragId);
-    return this.http.get<Stage1Summary>(`${API_ENDPOINTS.sortingFacadeStage1}/summary`, { params });
+    return this.http.get<Stage1Summary>(`${API_ENDPOINTS.sortingStage1}/summary`, { params });
   }
 
   stage1SessionSummary(sessionId: string) {
-    return this.http.get<Stage1Summary>(`${API_ENDPOINTS.sortingFacadeStage1}/sessions/${sessionId}`);
+    return this.http.get<Stage1Summary>(`${API_ENDPOINTS.sortingStage1}/sessions/${sessionId}`);
   }
 
   stage1Start(sourceId: string, sourceType: 'RAG' | 'LOOSE_BALE', workerId?: string, supervisorId?: string) {
@@ -136,11 +127,11 @@ export class SortingFacadeService {
     } else {
       body.incomingBaleId = sourceId;
     }
-    return this.http.post<Stage1Summary>(`${API_ENDPOINTS.sortingFacadeStage1}/start`, body);
+    return this.http.post<Stage1Summary>(`${API_ENDPOINTS.sortingStage1}/start`, body);
   }
 
   stage1Allocate(sessionId: string, categoryId: string, amountKg: number, outputCount?: number) {
-    return this.http.post<Stage1Summary>(`${API_ENDPOINTS.sortingFacadeStage1}/allocate`, {
+    return this.http.post<Stage1Summary>(`${API_ENDPOINTS.sortingStage1}/allocate`, {
       sessionId,
       categoryId,
       amountKg,
@@ -149,44 +140,27 @@ export class SortingFacadeService {
   }
 
   stage1Seal(sessionId: string, wasteCategoryId?: string) {
-    return this.http.patch<Stage1Summary>(`${API_ENDPOINTS.sortingFacadeStage1}/${sessionId}/seal`, {
+    return this.http.patch<Stage1Summary>(`${API_ENDPOINTS.sortingStage1}/${sessionId}/seal`, {
       ...(wasteCategoryId ? { wasteCategoryId } : {}),
     });
   }
 
   stage1AddWaste(sessionId: string, wasteCategoryId: string, amount: number) {
-    return this.http.post<Stage1Summary>(`${API_ENDPOINTS.sortingFacadeStage1}/waste`, { sessionId, wasteCategoryId, amount });
+    return this.http.post<Stage1Summary>(`${API_ENDPOINTS.sortingStage1}/waste`, { sessionId, wasteCategoryId, amount });
   }
 
-  stage1UpdateWaste(wasteLineItemId: string, wasteCategoryId: string, amount: number) {
-    return this.http.patch<Stage1Summary>(`${API_ENDPOINTS.sortingFacadeStage1}/waste/${wasteLineItemId}`, { wasteCategoryId, amount });
-  }
 
-  stage1DeleteWaste(wasteLineItemId: string) {
-    return this.http.delete<Stage1Summary>(`${API_ENDPOINTS.sortingFacadeStage1}/waste/${wasteLineItemId}`);
-  }
 
-  /** Update a category bucket's weight (absolute value, not incremental) */
-  stage1UpdateBucket(bucketId: string, outputWeightKg: number, outputCount?: number) {
-    return this.http.patch<any>(`${API_ENDPOINTS.sortingStage1}/buckets/${bucketId}`, {
-      outputWeightKg,
-      ...(outputCount !== undefined ? { outputCount } : {}),
-    });
-  }
 
-  /** Remove a category bucket from the session */
-  stage1DeleteBucket(bucketId: string) {
-    return this.http.delete<any>(`${API_ENDPOINTS.sortingStage1}/buckets/${bucketId}`);
-  }
 
   stage2Queue(page: number, limit: number) {
     const params = new HttpParams().set('page', String(page)).set('limit', String(limit));
     // Backend returns AvailableForGradingResponse shape (data/total/page/limit/totalPages)
-    return this.http.get<any>(`${API_ENDPOINTS.sortingFacadeStage2}/queue`, { params });
+    return this.http.get<any>(`${API_ENDPOINTS.sortingStage2}/queue`, { params });
   }
 
   stage2Start(categoryOutputId: string, workerId?: string, supervisorId?: string) {
-    return this.http.post<Stage2Summary>(`${API_ENDPOINTS.sortingFacadeStage2}/start`, {
+    return this.http.post<Stage2Summary>(`${API_ENDPOINTS.sortingStage2}/start`, {
       categoryOutputId,
       workerId,
       supervisorId,
@@ -194,11 +168,11 @@ export class SortingFacadeService {
   }
 
   stage2Summary(sessionId: string) {
-    return this.http.get<Stage2Summary>(`${API_ENDPOINTS.sortingFacadeStage2}/sessions/${sessionId}`);
+    return this.http.get<Stage2Summary>(`${API_ENDPOINTS.sortingStage2}/sessions/${sessionId}`);
   }
 
   stage2Allocate(sessionId: string, gradeId: string, amountKg: number, outputCount?: number) {
-    return this.http.post<Stage2Summary>(`${API_ENDPOINTS.sortingFacadeStage2}/allocate`, {
+    return this.http.post<Stage2Summary>(`${API_ENDPOINTS.sortingStage2}/allocate`, {
       sessionId,
       gradeId,
       amountKg,
@@ -207,60 +181,24 @@ export class SortingFacadeService {
   }
 
   stage2Seal(sessionId: string, wasteCategoryId?: string) {
-    return this.http.patch<Stage2Summary>(`${API_ENDPOINTS.sortingFacadeStage2}/${sessionId}/seal`, {
+    return this.http.patch<Stage2Summary>(`${API_ENDPOINTS.sortingStage2}/${sessionId}/seal`, {
       ...(wasteCategoryId ? { wasteCategoryId } : {}),
     });
   }
 
   stage2AddWaste(sessionId: string, wasteCategoryId: string, amount: number) {
-    return this.http.post<Stage2Summary>(`${API_ENDPOINTS.sortingFacadeStage2}/waste`, { sessionId, wasteCategoryId, amount });
+    return this.http.post<Stage2Summary>(`${API_ENDPOINTS.sortingStage2}/waste`, { sessionId, wasteCategoryId, amount });
   }
 
-  stage2UpdateWaste(wasteLineItemId: string, wasteCategoryId: string, amount: number) {
-    return this.http.patch<Stage2Summary>(`${API_ENDPOINTS.sortingFacadeStage2}/waste/${wasteLineItemId}`, { wasteCategoryId, amount });
-  }
 
-  stage2DeleteWaste(wasteLineItemId: string) {
-    return this.http.delete<Stage2Summary>(`${API_ENDPOINTS.sortingFacadeStage2}/waste/${wasteLineItemId}`);
-  }
 
-  /** Update a grade bucket's weight (absolute value, not incremental) */
-  stage2UpdateBucket(bucketId: string, outputWeightKg: number, outputCount?: number) {
-    return this.http.patch<any>(`${API_ENDPOINTS.sortingStage2}/buckets/${bucketId}`, {
-      outputWeightKg,
-      ...(outputCount !== undefined ? { outputCount } : {}),
-    });
-  }
 
-  /** Remove a grade bucket from the session */
-  stage2DeleteBucket(bucketId: string) {
-    return this.http.delete<any>(`${API_ENDPOINTS.sortingStage2}/buckets/${bucketId}`);
-  }
 
   grades() {
-    return this.http.get<Grade[]>(API_ENDPOINTS.grades);
+    return this.http.get<Grade[]>(`${API_ENDPOINTS.tenant}/grades`);
   }
 
-  outputs(page: number, limit: number, query?: OutputsQuery) {
-    let params = new HttpParams().set('page', String(page)).set('limit', String(limit));
-    if (query?.search) params = params.set('search', query.search);
-    if (query?.status) params = params.set('status', query.status);
-    if (query?.gradeId) params = params.set('gradeId', query.gradeId);
-    if (query?.ragCode) params = params.set('ragCode', query.ragCode);
-    if (query?.containerNumber) params = params.set('containerNumber', query.containerNumber);
-    if (query?.categoryId) params = params.set('categoryId', query.categoryId);
-    return this.http.get<PagedResponse<GradeOutput>>(API_ENDPOINTS.sortingOutputs, { params });
-  }
 
-  output(id: string) {
-    return this.http.get<GradeOutput>(`${API_ENDPOINTS.sortingOutputs}/${id}`);
-  }
 
-  markOutputReadyForRepack(outputId: string) {
-    return this.http.patch<GradeOutput>(`${API_ENDPOINTS.sortingOutputs}/${outputId}/mark-ready`, {});
-  }
 
-  getProductivity() {
-    return this.http.get<any>(`${API_ENDPOINTS.sortingStage1}/sessions/productivity`);
-  }
 }

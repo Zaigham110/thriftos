@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, LucideAngularModule, Play, RefreshCw } from 'lucide-angular';
 import { SortingFacadeService, Stage2Summary, WasteCategory } from '../../../modules/sorting/sorting-facade.service';
-import { AvailableForGrading, Grade } from '../../../modules/sorting-stage2/sorting-stage2.models';
+import { AvailableForGrading, Grade } from '../../../modules/sorting/sorting.models';
 
 /** Stage two conversion: sealed category output becomes approved, repackable grade output. */
 @Component({

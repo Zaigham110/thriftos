@@ -236,7 +236,7 @@ export class RagListComponent implements OnInit {
     this.showSortingConfirm.set(false);
     this.actionLoading.set(false);
     this.sortingRag.set(null);
-    this.router.navigate(['/app/sorting/stage-1', rag.id]);
+    this.router.navigate(['/app/flow/transform', rag.id]);
   }
 
   getStatusLabel(status: RagStatus): string {

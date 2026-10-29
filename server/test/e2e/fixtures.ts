@@ -63,3 +63,36 @@ export function api(app: INestApplication, tenant: TestTenant) {
     delete: (url: string) => request(server).delete(`/api${url}`).set(auth),
   };
 }
+
+/** Master data (reused per tenant) and one new unsorted loose lot (100 kg costing Rs 50,000). */
+export async function seedSortableLot(app: INestApplication, tenantId: string) {
+  const prisma = app.get(PrismaService);
+  const raw =
+    (await prisma.rawCategory.findFirst({ where: { tenantId, name: 'Mixed' } })) ??
+    (await prisma.rawCategory.create({ data: { tenantId, name: 'Mixed', rawType: 'BALE' } }));
+  const category = async (name: string) =>
+    (await prisma.category.findFirst({ where: { tenantId, name } })) ??
+    (await prisma.category.create({ data: { tenantId, name } }));
+  const grade = async (name: string, rank: number) =>
+    (await prisma.grade.findFirst({ where: { tenantId, name } })) ??
+    (await prisma.grade.create({ data: { tenantId, name, rank } }));
+  const jeans = await category('Jeans');
+  const shirts = await category('Shirts');
+  const gradeA = await grade('A', 1);
+  const gradeB = await grade('B', 2);
+  const waste =
+    (await prisma.wasteCategory.findFirst({ where: { tenantId, name: 'Katran' } })) ??
+    (await prisma.wasteCategory.create({ data: { tenantId, name: 'Katran', unitType: 'KG' } }));
+  const lot = await prisma.rag.create({
+    data: {
+      tenantId,
+      ragCode: `LOT-${randomUUID().slice(0, 6)}`,
+      ragBaleType: 'BALE',
+      rawCategoryId: raw.id,
+      weightKg: 100,
+      allocatedCost: 50000,
+      sourceType: 'LOOSE_BALE',
+    },
+  });
+  return { lot, jeans, shirts, gradeA, gradeB, waste };
+}

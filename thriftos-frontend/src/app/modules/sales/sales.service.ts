@@ -91,7 +91,7 @@ export class SalesService {
   }
 
   listAvailableInventory(params?: { page?: number; limit?: number }): Observable<any> {
-    const base = API_ENDPOINTS.inventory;
+    const base = API_ENDPOINTS.stockItems;
     let httpParams = new HttpParams();
     httpParams = httpParams.set('status', 'AVAILABLE');
     if (params?.page) httpParams = httpParams.set('page', String(params.page));

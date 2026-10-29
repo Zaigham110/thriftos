@@ -16,7 +16,7 @@ import { InventoryItem, InventorySummary, TraceabilityChain } from './inventory.
   providedIn: 'root',
 })
 export class InventoryService {
-  private readonly API = API_ENDPOINTS.inventory;
+  private readonly API = API_ENDPOINTS.stockItems;
 
   constructor(private readonly http: HttpClient) {}
 

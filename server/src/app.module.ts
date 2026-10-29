@@ -11,12 +11,9 @@ import { MeModule } from './me/me.module';
 import { AuditModule } from './audit/audit.module';
 import { TenantModule } from './tenant/tenant.module';
 import { ProcurementModule } from './procurement/procurement.module';
-import { SortingStage1Module } from './sorting-stage1/sorting-stage1.module';
-import { SortingStage2Module } from './sorting-stage2/sorting-stage2.module';
-import { SortingFacadeModule } from './sorting-facade/sorting-facade.module';
+import { SortingModule } from './sorting/sorting.module';
 import { WasteModule } from './waste/waste.module';
-import { RepackModule } from './repack/repack.module';
-import { InventoryModule } from './inventory/inventory.module';
+import { StockModule } from './stock/stock.module';
 import { ReportsModule } from './reports/reports.module';
 import { HealthModule } from './health/health.module';
 import { AdminModule } from './admin/admin.module';
@@ -73,12 +70,9 @@ import { SearchModule } from './search/search.module';
 
     // Business modules
     ProcurementModule,
-    SortingStage1Module,
-    SortingStage2Module,
-    SortingFacadeModule,
+    SortingModule,
     WasteModule,
-    RepackModule,
-    InventoryModule,
+    StockModule,
     SalesModule,
     ReportsModule,
     SearchModule,

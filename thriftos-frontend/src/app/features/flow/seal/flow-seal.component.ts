@@ -1,10 +1,10 @@
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { LucideAngularModule, ArrowRight, CheckCircle2, PackageCheck, RefreshCw, Scale, Warehouse } from 'lucide-angular';
-import { RepackService } from '../../../modules/repack/repack.service';
-import { AvailableStock, RepackUnit, Warehouse as WarehouseModel } from '../../../modules/repack/repack.models';
+import { BaleService } from '../../../modules/stock/bale.service';
+import { AvailableStock, Bale, Warehouse as WarehouseModel } from '../../../modules/stock/bale.models';
 
 /** Flow's lifecycle-safe handoff from approved grade output to sealed inventory. */
 @Component({
@@ -13,9 +13,7 @@ import { AvailableStock, RepackUnit, Warehouse as WarehouseModel } from '../../.
   template: `
     <section class="seal-page">
       <header class="intro"><div><span>Sellable-stock handoff</span><h1>Seal a unit</h1><p>Choose approved grade output, set its packaged amount, then create its QR-identified inventory unit.</p></div><a routerLink="/app/flow/grade">Quality grade <lucide-icon [img]="icons.ArrowRight" [size]="16"/></a></header>
-      @if (resumedSessionId()) { <div class="notice">Resumed repack session: new sealed units will remain in this session.</div> }
       @if (notice()) { <div class="notice" [class.error]="noticeKind()==='error'">{{ notice() }}</div> }
-      @if (resumedSessionId() && drafts().length) { <section class="drafts card"><header><div><span>Resumed work</span><h2>Draft units awaiting seal</h2></div><label>Put-away <select [ngModel]="warehouseId()" (ngModelChange)="warehouseId.set($event)"><option value="">Assign later</option>@for(location of warehouses();track location.id){<option [value]="location.id">{{location.name}}</option>}</select></label></header>@for(draft of drafts();track draft.id){<div class="draft-row"><div><b>{{draft.unitCode}}</b><small>{{draft.category?.name||'Category'}} · {{draft.grade?.name||'Grade'}} · {{draft.allocatedAmount|number:'1.0-2'}} / {{draft.targetAmount|number:'1.0-2'}} {{draft.measurementType==='QUANTITY'?'pcs':'kg'}}</small></div><button type="button" [disabled]="saving()" (click)="sealExistingDraft(draft)">Seal draft</button></div>}</section> }
       @if (sealed(); as unit) {
         <section class="sealed-confirmation"><div class="seal-mark"><lucide-icon [img]="icons.CheckCircle2" [size]="30"/></div><div><span>Inventory created</span><h2>{{ unit.unitCode }}</h2><p>{{ unit.category?.name || selected()?.categoryName }} · {{ unit.grade?.name || selected()?.gradeName }} · {{ sealedAmount() | number:'1.0-2' }} {{ unit.measurementType === 'QUANTITY' ? 'pcs' : 'kg' }}</p></div><div class="qr"><small>QR identity</small><b>REPACK:{{ unit.unitCode }}</b></div><div class="confirmation-actions"><a routerLink="/app/flow/stock">Inspect stock</a><button type="button" (click)="startAnother()">Seal another</button></div></section>
       } @else {
@@ -41,19 +39,16 @@ import { AvailableStock, RepackUnit, Warehouse as WarehouseModel } from '../../.
 })
 export class FlowSealComponent implements OnInit {
   readonly icons = { ArrowRight, CheckCircle2, PackageCheck, RefreshCw, Scale, Warehouse };
-  private readonly repack = inject(RepackService);
-  private readonly route = inject(ActivatedRoute);
-  readonly stock = signal<AvailableStock[]>([]); readonly drafts = signal<RepackUnit[]>([]); readonly warehouses = signal<WarehouseModel[]>([]);
+  private readonly bales = inject(BaleService);
+  readonly stock = signal<AvailableStock[]>([]); readonly warehouses = signal<WarehouseModel[]>([]);
   readonly selected = signal<AvailableStock | null>(null); readonly target = signal(0); readonly warehouseId = signal('');
-  readonly loading = signal(true); readonly saving = signal(false); readonly notice = signal(''); readonly noticeKind = signal<'success' | 'error'>('success'); readonly sealed = signal<RepackUnit | null>(null); readonly sealedAmount = signal(0);
+  readonly loading = signal(true); readonly saving = signal(false); readonly notice = signal(''); readonly noticeKind = signal<'success' | 'error'>('success'); readonly sealed = signal<Bale | null>(null); readonly sealedAmount = signal(0);
   readonly presetAmounts = computed(() => { const item = this.selected(); if (!item) return []; return (item.measurementType === 'QUANTITY' ? [1, 5, 10, 25] : [5, 10, 20, 25]).filter(a => a <= Number(item.remainingAmount)); });
   readonly canSeal = computed(() => { const item = this.selected(), amount = this.target(); return !!item && Number.isFinite(amount) && amount > 0 && amount <= Number(item.remainingAmount); });
-  readonly resumedSessionId = signal('');
-  ngOnInit(): void { this.resumedSessionId.set(this.route.snapshot.queryParamMap.get('resume') || ''); this.load(); this.repack.getWarehouses().subscribe(items => this.warehouses.set(items)); }
-  load(): void { this.loading.set(true); this.notice.set(''); this.repack.getAvailableStock().subscribe({ next: rows => { this.stock.set(rows || []); this.loading.set(false); }, error: error => { this.loading.set(false); this.showError(error.message || 'Could not load approved grade output.'); } }); if (this.resumedSessionId()) this.repack.getDrafts(this.resumedSessionId()).subscribe({ next: drafts => this.drafts.set(drafts || []), error: error => this.showError(error.message || 'Could not load repack drafts.') }); }
+  ngOnInit(): void { this.load(); this.bales.warehouses().subscribe(items => this.warehouses.set(items)); }
+  load(): void { this.loading.set(true); this.notice.set(''); this.bales.availableStock().subscribe({ next: rows => { this.stock.set(rows || []); this.loading.set(false); }, error: error => { this.loading.set(false); this.showError(error.message || 'Could not load graded stock.'); } }); }
   choose(item: AvailableStock): void { this.selected.set(item); this.target.set(Number(item.remainingAmount)); this.notice.set(''); }
   startAnother(): void { this.sealed.set(null); this.sealedAmount.set(0); this.selected.set(null); this.target.set(0); this.warehouseId.set(''); this.notice.set(''); this.load(); }
-  sealExistingDraft(draft: RepackUnit): void { this.saving.set(true); this.notice.set(''); this.repack.sealDraft(draft.id, this.warehouseId() || null).subscribe({ next: unit => { this.saving.set(false); this.drafts.update(rows => rows.filter(row => row.id !== draft.id)); this.sealedAmount.set(Number(draft.allocatedAmount || draft.targetAmount)); this.sealed.set(unit); }, error: error => { this.saving.set(false); this.showError(error.message || 'The server could not seal this draft.'); } }); }
-  seal(): void { const item = this.selected(), amount = this.target(); if (!item || !this.canSeal()) return; this.saving.set(true); this.notice.set(''); this.repack.createDraftWithAllocation({ categoryId: item.categoryId, gradeId: item.gradeId, measurementType: item.measurementType, targetAmount: amount }, { gradingOutputId: item.id, amountUsed: amount }, this.resumedSessionId() || undefined).subscribe({ next: draft => this.repack.sealDraft(draft.id, this.warehouseId() || null).subscribe({ next: unit => { this.saving.set(false); this.sealedAmount.set(amount); this.sealed.set(unit); }, error: error => { this.saving.set(false); this.showError(error.message || 'The server could not seal this unit.'); } }), error: error => { this.saving.set(false); this.showError(error.message || 'The server could not create the repack draft.'); } }); }
+  seal(): void { const item = this.selected(), amount = this.target(); if (!item || !this.canSeal()) return; this.saving.set(true); this.notice.set(''); this.bales.makeBale({ categoryId: item.categoryId, gradeId: item.gradeId, weightKg: amount, allocations: [{ gradingOutputId: item.id, amountKg: amount }], warehouseId: this.warehouseId() || undefined }).subscribe({ next: bale => { this.saving.set(false); this.sealedAmount.set(amount); this.sealed.set(bale); }, error: error => { this.saving.set(false); this.showError(error.message || 'The bale could not be made.'); } }); }
   private showError(message: string): void { this.noticeKind.set('error'); this.notice.set(message); }
 }

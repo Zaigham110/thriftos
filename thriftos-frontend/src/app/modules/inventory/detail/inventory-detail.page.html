@@ -146,7 +146,7 @@
               <div class="spec-row">
                 <span class="spec-label">Source Repack Unit</span>
                 @if (t.repackUnit; as r) {
-                  <a [routerLink]="['/app/packaging/repack', r.id]" class="link-badge purple">
+                  <a [routerLink]="['/app/flow/seal', r.id]" class="link-badge purple">
                     <lucide-icon [img]="icons.Package" [size]="12"></lucide-icon>
                     {{ r.unitCode }}
                   </a>

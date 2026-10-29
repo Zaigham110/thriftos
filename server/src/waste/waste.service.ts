@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Decimal } from '@prisma/client/runtime/library';
-import { WasteStage, WasteUnitType } from '@prisma/client';
+import { WasteUnitType } from '@prisma/client';
 
 @Injectable()
 export class WasteService {
@@ -102,102 +102,5 @@ export class WasteService {
     }
 
     return this.prisma.wasteCategory.delete({ where: { id } });
-  }
-
-  async createLineItem(
-    tenantId: string,
-    dto: {
-      stage: WasteStage;
-      wasteCategoryId: string;
-      amount: number;
-      sortSessionId?: string;
-      gradeSessionId?: string;
-    },
-    traceability: {
-      containerId?: string | null;
-      ragId?: string | null;
-      categoryOutputId?: string | null;
-    },
-  ) {
-    const category = await this.prisma.wasteCategory.findFirst({
-      where: { id: dto.wasteCategoryId, tenantId, isActive: true },
-    });
-    if (!category) throw new BadRequestException('Invalid waste category');
-
-    if (!(dto.amount > 0)) throw new BadRequestException('Waste amount must be > 0');
-
-    if (dto.stage === WasteStage.STAGE_1) {
-      if (!dto.sortSessionId || dto.gradeSessionId) {
-        throw new BadRequestException('Stage-1 waste requires sortSessionId only');
-      }
-    }
-
-    if (dto.stage === WasteStage.STAGE_2) {
-      if (!dto.gradeSessionId || dto.sortSessionId) {
-        throw new BadRequestException('Stage-2 waste requires gradeSessionId only');
-      }
-    }
-
-    const estimatedValue = new Decimal(dto.amount).mul(category.defaultResalePrice);
-
-    return this.prisma.wasteLineItem.create({
-      data: {
-        tenantId,
-        stage: dto.stage,
-        wasteCategoryId: category.id,
-        amount: new Decimal(dto.amount),
-        unitType: category.unitType,
-        estimatedValue,
-        sortSessionId: dto.sortSessionId,
-        gradeSessionId: dto.gradeSessionId,
-        containerId: traceability.containerId ?? null,
-        ragId: traceability.ragId ?? null,
-        categoryOutputId: traceability.categoryOutputId ?? null,
-      },
-      include: {
-        wasteCategory: true,
-      },
-    });
-  }
-
-  async updateLineItem(
-    tenantId: string,
-    id: string,
-    dto: { wasteCategoryId: string; amount: number },
-  ) {
-    const existing = await this.prisma.wasteLineItem.findFirst({
-      where: { id, tenantId },
-      include: { wasteCategory: true },
-    });
-    if (!existing) throw new NotFoundException('Waste line item not found');
-
-    const category = await this.prisma.wasteCategory.findFirst({
-      where: { id: dto.wasteCategoryId, tenantId, isActive: true },
-    });
-    if (!category) throw new BadRequestException('Invalid waste category');
-
-    if (!(dto.amount > 0)) throw new BadRequestException('Waste amount must be > 0');
-
-    const estimatedValue = new Decimal(dto.amount).mul(category.defaultResalePrice);
-
-    return this.prisma.wasteLineItem.update({
-      where: { id },
-      data: {
-        wasteCategoryId: category.id,
-        amount: new Decimal(dto.amount),
-        unitType: category.unitType,
-        estimatedValue,
-      },
-      include: {
-        wasteCategory: true,
-      },
-    });
-  }
-
-  async deleteLineItem(tenantId: string, id: string) {
-    const existing = await this.prisma.wasteLineItem.findFirst({ where: { id, tenantId } });
-    if (!existing) throw new NotFoundException('Waste line item not found');
-
-    return this.prisma.wasteLineItem.delete({ where: { id } });
   }
 }
