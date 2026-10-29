@@ -27,13 +27,14 @@ export class VendorService {
         companyName: dto.companyName,
         vendorType: dto.vendorType || 'SUPPLIER',
         country: dto.country,
+        originCountry: dto.originCountry ?? dto.country,
         taxId: dto.taxId,
         contactPerson: dto.contactPerson,
         contactEmail: dto.contactEmail,
         contactPhone: dto.contactPhone,
         contactInfo: dto.contactInfo,
         paymentTerms: dto.paymentTerms || 'NET_30',
-        defaultCurrency: dto.defaultCurrency || 'USD',
+        defaultCurrency: dto.defaultCurrency || 'PKR',
         remittanceAccount: dto.remittanceAccount,
         physicalAddress: dto.physicalAddress,
         notes: dto.notes,
@@ -94,6 +95,7 @@ export class VendorService {
         ...(dto.companyName !== undefined && { companyName: dto.companyName }),
         ...(dto.vendorType !== undefined && { vendorType: dto.vendorType }),
         ...(dto.country !== undefined && { country: dto.country }),
+        ...(dto.originCountry !== undefined && { originCountry: dto.originCountry }),
         ...(dto.taxId !== undefined && { taxId: dto.taxId }),
         ...(dto.contactPerson !== undefined && { contactPerson: dto.contactPerson }),
         ...(dto.contactEmail !== undefined && { contactEmail: dto.contactEmail }),
@@ -125,7 +127,7 @@ export class VendorService {
       where: { id, tenantId },
       include: {
         _count: {
-          select: { purchaseOrders: true, incomingBales: true },
+          select: { purchaseOrders: true, containers: true, rags: true },
         },
       },
     });
@@ -134,7 +136,7 @@ export class VendorService {
       throw new NotFoundException('Vendor not found');
     }
 
-    const hasReferences = vendor._count.purchaseOrders > 0 || vendor._count.incomingBales > 0;
+    const hasReferences = vendor._count.purchaseOrders > 0 || vendor._count.containers > 0 || vendor._count.rags > 0;
     if (hasReferences) {
       throw new BadRequestException(
         'Cannot delete vendor: it is referenced by procurement history. Deactivate instead.'

@@ -164,48 +164,20 @@ export class InventoryService {
    *   → Rags/Bales → Containers/POs
    */
   async getTraceability(tenantId: string, inventoryId: string) {
-    const item = await this.prisma.inventoryItem.findFirst({
-      where: { id: inventoryId, tenantId },
+    const lineage = {
       include: {
-        repackUnit: {
+        category: true,
+        sortCategoryBucket: {
           include: {
-            inputAllocations: {
+            sortSession: {
               include: {
-                gradingOutput: {
+                rag: {
                   include: {
-                    grade: true,
-                    gradeBucket: {
+                    vendor: { select: { id: true, name: true } },
+                    container: {
                       include: {
-                        gradeSession: {
-                          include: {
-                            categoryOutput: {
-                              include: {
-                                category: true,
-                                sortCategoryBucket: {
-                                  include: {
-                                    sortSession: {
-                                      include: {
-                                        rag: {
-                                          include: {
-                                            container: {
-                                              include: {
-                                                purchaseOrder: {
-                                                  include: {
-                                                    vendor: true,
-                                                  },
-                                                },
-                                              },
-                                            },
-                                          },
-                                        },
-                                      },
-                                    },
-                                  },
-                                },
-                              },
-                            },
-                          },
-                        },
+                        vendor: { select: { id: true, name: true } },
+                        purchaseOrder: { select: { id: true, poNumber: true } },
                       },
                     },
                   },
@@ -215,10 +187,33 @@ export class InventoryService {
           },
         },
       },
+    } as const;
+    const item = await this.prisma.inventoryItem.findFirst({
+      where: { id: inventoryId, tenantId },
+      include: {
+        repackUnit: {
+          include: {
+            inputAllocations: {
+              orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+              include: {
+                categoryOutput: lineage,
+                gradingOutput: {
+                  include: {
+                    grade: true,
+                    gradeBucket: { include: { gradeSession: { include: { categoryOutput: lineage } } } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
-
     if (!item) {
       throw new NotFoundException('Inventory item not found');
+    }
+    if (!item.repackUnit) {
+      return { inventoryItem: { id: item.id, createdAt: item.createdAt }, repackUnit: null, sourceAllocations: [] };
     }
 
     return {
@@ -232,55 +227,50 @@ export class InventoryService {
         status: item.repackUnit.status,
         createdAt: item.repackUnit.createdAt,
       },
-      sourceAllocations: item.repackUnit.inputAllocations.map((alloc: any) => {
+      sourceAllocations: item.repackUnit.inputAllocations.map((alloc) => {
         const go = alloc.gradingOutput;
-        const bucket = go?.gradeBucket;
-        const session = bucket?.gradeSession;
-        const catOutput = session?.categoryOutput;
-        const sortBucket = catOutput?.sortCategoryBucket;
-        const sortSess = sortBucket?.sortSession;
+        const session = go?.gradeBucket.gradeSession;
+        const catOutput = session?.categoryOutput ?? alloc.categoryOutput;
+        const sortSess = catOutput?.sortCategoryBucket.sortSession;
         const rag = sortSess?.rag;
         const container = rag?.container;
-        const po = container?.purchaseOrder;
-
         return {
           allocationId: alloc.id,
           amountUsed: alloc.amountUsed,
+          allocatedCost: alloc.allocatedCost,
           measurementType: alloc.measurementType,
+          source: go ? 'GRADE' : 'CATEGORY',
           gradingOutput: {
             id: go?.id,
             weightKg: go?.weightKg,
             count: go?.count,
-            grade: go?.grade,
-            gradeSession: {
-              id: session?.id,
-              startTime: session?.startTime,
-              endTime: session?.endTime,
-            },
+            grade: go?.grade ?? null,
+            gradeSession: session ? { id: session.id, startTime: session.startTime, endTime: session.endTime } : null,
             categoryOutput: {
               id: catOutput?.id,
               weightKg: catOutput?.weightKg,
               category: catOutput?.category,
               sortSession: {
                 id: sortSess?.id,
-                sessionCode: sortSess?.sessionCode,
                 startTime: sortSess?.startTime,
                 endTime: sortSess?.endTime,
-                rag: rag ? {
-                  id: rag.id,
-                  ragCode: rag.ragCode,
-                  ragType: rag.ragType,
-                  initialWeightKg: rag.initialWeightKg,
-                  container: container ? {
-                    id: container.id,
-                    containerNumber: container.containerNumber,
-                    purchaseOrder: po ? {
-                      id: po.id,
-                      poNumber: po.poNumber,
-                      vendor: po.vendor,
-                    } : null,
-                  } : null,
-                } : null,
+                rag: rag
+                  ? {
+                      id: rag.id,
+                      ragCode: rag.ragCode,
+                      weightKg: rag.weightKg,
+                      originCountry: rag.originCountry,
+                      vendor: rag.vendor ?? container?.vendor ?? null,
+                      container: container
+                        ? {
+                            id: container.id,
+                            containerNumber: container.containerNumber,
+                            vendor: container.vendor,
+                            purchaseOrder: container.purchaseOrder,
+                          }
+                        : null,
+                    }
+                  : null,
               },
             },
           },

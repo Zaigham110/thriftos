@@ -11,6 +11,7 @@ import { MeModule } from './me/me.module';
 import { AuditModule } from './audit/audit.module';
 import { TenantModule } from './tenant/tenant.module';
 import { ProcurementModule } from './procurement/procurement.module';
+import { CostingModule } from './costing/costing.module';
 import { SortingModule } from './sorting/sorting.module';
 import { WasteModule } from './waste/waste.module';
 import { StockModule } from './stock/stock.module';
@@ -69,6 +70,7 @@ import { SearchModule } from './search/search.module';
     TenantModule,
 
     // Business modules
+    CostingModule,
     ProcurementModule,
     SortingModule,
     WasteModule,

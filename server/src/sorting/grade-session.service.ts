@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable } from '@nestjs/comm
 import { GradeStatus, GradingOutputStatus, MeasurementType, SortStatus, WasteStage } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { AuditService } from '../audit/audit.service';
+import { outputCosts } from '../costing/costing';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddGradeKgDto, PageQueryDto, StartGradingDto } from './sorting.dto';
 import { SortingWasteService } from './sorting-waste.service';
@@ -24,6 +25,7 @@ export class GradeSessionService {
     const where = {
       tenantId,
       sortCategoryBucket: { is: { sortSession: { is: { status: SortStatus.CLOSED } } } },
+      usedKg: 0,
       OR: [{ gradeSessions: { none: {} } }, { gradeSessions: { some: { status: GradeStatus.OPEN } } }],
     };
     const [rows, total] = await Promise.all([
@@ -56,9 +58,12 @@ export class GradeSessionService {
   async start(tenantId: string, dto: StartGradingDto, userId: string) {
     const output = await this.prisma.categoryOutput.findFirst({
       where: { id: dto.categoryOutputId, tenantId },
-      select: { id: true, weightKg: true, allocatedCost: true },
+      select: { id: true, weightKg: true, allocatedCost: true, usedKg: true },
     });
     if (!output) throw new BadRequestException('Sorted output not found');
+    if (output.usedKg.greaterThan(ZERO)) {
+      throw new ConflictException('Part of this output is already in bales, so it cannot be graded');
+    }
 
     const existing = await this.prisma.gradeSession.findFirst({
       where: { tenantId, categoryOutputId: output.id },
@@ -170,11 +175,15 @@ export class GradeSessionService {
       }
       const session = await tx.gradeSession.findFirstOrThrow({
         where: { id: sessionId, tenantId },
-        include: { categoryOutput: { select: { allocatedCost: true } }, gradeBuckets: true },
+        include: {
+          categoryOutput: { select: { allocatedCost: true } },
+          gradeBuckets: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+        },
       });
+      const buckets = session.gradeBuckets.filter((b) => b.outputWeightKg.greaterThan(ZERO));
+      const costs = outputCosts(session.categoryOutput.allocatedCost, buckets.map((b) => ({ key: b.id, kg: b.outputWeightKg })));
       let created = 0;
-      for (const bucket of session.gradeBuckets) {
-        if (bucket.outputWeightKg.equals(ZERO) && bucket.outputCount === 0) continue;
+      for (const bucket of buckets) {
         await tx.gradeOutput.create({
           data: {
             tenantId,
@@ -182,7 +191,7 @@ export class GradeSessionService {
             gradeId: bucket.gradeId,
             weightKg: bucket.outputWeightKg,
             count: bucket.outputCount,
-            allocatedCost: bucket.outputWeightKg.div(capacity.outputKg).mul(session.categoryOutput.allocatedCost),
+            allocatedCost: costs.find((c) => c.key === bucket.id)!.amount,
             totalAmount: bucket.outputWeightKg,
             usedAmount: ZERO,
             remainingAmount: bucket.outputWeightKg,

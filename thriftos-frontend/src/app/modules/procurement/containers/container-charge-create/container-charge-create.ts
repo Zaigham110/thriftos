@@ -60,12 +60,14 @@ export class ContainerChargeCreateComponent implements OnInit {
   readonly actionLoading = signal(false);
 
   readonly chargeTypeOptions = [
-    { value: 'CIF', label: 'CIF (Cost, Insurance, Freight)' },
-    { value: 'FREIGHT', label: 'Freight' },
     { value: 'DUTY', label: 'Duty' },
+    { value: 'CLEARING', label: 'Clearing' },
+    { value: 'FREIGHT', label: 'Freight' },
+    { value: 'TRANSPORT', label: 'Transport' },
+    { value: 'LABOUR', label: 'Labour' },
     { value: 'TAX', label: 'Tax' },
-    { value: 'PORT_HANDLING', label: 'Port Handling' },
-    { value: 'MISC', label: 'Miscellaneous' },
+    { value: 'PORT_HANDLING', label: 'Port handling' },
+    { value: 'MISC', label: 'Other' },
   ];
 
   readonly currencyCode = computed(() => this.container()?.purchaseOrder?.currency || this.tenantService.tenant()?.currencyCode || '—');
@@ -85,7 +87,7 @@ export class ContainerChargeCreateComponent implements OnInit {
 
   ngOnInit(): void {
     this.form = this.fb.group({
-      chargeType: ['CIF', Validators.required],
+      chargeType: ['DUTY', Validators.required],
       description: ['', [Validators.required, Validators.maxLength(200)]],
       amount: [0, [Validators.required, Validators.min(0.01)]],
     });

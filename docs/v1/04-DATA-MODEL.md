@@ -80,6 +80,13 @@ Current schema: `prisma/schema.prisma` (43 models). v1 simplifies it. Table name
 ## Keep as is
 Auth/RBAC tables, `AuditLog`, `RefreshToken`, `IdempotencyKey`, `TenantSequence`, `Warehouse` (hidden unless WAREHOUSES module), `RepackInputAllocation`, `QRLabel`, `StockMovement`, `InventoryReservation`, `WasteCategory`, `WasteLineItem`, `GlobalConfig`.
 
+## Added during Phase 1 (decisions)
+- `RepackInputAllocation.gradingOutputId` is optional and `categoryOutputId` (optional) is added; exactly one is set (DB check constraint `RepackInputAllocation_exactly_one_source`, also checked in `BaleService`). Tenants with `sortingStages = 1` make bales straight from category outputs.
+- `CategoryOutput.usedKg` (default 0, check `0 ≤ usedKg ≤ weightKg`) tracks kg baled directly. A category output that gave kg to a bale cannot be graded, and a graded one cannot be baled directly.
+- `InventoryItem.gradeId` is optional (bales from 1-stage sorting have no grade). The rest of the `InventoryItem` changes stay in task 2.1.
+- Every tenant has a waste type named `Waste/Katran` (migration `v1_04`, seed, tenant bootstrap).
+- Loose lots have no purchase order; old loose-bale purchase orders keep their stored total in reports.
+
 ## Rules for the migration work
 - One migration per logical change, named clearly (e.g., `v1_01_remove_incoming_bale`).
 - Data migration SQL must be safe on the demo database and on an empty database.

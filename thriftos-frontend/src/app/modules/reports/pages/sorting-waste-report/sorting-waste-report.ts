@@ -6,7 +6,6 @@ import { MoneyService } from '../../../../core/money/money.service';
 import type {
   ReportFilters,
   SortingWasteResponse,
-  SortingWasteLegacyRow,
   SortingWasteByCategoryRow,
 } from '../../reports.models';
 import { ReportFiltersComponent } from '../../shared/report-filters.component';
@@ -65,13 +64,6 @@ export class SortingWasteReportComponent implements OnInit {
   readonly searchText = signal<string>('');
   protected currentFilters: ReportFilters = {};
 
-  readonly legacyColumns: DataTableColumn[] = [
-    { label: 'Closed At', key: 'closedAt', sortable: true },
-    { label: 'Stage', key: 'stage', sortable: true },
-    { label: 'Session', key: 'sessionCode', sortable: true },
-    { label: 'Waste (KG)', key: 'wasteWeightKg', sortable: true, align: 'right' },
-  ];
-
   readonly categorizedColumns: DataTableColumn[] = [
     { label: 'Category', key: 'categoryName', sortable: true },
     { label: 'Stage', key: 'stage', sortable: true },
@@ -116,10 +108,6 @@ export class SortingWasteReportComponent implements OnInit {
 
   exportReport(): void {
     this.reportsService.exportSortingWaste(this.currentFilters);
-  }
-
-  legacyRows(): SortingWasteLegacyRow[] {
-    return this.response()?.data ?? [];
   }
 
   categorizedRows(): SortingWasteByCategoryRow[] {

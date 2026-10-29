@@ -41,7 +41,6 @@ export class SortingWasteService {
           ragId: true,
           totalInputWeight: true,
           rag: { select: { containerId: true } },
-          incomingBale: { select: { containerId: true } },
         },
       });
       if (!session) throw new NotFoundException('Sort session not found');
@@ -58,7 +57,7 @@ export class SortingWasteService {
         declaredWasteKg,
         remainingKg: session.totalInputWeight.sub(outputKg).sub(declaredWasteKg),
         trace: {
-          containerId: session.rag?.containerId ?? session.incomingBale?.containerId ?? null,
+          containerId: session.rag.containerId,
           ragId: session.ragId,
           categoryOutputId: null,
         },

@@ -133,14 +133,14 @@ export class RagService {
   }
 
   /**
-   * Create a new rag for a container
+   * Record a lot in a container (it takes a share of the container's landed cost)
    */
   createRag(containerId: string, data: CreateRagRequest): Observable<Rag> {
     this._loading.set(true);
     this._error.set(null);
 
     return this.http
-      .post<Rag>(`${API_BASE}/containers/${containerId}/rags`, data)
+      .post<Rag>(`${API_BASE}/rags`, { ...data, containerId })
       .pipe(
         tap((rag) => {
           // Add to current list

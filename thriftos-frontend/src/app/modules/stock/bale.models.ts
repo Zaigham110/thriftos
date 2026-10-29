@@ -1,12 +1,13 @@
 /** Shapes returned by the /stock/bales API. */
 
-/** Graded stock a bale can be made from (oldest grading first). */
+/** Sorted stock a bale can be made from (oldest first): a grade output, or an ungraded category output. */
 export interface AvailableStock {
   id: string;
+  source: 'GRADE' | 'CATEGORY';
   categoryId: string;
   categoryName: string;
-  gradeId: string;
-  gradeName: string;
+  gradeId: string | null;
+  gradeName: string | null;
   measurementType: 'WEIGHT' | 'QUANTITY';
   totalAmount: number | string;
   usedAmount: number | string;
@@ -33,11 +34,12 @@ export interface Bale {
 
 export interface MakeBaleRequest {
   categoryId: string;
-  gradeId: string;
+  /** Leave out to make the bale from category outputs (one-stage sorting). */
+  gradeId?: string;
   weightKg: number;
   pieces?: number;
   /** Advanced: take stock from these graded outputs instead of FIFO. */
-  allocations?: { gradingOutputId: string; amountKg: number }[];
+  allocations?: ({ gradingOutputId: string; amountKg: number } | { categoryOutputId: string; amountKg: number })[];
   warehouseId?: string;
 }
 

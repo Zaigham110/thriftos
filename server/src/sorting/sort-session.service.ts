@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { RagStatus, SortStatus, WasteStage } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { AuditService } from '../audit/audit.service';
+import { outputCosts } from '../costing/costing';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddCategoryKgDto, LotQueueQueryDto, StartSortDto } from './sorting.dto';
 import { SortingWasteService } from './sorting-waste.service';
@@ -21,129 +22,51 @@ export class SortSessionService {
   async queue(tenantId: string, query: LotQueueQueryDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
-    const ragWhere = {
+    const where = {
       tenantId,
       status: query.status ? (query.status as RagStatus) : { in: [RagStatus.NOT_STARTED, RagStatus.IN_SORTING] },
     };
-    const baleWhere = {
-      tenantId,
-      purchaseOrderId: { not: null },
-      purchaseOrder: { is: { status: { not: 'CLOSED' as const } } },
-      OR: [{ sortSessions: { none: {} } }, { sortSessions: { some: { status: SortStatus.OPEN } } }],
-    };
-
-    const [rags, ragTotal, bales, baleTotal] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.prisma.rag.findMany({
-        where: ragWhere,
+        where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ status: 'desc' }, { createdAt: 'desc' }],
         include: {
-          container: { select: { id: true, containerNumber: true, purchaseOrder: { select: { id: true, poNumber: true } } } },
-          rawCategory: { select: { id: true, name: true, rawType: true } },
-        },
-      }),
-      this.prisma.rag.count({ where: ragWhere }),
-      this.prisma.incomingBale.findMany({
-        where: baleWhere,
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          purchaseOrder: { select: { id: true, poNumber: true } },
+          container: { select: { id: true, containerNumber: true } },
           vendor: { select: { id: true, name: true } },
           rawCategory: { select: { id: true, name: true, rawType: true } },
-          sortSessions: { select: { id: true, status: true } },
         },
       }),
-      this.prisma.incomingBale.count({ where: baleWhere }),
+      this.prisma.rag.count({ where }),
     ]);
-
-    const data = [
-      ...rags.map((rag) => ({ ...rag, sourceType: 'RAG' as const, sourceId: rag.id })),
-      ...bales
-        .map((bale) => ({
-          ...bale,
-          sourceType: 'LOOSE_BALE' as const,
-          sourceId: bale.id,
-          status: bale.sortSessions.length === 0 ? 'NOT_STARTED' : 'IN_SORTING',
-        }))
-        .filter((bale) => !query.status || bale.status === query.status),
-    ].sort((a, b) => Number(b.status === 'IN_SORTING') - Number(a.status === 'IN_SORTING'));
-
-    return { data, total: ragTotal + baleTotal, page, limit };
+    const data = rows
+      .map((rag) => ({ ...rag, sourceType: rag.sourceType, sourceId: rag.id }))
+      .sort((a, b) => Number(b.status === RagStatus.IN_SORTING) - Number(a.status === RagStatus.IN_SORTING));
+    return { data, total, page, limit };
   }
 
   async start(tenantId: string, dto: StartSortDto, userId: string) {
-    if (!!dto.ragId === !!dto.incomingBaleId) {
-      throw new BadRequestException('Exactly one of ragId or incomingBaleId must be provided');
-    }
     const workerId = dto.workerId || userId;
     const supervisorId = dto.supervisorId || userId;
 
     const session = await this.prisma.$transaction(async (tx) => {
-      let ragId: string;
-      let incomingBaleId = dto.incomingBaleId;
-      let inputWeight: Decimal;
-
-      if (dto.ragId) {
-        const rag = await tx.rag.findFirst({
-          where: { id: dto.ragId, tenantId },
-          select: { id: true, weightKg: true, status: true, containerId: true, ragCode: true },
-        });
-        if (!rag) throw new BadRequestException('Lot not found');
-        if (rag.status !== RagStatus.NOT_STARTED) {
-          throw new ConflictException(`This lot cannot be sorted again (status ${rag.status}).`);
-        }
-        if (!rag.containerId) {
-          const matchingBale = await tx.incomingBale.findFirst({
-            where: { tenantId, baleCode: rag.ragCode },
-            select: { id: true },
-          });
-          incomingBaleId = matchingBale?.id;
-        }
-        await tx.rag.update({ where: { id: rag.id }, data: { status: RagStatus.IN_SORTING } });
-        ragId = rag.id;
-        inputWeight = rag.weightKg;
-      } else {
-        const bale = await tx.incomingBale.findFirst({ where: { id: dto.incomingBaleId, tenantId } });
-        if (!bale) throw new BadRequestException('Bale not found');
-        const marker = `auto_migrated_bale:${bale.id}`;
-        let rag = await tx.rag.findFirst({ where: { tenantId, notes: marker } });
-        if (rag) {
-          await tx.rag.update({ where: { id: rag.id }, data: { status: RagStatus.IN_SORTING } });
-        } else {
-          const rawCategoryId = bale.rawCategoryId || (await tx.rawCategory.findFirst({ where: { tenantId } }))?.id;
-          if (!rawCategoryId) {
-            throw new BadRequestException('Add at least one raw category before sorting loose bales');
-          }
-          rag = await tx.rag.create({
-            data: {
-              tenantId,
-              containerId: bale.containerId,
-              sourceType: bale.containerId ? 'CONTAINER' : 'LOOSE_BALE',
-              ragCode: `BALE-${bale.baleCode || bale.id.slice(-6)}`,
-              ragBaleType: 'BALE',
-              rawCategoryId,
-              weightKg: bale.weightKg,
-              allocatedCost: bale.cost || ZERO,
-              status: RagStatus.IN_SORTING,
-              notes: marker,
-            },
-          });
-        }
-        ragId = rag.id;
-        inputWeight = bale.weightKg;
+      const rag = await tx.rag.findFirst({
+        where: { id: dto.ragId, tenantId },
+        select: { id: true, weightKg: true, status: true },
+      });
+      if (!rag) throw new BadRequestException('Lot not found');
+      if (rag.status !== RagStatus.NOT_STARTED) {
+        throw new ConflictException(`This lot cannot be sorted again (status ${rag.status}).`);
       }
-
+      await tx.rag.update({ where: { id: rag.id }, data: { status: RagStatus.IN_SORTING } });
       return tx.sortSession.create({
         data: {
           tenantId,
-          ragId,
-          incomingBaleId,
+          ragId: rag.id,
           workerId,
           supervisorId,
-          totalInputWeight: inputWeight,
+          totalInputWeight: rag.weightKg,
           totalOutputWeight: ZERO,
           wasteWeight: ZERO,
           status: SortStatus.OPEN,
@@ -157,7 +80,7 @@ export class SortSessionService {
       action: 'SORT_SESSION_CREATED',
       entityType: 'SortSession',
       entityId: session.id,
-      metadataJson: { ragId: session.ragId, incomingBaleId: session.incomingBaleId, workerId, supervisorId },
+      metadataJson: { ragId: session.ragId, workerId, supervisorId },
     });
     return this.summary(tenantId, session.id);
   }
@@ -165,7 +88,7 @@ export class SortSessionService {
   /** The open session for a lot, or an empty summary (used to resume). */
   async openSummaryForLot(tenantId: string, lotId: string) {
     const session = await this.prisma.sortSession.findFirst({
-      where: { tenantId, status: SortStatus.OPEN, OR: [{ ragId: lotId }, { incomingBaleId: lotId }] },
+      where: { tenantId, status: SortStatus.OPEN, ragId: lotId },
       orderBy: { createdAt: 'desc' },
       select: { id: true },
     });
@@ -253,18 +176,17 @@ export class SortSessionService {
         where: { id: sessionId, tenantId },
         include: {
           rag: { select: { allocatedCost: true } },
-          incomingBale: { select: { cost: true } },
-          sortCategoryBuckets: true,
+          sortCategoryBuckets: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
         },
       });
       if (capacity.outputKg.equals(ZERO)) {
         throw new BadRequestException('Record at least one category before closing');
       }
 
-      const lotCost = session.rag?.allocatedCost ?? session.incomingBale?.cost ?? ZERO;
+      const buckets = session.sortCategoryBuckets.filter((b) => b.outputWeightKg.greaterThan(ZERO));
+      const costs = outputCosts(session.rag.allocatedCost, buckets.map((b) => ({ key: b.id, kg: b.outputWeightKg })));
       const outputs = [];
-      for (const bucket of session.sortCategoryBuckets) {
-        if (bucket.outputWeightKg.equals(ZERO) && bucket.outputCount === 0) continue;
+      for (const bucket of buckets) {
         outputs.push(
           await tx.categoryOutput.create({
             data: {
@@ -273,7 +195,7 @@ export class SortSessionService {
               categoryId: bucket.categoryId,
               weightKg: bucket.outputWeightKg,
               count: bucket.outputCount,
-              allocatedCost: bucket.outputWeightKg.div(capacity.outputKg).mul(lotCost),
+              allocatedCost: costs.find((c) => c.key === bucket.id)!.amount,
               containerId: capacity.trace.containerId,
               ragId: session.ragId,
               sortSessionId: sessionId,

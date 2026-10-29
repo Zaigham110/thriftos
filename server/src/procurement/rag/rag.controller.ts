@@ -25,19 +25,7 @@ import { RagStatus } from '@prisma/client';
 export class RagController {
   constructor(private readonly ragService: RagService) {}
 
-  @Post('containers/:containerId/rags')
-  @RequirePermissions('rag.create')
-  @HttpCode(HttpStatus.CREATED)
-  async createForContainer(
-    @Param('containerId') containerId: string,
-    @Body() dto: Omit<CreateRagDto, 'containerId'>,
-    @CurrentUser() user: CurrentUserData,
-    @Req() req: Request,
-  ) {
-    const tenantId = (req as any).tenantId || user.tenantId;
-    return this.ragService.create(tenantId, { ...dto, containerId }, user.userId);
-  }
-
+  /** The one way to record a lot: loose, or in a container (containerId). Safe to retry with an Idempotency-Key. */
   @Post('rags')
   @RequirePermissions('rag.create')
   @HttpCode(HttpStatus.CREATED)
@@ -48,18 +36,6 @@ export class RagController {
   ) {
     const tenantId = (req as any).tenantId || user.tenantId;
     return this.ragService.createIdempotent(tenantId, dto, user.userId, req.header('idempotency-key'));
-  }
-
-  @Post('loose-bales')
-  @RequirePermissions('rag.create')
-  @HttpCode(HttpStatus.CREATED)
-  async createLooseBale(
-    @Body() dto: CreateRagDto,
-    @CurrentUser() user: CurrentUserData,
-    @Req() req: Request,
-  ) {
-    const tenantId = (req as any).tenantId || user.tenantId;
-    return this.ragService.create(tenantId, { ...dto, ragBaleType: dto.ragBaleType || 'BALE' }, user.userId);
   }
 
   /**

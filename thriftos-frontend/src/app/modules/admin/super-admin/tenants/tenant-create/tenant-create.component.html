@@ -10,7 +10,7 @@
           Provision New Tenant Organization
         </h1>
         <p class="page-subtitle text-xs text-gray-600 mt-1">
-          Set up company profile, operational interface mode, regional currency, and initial tenant administrator credentials.
+          Set up company profile, currency and the first administrator.
         </p>
       </div>
 
@@ -68,16 +68,6 @@
               placeholder="e.g. APEX_RECYCLING"
             />
             <p class="helper-text">Immutable unique tenant key (uppercase alphanumeric, e.g. APEX_RECYCLING).</p>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label text-xs font-bold text-gray-800 block mb-1.5">Default Operational Interface Mode <span class="text-red-500">*</span></label>
-            <select formControlName="operationMode" class="form-select text-xs w-full p-2.5 border rounded-lg bg-white font-medium text-gray-900">
-              @for (opt of operationModes; track opt.value) {
-                <option [value]="opt.value">{{ opt.label }}</option>
-              }
-            </select>
-            <p class="helper-text">Controls whether operators see Desktop ERP, Touch Mobile Mode, or a Switcher.</p>
           </div>
         </div>
       </div>

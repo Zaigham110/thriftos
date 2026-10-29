@@ -9,6 +9,15 @@ import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
+/** Every tenant gets a "Waste/Katran" waste type (same rule as migration v1_04 and tenant creation). */
+async function ensureDefaultWasteCategory(tenantId: string) {
+  await prisma.wasteCategory.upsert({
+    where: { tenantId_name: { tenantId, name: 'Waste/Katran' } },
+    update: {},
+    create: { tenantId, name: 'Waste/Katran', unitType: 'KG', defaultResalePrice: 0 },
+  });
+}
+
 async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 12);
 }
@@ -262,8 +271,6 @@ async function main() {
     create: {
       name: 'Demo Thrift Company',
       companyCode: 'DEMO',
-      currency: 'USD',
-      locale: 'en-US',
       status: TenantStatus.ACTIVE,
     },
   });
@@ -349,6 +356,15 @@ async function main() {
         isActive: true,
       },
     });
+  }
+
+  // =========================================================
+  // 6.5. DEFAULT WASTE TYPE (every tenant needs one to close a lot with a remainder)
+  // =========================================================
+  console.log('📦 Seeding default waste type...');
+
+  for (const tenantId of [systemTenant.id, demoTenant.id]) {
+    await ensureDefaultWasteCategory(tenantId);
   }
 
   // =========================================================
@@ -458,6 +474,7 @@ async function main() {
       tenantId: demoTenant.id,
       name: 'Global Thrift Suppliers',
       country: 'USA',
+      originCountry: 'USA',
       contactInfo: 'contact@globalthrift.com',
       isActive: true,
     },
@@ -476,8 +493,8 @@ async function main() {
       vendorId: demoVendor.id,
       poNumber: 'PO-2025-001',
       poType: 'CONTAINER',
-      currency: 'USD',
-      totalCost: 0,
+      currency: 'PKR',
+      totalCost: 1650.0,
       status: 'RECEIVED',
     },
   });
@@ -493,6 +510,8 @@ async function main() {
     create: {
       tenantId: demoTenant.id,
       purchaseOrderId: demoPO.id,
+      vendorId: demoVendor.id,
+      originCountry: 'USA',
       containerNumber: 'CONT-2025-001',
       referenceNumber: 'REF-001',
       containerType: '40ft',
@@ -502,6 +521,11 @@ async function main() {
       grossWeight: 5500.0,
       tareWeight: 500.0,
       netWeight: 5000.0,
+      // Landed cost 1,650 split by lot weight: 250 kg → 750, 300 kg → 900 (costing rules, docs/v1/03).
+      purchaseCost: 1650.0,
+      purchaseCurrency: 'PKR',
+      landedCostPKR: 1650.0,
+      landedCostPerKg: 3.0,
       billOfLadingNumber: 'BL-0001',
       shipmentReference: 'SHIP-0001',
       shippingLine: 'Maersk',
@@ -532,6 +556,8 @@ async function main() {
       tenantId: demoTenant.id,
       containerId: demoContainer.id,
       ragCode: 'RAG-2025-001',
+      vendorId: demoVendor.id,
+      originCountry: 'USA',
       weightKg: 250.00,
       allocatedCost: 750.00,
       sourceType: RagSourceType.CONTAINER,
@@ -548,6 +574,8 @@ async function main() {
       tenantId: demoTenant.id,
       containerId: demoContainer.id,
       ragCode: 'RAG-2025-002',
+      vendorId: demoVendor.id,
+      originCountry: 'USA',
       weightKg: 300.00,
       allocatedCost: 900.00,
       sourceType: RagSourceType.CONTAINER,
@@ -565,7 +593,10 @@ async function main() {
       tenantId: demoTenant.id,
       containerId: null,              // Loose bale - no container
       ragCode: 'LOOSE-2025-001',
+      vendorId: demoVendor.id,
+      originCountry: 'USA',
       weightKg: 150.00,
+      purchaseCost: 400.00,
       allocatedCost: 400.00,
       sourceType: RagSourceType.LOOSE_BALE,
       status: RagStatus.NOT_STARTED,  // Available for sorting

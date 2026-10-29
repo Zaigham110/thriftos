@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth-guard';
 import { tenantAreaGuard } from './core/guards/tenant-area.guard';
-import { operationalModuleGuard } from './core/guards/operational-module.guard';
+import { moduleGuard } from './core/guards/module.guard';
 import { superAdminGuard } from './core/guards/super-admin-guard';
 
 export const routes: Routes = [
@@ -61,8 +61,8 @@ export const routes: Routes = [
       },
       {
         path: 'receive',
-        canActivate: [operationalModuleGuard],
-        data: { operationalModule: 'INTAKE' },
+        canActivate: [moduleGuard],
+        data: { module: 'RECEIVE' },
         children: [
           {
             path: '',
@@ -83,8 +83,8 @@ export const routes: Routes = [
       },
       {
         path: 'sort',
-        canActivate: [operationalModuleGuard],
-        data: { operationalModule: 'SORTING' },
+        canActivate: [moduleGuard],
+        data: { module: 'SORT' },
         children: [
           {
             path: '',
@@ -100,8 +100,8 @@ export const routes: Routes = [
       },
       {
         path: 'stock',
-        canActivate: [operationalModuleGuard],
-        data: { operationalModule: 'STOCK' },
+        canActivate: [moduleGuard],
+        data: { module: 'STOCK' },
         children: [
           {
             path: '',
@@ -121,8 +121,8 @@ export const routes: Routes = [
       },
       {
         path: 'sell',
-        canActivate: [operationalModuleGuard],
-        data: { operationalModule: 'SALES' },
+        canActivate: [moduleGuard],
+        data: { module: 'SELL' },
         children: [
           {
             path: '',
@@ -142,15 +142,15 @@ export const routes: Routes = [
       },
       {
         path: 'khata',
-        canActivate: [operationalModuleGuard],
-        data: { operationalModule: 'SALES' },
+        canActivate: [moduleGuard],
+        data: { module: 'KHATA' },
         loadComponent: () => import('./modules/sales/customers-index/customers-index.page').then((m) => m.CustomersIndexPage),
         title: 'Khata - ThriftOS',
       },
       {
         path: 'reports',
-        canActivate: [operationalModuleGuard],
-        data: { operationalModule: 'INSIGHTS' },
+        canActivate: [moduleGuard],
+        data: { module: 'REPORTS' },
         children: [
           {
             path: '',
@@ -165,8 +165,6 @@ export const routes: Routes = [
       },
       {
         path: 'settings',
-        canActivate: [operationalModuleGuard],
-        data: { operationalModule: 'ADMINISTRATION' },
         children: [
           {
             path: '',

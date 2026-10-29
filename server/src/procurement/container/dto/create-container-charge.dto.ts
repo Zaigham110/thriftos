@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, MaxLength } from 'class-validator';
+import { IsOptional, IsString, IsNotEmpty, IsEnum, IsNumber, Min, MaxLength } from 'class-validator';
 import { ChargeType } from '@prisma/client';
 
 export class CreateContainerChargeDto {
@@ -6,11 +6,11 @@ export class CreateContainerChargeDto {
   chargeType: ChargeType;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(200)
-  description: string;
+  description?: string;
 
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   amount: number;
 }

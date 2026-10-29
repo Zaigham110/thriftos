@@ -2,7 +2,6 @@
  * Tenant Models - Type definitions for tenant management
  */
 
-export type OperationMode = 'FULL_ERP' | 'SIMPLIFIED_MOBILE' | 'USER_CHOICE';
 
 export type TenantStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 
@@ -40,7 +39,6 @@ export interface Tenant {
   currencyLocked?: boolean;
   locale: string;
   status: TenantStatus;
-  operationMode?: 'FULL_ERP' | 'SIMPLIFIED_MOBILE' | 'USER_CHOICE';
   createdAt: string;
   updatedAt: string;
   users?: TenantUserRow[];
@@ -68,7 +66,6 @@ export interface CreateTenantRequest {
   companyCode: string;
   currencyCode: string;
   locale: string;
-  operationMode?: 'FULL_ERP' | 'SIMPLIFIED_MOBILE' | 'USER_CHOICE';
   adminEmail: string;
   adminName: string;
   adminPassword: string;
@@ -79,7 +76,6 @@ export interface UpdateTenantRequest {
   currencyCode?: string;
   locale?: string;
   status?: TenantStatus;
-  operationMode?: 'FULL_ERP' | 'SIMPLIFIED_MOBILE' | 'USER_CHOICE';
 }
 
 export interface TenantBootstrapResult {

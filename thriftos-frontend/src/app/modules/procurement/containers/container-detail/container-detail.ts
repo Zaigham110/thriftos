@@ -132,12 +132,14 @@ export class ContainerDetailComponent implements OnInit {
   ];
 
   readonly chargeTypeOptions: Array<{ value: ChargeType; label: string }> = [
-    { value: 'CIF', label: 'CIF (Cost, Insurance, Freight)' },
-    { value: 'FREIGHT', label: 'Ocean Freight' },
-    { value: 'DUTY', label: 'Customs Duty' },
-    { value: 'TAX', label: 'Import Tax' },
-    { value: 'PORT_HANDLING', label: 'Port Handling' },
-    { value: 'MISC', label: 'Miscellaneous' },
+    { value: 'DUTY', label: 'Duty' },
+    { value: 'CLEARING', label: 'Clearing' },
+    { value: 'FREIGHT', label: 'Freight' },
+    { value: 'TRANSPORT', label: 'Transport' },
+    { value: 'LABOUR', label: 'Labour' },
+    { value: 'TAX', label: 'Tax' },
+    { value: 'PORT_HANDLING', label: 'Port handling' },
+    { value: 'MISC', label: 'Other' },
   ];
 
   readonly icons = {

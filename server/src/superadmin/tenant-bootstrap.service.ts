@@ -8,6 +8,7 @@ export interface BootstrapResult {
   permissions: number;
   categories: number;
   grades: number;
+  wasteCategories: number;
   warehouses: number;
   adminUser?: {
     id: string;
@@ -33,6 +34,7 @@ export class TenantBootstrapService {
       permissions: 0,
       categories: 0,
       grades: 0,
+      wasteCategories: 0,
       warehouses: 0,
     };
 
@@ -194,6 +196,14 @@ export class TenantBootstrapService {
         })),
       });
       result.grades = defaultGrades.length;
+
+      // 7.5 Default waste type, so a lot with a remainder can always be closed
+      await tx.wasteCategory.upsert({
+        where: { tenantId_name: { tenantId, name: 'Waste/Katran' } },
+        update: {},
+        create: { tenantId, name: 'Waste/Katran', unitType: 'KG', defaultResalePrice: 0 },
+      });
+      result.wasteCategories = await tx.wasteCategory.count({ where: { tenantId } });
 
       // 8. Create default warehouse
       const defaultWarehouse = await tx.warehouse.create({

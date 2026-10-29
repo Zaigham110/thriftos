@@ -46,10 +46,10 @@ docs/archive/           old docs and phase prompts (read-only history)
 8. **Audit**: important writes (cost change, sale, payment, stock adjustment) go to `AuditLog`.
 
 ## Costing engine (v1 definitions)
-- **Landed cost (lot)** = purchase cost (in PKR) + sum(charges). Purchase cost is a required field on the lot, not a charge type.
+- **Landed cost (lot)** = purchase cost (in PKR) + sum(charges). Purchase cost is a required field on the lot, not a charge type. A purchase in PKR is used as is; any other currency is converted with `fxRate` (rounded to the paisa). Charges are in PKR.
 - **Lot allocation within a container**: by lot weight / sum of all lot weights in the container (never by container net weight). Largest-remainder rounding.
 - **Sorting outputs**: output cost = lot cost × output kg / total output kg (waste carries zero cost; its resale value, if sold, is income). Stage 2 repeats this on the category output.
-- **Bales**: bale cost = sum of (kg taken from each output × that output's cost per kg) (FIFO by default).
+- **Bales**: bale cost = sum of (kg taken from each output × that output's cost per kg) (FIFO by default). Each take is costed as the output's cumulative share (`cost × usedAfter / kg − cost × usedBefore / kg`, each rounded to the paisa), so the bales made from an output always add up to its cost exactly. With 1-stage sorting the outputs are category outputs.
 - **Direct stock**: cost = purchase cost entered.
 - **Sale profit** = line price − line cost.
 - **Recalculation**: when a charge is added/changed after sorting, the engine recomputes the whole chain for that lot in one transaction (replaces `scripts/maintenance/recompute-cost-chain.js`). Sold lines keep their cost at time of sale; the difference is posted as a "cost adjustment" for reporting.

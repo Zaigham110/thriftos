@@ -1,5 +1,5 @@
 import { IsString, IsNotEmpty, IsOptional, IsEnum, IsEmail, MinLength, MaxLength, Matches } from 'class-validator';
-import { TenantStatus, OperationMode } from '@prisma/client';
+import { TenantStatus } from '@prisma/client';
 import { IsIn } from 'class-validator';
 import { SUPPORTED_CURRENCY_CODES } from '../../common/currency/currency';
 
@@ -39,10 +39,6 @@ export class CreateTenantDto {
   @IsEnum(TenantStatus)
   @IsOptional()
   status?: TenantStatus;
-
-  @IsEnum(OperationMode)
-  @IsOptional()
-  operationMode?: OperationMode;
 
   @IsEmail()
   @IsOptional()

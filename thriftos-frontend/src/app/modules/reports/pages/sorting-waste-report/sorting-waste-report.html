@@ -3,7 +3,7 @@
     <app-stack direction="vertical" spacing="xs">
       <app-breadcrumb [items]="breadcrumbs" />
       <h1 class="page-title">Sorting Waste</h1>
-      <p class="page-subtitle">Legacy and categorized waste, without hiding empty states</p>
+      <p class="page-subtitle">Waste by type and stage, without hiding empty states</p>
     </app-stack>
     <div class="actions">
       <app-button variant="secondary" (click)="loadData()">Refresh</app-button>
@@ -26,35 +26,6 @@
           (searchChange)="onSearchChange($event)"
           (onExport)="exportReport()"
         />
-      </app-section-body>
-    </app-section>
-
-    <app-section>
-      <app-section-header>
-        <h2 class="section-title">Legacy Waste</h2>
-      </app-section-header>
-      <app-section-body>
-        <app-data-table
-          [data]="legacyRows()"
-          [columns]="legacyColumns"
-          [loading]="loading()"
-          [enableSearch]="false"
-          [externalSearch]="searchText()"
-        >
-          <ng-template #cellTemplate let-row let-column="column">
-            @switch (column.key) {
-              @case ('closedAt') {
-                {{ formatDate(row.closedAt) }}
-              }
-              @case ('wasteWeightKg') {
-                {{ formatWeight(row.wasteWeightKg) }}
-              }
-              @default {
-                {{ row[column.key] ?? '—' }}
-              }
-            }
-          </ng-template>
-        </app-data-table>
       </app-section-body>
     </app-section>
 

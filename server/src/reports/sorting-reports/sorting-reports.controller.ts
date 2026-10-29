@@ -130,7 +130,7 @@ export class SortingReportsController {
       params: { ...filters },
     });
     const result = await this.service.sortingWaste(tenantId, filters);
-    const csv = toCsv(result.data as any[], ['createdAt', 'poNumber', 'containerNumber', 'ragCode', 'wasteWeightKg']);
+    const csv = toCsv(result.categorized.data as any[], ['createdAt', 'stage', 'wasteCategoryName', 'poNumber', 'containerNumber', 'ragCode', 'amount', 'unitType']);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="sorting-waste.csv"');
     return res.status(200).send(csv);

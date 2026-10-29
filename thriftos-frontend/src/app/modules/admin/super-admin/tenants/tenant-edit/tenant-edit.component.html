@@ -11,7 +11,7 @@
             Edit Tenant Configuration — {{ t.name }}
           </h1>
           <p class="page-subtitle text-xs text-gray-600 mt-1">
-            Update organization legal name, default operational interface mode, base currency, and access status.
+            Update organization name, currency and access status.
           </p>
         } @else {
           <h1 class="page-title text-2xl font-extrabold text-gray-900 tracking-tight">Edit Tenant</h1>
@@ -53,7 +53,7 @@
           <div class="section-header-row mb-2.5">
             <h2 class="text-xs font-extrabold text-gray-700 uppercase tracking-wider flex items-center gap-2">
               <lucide-icon [img]="icons.Building2" [size]="16" class="text-primary"></lucide-icon>
-              Organization & Operational Mode Settings
+              Organization settings
             </h2>
           </div>
 
@@ -86,16 +86,6 @@
                 }
               </select>
               <p class="helper-text">Inactive tenants are restricted from signing into the system.</p>
-            </div>
-
-            <div class="form-group col-span-2">
-              <label class="form-label text-xs font-bold text-gray-800 block mb-1.5">Default Operational Interface Mode <span class="text-red-500">*</span></label>
-              <select formControlName="operationMode" class="form-select text-xs w-full p-2.5 border rounded-lg bg-white font-medium text-gray-900">
-                @for (opt of operationModes; track opt.value) {
-                  <option [value]="opt.value">{{ opt.label }}</option>
-                }
-              </select>
-              <p class="helper-text">Determines default interface presented to tenant users upon login.</p>
             </div>
           </div>
         </div>

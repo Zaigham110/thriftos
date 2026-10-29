@@ -5,7 +5,7 @@
         <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
       </div>
       <h1 class="page-title">Procurement Overview</h1>
-      <p class="page-subtitle">Track active purchase orders, ocean container shipments, loose bales intake, and vendor spend allocation.</p>
+      <p class="page-subtitle">Track active purchase orders, container shipments, loose lots and supplier spend allocation.</p>
     </div>
 
     <div class="header-right-actions">
@@ -54,12 +54,12 @@
         </div>
       </div>
 
-      <div class="kpi-card" [routerLink]="['/receive/records/loose-bales']">
+      <div class="kpi-card" [routerLink]="['/sort']">
         <div class="kpi-icon kpi-icon-emerald">
           <lucide-icon [img]="icons.PackageCheck" [size]="22"></lucide-icon>
         </div>
         <div class="kpi-content">
-          <span class="kpi-label">Loose Bales Received</span>
+          <span class="kpi-label">Loose lots received</span>
           <span class="kpi-value">{{ kpiLooseBalesReceived() }}</span>
           <span class="kpi-link">View Bales <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon></span>
         </div>

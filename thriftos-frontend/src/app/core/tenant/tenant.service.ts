@@ -24,14 +24,16 @@ export interface TenantProfile {
   currency: CurrencyMeta;
   currencyLocked?: boolean;
   locale: string;
-  connectivityPolicy?: 'ONLINE_ONLY' | 'OFFLINE_CAPABLE' | 'AUTOMATIC';
-  capturePolicy?: 'HARDWARE_SCANNER' | 'CAMERA_SCAN' | 'MANUAL_ENTRY' | 'ALL';
-  guidancePolicy?: 'GUIDED' | 'FLEXIBLE' | 'STRICT';
-  operationalModules?: OperationalModule[];
-  flowEnabled?: boolean;
+  enabledModules?: TenantModule[];
+  /** 0 = trading only, 1 = category only, 2 = category + grade. */
+  sortingStages?: number;
+  defaultLanguage?: 'ur' | 'en';
 }
 
-export type OperationalModule = 'WORK' | 'INTAKE' | 'SORTING' | 'REPACK' | 'STOCK' | 'SALES' | 'INSIGHTS' | 'ADMINISTRATION';
+/** Modules a tenant can turn on; the first five are on by default. */
+export type TenantModule = 'RECEIVE' | 'SORT' | 'STOCK' | 'SELL' | 'KHATA' | 'REPORTS' | 'EXPORT' | 'WAREHOUSES' | 'PAYROLL';
+
+const DEFAULT_MODULES: TenantModule[] = ['RECEIVE', 'SORT', 'STOCK', 'SELL', 'KHATA'];
 
 export interface TenantCategory {
   id: string;
@@ -54,6 +56,12 @@ export class TenantService {
   readonly error = this._error.asReadonly();
 
   constructor(private readonly http: HttpClient) {}
+
+  /** A module is on when the tenant lists it (or, before the tenant loads, the default five are on). */
+  isModuleEnabled(module: TenantModule, tenant: TenantProfile | null = this._tenant()): boolean {
+    const enabled = tenant?.enabledModules ?? DEFAULT_MODULES;
+    return enabled.includes(module);
+  }
 
   loadTenant(force = false): Observable<TenantProfile> {
     if (this._tenant() && !force) {

@@ -55,11 +55,6 @@ const STATUSES = [
   { value: 'INACTIVE', label: 'Inactive (Restricted Access)' },
 ];
 
-const OPERATION_MODES = [
-  { value: 'FULL_ERP', label: 'Full Desktop ERP Mode (High-Density Enterprise Interface)' },
-  { value: 'SIMPLIFIED_MOBILE', label: 'Simplified Mobile Mode (Touch Warehouse Operator Interface)' },
-  { value: 'USER_CHOICE', label: 'User Choice (Allow Users to Switch Interfaces)' },
-];
 
 @Component({
   selector: 'app-tenant-edit',
@@ -100,7 +95,6 @@ export class TenantEditComponent implements OnInit {
   protected readonly currencies = CURRENCIES;
   protected readonly locales = LOCALES;
   protected readonly statuses = STATUSES;
-  protected readonly operationModes = OPERATION_MODES;
 
   readonly icons = {
     Building2,
@@ -119,7 +113,6 @@ export class TenantEditComponent implements OnInit {
       currencyCode: ['USD', Validators.required],
       locale: ['en-US', Validators.required],
       status: ['ACTIVE', Validators.required],
-      operationMode: ['FULL_ERP', Validators.required],
     });
   }
 
@@ -146,7 +139,6 @@ export class TenantEditComponent implements OnInit {
             currencyCode: t.currencyCode,
             locale: t.locale,
             status: t.status,
-            operationMode: t.operationMode || 'FULL_ERP',
           });
           this.loading.set(false);
         },
@@ -173,7 +165,6 @@ export class TenantEditComponent implements OnInit {
       currencyCode: formValue.currencyCode,
       locale: formValue.locale,
       status: formValue.status,
-      operationMode: formValue.operationMode,
     };
 
     this.tenantsService

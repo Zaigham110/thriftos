@@ -16,26 +16,26 @@ import {
 
 import { AuthService } from '../core/auth';
 import { OfflineDraftService } from '../core/operations/offline-draft.service';
-import { OperationalModule, TenantService } from '../core/tenant/tenant.service';
+import { TenantModule, TenantService } from '../core/tenant/tenant.service';
 
 type LayoutMode = 'phone' | 'tablet' | 'desktop';
 
 interface NavItem {
   label: string;
   path: string;
-  module?: OperationalModule;
+  module?: TenantModule;
   icon: typeof Home;
 }
 
 const NAV: NavItem[] = [
   { label: 'Home', path: '/home', icon: Home },
-  { label: 'Receive', path: '/receive', module: 'INTAKE', icon: Truck },
-  { label: 'Sort', path: '/sort', module: 'SORTING', icon: Layers3 },
-  { label: 'Sell', path: '/sell', module: 'SALES', icon: ShoppingCart },
-  { label: 'Khata', path: '/khata', module: 'SALES', icon: BookOpen },
+  { label: 'Receive', path: '/receive', module: 'RECEIVE', icon: Truck },
+  { label: 'Sort', path: '/sort', module: 'SORT', icon: Layers3 },
+  { label: 'Sell', path: '/sell', module: 'SELL', icon: ShoppingCart },
+  { label: 'Khata', path: '/khata', module: 'KHATA', icon: BookOpen },
   { label: 'Stock', path: '/stock', module: 'STOCK', icon: PackageSearch },
-  { label: 'Reports', path: '/reports', module: 'INSIGHTS', icon: BarChart3 },
-  { label: 'Settings', path: '/settings', module: 'ADMINISTRATION', icon: Settings2 },
+  { label: 'Reports', path: '/reports', module: 'REPORTS', icon: BarChart3 },
+  { label: 'Settings', path: '/settings', icon: Settings2 },
 ];
 
 /**
@@ -155,8 +155,8 @@ export class AppShellComponent {
   protected readonly moreOpen = signal(false);
   protected readonly tenantName = computed(() => this.tenantService.tenant()?.name || 'ThriftOS');
   protected readonly visibleNav = computed(() => {
-    const enabled = this.tenantService.tenant()?.operationalModules;
-    return NAV.filter((item) => !item.module || !enabled?.length || enabled.includes(item.module));
+    const tenant = this.tenantService.tenant();
+    return NAV.filter((item) => !item.module || this.tenantService.isModuleEnabled(item.module, tenant));
   });
   private readonly phoneTabPaths = ['/home', '/receive', '/sort', '/sell', '/khata'];
   protected readonly phoneTabs = computed(() => this.visibleNav().filter((item) => this.phoneTabPaths.includes(item.path)));

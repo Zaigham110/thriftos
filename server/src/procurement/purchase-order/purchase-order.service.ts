@@ -111,7 +111,6 @@ export class PurchaseOrderService {
           _count: {
             select: {
               containers: true,
-              incomingBales: true,
             },
           },
         },
@@ -133,7 +132,6 @@ export class PurchaseOrderService {
             _count: {
               select: {
                 rags: true,
-                incomingBales: true,
               },
             },
           },

@@ -27,12 +27,6 @@
  *   GET    /procurement/containers/:id/charges
  *   DELETE /procurement/containers/:id/charges/:chargeId
  * 
- * Incoming Bales:
- *   POST   /procurement/incoming-bales
- *   GET    /procurement/incoming-bales
- *   GET    /procurement/incoming-bales/:id
- *   PATCH  /procurement/incoming-bales/:id
- *   DELETE /procurement/incoming-bales/:id
  */
 
 import { Injectable, signal, computed } from '@angular/core';
@@ -56,11 +50,6 @@ import {
   ContainerCharge,
   CreateContainerChargeRequest,
   CostBreakdown,
-  IncomingBale,
-  CreateIncomingBaleRequest,
-  UpdateIncomingBaleRequest,
-  IncomingBaleListResponse,
-  IncomingBaleFilters,
   ProcurementDashboardSummary,
   ProcurementDashboardSummaryResponse,
 } from './procurement.models';
@@ -92,11 +81,6 @@ export class ProcurementService {
   private readonly _containerCurrentPage = signal(1);
   private readonly _containerTotalPages = signal(1);
 
-  // Incoming Bale state
-  private readonly _incomingBales = signal<IncomingBale[]>([]);
-  private readonly _baleTotalCount = signal(0);
-  private readonly _baleCurrentPage = signal(1);
-  private readonly _baleTotalPages = signal(1);
 
   // Dashboard summary (authoritative backend aggregates)
   private readonly _stats = signal<ProcurementDashboardSummary | null>(null);
@@ -113,14 +97,6 @@ export class ProcurementService {
   readonly containerTotalCount = this._containerTotalCount.asReadonly();
   readonly containerCurrentPage = this._containerCurrentPage.asReadonly();
   readonly containerTotalPages = this._containerTotalPages.asReadonly();
-  readonly incomingBales = this._incomingBales.asReadonly();
-  readonly baleTotalCount = this._baleTotalCount.asReadonly();
-  readonly baleCurrentPage = this._baleCurrentPage.asReadonly();
-  readonly baleTotalPages = this._baleTotalPages.asReadonly();
-  // Aliases for incoming bale pagination (for consistency with container pattern)
-  readonly incomingBaleTotalCount = this._baleTotalCount.asReadonly();
-  readonly incomingBaleCurrentPage = this._baleCurrentPage.asReadonly();
-  readonly incomingBaleTotalPages = this._baleTotalPages.asReadonly();
   readonly stats = this._stats.asReadonly();
 
   // Computed values
@@ -470,102 +446,12 @@ export class ProcurementService {
   // INCOMING BALES
   // =============================================================
 
-  /**
-   * Load incoming bales with filters
-   */
-  loadIncomingBales(filters: IncomingBaleFilters = {}): Observable<IncomingBaleListResponse> {
-    this._loading.set(true);
-    this._error.set(null);
 
-    const params = this.buildIncomingBaleParams(filters);
 
-    return this.http.get<IncomingBaleListResponse>(`${API_BASE}/incoming-bales`, { params }).pipe(
-      tap((response) => {
-        this._incomingBales.set(response.data);
-        this._baleTotalCount.set(response.total);
-        this._baleCurrentPage.set(response.page);
-        this._baleTotalPages.set(response.totalPages);
-        this._loading.set(false);
-      }),
-      catchError((error) => this.handleError(error))
-    );
-  }
 
-  fetchIncomingBales(filters: IncomingBaleFilters = {}): Observable<IncomingBaleListResponse> {
-    const params = this.buildIncomingBaleParams(filters);
-    return this.http.get<IncomingBaleListResponse>(`${API_BASE}/incoming-bales`, { params }).pipe(
-      catchError((error) => this.handleError(error))
-    );
-  }
 
-  private buildIncomingBaleParams(filters: IncomingBaleFilters = {}): HttpParams {
-    let params = new HttpParams();
-    if (filters.containerId) params = params.set('containerId', filters.containerId);
-    if (filters.purchaseOrderId) params = params.set('purchaseOrderId', filters.purchaseOrderId);
-    if (filters.vendorId) params = params.set('vendorId', filters.vendorId);
-    if (filters.standalone !== undefined) params = params.set('standalone', filters.standalone.toString());
-    if (filters.page) params = params.set('page', filters.page.toString());
-    if (filters.limit) params = params.set('limit', filters.limit.toString());
-    return params;
-  }
 
-  /**
-   * Get a single incoming bale by ID
-   */
-  getIncomingBale(id: string): Observable<IncomingBale> {
-    return this.http.get<IncomingBale>(`${API_BASE}/incoming-bales/${id}`).pipe(
-      catchError((error) => this.handleError(error))
-    );
-  }
 
-  /**
-   * Create a new incoming bale
-   */
-  createIncomingBale(data: CreateIncomingBaleRequest): Observable<IncomingBale> {
-    this._loading.set(true);
-    this._error.set(null);
-
-    return this.http.post<IncomingBale>(`${API_BASE}/incoming-bales`, data).pipe(
-      tap(() => {
-        this._loading.set(false);
-      }),
-      catchError((error) => this.handleError(error))
-    );
-  }
-
-  /**
-   * Update an incoming bale
-   */
-  updateIncomingBale(id: string, data: UpdateIncomingBaleRequest): Observable<IncomingBale> {
-    this._loading.set(true);
-    this._error.set(null);
-
-    return this.http.patch<IncomingBale>(`${API_BASE}/incoming-bales/${id}`, data).pipe(
-      tap((updatedBale) => {
-        this._incomingBales.update((bales) =>
-          bales.map((b) => (b.id === id ? updatedBale : b))
-        );
-        this._loading.set(false);
-      }),
-      catchError((error) => this.handleError(error))
-    );
-  }
-
-  /**
-   * Delete an incoming bale
-   */
-  deleteIncomingBale(id: string): Observable<void> {
-    this._loading.set(true);
-    this._error.set(null);
-
-    return this.http.delete<void>(`${API_BASE}/incoming-bales/${id}`).pipe(
-      tap(() => {
-        this._incomingBales.update((bales) => bales.filter((b) => b.id !== id));
-        this._loading.set(false);
-      }),
-      catchError((error) => this.handleError(error))
-    );
-  }
 
   // =============================================================
   // DASHBOARD STATS

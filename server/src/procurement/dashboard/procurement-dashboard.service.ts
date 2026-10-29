@@ -41,7 +41,7 @@ export class ProcurementDashboardService {
     const [activePos, inTransitContainers, looseBalesReceived] = await Promise.all([
       this.prisma.purchaseOrder.count({ where: { tenantId, status: 'OPEN' } }),
       this.prisma.container.count({ where: { tenantId, status: 'IN_TRANSIT' } }),
-      this.prisma.incomingBale.count({
+      this.prisma.rag.count({
         where: {
           tenantId,
           containerId: null,

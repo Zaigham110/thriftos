@@ -24,12 +24,7 @@ export class LotQueueQueryDto extends PageQueryDto {
 
 export class StartSortDto {
   @IsString()
-  @IsOptional()
-  ragId?: string;
-
-  @IsString()
-  @IsOptional()
-  incomingBaleId?: string;
+  ragId!: string;
 
   @IsString()
   @IsOptional()

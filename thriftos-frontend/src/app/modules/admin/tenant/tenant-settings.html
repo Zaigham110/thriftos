@@ -163,91 +163,43 @@
               </div>
             </div>
 
-            <!-- Operational Interface Mode Settings Group -->
-            <div class="currency-settings-box" style="margin-top: 1.25rem;">
-              <div class="currency-header">
-                <lucide-icon [img]="icons.Globe" [size]="16" class="currency-icon"></lucide-icon>
-                <div class="currency-title-group">
-                  <span class="currency-title">Default Operational Interface Mode</span>
-                  <span class="currency-subtitle">Controls whether users land in Full Desktop ERP Mode, Touch Simplified Mobile Mode, or have permission to toggle between both modes.</span>
-                </div>
-              </div>
-
-              <div class="currency-action-row">
-                <select
-                  [formControl]="operationModeControl"
-                  class="currency-select"
-                >
-                  @for (opt of modeOptions; track opt.value) {
-                    <option [value]="opt.value">{{ opt.label }}</option>
-                  }
-                </select>
-
-                <button
-                  class="btn btn-primary"
-                  (click)="saveOperationMode()"
-                  [disabled]="saving() || !modeChanged()"
-                >
-                  @if (saving()) {
-                    <lucide-icon [img]="icons.Loader2" [size]="15" class="animate-spin"></lucide-icon>
-                    Saving...
-                  } @else {
-                    <lucide-icon [img]="icons.Save" [size]="15"></lucide-icon>
-                    Save Operation Mode
-                  }
-                </button>
-              </div>
-            </div>
-
+            <!-- How the business works: sorting stages, language, modules -->
             <div class="currency-settings-box" style="margin-top: 1.25rem;">
               <div class="currency-header">
                 <lucide-icon [img]="icons.Layers" [size]="16" class="currency-icon"></lucide-icon>
                 <div class="currency-title-group">
-                  <span class="currency-title">Operational Profile</span>
-                  <span class="currency-subtitle">Sets the connection, capture, and guidance rules for floor operations. Permissions and server validation remain authoritative.</span>
+                  <span class="currency-title">How you work</span>
+                  <span class="currency-subtitle">Turn on only what you use. Hidden modules do not appear for anyone.</span>
                 </div>
               </div>
 
               <div class="currency-action-row" style="align-items: end; flex-wrap: wrap;">
-                <label class="currency-title-group" style="gap: .35rem; min-width: 11rem;">
-                  <span class="currency-subtitle">Connectivity</span>
-                  <select [formControl]="connectivityPolicyControl" class="currency-select">
-                    @for (opt of connectivityOptions; track opt.value) {
-                      <option [value]="opt.value">{{ opt.label }}</option>
+                <label class="currency-title-group" style="gap: .35rem; min-width: 14rem;">
+                  <span class="currency-subtitle">Sorting</span>
+                  <select [formControl]="sortingStagesControl" class="currency-select">
+                    @for (opt of sortingStageOptions; track opt.value) {
+                      <option [ngValue]="opt.value">{{ opt.label }}</option>
                     }
                   </select>
                 </label>
                 <label class="currency-title-group" style="gap: .35rem; min-width: 11rem;">
-                  <span class="currency-subtitle">Capture</span>
-                  <select [formControl]="capturePolicyControl" class="currency-select">
-                    @for (opt of captureOptions; track opt.value) {
-                      <option [value]="opt.value">{{ opt.label }}</option>
-                    }
+                  <span class="currency-subtitle">Default language</span>
+                  <select [formControl]="defaultLanguageControl" class="currency-select">
+                    <option value="ur">اردو (Urdu)</option>
+                    <option value="en">English</option>
                   </select>
                 </label>
-                <label class="currency-title-group" style="gap: .35rem; min-width: 11rem;">
-                  <span class="currency-subtitle">Guidance</span>
-                  <select [formControl]="guidancePolicyControl" class="currency-select">
-                    @for (opt of guidanceOptions; track opt.value) {
-                      <option [value]="opt.value">{{ opt.label }}</option>
-                    }
-                  </select>
-                </label>
-                <label class="operational-module-option" style="min-width: 13rem;">
-                  <input type="checkbox" [formControl]="flowEnabledControl" />
-                  <span><strong>Enable Flow rollout</strong><small>Allow this tenant to use the new Flow workspace while Lite remains available.</small></span>
-                </label>
-                <button class="btn btn-primary" (click)="saveOperationalProfile()" [disabled]="saving() || !operationalProfileChanged()">
+                <button class="btn btn-primary" (click)="saveWorkSettings()" [disabled]="saving() || !workSettingsChanged()">
                   <lucide-icon [img]="icons.Save" [size]="15"></lucide-icon>
-                  Save Profile
+                  Save
                 </button>
               </div>
-              <div class="operational-modules" aria-label="Enabled operational modules">
-                <span class="currency-subtitle">Enabled modules</span>
+              <div class="operational-modules" aria-label="Enabled modules">
+                <span class="currency-subtitle">Modules</span>
                 <div class="operational-module-grid">
-                  @for (module of operationalModuleOptions; track module.value) {
-                    <label class="operational-module-option" [class.is-required]="module.value === 'WORK'">
-                      <input type="checkbox" [checked]="isOperationalModuleEnabled(module.value)" [disabled]="module.value === 'WORK'" (change)="toggleOperationalModule(module.value)" />
+                  @for (module of moduleOptions; track module.value) {
+                    <label class="operational-module-option">
+                      <input type="checkbox" [checked]="isModuleEnabled(module.value)" (change)="toggleModule(module.value)" />
                       <span><strong>{{ module.label }}</strong><small>{{ module.desc }}</small></span>
                     </label>
                   }

@@ -23,31 +23,13 @@ export class CostReportsService {
       Array<{ totalCost: string; totalWeightKg: string }>
     >(
       `
-      WITH rags AS (
-        SELECT
-          COALESCE(SUM(r."allocatedCost"), 0) AS "totalCost",
-          COALESCE(SUM(r."weightKg"), 0) AS "totalWeightKg"
-        FROM "Rag" r
-        JOIN "Container" c ON c."id" = r."containerId"
-        JOIN "PurchaseOrder" po ON po."id" = c."purchaseOrderId"
-        WHERE po."tenantId" = $1
-          AND ($2::timestamptz IS NULL OR r."createdAt" >= $2)
-          AND ($3::timestamptz IS NULL OR r."createdAt" <= $3)
-      ),
-      bales AS (
-        SELECT
-          COALESCE(SUM(b."cost"), 0) AS "totalCost",
-          COALESCE(SUM(b."weightKg"), 0) AS "totalWeightKg"
-        FROM "IncomingBale" b
-        WHERE b."tenantId" = $1
-          AND b."containerId" IS NULL
-          AND ($2::timestamptz IS NULL OR b."createdAt" >= $2)
-          AND ($3::timestamptz IS NULL OR b."createdAt" <= $3)
-      )
       SELECT
-        (rags."totalCost" + bales."totalCost") AS "totalCost",
-        (rags."totalWeightKg" + bales."totalWeightKg") AS "totalWeightKg"
-      FROM rags, bales
+        COALESCE(SUM(r."allocatedCost"), 0) AS "totalCost",
+        COALESCE(SUM(r."weightKg"), 0) AS "totalWeightKg"
+      FROM "Rag" r
+      WHERE r."tenantId" = $1
+        AND ($2::timestamptz IS NULL OR r."createdAt" >= $2)
+        AND ($3::timestamptz IS NULL OR r."createdAt" <= $3)
       `,
       tenantId,
       start ?? null,

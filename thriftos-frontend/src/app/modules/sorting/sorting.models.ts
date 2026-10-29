@@ -6,7 +6,6 @@ export interface SortSession {
   id: string;
   tenantId: string;
   ragId: string | null;
-  incomingBaleId: string | null;
   workerId: string;
   supervisorId: string;
   totalInputWeight: number;
@@ -26,11 +25,6 @@ export interface SortSession {
       id: string;
       containerNumber: string;
     };
-  };
-  incomingBale?: {
-    id: string;
-    baleCode: string;
-    weightKg: number;
   };
   worker?: {
     id: string;

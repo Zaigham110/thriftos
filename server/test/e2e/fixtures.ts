@@ -24,13 +24,15 @@ export interface TestTenant {
 
 const PASSWORD = 'test-password-1';
 
-/** A fresh tenant with one owner user holding every permission, already logged in. */
+/** A fresh tenant (with the default waste type) and one owner holding every permission, logged in. */
 export async function createTenantWithOwner(app: INestApplication): Promise<TestTenant> {
   const prisma = app.get(PrismaService);
   const suffix = randomUUID().slice(0, 8);
   const tenant = await prisma.tenant.create({
     data: { name: `Test ${suffix}`, companyCode: `T${suffix}`.toUpperCase() },
   });
+  // Same default as tenant bootstrap: every tenant has a Waste/Katran type.
+  await prisma.wasteCategory.create({ data: { tenantId: tenant.id, name: 'Waste/Katran', unitType: 'KG' } });
   const role = await prisma.role.create({ data: { tenantId: tenant.id, name: 'Owner' } });
   const permissions = await prisma.permission.findMany({ select: { id: true } });
   await prisma.rolePermission.createMany({
@@ -65,6 +67,12 @@ export async function createUserWithoutPermissions(app: INestApplication, tenant
     .send({ email, password: PASSWORD })
     .expect(200);
   return { tenantId, userId: user.id, email, token: res.body.accessToken };
+}
+
+/** Logs in an existing user (e.g. the seeded super admin). */
+export async function login(app: INestApplication, email: string, password: string): Promise<TestTenant> {
+  const res = await request(app.getHttpServer()).post('/api/auth/login').send({ email, password }).expect(200);
+  return { tenantId: res.body.user.tenantId, userId: res.body.user.id, email, token: res.body.accessToken };
 }
 
 export function api(app: INestApplication, tenant: TestTenant) {

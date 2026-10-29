@@ -14,14 +14,12 @@
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "maintenance:recompute-cost-chain": "node scripts/maintenance/recompute-cost-chain.js",
-    "maintenance:backfill-waste-lines": "node scripts/maintenance/backfill-waste-line-items-from-sorting-waste.js",
-    "verify:reports:http": "node scripts/verification/verify-reports-http.js",
     "verify:sales:http": "node scripts/verification/verify-sales-http.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "jest --runInBand",
     "test:unit": "jest --selectProjects unit",
     "test:e2e": "jest --selectProjects e2e --runInBand",
-    "test:costing": "jest --selectProjects unit --coverage src/costing"
+    "test:costing": "jest --runInBand --coverage"
   },
   "prisma": {
     "schema": "../prisma/schema.prisma"

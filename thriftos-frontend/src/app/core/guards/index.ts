@@ -6,4 +6,4 @@
 export { authGuard } from './auth-guard';
 export { superAdminGuard } from './super-admin-guard';
 export { permissionGuard } from './permission-guard';
-export { operationalModuleGuard } from './operational-module.guard';
+export { moduleGuard } from './module.guard';

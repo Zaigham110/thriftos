@@ -75,12 +75,12 @@ export class RepackReportsService {
       inputs AS (
         SELECT
           date_trunc('day', COALESCE(rs."endTime", rs."startTime")) AS "day",
-          SUM(ri."weightKg") AS "gradeInputWeightKg"
-        FROM "RepackItem" ri
-        JOIN "RepackUnit" u ON u."id" = ri."repackUnitId"
+          SUM(a."amountUsed") AS "gradeInputWeightKg"
+        FROM "RepackInputAllocation" a
+        JOIN "RepackUnit" u ON u."id" = a."repackUnitId"
         JOIN "RepackSession" rs ON rs."id" = u."repackSessionId"
         WHERE ${whereClause}
-          AND ri."sourceType" = 'GRADE_OUTPUT'
+          AND a."measurementType" = 'WEIGHT'
         GROUP BY 1
       )
       SELECT

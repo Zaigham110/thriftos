@@ -504,119 +504,11 @@ export class SortingReportsService {
       totalRecords: categorizedData.length,
     };
 
-    // Legacy waste: SortingWaste (Phase 2.5).
-    // NOTE: We keep this dataset intact for backward compatibility and to avoid hiding legacy data.
-    // Combined totals below will dedupe by sortSessionId if STAGE_1 WasteLineItem exists.
-    const conditions: string[] = ['w."tenantId" = $1'];
-    const params: any[] = [tenantId];
-    let idx = 2;
-
-    if (start) {
-      conditions.push(`w."createdAt" >= $${idx}`);
-      params.push(start);
-      idx++;
-    }
-    if (end) {
-      conditions.push(`w."createdAt" <= $${idx}`);
-      params.push(end);
-      idx++;
-    }
-    if (filters.workerId) {
-      conditions.push(`ss."workerId" = $${idx}`);
-      params.push(filters.workerId);
-      idx++;
-    }
-
-    const whereClause = conditions.join(' AND ');
-
-    const rows = await this.prisma.$queryRawUnsafe<
-      Array<{
-        sortingWasteId: string;
-        createdAt: Date;
-        sortSessionId: string;
-        workerId: string;
-        ragId: string;
-        ragCode: string;
-        containerId: string | null;
-        containerNumber: string | null;
-        purchaseOrderId: string | null;
-        poNumber: string | null;
-        wasteWeightKg: number;
-      }>
-    >(
-      `
-      SELECT
-        w."id" AS "sortingWasteId",
-        w."createdAt" AS "createdAt",
-        w."sortSessionId" AS "sortSessionId",
-        ss."workerId" AS "workerId",
-        w."ragId" AS "ragId",
-        r."ragCode" AS "ragCode",
-        w."containerId" AS "containerId",
-        ct."containerNumber" AS "containerNumber",
-        po."id" AS "purchaseOrderId",
-        po."poNumber" AS "poNumber",
-        COALESCE(w."weightKg", 0)::float8 AS "wasteWeightKg"
-      FROM "SortingWaste" w
-      JOIN "SortSession" ss ON ss."id" = w."sortSessionId"
-      JOIN "Rag" r ON r."id" = w."ragId"
-      LEFT JOIN "Container" ct ON ct."id" = w."containerId"
-      LEFT JOIN "PurchaseOrder" po ON po."id" = ct."purchaseOrderId"
-      WHERE ${whereClause}
-      ORDER BY w."createdAt" DESC
-      LIMIT 5000
-      `,
-      ...params,
-    );
-
-    const data = rows.map((r) => ({
-      sortingWasteId: r.sortingWasteId,
-      createdAt: r.createdAt,
-      sortSessionId: r.sortSessionId,
-      workerId: r.workerId,
-      ragId: r.ragId,
-      ragCode: r.ragCode,
-      containerId: r.containerId,
-      containerNumber: r.containerNumber,
-      purchaseOrderId: r.purchaseOrderId,
-      poNumber: r.poNumber,
-      wasteWeightKg: Number(r.wasteWeightKg ?? 0),
-    }));
-
-    const legacySummary = {
-      totalWasteKg: data.reduce((sum, r) => sum + (r.wasteWeightKg || 0), 0),
-      totalRecords: data.length,
-    };
-
-    const stage1BackfilledSessionIds = new Set(
-      categorizedData
-        .filter((r) => r.stage === 'STAGE_1' && r.sortSessionId)
-        .map((r) => r.sortSessionId as string),
-    );
-
-    const legacyDedupedWasteKg = data
-      .filter((r) => !stage1BackfilledSessionIds.has(r.sortSessionId))
-      .reduce((sum, r) => sum + (r.wasteWeightKg || 0), 0);
-
     return {
-      // Backward compatible payload (legacy dataset)
-      data,
-      summary: legacySummary,
-
-      // ERP-grade categorized waste (preferred)
       categorized: {
         data: categorizedData,
         byCategory: categorizedByCategory,
         summary: categorizedSummary,
-      },
-
-      // Combined totals (do not double count legacy sessions that were backfilled)
-      combinedSummary: {
-        totalWasteKg: legacyDedupedWasteKg + categorizedSummary.totalKg,
-        totalWastePcs: categorizedSummary.totalPcs,
-        totalEstimatedValue: categorizedSummary.totalEstimatedValue,
-        legacyRecords: legacySummary.totalRecords,
-        categorizedRecords: categorizedSummary.totalRecords,
       },
     };
   }

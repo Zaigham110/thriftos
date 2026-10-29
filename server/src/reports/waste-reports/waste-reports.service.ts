@@ -179,7 +179,7 @@ export class WasteReportsService {
     }
     const s1Where = s1Conditions.join(' AND ');
 
-    // Stage 1 waste cost: inputCost (rag allocatedCost or incoming bale cost) - sum(categoryOutput allocatedCost)
+    // Stage 1 waste cost: lot cost - sum(categoryOutput allocatedCost)
     const stage1 = await this.prisma.$queryRawUnsafe<
       Array<{ wasteKg: string; wasteCost: string }>
     >(
@@ -188,19 +188,14 @@ export class WasteReportsService {
         SELECT
           s."id" AS "sortSessionId",
           s."wasteWeight" AS "wasteKg",
-          CASE
-            WHEN s."ragId" IS NOT NULL THEN COALESCE(r."allocatedCost", 0)
-            WHEN s."incomingBaleId" IS NOT NULL THEN COALESCE(b."cost", 0)
-            ELSE 0
-          END AS "inputCost",
+          COALESCE(r."allocatedCost", 0) AS "inputCost",
           COALESCE(SUM(co."allocatedCost"), 0) AS "outputCost"
         FROM "SortSession" s
         LEFT JOIN "Rag" r ON r."id" = s."ragId"
-        LEFT JOIN "IncomingBale" b ON b."id" = s."incomingBaleId"
         LEFT JOIN "SortCategoryBucket" scb ON scb."sortSessionId" = s."id"
         LEFT JOIN "CategoryOutput" co ON co."sortCategoryBucketId" = scb."id"
         WHERE ${s1Where}
-        GROUP BY s."id", s."wasteWeight", s."ragId", s."incomingBaleId", r."allocatedCost", b."cost"
+        GROUP BY s."id", s."wasteWeight", r."allocatedCost"
       )
       SELECT
         COALESCE(SUM("wasteKg"), 0) AS "wasteKg",

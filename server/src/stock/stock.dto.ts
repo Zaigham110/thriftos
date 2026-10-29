@@ -6,9 +6,15 @@ export class AvailableStockQueryDto {
   @IsString() @IsOptional() gradeId?: string;
 }
 
+/** One hand-picked source: a grade output (2-stage sorting) or a category output (1-stage). */
 export class BaleAllocationDto {
   @IsString()
-  gradingOutputId!: string;
+  @IsOptional()
+  gradingOutputId?: string;
+
+  @IsString()
+  @IsOptional()
+  categoryOutputId?: string;
 
   @IsNumber()
   @IsPositive()
@@ -19,8 +25,10 @@ export class MakeBaleDto {
   @IsString()
   categoryId!: string;
 
+  /** Leave out for tenants that sort in one stage: the bale then comes from category outputs. */
   @IsString()
-  gradeId!: string;
+  @IsOptional()
+  gradeId?: string;
 
   @IsNumber()
   @IsPositive()

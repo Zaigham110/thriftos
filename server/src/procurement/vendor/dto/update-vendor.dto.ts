@@ -21,6 +21,12 @@ export class UpdateVendorDto {
   @MaxLength(100)
   country?: string;
 
+  /** Default origin for this supplier's containers (e.g. USA, UK, Korea). */
+  @IsString()
+  @IsOptional()
+  @MaxLength(60)
+  originCountry?: string;
+
   @IsString()
   @IsOptional()
   @MaxLength(50)

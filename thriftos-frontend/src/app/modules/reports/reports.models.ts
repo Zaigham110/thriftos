@@ -376,20 +376,6 @@ export interface SortingOutputsResponse {
 // SORTING WASTE REPORT (REQUIRED)
 // =============================================================
 
-export interface SortingWasteLegacyRow {
-  sortingWasteId: string;
-  createdAt: string | Date;
-  sortSessionId: string;
-  workerId: string;
-  ragId: string;
-  ragCode: string;
-  containerId?: string | null;
-  containerNumber?: string | null;
-  purchaseOrderId?: string | null;
-  poNumber?: string | null;
-  wasteWeightKg: number;
-}
-
 export interface SortingWasteCategorizedRow {
   wasteLineItemId: string;
   createdAt: string | Date;
@@ -421,11 +407,6 @@ export interface SortingWasteByCategoryRow {
 }
 
 export interface SortingWasteResponse {
-  data: SortingWasteLegacyRow[];
-  summary: {
-    totalWasteKg: number;
-    totalRecords: number;
-  };
   categorized: {
     data: SortingWasteCategorizedRow[];
     byCategory: SortingWasteByCategoryRow[];
@@ -435,13 +416,6 @@ export interface SortingWasteResponse {
       totalEstimatedValue: number;
       totalRecords: number;
     };
-  };
-  combinedSummary: {
-    totalWasteKg: number;
-    totalWastePcs: number;
-    totalEstimatedValue: number;
-    legacyRecords: number;
-    categorizedRecords: number;
   };
 }
 

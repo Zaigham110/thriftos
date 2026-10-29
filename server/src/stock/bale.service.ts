@@ -8,48 +8,50 @@ import {
   Prisma,
   RepackSessionStatus,
   RepackStatus,
+  SortStatus,
   UnitType,
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import * as QRCode from 'qrcode';
 import { AuditService } from '../audit/audit.service';
+import { baleCost, costPerKg, fifoTake, InsufficientStockError, money, sum, takeCost } from '../costing/costing';
 import { PrismaService } from '../prisma/prisma.service';
-import { AvailableStockQueryDto, MakeBaleDto } from './stock.dto';
+import { AvailableStockQueryDto, BaleAllocationDto, MakeBaleDto } from './stock.dto';
 import { formatYYYYMMDD, tokenFromName } from './unit-code.util';
 
 type Tx = Prisma.TransactionClient;
 
 const ZERO = new Decimal(0);
-const OPEN_OUTPUT_STATUSES = [GradingOutputStatus.AVAILABLE, GradingOutputStatus.PARTIALLY_USED, GradingOutputStatus.READY_FOR_REPACK];
+const OPEN_GRADE_STATUSES = [GradingOutputStatus.AVAILABLE, GradingOutputStatus.PARTIALLY_USED, GradingOutputStatus.READY_FOR_REPACK];
 
-/** Graded stock a bale can be made from, with its lineage. */
-const OUTPUT_LINEAGE = {
-  grade: { select: { id: true, name: true } },
-  gradeBucket: {
-    select: {
-      gradeSession: {
-        select: {
-          id: true,
-          endTime: true,
-          categoryOutput: {
-            select: {
-              categoryId: true,
-              category: { select: { id: true, name: true } },
-              sortSessionId: true,
-              rag: { select: { id: true, ragCode: true, containerId: true, container: { select: { id: true, containerNumber: true } } } },
-            },
-          },
-        },
-      },
-    },
-  },
-} satisfies Prisma.GradeOutputInclude;
+/** A sorted output a bale can take kg from: a grade output (2 stages) or an ungraded category output (1 stage). */
+interface StockSource {
+  kind: 'GRADE' | 'CATEGORY';
+  id: string;
+  /** Total kg the output weighed and the cost it carries. */
+  kg: Decimal;
+  cost: Decimal;
+  usedKg: Decimal;
+  categoryId: string;
+  categoryName: string;
+  gradeId: string | null;
+  gradeName: string | null;
+  sortSessionId: string;
+  gradeSessionId: string | null;
+  ragId: string;
+  ragCode: string;
+  containerId: string | null;
+  containerNumber: string | null;
+  /** When the stock became ready (FIFO order). */
+  readyAt: Date | null;
+  createdAt: Date;
+}
 
-type OutputWithLineage = Prisma.GradeOutputGetPayload<{ include: typeof OUTPUT_LINEAGE }>;
+const LOT = { select: { id: true, ragCode: true, containerId: true, container: { select: { containerNumber: true } } } } as const;
 
 /**
- * Finished bales: made from graded stock (FIFO by default, or picked by hand), each with a
- * QR label and a sellable stock item. One call does it all — there is no draft step.
+ * Finished bales: kg taken from sorted stock (FIFO by default, or picked by hand), costed with the
+ * costing rules, sealed with a QR label and a sellable stock item — all in one transaction.
  */
 @Injectable()
 export class BaleService {
@@ -58,57 +60,48 @@ export class BaleService {
     private readonly audit: AuditService,
   ) {}
 
-  /** Graded stock with kg left, oldest grading first (the FIFO order). */
+  /** Sorted stock with kg left, oldest first. Without a grade: ungraded category outputs. */
   async availableStock(tenantId: string, query: AvailableStockQueryDto) {
-    const rows = await this.prisma.gradeOutput.findMany({
-      where: this.eligibleWhere(tenantId, query.categoryId, query.gradeId),
-      include: OUTPUT_LINEAGE,
-      orderBy: [{ gradeBucket: { gradeSession: { endTime: 'asc' } } }, { createdAt: 'asc' }],
-    });
-    return rows.map((o) => {
-      const co = o.gradeBucket.gradeSession.categoryOutput;
-      const rag = co.rag;
-      return {
-        id: o.id,
-        categoryId: co.categoryId,
-        categoryName: co.category.name,
-        gradeId: o.gradeId,
-        gradeName: o.grade.name,
-        measurementType: o.measurementType,
-        totalAmount: o.totalAmount,
-        usedAmount: o.usedAmount,
-        remainingAmount: o.remainingAmount,
-        allocatedCost: o.allocatedCost,
-        costPerKg: o.totalAmount.greaterThan(ZERO) ? o.allocatedCost.div(o.totalAmount).toDecimalPlaces(4) : ZERO,
-        status: o.status,
-        sourceType: rag?.containerId ? 'CONTAINER' : 'LOOSE_BALE',
-        containerId: rag?.container?.id ?? null,
-        containerNumber: rag?.container?.containerNumber ?? null,
-        ragId: rag?.id ?? null,
-        ragCode: rag?.ragCode ?? null,
-        sortSessionId: co.sortSessionId,
-        gradeSessionId: o.gradeBucket.gradeSession.id,
-        gradedAt: o.gradeBucket.gradeSession.endTime,
-        createdAt: o.createdAt,
-      };
-    });
+    const sources = await this.loadSources(this.prisma, tenantId, query.categoryId, query.gradeId);
+    return sources.map((s) => ({
+      id: s.id,
+      source: s.kind,
+      categoryId: s.categoryId,
+      categoryName: s.categoryName,
+      gradeId: s.gradeId,
+      gradeName: s.gradeName,
+      measurementType: MeasurementType.WEIGHT,
+      totalAmount: s.kg,
+      usedAmount: s.usedKg,
+      remainingAmount: s.kg.sub(s.usedKg),
+      allocatedCost: s.cost,
+      costPerKg: costPerKg(s.cost, s.kg),
+      sourceType: s.containerId ? 'CONTAINER' : 'LOOSE_BALE',
+      containerId: s.containerId,
+      containerNumber: s.containerNumber,
+      ragId: s.ragId,
+      ragCode: s.ragCode,
+      sortSessionId: s.sortSessionId,
+      gradeSessionId: s.gradeSessionId,
+      gradedAt: s.readyAt,
+      createdAt: s.createdAt,
+    }));
   }
 
-  /** Makes a ready bale: takes kg from graded stock, costs it, creates stock + QR. */
+  /** Makes a ready bale: takes kg from sorted stock, costs it, creates stock + QR. */
   async makeBale(tenantId: string, dto: MakeBaleDto, userId: string) {
     const weightKg = new Decimal(dto.weightKg);
     const result = await this.prisma.$transaction(async (tx) => {
       const { sessionId, unitCode } = await this.openSessionAndCode(tx, tenantId, dto.categoryId, dto.gradeId, userId);
-      const takes = dto.allocations?.length
-        ? await this.pickManual(tx, tenantId, dto, weightKg)
-        : await this.pickFifo(tx, tenantId, dto, weightKg);
+      const sources = await this.loadSources(tx, tenantId, dto.categoryId, dto.gradeId);
+      const takes = dto.allocations?.length ? this.pickManual(sources, dto.allocations, weightKg) : this.pickFifo(sources, weightKg);
 
       const unit = await tx.repackUnit.create({
         data: {
           tenantId,
           repackSessionId: sessionId,
           categoryId: dto.categoryId,
-          gradeId: dto.gradeId,
+          gradeId: dto.gradeId ?? null,
           unitCode,
           unitType: UnitType.KG_BALE,
           weightKg,
@@ -122,34 +115,36 @@ export class BaleService {
         },
       });
 
-      let totalCost = ZERO;
-      for (const { output, kg } of takes) {
-        const cost = output.allocatedCost.div(output.totalAmount).mul(kg).toDecimalPlaces(2);
-        totalCost = totalCost.add(cost);
-        await this.consume(tx, tenantId, output, kg);
+      const costs: Decimal[] = [];
+      for (const { source, kg } of takes) {
+        const cost = takeCost({ cost: source.cost, kg: source.kg }, source.usedKg, kg);
+        costs.push(cost);
+        await this.consume(tx, tenantId, source, kg);
         await tx.repackInputAllocation.create({
           data: {
             tenantId,
             repackUnitId: unit.id,
-            gradingOutputId: output.id,
-            containerId: output.gradeBucket.gradeSession.categoryOutput.rag?.containerId ?? null,
-            ragBaleId: output.gradeBucket.gradeSession.categoryOutput.rag?.id ?? null,
+            gradingOutputId: source.kind === 'GRADE' ? source.id : null,
+            categoryOutputId: source.kind === 'CATEGORY' ? source.id : null,
+            containerId: source.containerId,
+            ragBaleId: source.ragId,
             amountUsed: kg,
             measurementType: MeasurementType.WEIGHT,
             allocatedCost: cost,
           },
         });
       }
+      const totalCost = baleCost(costs);
 
-      const primary = takes[0].output.gradeBucket.gradeSession;
+      const primary = takes[0].source;
       const sealed = await tx.repackUnit.update({
         where: { id: unit.id },
         data: {
           totalCost,
-          containerId: primary.categoryOutput.rag?.containerId ?? null,
-          ragId: primary.categoryOutput.rag?.id ?? null,
-          sortSessionId: primary.categoryOutput.sortSessionId,
-          gradeSessionId: primary.id,
+          containerId: primary.containerId,
+          ragId: primary.ragId,
+          sortSessionId: primary.sortSessionId,
+          gradeSessionId: primary.gradeSessionId,
         },
       });
 
@@ -162,10 +157,10 @@ export class BaleService {
           tenantId,
           repackUnitId: sealed.id,
           categoryId: dto.categoryId,
-          gradeId: dto.gradeId,
+          gradeId: dto.gradeId ?? null,
           weightKg,
           pcsCount: sealed.pcsCount,
-          avgCost: totalCost.div(weightKg).toDecimalPlaces(2),
+          avgCost: money(costPerKg(totalCost, weightKg)),
           warehouseId: dto.warehouseId ?? null,
           status: InventoryStatus.AVAILABLE,
           containerId: sealed.containerId,
@@ -179,7 +174,7 @@ export class BaleService {
           quantityKg: weightKg,
           quantityPcs: sealed.pcsCount,
           referenceId: sealed.id,
-          metadataJson: { repackUnitId: sealed.id, unitCode, totalCost: totalCost.toString() },
+          metadataJson: { repackUnitId: sealed.id, unitCode, totalCost: totalCost.toFixed(2) },
         },
       });
       await tx.qRLabel.create({ data: { repackUnitId: sealed.id, qrCode: `REPACK:${unitCode}` } });
@@ -192,7 +187,7 @@ export class BaleService {
       action: 'BALE_MADE',
       entityType: 'RepackUnit',
       entityId: result.baleId,
-      metadataJson: { unitCode: result.unitCode, weightKg: weightKg.toString(), totalCost: result.totalCost.toString() },
+      metadataJson: { unitCode: result.unitCode, weightKg: weightKg.toFixed(2), totalCost: result.totalCost.toFixed(2) },
     });
     return this.findOne(tenantId, result.baleId);
   }
@@ -226,10 +221,11 @@ export class BaleService {
         qrLabel: true,
         inventoryItems: { select: { id: true, status: true } },
         inputAllocations: {
-          orderBy: { createdAt: 'asc' },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
           select: {
             id: true,
             gradingOutputId: true,
+            categoryOutputId: true,
             amountUsed: true,
             allocatedCost: true,
             containerId: true,
@@ -273,89 +269,163 @@ export class BaleService {
     };
   }
 
-  private eligibleWhere(tenantId: string, categoryId?: string, gradeId?: string): Prisma.GradeOutputWhereInput {
-    return {
-      tenantId,
-      measurementType: MeasurementType.WEIGHT,
-      status: { in: OPEN_OUTPUT_STATUSES },
-      remainingAmount: { gt: 0 },
-      ...(gradeId ? { gradeId } : {}),
-      ...(categoryId ? { gradeBucket: { gradeSession: { categoryOutput: { categoryId } } } } : {}),
-    };
+  /**
+   * Stock a bale of this category (and grade) can take from, oldest first.
+   * With a grade: open grade outputs. Without: closed-lot category outputs that were never graded.
+   */
+  private async loadSources(db: Tx | PrismaService, tenantId: string, categoryId?: string, gradeId?: string): Promise<StockSource[]> {
+    if (gradeId) {
+      const rows = await db.gradeOutput.findMany({
+        where: {
+          tenantId,
+          gradeId,
+          measurementType: MeasurementType.WEIGHT,
+          status: { in: OPEN_GRADE_STATUSES },
+          remainingAmount: { gt: 0 },
+          ...(categoryId ? { gradeBucket: { gradeSession: { categoryOutput: { categoryId } } } } : {}),
+        },
+        include: {
+          grade: { select: { name: true } },
+          gradeBucket: {
+            select: {
+              gradeSession: {
+                select: {
+                  id: true,
+                  endTime: true,
+                  categoryOutput: { select: { categoryId: true, sortSessionId: true, category: { select: { name: true } }, rag: LOT } },
+                },
+              },
+            },
+          },
+        },
+        orderBy: [{ gradeBucket: { gradeSession: { endTime: 'asc' } } }, { createdAt: 'asc' }, { id: 'asc' }],
+      });
+      return rows.map((o) => {
+        const gs = o.gradeBucket.gradeSession;
+        return {
+          kind: 'GRADE' as const,
+          id: o.id,
+          kg: o.totalAmount,
+          cost: o.allocatedCost,
+          usedKg: o.usedAmount,
+          categoryId: gs.categoryOutput.categoryId,
+          categoryName: gs.categoryOutput.category.name,
+          gradeId: o.gradeId,
+          gradeName: o.grade.name,
+          sortSessionId: gs.categoryOutput.sortSessionId,
+          gradeSessionId: gs.id,
+          ragId: gs.categoryOutput.rag.id,
+          ragCode: gs.categoryOutput.rag.ragCode,
+          containerId: gs.categoryOutput.rag.containerId,
+          containerNumber: gs.categoryOutput.rag.container?.containerNumber ?? null,
+          readyAt: gs.endTime,
+          createdAt: o.createdAt,
+        };
+      });
+    }
+
+    const rows = await db.categoryOutput.findMany({
+      where: {
+        tenantId,
+        ...(categoryId ? { categoryId } : {}),
+        gradeSessions: { none: {} },
+        sortCategoryBucket: { sortSession: { status: SortStatus.CLOSED } },
+      },
+      include: {
+        category: { select: { name: true } },
+        rag: LOT,
+        sortCategoryBucket: { select: { sortSession: { select: { endTime: true } } } },
+      },
+      orderBy: [{ sortCategoryBucket: { sortSession: { endTime: 'asc' } } }, { createdAt: 'asc' }, { id: 'asc' }],
+    });
+    return rows
+      .filter((o) => o.usedKg.lessThan(o.weightKg))
+      .map((o) => ({
+        kind: 'CATEGORY' as const,
+        id: o.id,
+        kg: o.weightKg,
+        cost: o.allocatedCost,
+        usedKg: o.usedKg,
+        categoryId: o.categoryId,
+        categoryName: o.category.name,
+        gradeId: null,
+        gradeName: null,
+        sortSessionId: o.sortSessionId,
+        gradeSessionId: null,
+        ragId: o.rag.id,
+        ragCode: o.rag.ragCode,
+        containerId: o.rag.containerId,
+        containerNumber: o.rag.container?.containerNumber ?? null,
+        readyAt: o.sortCategoryBucket.sortSession.endTime,
+        createdAt: o.createdAt,
+      }));
   }
 
-  /** Oldest graded stock first until the bale weight is covered. */
-  private async pickFifo(tx: Tx, tenantId: string, dto: MakeBaleDto, weightKg: Decimal) {
-    const outputs = await tx.gradeOutput.findMany({
-      where: this.eligibleWhere(tenantId, dto.categoryId, dto.gradeId),
-      include: OUTPUT_LINEAGE,
-      orderBy: [{ gradeBucket: { gradeSession: { endTime: 'asc' } } }, { createdAt: 'asc' }],
-    });
-    const takes: { output: OutputWithLineage; kg: Decimal }[] = [];
-    let left = weightKg;
-    for (const output of outputs) {
-      if (left.lessThanOrEqualTo(ZERO)) break;
-      const kg = Decimal.min(output.remainingAmount, left);
-      takes.push({ output, kg });
-      left = left.sub(kg);
-    }
-    if (left.greaterThan(ZERO)) {
-      const available = weightKg.sub(left);
-      throw new BadRequestException(
-        `Not enough sorted stock: ${available.toFixed(2)} kg available. Enter ${available.toFixed(2)} kg or less.`,
-      );
-    }
-    return takes;
-  }
-
-  /** Stock picked by hand; the picked kg must add up to the bale weight. */
-  private async pickManual(tx: Tx, tenantId: string, dto: MakeBaleDto, weightKg: Decimal) {
-    const ids = dto.allocations!.map((a) => a.gradingOutputId);
-    if (new Set(ids).size !== ids.length) throw new BadRequestException('The same stock is picked twice');
-    const outputs = await tx.gradeOutput.findMany({
-      where: { ...this.eligibleWhere(tenantId, dto.categoryId, dto.gradeId), id: { in: ids } },
-      include: OUTPUT_LINEAGE,
-    });
-    if (outputs.length !== ids.length) throw new BadRequestException('Some picked stock is not available for this grade');
-    const takes = dto.allocations!.map((a) => {
-      const output = outputs.find((o) => o.id === a.gradingOutputId)!;
-      const kg = new Decimal(a.amountKg);
-      if (kg.greaterThan(output.remainingAmount)) {
-        throw new BadRequestException(`Only ${output.remainingAmount.toFixed(2)} kg left in one of the picked lots`);
+  private pickFifo(sources: StockSource[], weightKg: Decimal) {
+    try {
+      return fifoTake(sources.map((s) => ({ key: s, availableKg: s.kg.sub(s.usedKg) })), weightKg).map((t) => ({ source: t.key, kg: t.kg }));
+    } catch (error) {
+      if (error instanceof InsufficientStockError) {
+        const left = error.availableKg.toFixed(2);
+        throw new BadRequestException(`Not enough sorted stock: ${left} kg available. Enter ${left} kg or less.`);
       }
-      return { output, kg };
+      throw error;
+    }
+  }
+
+  /** Stock picked by hand: each pick names exactly one source, and the picks add up to the bale weight. */
+  private pickManual(sources: StockSource[], picks: BaleAllocationDto[], weightKg: Decimal) {
+    const takes = picks.map((pick) => {
+      if (!!pick.gradingOutputId === !!pick.categoryOutputId) {
+        throw new BadRequestException('Each pick needs exactly one of gradingOutputId or categoryOutputId');
+      }
+      const id = pick.gradingOutputId ?? pick.categoryOutputId;
+      const kind = pick.gradingOutputId ? 'GRADE' : 'CATEGORY';
+      const source = sources.find((s) => s.id === id && s.kind === kind);
+      if (!source) throw new BadRequestException('Some picked stock is not available for this bale');
+      const kg = new Decimal(pick.amountKg);
+      const left = source.kg.sub(source.usedKg);
+      if (kg.greaterThan(left)) throw new BadRequestException(`Only ${left.toFixed(2)} kg left in one of the picked lots`);
+      return { source, kg };
     });
-    const picked = takes.reduce((sum, t) => sum.add(t.kg), ZERO);
+    if (new Set(takes.map((t) => t.source.id)).size !== takes.length) throw new BadRequestException('The same stock is picked twice');
+    const picked = sum(takes.map((t) => t.kg));
     if (!picked.equals(weightKg)) {
       throw new BadRequestException(`Picked ${picked.toFixed(2)} kg but the bale is ${weightKg.toFixed(2)} kg`);
     }
     return takes;
   }
 
-  /** Deducts kg from a grade output; fails if someone else used it at the same time. */
-  private async consume(tx: Tx, tenantId: string, output: OutputWithLineage, kg: Decimal) {
-    const remaining = output.remainingAmount.sub(kg);
-    const updated = await tx.gradeOutput.updateMany({
-      where: { id: output.id, tenantId, remainingAmount: output.remainingAmount },
-      data: {
-        usedAmount: output.usedAmount.add(kg),
-        remainingAmount: remaining,
-        status: remaining.equals(ZERO) ? GradingOutputStatus.DEPLETED : GradingOutputStatus.PARTIALLY_USED,
-      },
-    });
+  /** Deducts kg from the source; fails if someone else used it at the same time. */
+  private async consume(tx: Tx, tenantId: string, source: StockSource, kg: Decimal) {
+    const usedAfter = source.usedKg.add(kg);
+    const updated =
+      source.kind === 'GRADE'
+        ? await tx.gradeOutput.updateMany({
+            where: { id: source.id, tenantId, usedAmount: source.usedKg },
+            data: {
+              usedAmount: usedAfter,
+              remainingAmount: source.kg.sub(usedAfter),
+              status: usedAfter.equals(source.kg) ? GradingOutputStatus.DEPLETED : GradingOutputStatus.PARTIALLY_USED,
+            },
+          })
+        : await tx.categoryOutput.updateMany({
+            where: { id: source.id, tenantId, usedKg: source.usedKg },
+            data: { usedKg: usedAfter },
+          });
     if (updated.count !== 1) throw new ConflictException('Stock changed while making the bale. Please try again.');
   }
 
   /** Bales go into one auto-managed open session per tenant (no screen for it in v1). */
-  private async openSessionAndCode(tx: Tx, tenantId: string, categoryId: string, gradeId: string, userId: string) {
+  private async openSessionAndCode(tx: Tx, tenantId: string, categoryId: string, gradeId: string | undefined, userId: string) {
     const [tenant, category, grade] = await Promise.all([
       tx.tenant.findUnique({ where: { id: tenantId }, select: { companyCode: true } }),
       tx.category.findFirst({ where: { id: categoryId, tenantId, isActive: true }, select: { name: true } }),
-      tx.grade.findFirst({ where: { id: gradeId, tenantId, isActive: true }, select: { name: true } }),
+      gradeId ? tx.grade.findFirst({ where: { id: gradeId, tenantId, isActive: true }, select: { name: true } }) : null,
     ]);
     if (!tenant) throw new BadRequestException('Tenant not found');
     if (!category) throw new BadRequestException('Invalid category');
-    if (!grade) throw new BadRequestException('Invalid grade');
+    if (gradeId && !grade) throw new BadRequestException('Invalid grade');
 
     const session =
       (await tx.repackSession.findFirst({
@@ -368,7 +438,12 @@ export class BaleService {
         select: { id: true },
       }));
 
-    const prefix = [tokenFromName(tenant.companyCode, 10), tokenFromName(category.name, 6), tokenFromName(grade.name, 6), formatYYYYMMDD(new Date())].join('-');
+    const prefix = [
+      tokenFromName(tenant.companyCode, 10),
+      tokenFromName(category.name, 6),
+      ...(grade ? [tokenFromName(grade.name, 6)] : []),
+      formatYYYYMMDD(new Date()),
+    ].join('-');
     const count = await tx.repackUnit.count({ where: { tenantId, unitCode: { startsWith: prefix } } });
     for (let seq = count + 1; seq <= count + 5; seq++) {
       const unitCode = `${prefix}-${String(seq).padStart(4, '0')}`;

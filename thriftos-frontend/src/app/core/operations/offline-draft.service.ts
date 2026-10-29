@@ -2,7 +2,6 @@ import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core'
 import { HttpClient } from '@angular/common/http';
 import { fromEvent, merge } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { TenantService } from '../tenant/tenant.service';
 import { API_BASE_URL } from '../config/api.config';
 
 export interface OfflineDraft<T = unknown> {
@@ -28,7 +27,6 @@ const DRAFT_ENDPOINTS: Record<string, string> = {
 export class OfflineDraftService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly http = inject(HttpClient);
-  private readonly tenantService = inject(TenantService);
   private readonly draftsState = signal<OfflineDraft[]>(this.readDrafts());
   private readonly onlineState = signal(navigator.onLine);
 
@@ -36,10 +34,8 @@ export class OfflineDraftService {
   readonly pendingCount = computed(() => this.draftsState().length);
   readonly conflictedDrafts = computed(() => this.draftsState().filter((draft) => draft.retryCount > 0));
   readonly isOnline = this.onlineState.asReadonly();
-  readonly canQueueOffline = computed(() => {
-    const policy = this.tenantService.tenant()?.connectivityPolicy || 'AUTOMATIC';
-    return policy === 'OFFLINE_CAPABLE' || (policy === 'AUTOMATIC' && !this.isOnline());
-  });
+  /** Writes are queued on the phone whenever it is offline. */
+  readonly canQueueOffline = computed(() => !this.isOnline());
 
   constructor() {
     merge(fromEvent(window, 'online'), fromEvent(window, 'offline'))

@@ -34,8 +34,6 @@ export interface User {
   tenantId: string | null;
   isSuperAdmin: boolean;
   impersonatedTenantId: string | null;
-  preferredOperationMode?: 'FULL_ERP' | 'SIMPLIFIED_MOBILE' | null;
-  tenantOperationMode?: 'FULL_ERP' | 'SIMPLIFIED_MOBILE' | 'USER_CHOICE';
 }
 
 export interface MeResponse {

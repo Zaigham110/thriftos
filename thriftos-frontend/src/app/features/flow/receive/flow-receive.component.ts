@@ -28,8 +28,8 @@ type ReceiveType = 'BALE' | 'RAG';
       @if (cameraOpen()) { <app-camera-scan-sheet (scanned)="onCameraScan($event)" (dismissed)="cameraOpen.set(false)" (manual)="useManualFromCamera()"/> }
       <div class="receive-layout">
         <section class="receive-form-card">
-          <header class="form-heading"><div><span>New unit</span><h2>Capture the material</h2></div><span class="policy-pill">{{ guidanceLabel() }}</span></header>
-          <div class="capture-panel"><div><span class="field-label">Source identity</span><strong>{{ sourceReference || 'Scan or enter source reference' }}</strong><small>Optional source reference is retained in the intake note.</small></div><div class="capture-actions"><button type="button" [disabled]="!allowsScanner()" (click)="setCaptureMode('scanner')"><lucide-icon [img]="icons.ScanLine" [size]="18"></lucide-icon> Scan</button><button type="button" [disabled]="!allowsCamera()" (click)="openCamera()" aria-label="Camera capture"><lucide-icon [img]="icons.Camera" [size]="18"></lucide-icon></button><button type="button" [disabled]="!allowsManual()" (click)="setCaptureMode('manual')" aria-label="Manual entry"><lucide-icon [img]="icons.Keyboard" [size]="18"></lucide-icon></button></div></div>
+          <header class="form-heading"><div><span>New unit</span><h2>Capture the material</h2></div></header>
+          <div class="capture-panel"><div><span class="field-label">Source identity</span><strong>{{ sourceReference || 'Scan or enter source reference' }}</strong><small>Optional source reference is retained in the intake note.</small></div><div class="capture-actions"><button type="button" (click)="setCaptureMode('scanner')"><lucide-icon [img]="icons.ScanLine" [size]="18"></lucide-icon> Scan</button><button type="button" (click)="openCamera()" aria-label="Camera capture"><lucide-icon [img]="icons.Camera" [size]="18"></lucide-icon></button><button type="button" (click)="setCaptureMode('manual')" aria-label="Manual entry"><lucide-icon [img]="icons.Keyboard" [size]="18"></lucide-icon></button></div></div>
           @if (captureMode()) { <label class="source-input"><span>{{ captureMode() === 'scanner' ? 'Scanner input' : captureMode() === 'camera' ? 'Captured reference' : 'Source reference' }}</span><input #sourceInput [(ngModel)]="sourceReference" autocomplete="off" placeholder="Enter or scan a supplier / label reference" (keyup.enter)="sourceInput.blur()"><small>{{ captureMode() === 'scanner' ? 'Keep focus here for the hardware scanner.' : captureMode() === 'camera' ? 'Captured code is kept as text; no camera image is stored.' : 'Enter the supplier or label reference.' }}</small></label> }
           <fieldset><legend>Material type</legend><div class="type-choice"><button type="button" [class.selected]="receiveType() === 'BALE'" (click)="receiveType.set('BALE')"><lucide-icon [img]="icons.PackagePlus" [size]="20"></lucide-icon><span><strong>Loose bale</strong><small>Individual bale ready for sorting</small></span></button><button type="button" [class.selected]="receiveType() === 'RAG'" (click)="receiveType.set('RAG')"><lucide-icon [img]="icons.Scale" [size]="20"></lucide-icon><span><strong>Loose rag</strong><small>Loose material for category sort</small></span></button></div></fieldset>
           <fieldset><legend>Raw category <em>*</em></legend><div class="category-grid">@for (category of rawCategories(); track category.id) { <button type="button" [class.selected]="categoryId() === category.id" (click)="categoryId.set(category.id)">{{ category.name }}</button> } @empty { <span class="inline-state">Loading available categories…</span> }</div></fieldset>
@@ -74,12 +74,8 @@ export class FlowReceiveComponent implements OnInit {
   // submit state and cost preview current on every template check.
   protected costPerKg(): number | null { return this.weightKg && this.weightKg > 0 && this.cost !== null ? this.cost / this.weightKg : null; }
   protected canSubmit(): boolean { return Boolean(this.categoryId() && this.weightKg && this.weightKg > 0); }
-  protected readonly guidanceLabel = computed(() => (this.tenantService.tenant()?.guidancePolicy || 'GUIDED').toLowerCase().replace('_', ' '));
   protected readonly currencySymbol = computed(() => this.tenantService.tenant()?.currency?.symbol || '$');
   protected readonly connectionMessage = computed(() => this.offlineDrafts.isOnline() ? 'Connected · server validation on submit' : this.offlineDrafts.canQueueOffline() ? 'Offline · eligible drafts will queue' : 'Offline · this tenant requires a connection');
-  protected readonly allowsScanner = computed(() => ['HARDWARE_SCANNER', 'ALL'].includes(this.tenantService.tenant()?.capturePolicy || 'ALL'));
-  protected readonly allowsCamera = computed(() => ['CAMERA_SCAN', 'ALL'].includes(this.tenantService.tenant()?.capturePolicy || 'ALL'));
-  protected readonly allowsManual = computed(() => ['MANUAL_ENTRY', 'ALL'].includes(this.tenantService.tenant()?.capturePolicy || 'ALL'));
 
   ngOnInit(): void { this.containerId.set(this.route.snapshot.queryParamMap.get('containerId') || ''); this.loadMasterData(); this.loadRecent(); }
   protected setCaptureMode(mode: 'scanner' | 'camera' | 'manual'): void { this.captureMode.set(mode); }
@@ -91,7 +87,7 @@ export class FlowReceiveComponent implements OnInit {
   protected submit(): void {
     if (!this.canSubmit()) return;
     const note = [this.sourceReference ? `Source reference: ${this.sourceReference}` : '', this.notes.trim()].filter(Boolean).join('\n');
-    const payload = { rawCategoryId: this.categoryId(), weightKg: Number(this.weightKg), allocatedCost: Number(this.cost || 0), ragBaleType: this.receiveType(), vendorId: this.vendorId || undefined, containerId: this.containerId() || undefined, notes: note || undefined };
+    const payload = { rawCategoryId: this.categoryId(), weightKg: Number(this.weightKg), purchaseCost: this.containerId() ? undefined : Number(this.cost || 0), ragBaleType: this.receiveType(), vendorId: this.vendorId || undefined, containerId: this.containerId() || undefined, notes: note || undefined };
     this.saving.set(true); this.notice.set('');
     this.http.post<ReceivedUnit>(`${API_BASE_URL}/procurement/rags`, payload, { headers: new HttpHeaders({ 'Idempotency-Key': crypto.randomUUID() }) }).subscribe({
       next: (record) => { this.saving.set(false); this.noticeKind.set('success'); this.notice.set(`${record.ragCode} is received and ready for Transform.`); this.reset(); this.loadRecent(); },

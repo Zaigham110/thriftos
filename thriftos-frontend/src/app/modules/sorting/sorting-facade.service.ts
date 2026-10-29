@@ -51,10 +51,9 @@ export interface Stage1QueueQuery {
 
 export interface Stage1QueueItem {
   id: string;
-  sourceType?: 'RAG' | 'LOOSE_BALE';
+  sourceType?: 'CONTAINER' | 'LOOSE_BALE';
   sourceId?: string;
   ragCode?: string;
-  baleCode?: string;
   weightKg: number;
   status: string;
   container?: {
@@ -120,14 +119,8 @@ export class SortingFacadeService {
     return this.http.get<Stage1Summary>(`${API_ENDPOINTS.sortingStage1}/sessions/${sessionId}`);
   }
 
-  stage1Start(sourceId: string, sourceType: 'RAG' | 'LOOSE_BALE', workerId?: string, supervisorId?: string) {
-    const body: any = { workerId, supervisorId };
-    if (sourceType === 'RAG') {
-      body.ragId = sourceId;
-    } else {
-      body.incomingBaleId = sourceId;
-    }
-    return this.http.post<Stage1Summary>(`${API_ENDPOINTS.sortingStage1}/start`, body);
+  stage1Start(ragId: string, workerId?: string, supervisorId?: string) {
+    return this.http.post<Stage1Summary>(`${API_ENDPOINTS.sortingStage1}/start`, { ragId, workerId, supervisorId });
   }
 
   stage1Allocate(sessionId: string, categoryId: string, amountKg: number, outputCount?: number) {

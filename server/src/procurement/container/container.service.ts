@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../audit/audit.service';
-import { CostAllocationService } from '../cost-allocation/cost-allocation.service';
+import { CostingService } from '../../costing/costing.service';
 import { CreateContainerDto } from './dto/create-container.dto';
 import { UpdateContainerDto } from './dto/update-container.dto';
 import { UpdateContainerWeightsDto } from './dto/update-container-weights.dto';
@@ -15,7 +15,7 @@ export class ContainerService {
   constructor(
     private prisma: PrismaService,
     private auditService: AuditService,
-    private costAllocationService: CostAllocationService,
+    private costing: CostingService,
     private tenantSequenceService: TenantSequenceService,
   ) {}
 
@@ -87,69 +87,72 @@ export class ContainerService {
   }
 
   async create(tenantId: string, dto: CreateContainerDto, userId: string) {
-    // Validate purchase order
-    const po = await this.prisma.purchaseOrder.findFirst({
-      where: { id: dto.purchaseOrderId, tenantId },
-    });
-
-    if (!po) {
-      throw new BadRequestException('Purchase order not found');
+    if (!dto.vendorId && !dto.purchaseOrderId) {
+      throw new BadRequestException('Pick a supplier');
     }
 
-    if (po.poType === PurchaseOrderType.LOOSE_BALE) {
-      throw new BadRequestException('Containers are not allowed for LOOSE_BALE purchase orders');
+    let vendorId = dto.vendorId ?? null;
+    if (dto.purchaseOrderId) {
+      const po = await this.prisma.purchaseOrder.findFirst({ where: { id: dto.purchaseOrderId, tenantId } });
+      if (!po) throw new BadRequestException('Purchase order not found');
+      if (po.poType === PurchaseOrderType.LOOSE_BALE) {
+        throw new BadRequestException('Containers are not allowed for LOOSE_BALE purchase orders');
+      }
+      if (po.status === PurchaseOrderStatus.CLOSED) {
+        throw new ConflictException('Cannot add container to a closed purchase order');
+      }
+      vendorId ??= po.vendorId;
     }
 
-    if (po.status === PurchaseOrderStatus.CLOSED) {
-      throw new ConflictException('Cannot add container to a closed purchase order');
+    const vendor = vendorId
+      ? await this.prisma.vendor.findFirst({ where: { id: vendorId, tenantId }, select: { id: true, originCountry: true } })
+      : null;
+    if (vendorId && !vendor) throw new BadRequestException('Supplier not found');
+
+    const containerNumber = dto.containerNumber?.trim() || (await this.nextContainerNumber(tenantId));
+    const taken = await this.prisma.container.findFirst({ where: { tenantId, containerNumber }, select: { id: true } });
+    if (taken) throw new ConflictException(`Container ${containerNumber} already exists`);
+
+    const { gross, tare, net } = this.computeCreateWeightsOrThrow(dto.grossWeightKg ?? dto.netWeightKg, dto.netWeightKg, dto.tareWeightKg);
+    const purchaseCurrency = (dto.purchaseCurrency ?? 'PKR').toUpperCase();
+    if (purchaseCurrency !== 'PKR' && !dto.fxRate) {
+      throw new BadRequestException(`Enter the ${purchaseCurrency} to PKR rate`);
     }
 
-    const { code: containerNumber } = await this.tenantSequenceService.generateCode(
-      tenantId,
-      SequenceScope.CONTAINER,
-      { prefix: 'CONT', padSize: 3 },
-      async (code) => {
-        const existing = await this.prisma.container.findFirst({
-          where: { tenantId, containerNumber: code },
-          select: { id: true },
-        });
-        return !existing;
-      },
-    );
-
-    const { gross, tare, net } = this.computeCreateWeightsOrThrow(dto.grossWeightKg, dto.netWeightKg, dto.tareWeightKg);
-
-    const container = await this.prisma.container.create({
-      data: {
-        tenantId,
-        purchaseOrderId: dto.purchaseOrderId,
-        containerNumber,
-        referenceNumber: dto.referenceNumber,
-        containerType: dto.containerType,
-        eta: this.toDate(dto.eta),
-        etd: this.toDate(dto.etd),
-        arrivedAt: this.toDate(dto.arrivedAt),
-        clearedAt: this.toDate(dto.clearedAt),
-        releasedAt: this.toDate(dto.releasedAt),
-        grossWeight: gross,
-        tareWeight: tare,
-        netWeight: net,
-        billOfLadingNumber: dto.billOfLadingNumber,
-        shipmentReference: dto.shipmentReference,
-        shippingLine: dto.shippingLine,
-        vesselName: dto.vesselName,
-        portOfLoading: dto.portOfLoading,
-        portOfDischarge: dto.portOfDischarge,
-        forwarder: dto.forwarder,
-        notes: dto.notes,
-        status: ContainerStatus.IN_TRANSIT,
-      },
-      include: {
-        containerCharges: true,
-        purchaseOrder: {
-          select: { poNumber: true },
+    const container = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.container.create({
+        data: {
+          tenantId,
+          purchaseOrderId: dto.purchaseOrderId ?? null,
+          vendorId: vendor?.id ?? null,
+          originCountry: dto.originCountry ?? vendor?.originCountry ?? null,
+          containerNumber,
+          referenceNumber: dto.referenceNumber,
+          containerType: dto.containerType,
+          eta: this.toDate(dto.eta),
+          etd: this.toDate(dto.etd),
+          arrivedAt: this.toDate(dto.arrivedAt),
+          clearedAt: this.toDate(dto.clearedAt),
+          releasedAt: this.toDate(dto.releasedAt),
+          grossWeight: gross,
+          tareWeight: tare,
+          netWeight: net,
+          purchaseCost: new Prisma.Decimal(dto.purchaseCost ?? 0),
+          purchaseCurrency,
+          fxRate: new Prisma.Decimal(purchaseCurrency === 'PKR' ? 1 : dto.fxRate!),
+          billOfLadingNumber: dto.billOfLadingNumber,
+          shipmentReference: dto.shipmentReference,
+          shippingLine: dto.shippingLine,
+          vesselName: dto.vesselName,
+          portOfLoading: dto.portOfLoading,
+          portOfDischarge: dto.portOfDischarge,
+          forwarder: dto.forwarder,
+          notes: dto.notes,
+          status: ContainerStatus.IN_TRANSIT,
         },
-      },
+      });
+      await this.costing.recalculateContainerTx(tx, tenantId, created.id, userId);
+      return created;
     });
 
     await this.auditService.log({
@@ -158,13 +161,20 @@ export class ContainerService {
       action: 'CONTAINER_CREATED',
       entityType: 'Container',
       entityId: container.id,
-      metadataJson: {
-        containerNumber: container.containerNumber,
-        poNumber: container.purchaseOrder.poNumber,
-      },
+      metadataJson: { containerNumber, purchaseCost: container.purchaseCost.toString(), purchaseCurrency },
     });
 
-    return container;
+    return this.findOne(tenantId, container.id);
+  }
+
+  private async nextContainerNumber(tenantId: string) {
+    const { code } = await this.tenantSequenceService.generateCode(
+      tenantId,
+      SequenceScope.CONTAINER,
+      { prefix: 'CONT', padSize: 3 },
+      async (candidate) => !(await this.prisma.container.findFirst({ where: { tenantId, containerNumber: candidate }, select: { id: true } })),
+    );
+    return code;
   }
 
   async findAll(
@@ -196,13 +206,9 @@ export class ContainerService {
           purchaseOrder: {
             select: { id: true, poNumber: true, tenantId: true, vendor: true },
           },
+          vendor: { select: { id: true, name: true, originCountry: true } },
           containerCharges: true,
-          _count: {
-            select: {
-              rags: true,
-              incomingBales: true,
-            },
-          },
+          _count: { select: { rags: true } },
         },
       }),
       this.prisma.container.count({ where }),
@@ -221,9 +227,9 @@ export class ContainerService {
         purchaseOrder: {
           select: { id: true, poNumber: true, tenantId: true, vendor: true },
         },
+        vendor: { select: { id: true, name: true, originCountry: true } },
         containerCharges: true,
         rags: true,
-        incomingBales: true,
       },
     });
 
@@ -265,18 +271,14 @@ export class ContainerService {
       }
     }
 
-    // Landed Cost Per KG Calculation
-    const chargesSum = (container.containerCharges || []).reduce((acc, c) => acc + Number(c.amount || 0), 0);
-    const fxRateVal = dto.fxRate !== undefined ? dto.fxRate : Number(container.fxRate || 1);
-    const blNetKg = Number(container.netWeight || 0);
-    let landedCostPerKg: Prisma.Decimal | null = container.landedCostPerKg;
-
-    if (blNetKg > 0) {
-      const totalBaseCost = chargesSum * fxRateVal;
-      landedCostPerKg = new Prisma.Decimal((totalBaseCost / blNetKg).toFixed(4));
+    const costChanged = dto.purchaseCost !== undefined || dto.purchaseCurrency !== undefined || dto.fxRate !== undefined;
+    if (dto.vendorId) {
+      const vendor = await this.prisma.vendor.findFirst({ where: { id: dto.vendorId, tenantId }, select: { id: true } });
+      if (!vendor) throw new BadRequestException('Supplier not found');
     }
 
-    const updated = await this.prisma.container.update({
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.container.update({
       where: { id },
       data: {
         ...(dto.referenceNumber !== undefined && { referenceNumber: dto.referenceNumber }),
@@ -302,14 +304,17 @@ export class ContainerService {
         ...(weightVariancePct !== null && { weightVariancePct }),
         ...(varianceAlertStatus !== null && { varianceAlertStatus }),
         ...(dto.fxRate !== undefined && { fxRate: new Prisma.Decimal(dto.fxRate) }),
-        ...(landedCostPerKg !== null && { landedCostPerKg }),
+        ...(dto.purchaseCost !== undefined && { purchaseCost: new Prisma.Decimal(dto.purchaseCost) }),
+        ...(dto.purchaseCurrency !== undefined && { purchaseCurrency: dto.purchaseCurrency.toUpperCase() }),
+        ...(dto.vendorId !== undefined && { vendorId: dto.vendorId }),
+        ...(dto.originCountry !== undefined && { originCountry: dto.originCountry }),
       },
-      include: {
-        purchaseOrder: {
-          select: { poNumber: true },
-        },
-        containerCharges: true,
-      },
+      });
+      if (costChanged) await this.costing.recalculateContainerTx(tx, tenantId, id, userId);
+      return tx.container.findUniqueOrThrow({
+        where: { id },
+        include: { purchaseOrder: { select: { poNumber: true } }, containerCharges: true },
+      });
     });
 
     await this.auditService.log({
@@ -348,7 +353,7 @@ export class ContainerService {
       },
     });
 
-    await this.costAllocationService.allocateContainerCosts(id, tenantId, userId);
+    await this.costing.recalculateContainer(tenantId, id, userId);
 
     await this.auditService.log({
       userId,
@@ -417,18 +422,18 @@ export class ContainerService {
       throw new ConflictException('Cannot add charges to a closed container');
     }
 
-    const charge = await this.prisma.containerCharge.create({
-      data: {
-        containerId,
-        chargeType: dto.chargeType,
-        description: dto.description,
-        amount: dto.amount,
-      },
+    const charge = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.containerCharge.create({
+        data: {
+          containerId,
+          chargeType: dto.chargeType,
+          description: dto.description?.trim() || dto.chargeType,
+          amount: new Prisma.Decimal(dto.amount),
+        },
+      });
+      await this.costing.recalculateContainerTx(tx, tenantId, containerId, userId);
+      return created;
     });
-
-    // Recalculate cost allocation
-    await this.costAllocationService.allocateContainerCosts(containerId, tenantId, userId);
-    await this.costAllocationService.syncPurchaseOrderTotals(container.purchaseOrder.id);
 
     await this.auditService.log({
       userId,
@@ -470,13 +475,10 @@ export class ContainerService {
       throw new NotFoundException('Charge not found');
     }
 
-    await this.prisma.containerCharge.delete({
-      where: { id: chargeId },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.containerCharge.delete({ where: { id: chargeId } });
+      await this.costing.recalculateContainerTx(tx, tenantId, containerId, userId);
     });
-
-    // Recalculate cost allocation
-    await this.costAllocationService.allocateContainerCosts(containerId, tenantId, userId);
-    await this.costAllocationService.syncPurchaseOrderTotals(container.purchaseOrder.id);
 
     await this.auditService.log({
       userId,
@@ -495,8 +497,7 @@ export class ContainerService {
   }
 
   async getCostBreakdown(tenantId: string, containerId: string) {
-    await this.findOne(tenantId, containerId);
-    return this.costAllocationService.getContainerCostBreakdown(containerId);
+    return this.costing.containerBreakdown(tenantId, containerId);
   }
 }
 

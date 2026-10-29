@@ -185,12 +185,9 @@ export class TenantService {
       data: {
         ...(desiredCurrency ? { currency: desiredCurrency } : {}),
         ...(dto.locale ? { locale: dto.locale } : {}),
-        ...(dto.operationMode ? { operationMode: dto.operationMode } : {}),
-        ...(dto.connectivityPolicy ? { connectivityPolicy: dto.connectivityPolicy } : {}),
-        ...(dto.capturePolicy ? { capturePolicy: dto.capturePolicy } : {}),
-        ...(dto.guidancePolicy ? { guidancePolicy: dto.guidancePolicy } : {}),
-        ...(dto.flowEnabled !== undefined ? { flowEnabled: dto.flowEnabled } : {}),
-        ...(dto.operationalModules ? { operationalModules: dto.operationalModules } : {}),
+        ...(dto.enabledModules ? { enabledModules: dto.enabledModules } : {}),
+        ...(dto.sortingStages !== undefined ? { sortingStages: dto.sortingStages } : {}),
+        ...(dto.defaultLanguage ? { defaultLanguage: dto.defaultLanguage } : {}),
       },
       include: {
         _count: {
@@ -219,12 +216,9 @@ export class TenantService {
           changes: {
             ...(desiredCurrency ? { currencyCode: desiredCurrency } : {}),
             ...(dto.locale ? { locale: dto.locale } : {}),
-            ...(dto.operationMode ? { operationMode: dto.operationMode } : {}),
-            ...(dto.connectivityPolicy ? { connectivityPolicy: dto.connectivityPolicy } : {}),
-            ...(dto.capturePolicy ? { capturePolicy: dto.capturePolicy } : {}),
-            ...(dto.guidancePolicy ? { guidancePolicy: dto.guidancePolicy } : {}),
-            ...(dto.flowEnabled !== undefined ? { flowEnabled: dto.flowEnabled } : {}),
-            ...(dto.operationalModules ? { operationalModules: dto.operationalModules } : {}),
+            ...(dto.enabledModules ? { enabledModules: dto.enabledModules } : {}),
+            ...(dto.sortingStages !== undefined ? { sortingStages: dto.sortingStages } : {}),
+            ...(dto.defaultLanguage ? { defaultLanguage: dto.defaultLanguage } : {}),
           },
         },
       },

@@ -1,5 +1,4 @@
 import { IsString, IsOptional, MinLength, MaxLength, IsBoolean, IsEmail, IsEnum } from 'class-validator';
-import { OperationMode } from '@prisma/client';
 
 export class UpdateUserDto {
   @IsString()
@@ -15,8 +14,4 @@ export class UpdateUserDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
-
-  @IsEnum(OperationMode)
-  @IsOptional()
-  preferredOperationMode?: OperationMode;
 }
