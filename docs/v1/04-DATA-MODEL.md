@@ -95,6 +95,9 @@ Auth/RBAC tables, `AuditLog`, `RefreshToken`, `IdempotencyKey`, `TenantSequence`
 - Payments are applied by fixed rules (`sales/khata.ts`, unit-tested): money paid with a sale pays that sale; payments on account and anything paid over a sale's total pay the opening balance first, then the oldest unpaid sales. Each sale's `status` (ISSUED / PARTIALLY_PAID / PAID) is refreshed in the same transaction as any sale, payment or opening-balance change; the balance itself is never stored. The customer row is locked (`FOR UPDATE`) during these writes so two payments for one customer apply in order.
 - `Payment.attachmentUrl` holds a storage key (`local:payments/<tenant>/<id>.<ext>`), not a public URL; the photo is served only through the authenticated `GET /khata/payments/:id/photo`.
 - `Payment.saleId` is `ON DELETE RESTRICT` (sales are cancelled, never deleted).
+- A sale is saved complete in one request (no drafts): `InventoryReservation` is dropped, old draft sales were cancelled by migration `v2_03` (their lines removed, stock released). `SaleLine.unit` (KG/BALE/PIECE, what the price is per) replaces `measurementType`. A bale with a known weight can also be sold by kg, in whole bales.
+- `Sale.billToken`: 24 random bytes, base64url (32 characters), unique; old sales got 2 × `gen_random_uuid()`.
+- Sale numbers are claimed inside the sale's own transaction, so a failed sale does not use up a number.
 
 ## Rules for the migration work
 - One migration per logical change, named clearly (e.g., `v1_01_remove_incoming_bale`).

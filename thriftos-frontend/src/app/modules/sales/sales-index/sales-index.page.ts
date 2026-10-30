@@ -90,10 +90,6 @@ export class SalesIndexPage implements OnInit {
   readonly sales = signal<SaleListItem[]>([]);
   readonly activeTab = signal<SalesTab>('ALL');
 
-  // Cancel confirmation modal state
-  readonly confirmCancelOpen = signal<boolean>(false);
-  readonly cancelling = signal<boolean>(false);
-  readonly saleToCancel = signal<SaleListItem | null>(null);
 
   // Computed KPI Metrics
   readonly totalSalesCount = computed(() => this.sales().length);
@@ -145,54 +141,11 @@ export class SalesIndexPage implements OnInit {
   }
 
   createOrder(): void {
-    this.router.navigate(['/sell/records/new']);
+    this.router.navigate(['/sell/new']);
   }
 
   openOrder(sale: SaleListItem): void {
     this.router.navigate(['/sell/records', sale.id]);
-  }
-
-  openCancel(sale: SaleListItem, event: Event): void {
-    event.stopPropagation();
-    if (sale.status !== 'DRAFT') return;
-    this.saleToCancel.set(sale);
-    this.confirmCancelOpen.set(true);
-  }
-
-  closeCancel(): void {
-    if (this.cancelling()) return;
-    this.confirmCancelOpen.set(false);
-    this.saleToCancel.set(null);
-  }
-
-  confirmCancel(): void {
-    const sale = this.saleToCancel();
-    if (!sale) return;
-
-    this.cancelling.set(true);
-    this.salesService.cancel(sale.id).subscribe({
-      next: () => {
-        this.cancelling.set(false);
-        this.confirmCancelOpen.set(false);
-        this.saleToCancel.set(null);
-        this.loadSales();
-      },
-      error: (err) => {
-        this.cancelling.set(false);
-        this.error.set(err?.message || 'Failed to cancel sale order');
-        this.confirmCancelOpen.set(false);
-        this.saleToCancel.set(null);
-      },
-    });
-  }
-
-  paidAmountForRow(sale: SaleListItem): number {
-    const payments = sale.payments || [];
-    return payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-  }
-
-  balanceAmountForRow(sale: SaleListItem): number {
-    return Number(sale.totalAmount || 0) - this.paidAmountForRow(sale);
   }
 
   saleCode(sale: SaleListItem): string {

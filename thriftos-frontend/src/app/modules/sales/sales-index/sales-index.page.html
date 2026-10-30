@@ -167,11 +167,11 @@
                   </td>
 
                   <td class="text-right font-mono">
-                    {{ paidAmountForRow(sale) | money }}
+                    {{ sale.paid | money }}
                   </td>
 
                   <td class="text-right font-mono font-bold text-amber">
-                    {{ balanceAmountForRow(sale) | money }}
+                    {{ sale.due | money }}
                   </td>
 
                   <td>
@@ -197,12 +197,6 @@
                         <lucide-icon [img]="icons.Eye" [size]="12"></lucide-icon>
                         Open
                       </button>
-                      @if (sale.status === 'DRAFT') {
-                        <button class="btn btn-danger-soft btn-xs" (click)="openCancel(sale, $event)">
-                          <lucide-icon [img]="icons.XCircle" [size]="12"></lucide-icon>
-                          Cancel
-                        </button>
-                      }
                     </div>
                   </td>
                 </tr>
@@ -213,28 +207,6 @@
       }
     </div>
 
-    <!-- Cancel Confirmation Modal -->
-    <app-dialog
-      [open]="confirmCancelOpen()"
-      title="Cancel Sales Order Draft"
-      (close)="closeCancel()"
-    >
-      <div class="dialog-body">
-        <p>Are you sure you want to cancel sales order <strong>{{ saleToCancel()?.saleNumber }}</strong>?</p>
-        <p class="text-sm text-muted">This will release any reserved inventory items back into available stock.</p>
-      </div>
-
-      <div class="dialog-footer">
-        <button class="btn btn-secondary" (click)="closeCancel()" [disabled]="cancelling()">Keep Draft</button>
-        <button class="btn btn-danger" (click)="confirmCancel()" [disabled]="cancelling()">
-          @if (cancelling()) {
-            Cancelling…
-          } @else {
-            Yes, Cancel Order
-          }
-        </button>
-      </div>
-    </app-dialog>
 
   </app-page-body>
 </app-page>

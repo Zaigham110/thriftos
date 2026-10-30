@@ -104,8 +104,16 @@ enum MeasurementType {
 // =============================================================
 
 enum SaleType {
+  LOCAL
   WHOLESALE
   EXPORT
+}
+
+/// How the customer paid at the time of sale: all now, nothing now (udhaar), or part now.
+enum PaymentMode {
+  CASH
+  CREDIT
+  PARTIAL
 }
 
 enum SaleStatus {
@@ -260,10 +268,9 @@ model Tenant {
   sequences              TenantSequence[]
 
   // Sales
-  customers             Customer[]
-  sales                 Sale[]
-  payments              Payment[]
-  inventoryReservations InventoryReservation[]
+  customers Customer[]
+  sales     Sale[]
+  payments  Payment[]
 
   // Waste configuration + line items
   wasteCategories WasteCategory[]
@@ -331,7 +338,9 @@ model Sale {
   tenantId             String
   saleNumber           String
   customerId           String
-  type                 SaleType
+  type                 SaleType          @default(LOCAL)
+  paymentMode          PaymentMode
+  billToken            String            @unique // unguessable; the public bill link shared on WhatsApp
   status               SaleStatus        @default(DRAFT)
   fulfillmentStatus    FulfillmentStatus @default(PENDING)
   fulfilledAt          DateTime?
@@ -352,12 +361,11 @@ model Sale {
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
 
-  tenant       Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  customer     Customer               @relation(fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  creator      User                   @relation("SaleCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  lines        SaleLine[]
-  payments     Payment[]
-  reservations InventoryReservation[]
+  tenant   Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  customer Customer   @relation(fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  creator  User       @relation("SaleCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  lines    SaleLine[]
+  payments Payment[]
 
   @@unique([tenantId, saleNumber])
   @@index([tenantId])
@@ -368,43 +376,23 @@ model Sale {
 }
 
 model SaleLine {
-  id              String          @id @default(cuid())
+  id              String    @id @default(cuid())
   saleId          String
   inventoryItemId String
-  measurementType MeasurementType
-  quantity        Decimal         @db.Decimal(10, 2)
-  unitPrice       Decimal         @db.Decimal(14, 4)
-  lineTotal       Decimal         @db.Decimal(14, 2)
-  lineCost        Decimal         @db.Decimal(14, 2)
-  profit          Decimal         @db.Decimal(14, 2)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  unit            StockUnit // what the price is per: kg, bale or piece
+  quantity        Decimal   @db.Decimal(14, 2)
+  unitPrice       Decimal   @db.Decimal(14, 4)
+  lineTotal       Decimal   @db.Decimal(14, 2)
+  lineCost        Decimal   @db.Decimal(14, 2)
+  profit          Decimal   @db.Decimal(14, 2)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  sale          Sale                  @relation(fields: [saleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  inventoryItem InventoryItem         @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  reservation   InventoryReservation?
+  sale          Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([saleId])
   @@index([inventoryItemId])
-}
-
-model InventoryReservation {
-  id               String   @id @default(cuid())
-  tenantId         String
-  inventoryItemId  String   @unique
-  saleId           String
-  saleLineId       String?  @unique
-  reservedQuantity Decimal  @db.Decimal(10, 2)
-  createdAt        DateTime @default(now())
-
-  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  sale          Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  saleLine      SaleLine?     @relation(fields: [saleLineId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-
-  @@index([tenantId])
-  @@index([saleId])
-  @@index([createdAt])
 }
 
 /// Money received from a customer: against a sale, or on account. Applied to the oldest unpaid sales first.
@@ -1321,8 +1309,7 @@ model InventoryItem {
   stockMovements StockMovement[]
 
   // Sales
-  saleLines   SaleLine[]
-  reservation InventoryReservation?
+  saleLines SaleLine[]
 
   @@index([tenantId])
   @@index([tenantId, source, status])

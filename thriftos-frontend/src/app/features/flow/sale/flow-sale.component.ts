@@ -1,36 +1,317 @@
 import { CommonModule, DecimalPipe } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ArrowLeft, CheckCircle2, CircleDollarSign, LucideAngularModule, PackageCheck, RefreshCw, UserRound } from 'lucide-angular';
-import { CustomersService } from '../../../modules/sales/customers.service';
-import { KhataService } from '../../../modules/sales/khata.service';
-import { Customer, PaymentMethod, SaleDetail, SaleType } from '../../../modules/sales/sales.models';
-import { SalesService } from '../../../modules/sales/sales.service';
-import { InventoryItem } from '../../../modules/inventory/inventory.models';
+import { ArrowLeft, CheckCircle2, LucideAngularModule, Plus, Search, Trash2, UserPlus } from 'lucide-angular';
 
-/** Task-oriented sale composer. Reservation, issuing and payment remain server transactions. */
+import { InventoryItem } from '../../../modules/inventory/inventory.models';
+import { InventoryService } from '../../../modules/inventory/inventory.service';
+import { CustomersService } from '../../../modules/sales/customers.service';
+import { Customer, PaymentMethod, PaymentMode, SaleDetail, StockUnit } from '../../../modules/sales/sales.models';
+import { SalesService } from '../../../modules/sales/sales.service';
+
+interface CartLine {
+  item: InventoryItem;
+  unit: StockUnit;
+  quantity: number | null;
+  unitPrice: number | null;
+}
+
+const MODES: { value: PaymentMode; label: string }[] = [
+  { value: 'CASH', label: 'Cash now' },
+  { value: 'CREDIT', label: 'Udhaar' },
+  { value: 'PARTIAL', label: 'Part paid' },
+];
+
+const METHODS: { value: PaymentMethod; label: string }[] = [
+  { value: 'CASH', label: 'Cash' },
+  { value: 'BANK', label: 'Bank' },
+  { value: 'RAAST', label: 'Raast' },
+  { value: 'JAZZCASH', label: 'JazzCash' },
+  { value: 'EASYPAISA', label: 'Easypaisa' },
+];
+
+/**
+ * Journey 4: pick the customer (or add one with name + phone), add items (price defaults to the
+ * last price), choose cash / udhaar / part paid, save. The sale is saved in one request.
+ */
 @Component({
-  selector: 'app-flow-sale', standalone: true, imports: [CommonModule, DecimalPipe, FormsModule, RouterLink, LucideAngularModule],
-  template: `<section class="sale"><header><div><span>Customer order</span><h1>Create a sale</h1><p>Reserve one sealed inventory unit, issue the order, then record any payment received.</p></div><a routerLink="/sell"><lucide-icon [img]="icons.ArrowLeft" [size]="16"/>Dispatch queue</a></header>
-    @if(message();as text){<div class="notice" [class.error]="error()"><span>{{text}}</span>@if(retrySaleId()){<button type="button" [disabled]="saving()" (click)="retryIssue()">Retry issuing reserved sale</button>}</div>}
-    @if(completed();as order){<section class="complete"><lucide-icon [img]="icons.CheckCircle2" [size]="30"/><div><span>Sale issued</span><h2>{{order.saleNumber}}</h2><p>The inventory unit is reserved through the sales record. Continue to Dispatch for physical handover.</p></div><a routerLink="/sell">Open dispatch</a><button type="button" (click)="reset()">Create another</button></section>} @else {<div class="layout">
-      <section class="card form"><header><div><span>01 · customer</span><h2>Who is buying?</h2></div><lucide-icon [img]="icons.UserRound" [size]="20"/></header><label>Customer<select [(ngModel)]="customerId"><option value="">Choose an active customer</option>@for(customer of customers();track customer.id){<option [value]="customer.id">{{customer.name}}{{customer.companyName ? ' · '+customer.companyName : ''}}</option>}</select></label><div class="sale-type"><span>Order type</span><div><button type="button" [class.on]="type()==='WHOLESALE'" (click)="type.set('WHOLESALE')">Wholesale</button><button type="button" [class.on]="type()==='EXPORT'" (click)="type.set('EXPORT')">Export</button></div></div><header class="section"><div><span>02 · sellable stock</span><h2>Reserve a sealed unit</h2></div><button type="button" (click)="load()" aria-label="Refresh sellable stock"><lucide-icon [img]="icons.RefreshCw" [size]="15"/></button></header><div class="inventory">@for(item of inventory();track item.id){<button type="button" [class.selected]="inventoryId()===item.id" (click)="choose(item)"><span><b>{{item.repackUnit?.unitCode||item.unitCode||item.id}}</b><small>{{item.category?.name||'Material'}} · {{item.grade?.name||'Grade'}}</small></span><strong>{{amountFor(item)|number:'1.0-2'}} {{item.measurementType==='QUANTITY'?'pcs':'kg'}}</strong></button>}@empty{<p>No AVAILABLE inventory units were returned.</p>}</div></section>
-      <aside class="card summary"><header><div><span>03 · price & issue</span><h2>Confirm order</h2></div><lucide-icon [img]="icons.PackageCheck" [size]="20"/></header>@if(selected();as item){<div class="unit"><b>{{item.repackUnit?.unitCode||item.unitCode}}</b><span>{{item.category?.name}} · {{item.grade?.name}}</span><strong>{{amountFor(item)|number:'1.0-2'}} {{item.measurementType==='QUANTITY'?'pcs':'kg'}}</strong></div><label>Unit price<input type="number" min="0" step="0.01" [(ngModel)]="unitPrice" placeholder="0.00"/></label><div class="total"><span>Order total</span><b>{{orderTotal()|number:'1.2-2'}}</b></div><label class="payment"><span>Payment received now <em>optional</em></span><input type="number" min="0" step="0.01" [(ngModel)]="paymentAmount" placeholder="0.00"/><select [(ngModel)]="paymentMethod"><option value="CASH">Cash</option><option value="BANK">Bank</option><option value="RAAST">Raast</option><option value="JAZZCASH">JazzCash</option><option value="EASYPAISA">Easypaisa</option><option value="OTHER">Other</option></select></label><div class="rule">Issuing reserves the full sealed unit. The server rejects unavailable stock, price errors, and lifecycle conflicts.</div><button type="button" class="issue" [disabled]="!canIssue()||saving()" (click)="issue()"><lucide-icon [img]="icons.CircleDollarSign" [size]="17"/>{{saving()?'Issuing order…':'Reserve & issue sale'}}</button>} @else {<div class="empty"><lucide-icon [img]="icons.PackageCheck" [size]="27"/><p>Select a sellable unit to see its order summary.</p></div>}</aside>
-    </div>}</section>`,
-  styles: [`.sale{display:grid;gap:20px;max-width:1140px;margin:0 auto}.sale>header{display:flex;align-items:end;justify-content:space-between;gap:14px}.sale>header span,.card header span,.complete span{color:var(--flow-teal);font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.sale h1{margin:5px 0;font-size:30px;letter-spacing:-.045em}.sale p{margin:0;color:var(--flow-ink-soft);font-size:13px;line-height:1.5}.sale>header>a,.complete>a,.complete>button{display:flex;align-items:center;gap:6px;min-height:38px;padding:0 11px;border:1px solid var(--flow-line);border-radius:9px;background:#fff;color:var(--flow-ink);font:inherit;font-size:12px;font-weight:750;text-decoration:none}.layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(330px,.85fr);gap:18px;align-items:start}.card,.complete{overflow:hidden;border:1px solid var(--flow-line);border-radius:var(--flow-radius);background:#fff}.card header{display:flex;align-items:center;justify-content:space-between;padding:17px;border-bottom:1px solid var(--flow-line)}.card h2{margin:4px 0 0;font-size:17px}.card header>lucide-icon{color:var(--flow-teal)}.form>label,.summary>label{display:grid;gap:7px;padding:15px 17px 0;color:var(--flow-ink);font-size:12px;font-weight:750}.form select,.summary input,.summary select{height:43px;box-sizing:border-box;border:1px solid var(--flow-line);border-radius:8px;padding:0 10px;background:#fff;color:var(--flow-ink);font:inherit}.sale-type{display:grid;gap:8px;padding:15px 17px}.sale-type>span{font-size:12px;font-weight:750}.sale-type div{display:flex;gap:6px}.sale-type button{min-height:35px;border:1px solid var(--flow-line);border-radius:7px;background:#fff;color:var(--flow-ink);padding:0 10px;font:inherit;font-size:12px;font-weight:750}.sale-type .on{border-color:var(--flow-teal);background:var(--flow-teal-soft);color:var(--flow-teal)}.card header.section{margin-top:3px}.card header.section button{display:grid;place-items:center;width:34px;height:34px;border:1px solid var(--flow-line);border-radius:7px;background:#fff;color:var(--flow-ink)}.inventory{display:grid;max-height:420px;overflow:auto}.inventory>button{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:14px 17px;border:0;border-bottom:1px solid var(--flow-line);background:#fff;color:var(--flow-ink);text-align:left;font:inherit}.inventory>button:hover,.inventory>button.selected{background:#effaf7}.inventory>button.selected{box-shadow:inset 3px 0 var(--flow-teal)}.inventory b,.inventory small{display:block}.inventory b{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}.inventory small{margin-top:3px;color:var(--flow-ink-soft);font-size:11px}.inventory strong{font-size:12px}.inventory>p{padding:22px;text-align:center}.unit{display:grid;gap:4px;margin:16px 17px 0;padding:13px;border-radius:9px;background:#f6fbf9}.unit b{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}.unit span{color:var(--flow-ink-soft);font-size:12px}.unit strong{font-size:15px}.total{display:flex;justify-content:space-between;margin:16px 17px 0;padding:13px 0;border-top:1px solid var(--flow-line);font-size:13px}.total b{font-size:19px}.payment span{display:flex;justify-content:space-between}.payment em{font-style:normal;color:var(--flow-ink-soft);font-weight:500}.payment select{margin-top:7px;width:100%}.rule{margin:16px 17px 0;padding:10px;border-radius:8px;background:#f8f3e9;color:#5b4a27;font-size:11px;line-height:1.45}.issue{display:flex;justify-content:center;align-items:center;gap:7px;width:calc(100% - 34px);min-height:45px;margin:16px 17px 17px;border:0;border-radius:9px;background:var(--flow-teal);color:#fff;font:inherit;font-size:13px;font-weight:800}.issue:disabled{opacity:.5}.notice{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:8px;background:var(--flow-teal-soft);color:var(--flow-teal);font-size:13px}.notice.error{background:var(--flow-clay-soft);color:var(--flow-clay)}.notice button{margin-left:auto;min-height:33px;border:1px solid currentColor;border-radius:7px;background:transparent;color:inherit;font:inherit;font-size:11px;font-weight:800}.empty{display:grid;justify-items:center;gap:8px;padding:58px 18px;color:var(--flow-ink-soft);text-align:center}.complete{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:14px;padding:23px}.complete>lucide-icon{color:var(--flow-teal)}.complete h2{margin:4px 0;font-size:21px}.complete>a{background:var(--flow-teal);border-color:var(--flow-teal);color:#fff}.complete>button{cursor:pointer}@media(max-width:599px){.sale>header{align-items:flex-start;flex-direction:column}.sale h1{font-size:26px}.layout{grid-template-columns:1fr;gap:13px}.notice{align-items:flex-start;flex-direction:column}.notice button{margin-left:0}.complete{grid-template-columns:auto minmax(0,1fr);padding:17px}.complete>a,.complete>button{grid-column:1/-1;justify-content:center}}`],
+  selector: 'app-flow-sale',
+  standalone: true,
+  imports: [CommonModule, DecimalPipe, FormsModule, RouterLink, LucideAngularModule],
+  template: `
+    <section class="sale">
+      <header><a routerLink="/sell" aria-label="Back"><lucide-icon [img]="icons.ArrowLeft" [size]="20" /></a><h1>New sale</h1></header>
+      @if (message(); as text) { <p class="notice error">{{ text }}</p> }
+
+      @if (done(); as sale) {
+        <section class="card done">
+          <lucide-icon [img]="icons.CheckCircle2" [size]="30" />
+          <h2>{{ sale.saleNumber }} · Rs {{ +sale.totalAmount | number: '1.0-2' }}</h2>
+          <p>{{ sale.customer?.name }} — paid Rs {{ +sale.paid | number: '1.0-2' }}, due Rs {{ +sale.due | number: '1.0-2' }}. Khata now Rs {{ +sale.customerBalance | number: '1.0-2' }}.</p>
+          <a class="primary" [routerLink]="['/sell/records', sale.id]">Open bill</a>
+          <button type="button" class="secondary" (click)="reset()">New sale</button>
+        </section>
+      } @else {
+        <section class="card">
+          <h2>Customer</h2>
+          @if (customer(); as c) {
+            <div class="picked"><strong>{{ c.name }}</strong><small>{{ c.phone || c.city || '' }}</small><button type="button" class="link" (click)="customer.set(null)">Change</button></div>
+          } @else if (adding()) {
+            <label>Name<input name="newName" [(ngModel)]="newName" maxlength="200" /></label>
+            <label>WhatsApp number<input name="newPhone" type="tel" inputmode="tel" [(ngModel)]="newPhone" placeholder="0300 1234567" /></label>
+            <div class="row"><button type="button" class="secondary" (click)="adding.set(false)">Cancel</button><button type="button" class="primary" [disabled]="!newName.trim() || saving()" (click)="addCustomer()">Add customer</button></div>
+          } @else {
+            <label class="search"><lucide-icon [img]="icons.Search" [size]="18" /><input name="customerSearch" [(ngModel)]="customerSearch" placeholder="Search name or phone" /></label>
+            <div class="choices">
+              @for (c of matchingCustomers(); track c.id) { <button type="button" (click)="pickCustomer(c)"><strong>{{ c.name }}</strong><small>{{ c.phone || c.city || '' }}</small></button> }
+            </div>
+            <button type="button" class="secondary" (click)="startAdding()"><lucide-icon [img]="icons.UserPlus" [size]="18" /> New customer</button>
+          }
+        </section>
+
+        <section class="card">
+          <h2>Items</h2>
+          @for (line of cart(); track line.item.id) {
+            <div class="line">
+              <div class="line-head"><strong>{{ itemName(line.item) }}</strong><button type="button" aria-label="Remove" (click)="remove(line)"><lucide-icon [img]="icons.Trash2" [size]="18" /></button></div>
+              <small>{{ +(line.item.remainingQuantity ?? 0) | number: '1.0-2' }} {{ unitName(line.item.unit) }} left</small>
+              @if (line.item.unit === 'BALE' && line.item.weightKg) {
+                <div class="units"><button type="button" [class.on]="line.unit === 'BALE'" (click)="setUnit(line, 'BALE')">Per bale</button><button type="button" [class.on]="line.unit === 'KG'" (click)="setUnit(line, 'KG')">Per kg</button></div>
+              }
+              <div class="row">
+                <label>{{ unitName(line.unit) }}<input type="number" inputmode="decimal" min="0" [(ngModel)]="line.quantity" [name]="'q' + line.item.id" /></label>
+                <label>Rs per {{ unitName(line.unit, 1) }}<input type="number" inputmode="decimal" min="0" [(ngModel)]="line.unitPrice" [name]="'p' + line.item.id" /></label>
+              </div>
+            </div>
+          }
+          <label class="search"><lucide-icon [img]="icons.Search" [size]="18" /><input name="itemSearch" [(ngModel)]="itemSearch" placeholder="Search stock" /></label>
+          <div class="choices">
+            @for (item of matchingStock(); track item.id) {
+              <button type="button" (click)="addItem(item)"><strong>{{ itemName(item) }}</strong><small>{{ +(item.remainingQuantity ?? 0) | number: '1.0-2' }} {{ unitName(item.unit) }}</small><lucide-icon [img]="icons.Plus" [size]="18" /></button>
+            } @empty { <p class="hint">No stock to sell.</p> }
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Payment</h2>
+          <div class="tiles">@for (m of modes; track m.value) { <button type="button" [class.on]="mode() === m.value" (click)="mode.set(m.value)">{{ m.label }}</button> }</div>
+          @if (mode() === 'PARTIAL') { <label>Paid now (Rs)<input name="paidAmount" type="number" inputmode="decimal" min="0" [(ngModel)]="paidAmount" /></label> }
+          @if (mode() !== 'CREDIT') {
+            <div class="tiles small">@for (m of methods; track m.value) { <button type="button" [class.on]="method() === m.value" (click)="method.set(m.value)">{{ m.label }}</button> }</div>
+          }
+        </section>
+
+        <footer class="bar">
+          <div><small>Total</small><strong>Rs {{ total() | number: '1.0-2' }}</strong></div>
+          <button type="button" class="primary" [disabled]="!canSave() || saving()" (click)="save()">{{ saving() ? 'Saving…' : 'Save sale' }}</button>
+        </footer>
+      }
+    </section>
+  `,
+  styles: [`
+    .sale { display:grid; gap:14px; max-width:600px; margin:0 auto; padding-bottom:96px; }
+    header { display:flex; align-items:center; gap:8px; }
+    header a { width:48px; height:48px; display:grid; place-items:center; color:var(--flow-ink); }
+    h1 { margin:0; font-size:24px; }
+    h2 { margin:0; font-size:17px; }
+    .card { display:grid; gap:12px; padding:16px; border:1px solid var(--flow-line); border-radius:var(--flow-radius); background:#fff; }
+    label { display:grid; gap:6px; font-size:14px; font-weight:700; }
+    input { min-height:48px; box-sizing:border-box; padding:0 12px; border:1px solid var(--flow-line); border-radius:10px; font:inherit; font-size:18px; }
+    .search { display:flex; align-items:center; gap:8px; padding-left:12px; border:1px solid var(--flow-line); border-radius:10px; }
+    .search input { flex:1; border:0; }
+    .choices { display:grid; max-height:240px; overflow:auto; }
+    .choices button { min-height:56px; display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:8px; padding:8px 4px; border:0; border-bottom:1px solid var(--flow-line); background:#fff; color:var(--flow-ink); font:inherit; text-align:left; }
+    small { color:var(--flow-ink-soft); font-size:13px; font-weight:500; }
+    .picked { display:flex; align-items:center; gap:10px; }
+    .picked small { flex:1; }
+    .link { min-height:44px; border:0; background:none; color:var(--flow-teal); font:inherit; font-weight:700; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .line { display:grid; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--flow-line); }
+    .line-head { display:flex; justify-content:space-between; align-items:center; }
+    .line-head button { width:48px; height:48px; border:0; background:none; color:var(--flow-clay); }
+    .units, .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(0,1fr)); gap:8px; }
+    .units button, .tiles button { min-height:52px; border:1px solid var(--flow-line); border-radius:12px; background:#fff; color:var(--flow-ink); font:inherit; font-size:16px; font-weight:700; }
+    .tiles.small button { min-height:44px; font-size:14px; }
+    .units .on, .tiles .on { border:2px solid var(--flow-teal); background:var(--flow-teal-soft); color:var(--flow-teal); }
+    .primary, .secondary { min-height:52px; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:12px; font:inherit; font-size:16px; font-weight:800; text-decoration:none; }
+    .primary { border:0; background:var(--flow-teal); color:#fff; }
+    .primary:disabled { opacity:.5; }
+    .secondary { border:1px solid var(--flow-line); background:#fff; color:var(--flow-ink); }
+    .bar { position:fixed; inset:auto 0 64px 0; z-index:4; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 16px; border-top:1px solid var(--flow-line); background:#fff; }
+    .bar div { display:grid; }
+    .bar strong { font-size:20px; }
+    .bar .primary { min-width:160px; }
+    @media (min-width:600px) { .bar { position:sticky; bottom:0; inset:auto; border:1px solid var(--flow-line); border-radius:var(--flow-radius); } }
+    .done { justify-items:center; text-align:center; }
+    .done lucide-icon { color:var(--flow-teal); }
+    .done p { margin:0; color:var(--flow-ink-soft); }
+    .done .primary, .done .secondary { width:100%; }
+    .notice { margin:0; padding:12px; border-radius:10px; }
+    .notice.error { background:var(--flow-clay-soft); color:var(--flow-clay); }
+    .hint { margin:0; color:var(--flow-ink-soft); }
+  `],
 })
 export class FlowSaleComponent implements OnInit {
-  private readonly sales = inject(SalesService); private readonly khata = inject(KhataService); private readonly customersService = inject(CustomersService);
-  readonly icons = { ArrowLeft, CheckCircle2, CircleDollarSign, PackageCheck, RefreshCw, UserRound };
-  protected readonly customers = signal<Customer[]>([]); protected readonly inventory = signal<InventoryItem[]>([]); protected readonly selected = signal<InventoryItem | null>(null); protected readonly inventoryId = signal(''); protected readonly type = signal<SaleType>('WHOLESALE'); protected readonly saving = signal(false); protected readonly completed = signal<SaleDetail | null>(null); protected readonly message = signal(''); protected readonly error = signal(false); protected readonly retrySaleId = signal(''); protected customerId = ''; protected unitPrice: number | null = null; protected paymentAmount: number | null = null; protected paymentMethod: PaymentMethod = 'CASH';
-  protected orderTotal(): number { return (this.unitPrice || 0) * (this.selected() ? this.amountFor(this.selected()!) : 0); }
-  protected canIssue(): boolean { return !!this.customerId && !!this.selected() && (this.unitPrice ?? -1) >= 0; }
-  ngOnInit(): void { this.load(); this.customersService.list({isActive:true}).subscribe(items => this.customers.set(items)); }
-  protected load(): void { this.sales.listAvailableInventory({page:1,limit:100}).subscribe({next:response=>this.inventory.set(response.items||[]),error:()=>this.showError('Sellable inventory could not be loaded.')}); }
-  protected amountFor(item: InventoryItem): number { return item.measurementType === 'QUANTITY' ? item.pcsCount : item.weightKg; } protected choose(item: InventoryItem): void { this.selected.set(item); this.inventoryId.set(item.id); this.unitPrice = null; this.message.set(''); }
-  protected issue(): void { const item=this.selected(); if(!item||!this.canIssue()) return; this.saving.set(true); this.message.set(''); this.retrySaleId.set(''); this.sales.create({customerId:this.customerId,type:this.type()}).subscribe({next:sale=>this.sales.addLine(sale.id,{inventoryItemId:item.id,measurementType:item.measurementType,quantity:this.amountFor(item),unitPrice:this.unitPrice||0}).subscribe({next:withLine=>{this.retrySaleId.set(withLine.id);this.issueReservedSale(withLine.id)},error:e=>this.fail(e)}),error:e=>this.fail(e)}); }
-  protected retryIssue(): void { const id=this.retrySaleId(); if(!id)return; this.saving.set(true); this.message.set(''); this.issueReservedSale(id); }
-  protected reset(): void { this.completed.set(null); this.selected.set(null); this.inventoryId.set(''); this.unitPrice=null; this.paymentAmount=null; this.message.set(''); this.retrySaleId.set(''); this.load(); }
-  private issueReservedSale(id:string):void{this.sales.issue(id).subscribe({next:issued=>this.recordPayment(issued),error:e=>this.fail(e)});} private recordPayment(issued: SaleDetail): void { this.retrySaleId.set(''); const amount=this.paymentAmount||0; if(amount<=0){this.finish(issued);return;} this.khata.recordPayment({customerId:issued.customerId,saleId:issued.id,amount,method:this.paymentMethod}).subscribe({next:()=>this.finish(issued),error:e=>this.fail(e)}); } private finish(order: SaleDetail): void { this.saving.set(false); this.retrySaleId.set(''); this.completed.set(order); } private fail(error:any): void { this.saving.set(false); this.showError(error?.error?.message||error?.message||'The sale could not be issued.'); } private showError(message:string): void { this.error.set(true); this.message.set(message); }
+  private readonly sales = inject(SalesService);
+  private readonly customersService = inject(CustomersService);
+  private readonly stock = inject(InventoryService);
+  protected readonly icons = { ArrowLeft, CheckCircle2, Plus, Search, Trash2, UserPlus };
+  protected readonly modes = MODES;
+  protected readonly methods = METHODS;
+  protected readonly customers = signal<Customer[]>([]);
+  protected readonly inventory = signal<InventoryItem[]>([]);
+  protected readonly customer = signal<Customer | null>(null);
+  protected readonly cart = signal<CartLine[]>([]);
+  protected readonly mode = signal<PaymentMode>('CASH');
+  protected readonly method = signal<PaymentMethod>('CASH');
+  protected readonly adding = signal(false);
+  protected readonly saving = signal(false);
+  protected readonly done = signal<SaleDetail | null>(null);
+  protected readonly message = signal('');
+  protected customerSearch = '';
+  protected itemSearch = '';
+  protected newName = '';
+  protected newPhone = '';
+  protected paidAmount: number | null = null;
+  /** A retry after a network error reuses the key, so the sale is not saved twice. */
+  private idempotencyKey = crypto.randomUUID();
+
+  protected readonly total = computed(() => this.cart().reduce((sum, l) => sum + (l.quantity || 0) * (l.unitPrice || 0), 0));
+
+  ngOnInit(): void {
+    this.customersService.list({ isActive: true }).subscribe((items) => this.customers.set(items));
+    this.loadStock();
+  }
+
+  protected matchingCustomers(): Customer[] {
+    const q = this.customerSearch.trim().toLowerCase();
+    const list = q ? this.customers().filter((c) => c.name.toLowerCase().includes(q) || (c.phone || '').includes(q)) : this.customers();
+    return list.slice(0, 8);
+  }
+
+  protected matchingStock(): InventoryItem[] {
+    const q = this.itemSearch.trim().toLowerCase();
+    const inCart = new Set(this.cart().map((l) => l.item.id));
+    return this.inventory()
+      .filter((i) => !inCart.has(i.id) && (!q || this.itemName(i).toLowerCase().includes(q)))
+      .slice(0, 12);
+  }
+
+  protected itemName(item: InventoryItem): string {
+    const kind = item.name || [item.category?.name, item.grade?.name].filter(Boolean).join(' ') || 'Stock';
+    const tier = item.priceTier ? ` (${item.priceTier})` : '';
+    return item.unitCode ? `${kind}${tier} · ${item.unitCode}` : `${kind}${tier}`;
+  }
+
+  protected unitName(unit: StockUnit, count = 2): string {
+    const one = { KG: 'kg', BALE: 'bale', PIECE: 'piece' }[unit];
+    return count === 1 || unit === 'KG' ? one : `${one}s`;
+  }
+
+  protected startAdding(): void {
+    this.newName = this.customerSearch.trim();
+    this.newPhone = '';
+    this.adding.set(true);
+  }
+
+  protected addCustomer(): void {
+    this.saving.set(true);
+    this.customersService.create({ name: this.newName.trim(), phone: this.newPhone.trim() }).subscribe({
+      next: (c) => {
+        this.saving.set(false);
+        this.adding.set(false);
+        this.customers.update((list) => [c, ...list]);
+        this.pickCustomer(c);
+      },
+      error: (e) => this.fail(e),
+    });
+  }
+
+  protected pickCustomer(c: Customer): void {
+    this.customer.set(c);
+    this.message.set('');
+    for (const line of this.cart()) this.suggestPrice(line);
+  }
+
+  protected addItem(item: InventoryItem): void {
+    const line: CartLine = { item, unit: item.unit, quantity: item.unit === 'KG' ? null : 1, unitPrice: null };
+    this.cart.update((c) => [...c, line]);
+    this.suggestPrice(line);
+  }
+
+  protected remove(line: CartLine): void {
+    this.cart.update((c) => c.filter((l) => l !== line));
+  }
+
+  protected setUnit(line: CartLine, unit: StockUnit): void {
+    line.unit = unit;
+    line.quantity = unit === 'KG' ? Number(line.item.weightKg) / Number(line.item.quantity) : 1;
+    line.unitPrice = null;
+    this.cart.update((c) => [...c]);
+    this.suggestPrice(line);
+  }
+
+  protected canSave(): boolean {
+    const linesOk = this.cart().length > 0 && this.cart().every((l) => (l.quantity || 0) > 0 && (l.unitPrice ?? -1) >= 0);
+    const paidOk = this.mode() !== 'PARTIAL' || ((this.paidAmount || 0) > 0 && (this.paidAmount || 0) < this.total());
+    return !!this.customer() && linesOk && paidOk;
+  }
+
+  protected save(): void {
+    if (!this.canSave()) return;
+    this.saving.set(true);
+    this.message.set('');
+    this.sales
+      .create(
+        {
+          customerId: this.customer()!.id,
+          paymentMode: this.mode(),
+          ...(this.mode() === 'PARTIAL' ? { paidAmount: this.paidAmount! } : {}),
+          ...(this.mode() !== 'CREDIT' ? { paymentMethod: this.method() } : {}),
+          lines: this.cart().map((l) => ({ inventoryItemId: l.item.id, unit: l.unit, quantity: l.quantity!, unitPrice: l.unitPrice! })),
+        },
+        this.idempotencyKey,
+      )
+      .subscribe({
+        next: (sale) => {
+          this.saving.set(false);
+          this.done.set(sale);
+        },
+        error: (e) => this.fail(e),
+      });
+  }
+
+  protected reset(): void {
+    this.done.set(null);
+    this.customer.set(null);
+    this.cart.set([]);
+    this.mode.set('CASH');
+    this.paidAmount = null;
+    this.idempotencyKey = crypto.randomUUID();
+    this.loadStock();
+  }
+
+  private suggestPrice(line: CartLine): void {
+    const c = this.customer();
+    if (!c) return;
+    this.sales.lastPrice(c.id, line.item.id, line.unit).subscribe((price) => {
+      if (line.unitPrice === null && price.unitPrice !== null) {
+        line.unitPrice = Number(price.unitPrice);
+        this.cart.update((list) => [...list]);
+      }
+    });
+  }
+
+  private loadStock(): void {
+    this.stock.getAll({ status: 'AVAILABLE', limit: 200 }).subscribe({
+      next: (page) => this.inventory.set(page.items || []),
+      error: () => this.message.set('Stock could not be loaded.'),
+    });
+  }
+
+  private fail(e: any): void {
+    this.saving.set(false);
+    this.message.set(e?.error?.message || 'Could not save. Please try again.');
+  }
 }

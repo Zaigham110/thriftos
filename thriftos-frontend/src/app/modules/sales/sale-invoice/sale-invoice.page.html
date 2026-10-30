@@ -96,8 +96,7 @@
             <table class="invoice-table">
               <thead>
                 <tr>
-                  <th>Item Code / Inventory</th>
-                  <th>Category / Grade</th>
+                  <th colspan="2">Item</th>
                   <th class="text-right">Quantity</th>
                   <th class="text-right">Unit Price</th>
                   <th class="text-right">Line Total</th>
@@ -106,11 +105,8 @@
               <tbody>
                 @for (line of s.lines; track line.id) {
                   <tr>
-                    <td>
-                      <span class="font-mono font-bold">{{ line.inventoryItem?.unitCode || 'INV-' + line.inventoryItemId.slice(0, 8).toUpperCase() }}</span>
-                    </td>
-                    <td>Finished Goods</td>
-                    <td class="text-right font-mono">{{ line.quantity | number:'1.2-2' }} {{ line.measurementType === 'WEIGHT' ? 'KG' : 'PCS' }}</td>
+                    <td colspan="2">{{ line.description }}</td>
+                    <td class="text-right font-mono">{{ line.quantity | number:'1.0-2' }} {{ line.unit === 'KG' ? 'kg' : line.unit === 'BALE' ? 'bale' : 'pcs' }}</td>
                     <td class="text-right font-mono">{{ line.unitPrice | money }}</td>
                     <td class="text-right font-mono font-bold">{{ line.lineTotal | money }}</td>
                   </tr>

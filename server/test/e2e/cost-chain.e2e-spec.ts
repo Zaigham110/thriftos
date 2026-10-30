@@ -114,17 +114,19 @@ describe('cost chain (tasks 1.3 + 1.4)', () => {
     const customer = await api(app, owner)
       .post('/customers', { name: 'Peshawar Landa House', phone: '+923001234567' })
       .expect(201);
-    const sale = await api(app, owner).post('/sales', { customerId: customer.body.id, type: 'WHOLESALE' }).expect(201);
-    ids.sale = sale.body.id;
     const item = await prisma.inventoryItem.findFirstOrThrow({ where: { repackUnitId: baleIds[0] } });
-    const withLine = await api(app, owner)
-      .post(`/sales/${ids.sale}/lines`, { inventoryItemId: item.id, measurementType: 'WEIGHT', quantity: 400, unitPrice: 375 })
+    const sale = await api(app, owner)
+      .post('/sales', {
+        customerId: customer.body.id,
+        paymentMode: 'CREDIT',
+        lines: [{ inventoryItemId: item.id, unit: 'KG', quantity: 400, unitPrice: 375 }],
+      })
       .expect(201);
-    const line = withLine.body.lines?.[0] ?? (await prisma.saleLine.findFirstOrThrow({ where: { saleId: ids.sale } }));
+    ids.sale = sale.body.id;
+    const line = sale.body.lines[0];
     expect(money(line.lineTotal)).toBe('150000.00');
     expect(money(line.lineCost)).toBe('105185.95');
     expect(money(line.profit)).toBe('44814.05');
-    await api(app, owner).post(`/sales/${ids.sale}/issue`).expect(201);
   });
 
   it('recalculating unchanged data changes nothing (parity with the stored chain)', async () => {

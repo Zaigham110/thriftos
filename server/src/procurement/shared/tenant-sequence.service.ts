@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { SequenceScope } from '@prisma/client';
+import { Prisma, SequenceScope } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 export interface SequenceFormatOptions {
@@ -20,14 +20,16 @@ export class TenantSequenceService {
    * Uses an upsert wrapped in a transaction to avoid race conditions.
    */
   async next(tenantId: string, scope: SequenceScope): Promise<number> {
-    const record = await this.prisma.$transaction((tx) =>
-      tx.tenantSequence.upsert({
-        where: { tenantId_scope: { tenantId, scope } },
-        update: { nextNumber: { increment: 1 } },
-        create: { tenantId, scope, nextNumber: 2 },
-      }),
-    );
+    return this.prisma.$transaction((tx) => this.nextInTx(tx, tenantId, scope));
+  }
 
+  /** Same as next(), inside the caller's transaction (the number is only used if it commits). */
+  async nextInTx(tx: Prisma.TransactionClient, tenantId: string, scope: SequenceScope): Promise<number> {
+    const record = await tx.tenantSequence.upsert({
+      where: { tenantId_scope: { tenantId, scope } },
+      update: { nextNumber: { increment: 1 } },
+      create: { tenantId, scope, nextNumber: 2 },
+    });
     return Math.max(record.nextNumber - 1, 1);
   }
 

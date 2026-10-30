@@ -1,125 +1,48 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  ForbiddenException,
-  Get,
-  Param,
-  Patch,
-  Post,
-} from '@nestjs/common';
-import { MeasurementType } from '@prisma/client';
+import { Body, Controller, Get, Headers, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { CurrentUser, CurrentUserData, TenantId } from '../common/decorators';
+import { TenantGuard } from '../common/guards/tenant.guard';
+import { CreateSaleDto, FulfillSaleDto, LastPriceQueryDto } from './dto';
 import { SalesService } from './sales.service';
-import {
-  AddSaleLineDto,
-  CreateSaleDto,
-  UpdateSaleDto,
-} from './dto';
-import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 
 @Controller('sales')
+@UseGuards(TenantGuard)
 export class SalesController {
   constructor(private readonly sales: SalesService) {}
 
-  private requireTenant(user: CurrentUserData): string {
-    const tenantId = user?.impersonatedTenantId ?? user?.tenantId;
-    if (!tenantId) throw new ForbiddenException('Tenant context required');
-    return tenantId;
-  }
-
-  // QR scan resolution: validate tenant + AVAILABLE only; do not auto-add to sale
+  /** QR scan: the bale behind a code, if it can still be sold (does not add it to a sale). */
   @Get('scan/qr/:code')
-  async scanQr(@CurrentUser() user: CurrentUserData, @Param('code') code: string) {
-    const tenantId = this.requireTenant(user);
-    return this.sales.resolveQrToInventoryItem(tenantId, code);
+  scan(@TenantId() tenantId: string, @Param('code') code: string) {
+    return this.sales.scan(tenantId, code);
   }
 
+  @Get('last-price')
+  lastPrice(@TenantId() tenantId: string, @Query() query: LastPriceQueryDto) {
+    return this.sales.lastPrice(tenantId, query);
+  }
+
+  /** Saves a whole sale. Send an Idempotency-Key so a repeat (offline sync, double tap) creates one sale. */
   @Post()
-  async create(
-    @CurrentUser() user: CurrentUserData,
+  create(
+    @TenantId() tenantId: string,
     @Body() dto: CreateSaleDto,
+    @CurrentUser() user: CurrentUserData,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ) {
-    const tenantId = this.requireTenant(user);
-    return this.sales.createSale(tenantId, { customerId: dto.customerId, type: dto.type }, user.userId);
+    return this.sales.create(tenantId, dto, user.userId, idempotencyKey);
   }
 
   @Get()
-  async list(@CurrentUser() user: CurrentUserData) {
-    const tenantId = this.requireTenant(user);
-    return this.sales.listSales(tenantId);
+  list(@TenantId() tenantId: string) {
+    return this.sales.list(tenantId);
   }
 
   @Get(':id')
-  async get(@CurrentUser() user: CurrentUserData, @Param('id') id: string) {
-    const tenantId = this.requireTenant(user);
-    return this.sales.getSale(tenantId, id);
-  }
-
-  @Patch(':id')
-  async update(
-    @CurrentUser() user: CurrentUserData,
-    @Param('id') id: string,
-    @Body() dto: UpdateSaleDto,
-  ) {
-    const tenantId = this.requireTenant(user);
-    return this.sales.updateSale(tenantId, id, { customerId: dto.customerId, type: dto.type });
-  }
-
-  @Post(':id/lines')
-  async addLine(
-    @CurrentUser() user: CurrentUserData,
-    @Param('id') id: string,
-    @Body() dto: AddSaleLineDto,
-  ) {
-    const tenantId = this.requireTenant(user);
-    return this.sales.addLine(
-      tenantId,
-      id,
-      {
-        inventoryItemId: dto.inventoryItemId,
-        measurementType: dto.measurementType as MeasurementType,
-        quantity: dto.quantity,
-        unitPrice: dto.unitPrice,
-      },
-      user.userId,
-    );
-  }
-
-  @Delete(':saleId/lines/:lineId')
-  async deleteLine(
-    @CurrentUser() user: CurrentUserData,
-    @Param('saleId') saleId: string,
-    @Param('lineId') lineId: string,
-  ) {
-    const tenantId = this.requireTenant(user);
-    return this.sales.deleteLine(tenantId, saleId, lineId, user.userId);
-  }
-
-  @Post(':id/issue')
-  async issue(
-    @CurrentUser() user: CurrentUserData,
-    @Param('id') id: string,
-  ) {
-    const tenantId = this.requireTenant(user);
-    return this.sales.issue(tenantId, id, user.userId);
+  get(@TenantId() tenantId: string, @Param('id') id: string) {
+    return this.sales.get(tenantId, id);
   }
 
   @Post(':id/fulfill')
-  async fulfill(
-    @CurrentUser() user: CurrentUserData,
-    @Param('id') id: string,
-    @Body() body: { fulfillmentReference?: string },
-  ) {
-    const tenantId = this.requireTenant(user);
-    return this.sales.fulfill(tenantId, id, body?.fulfillmentReference, user.userId);
-  }
-
-  @Post(':id/cancel')
-  async cancel(
-    @CurrentUser() user: CurrentUserData,
-    @Param('id') id: string,
-  ) {
-    const tenantId = this.requireTenant(user);
-    return this.sales.cancel(tenantId, id, user.userId);
+  fulfill(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: FulfillSaleDto, @CurrentUser() user: CurrentUserData) {
+    return this.sales.fulfill(tenantId, id, dto.fulfillmentReference, user.userId);
   }
 }
