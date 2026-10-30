@@ -52,6 +52,15 @@ opened AS (
   FROM "InventoryItem" b JOIN "InventoryItem" p ON p."parentItemId" = b.id
   WHERE b."usedQuantity" = b.quantity AND NOT EXISTS (SELECT 1 FROM "SaleLine" l WHERE l."inventoryItemId" = b.id)
   GROUP BY b.id
+),
+bought_used_up AS (
+  -- Bought stock is never re-costed, so once used up its sales and opened pieces carry its cost exactly.
+  SELECT i.id, i."tenantId", COALESCE(i.name, i.id) AS ref, i."totalCost" AS expected,
+         COALESCE((SELECT SUM(l."lineCost") FROM "SaleLine" l JOIN "Sale" s ON s.id = l."saleId"
+                   WHERE l."inventoryItemId" = i.id AND s.status <> 'CANCELLED'), 0)
+       + COALESCE((SELECT SUM(p."totalCost") FROM "InventoryItem" p WHERE p."parentItemId" = i.id), 0) AS stored
+  FROM "InventoryItem" i
+  WHERE i.source = 'PURCHASED' AND i."usedQuantity" = i.quantity
 )
 SELECT 'container landed cost' AS stage, "tenantId", ref, expected, stored FROM landed WHERE stored <> expected
 UNION ALL SELECT 'lots vs container', "tenantId", ref, expected, stored FROM lots WHERE stored <> expected
@@ -61,4 +70,5 @@ UNION ALL SELECT 'bale vs its inputs', "tenantId", ref, expected, stored FROM ba
 UNION ALL SELECT 'used-up output vs its bale inputs', "tenantId", ref, expected, stored FROM used_up WHERE stored <> expected
 UNION ALL SELECT 'stock item vs its bale', "tenantId", ref, expected, stored FROM stock_items WHERE stored <> expected
 UNION ALL SELECT 'opened bale vs its pieces', "tenantId", ref, expected, stored FROM opened WHERE stored <> expected
+UNION ALL SELECT 'used-up bought stock vs its sales and pieces', "tenantId", ref, expected, stored FROM bought_used_up WHERE stored <> expected
 ORDER BY 1, 2, 3;

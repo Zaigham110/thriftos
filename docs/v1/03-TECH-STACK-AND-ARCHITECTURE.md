@@ -50,8 +50,10 @@ docs/archive/           old docs and phase prompts (read-only history)
 - **Lot allocation within a container**: by lot weight / sum of all lot weights in the container (never by container net weight). Largest-remainder rounding.
 - **Sorting outputs**: output cost = lot cost × output kg / total output kg (waste carries zero cost; its resale value, if sold, is income). Stage 2 repeats this on the category output.
 - **Bales**: bale cost = sum of (kg taken from each output × that output's cost per kg) (FIFO by default). Each take is costed as the output's cumulative share (`cost × usedAfter / kg − cost × usedBefore / kg`, each rounded to the paisa), so the bales made from an output always add up to its cost exactly. With 1-stage sorting the outputs are category outputs.
-- **Direct stock**: cost = purchase cost entered.
+- **Direct stock**: cost = purchase cost entered. Selling or opening part of a stock item costs its cumulative share (same rule as bale takes), so the parts of an item always add up to its cost.
+- **Opening a bale into pieces**: the opened bales' cost is shared by piece count (largest remainder); every piece costs the same whatever its price tier.
 - **Sale profit** = line price − line cost.
+- **Khata**: balance = opening balance + sales − payments, always computed. Money paid with a sale pays that sale; payments on account and overpayments pay the opening balance first, then the oldest unpaid sales. This decides each sale's PAID / PARTIALLY_PAID status.
 - **Recalculation**: when a charge is added/changed after sorting, the engine recomputes the whole chain for that lot in one transaction (replaces `scripts/maintenance/recompute-cost-chain.js`). Sold lines keep their cost at time of sale; the difference is posted as a "cost adjustment" for reporting.
 
 ## Offline design (frontend)

@@ -69,12 +69,14 @@ export class KhataService {
   /** Re-applies the customer's payments and stores each sale's status. Returns the applied account. */
   async refreshStatusesTx(tx: Tx, tenantId: string, customerId: string) {
     const account = await this.accountTx(tx, tenantId, customerId);
+    const changed: { saleNumber: string; from: SaleStatus; to: SaleStatus }[] = [];
     for (const sale of account.applied.sales) {
       if (sale.status !== sale.key.status) {
         await tx.sale.update({ where: { id: sale.key.id }, data: { status: sale.status } });
+        changed.push({ saleNumber: sale.key.saleNumber, from: sale.key.status, to: sale.status });
       }
     }
-    return account;
+    return { ...account, changed };
   }
 
   /** Opening balance, sales and payments of one customer, with payments applied. */

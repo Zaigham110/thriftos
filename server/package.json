@@ -19,7 +19,8 @@
     "test:unit": "jest --selectProjects unit",
     "test:e2e": "jest --selectProjects e2e --runInBand",
     "test:costing": "jest --runInBand --coverage",
-    "costing:recompute": "node dist/costing/recompute.js"
+    "costing:recompute": "node dist/costing/recompute.js",
+    "khata:refresh": "node dist/sales/refresh-khata.js"
   },
   "prisma": {
     "schema": "../prisma/schema.prisma"
