@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Headers, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { CurrentUser, CurrentUserData, TenantId } from '../common/decorators';
+import { CurrentUser, CurrentUserData, Public, TenantId } from '../common/decorators';
 import { TenantGuard } from '../common/guards/tenant.guard';
-import { CreateSaleDto, FulfillSaleDto, LastPriceQueryDto } from './dto';
+import { CreateSaleDto, FulfillSaleDto, LanguageQueryDto, LastPriceQueryDto } from './dto';
 import { SalesService } from './sales.service';
 
 @Controller('sales')
@@ -41,8 +41,25 @@ export class SalesController {
     return this.sales.get(tenantId, id);
   }
 
+  @Get(':id/whatsapp')
+  whatsapp(@TenantId() tenantId: string, @Param('id') id: string, @Query() query: LanguageQueryDto) {
+    return this.sales.whatsapp(tenantId, id, query.lang);
+  }
+
   @Post(':id/fulfill')
   fulfill(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: FulfillSaleDto, @CurrentUser() user: CurrentUserData) {
     return this.sales.fulfill(tenantId, id, dto.fulfillmentReference, user.userId);
+  }
+}
+
+/** The bill link shared on WhatsApp: no login, found only by its unguessable token. */
+@Controller('public/bills')
+@Public()
+export class PublicBillController {
+  constructor(private readonly sales: SalesService) {}
+
+  @Get(':token')
+  bill(@Param('token') token: string) {
+    return this.sales.publicBill(token);
   }
 }

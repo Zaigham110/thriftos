@@ -11,6 +11,7 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   LucideAngularModule,
+  MessageCircle,
   Printer,
   ArrowLeft,
   DollarSign,
@@ -66,6 +67,7 @@ export class SaleInvoicePage implements OnInit {
   private readonly khata = inject(KhataService);
 
   readonly icons = {
+    MessageCircle,
     Printer,
     ArrowLeft,
     DollarSign,
@@ -173,6 +175,12 @@ export class SaleInvoicePage implements OnInit {
         this.error.set(err?.message || 'Failed to record payment');
       },
     });
+  }
+
+  shareWhatsapp(): void {
+    const s = this.sale();
+    if (!s) return;
+    this.khata.openWhatsapp(this.khata.billMessage(s.id), () => this.error.set('Could not open WhatsApp'));
   }
 
   printInvoice(): void {

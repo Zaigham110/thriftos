@@ -18,9 +18,13 @@
     <div class="header-right-actions">
       <button class="btn btn-secondary" (click)="goBack()">
         <lucide-icon [img]="icons.ArrowLeft" [size]="15"></lucide-icon>
-        Back to Order
+        Back
       </button>
-      <button class="btn btn-primary" (click)="printInvoice()">
+      <button class="btn btn-primary" (click)="shareWhatsapp()">
+        <lucide-icon [img]="icons.MessageCircle" [size]="15"></lucide-icon>
+        Share on WhatsApp
+      </button>
+      <button class="btn btn-secondary" (click)="printInvoice()">
         <lucide-icon [img]="icons.Printer" [size]="15"></lucide-icon>
         Print Invoice
       </button>

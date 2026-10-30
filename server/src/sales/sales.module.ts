@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuditModule } from '../audit/audit.module';
 import { StockModule } from '../stock/stock.module';
-import { SalesController } from './sales.controller';
+import { PublicBillController, SalesController } from './sales.controller';
 import { CustomersController } from './customers.controller';
 import { SalesService } from './sales.service';
 import { CustomersService } from './customers.service';
@@ -13,7 +13,7 @@ import { TenantSequenceModule } from '../procurement/shared/tenant-sequence.modu
 
 @Module({
   imports: [PrismaModule, AuditModule, TenantSequenceModule, StockModule],
-  controllers: [SalesController, CustomersController, KhataController],
+  controllers: [SalesController, PublicBillController, CustomersController, KhataController],
   providers: [SalesService, CustomersService, KhataService, FileStorageService],
   exports: [SalesService],
 })

@@ -2,11 +2,12 @@ import { CommonModule, DecimalPipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ArrowLeft, CheckCircle2, LucideAngularModule, Plus, Search, Trash2, UserPlus } from 'lucide-angular';
+import { ArrowLeft, CheckCircle2, LucideAngularModule, MessageCircle, Plus, Search, Trash2, UserPlus } from 'lucide-angular';
 
 import { InventoryItem } from '../../../modules/inventory/inventory.models';
 import { InventoryService } from '../../../modules/inventory/inventory.service';
 import { CustomersService } from '../../../modules/sales/customers.service';
+import { KhataService } from '../../../modules/sales/khata.service';
 import { Customer, PaymentMethod, PaymentMode, SaleDetail, StockUnit } from '../../../modules/sales/sales.models';
 import { SalesService } from '../../../modules/sales/sales.service';
 
@@ -49,7 +50,8 @@ const METHODS: { value: PaymentMethod; label: string }[] = [
           <lucide-icon [img]="icons.CheckCircle2" [size]="30" />
           <h2>{{ sale.saleNumber }} · Rs {{ +sale.totalAmount | number: '1.0-2' }}</h2>
           <p>{{ sale.customer?.name }} — paid Rs {{ +sale.paid | number: '1.0-2' }}, due Rs {{ +sale.due | number: '1.0-2' }}. Khata now Rs {{ +sale.customerBalance | number: '1.0-2' }}.</p>
-          <a class="primary" [routerLink]="['/sell/records', sale.id]">Open bill</a>
+          <button type="button" class="primary" (click)="share(sale)"><lucide-icon [img]="icons.MessageCircle" [size]="18" /> Share bill on WhatsApp</button>
+          <a class="secondary" [routerLink]="['/sell/records', sale.id]">Open bill</a>
           <button type="button" class="secondary" (click)="reset()">New sale</button>
         </section>
       } @else {
@@ -146,7 +148,7 @@ const METHODS: { value: PaymentMethod; label: string }[] = [
     .done { justify-items:center; text-align:center; }
     .done lucide-icon { color:var(--flow-teal); }
     .done p { margin:0; color:var(--flow-ink-soft); }
-    .done .primary, .done .secondary { width:100%; }
+    .done .primary, .done .secondary { width:100%; box-sizing:border-box; }
     .notice { margin:0; padding:12px; border-radius:10px; }
     .notice.error { background:var(--flow-clay-soft); color:var(--flow-clay); }
     .hint { margin:0; color:var(--flow-ink-soft); }
@@ -156,7 +158,8 @@ export class FlowSaleComponent implements OnInit {
   private readonly sales = inject(SalesService);
   private readonly customersService = inject(CustomersService);
   private readonly stock = inject(InventoryService);
-  protected readonly icons = { ArrowLeft, CheckCircle2, Plus, Search, Trash2, UserPlus };
+  private readonly khata = inject(KhataService);
+  protected readonly icons = { ArrowLeft, CheckCircle2, MessageCircle, Plus, Search, Trash2, UserPlus };
   protected readonly modes = MODES;
   protected readonly methods = METHODS;
   protected readonly customers = signal<Customer[]>([]);
@@ -280,6 +283,10 @@ export class FlowSaleComponent implements OnInit {
         },
         error: (e) => this.fail(e),
       });
+  }
+
+  protected share(sale: SaleDetail): void {
+    this.khata.openWhatsapp(this.khata.billMessage(sale.id), (e) => this.fail(e));
   }
 
   protected reset(): void {

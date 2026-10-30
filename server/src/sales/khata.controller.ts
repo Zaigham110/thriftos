@@ -1,14 +1,30 @@
-import { Body, Controller, Get, Headers, Param, Post, StreamableFile, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Query, StreamableFile, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentUser, CurrentUserData, TenantId } from '../common/decorators';
 import { TenantGuard } from '../common/guards/tenant.guard';
-import { CreatePaymentDto } from './dto/create-payment.dto';
+import { CreatePaymentDto, CustomersQueryDto, LanguageQueryDto } from './dto';
 import { KhataService, UploadedPhoto } from './khata.service';
 
 @Controller('khata')
 @UseGuards(TenantGuard)
 export class KhataController {
   constructor(private readonly khata: KhataService) {}
+
+  /** Every customer with what they owe and days overdue, biggest balance first. */
+  @Get()
+  list(@TenantId() tenantId: string, @Query() query: CustomersQueryDto) {
+    return this.khata.list(tenantId, query.search);
+  }
+
+  @Get('customers/:id')
+  ledger(@TenantId() tenantId: string, @Param('id') id: string) {
+    return this.khata.ledger(tenantId, id);
+  }
+
+  @Get('customers/:id/reminder')
+  reminder(@TenantId() tenantId: string, @Param('id') id: string, @Query() query: LanguageQueryDto) {
+    return this.khata.reminder(tenantId, id, query.lang);
+  }
 
   /** Payment received. Send an Idempotency-Key so a repeat (offline sync, double tap) records it once. */
   @Post('payments')

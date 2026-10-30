@@ -25,6 +25,13 @@ export const routes: Routes = [
     title: 'Access Restricted - ThriftOS',
   },
 
+  // The bill link shared on WhatsApp: public, no login.
+  {
+    path: 'bill/:token',
+    loadComponent: () => import('./features/bill/public-bill.component').then((m) => m.PublicBillComponent),
+    title: 'Bill - ThriftOS',
+  },
+
   // Super-admin route space must be defined outside /app. Without this route,
   // the wildcard sends /admin to /app while tenantAreaGuard sends super admins
   // back to /admin, creating an infinite navigation loop.
@@ -149,8 +156,18 @@ export const routes: Routes = [
         path: 'khata',
         canActivate: [moduleGuard],
         data: { module: 'KHATA' },
-        loadComponent: () => import('./modules/sales/customers-index/customers-index.page').then((m) => m.CustomersIndexPage),
-        title: 'Khata - ThriftOS',
+        children: [
+          {
+            path: '',
+            loadComponent: () => import('./features/khata/khata-list.component').then((m) => m.KhataListComponent),
+            title: 'Khata - ThriftOS',
+          },
+          {
+            path: ':id',
+            loadComponent: () => import('./features/khata/khata-customer.component').then((m) => m.KhataCustomerComponent),
+            title: 'Khata - ThriftOS',
+          },
+        ],
       },
       {
         path: 'reports',

@@ -9,6 +9,7 @@ import { DirectStockService } from '../stock/direct-stock.service';
 import { CreateSaleDto, LastPriceQueryDto } from './dto';
 import { KHATA_SALE_STATUSES, KhataService } from './khata.service';
 import { SaleLineError, saleTake } from './sale-lines';
+import { billMessage, language, whatsappLink } from './whatsapp';
 
 type Tx = Prisma.TransactionClient;
 
@@ -200,6 +201,64 @@ export class SalesService {
     if (any) return { unit, unitPrice: any.unitPrice, from: 'ANY_CUSTOMER' as const };
     if (item.salePrice && unit === item.unit) return { unit, unitPrice: item.salePrice, from: 'ITEM' as const };
     return { unit, unitPrice: null, from: null };
+  }
+
+  /** "Share bill on WhatsApp": a wa.me link with the bill summary and the public bill link. */
+  async whatsapp(tenantId: string, id: string, lang?: string) {
+    const [sale, tenant] = await Promise.all([
+      this.view(this.prisma, tenantId, id),
+      this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { name: true, defaultLanguage: true } }),
+    ]);
+    const billUrl = `${(process.env.PUBLIC_APP_URL || 'http://localhost:4200').replace(/\/$/, '')}/bill/${sale.billToken}`;
+    const text = billMessage(language(lang, tenant.defaultLanguage), {
+      business: tenant.name,
+      customer: sale.customer.name,
+      saleNumber: sale.saleNumber,
+      total: sale.totalAmount,
+      paid: sale.paid,
+      due: sale.due,
+      url: billUrl,
+    });
+    return { text, url: whatsappLink(sale.customer.phone, text), billUrl };
+  }
+
+  /**
+   * The bill behind a shared link, for anyone holding the token (no login). Shows only what is
+   * on the bill: business, number, date, customer name, lines, total, paid and due. No costs,
+   * profit, phone numbers or ids.
+   */
+  async publicBill(token: string) {
+    const sale = /^[A-Za-z0-9_-]{20,80}$/.test(token)
+      ? await this.prisma.sale.findUnique({
+          where: { billToken: token },
+          include: {
+            tenant: { select: { name: true } },
+            customer: { select: { name: true } },
+            lines: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], include: { inventoryItem: itemSummary } },
+          },
+        })
+      : null;
+    if (!sale || !KHATA_SALE_STATUSES.includes(sale.status)) throw new NotFoundException('Bill not found');
+    const { applied } = await this.khata.accountTx(this.prisma, sale.tenantId, sale.customerId);
+    const own = applied.sales.find((x) => x.key.id === sale.id)!;
+    return {
+      business: sale.tenant.name,
+      saleNumber: sale.saleNumber,
+      date: sale.issuedAt ?? sale.createdAt,
+      customer: sale.customer.name,
+      currency: sale.currencyCode,
+      lines: sale.lines.map((l) => ({
+        description: describeItem(l.inventoryItem),
+        unit: l.unit,
+        quantity: l.quantity,
+        unitPrice: l.unitPrice,
+        lineTotal: l.lineTotal,
+      })),
+      total: sale.totalAmount,
+      paid: own.paid,
+      due: own.due,
+      status: own.status,
+    };
   }
 
   /** Records the physical handover, separately from payment. */
