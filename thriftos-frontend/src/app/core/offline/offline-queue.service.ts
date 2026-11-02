@@ -165,7 +165,7 @@ export class OfflineQueueService {
       const blockedBy = deps.find((d) => failedIds.has(d));
       if (blockedBy) {
         failedIds.add(w.id);
-        await this.writes.put({ ...w, status: 'failed', error: 'An earlier entry it needs was not saved.' });
+        await this.writes.put({ ...w, status: 'failed', error: 'attention.dependsOnFailed' });
         continue;
       }
       let url: string;

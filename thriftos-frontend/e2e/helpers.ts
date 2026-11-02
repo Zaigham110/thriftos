@@ -22,7 +22,11 @@ export async function apiAs(request: APIRequestContext, who = DEMO) {
   };
 }
 
-export async function signIn(page: Page, who = DEMO): Promise<void> {
+/** Signs in; the language is picked on the phone first (the demo tenant's default is Urdu). */
+export async function signIn(page: Page, who = DEMO, lang: 'en' | 'ur' = 'en'): Promise<void> {
+  await page.addInitScript((l) => {
+    if (!localStorage.getItem('thriftos.lang')) localStorage.setItem('thriftos.lang', l);
+  }, lang);
   await page.goto('/auth/login');
   await page.fill('input[type=email]', who.email);
   await page.fill('input[formControlName=password]', who.password);

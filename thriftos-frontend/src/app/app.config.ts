@@ -8,6 +8,8 @@ import {
   ApplicationConfig,
   importProvidersFrom,
   isDevMode,
+  inject,
+  provideAppInitializer,
   provideBrowserGlobalErrorListeners,
   provideZoneChangeDetection,
 } from '@angular/core';
@@ -33,6 +35,7 @@ import {
 
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
+import { I18nService } from './core/i18n/i18n.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -40,6 +43,8 @@ export const appConfig: ApplicationConfig = {
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes, withComponentInputBinding()),
     provideHttpClient(withInterceptors([authInterceptor])),
+    // Dictionaries are loaded before the first screen, so no English flashes before Urdu.
+    provideAppInitializer(() => inject(I18nService).init()),
     // Installable, works offline: app shell and reference data are cached by the service worker.
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),

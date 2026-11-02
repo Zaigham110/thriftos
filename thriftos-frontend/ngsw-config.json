@@ -18,7 +18,9 @@
           "/index.html",
           "/manifest.webmanifest",
           "/*.css",
-          "/*.js"
+          "/*.js",
+          "/i18n/*.json",
+          "/media/*.woff2"
         ]
       }
     },
@@ -30,8 +32,7 @@
         "files": [
           "/icons/**",
           "/media/**",
-          "/i18n/**",
-          "/*.(svg|png|jpg|webp|woff|woff2|ttf)"
+          "/*.(svg|png|jpg|webp|woff|ttf)"
         ]
       }
     }

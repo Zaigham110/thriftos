@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { OfflineQueueService } from '../../core/offline/offline-queue.service';
+import { TPipe } from '../../core/i18n/t.pipe';
 
 /**
  * Home → "Needs attention": entries saved on the phone that the server refused when they synced
@@ -8,18 +9,19 @@ import { OfflineQueueService } from '../../core/offline/offline-queue.service';
 @Component({
   selector: 'app-needs-attention',
   standalone: true,
+  imports: [TPipe],
   template: `
     @if (queue.failed().length) {
-      <section class="attention" aria-label="Needs attention">
-        <h2>Needs attention</h2>
+      <section class="attention" [attr.aria-label]="'attention.title' | t">
+        <h2>{{ 'attention.title' | t }}</h2>
         @for (w of queue.failed(); track w.id) {
           <article>
             <div>
               <strong>{{ w.label }}</strong>
-              <small>{{ w.error }}</small>
+              <small>{{ w.error && w.error.startsWith('attention.') ? (w.error | t) : w.error }}</small>
             </div>
-            <button type="button" (click)="queue.retry(w.id)">Try again</button>
-            <button type="button" class="ghost" (click)="queue.discard(w.id)">Remove</button>
+            <button type="button" (click)="queue.retry(w.id)">{{ 'attention.retry' | t }}</button>
+            <button type="button" class="ghost" (click)="queue.discard(w.id)">{{ 'attention.remove' | t }}</button>
           </article>
         }
       </section>

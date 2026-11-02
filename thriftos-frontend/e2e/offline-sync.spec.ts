@@ -16,6 +16,7 @@ test('offline sale and payment sync once when the network returns', async ({ pag
   await waitForOfflineReady(page);
   // Open the screens once online so their data (customers, stock, khata) is cached on the phone.
   await page.goto('/sell/new');
+  await page.getByPlaceholder('Search name or phone').fill(customer.name);
   await expect(page.getByText(customer.name)).toBeVisible();
   await page.goto(`/khata/${customer.id}`);
   await expect(page.getByRole('heading', { name: customer.name })).toBeVisible();

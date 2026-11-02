@@ -52,6 +52,13 @@
               }
             ],
             "styles": [
+              "@fontsource/inter/latin-400.css",
+              "@fontsource/inter/latin-600.css",
+              "@fontsource/inter/latin-700.css",
+              "@fontsource/noto-naskh-arabic/arabic-400.css",
+              "@fontsource/noto-naskh-arabic/arabic-700.css",
+              "@fontsource/noto-nastaliq-urdu/arabic-400.css",
+              "@fontsource/noto-nastaliq-urdu/arabic-700.css",
               "src/styles.scss"
             ]
           },

@@ -1,8 +1,10 @@
-import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, inject, input, signal } from '@angular/core';
 
 import { API_BASE_URL } from '../../core/config/api.config';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { I18N } from '../../core/i18n/t.pipe';
 
 interface PublicBill {
   business: string;
@@ -21,34 +23,40 @@ interface PublicBill {
 @Component({
   selector: 'app-public-bill',
   standalone: true,
-  imports: [CommonModule, DatePipe, DecimalPipe],
+  imports: [CommonModule, DatePipe, I18N],
   template: `
     <main class="bill">
+      <button type="button" class="lang" (click)="toggleLang()">{{ 'nav.language' | t }}</button>
       @if (bill(); as b) {
-        <header><h1>{{ b.business }}</h1><p>Bill {{ b.saleNumber }} · {{ b.date | date: 'd MMM y' }}</p><p>{{ b.customer }}</p></header>
+        <header>
+          <h1>{{ b.business }}</h1>
+          <p>{{ 'bill.no' | t: { no: b.saleNumber } }} · <span class="ltr">{{ b.date | date: 'd MMM y' : undefined : 'en' }}</span></p>
+          <p>{{ 'bill.to' | t }}: {{ b.customer }}</p>
+          <p class="status" [class.due]="b.status !== 'PAID'">{{ 'bill.status.' + b.status | t }}</p>
+        </header>
         <table>
-          <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
+          <thead><tr><th>{{ 'bill.item' | t }}</th><th class="num">{{ 'bill.qty' | t }}</th><th class="num">{{ 'bill.rate' | t }}</th><th class="num">{{ 'bill.amount' | t }}</th></tr></thead>
           <tbody>
             @for (line of b.lines; track $index) {
               <tr>
                 <td>{{ line.description }}</td>
-                <td class="num">{{ +line.quantity | number: '1.0-2' }} {{ unit(line.unit) }}</td>
-                <td class="num">{{ +line.unitPrice | number: '1.0-2' }}</td>
-                <td class="num">{{ +line.lineTotal | number: '1.0-2' }}</td>
+                <td class="num">{{ line.quantity | num }} {{ unit(line.unit) | t }}</td>
+                <td class="num">{{ line.unitPrice | num }}</td>
+                <td class="num">{{ line.lineTotal | num }}</td>
               </tr>
             }
           </tbody>
         </table>
         <dl>
-          <div><dt>Total</dt><dd>Rs {{ +b.total | number: '1.0-2' }}</dd></div>
-          <div><dt>Paid</dt><dd>Rs {{ +b.paid | number: '1.0-2' }}</dd></div>
-          @if (+b.due > 0) { <div class="due"><dt>Due</dt><dd>Rs {{ +b.due | number: '1.0-2' }}</dd></div> }
+          <div><dt>{{ 'bill.total' | t }}</dt><dd>{{ b.total | rs }}</dd></div>
+          <div><dt>{{ 'bill.paid' | t }}</dt><dd>{{ b.paid | rs }}</dd></div>
+          @if (+b.due > 0) { <div class="due"><dt>{{ 'bill.due' | t }}</dt><dd>{{ b.due | rs }}</dd></div> }
         </dl>
-        <button type="button" (click)="print()">Print / save PDF</button>
+        <button type="button" (click)="print()">{{ 'bill.print' | t }}</button>
       } @else if (missing()) {
-        <p class="missing">This bill link is not valid.</p>
+        <p class="missing">{{ 'bill.notFound' | t }}</p>
       } @else {
-        <p class="missing">Loading…</p>
+        <p class="missing">{{ 'common.loading' | t }}</p>
       }
     </main>
   `,
@@ -59,9 +67,12 @@ interface PublicBill {
     h1 { margin:0 0 6px; font-size:22px; }
     header p { margin:2px 0; color:#56666b; }
     table { width:100%; border-collapse:collapse; font-size:15px; }
-    th, td { padding:10px 4px; border-bottom:1px solid #e3e8e6; text-align:left; }
+    th, td { padding:10px 4px; border-bottom:1px solid #e3e8e6; text-align:start; }
     th { font-size:12px; color:#56666b; text-transform:uppercase; }
-    .num { text-align:right; white-space:nowrap; }
+    .num { text-align:end; white-space:nowrap; }
+    .lang { width:auto; min-height:40px; float:inline-end; padding:0 14px; }
+    .status { font-weight:800; color:#2f7d5b; }
+    .status.due { color:#b54a2c; }
     dl { margin:16px 0; display:grid; gap:6px; }
     dl div { display:flex; justify-content:space-between; font-size:17px; }
     dt { color:#56666b; }
@@ -69,12 +80,13 @@ interface PublicBill {
     .due dd { color:#b54a2c; }
     button { width:100%; min-height:48px; border:1px solid #d6dedb; border-radius:12px; background:#fff; font:inherit; font-weight:700; }
     .missing { text-align:center; padding:48px 0; color:#56666b; }
-    @media print { button { display:none; } :host { background:#fff; } }
+    @media print { button, .lang { display:none; } :host { background:#fff; } }
   `],
 })
 export class PublicBillComponent implements OnInit {
   readonly token = input.required<string>();
   private readonly http = inject(HttpClient);
+  private readonly i18n = inject(I18nService);
   protected readonly bill = signal<PublicBill | null>(null);
   protected readonly missing = signal(false);
 
@@ -86,7 +98,11 @@ export class PublicBillComponent implements OnInit {
   }
 
   protected unit(unit: string): string {
-    return { KG: 'kg', BALE: 'bale', PIECE: 'pcs' }[unit] ?? '';
+    return { KG: 'unit.kgShort', BALE: 'unit.bale', PIECE: 'unit.pcs' }[unit] ?? '';
+  }
+
+  protected toggleLang(): void {
+    this.i18n.use(this.i18n.lang() === 'ur' ? 'en' : 'ur');
   }
 
   protected print(): void {

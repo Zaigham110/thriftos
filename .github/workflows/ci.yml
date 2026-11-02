@@ -67,6 +67,8 @@ jobs:
           cache: npm
           cache-dependency-path: thriftos-frontend/package-lock.json
       - run: npm ci
+      - name: Every visible word in en and ur
+        run: npm run i18n:check
       - run: npx tsc --noEmit -p tsconfig.app.json
       - run: npx ng build
 
