@@ -76,6 +76,9 @@ for (const lang of ['en', 'ur'] as const) {
     await page.locator('.action-bar .btn.primary').click();
     await expect(page.locator('.done')).toBeVisible();
     await shot(page, 'j3-bale-saved', lang);
+    await page.locator('.done a.btn.primary').click();
+    await expect(page.locator('.label svg')).toBeVisible();
+    await shot(page, 'j3-label-sticker', lang);
     await page.goto('/stock');
     await shot(page, 'j3-stock', lang);
 

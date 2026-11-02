@@ -19,7 +19,6 @@ import { AuditService } from '../audit/audit.service';
 import { baleCost, costPerKg, fifoTake, InsufficientStockError, money, sum, takeCost } from '../costing/costing';
 import { PrismaService } from '../prisma/prisma.service';
 import { AvailableStockQueryDto, BaleAllocationDto, MakeBaleDto } from './stock.dto';
-import { formatYYYYMMDD, tokenFromName } from './unit-code.util';
 
 type Tx = Prisma.TransactionClient;
 
@@ -117,7 +116,7 @@ export class BaleService {
   async makeBale(tenantId: string, dto: MakeBaleDto, userId: string) {
     const weightKg = new Decimal(dto.weightKg);
     const result = await this.prisma.$transaction(async (tx) => {
-      const { sessionId, unitCode } = await this.openSessionAndCode(tx, tenantId, dto.categoryId, dto.gradeId, userId);
+      const { sessionId, unitCode, qrCode } = await this.openSessionAndCode(tx, tenantId, dto.categoryId, dto.gradeId, userId);
       const sources = await this.loadSources(tx, tenantId, dto.categoryId, dto.gradeId);
       const takes = dto.allocations?.length ? this.pickManual(sources, dto.allocations, weightKg) : this.pickFifo(sources, weightKg);
 
@@ -207,7 +206,8 @@ export class BaleService {
           metadataJson: { repackUnitId: sealed.id, unitCode, totalCost: totalCost.toFixed(2) },
         },
       });
-      await tx.qRLabel.create({ data: { repackUnitId: sealed.id, qrCode: `REPACK:${unitCode}` } });
+      // QR text is unique across tenants (the company code), the short code only within one.
+      await tx.qRLabel.create({ data: { repackUnitId: sealed.id, qrCode } });
       return { baleId: sealed.id, unitCode, totalCost };
     });
 
@@ -269,6 +269,55 @@ export class BaleService {
   }
 
   /** QR image (PNG data URL) and the facts printed on the sticker. */
+  /**
+   * Sticker data for printing (A4 sheet or thermal): code, QR (SVG, crisp at any size), kind, kg, pieces,
+   * origin country of the maal and the business name. Only this tenant's bales; order as asked.
+   */
+  async labels(tenantId: string, ids: string[]) {
+    const unique = [...new Set(ids)].slice(0, 96);
+    const [tenant, bales] = await Promise.all([
+      this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true } }),
+      this.prisma.repackUnit.findMany({
+        where: { tenantId, id: { in: unique } },
+        include: {
+          qrLabel: { select: { qrCode: true } },
+          category: { select: { name: true } },
+          grade: { select: { name: true } },
+          inputAllocations: { select: { ragBaleId: true } },
+        },
+      }),
+    ]);
+    const ragIds = [...new Set(bales.flatMap((b) => b.inputAllocations.map((a) => a.ragBaleId).filter((x): x is string => !!x)))];
+    const rags = await this.prisma.rag.findMany({
+      where: { tenantId, id: { in: ragIds } },
+      select: { id: true, originCountry: true, container: { select: { originCountry: true } } },
+    });
+    const originOf = new Map(rags.map((r) => [r.id, r.originCountry ?? r.container?.originCountry ?? null]));
+    const byId = new Map(bales.map((b) => [b.id, b]));
+    return Promise.all(
+      unique
+        .map((id) => byId.get(id))
+        .filter((b): b is NonNullable<typeof b> => !!b)
+        .map(async (b) => {
+          const qr = b.qrLabel?.qrCode ?? `REPACK:${b.unitCode}`;
+          const origins = [...new Set(b.inputAllocations.map((a) => (a.ragBaleId ? originOf.get(a.ragBaleId) : null)).filter((x): x is string => !!x))];
+          return {
+            id: b.id,
+            code: b.unitCode,
+            qr,
+            qrSvg: await QRCode.toString(qr, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' }),
+            category: b.category?.name ?? null,
+            grade: b.grade?.name ?? null,
+            weightKg: b.weightKg.toString(),
+            pieces: b.pcsCount,
+            origin: origins.join(', ') || null,
+            business: tenant?.name ?? '',
+            status: b.status,
+          };
+        }),
+    );
+  }
+
   async qr(tenantId: string, id: string) {
     const bale = await this.prisma.repackUnit.findFirst({
       where: { id, tenantId },
@@ -468,17 +517,12 @@ export class BaleService {
         select: { id: true },
       }));
 
-    const prefix = [
-      tokenFromName(tenant.companyCode, 10),
-      tokenFromName(category.name, 6),
-      ...(grade ? [tokenFromName(grade.name, 6)] : []),
-      formatYYYYMMDD(new Date()),
-    ].join('-');
-    const count = await tx.repackUnit.count({ where: { tenantId, unitCode: { startsWith: prefix } } });
+    // Short codes people can read off a sticker and type: B-0001, B-0002… per tenant (older bales keep theirs).
+    const count = await tx.repackUnit.count({ where: { tenantId, unitCode: { startsWith: 'B-' } } });
     for (let seq = count + 1; seq <= count + 5; seq++) {
-      const unitCode = `${prefix}-${String(seq).padStart(4, '0')}`;
+      const unitCode = `B-${String(seq).padStart(4, '0')}`;
       const taken = await tx.repackUnit.findFirst({ where: { tenantId, unitCode }, select: { id: true } });
-      if (!taken) return { sessionId: session.id, unitCode };
+      if (!taken) return { sessionId: session.id, unitCode, qrCode: `REPACK:${tenant.companyCode}:${unitCode}` };
     }
     throw new ConflictException('Could not generate a unique bale code');
   }

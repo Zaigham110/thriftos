@@ -1,9 +1,13 @@
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { LucideAngularModule, PackagePlus } from 'lucide-angular';
+import { LucideAngularModule, PackagePlus, Printer, ScanLine } from 'lucide-angular';
 import { API_BASE_URL } from '../../core/config/api.config';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { I18N } from '../../core/i18n/t.pipe';
+import { ScanSheetComponent } from '../../shared/floor/scan-sheet.component';
+import { ToastService } from '../../shared/floor/toast.service';
 
 export interface StockRow {
   id: string;
@@ -27,10 +31,15 @@ export function stockName(i: StockRow): string {
 @Component({
   selector: 'app-stock-home',
   standalone: true,
-  imports: [RouterLink, LucideAngularModule, I18N],
+  imports: [RouterLink, LucideAngularModule, I18N, ScanSheetComponent],
   template: `
     <section class="floor">
-      <header class="floor-head"><h1>{{ 'stock.title' | t }}</h1></header>
+      <header class="floor-head">
+        <h1>{{ 'stock.title' | t }}</h1>
+        @if (baleIds().length) { <a class="icon-btn" routerLink="/stock/labels" [queryParams]="{ ids: baleIds().join(',') }" [attr.aria-label]="'stock.printLabel' | t"><lucide-icon [img]="icons.Printer" [size]="22" /></a> }
+        <button type="button" class="icon-btn" [attr.aria-label]="'stock.scan' | t" (click)="scanning.set(true)"><lucide-icon [img]="icons.ScanLine" [size]="24" /></button>
+      </header>
+      @if (scanning()) { <tos-scan-sheet (scanned)="open($event)" (closed)="scanning.set(false)" /> }
       <ul class="list">
         @for (i of items(); track i.id) {
           <li><a class="row" [routerLink]="i.repackUnitId ? ['/stock/label', i.repackUnitId] : null">
@@ -47,9 +56,26 @@ export function stockName(i: StockRow): string {
 })
 export class StockHomeComponent implements OnInit {
   private readonly http = inject(HttpClient);
-  protected readonly icons = { PackagePlus };
+  protected readonly icons = { PackagePlus, Printer, ScanLine };
+  private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
+  private readonly i18n = inject(I18nService);
+  protected readonly scanning = signal(false);
+  /** Bales on the list (newest 24) for one A4 sheet of labels. */
+  protected baleIds(): string[] {
+    return this.items().filter((i) => i.repackUnitId).slice(0, 24).map((i) => i.repackUnitId!);
+  }
   protected readonly items = signal<StockRow[]>([]);
   protected readonly name = stockName;
+
+  /** Scan (or type) a bale code → its label page. */
+  protected open(code: string): void {
+    this.scanning.set(false);
+    this.http.get<{ repackUnitId: string | null }>(`${API_BASE_URL}/sales/scan/qr/${encodeURIComponent(code)}`).subscribe({
+      next: (item) => (item.repackUnitId ? this.router.navigate(['/stock/label', item.repackUnitId]) : this.toast.error(this.i18n.t('stock.notFound'))),
+      error: () => this.toast.error(this.i18n.t('stock.notFound')),
+    });
+  }
 
   ngOnInit(): void {
     this.http.get<{ items?: StockRow[] }>(`${API_BASE_URL}/stock/items?status=AVAILABLE&limit=200`).subscribe({

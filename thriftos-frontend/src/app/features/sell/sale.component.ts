@@ -1,7 +1,10 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ArrowLeft, CheckCircle2, LucideAngularModule, MessageCircle, Trash2 } from 'lucide-angular';
+import { ArrowLeft, CheckCircle2, LucideAngularModule, MessageCircle, ScanLine, Trash2 } from 'lucide-angular';
+import { HttpClient } from '@angular/common/http';
+import { API_BASE_URL } from '../../core/config/api.config';
+import { ScanSheetComponent } from '../../shared/floor/scan-sheet.component';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { I18N } from '../../core/i18n/t.pipe';
 import { OfflineQueueService } from '../../core/offline/offline-queue.service';
@@ -34,7 +37,7 @@ const MODES: PaymentMode[] = ['CASH', 'CREDIT', 'PARTIAL'];
 @Component({
   selector: 'app-sale',
   standalone: true,
-  imports: [FormsModule, RouterLink, LucideAngularModule, I18N, NumberFieldComponent, TilesComponent],
+  imports: [FormsModule, RouterLink, LucideAngularModule, I18N, NumberFieldComponent, TilesComponent, ScanSheetComponent],
   template: `
     <section class="floor">
       <header class="floor-head">
@@ -72,7 +75,7 @@ const MODES: PaymentMode[] = ['CASH', 'CREDIT', 'PARTIAL'];
           <h2>{{ 'sell.items' | t }}</h2>
           @for (line of cart(); track line.item.id) {
             <div class="line">
-              <div class="line-head"><strong>{{ name(line.item) }}</strong><button type="button" class="icon-btn" [attr.aria-label]="'common.remove' | t" (click)="remove(line)"><lucide-icon [img]="icons.Trash2" [size]="18" /></button></div>
+              <div class="line-head"><span><strong>{{ name(line.item) }}</strong>@if (line.item.unitCode) { <small class="ltr code"> {{ line.item.unitCode }}</small> }</span><button type="button" class="icon-btn" [attr.aria-label]="'common.remove' | t" (click)="remove(line)"><lucide-icon [img]="icons.Trash2" [size]="18" /></button></div>
               <small class="hint">{{ 'sell.left' | t: { n: (line.item.remainingQuantity | num) } }} {{ unitKey(line.item.unit) | t }}</small>
               @if (line.item.unit === 'BALE' && line.item.weightKg) {
                 <div class="chips"><button type="button" class="chip" [class.on]="line.unit === 'BALE'" (click)="setUnit(line, 'BALE')">{{ 'sell.perBale' | t }}</button><button type="button" class="chip" [class.on]="line.unit === 'KG'" (click)="setUnit(line, 'KG')">{{ 'sell.perKg' | t }}</button></div>
@@ -83,6 +86,7 @@ const MODES: PaymentMode[] = ['CASH', 'CREDIT', 'PARTIAL'];
               </div>
             </div>
           }
+          <button type="button" class="btn" (click)="scanning.set(true)"><lucide-icon [img]="icons.ScanLine" [size]="20" /> {{ 'sell.scanBale' | t }}</button>
           <tos-tiles [items]="stockTiles()" searchPlaceholder="sell.searchStock" emptyText="sell.noStock" (pick)="addItem($event)" />
         </section>
 
@@ -95,6 +99,7 @@ const MODES: PaymentMode[] = ['CASH', 'CREDIT', 'PARTIAL'];
           }
         </section>
 
+        @if (scanning()) { <tos-scan-sheet (scanned)="scanned($event)" (closed)="scanning.set(false)" /> }
         <footer class="action-bar">
           <div class="summary"><small>{{ 'common.total' | t }}</small><strong>{{ total() | rs }}</strong></div>
           <button type="button" class="btn primary" [disabled]="!canSave() || saving()" (click)="save()">{{ (saving() ? 'common.saving' : 'sell.save') | t }}</button>
@@ -109,6 +114,7 @@ const MODES: PaymentMode[] = ['CASH', 'CREDIT', 'PARTIAL'];
     .picked small { color:var(--tos-ink-soft); }
     .line { display:grid; gap:8px; padding-block-end:12px; border-block-end:1px solid var(--tos-line); }
     .line-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .line-head .code { color:var(--tos-ink-soft); font-weight:700; }
   `],
 })
 export class SaleComponent implements OnInit {
@@ -119,7 +125,9 @@ export class SaleComponent implements OnInit {
   private readonly queue = inject(OfflineQueueService);
   private readonly toast = inject(ToastService);
   private readonly i18n = inject(I18nService);
-  protected readonly icons = { ArrowLeft, CheckCircle2, MessageCircle, Trash2 };
+  protected readonly icons = { ArrowLeft, CheckCircle2, MessageCircle, ScanLine, Trash2 };
+  private readonly http = inject(HttpClient);
+  protected readonly scanning = signal(false);
   protected readonly modes = MODES;
   protected readonly methods = METHODS;
   protected readonly name = (i: InventoryItem) => stockName(i as never);
@@ -195,6 +203,24 @@ export class SaleComponent implements OnInit {
     const line: CartLine = { item, unit: item.unit, quantity: item.unit === 'KG' ? null : 1, unitPrice: null };
     this.cart.update((c) => [...c, line]);
     this.suggestPrice(line);
+  }
+
+  /** Scan a bale's QR (or type its code) → it goes into the sale. */
+  protected scanned(code: string): void {
+    this.scanning.set(false);
+    this.http.get<InventoryItem>(`${API_BASE_URL}/sales/scan/qr/${encodeURIComponent(code)}`).subscribe({
+      next: (item) => {
+        if (this.cart().some((l) => l.item.id === item.id)) return;
+        if (!this.inventory().some((i) => i.id === item.id)) this.inventory.update((list) => [item, ...list]);
+        this.addItem({ id: item.id, label: this.name(item) });
+      },
+      error: () => {
+        // Offline: match the code against the stock already on the phone.
+        const local = this.inventory().find((i) => i.unitCode && (code === i.unitCode || code.endsWith(`:${i.unitCode}`)));
+        if (local) this.addItem({ id: local.id, label: this.name(local) });
+        else this.toast.error(this.i18n.t('stock.notFound'));
+      },
+    });
   }
 
   protected remove(line: CartLine): void {

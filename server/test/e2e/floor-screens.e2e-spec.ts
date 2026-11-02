@@ -130,4 +130,29 @@ describe('Floor screens API (e2e)', () => {
     await api(app, a).patch(`/sorting/stage-1/${sessionId}/seal`, { wasteCategoryId: data.waste.id }).expect(200);
     await api(app, a).post('/sorting/stage-1/unallocate', { sessionId, categoryId: data.jeans.id, amountKg: 1 }).expect(409);
   });
+
+  it('bales get short codes (B-0001…) and printable labels with QR, kind, kg and origin; scan finds them', async () => {
+    const t = await createTenantWithOwner(app);
+    const data = await seedSortableLot(app, t.tenantId);
+    await prisma.rag.update({ where: { id: data.lot.id }, data: { originCountry: 'Korea' } });
+    const s = await api(app, t).post('/sorting/stage-1/start', { ragId: data.lot.id }).expect(201);
+    await api(app, t).post('/sorting/stage-1/allocate', { sessionId: s.body.session.id, categoryId: data.jeans.id, amountKg: 100 }).expect(200);
+    await api(app, t).patch(`/sorting/stage-1/${s.body.session.id}/seal`, {}).expect(200);
+    const b1 = await api(app, t).post('/stock/bales', { categoryId: data.jeans.id, weightKg: 45, pieces: 120 }).expect(201);
+    const b2 = await api(app, t).post('/stock/bales', { categoryId: data.jeans.id, weightKg: 40 }).expect(201);
+    expect([b1.body.unitCode, b2.body.unitCode]).toEqual(['B-0001', 'B-0002']);
+
+    const labels = await api(app, t).get(`/stock/bales/labels?ids=${b2.body.id},${b1.body.id}`).expect(200);
+    expect(labels.body.map((l: any) => l.code)).toEqual(['B-0002', 'B-0001']);
+    expect(labels.body[1]).toMatchObject({ code: 'B-0001', qr: expect.stringMatching(/^REPACK:T[0-9A-F]+:B-0001$/), category: 'Jeans', grade: null, weightKg: '45', pieces: 120, origin: 'Korea' });
+    expect(labels.body[1].business).toMatch(/^Test /);
+    expect(labels.body[1].qrSvg).toMatch(/^<svg/);
+    const other = await api(app, b).get(`/stock/bales/labels?ids=${b1.body.id}`).expect(200);
+    expect(other.body).toEqual([]);
+
+    const byCode = await api(app, t).get('/sales/scan/qr/B-0001').expect(200);
+    const byQr = await api(app, t).get(`/sales/scan/qr/${encodeURIComponent(labels.body[1].qr)}`).expect(200);
+    expect(byCode.body.id).toBe(byQr.body.id);
+    await api(app, b).get('/sales/scan/qr/B-0001').expect(404);
+  });
 });

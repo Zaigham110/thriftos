@@ -26,6 +26,13 @@ export class BalesController {
     return this.bales.kinds(tenantId);
   }
 
+  /** Sticker data for printing, e.g. `?ids=a,b,c` (up to 96). */
+  @Get('labels')
+  @RequirePermissions('REPACK_VIEW')
+  labels(@TenantId() tenantId: string, @Query('ids') ids = '') {
+    return this.bales.labels(tenantId, ids.split(',').map((s) => s.trim()).filter(Boolean));
+  }
+
   @Get('available-stock')
   @RequirePermissions('REPACK_VIEW')
   availableStock(@TenantId() tenantId: string, @Query() query: AvailableStockQueryDto) {

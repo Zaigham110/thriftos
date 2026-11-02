@@ -16,6 +16,7 @@ Each screen has an `-en.png` and a `-ur.png`.
 | 2 | Yield and cost per kg | `j2-sort-yield` |
 | 3 Bales | Make bale: kind tiles with kg, weight | `j3-make-bale` |
 | 3 | Bale saved → Print label | `j3-bale-saved` |
+| 3 | Label: 50 × 30 mm sticker with QR, code, kind, kg, origin (A4 3×8 sheet on the same screen) | `j3-label-sticker` |
 | 3 | Stock list | `j3-stock` |
 | 4 Sell | Customer, item, price, part paid | `j4-sale-form` |
 | 4 | Saved → Share bill on WhatsApp | `j4-sale-saved` |

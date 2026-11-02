@@ -31,7 +31,7 @@ Work phase by phase, in order. Each task ends with: typecheck clean (server + fr
 - [x] 3.2 Offline queue (IndexedDB) for receive, sort line, bale, sale, payment; idempotency keys honoured by the server for these endpoints; sync badge; conflict list in Home.
 - [x] 3.3 i18n service with `en.json` and `ur.json`, RTL switch, Urdu fonts; all v1 screens translated.
 - [x] 3.4 Screens per `02-APP-FLOW.md` journeys 1–8 following `05-UI-UX-GUIDELINES.md` (tiles, keypad, bottom action bar).
-- [ ] 3.5 QR: generate label (code, grade/category, kg, origin, tenant name) as printable A4 sheet (e.g., 3×8) and 50×30mm thermal layout; camera scan to open a bale or add it to a sale.
+- [x] 3.5 QR: generate label (code, grade/category, kg, origin, tenant name) as printable A4 sheet (e.g., 3×8) and 50×30mm thermal layout; camera scan to open a bale or add it to a sale.
 - [ ] 3.6 Owner home endpoint + screen: profit per container (last N), profit and A-grade % by supplier/origin, udhaar owed + top 5, stock ready, today's sales.
 - [ ] 3.7 Phone + PIN login for munshi users (owner keeps email/password).
 - [ ] 3.8 Setup wizard (journey 8) with Karachi category/grade template.
