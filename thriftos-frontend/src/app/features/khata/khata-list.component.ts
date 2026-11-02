@@ -23,9 +23,9 @@ import { KhataRow, KhataService } from '../../modules/sales/khata.service';
       @if (adding()) {
         <form class="card" (ngSubmit)="add()">
           <label>Name<input name="name" [(ngModel)]="name" maxlength="200" required /></label>
-          <label>WhatsApp number<input name="phone" type="tel" inputmode="tel" [(ngModel)]="phone" placeholder="0300 1234567" /></label>
+          <label>WhatsApp number<input name="phone" type="tel" inputmode="tel" [(ngModel)]="phone" placeholder="0300 1234567" required /></label>
           <label>Old udhaar from your register (Rs)<input name="opening" type="number" inputmode="decimal" [(ngModel)]="openingBalance" placeholder="0" /></label>
-          <button type="submit" class="primary" [disabled]="!name.trim() || saving()">Save customer</button>
+          <button type="submit" class="primary" [disabled]="!name.trim() || !phone.trim() || saving()">Save customer</button>
         </form>
       }
 

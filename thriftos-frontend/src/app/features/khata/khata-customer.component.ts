@@ -47,10 +47,10 @@ const METHODS: { value: PaymentMethod; label: string }[] = [
         @if (editing()) {
           <form class="card" (ngSubmit)="saveEdit()">
             <label>Name<input name="name" [(ngModel)]="editName" required /></label>
-            <label>WhatsApp number<input name="phone" type="tel" inputmode="tel" [(ngModel)]="editPhone" /></label>
+            <label>WhatsApp number<input name="phone" type="tel" inputmode="tel" [(ngModel)]="editPhone" required /></label>
             <label>City<input name="city" [(ngModel)]="editCity" /></label>
             <label>Opening balance (old udhaar, Rs)<input name="opening" type="number" inputmode="decimal" [(ngModel)]="editOpening" /></label>
-            <button type="submit" class="primary" [disabled]="!editName.trim() || saving()">Save</button>
+            <button type="submit" class="primary" [disabled]="!editName.trim() || !editPhone.trim() || saving()">Save</button>
           </form>
         }
 

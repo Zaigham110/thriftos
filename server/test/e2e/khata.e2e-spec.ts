@@ -22,7 +22,7 @@ describe('Khata (e2e)', () => {
 
     const stock = (await api(app, a).post('/stock/items', { name: 'Jeans A', unit: 'BALE', quantity: 10, totalCost: 250000 }).expect(201)).body;
     shafiq = (await api(app, a).post('/customers', { name: 'Shafiq', phone: '0321 7654321', openingBalance: 10000 }).expect(201)).body;
-    await api(app, a).post('/customers', { name: 'Zero Owed' }).expect(201);
+    await api(app, a).post('/customers', { name: 'Zero Owed', phone: '03015550022' }).expect(201);
     credit = (await api(app, a).post('/sales', { customerId: shafiq.id, paymentMode: 'CREDIT', lines: [{ inventoryItemId: stock.id, quantity: 2, unitPrice: 30000 }] }).expect(201)).body;
     await prisma.sale.update({ where: { id: credit.id }, data: { issuedAt: new Date(Date.now() - 12 * 86_400_000) } });
     await api(app, a).post('/sales', { customerId: shafiq.id, paymentMode: 'PARTIAL', paidAmount: 5000, lines: [{ inventoryItemId: stock.id, quantity: 1, unitPrice: 30000 }] }).expect(201);

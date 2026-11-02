@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateCustomerDto, CustomersQueryDto, UpdateCustomerDto } from './dto/customer.dto';
 import { KhataService } from './khata.service';
 
-/** Customers (gahak). Only the name is required; the phone is their WhatsApp number. */
+/** Customers (gahak). Only the name and phone are required; the phone is their WhatsApp number. */
 @Injectable()
 export class CustomersService {
   constructor(
@@ -103,7 +103,7 @@ export class CustomersService {
     return this.prisma.customer.delete({ where: { id } });
   }
 
-  /** Optional fields, with the phone read as a WhatsApp number. */
+  /** Optional fields, plus the phone read as a WhatsApp number. */
   private fields(dto: CreateCustomerDto | UpdateCustomerDto) {
     const optional = ['city', 'notes', 'companyName', 'billingAddress', 'shippingAddress', 'contactEmail', 'taxId'] as const;
     const data: Prisma.CustomerUncheckedUpdateInput = {};
@@ -112,8 +112,8 @@ export class CustomersService {
     }
     if (dto.creditLimit !== undefined) data.creditLimit = new Prisma.Decimal(dto.creditLimit);
     if (dto.phone !== undefined) {
-      const phone = dto.phone.trim() ? toE164(dto.phone) : null;
-      if (dto.phone.trim() && !phone) throw new BadRequestException('Phone number is not valid');
+      const phone = toE164(dto.phone);
+      if (!phone) throw new BadRequestException('Phone number is not valid');
       data.phone = phone;
     }
     return data as Omit<Prisma.CustomerUncheckedCreateInput, 'tenantId' | 'name'>;

@@ -42,16 +42,25 @@ describe('Customers and payments (e2e)', () => {
   const statuses = async (ids: string[]) =>
     (await prisma.sale.findMany({ where: { id: { in: ids } }, select: { id: true, status: true } })).sort((x, y) => ids.indexOf(x.id) - ids.indexOf(y.id)).map((s) => s.status);
 
-  it('creates a customer with only a name, or name + phone in any local format', async () => {
-    const nameOnly = await api(app, a).post('/customers', { name: 'Haji Bashir' }).expect(201);
-    expect(nameOnly.body).toMatchObject({ name: 'Haji Bashir', phone: null, openingBalance: '0', currencyCode: 'PKR' });
+  it('creates a customer with name + phone in any local format; both are required', async () => {
+    const basic = await api(app, a).post('/customers', { name: 'Haji Bashir', phone: '3015550001' }).expect(201);
+    expect(basic.body).toMatchObject({ name: 'Haji Bashir', phone: '+923015550001', city: null, openingBalance: '0', currencyCode: 'PKR' });
 
     const withPhone = await api(app, a).post('/customers', { name: 'Imran Cloth House', phone: '0300-1234567', city: 'Lahore' }).expect(201);
     expect(withPhone.body).toMatchObject({ phone: '+923001234567', city: 'Lahore' });
 
+    await api(app, a).post('/customers', { name: 'No number' }).expect(400);
+    await api(app, a).post('/customers', { name: 'Blank number', phone: '' }).expect(400);
+    await api(app, a).post('/customers', { name: 'Spaces only', phone: '   ' }).expect(400);
     await api(app, a).post('/customers', { name: 'Bad number', phone: '12345' }).expect(400);
-    await api(app, a).post('/customers', { name: 'Haji Bashir' }).expect(409);
+    await api(app, a).post('/customers', { name: 'Haji Bashir', phone: '3015550002' }).expect(409);
     await api(app, a).post('/customers', { phone: '03001234567' }).expect(400);
+
+    // The number can be changed but not cleared.
+    await api(app, a).patch(`/customers/${basic.body.id}`, { phone: '' }).expect(400);
+    await api(app, a).patch(`/customers/${basic.body.id}`, { phone: 'abc' }).expect(400);
+    const changed = await api(app, a).patch(`/customers/${basic.body.id}`, { phone: '0092 301 5550009' }).expect(200);
+    expect(changed.body.phone).toBe('+923015550009');
 
     const found = await api(app, a).get('/customers?search=300123').expect(200);
     expect(found.body.map((c: any) => c.name)).toEqual(['Imran Cloth House']);
@@ -83,7 +92,7 @@ describe('Customers and payments (e2e)', () => {
   });
 
   it('records a payment once when the same Idempotency-Key is sent twice', async () => {
-    const customer = await api(app, a).post('/customers', { name: 'Offline Ali', openingBalance: 5000 }).expect(201);
+    const customer = await api(app, a).post('/customers', { name: 'Offline Ali', openingBalance: 5000, phone: '03015550015' }).expect(201);
     const key = randomUUID();
     const body = { customerId: customer.body.id, amount: 1200 };
     const first = await api(app, a).post('/khata/payments', body).set('Idempotency-Key', key).expect(201);
@@ -102,13 +111,13 @@ describe('Customers and payments (e2e)', () => {
     expect(await prisma.payment.count({ where: { customerId: customer.body.id } })).toBe(2);
 
     // A key is per tenant.
-    const other = await api(app, b).post('/customers', { name: 'Offline Ali' }).expect(201);
+    const other = await api(app, b).post('/customers', { name: 'Offline Ali', phone: '03015550016' }).expect(201);
     await api(app, b).post('/khata/payments', { customerId: other.body.id, amount: 10 }).set('Idempotency-Key', key).expect(201);
     expect(await prisma.payment.count({ where: { customerId: other.body.id } })).toBe(1);
   });
 
   it('stores a receipt photo and only shows it to its tenant', async () => {
-    const customer = await api(app, a).post('/customers', { name: 'Photo Payer', openingBalance: 100 }).expect(201);
+    const customer = await api(app, a).post('/customers', { name: 'Photo Payer', openingBalance: 100, phone: '03015550017' }).expect(201);
     const paid = await api(app, a).post('/khata/payments', { customerId: customer.body.id, amount: 100, method: 'EASYPAISA' }).expect(201);
     const png = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
     const server = app.getHttpServer();
@@ -138,9 +147,9 @@ describe('Customers and payments (e2e)', () => {
   });
 
   it('keeps tenants apart', async () => {
-    const own = await api(app, a).post('/customers', { name: 'Private Customer', openingBalance: 900 }).expect(201);
+    const own = await api(app, a).post('/customers', { name: 'Private Customer', openingBalance: 900, phone: '03015550018' }).expect(201);
     const sale = await issuedSale(a, own.body.id, '500', 1);
-    const theirs = await api(app, b).post('/customers', { name: 'Their Customer' }).expect(201);
+    const theirs = await api(app, b).post('/customers', { name: 'Their Customer', phone: '03015550019' }).expect(201);
 
     await api(app, b).get(`/customers/${own.body.id}`).expect(404);
     await api(app, b).patch(`/customers/${own.body.id}`, { openingBalance: 0 }).expect(404);
@@ -154,9 +163,9 @@ describe('Customers and payments (e2e)', () => {
   });
 
   it('deletes only customers with no sales or payments', async () => {
-    const fresh = await api(app, a).post('/customers', { name: 'Typo Customer' }).expect(201);
+    const fresh = await api(app, a).post('/customers', { name: 'Typo Customer', phone: '03015550020' }).expect(201);
     await api(app, a).delete(`/customers/${fresh.body.id}`).expect(200);
-    const paying = await api(app, a).post('/customers', { name: 'Paying Customer' }).expect(201);
+    const paying = await api(app, a).post('/customers', { name: 'Paying Customer', phone: '03015550021' }).expect(201);
     await api(app, a).post('/khata/payments', { customerId: paying.body.id, amount: 10 }).expect(201);
     await api(app, a).delete(`/customers/${paying.body.id}`).expect(409);
   });

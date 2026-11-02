@@ -34,10 +34,10 @@ export class CustomersService {
   }
 }
 
-/** Only the name is required. */
+/** Name and WhatsApp number are required. */
 export interface CustomerInput {
   name: string;
-  phone?: string;
+  phone: string;
   city?: string;
   openingBalance?: number;
   notes?: string;

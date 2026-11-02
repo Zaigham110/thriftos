@@ -1,6 +1,6 @@
 import { IsBoolean, IsEmail, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
-/** A new customer needs only a name. Phone is the WhatsApp number (any local format; stored as E.164). */
+/** A new customer needs only a name and phone. Phone is the WhatsApp number (any local format; stored as E.164). */
 export class CreateCustomerDto {
   @IsString()
   @IsNotEmpty()
@@ -8,9 +8,9 @@ export class CreateCustomerDto {
   name!: string;
 
   @IsString()
+  @IsNotEmpty()
   @MaxLength(30)
-  @IsOptional()
-  phone?: string;
+  phone!: string;
 
   @IsString()
   @MaxLength(100)
@@ -42,8 +42,9 @@ export class UpdateCustomerDto {
   @IsOptional()
   name?: string;
 
-  /** Empty string clears the number. */
+  /** Can be changed but not cleared. */
   @IsString()
+  @IsNotEmpty()
   @MaxLength(30)
   @IsOptional()
   phone?: string;

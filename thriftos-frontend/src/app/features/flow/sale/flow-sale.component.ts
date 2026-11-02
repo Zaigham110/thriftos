@@ -61,8 +61,8 @@ const METHODS: { value: PaymentMethod; label: string }[] = [
             <div class="picked"><strong>{{ c.name }}</strong><small>{{ c.phone || c.city || '' }}</small><button type="button" class="link" (click)="customer.set(null)">Change</button></div>
           } @else if (adding()) {
             <label>Name<input name="newName" [(ngModel)]="newName" maxlength="200" /></label>
-            <label>WhatsApp number<input name="newPhone" type="tel" inputmode="tel" [(ngModel)]="newPhone" placeholder="0300 1234567" /></label>
-            <div class="row"><button type="button" class="secondary" (click)="adding.set(false)">Cancel</button><button type="button" class="primary" [disabled]="!newName.trim() || saving()" (click)="addCustomer()">Add customer</button></div>
+            <label>WhatsApp number<input name="newPhone" type="tel" inputmode="tel" [(ngModel)]="newPhone" placeholder="0300 1234567" required /></label>
+            <div class="row"><button type="button" class="secondary" (click)="adding.set(false)">Cancel</button><button type="button" class="primary" [disabled]="!newName.trim() || !newPhone.trim() || saving()" (click)="addCustomer()">Add customer</button></div>
           } @else {
             <label class="search"><lucide-icon [img]="icons.Search" [size]="18" /><input name="customerSearch" [(ngModel)]="customerSearch" placeholder="Search name or phone" /></label>
             <div class="choices">

@@ -24,7 +24,7 @@ describe('Sales (e2e)', () => {
     bales = (await api(app, a).post('/stock/items', { name: 'Jeans A', unit: 'BALE', quantity: 4, totalCost: 100000, weightKg: 200 }).expect(201)).body;
     pieces = (await api(app, a).post('/stock/items', { name: 'Jackets', unit: 'PIECE', quantity: 40, totalCost: 10000, salePrice: 450 }).expect(201)).body;
     ali = (await api(app, a).post('/customers', { name: 'Ali Traders', phone: '03001112233' }).expect(201)).body;
-    bilal = (await api(app, a).post('/customers', { name: 'Bilal Cloth' }).expect(201)).body;
+    bilal = (await api(app, a).post('/customers', { name: 'Bilal Cloth', phone: '03015550011' }).expect(201)).body;
   });
 
   afterAll(async () => {
@@ -111,7 +111,7 @@ describe('Sales (e2e)', () => {
     const own = await api(app, a).get(`/sales/last-price?customerId=${ali.id}&inventoryItemId=${kg.id}`).expect(200);
     expect(own.body).toEqual({ unit: 'KG', unitPrice: '250', from: 'CUSTOMER' });
     const another = (await api(app, a).post('/stock/items', { name: 'Mixed tops', unit: 'KG', quantity: 100, totalCost: 20000 }).expect(201)).body;
-    const newCustomer = (await api(app, a).post('/customers', { name: 'New Buyer' }).expect(201)).body;
+    const newCustomer = (await api(app, a).post('/customers', { name: 'New Buyer', phone: '03015550012' }).expect(201)).body;
     const any = await api(app, a).get(`/sales/last-price?customerId=${newCustomer.id}&inventoryItemId=${another.id}`).expect(200);
     expect(any.body).toEqual({ unit: 'KG', unitPrice: '250', from: 'ANY_CUSTOMER' });
     const fresh = (await api(app, a).post('/stock/items', { name: 'Shoes', unit: 'PIECE', quantity: 10, totalCost: 1000, salePrice: 300 }).expect(201)).body;
@@ -137,7 +137,7 @@ describe('Sales (e2e)', () => {
   });
 
   it('keeps tenants apart', async () => {
-    const theirCustomer = (await api(app, b).post('/customers', { name: 'Their Buyer' }).expect(201)).body;
+    const theirCustomer = (await api(app, b).post('/customers', { name: 'Their Buyer', phone: '03015550013' }).expect(201)).body;
     const theirStock = (await api(app, b).post('/stock/items', { name: 'Theirs', unit: 'KG', quantity: 10, totalCost: 100 }).expect(201)).body;
     const sale = await prisma.sale.findFirstOrThrow({ where: { tenantId: a.tenantId } });
 

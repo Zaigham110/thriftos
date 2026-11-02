@@ -4,7 +4,7 @@
 #
 # New migrations, in the order they apply:
 #   1. 20261030100000_v2_01_direct_stock           stock bought ready to sell; kg/bale/piece; item keeps its own cost
-#   2. 20261030100100_v2_02_customers_and_payments  name-only customers, WhatsApp phone (E.164), opening balance;
+#   2. 20261030100100_v2_02_customers_and_payments  customers (old rows may lack a phone; the API now requires one), WhatsApp phone (E.164), opening balance;
 #                                                   payments per customer with a method list
 #   3. 20261030100200_v2_03_one_step_sales          LOCAL sales, payment mode, bill token, sale line unit;
 #                                                   old DRAFT sales are cancelled and their stock released
