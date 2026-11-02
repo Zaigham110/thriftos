@@ -5,6 +5,7 @@ import { CostingService } from '../../costing/costing.service';
 import { Prisma } from '@prisma/client';
 import { CreateRagDto, UpdateRagDto } from './dto';
 import { ContainerStatus, RagStatus, RagSourceType, SequenceScope } from '@prisma/client';
+import { defaultRawCategoryId } from '../shared/default-raw-category';
 import { TenantSequenceService } from '../shared/tenant-sequence.service';
 
 @Injectable()
@@ -42,9 +43,10 @@ export class RagService {
       }
     }
 
-    // Validate raw category exists and is active
+    // Validate raw category exists and is active (none picked: the tenant's default)
+    const rawCategoryId = dto.rawCategoryId ?? (await defaultRawCategoryId(this.prisma, tenantId));
     const rawCategory = await this.prisma.rawCategory.findFirst({
-      where: { id: dto.rawCategoryId, tenantId, isActive: true },
+      where: { id: rawCategoryId, tenantId, isActive: true },
     });
 
     if (!rawCategory) {
@@ -100,7 +102,7 @@ export class RagService {
           sourceType: container ? RagSourceType.CONTAINER : RagSourceType.LOOSE_BALE,
           ragCode,
           ragBaleType: dto.ragBaleType,
-          rawCategoryId: dto.rawCategoryId,
+          rawCategoryId,
           vendorId,
           originCountry,
           weightKg: dto.weightKg,

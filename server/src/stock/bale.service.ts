@@ -90,6 +90,29 @@ export class BaleService {
     }));
   }
 
+  /**
+   * What can be baled now, one row per kind (category, or category + grade), with the kg left.
+   * The phone shows these as tiles on "Make bale".
+   */
+  async kinds(tenantId: string) {
+    const grades = await this.prisma.grade.findMany({ where: { tenantId, isActive: true }, select: { id: true }, orderBy: { rank: 'asc' } });
+    const sources = [
+      ...(await this.loadSources(this.prisma, tenantId)),
+      ...(await Promise.all(grades.map((g) => this.loadSources(this.prisma, tenantId, undefined, g.id)))).flat(),
+    ];
+    const byKind = new Map<string, { categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; availableKg: Decimal }>();
+    for (const s of sources) {
+      const key = `${s.categoryId}:${s.gradeId ?? ''}`;
+      const row = byKind.get(key) ?? { categoryId: s.categoryId, categoryName: s.categoryName, gradeId: s.gradeId ?? null, gradeName: s.gradeName ?? null, availableKg: ZERO };
+      row.availableKg = row.availableKg.add(s.kg.sub(s.usedKg));
+      byKind.set(key, row);
+    }
+    return [...byKind.values()]
+      .filter((k) => k.availableKg.greaterThan(0))
+      .sort((a, b) => b.availableKg.comparedTo(a.availableKg))
+      .map((k) => ({ ...k, availableKg: k.availableKg.toString() }));
+  }
+
   /** Makes a ready bale: takes kg from sorted stock, costs it, creates stock + QR. */
   async makeBale(tenantId: string, dto: MakeBaleDto, userId: string) {
     const weightKg = new Decimal(dto.weightKg);

@@ -74,16 +74,16 @@ export class I18nService {
     return new Intl.NumberFormat('en-PK-u-nu-latn', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(n);
   }
 
-  /** "Rs 12,500" */
+  /** "Rs 12,500" — kept left-to-right inside Urdu text (Unicode isolate), so it never reads "12,500 Rs". */
   money(value: number | string | null | undefined): string {
     const s = this.num(value);
-    return s === '' ? '' : this.t('unit.rs', { n: s });
+    return s === '' ? '' : ltr(this.t('unit.rs', { n: s }));
   }
 
-  /** "12.5 kg" (1 decimal, as the owner reads weight). */
+  /** "12.5 kg" (1 decimal, as the owner reads weight), left-to-right inside Urdu text. */
   kg(value: number | string | null | undefined): string {
     const s = this.num(value, 1);
-    return s === '' ? '' : this.t('unit.kg', { n: s });
+    return s === '' ? '' : ltr(this.t('unit.kg', { n: s }));
   }
 
   private apply(): void {
@@ -91,6 +91,11 @@ export class I18nService {
     root.lang = this.lang();
     root.dir = this.dir();
   }
+}
+
+/** Left-to-right isolate (U+2066 … U+2069): numbers with units read the same in Urdu and English. */
+function ltr(s: string): string {
+  return `\u2066${s}\u2069`;
 }
 
 function lookup(dict: Dict | undefined, key: string): string | undefined {

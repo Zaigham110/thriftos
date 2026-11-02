@@ -45,14 +45,28 @@ for (const f of files) {
 }
 
 // Screens that must have no hard-coded visible text (grows as screens are rewritten).
-const TRANSLATED = ['shell/', 'shared/offline/', 'features/bill/'];
+const TRANSLATED = [
+  'shell/',
+  'shared/offline/',
+  'shared/floor/',
+  'features/bill/',
+  'features/home/',
+  'features/receive/',
+  'features/sort/',
+  'features/stock/',
+  'features/sell/',
+  'features/khata/',
+];
 const ALLOWED = /^(ThriftOS|Rs|kg|QR|PKR|USD|A4|اردو|English|[-–—·•×+−/%:()|.,0-9\s]*)$/;
 
 for (const f of files.filter((p) => TRANSLATED.some((t) => path.relative(src, p).startsWith(t)))) {
   const text = read(f);
   const templates = f.endsWith('.html') ? [text] : [...text.matchAll(/template:\s*`([\s\S]*?)`,\s*\n\s*(?:styles|changeDetection|host|providers)/g)].map((m) => m[1]);
   for (const tpl of templates) {
-    const clean = tpl.replace(/\{\{[\s\S]*?\}\}/g, ' ').replace(/<!--[\s\S]*?-->/g, ' ');
+    const clean = tpl
+      .replace(/\{\{[\s\S]*?\}\}/g, ' ')
+      .replace(/<!--[\s\S]*?-->/g, ' ')
+      .replace(/@(?:if|for|switch|case|else if)\s*\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)/g, ' ');
     for (const m of clean.matchAll(/>([^<>]+)</g)) {
       const s = m[1].replace(/@(if|else|for|empty|switch|case|default)\b[^{]*\{|\}/g, ' ').trim();
       if (s && /[A-Za-z؀-ۿ]{2,}/.test(s) && !ALLOWED.test(s)) errors.push(`${path.relative(root, f)}: hard-coded text "${s.slice(0, 60)}"`);

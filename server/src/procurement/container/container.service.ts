@@ -7,7 +7,8 @@ import { UpdateContainerDto } from './dto/update-container.dto';
 import { UpdateContainerWeightsDto } from './dto/update-container-weights.dto';
 import { UpdateContainerStatusDto } from './dto/update-container-status.dto';
 import { CreateContainerChargeDto } from './dto/create-container-charge.dto';
-import { ContainerStatus, PurchaseOrderType, PurchaseOrderStatus, SequenceScope, Prisma } from '@prisma/client';
+import { ContainerStatus, PurchaseOrderType, PurchaseOrderStatus, RagBaleType, RagSourceType, SequenceScope, Prisma } from '@prisma/client';
+import { defaultRawCategoryId } from '../shared/default-raw-category';
 import { TenantSequenceService } from '../shared/tenant-sequence.service';
 
 @Injectable()
@@ -119,6 +120,12 @@ export class ContainerService {
       throw new BadRequestException(`Enter the ${purchaseCurrency} to PKR rate`);
     }
 
+    const lotWeight = new Prisma.Decimal(dto.weighbridgeKg ?? dto.netWeightKg);
+    if (dto.withLot && lotWeight.greaterThan(net)) {
+      throw new BadRequestException(`Kanta weight is more than the invoice weight (${net.toFixed(2)} kg). The lot uses the smaller of the two.`);
+    }
+    const lotCode = dto.withLot ? await this.nextLotCode(tenantId) : null;
+
     const container = await this.prisma.$transaction(async (tx) => {
       const created = await tx.container.create({
         data: {
@@ -149,8 +156,34 @@ export class ContainerService {
           forwarder: dto.forwarder,
           notes: dto.notes,
           status: ContainerStatus.IN_TRANSIT,
+          ...(dto.weighbridgeKg !== undefined && {
+            weighbridgeNetWeight: new Prisma.Decimal(dto.weighbridgeKg),
+            weightVarianceKg: new Prisma.Decimal(dto.weighbridgeKg).sub(net),
+            weightVariancePct: net.isZero() ? null : new Prisma.Decimal(dto.weighbridgeKg).sub(net).div(net).mul(100).toDecimalPlaces(2),
+          }),
         },
       });
+      for (const charge of dto.charges ?? []) {
+        await tx.containerCharge.create({
+          data: { containerId: created.id, chargeType: charge.chargeType, description: charge.chargeType, amount: new Prisma.Decimal(charge.amount) },
+        });
+      }
+      if (lotCode) {
+        await tx.rag.create({
+          data: {
+            tenantId,
+            containerId: created.id,
+            sourceType: RagSourceType.CONTAINER,
+            ragCode: lotCode,
+            ragBaleType: RagBaleType.BALE,
+            rawCategoryId: await defaultRawCategoryId(tx, tenantId),
+            vendorId: created.vendorId,
+            originCountry: created.originCountry,
+            weightKg: lotWeight,
+            allocatedCost: 0,
+          },
+        });
+      }
       await this.costing.recalculateContainerTx(tx, tenantId, created.id, userId);
       return created;
     });
@@ -165,6 +198,16 @@ export class ContainerService {
     });
 
     return this.findOne(tenantId, container.id);
+  }
+
+  private async nextLotCode(tenantId: string) {
+    const { code } = await this.tenantSequenceService.generateCode(
+      tenantId,
+      SequenceScope.RAG,
+      { prefix: 'BALE', padSize: 3 },
+      async (candidate) => !(await this.prisma.rag.findFirst({ where: { tenantId, ragCode: candidate }, select: { id: true } })),
+    );
+    return code;
   }
 
   private async nextContainerNumber(tenantId: string) {

@@ -16,6 +16,7 @@ import { TenantGuard } from '../../common/guards/tenant.guard';
 import { PermissionGuard } from '../../common/guards/permission.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
+import { Idempotent } from '../../common/idempotency/idempotent.interceptor';
 
 @Controller('procurement/vendors')
 @UseGuards(TenantGuard, PermissionGuard)
@@ -23,6 +24,7 @@ export class VendorController {
   constructor(private readonly vendorService: VendorService) {}
 
   @Post()
+  @Idempotent('VENDOR_CREATE')
   @RequirePermissions('po.create')
   @HttpCode(HttpStatus.CREATED)
   async create(

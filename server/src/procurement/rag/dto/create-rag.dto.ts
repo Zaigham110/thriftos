@@ -10,9 +10,10 @@ export class CreateRagDto {
   @IsNotEmpty()
   ragBaleType: RagBaleType;
 
+  /** Optional: defaults to the tenant's first raw category ("Mixed", created if missing). */
   @IsString()
-  @IsNotEmpty()
-  rawCategoryId: string;
+  @IsOptional()
+  rawCategoryId?: string;
 
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)

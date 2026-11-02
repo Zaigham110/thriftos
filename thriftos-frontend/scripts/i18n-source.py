@@ -83,6 +83,7 @@ T = {
   'common.date': ('Date', 'تاریخ'),
   'common.keypadDone': ('OK', 'ٹھیک ہے'),
   'common.clear': ('Clear', 'صاف کریں'),
+  'common.costPerKg': ('Cost per kg', 'فی کلو لاگت'),
 
   # sign in
   'auth.title': ('Sign in', 'سائن اِن'),
@@ -136,7 +137,7 @@ T = {
   'receive.weighbridgeKg': ('Kanta weight', 'کانٹے کا وزن'),
   'receive.purchaseCost': ('Purchase cost', 'خرید کی قیمت'),
   'receive.currency': ('Currency', 'کرنسی'),
-  'receive.fxRate': ('Rate (PKR per {c})', 'ریٹ (فی {c} روپے)'),
+  'receive.fxRate': ('Dollar rate (Rs per $1)', 'ڈالر ریٹ (فی $1 روپے)'),
   'receive.containerNo': ('Container number', 'کنٹینر نمبر'),
   'receive.charges': ('Charges', 'خرچے'),
   'receive.chargesLater': ('You can add charges later.', 'خرچے بعد میں بھی ڈال سکتے ہیں۔'),
@@ -145,7 +146,7 @@ T = {
   'receive.charge.FREIGHT': ('Freight', 'کرایہ'),
   'receive.charge.TRANSPORT': ('Transport', 'ٹرانسپورٹ'),
   'receive.charge.LABOUR': ('Labour', 'مزدوری'),
-  'receive.charge.OTHER': ('Other', 'دیگر'),
+  'receive.charge.MISC': ('Other', 'دیگر'),
   'receive.saveContainer': ('Save container', 'کنٹینر محفوظ کریں'),
   'receive.landedPerKg': ('Landed cost {rs} per kg', 'لاگت {rs} فی کلو'),
   'receive.readyToSort': ('Ready to sort', 'چھانٹی کے لیے تیار'),
@@ -183,6 +184,9 @@ T = {
   'sort.pickOutput': ('Pick what to grade', 'گریڈ کے لیے مال چنیں'),
   'sort.tooMuch': ('Weight is more than the lot left ({kg}). Enter {kg} or less.', 'وزن لاٹ کے باقی ({kg}) سے زیادہ ہے۔ {kg} یا کم ڈالیں۔'),
   'sort.grading': ('Grading', 'گریڈنگ'),
+  'sort.inProgress': ('Sorting now', 'چھانٹی جاری'),
+  'sort.sortedLabel': ('Sorted', 'چھانٹا گیا'),
+  'sort.leftLabel': ('Left', 'باقی'),
 
   # stock and bales (journey 3)
   'stock.title': ('Stock', 'اسٹاک'),

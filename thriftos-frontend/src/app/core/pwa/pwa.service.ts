@@ -66,7 +66,7 @@ export class PwaService {
   async clearDataCaches(): Promise<void> {
     if (!('caches' in window)) return;
     const names = await caches.keys();
-    await Promise.all(names.filter((n) => n.includes(':data:') || n.includes('reference-data')).map((n) => caches.delete(n)));
+    await Promise.all(names.filter((n) => n.includes(':data:') || n.includes('reference-data') || n.includes('live-data')).map((n) => caches.delete(n)));
   }
 }
 

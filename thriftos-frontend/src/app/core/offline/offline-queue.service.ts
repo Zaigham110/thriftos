@@ -24,12 +24,14 @@ export interface QueuedWrite {
   /** Short text for the lists ("Sale — Haji Rafiq, Rs 12,000"). */
   label: string;
   method: 'POST' | 'PATCH';
-  /** API path (`/api/...`). May contain `{ref:<id>}` for an id saved by an earlier write. */
+  /** API path (`/api/...`). May contain `{ref:<id>}` or `{ref:<id>:<path>}` for a value saved by an earlier write. */
   url: string;
   body: unknown;
   status: 'pending' | 'failed';
   error?: string;
   createdAt: number;
+  /** What the screen needs to show the entry before it syncs (lot id, kg, category…). */
+  meta?: Record<string, unknown>;
 }
 
 interface SavedResult {
@@ -77,6 +79,7 @@ export class OfflineQueueService {
   readonly failed = computed(() => this.items().filter((w) => w.status === 'failed'));
   readonly pendingCount = computed(() => this.pending().length);
   readonly syncing = signal(false);
+  private readonly syncedListeners = new Set<(write: QueuedWrite, response: unknown) => void>();
 
   constructor() {
     window.addEventListener('online', () => {
@@ -95,7 +98,11 @@ export class OfflineQueueService {
    * Online and accepted → `saved` with the server's answer. Offline → `saved: false` (queued).
    * Online and refused (validation) → the write is dropped and the error is thrown for the form to show.
    */
-  async send<T>(write: { kind: QueueKind; label: string; url: string; body: unknown; method?: 'POST' | 'PATCH'; id?: string }): Promise<SendResult<T>> {
+  /**
+   * `background: true` (fast repeated entries such as sort lines): returns as soon as the write is stored on
+   * the phone and sends it in the background; a refusal then shows under "Needs attention".
+   */
+  async send<T>(write: { kind: QueueKind; label: string; url: string; body: unknown; method?: 'POST' | 'PATCH'; id?: string; meta?: Record<string, unknown>; background?: boolean }): Promise<SendResult<T>> {
     const entry: QueuedWrite = {
       id: write.id ?? crypto.randomUUID(),
       owner: this.owner(),
@@ -106,9 +113,14 @@ export class OfflineQueueService {
       body: write.body,
       status: 'pending',
       createdAt: Date.now(),
+      meta: write.meta,
     };
     await this.writes.put(entry);
     await this.refresh();
+    if (write.background) {
+      if (this.online()) void this.sync();
+      return { saved: false, id: entry.id };
+    }
     let refusal: unknown;
     if (this.online()) await this.sync((id, error) => (id === entry.id ? (refusal = error) : undefined));
     if (refusal !== undefined) {
@@ -123,6 +135,17 @@ export class OfflineQueueService {
   /** The server's answer to a write sent earlier (also once it synced later). */
   async resultOf<T>(id: string): Promise<T | undefined> {
     return (await this.results.get(id))?.response as T | undefined;
+  }
+
+  /** Called with each write that reaches the server and its answer. Returns the unsubscribe function. */
+  onSynced(fn: (write: QueuedWrite, response: unknown) => void): () => void {
+    this.syncedListeners.add(fn);
+    return () => this.syncedListeners.delete(fn);
+  }
+
+  /** Entries not synced yet (for a screen to show them, e.g. sort lines of this lot). */
+  pendingOf(kind: QueueKind, match: (meta: Record<string, unknown>) => boolean): QueuedWrite[] {
+    return this.items().filter((w) => w.kind === kind && w.status === 'pending' && match(w.meta ?? {}));
   }
 
   /** A reference to the id an earlier queued write gets from the server. */
@@ -181,6 +204,9 @@ export class OfflineQueueService {
         );
         await this.results.put({ id: w.id, owner, response, at: Date.now() });
         await this.writes.delete(w.id);
+        // Listeners take the server's answer before the entry leaves the pending list, so totals never dip.
+        for (const fn of this.syncedListeners) fn(w, response);
+        await this.refresh();
       } catch (error) {
         if (isTransient(error)) {
           if (error instanceof HttpErrorResponse && error.status === 0) this.online.set(navigator.onLine);
@@ -202,7 +228,7 @@ export class OfflineQueueService {
       return path.split('.').reduce<any>((v, k) => v?.[k], r.response);
     };
     let url = w.url;
-    for (const m of w.url.matchAll(/\{ref:([^}]+)\}/g)) url = url.replace(m[0], String(await lookup(m[1])));
+    for (const m of w.url.matchAll(/\{ref:([^}:]+)(?::([^}]+))?\}/g)) url = url.replace(m[0], String(await lookup(m[1], m[2])));
     const walk = async (v: unknown): Promise<unknown> => {
       if (Array.isArray(v)) return Promise.all(v.map(walk));
       if (v && typeof v === 'object') {
@@ -235,7 +261,7 @@ export class OfflineQueueService {
 }
 
 function refsIn(w: QueuedWrite): string[] {
-  const ids = [...w.url.matchAll(/\{ref:([^}]+)\}/g)].map((m) => m[1]);
+  const ids = [...w.url.matchAll(/\{ref:([^}:]+)/g)].map((m) => m[1]);
   const walk = (v: unknown): void => {
     if (Array.isArray(v)) v.forEach(walk);
     else if (v && typeof v === 'object') {

@@ -39,6 +39,7 @@ export default defineConfig({
         THROTTLE_LIMIT_SHORT: '100000',
         THROTTLE_LIMIT_MEDIUM: '100000',
         THROTTLE_LIMIT_LONG: '100000',
+        THROTTLE_LOGIN_LIMIT: '1000',
       },
     },
     {

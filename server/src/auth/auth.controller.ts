@@ -29,7 +29,8 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ short: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
+  // 5 attempts per minute (THROTTLE_LOGIN_LIMIT raises it for the browser tests only).
+  @Throttle({ short: { limit: () => Number(process.env.THROTTLE_LOGIN_LIMIT || 5), ttl: 60000 } })
   @ApiOperation({ summary: 'User login', description: 'Authenticate with email and password' })
   @ApiResponse({ status: 200, description: 'Login successful, returns JWT tokens' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })

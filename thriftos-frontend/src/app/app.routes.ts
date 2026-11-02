@@ -58,39 +58,25 @@ export const routes: Routes = [
       { path: '', redirectTo: 'home', pathMatch: 'full' },
       {
         path: 'home',
-        loadComponent: () => import('./features/flow/work/flow-work.component').then((m) => m.FlowWorkComponent),
-        title: 'Home - ThriftOS',
+        loadComponent: () => import('./features/home/home.component').then((m) => m.HomeComponent),
+        title: 'ThriftOS',
       },
       {
         path: 'home/overview',
         loadComponent: () => import('./features/dashboard/dashboard/dashboard').then((m) => m.DashboardComponent),
-        title: 'Overview - ThriftOS',
+        title: 'ThriftOS',
       },
       {
         path: 'receive',
         canActivate: [moduleGuard],
         data: { module: 'RECEIVE' },
         children: [
-          {
-            path: '',
-            loadComponent: () => import('./features/flow/receive/flow-receive.component').then((m) => m.FlowReceiveComponent),
-            title: 'Receive - ThriftOS',
-          },
-          {
-            path: 'container',
-            loadComponent: () =>
-              import('./features/flow/receive/flow-container-receive.component').then((m) => m.FlowContainerReceiveComponent),
-            title: 'Receive container - ThriftOS',
-          },
-          {
-            path: 'ready',
-            loadComponent: () => import('./features/flow/receive/flow-ready-stock.component').then((m) => m.FlowReadyStockComponent),
-            title: 'Ready stock - ThriftOS',
-          },
-          {
-            path: 'records',
-            loadChildren: () => import('./modules/procurement/procurement.routes').then((m) => m.PROCUREMENT_ROUTES),
-          },
+          { path: '', loadComponent: () => import('./features/receive/receive-home.component').then((m) => m.ReceiveHomeComponent), title: 'ThriftOS' },
+          { path: 'container', loadComponent: () => import('./features/receive/receive-container.component').then((m) => m.ReceiveContainerComponent), title: 'ThriftOS' },
+          { path: 'lot', loadComponent: () => import('./features/receive/receive-lot.component').then((m) => m.ReceiveLotComponent), title: 'ThriftOS' },
+          { path: 'ready', loadComponent: () => import('./features/receive/receive-ready.component').then((m) => m.ReceiveReadyComponent), title: 'ThriftOS' },
+          { path: 'ready/open/:id', loadComponent: () => import('./features/receive/open-bale.component').then((m) => m.OpenBaleComponent), title: 'ThriftOS' },
+          { path: 'records', loadChildren: () => import('./modules/procurement/procurement.routes').then((m) => m.PROCUREMENT_ROUTES) },
         ],
       },
       {
@@ -98,16 +84,9 @@ export const routes: Routes = [
         canActivate: [moduleGuard],
         data: { module: 'SORT' },
         children: [
-          {
-            path: '',
-            loadComponent: () => import('./features/flow/transform/flow-transform.component').then((m) => m.FlowTransformComponent),
-            title: 'Sort - ThriftOS',
-          },
-          {
-            path: 'grade',
-            loadComponent: () => import('./features/flow/grade/flow-grade.component').then((m) => m.FlowGradeComponent),
-            title: 'Grade - ThriftOS',
-          },
+          { path: '', loadComponent: () => import('./features/sort/sort-home.component').then((m) => m.SortHomeComponent), title: 'ThriftOS' },
+          { path: 'grade/:id', loadComponent: () => import('./features/sort/sort-work.component').then((m) => m.SortWorkComponent), data: { stage: 2 }, title: 'ThriftOS' },
+          { path: ':id', loadComponent: () => import('./features/sort/sort-work.component').then((m) => m.SortWorkComponent), data: { stage: 1 }, title: 'ThriftOS' },
         ],
       },
       {
@@ -115,20 +94,9 @@ export const routes: Routes = [
         canActivate: [moduleGuard],
         data: { module: 'STOCK' },
         children: [
-          {
-            path: '',
-            loadComponent: () => import('./features/flow/stock/flow-stock.component').then((m) => m.FlowStockComponent),
-            title: 'Stock - ThriftOS',
-          },
-          {
-            path: 'bale',
-            loadComponent: () => import('./features/flow/seal/flow-seal.component').then((m) => m.FlowSealComponent),
-            title: 'Make bale - ThriftOS',
-          },
-          {
-            path: 'items',
-            loadChildren: () => import('./modules/inventory/inventory.routes').then((m) => m.INVENTORY_ROUTES),
-          },
+          { path: '', loadComponent: () => import('./features/stock/stock-home.component').then((m) => m.StockHomeComponent), title: 'ThriftOS' },
+          { path: 'bale', loadComponent: () => import('./features/stock/make-bale.component').then((m) => m.MakeBaleComponent), title: 'ThriftOS' },
+          { path: 'items', loadChildren: () => import('./modules/inventory/inventory.routes').then((m) => m.INVENTORY_ROUTES) },
         ],
       },
       {
@@ -136,20 +104,9 @@ export const routes: Routes = [
         canActivate: [moduleGuard],
         data: { module: 'SELL' },
         children: [
-          {
-            path: '',
-            loadComponent: () => import('./features/flow/dispatch/flow-dispatch.component').then((m) => m.FlowDispatchComponent),
-            title: 'Sell - ThriftOS',
-          },
-          {
-            path: 'new',
-            loadComponent: () => import('./features/flow/sale/flow-sale.component').then((m) => m.FlowSaleComponent),
-            title: 'New sale - ThriftOS',
-          },
-          {
-            path: 'records',
-            loadChildren: () => import('./modules/sales/sales.routes').then((m) => m.SALES_ROUTES),
-          },
+          { path: '', loadComponent: () => import('./features/sell/sell-home.component').then((m) => m.SellHomeComponent), title: 'ThriftOS' },
+          { path: 'new', loadComponent: () => import('./features/sell/sale.component').then((m) => m.SaleComponent), title: 'ThriftOS' },
+          { path: 'records', loadChildren: () => import('./modules/sales/sales.routes').then((m) => m.SALES_ROUTES) },
         ],
       },
       {

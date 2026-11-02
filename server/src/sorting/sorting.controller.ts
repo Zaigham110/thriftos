@@ -74,6 +74,14 @@ export class SortingStage1Controller {
     return this.sessions.close(tenantId, id, user.userId, dto.wasteCategoryId);
   }
 
+  @Idempotent('SORT1_UNDO')
+  @Post('unallocate')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('SORTING_STAGE1_EDIT')
+  unallocate(@TenantId() tenantId: string, @Body() dto: AddCategoryKgDto, @CurrentUser() user: CurrentUserData) {
+    return this.sessions.removeKg(tenantId, dto, user.userId);
+  }
+
   @Idempotent('SORT1_WASTE')
   @Post('waste')
   @RequirePermissions('SORTING_STAGE1_EDIT')
@@ -136,6 +144,14 @@ export class SortingStage2Controller {
   @RequirePermissions('SORTING_STAGE2_CLOSE')
   seal(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: CloseSessionDto, @CurrentUser() user: CurrentUserData) {
     return this.sessions.close(tenantId, id, user.userId, dto.wasteCategoryId);
+  }
+
+  @Idempotent('SORT2_UNDO')
+  @Post('unallocate')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('SORTING_STAGE2_EDIT')
+  unallocate(@TenantId() tenantId: string, @Body() dto: AddGradeKgDto, @CurrentUser() user: CurrentUserData) {
+    return this.sessions.removeKg(tenantId, dto, user.userId);
   }
 
   @Idempotent('SORT2_WASTE')

@@ -1,3 +1,4 @@
+import { costPerKg } from '../costing/costing';
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { GradeStatus, GradingOutputStatus, MeasurementType, SortStatus, WasteStage } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -139,7 +140,40 @@ export class GradeSessionService {
       },
       buckets,
       wasteLineItems,
+      // After closing: each grade with its share of the cost (what the phone shows as the result).
+      outputs: session.status === GradeStatus.CLOSED ? await this.closedOutputs(tenantId, sessionId) : [],
     };
+  }
+
+  private async closedOutputs(tenantId: string, sessionId: string) {
+    const rows = await this.prisma.gradeOutput.findMany({
+      where: { tenantId, gradeBucket: { gradeSessionId: sessionId } },
+      select: { id: true, weightKg: true, allocatedCost: true, grade: { select: { id: true, name: true } } },
+      orderBy: { grade: { rank: 'asc' } },
+    });
+    return rows.map((o) => ({ id: o.id, name: o.grade.name, gradeId: o.grade.id, weightKg: o.weightKg.toString(), cost: o.allocatedCost.toString(), costPerKg: costPerKg(o.allocatedCost, o.weightKg).toString() }));
+  }
+
+  /** Undo: takes kg back off a grade (never below zero) while grading is open. */
+  async removeKg(tenantId: string, dto: AddGradeKgDto, userId: string) {
+    const kg = new Decimal(dto.amountKg);
+    await this.prisma.$transaction(async (tx) => {
+      await this.waste.capacity(tx, tenantId, WasteStage.STAGE_2, dto.sessionId);
+      const taken = await tx.gradeBucket.updateMany({
+        where: { gradeSessionId: dto.sessionId, gradeId: dto.gradeId, outputWeightKg: { gte: kg } },
+        data: { outputWeightKg: { decrement: kg } },
+      });
+      if (!taken.count) throw new BadRequestException('That is more than was recorded for this grade');
+    });
+    await this.audit.log({
+      tenantId,
+      userId,
+      action: 'GRADE_OUTPUT_REMOVED',
+      entityType: 'GradeSession',
+      entityId: dto.sessionId,
+      metadataJson: { gradeId: dto.gradeId, amountKg: kg.toString() },
+    });
+    return this.summary(tenantId, dto.sessionId);
   }
 
   async addKg(tenantId: string, dto: AddGradeKgDto, userId: string) {

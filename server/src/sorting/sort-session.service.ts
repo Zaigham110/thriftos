@@ -1,3 +1,4 @@
+import { costPerKg } from '../costing/costing';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { RagStatus, SortStatus, WasteStage } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -129,7 +130,18 @@ export class SortSessionService {
       },
       buckets,
       wasteLineItems,
+      // After closing: each category with its share of the lot cost (the yield screen).
+      outputs: session.status === SortStatus.CLOSED ? await this.closedOutputs(tenantId, sessionId) : [],
     };
+  }
+
+  private async closedOutputs(tenantId: string, sessionId: string) {
+    const rows = await this.prisma.categoryOutput.findMany({
+      where: { tenantId, sortCategoryBucket: { sortSessionId: sessionId } },
+      select: { id: true, weightKg: true, allocatedCost: true, category: { select: { id: true, name: true } } },
+      orderBy: { weightKg: 'desc' },
+    });
+    return rows.map((o) => ({ id: o.id, name: o.category.name, categoryId: o.category.id, weightKg: o.weightKg.toString(), cost: o.allocatedCost.toString(), costPerKg: costPerKg(o.allocatedCost, o.weightKg).toString() }));
   }
 
   /** Adds kg (and optional pieces) to a category in an open session. */
@@ -161,6 +173,30 @@ export class SortSessionService {
       entityType: 'SortSession',
       entityId: dto.sessionId,
       metadataJson: { categoryId: dto.categoryId, amountKg: kg.toString(), outputCount: dto.outputCount ?? 0 },
+    });
+    return this.summary(tenantId, dto.sessionId);
+  }
+
+  /** Undo: takes kg back off a category (never below zero) while the lot is open. */
+  async removeKg(tenantId: string, dto: AddCategoryKgDto, userId: string) {
+    const kg = new Decimal(dto.amountKg);
+    await this.prisma.$transaction(async (tx) => {
+      const capacity = await this.waste.capacity(tx, tenantId, WasteStage.STAGE_1, dto.sessionId);
+      const taken = await tx.sortCategoryBucket.updateMany({
+        where: { sortSessionId: dto.sessionId, categoryId: dto.categoryId, outputWeightKg: { gte: kg } },
+        data: { outputWeightKg: { decrement: kg } },
+      });
+      if (!taken.count) throw new BadRequestException('That is more than was recorded for this category');
+      const outputKg = capacity.outputKg.sub(kg);
+      await tx.sortSession.update({ where: { id: dto.sessionId }, data: { totalOutputWeight: outputKg, wasteWeight: capacity.inputKg.sub(outputKg) } });
+    });
+    await this.audit.log({
+      tenantId,
+      userId,
+      action: 'SORT_OUTPUT_REMOVED',
+      entityType: 'SortSession',
+      entityId: dto.sessionId,
+      metadataJson: { categoryId: dto.categoryId, amountKg: kg.toString() },
     });
     return this.summary(tenantId, dto.sessionId);
   }

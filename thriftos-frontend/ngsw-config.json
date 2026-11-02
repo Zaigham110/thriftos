@@ -43,8 +43,21 @@
       "urls": [
         "/api/me",
         "/api/tenant",
-        "/api/tenant/**",
-        "/api/procurement/vendors**",
+        "/api/tenant/categories**",
+        "/api/tenant/grades**",
+        "/api/tenant/waste-categories**",
+        "/api/tenant/raw-categories**",
+        "/api/procurement/vendors**"
+      ],
+      "cacheConfig": {
+        "strategy": "performance",
+        "maxSize": 50,
+        "maxAge": "1h"
+      }
+    },
+    {
+      "name": "live-data",
+      "urls": [
         "/api/procurement/rags**",
         "/api/procurement/containers**",
         "/api/sorting/*/queue**",
@@ -54,14 +67,14 @@
         "/api/stock/bales**",
         "/api/customers**",
         "/api/khata**",
-        "/api/sales/last-price**",
+        "/api/sales**",
         "/api/home/**"
       ],
       "cacheConfig": {
         "strategy": "freshness",
-        "maxSize": 200,
+        "maxSize": 300,
         "maxAge": "7d",
-        "timeout": "4s"
+        "timeout": "3s"
       }
     }
   ]

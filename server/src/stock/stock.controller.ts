@@ -19,6 +19,13 @@ export class BalesController {
     return this.bales.list(tenantId);
   }
 
+  /** What can be baled now, per category / grade, with kg left. */
+  @Get('kinds')
+  @RequirePermissions('REPACK_VIEW')
+  kinds(@TenantId() tenantId: string) {
+    return this.bales.kinds(tenantId);
+  }
+
   @Get('available-stock')
   @RequirePermissions('REPACK_VIEW')
   availableStock(@TenantId() tenantId: string, @Query() query: AvailableStockQueryDto) {

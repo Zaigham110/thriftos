@@ -20,6 +20,7 @@ import { OfflineQueueService } from '../core/offline/offline-queue.service';
 import { PwaService } from '../core/pwa/pwa.service';
 import { I18nService } from '../core/i18n/i18n.service';
 import { TPipe } from '../core/i18n/t.pipe';
+import { ToastComponent } from '../shared/floor/toast.component';
 import { TenantModule, TenantService } from '../core/tenant/tenant.service';
 
 type LayoutMode = 'phone' | 'tablet' | 'desktop';
@@ -50,8 +51,9 @@ const NAV: NavItem[] = [
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [LucideAngularModule, RouterLink, RouterLinkActive, RouterOutlet, TPipe],
+  imports: [LucideAngularModule, RouterLink, RouterLinkActive, RouterOutlet, TPipe, ToastComponent],
   template: `
+    <tos-toast />
     @if (layout() === 'desktop') {
       <div class="desktop">
         <aside class="sidebar" [attr.aria-label]="'nav.menu' | t">
@@ -131,7 +133,7 @@ const NAV: NavItem[] = [
     nav { display:grid; gap:4px; }
     .nav-item { min-height:48px; display:flex; align-items:center; gap:12px; padding:0 12px; border-radius:var(--flow-radius-sm); color:#bdcfcb; font-size:14px; font-weight:650; text-decoration:none; }
     .nav-item:hover { background:#243339; color:#fff; }
-    .nav-item.active { background:#e4f4f0; color:#154d47; }
+    .nav-item.active { background:var(--tos-primary-soft); color:var(--tos-primary); }
     .sidebar-footer { display:grid; gap:12px; margin-top:auto; padding:14px 8px 0; border-top:1px solid #334348; color:#b7c7c4; }
     .signout { min-height:48px; display:flex; align-items:center; gap:9px; border:0; padding:0; background:transparent; color:#bdcfcb; font:inherit; font-size:13px; cursor:pointer; }
 
@@ -140,7 +142,7 @@ const NAV: NavItem[] = [
     .rail-brand { width:44px; height:44px; display:grid; place-items:center; margin-bottom:8px; border-radius:12px; background:#e4f4f0; color:#154d47; font-weight:900; text-decoration:none; }
     .rail-item { width:100%; min-height:56px; display:grid; justify-items:center; align-content:center; gap:3px; border-radius:10px; color:#bdcfcb; text-decoration:none; }
     .rail-item small { font-size:10px; font-weight:700; }
-    .rail-item.active { background:#e4f4f0; color:#154d47; }
+    .rail-item.active { background:var(--tos-primary-soft); color:var(--tos-primary); }
     .rail-signout { margin-top:auto; width:48px; height:48px; border:0; background:transparent; color:#bdcfcb; cursor:pointer; }
 
     .phone { min-height:100vh; padding-bottom:76px; }
@@ -150,7 +152,7 @@ const NAV: NavItem[] = [
     .more-button { width:48px; height:48px; display:grid; place-items:center; border:0; background:transparent; color:var(--flow-ink); }
     .tabs { position:fixed; inset:auto 0 0 0; z-index:5; display:grid; grid-template-columns:repeat(auto-fit,minmax(0,1fr)); min-height:64px; padding-bottom:env(safe-area-inset-bottom); border-top:1px solid var(--flow-line); background:#fff; }
     .tabs a { display:grid; justify-items:center; align-content:center; gap:2px; min-height:64px; color:var(--flow-ink-soft); font-size:11px; font-weight:700; text-decoration:none; }
-    .tabs a.active { color:var(--flow-teal); }
+    .tabs a.active { color:var(--tos-primary); }
     .pwa-bar { display:flex; align-items:center; gap:8px; padding-block:8px; padding-inline:16px 12px; background:#f4eef3; color:#4a2f43; font-size:14px; font-weight:650; }
     .pwa-bar span { margin-inline-end:auto; }
     .pwa-bar button { min-height:44px; padding:0 14px; border:0; border-radius:10px; background:#714b67; color:#fff; font:inherit; font-weight:700; }

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { keypad, loose } from './floor';
 import { apiAs, signIn, waitForOfflineReady } from './helpers';
 
 /**
@@ -17,30 +18,30 @@ test('offline sale and payment sync once when the network returns', async ({ pag
   // Open the screens once online so their data (customers, stock, khata) is cached on the phone.
   await page.goto('/sell/new');
   await page.getByPlaceholder('Search name or phone').fill(customer.name);
-  await expect(page.getByText(customer.name)).toBeVisible();
+  await expect(page.getByRole('listitem').filter({ hasText: customer.name })).toBeVisible();
   await page.goto(`/khata/${customer.id}`);
-  await expect(page.getByRole('heading', { name: customer.name })).toBeVisible();
+  await expect(page.getByRole('heading', { name: new RegExp(customer.name) })).toBeVisible();
 
   await context.setOffline(true);
 
   // Sale on udhaar, with the network off.
   await page.goto('/sell/new');
   await page.getByPlaceholder('Search name or phone').fill(customer.name);
-  await page.getByRole('button', { name: customer.name }).click();
+  await page.getByRole('listitem').filter({ hasText: customer.name }).click();
   await page.getByPlaceholder('Search stock').fill(item.name);
-  await page.getByRole('button', { name: new RegExp(item.name) }).click();
-  await page.getByRole('spinbutton', { name: 'kg', exact: true }).fill('10');
-  await page.getByRole('spinbutton', { name: 'Rs per kg' }).fill('450');
-  await page.getByRole('button', { name: 'Udhaar' }).click();
+  await page.getByRole('listitem').filter({ hasText: item.name }).click();
+  await keypad(page, /^Quantity/, 10);
+  await keypad(page, /^Price/, 450);
+  await page.getByRole('button', { name: 'Udhaar', exact: true }).click();
   await page.getByRole('button', { name: 'Save sale' }).click();
-  await expect(page.getByText('Sale saved on phone')).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Sale saved on phone' })).toBeVisible();
 
   // Payment received, with the network off.
   await page.goto(`/khata/${customer.id}`);
   await page.getByRole('button', { name: 'Payment received' }).click();
-  await page.locator('input[name="amount"]').fill('1500');
+  await keypad(page, /^Amount/, 1500);
   await page.getByRole('button', { name: 'Save payment' }).click();
-  await expect(page.getByText('Rs 1,500 saved on phone')).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: loose('Rs 1,500 saved on phone') })).toBeVisible();
   await expect(page.getByText('Offline — saved on phone (2)')).toBeVisible();
 
   // Nothing reached the server yet.
@@ -73,4 +74,69 @@ test('offline sale and payment sync once when the network returns', async ({ pag
   await page.waitForTimeout(1500);
   const again = await api.get(`/khata/customers/${customer.id}`);
   expect(again.lines).toHaveLength(ledger.lines.length);
+});
+
+/** Task 3.2/3.4: receive, sort lines and a bale made with the network off sync once each. */
+test('offline lot, sort lines and bale sync once', async ({ page, context, request }) => {
+  const api = await apiAs(request);
+  const tag = Date.now().toString().slice(-6);
+  const categories = await api.get('/tenant/categories');
+  const tshirts = categories.find((c: { name: string }) => c.name === 'T-Shirts');
+  // A lot to sort, and sorted T-Shirts to bale.
+  const lot = await api.post('/procurement/rags', { ragBaleType: 'BALE', weightKg: 200, purchaseCost: 40000 });
+  const lot2 = await api.post('/procurement/rags', { ragBaleType: 'BALE', weightKg: 100, purchaseCost: 30000 });
+  const s = await api.post('/sorting/stage-1/start', { ragId: lot2.id });
+  await api.post('/sorting/stage-1/allocate', { sessionId: s.session.id, categoryId: tshirts.id, amountKg: 100 });
+  await request.patch(`/api/sorting/stage-1/${s.session.id}/seal`, { headers: { Authorization: `Bearer ${(await (await request.post('/api/auth/login', { data: { email: 'admin@demo.thriftos.com', password: 'admin123' } })).json()).accessToken}` }, data: {} });
+  const balesBefore = (await api.get('/stock/bales')).length;
+
+  await signIn(page);
+  await waitForOfflineReady(page);
+  for (const url of ['/receive/lot', '/sort', `/sort/${lot.id}`, '/stock/bale']) {
+    await page.goto(url);
+    await expect(page.locator('.floor-head h1')).toBeVisible();
+    await page.waitForLoadState('networkidle');
+  }
+  await expect(page.getByRole('listitem').filter({ hasText: 'T-Shirts' }).first()).toBeVisible();
+
+  await context.setOffline(true);
+
+  await page.goto('/receive/lot');
+  await keypad(page, /^Lot weight/, `3${tag.slice(-2)}`);
+  await keypad(page, /^Purchase cost/, 60000);
+  await page.getByRole('button', { name: 'Save lot' }).click();
+  await expect(page.getByText('Saved on phone. It will sync when you are online.').first()).toBeVisible();
+
+  await page.goto(`/sort/${lot.id}`);
+  await page.getByRole('listitem').filter({ hasText: 'Jeans' }).click();
+  for (const ch of '120') await page.getByRole('dialog').getByRole('button', { name: ch, exact: true }).click();
+  await page.getByRole('dialog').locator('.ok').click();
+  await page.getByRole('listitem').filter({ hasText: 'Dresses' }).click();
+  for (const ch of '50') await page.getByRole('dialog').getByRole('button', { name: ch, exact: true }).click();
+  await page.getByRole('dialog').locator('.ok').click();
+  await expect(page.locator('.totals')).toContainText(loose('170.0 kg'));
+  await expect(page.locator('.totals')).toContainText(loose('30.0 kg'));
+
+  await page.goto('/stock/bale');
+  await page.getByRole('listitem').filter({ hasText: 'T-Shirts' }).first().click();
+  await keypad(page, /^Bale weight/, 40);
+  await page.getByRole('button', { name: 'Save bale' }).click();
+  await expect(page.getByText('Saved on phone. It will sync when you are online.').first()).toBeVisible();
+  // lot + sort start + 2 lines + bale
+  await expect(page.getByText('Offline — saved on phone (5)')).toBeVisible();
+
+  await context.setOffline(false);
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect(page.getByText('Synced', { exact: true })).toBeVisible({ timeout: 60_000 });
+
+  const lots = (await api.get('/sorting/stage-1/queue?limit=100')).data as { weightKg: string; id: string; status: string }[];
+  expect(lots.filter((l) => l.weightKg === `3${tag.slice(-2)}`)).toHaveLength(1);
+  const summary = await api.get(`/sorting/stage-1/summary?ragId=${lot.id}`);
+  const kg = Object.fromEntries(summary.buckets.map((b: { category: { name: string }; outputWeightKg: string }) => [b.category.name, b.outputWeightKg]));
+  expect(kg).toEqual({ Jeans: '120', Dresses: '50' });
+  expect((await api.get('/stock/bales')).length).toBe(balesBefore + 1);
+
+  await page.reload();
+  await page.waitForTimeout(1500);
+  expect((await api.get('/stock/bales')).length).toBe(balesBefore + 1);
 });

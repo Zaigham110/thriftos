@@ -20,6 +20,9 @@
 // 5. Shared component styles
 @use 'components';
 
+// 6. Floor screens (tiles, keypad, bottom action bar)
+@use 'floor';
+
 // Fonts are bundled (angular.json styles: Inter, Noto Naskh Arabic, Noto Nastaliq Urdu) so they work offline.
 
 .header-right-actions {
