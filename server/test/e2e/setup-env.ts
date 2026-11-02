@@ -9,3 +9,4 @@ process.env.UPLOAD_DIR ??= join(tmpdir(), 'thriftos-e2e-uploads');
 process.env.THROTTLE_LIMIT_SHORT ??= '100000';
 process.env.THROTTLE_LIMIT_MEDIUM ??= '100000';
 process.env.THROTTLE_LIMIT_LONG ??= '100000';
+process.env.THROTTLE_LOGIN_LIMIT ??= '100000';

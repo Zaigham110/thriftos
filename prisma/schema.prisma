@@ -528,8 +528,16 @@ model User {
   id           String   @id @default(cuid())
   tenantId     String
   name         String
-  email        String
-  passwordHash String
+  /// Owners and admins sign in with email + password; a munshi may have only a phone + PIN.
+  email        String?
+  passwordHash String?
+  /// WhatsApp/phone in E.164 (+923001234567). Unique across tenants: it is the munshi's login.
+  phone             String?   @unique
+  /// bcrypt of the 4–6 digit PIN.
+  pinHash           String?
+  /// Wrong PINs in a row; 5 locks the PIN for 15 minutes (the owner can unlock).
+  failedPinAttempts Int       @default(0)
+  pinLockedUntil    DateTime?
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

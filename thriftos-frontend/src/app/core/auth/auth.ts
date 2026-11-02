@@ -169,8 +169,28 @@ export class AuthService {
    */
   login(credentials: LoginRequest): Observable<User> {
     this._state.update((s) => ({ ...s, isLoading: true }));
+    return this.startSession(this.http.post<LoginResponse>(`${API_ENDPOINTS.auth}/login`, credentials)).pipe(
+      catchError((error) => this.handleAuthError(error))
+    );
+  }
 
-    return this.http.post<LoginResponse>(`${API_ENDPOINTS.auth}/login`, credentials).pipe(
+  /**
+   * Munshi sign-in with phone + PIN. Errors are passed on as they come (the screen shows tries left or the
+   * lock time from `error.error`).
+   */
+  loginWithPin(credentials: { phone: string; pin: string }): Observable<User> {
+    this._state.update((s) => ({ ...s, isLoading: true }));
+    return this.startSession(this.http.post<LoginResponse>(`${API_ENDPOINTS.auth}/login/pin`, credentials)).pipe(
+      catchError((error) => {
+        this._state.update((s) => ({ ...s, isLoading: false }));
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /** Stores the tokens of a successful sign-in and loads the user (and permissions). */
+  private startSession(login$: Observable<LoginResponse>): Observable<User> {
+    return login$.pipe(
       tap((response) => {
         this.tokenService.setTokens(response.accessToken, response.refreshToken);
       }),
@@ -202,8 +222,7 @@ export class AuthService {
             return this._state().user!;
           })
         );
-      }),
-      catchError((error) => this.handleAuthError(error))
+      })
     );
   }
 

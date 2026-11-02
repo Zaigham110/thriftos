@@ -154,6 +154,7 @@ export const routes: Routes = [
             loadComponent: () => import('./features/flow/control/flow-control.component').then((m) => m.FlowControlComponent),
             title: 'Settings - ThriftOS',
           },
+          { path: 'team', loadComponent: () => import('./features/settings/team.component').then((m) => m.TeamComponent), title: 'ThriftOS' },
           {
             path: 'admin',
             loadChildren: () => import('./modules/admin/admin.routes').then((m) => m.ADMIN_ROUTES),

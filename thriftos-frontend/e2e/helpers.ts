@@ -28,8 +28,10 @@ export async function signIn(page: Page, who = DEMO, lang: 'en' | 'ur' = 'en'): 
     if (!localStorage.getItem('thriftos.lang')) localStorage.setItem('thriftos.lang', l);
   }, lang);
   await page.goto('/auth/login');
+  // The Owner tab (second chip), whichever way this phone signed in last.
+  await page.locator('.who .chip').nth(1).click();
   await page.fill('input[type=email]', who.email);
-  await page.fill('input[formControlName=password]', who.password);
+  await page.fill('input[type=password]', who.password);
   await page.click('button[type=submit]');
   await page.waitForURL('**/home');
 }

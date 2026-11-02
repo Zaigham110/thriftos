@@ -41,8 +41,6 @@
     {
       "name": "reference-data",
       "urls": [
-        "/api/me",
-        "/api/tenant",
         "/api/tenant/categories**",
         "/api/tenant/grades**",
         "/api/tenant/waste-categories**",
@@ -58,6 +56,8 @@
     {
       "name": "live-data",
       "urls": [
+        "/api/tenant",
+        "/api/me",
         "/api/procurement/rags**",
         "/api/procurement/containers**",
         "/api/sorting/*/queue**",

@@ -200,9 +200,10 @@ export class AppShellComponent {
     this.i18n.use(this.i18n.lang() === 'ur' ? 'en' : 'ur');
   }
 
-  protected signOut(): void {
+  protected async signOut(): Promise<void> {
     this.moreOpen.set(false);
-    void this.pwa.clearDataCaches();
+    // Cached answers belong to this person: gone before the next person signs in on this phone.
+    await this.pwa.clearDataCaches();
     this.auth.logout().subscribe(() => this.router.navigate(['/auth/login']));
   }
 }

@@ -99,6 +99,7 @@ T = {
   'auth.pin': ('PIN', 'پن'),
   'auth.pinHint': ('4 to 6 digits', '4 سے 6 ہندسے'),
   'auth.wrongPin': ('Phone or PIN is wrong. {n} tries left.', 'فون یا پن غلط ہے۔ {n} کوششیں باقی۔'),
+  'auth.wrongPinPlain': ('Phone or PIN is wrong.', 'فون یا پن غلط ہے۔'),
   'auth.locked': ('Too many wrong PINs. Try again in {n} minutes or ask the owner.', 'بہت دفعہ غلط پن۔ {n} منٹ بعد کوشش کریں یا مالک سے کہیں۔'),
 
   # home (owner)
@@ -328,6 +329,9 @@ T = {
   'settings.unlock': ('Unlock', 'کھولیں'),
   'settings.lockedUntil': ('Locked', 'بند'),
   'settings.advanced': ('Advanced', 'ایڈوانس'),
+  'settings.munshiAdded': ('{name} can now sign in with phone and PIN.', '{name} اب فون اور پن سے سائن اِن کر سکتا ہے۔'),
+  'settings.pinSaved': ('New PIN saved.', 'نیا پن محفوظ۔'),
+  'settings.unlocked': ('{name} can sign in again.', '{name} دوبارہ سائن اِن کر سکتا ہے۔'),
 }
 
 base = os.path.join(os.path.dirname(__file__), '..', 'public', 'i18n')

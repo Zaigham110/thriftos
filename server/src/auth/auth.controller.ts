@@ -3,7 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
-import { LoginDto, LoginResponseDto } from './dto/login.dto';
+import { LoginDto, LoginResponseDto, PinLoginDto } from './dto/login.dto';
 import { RefreshTokenDto, RefreshResponseDto } from './dto/refresh.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
@@ -39,6 +39,15 @@ export class AuthController {
     const ipAddress = req.ip || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'];
     return this.authService.login(dto, ipAddress, userAgent);
+  }
+
+  /** Munshi sign-in with phone + PIN; 5 wrong PINs lock it for 15 minutes. */
+  @Public()
+  @Post('login/pin')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ short: { limit: () => Number(process.env.THROTTLE_LOGIN_LIMIT || 10), ttl: 60000 } })
+  async loginWithPin(@Body() dto: PinLoginDto, @Req() req: Request): Promise<LoginResponseDto> {
+    return this.authService.loginWithPin(dto, req.ip || req.socket.remoteAddress, req.headers['user-agent']);
   }
 
   @Post('logout')

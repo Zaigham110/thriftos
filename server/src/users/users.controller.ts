@@ -15,6 +15,7 @@ import {
 import { Request } from 'express';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { CreateMunshiDto, SetPinDto } from './dto/munshi.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AssignRoleDto, AssignMultipleRolesDto } from './dto/assign-role.dto';
 import { TenantGuard } from '../common/guards/tenant.guard';
@@ -26,6 +27,35 @@ import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.
 @UseGuards(TenantGuard, PermissionGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  /** Settings → Team: everyone in the business, how they sign in, locked PINs. */
+  @Get('team')
+  @RequirePermissions('user.read')
+  team(@CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    return this.usersService.team((req as any).tenantId || user.tenantId);
+  }
+
+  /** Add a munshi: name, phone and PIN. */
+  @Post('munshi')
+  @RequirePermissions('user.create')
+  @HttpCode(HttpStatus.CREATED)
+  createMunshi(@Body() dto: CreateMunshiDto, @CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    return this.usersService.createMunshi((req as any).tenantId || user.tenantId, dto, user.userId);
+  }
+
+  @Post(':id/pin')
+  @RequirePermissions('user.update')
+  @HttpCode(HttpStatus.OK)
+  setPin(@Param('id') id: string, @Body() dto: SetPinDto, @CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    return this.usersService.setPin((req as any).tenantId || user.tenantId, id, dto.pin, user.userId);
+  }
+
+  @Post(':id/unlock')
+  @RequirePermissions('user.update')
+  @HttpCode(HttpStatus.OK)
+  unlockPin(@Param('id') id: string, @CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    return this.usersService.unlockPin((req as any).tenantId || user.tenantId, id, user.userId);
+  }
 
   @Post()
   @RequirePermissions('user.create')

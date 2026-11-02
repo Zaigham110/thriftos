@@ -36,6 +36,14 @@ for (const lang of ['en', 'ur'] as const) {
     const customer = await api.post('/customers', { name: t(`Haji Rafiq ${tag}`, `حاجی رفیق ${tag}`), phone: `0300${tag}11`, city: t('Karachi', 'کراچی'), openingBalance: 45000 });
     await api.post('/stock/items', { name: t(`Ladies jackets ${tag}`, `لیڈیز جیکٹ ${tag}`), unit: 'BALE', quantity: 6, totalCost: 150000, salePrice: 32000 });
 
+    // Sign-in, as the munshi sees it.
+    await page.addInitScript((l) => localStorage.setItem('thriftos.lang', l), lang);
+    await page.goto('/auth/login');
+    await page.getByRole('tab').first().click();
+    await page.locator('input[type=tel]').fill('0300 1234567');
+    for (const d of '48') await page.locator('.keys').getByRole('button', { name: d, exact: true }).click();
+    await shot(page, 'j0-login-munshi', lang);
+
     await signIn(page, undefined, lang);
 
     // Journey 1 — container.

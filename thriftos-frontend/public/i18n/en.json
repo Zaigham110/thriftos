@@ -19,7 +19,8 @@
   "subtitle": "Your business on your phone",
   "title": "Sign in",
   "wrong": "Email or password is wrong.",
-  "wrongPin": "Phone or PIN is wrong. {n} tries left."
+  "wrongPin": "Phone or PIN is wrong. {n} tries left.",
+  "wrongPinPlain": "Phone or PIN is wrong."
  },
  "bill": {
   "amount": "Amount",
@@ -245,10 +246,13 @@
   "addMunshi": "Add munshi",
   "advanced": "Advanced",
   "lockedUntil": "Locked",
+  "munshiAdded": "{name} can now sign in with phone and PIN.",
+  "pinSaved": "New PIN saved.",
   "resetPin": "Reset PIN",
   "team": "Team",
   "title": "Settings",
-  "unlock": "Unlock"
+  "unlock": "Unlock",
+  "unlocked": "{name} can sign in again."
  },
  "setup": {
   "addCategory": "Add category",

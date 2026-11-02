@@ -1,195 +1,198 @@
-/**
- * Login Component - ThriftOS Enterprise ERP
- * 
- * High-density modern authentication screen.
- * Complies with ThriftOS Design System & Brand Guidelines (#714b67 deep plum purple).
- */
-
-import { Component, signal, OnInit, DestroyRef, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { Router, ActivatedRoute } from '@angular/router';
+import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { filter, take } from 'rxjs/operators';
-import {
-  LucideAngularModule,
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  ArrowRight,
-  Loader2,
-  ShieldCheck,
-  CheckCircle2,
-  Layers,
-  Building2,
-  Sparkles,
-  AlertCircle,
-  Truck,
-  BarChart3,
-} from 'lucide-angular';
-
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Delete, LucideAngularModule } from 'lucide-angular';
+import { filter, take } from 'rxjs';
 import { AuthService } from '../../../core/auth';
+import { I18nService } from '../../../core/i18n/i18n.service';
+import { TPipe } from '../../../core/i18n/t.pipe';
 
+type Mode = 'owner' | 'munshi';
+
+/**
+ * Sign in. Owner: email + password. Munshi: phone + 4–6 digit PIN on a big keypad (shown as dots).
+ * Wrong PINs say how many tries are left; after 5 the PIN is locked for 15 minutes.
+ */
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    LucideAngularModule,
-  ],
-  templateUrl: './login.component.html',
-  styleUrl: './login.component.scss',
+  imports: [FormsModule, LucideAngularModule, TPipe],
+  template: `
+    <main class="login">
+      <header>
+        <img src="os_sm.png" alt="" width="56" height="56" />
+        <h1>ThriftOS</h1>
+        <p>{{ 'auth.subtitle' | t }}</p>
+        <button type="button" class="link-btn lang" (click)="toggleLang()">{{ 'nav.language' | t }}</button>
+      </header>
+
+      <div class="chips who" role="tablist">
+        <button type="button" role="tab" class="chip" [class.on]="mode() === 'munshi'" [attr.aria-selected]="mode() === 'munshi'" (click)="setMode('munshi')">{{ 'auth.munshi' | t }}</button>
+        <button type="button" role="tab" class="chip" [class.on]="mode() === 'owner'" [attr.aria-selected]="mode() === 'owner'" (click)="setMode('owner')">{{ 'auth.owner' | t }}</button>
+      </div>
+
+      @if (error(); as e) { <p class="notice error" role="alert">{{ e }}</p> }
+
+      @if (mode() === 'owner') {
+        <form class="card" (ngSubmit)="signInOwner()">
+          <label class="field">{{ 'auth.email' | t }}<input name="email" type="email" autocomplete="username" [(ngModel)]="email" class="ltr" required /></label>
+          <label class="field">{{ 'auth.password' | t }}<input name="password" type="password" autocomplete="current-password" [(ngModel)]="password" required /></label>
+          <button type="submit" class="btn primary block" [disabled]="!email.trim() || !password || busy()">{{ (busy() ? 'auth.signingIn' : 'auth.signIn') | t }}</button>
+        </form>
+      } @else {
+        <form class="card" (ngSubmit)="signInMunshi()">
+          <label class="field">{{ 'common.phone' | t }}<input name="phone" type="tel" inputmode="tel" autocomplete="tel" [(ngModel)]="phone" [placeholder]="'common.phonePlaceholder' | t" /></label>
+          <div class="pin">
+            <span class="label">{{ 'auth.pin' | t }} <small>{{ 'auth.pinHint' | t }}</small></span>
+            <div class="dots" [attr.aria-label]="('auth.pin' | t) + ': ' + pin().length" aria-live="polite">
+              @for (i of [0, 1, 2, 3, 4, 5]; track i) { <i [class.on]="i < pin().length" [class.extra]="i >= 4"></i> }
+            </div>
+            <div class="keys ltr">
+              @for (k of keys; track k) {
+                @if (k === '') { <span></span> }
+                @else { <button type="button" (click)="press(k)" [attr.aria-label]="k === '<' ? ('common.clear' | t) : k">@if (k === '<') { <lucide-icon [img]="icons.Delete" [size]="24" /> } @else { {{ k }} }</button> }
+              }
+            </div>
+          </div>
+          <button type="submit" class="btn primary block" [disabled]="!canPin() || busy()">{{ (busy() ? 'auth.signingIn' : 'auth.signIn') | t }}</button>
+        </form>
+      }
+    </main>
+  `,
+  styles: [`
+    :host { display:block; min-height:100vh; background:var(--tos-canvas); }
+    .login { display:grid; gap:14px; max-width:420px; margin:0 auto; padding:24px 16px 32px; }
+    header { position:relative; display:grid; justify-items:center; gap:4px; text-align:center; }
+    header h1 { margin:6px 0 0; font-size:26px; }
+    header p { margin:0; color:var(--tos-ink-soft); }
+    .lang { position:absolute; inset-block-start:0; inset-inline-end:0; }
+    .who { justify-content:center; }
+    .who .chip { min-width:120px; }
+    .pin { display:grid; gap:10px; }
+    .pin .label { font-weight:700; }
+    .pin small { color:var(--tos-ink-soft); font-weight:600; }
+    .dots { display:flex; justify-content:center; gap:12px; direction:ltr; }
+    .dots i { width:16px; height:16px; border-radius:50%; border:2px solid var(--tos-primary); }
+    .dots i.extra:not(.on) { border-style:dashed; opacity:.5; }
+    .dots i.on { background:var(--tos-primary); }
+    .keys { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+    .keys button { min-height:58px; border:1px solid var(--tos-line); border-radius:14px; background:#faf8f9; color:var(--tos-ink); font:inherit; font-size:24px; font-weight:700; display:grid; place-items:center; }
+    .keys button:active { background:var(--tos-primary-soft); }
+  `],
 })
 export class LoginComponent implements OnInit {
-  protected readonly loginForm: FormGroup;
-  protected readonly isLoading = signal<boolean>(false);
-  protected readonly authError = signal<string>('');
-  protected readonly showPassword = signal<boolean>(false);
-
-  readonly icons = {
-    Mail,
-    Lock,
-    Eye,
-    EyeOff,
-    ArrowRight,
-    Loader2,
-    ShieldCheck,
-    CheckCircle2,
-    Layers,
-    Building2,
-    Sparkles,
-    AlertCircle,
-    Truck,
-    BarChart3,
-  };
-
+  private readonly auth = inject(AuthService);
+  private readonly i18n = inject(I18nService);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
-  private returnUrl = '/';
-
-  constructor(
-    private readonly fb: FormBuilder,
-    private readonly authService: AuthService,
-    private readonly router: Router,
-    private readonly route: ActivatedRoute
-  ) {
-    this.loginForm = this.fb.group({
-      email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(6)]],
-      rememberMe: [true],
-    });
-  }
+  protected readonly icons = { Delete };
+  protected readonly keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '<'];
+  protected readonly mode = signal<Mode>(readMode());
+  protected readonly pin = signal('');
+  protected readonly busy = signal(false);
+  protected readonly error = signal('');
+  protected readonly canPin = computed(() => this.pin().length >= 4);
+  protected email = '';
+  protected password = '';
+  protected phone = readPhone();
 
   ngOnInit(): void {
-    // Get return URL from route parameters
-    this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/';
-
-    // Check if already authenticated
-    this.authService.waitForAuth().pipe(
-      filter((ready) => ready),
-      take(1),
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe(() => {
-      if (this.authService.isAuthenticated()) {
-        this.redirectAfterLogin();
-      }
-    });
+    this.auth
+      .waitForAuth()
+      .pipe(filter((ready) => ready), take(1), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        if (this.auth.isAuthenticated()) this.redirect();
+      });
   }
 
-  togglePasswordVisibility(): void {
-    this.showPassword.update((val) => !val);
+  protected setMode(mode: Mode): void {
+    this.mode.set(mode);
+    this.error.set('');
+    remember('thriftos.login-mode', mode);
   }
 
-  fillDemoCredentials(role: 'admin' | 'sorter' | 'sales'): void {
-    const creds = {
-      admin: { email: 'admin@thriftos.com', password: 'password123' },
-      sorter: { email: 'sorter@thriftos.com', password: 'password123' },
-      sales: { email: 'sales@thriftos.com', password: 'password123' },
-    };
-    const chosen = creds[role] || creds.admin;
-    this.loginForm.patchValue(chosen);
-    this.authError.set('');
+  protected toggleLang(): void {
+    this.i18n.use(this.i18n.lang() === 'ur' ? 'en' : 'ur');
   }
 
-  onSubmit(): void {
-    if (this.loginForm.invalid) {
-      this.markFormAsTouched();
-      return;
-    }
+  protected press(k: string): void {
+    this.error.set('');
+    if (k === '<') this.pin.update((p) => p.slice(0, -1));
+    else if (this.pin().length < 6) this.pin.update((p) => p + k);
+  }
 
-    this.isLoading.set(true);
-    this.authError.set('');
-
-    const { email, password } = this.loginForm.value;
-
-    this.authService.login({ email, password }).subscribe({
+  protected signInOwner(): void {
+    this.busy.set(true);
+    this.error.set('');
+    this.auth.login({ email: this.email.trim(), password: this.password }).subscribe({
       next: () => {
-        this.isLoading.set(false);
-        this.redirectAfterLogin();
+        remember('thriftos.login-mode', 'owner');
+        this.redirect();
       },
-      error: (error) => {
-        this.isLoading.set(false);
-        this.authError.set(error?.message || 'Invalid email or password. Please check your credentials.');
+      error: () => {
+        this.busy.set(false);
+        this.error.set(this.i18n.t('auth.wrong'));
       },
     });
   }
 
-  getEmailError(): string | undefined {
-    const control = this.loginForm.get('email');
-    if (control?.hasError('required') && control?.touched) {
-      return 'Email address is required';
-    }
-    if (control?.hasError('email') && control?.touched) {
-      return 'Please enter a valid email address';
-    }
-    return undefined;
-  }
-
-  getPasswordError(): string | undefined {
-    const control = this.loginForm.get('password');
-    if (control?.hasError('required') && control?.touched) {
-      return 'Password is required';
-    }
-    if (control?.hasError('minlength') && control?.touched) {
-      return 'Password must be at least 6 characters';
-    }
-    return undefined;
-  }
-
-  private markFormAsTouched(): void {
-    Object.keys(this.loginForm.controls).forEach((key) => {
-      this.loginForm.get(key)?.markAsTouched();
+  protected signInMunshi(): void {
+    if (!this.canPin()) return;
+    this.busy.set(true);
+    this.error.set('');
+    this.auth.loginWithPin({ phone: this.phone.trim(), pin: this.pin() }).subscribe({
+      next: () => {
+        remember('thriftos.login-mode', 'munshi');
+        remember('thriftos.login-phone', this.phone.trim());
+        this.redirect();
+      },
+      error: (e: HttpErrorResponse) => {
+        this.busy.set(false);
+        this.pin.set('');
+        const body = e.error ?? {};
+        if (e.status === 423) this.error.set(this.i18n.t('auth.locked', { n: body.minutes ?? 15 }));
+        else if (e.status === 401 && body.triesLeft !== undefined) this.error.set(this.i18n.t('auth.wrongPin', { n: body.triesLeft }));
+        else if (e.status === 0) this.error.set(this.i18n.t('common.couldNotLoad'));
+        else this.error.set(this.i18n.t('auth.wrongPinPlain'));
+        navigator.vibrate?.([60, 40, 60]);
+      },
     });
   }
 
-  private redirectAfterLogin(): void {
-    const user = this.authService.user();
-    const isSuperAdmin = this.authService.isSuperAdmin();
-    const isImpersonating = this.authService.isImpersonating();
-
-    const requested = this.returnUrl || '/';
-
-    if (isSuperAdmin && !isImpersonating) {
-      if (requested.startsWith('/admin')) {
-        void this.router.navigateByUrl(requested);
-        return;
-      }
+  private redirect(): void {
+    if (this.auth.isSuperAdmin() && !this.auth.isImpersonating()) {
       void this.router.navigate(['/admin']);
       return;
     }
-
-    const effectiveTenantId = user?.tenantId ?? user?.impersonatedTenantId ?? null;
-    if (!effectiveTenantId) {
-      void this.router.navigate(['/auth/no-tenant']);
-      return;
-    }
-
-    if (requested !== '/' && !requested.startsWith('/admin') && !requested.startsWith('/auth')) {
-      void this.router.navigateByUrl(requested);
-      return;
-    }
-
-    void this.router.navigate(['/home']);
+    const requested = this.route.snapshot.queryParams['returnUrl'];
+    void this.router.navigateByUrl(requested && requested !== '/' && !requested.startsWith('/auth') ? requested : '/home');
   }
+}
+
+function remember(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* private mode */
+  }
+}
+
+function read(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+/** The phone signs in the same way next time (owner the first time); a munshi's phone number is filled in. */
+function readMode(): Mode {
+  return read('thriftos.login-mode') === 'munshi' ? 'munshi' : 'owner';
+}
+
+function readPhone(): string {
+  return read('thriftos.login-phone') ?? '';
 }

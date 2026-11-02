@@ -56,6 +56,8 @@ const TRANSLATED = [
   'features/stock/',
   'features/sell/',
   'features/khata/',
+  'features/auth/login/',
+  'features/settings/',
 ];
 const ALLOWED = /^(ThriftOS|Rs|kg|QR|PKR|USD|A4|اردو|English|[-–—·•×+−/%:()|.,0-9\s]*)$/;
 

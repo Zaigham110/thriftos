@@ -6,6 +6,7 @@ Each screen has an `-en.png` and a `-ur.png`.
 
 | Journey | Screen | Files |
 |---|---|---|
+| Sign in | Munshi: phone + PIN keypad (owner: email + password) | `j0-login-munshi` |
 | 1 Container arrives | Maal aya: three choices | `j1-receive` |
 | 1 | Container form: supplier tiles, weights, USD + rate, Duty chip | `j1-container-form` |
 | 1 | Saved: landed cost per kg, ready to sort | `j1-container-saved` |
