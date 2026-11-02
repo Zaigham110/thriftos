@@ -8,6 +8,9 @@ npx prisma generate --schema /app/prisma/schema.prisma
 
 # Apply reviewed database migrations. `db push --accept-data-loss` is deliberately
 # not used in containers because it can silently alter a production schema.
+# Refuses a database whose name does not end in _test unless ALLOW_DEV_MIGRATE=1 is set,
+# so starting the stack can never migrate a dev DB by accident.
+node /app/scripts/db-guard.js "migrate on container start"
 echo "🔄 Applying Prisma migrations..."
 npx prisma migrate deploy --schema /app/prisma/schema.prisma
 

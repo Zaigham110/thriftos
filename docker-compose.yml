@@ -33,6 +33,8 @@ services:
       JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-900s}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:4200,http://localhost:3000}
       SEED_DATABASE: ${SEED_DATABASE:-false}
+      # Migrating on start is refused for a non-*_test database unless this is 1 (scripts/db-guard.js).
+      ALLOW_DEV_MIGRATE: ${ALLOW_DEV_MIGRATE:-0}
     ports:
       - "3000:3000"
     depends_on:

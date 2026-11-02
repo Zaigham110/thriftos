@@ -20,6 +20,12 @@ set -a; [ -f "$ENV_FILE" ] && . "$ENV_FILE"; set +a
 DB_USER="$(printf '%s' "$DATABASE_URL" | sed -nE 's#^postgres(ql)?://([^:/@]+).*#\2#p')"
 DB_NAME="$(printf '%s' "$DATABASE_URL" | sed -nE 's#^postgres(ql)?://[^/]+/([^?]+).*#\2#p')"
 [ -n "$DB_USER" ] && [ -n "$DB_NAME" ] || { echo "Could not read user/database from DATABASE_URL — stopping."; exit 1; }
+# Only the owner runs this, in a terminal. A non-interactive run (an agent, CI, a script)
+# against a database whose name does not end in _test is refused.
+if [ ! -t 0 ] && [[ "$DB_NAME" != *_test ]]; then
+  echo "Refusing: $DB_NAME is not a *_test database and this is not an interactive terminal. Run it yourself."
+  exit 1
+fi
 BACKUP="$HOME/thriftos-pre-phase2-$(date +%Y%m%d-%H%M%S).dump"
 psql_db() { docker exec -i "$CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" "$@"; }
 

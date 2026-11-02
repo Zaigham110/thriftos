@@ -36,6 +36,8 @@ jobs:
       - run: npm ci
       - run: npm ci
         working-directory: server
+      - name: Dev-DB guard (migrate/reset/seed refuse non-*_test databases)
+        run: npm run test:db-guard
       - run: npm run prisma:generate
         working-directory: server
       - name: Migrations match schema.prisma

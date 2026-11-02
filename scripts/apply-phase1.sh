@@ -11,6 +11,12 @@ URL_USER="$(printf '%s' "${DATABASE_URL:-}" | sed -nE 's#^postgres(ql)?://([^:/@
 URL_DB="$(printf '%s' "${DATABASE_URL:-}" | sed -nE 's#^postgres(ql)?://[^/]+/([^?]+).*#\2#p')"
 DB_USER="${URL_USER:-${POSTGRES_USER:-thriftos}}"
 DB_NAME="${URL_DB:-${POSTGRES_DB:-thriftos}}"
+# Only the owner runs this, in a terminal. A non-interactive run (an agent, CI, a script)
+# against a database whose name does not end in _test is refused.
+if [ ! -t 0 ] && [[ "$DB_NAME" != *_test ]]; then
+  echo "Refusing: $DB_NAME is not a *_test database and this is not an interactive terminal. Run it yourself."
+  exit 1
+fi
 BACKUP="$HOME/thriftos-pre-phase1-$(date +%Y%m%d-%H%M%S).dump"
 
 echo "== 1/6 Backup  ($CONTAINER, db=$DB_NAME, user=$DB_USER) -> $BACKUP"

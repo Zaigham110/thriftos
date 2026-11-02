@@ -7,6 +7,10 @@
 import { PrismaClient, TenantStatus, RagStatus, RagSourceType } from '../server/node_modules/.prisma/client';
 import * as bcrypt from 'bcrypt';
 
+// Refuse to seed anything but a *_test database unless ALLOW_DEV_MIGRATE=1 (see scripts/db-guard.js).
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+require('../scripts/db-guard.js').assertSafeToMigrate('seed');
+
 const prisma = new PrismaClient();
 
 /** Every tenant gets a "Waste/Katran" waste type (same rule as migration v1_04 and tenant creation). */
