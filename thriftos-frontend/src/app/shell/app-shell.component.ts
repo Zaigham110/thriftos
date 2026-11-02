@@ -16,6 +16,7 @@ import {
 
 import { AuthService } from '../core/auth';
 import { OfflineDraftService } from '../core/operations/offline-draft.service';
+import { PwaService } from '../core/pwa/pwa.service';
 import { TenantModule, TenantService } from '../core/tenant/tenant.service';
 
 type LayoutMode = 'phone' | 'tablet' | 'desktop';
@@ -87,6 +88,11 @@ const NAV: NavItem[] = [
           <span class="sync" [class.offline]="!offline.isOnline()"><i></i>{{ syncLabel() }}</span>
           <button type="button" class="more-button" (click)="moreOpen.set(true)" aria-label="More"><lucide-icon [img]="icons.Menu" [size]="22" /></button>
         </header>
+        @if (pwa.updateReady()) {
+          <div class="pwa-bar" role="status"><span>New version ready</span><button type="button" (click)="pwa.reload()">Reload</button></div>
+        } @else if (pwa.canInstall()) {
+          <div class="pwa-bar" role="status"><span>Add ThriftOS to your phone</span><button type="button" (click)="pwa.install()">Install</button><button type="button" class="ghost" (click)="pwa.notNow()">Not now</button></div>
+        }
         <main class="content"><router-outlet /></main>
         @if (moreOpen()) {
           <div class="sheet-backdrop" (click)="moreOpen.set(false)">
@@ -140,6 +146,10 @@ const NAV: NavItem[] = [
     .tabs { position:fixed; inset:auto 0 0 0; z-index:5; display:grid; grid-template-columns:repeat(auto-fit,minmax(0,1fr)); min-height:64px; padding-bottom:env(safe-area-inset-bottom); border-top:1px solid var(--flow-line); background:#fff; }
     .tabs a { display:grid; justify-items:center; align-content:center; gap:2px; min-height:64px; color:var(--flow-ink-soft); font-size:11px; font-weight:700; text-decoration:none; }
     .tabs a.active { color:var(--flow-teal); }
+    .pwa-bar { display:flex; align-items:center; gap:8px; padding:8px 12px 8px 16px; background:#f4eef3; color:#4a2f43; font-size:14px; font-weight:650; }
+    .pwa-bar span { margin-right:auto; }
+    .pwa-bar button { min-height:44px; padding:0 14px; border:0; border-radius:10px; background:#714b67; color:#fff; font:inherit; font-weight:700; }
+    .pwa-bar button.ghost { background:transparent; color:#714b67; }
     .sheet-backdrop { position:fixed; inset:0; z-index:10; display:flex; align-items:flex-end; background:rgb(0 0 0 / .35); }
     .sheet { width:100%; display:grid; padding:8px 8px calc(8px + env(safe-area-inset-bottom)); border-radius:16px 16px 0 0; background:#fff; }
     .sheet a, .sheet button { min-height:56px; display:flex; align-items:center; gap:14px; padding:0 16px; border:0; border-radius:10px; background:transparent; color:var(--flow-ink); font:inherit; font-size:16px; font-weight:650; text-decoration:none; text-align:left; }
@@ -150,6 +160,7 @@ export class AppShellComponent {
   private readonly tenantService = inject(TenantService);
   private readonly router = inject(Router);
   protected readonly offline = inject(OfflineDraftService);
+  protected readonly pwa = inject(PwaService);
   protected readonly icons = { LogOut, Menu };
   protected readonly layout = signal<LayoutMode>(layoutFor(window.innerWidth));
   protected readonly moreOpen = signal(false);
@@ -177,6 +188,7 @@ export class AppShellComponent {
 
   protected signOut(): void {
     this.moreOpen.set(false);
+    void this.pwa.clearDataCaches();
     this.auth.logout().subscribe(() => this.router.navigate(['/auth/login']));
   }
 }
