@@ -1,5 +1,5 @@
 import { CommonModule, DecimalPipe } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowLeft, CheckCircle2, LucideAngularModule, MessageCircle, Plus, Search, Trash2, UserPlus } from 'lucide-angular';
@@ -10,6 +10,7 @@ import { CustomersService } from '../../../modules/sales/customers.service';
 import { KhataService } from '../../../modules/sales/khata.service';
 import { Customer, PaymentMethod, PaymentMode, SaleDetail, StockUnit } from '../../../modules/sales/sales.models';
 import { SalesService } from '../../../modules/sales/sales.service';
+import { OfflineQueueService } from '../../../core/offline/offline-queue.service';
 
 interface CartLine {
   item: InventoryItem;
@@ -112,14 +113,14 @@ const METHODS: { value: PaymentMethod; label: string }[] = [
     </section>
   `,
   styles: [`
-    .sale { display:grid; gap:14px; max-width:600px; margin:0 auto; padding-bottom:96px; }
+    .sale { display:grid; grid-template-columns:minmax(0,1fr); gap:14px; max-width:600px; margin:0 auto; padding-bottom:96px; }
     header { display:flex; align-items:center; gap:8px; }
     header a { width:48px; height:48px; display:grid; place-items:center; color:var(--flow-ink); }
     h1 { margin:0; font-size:24px; }
     h2 { margin:0; font-size:17px; }
-    .card { display:grid; gap:12px; padding:16px; border:1px solid var(--flow-line); border-radius:var(--flow-radius); background:#fff; }
+    .card { display:grid; grid-template-columns:minmax(0,1fr); min-width:0; gap:12px; padding:16px; border:1px solid var(--flow-line); border-radius:var(--flow-radius); background:#fff; }
     label { display:grid; gap:6px; font-size:14px; font-weight:700; }
-    input { min-height:48px; box-sizing:border-box; padding:0 12px; border:1px solid var(--flow-line); border-radius:10px; font:inherit; font-size:18px; }
+    input { width:100%; min-width:0; min-height:48px; box-sizing:border-box; padding:0 12px; border:1px solid var(--flow-line); border-radius:10px; font:inherit; font-size:18px; }
     .search { display:flex; align-items:center; gap:8px; padding-left:12px; border:1px solid var(--flow-line); border-radius:10px; }
     .search input { flex:1; border:0; }
     .choices { display:grid; max-height:240px; overflow:auto; }
@@ -128,7 +129,7 @@ const METHODS: { value: PaymentMethod; label: string }[] = [
     .picked { display:flex; align-items:center; gap:10px; }
     .picked small { flex:1; }
     .link { min-height:44px; border:0; background:none; color:var(--flow-teal); font:inherit; font-weight:700; }
-    .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
     .line { display:grid; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--flow-line); }
     .line-head { display:flex; justify-content:space-between; align-items:center; }
     .line-head button { width:48px; height:48px; border:0; background:none; color:var(--flow-clay); }
@@ -159,6 +160,8 @@ export class FlowSaleComponent implements OnInit {
   private readonly customersService = inject(CustomersService);
   private readonly stock = inject(InventoryService);
   private readonly khata = inject(KhataService);
+  private readonly queue = inject(OfflineQueueService);
+
   protected readonly icons = { ArrowLeft, CheckCircle2, MessageCircle, Plus, Search, Trash2, UserPlus };
   protected readonly modes = MODES;
   protected readonly methods = METHODS;
@@ -180,7 +183,10 @@ export class FlowSaleComponent implements OnInit {
   /** A retry after a network error reuses the key, so the sale is not saved twice. */
   private idempotencyKey = crypto.randomUUID();
 
-  protected readonly total = computed(() => this.cart().reduce((sum, l) => sum + (l.quantity || 0) * (l.unitPrice || 0), 0));
+  /** Recomputed on every check: quantity and price are edited in place on the cart lines. */
+  protected total(): number {
+    return this.cart().reduce((sum, l) => sum + (l.quantity || 0) * (l.unitPrice || 0), 0);
+  }
 
   ngOnInit(): void {
     this.customersService.list({ isActive: true }).subscribe((items) => this.customers.set(items));
@@ -218,17 +224,20 @@ export class FlowSaleComponent implements OnInit {
     this.adding.set(true);
   }
 
-  protected addCustomer(): void {
+  protected async addCustomer(): Promise<void> {
     this.saving.set(true);
-    this.customersService.create({ name: this.newName.trim(), phone: this.newPhone.trim() }).subscribe({
-      next: (c) => {
-        this.saving.set(false);
-        this.adding.set(false);
-        this.customers.update((list) => [c, ...list]);
-        this.pickCustomer(c);
-      },
-      error: (e) => this.fail(e),
-    });
+    const body = { name: this.newName.trim(), phone: this.newPhone.trim() };
+    try {
+      const r = await this.queue.send<Customer>({ kind: 'customer', label: body.name, url: '/api/customers', body });
+      // Offline: a stand-in customer; the sale refers to the queued customer and gets its id on sync.
+      const c = r.saved ? r.response : ({ id: `local:${r.id}`, name: body.name, phone: body.phone } as Customer);
+      this.saving.set(false);
+      this.adding.set(false);
+      this.customers.update((list) => [c, ...list]);
+      this.pickCustomer(c);
+    } catch (e) {
+      this.fail(e);
+    }
   }
 
   protected pickCustomer(c: Customer): void {
@@ -261,28 +270,35 @@ export class FlowSaleComponent implements OnInit {
     return !!this.customer() && linesOk && paidOk;
   }
 
-  protected save(): void {
+  protected async save(): Promise<void> {
     if (!this.canSave()) return;
     this.saving.set(true);
     this.message.set('');
-    this.sales
-      .create(
-        {
-          customerId: this.customer()!.id,
-          paymentMode: this.mode(),
-          ...(this.mode() === 'PARTIAL' ? { paidAmount: this.paidAmount! } : {}),
-          ...(this.mode() !== 'CREDIT' ? { paymentMethod: this.method() } : {}),
-          lines: this.cart().map((l) => ({ inventoryItemId: l.item.id, unit: l.unit, quantity: l.quantity!, unitPrice: l.unitPrice! })),
-        },
-        this.idempotencyKey,
-      )
-      .subscribe({
-        next: (sale) => {
-          this.saving.set(false);
-          this.done.set(sale);
-        },
-        error: (e) => this.fail(e),
+    const c = this.customer()!;
+    const body = {
+      customerId: c.id.startsWith('local:') ? this.queue.ref(c.id.slice(6)) : c.id,
+      paymentMode: this.mode(),
+      ...(this.mode() === 'PARTIAL' ? { paidAmount: this.paidAmount! } : {}),
+      ...(this.mode() !== 'CREDIT' ? { paymentMethod: this.method() } : {}),
+      lines: this.cart().map((l) => ({ inventoryItemId: l.item.id, unit: l.unit, quantity: l.quantity!, unitPrice: l.unitPrice! })),
+    };
+    try {
+      const r = await this.queue.send<SaleDetail>({
+        kind: 'sale',
+        label: `${c.name} · Rs ${this.total().toLocaleString()}`,
+        url: '/api/sales',
+        id: this.idempotencyKey,
+        body,
       });
+      this.saving.set(false);
+      if (r.saved) this.done.set(r.response);
+      else {
+        this.reset();
+        this.message.set('Sale saved on phone. It will sync when you are online.');
+      }
+    } catch (e) {
+      this.fail(e);
+    }
   }
 
   protected share(sale: SaleDetail): void {

@@ -9,6 +9,7 @@ import { TenantService } from '../../core/tenant/tenant.service';
 import { CustomersService } from '../../modules/sales/customers.service';
 import { KhataService, Language, Ledger } from '../../modules/sales/khata.service';
 import { PaymentMethod } from '../../modules/sales/sales.models';
+import { OfflineQueueService } from '../../core/offline/offline-queue.service';
 
 const METHODS: { value: PaymentMethod; label: string }[] = [
   { value: 'CASH', label: 'Cash' },
@@ -118,6 +119,7 @@ export class KhataCustomerComponent implements OnInit {
   /** Route parameter. */
   readonly id = input.required<string>();
   private readonly khata = inject(KhataService);
+  private readonly queue = inject(OfflineQueueService);
   private readonly customers = inject(CustomersService);
   protected readonly icons = { ArrowLeft, Camera, MessageCircle, Pencil };
   protected readonly methods = METHODS;
@@ -154,24 +156,34 @@ export class KhataCustomerComponent implements OnInit {
     this.photo = (event.target as HTMLInputElement).files?.[0] ?? null;
   }
 
-  protected pay(): void {
+  protected async pay(): Promise<void> {
     if (!this.amount || this.amount <= 0) return;
     this.saving.set(true);
     const amount = this.amount;
     const photo = this.photo;
-    this.khata.recordPayment({ customerId: this.id(), amount, method: this.method() }, this.paymentKey).subscribe({
-      next: (result) => {
-        this.paymentKey = crypto.randomUUID();
-        if (photo) this.khata.addPhoto(result.payment.id, photo).subscribe({ error: () => this.show('Payment saved, but the screenshot did not upload.', true) });
-        this.saving.set(false);
-        this.paying.set(false);
-        this.amount = null;
-        this.photo = null;
-        this.show(`Rs ${amount.toLocaleString()} received. Balance now Rs ${Number(result.balance).toLocaleString()}.`);
-        this.load();
-      },
-      error: (e) => this.fail(e),
-    });
+    try {
+      const r = await this.queue.send<{ payment: { id: string }; balance: string }>({
+        kind: 'payment',
+        label: `${this.ledger()?.customer?.name ?? ''} · Rs ${amount.toLocaleString()}`,
+        url: '/api/khata/payments',
+        id: this.paymentKey,
+        body: { customerId: this.id(), amount, method: this.method() },
+      });
+      this.paymentKey = crypto.randomUUID();
+      this.saving.set(false);
+      this.paying.set(false);
+      this.amount = null;
+      this.photo = null;
+      if (!r.saved) {
+        this.show(`Rs ${amount.toLocaleString()} saved on phone. It will sync when you are online.`);
+        return;
+      }
+      if (photo) this.khata.addPhoto(r.response.payment.id, photo).subscribe({ error: () => this.show('Payment saved, but the screenshot did not upload.', true) });
+      this.show(`Rs ${amount.toLocaleString()} received. Balance now Rs ${Number(r.response.balance).toLocaleString()}.`);
+      this.load();
+    } catch (e) {
+      this.fail(e);
+    }
   }
 
   protected remind(): void {

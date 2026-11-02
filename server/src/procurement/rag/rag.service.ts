@@ -16,41 +16,6 @@ export class RagService {
     private tenantSequenceService: TenantSequenceService,
   ) {}
 
-  async createIdempotent(tenantId: string, dto: CreateRagDto, userId: string, idempotencyKey?: string) {
-    const key = idempotencyKey?.trim().slice(0, 128);
-    if (!key) return this.create(tenantId, dto, userId);
-
-    const scope = 'RAG_INTAKE';
-    let requestId: string;
-    try {
-      const request = await this.prisma.idempotencyKey.create({
-        data: { tenantId, scope, key },
-        select: { id: true },
-      });
-      requestId = request.id;
-    } catch (error: any) {
-      if (error?.code !== 'P2002') throw error;
-      const existing = await this.prisma.idempotencyKey.findFirst({
-        where: { tenantId, scope, key },
-        select: { responseJson: true },
-      });
-      if (existing?.responseJson) return existing.responseJson;
-      throw new ConflictException('This intake request is already being processed. Refresh before retrying.');
-    }
-
-    try {
-      const result = await this.create(tenantId, dto, userId);
-      await this.prisma.idempotencyKey.update({
-        where: { id: requestId },
-        data: { responseJson: JSON.parse(JSON.stringify(result)) },
-      });
-      return result;
-    } catch (error) {
-      await this.prisma.idempotencyKey.delete({ where: { id: requestId } }).catch(() => undefined);
-      throw error;
-    }
-  }
-
   async create(tenantId: string, dto: CreateRagDto, userId: string) {
     let container: any = null;
 

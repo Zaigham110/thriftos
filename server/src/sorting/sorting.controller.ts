@@ -19,6 +19,7 @@ import {
 } from './sorting.dto';
 import { SortingOutputsService } from './sorting-outputs.service';
 import { SortingWasteService } from './sorting-waste.service';
+import { Idempotent } from '../common/idempotency/idempotent.interceptor';
 
 @Controller('sorting/stage-1')
 @UseGuards(TenantGuard, PermissionGuard)
@@ -52,12 +53,14 @@ export class SortingStage1Controller {
     return this.sessions.summary(tenantId, id);
   }
 
+  @Idempotent('SORT1_START')
   @Post('start')
   @RequirePermissions('SORTING_STAGE1_CREATE')
   start(@TenantId() tenantId: string, @Body() dto: StartSortDto, @CurrentUser() user: CurrentUserData) {
     return this.sessions.start(tenantId, dto, user.userId);
   }
 
+  @Idempotent('SORT1_LINE')
   @Post('allocate')
   @HttpCode(HttpStatus.OK)
   @RequirePermissions('SORTING_STAGE1_EDIT')
@@ -71,6 +74,7 @@ export class SortingStage1Controller {
     return this.sessions.close(tenantId, id, user.userId, dto.wasteCategoryId);
   }
 
+  @Idempotent('SORT1_WASTE')
   @Post('waste')
   @RequirePermissions('SORTING_STAGE1_EDIT')
   async addWaste(@TenantId() tenantId: string, @Body() dto: AddWasteDto) {
@@ -113,12 +117,14 @@ export class SortingStage2Controller {
     return this.sessions.summary(tenantId, id);
   }
 
+  @Idempotent('SORT2_START')
   @Post('start')
   @RequirePermissions('SORTING_STAGE2_CREATE')
   start(@TenantId() tenantId: string, @Body() dto: StartGradingDto, @CurrentUser() user: CurrentUserData) {
     return this.sessions.start(tenantId, dto, user.userId);
   }
 
+  @Idempotent('SORT2_LINE')
   @Post('allocate')
   @HttpCode(HttpStatus.OK)
   @RequirePermissions('SORTING_STAGE2_EDIT')
@@ -132,6 +138,7 @@ export class SortingStage2Controller {
     return this.sessions.close(tenantId, id, user.userId, dto.wasteCategoryId);
   }
 
+  @Idempotent('SORT2_WASTE')
   @Post('waste')
   @RequirePermissions('SORTING_STAGE2_EDIT')
   async addWaste(@TenantId() tenantId: string, @Body() dto: AddWasteDto) {

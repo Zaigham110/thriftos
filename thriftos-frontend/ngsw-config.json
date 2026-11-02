@@ -1,13 +1,25 @@
 {
   "$schema": "./node_modules/@angular/service-worker/config/schema.json",
   "index": "/index.html",
-  "navigationUrls": ["/**", "!/**/*.*", "!/**/*__*", "!/**/*__*/**", "!/api/**"],
+  "navigationUrls": [
+    "/**",
+    "!/**/*.*",
+    "!/**/*__*",
+    "!/**/*__*/**",
+    "!/api/**"
+  ],
   "assetGroups": [
     {
       "name": "app",
       "installMode": "prefetch",
       "resources": {
-        "files": ["/favicon.ico", "/index.html", "/manifest.webmanifest", "/*.css", "/*.js"]
+        "files": [
+          "/favicon.ico",
+          "/index.html",
+          "/manifest.webmanifest",
+          "/*.css",
+          "/*.js"
+        ]
       }
     },
     {
@@ -15,7 +27,12 @@
       "installMode": "lazy",
       "updateMode": "prefetch",
       "resources": {
-        "files": ["/icons/**", "/media/**", "/i18n/**", "/*.(svg|png|jpg|webp|woff|woff2|ttf)"]
+        "files": [
+          "/icons/**",
+          "/media/**",
+          "/i18n/**",
+          "/*.(svg|png|jpg|webp|woff|woff2|ttf)"
+        ]
       }
     }
   ],
@@ -24,15 +41,19 @@
       "name": "reference-data",
       "urls": [
         "/api/me",
-        "/api/tenant/settings",
-        "/api/tenant/categories",
-        "/api/tenant/grades",
-        "/api/tenant/waste-categories",
+        "/api/tenant",
+        "/api/tenant/**",
         "/api/procurement/vendors**",
         "/api/procurement/rags**",
-        "/api/customers**",
+        "/api/procurement/containers**",
+        "/api/sorting/*/queue**",
+        "/api/sorting/*/summary**",
+        "/api/sorting/*/sessions/**",
         "/api/stock/items**",
+        "/api/stock/bales**",
+        "/api/customers**",
         "/api/khata**",
+        "/api/sales/last-price**",
         "/api/home/**"
       ],
       "cacheConfig": {

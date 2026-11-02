@@ -28,7 +28,7 @@ Work phase by phase, in order. Each task ends with: typecheck clean (server + fr
 
 ## Phase 3 — Floor app and owner home (weeks 4–6)
 - [x] 3.1 PWA: `@angular/service-worker`, manifest, icons, install prompt; cache reference data.
-- [ ] 3.2 Offline queue (IndexedDB) for receive, sort line, bale, sale, payment; idempotency keys honoured by the server for these endpoints; sync badge; conflict list in Home.
+- [x] 3.2 Offline queue (IndexedDB) for receive, sort line, bale, sale, payment; idempotency keys honoured by the server for these endpoints; sync badge; conflict list in Home.
 - [ ] 3.3 i18n service with `en.json` and `ur.json`, RTL switch, Urdu fonts; all v1 screens translated.
 - [ ] 3.4 Screens per `02-APP-FLOW.md` journeys 1–8 following `05-UI-UX-GUIDELINES.md` (tiles, keypad, bottom action bar).
 - [ ] 3.5 QR: generate label (code, grade/category, kg, origin, tenant name) as printable A4 sheet (e.g., 3×8) and 50×30mm thermal layout; camera scan to open a bale or add it to a sale.

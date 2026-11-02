@@ -15,7 +15,7 @@ import {
 } from 'lucide-angular';
 
 import { AuthService } from '../core/auth';
-import { OfflineDraftService } from '../core/operations/offline-draft.service';
+import { OfflineQueueService } from '../core/offline/offline-queue.service';
 import { PwaService } from '../core/pwa/pwa.service';
 import { TenantModule, TenantService } from '../core/tenant/tenant.service';
 
@@ -62,7 +62,7 @@ const NAV: NavItem[] = [
             }
           </nav>
           <div class="sidebar-footer">
-            <span class="sync" [class.offline]="!offline.isOnline()"><i></i>{{ syncLabel() }}</span>
+            <span class="sync" [class.offline]="!offline.online()"><i></i>{{ syncLabel() }}</span>
             <button type="button" class="signout" (click)="signOut()"><lucide-icon [img]="icons.LogOut" [size]="17" /> Sign out</button>
           </div>
         </aside>
@@ -85,7 +85,7 @@ const NAV: NavItem[] = [
       <div class="phone">
         <header class="topbar">
           <a routerLink="/home" class="topbar-brand">ThriftOS</a>
-          <span class="sync" [class.offline]="!offline.isOnline()"><i></i>{{ syncLabel() }}</span>
+          <span class="sync" [class.offline]="!offline.online()"><i></i>{{ syncLabel() }}</span>
           <button type="button" class="more-button" (click)="moreOpen.set(true)" aria-label="More"><lucide-icon [img]="icons.Menu" [size]="22" /></button>
         </header>
         @if (pwa.updateReady()) {
@@ -159,7 +159,7 @@ export class AppShellComponent {
   private readonly auth = inject(AuthService);
   private readonly tenantService = inject(TenantService);
   private readonly router = inject(Router);
-  protected readonly offline = inject(OfflineDraftService);
+  protected readonly offline = inject(OfflineQueueService);
   protected readonly pwa = inject(PwaService);
   protected readonly icons = { LogOut, Menu };
   protected readonly layout = signal<LayoutMode>(layoutFor(window.innerWidth));
@@ -173,7 +173,8 @@ export class AppShellComponent {
   protected readonly phoneTabs = computed(() => this.visibleNav().filter((item) => this.phoneTabPaths.includes(item.path)));
   protected readonly phoneMore = computed(() => this.visibleNav().filter((item) => !this.phoneTabPaths.includes(item.path)));
   protected readonly syncLabel = computed(() => {
-    if (!this.offline.isOnline()) return `Offline — saved on phone (${this.offline.pendingCount()})`;
+    if (!this.offline.online()) return `Offline — saved on phone (${this.offline.pendingCount()})`;
+    if (this.offline.failed().length) return `${this.offline.failed().length} need attention`;
     return this.offline.pendingCount() ? `${this.offline.pendingCount()} not synced yet` : 'Synced';
   });
 

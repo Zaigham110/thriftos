@@ -69,3 +69,50 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit -p tsconfig.app.json
       - run: npx ng build
+
+  browser:
+    # Playwright on a 360px phone against the production build (service worker on).
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: thriftos
+          POSTGRES_PASSWORD: thriftos
+          POSTGRES_DB: thriftos_pw_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U thriftos -d thriftos_pw_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PW_DATABASE_URL: postgresql://thriftos:thriftos@localhost:5432/thriftos_pw_test?schema=public
+      JWT_SECRET: ci-only-secret
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+            thriftos-frontend/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: server
+      - run: npm run build
+        working-directory: server
+      - run: npm ci
+        working-directory: thriftos-frontend
+      - run: npx ng build
+        working-directory: thriftos-frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: thriftos-frontend
+      - run: npm run e2e
+        working-directory: thriftos-frontend
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: thriftos-frontend/test-results

@@ -2,11 +2,11 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AlertTriangle, ArrowRight, CheckCircle2, CloudOff, LucideAngularModule, Play, RefreshCw } from 'lucide-angular';
-import { OfflineDraftService } from '../../../core/operations/offline-draft.service';
+import { NeedsAttentionComponent } from '../../../shared/offline/needs-attention.component';
 import { WorkQueueService } from '../../../core/operations/work-queue.service';
 
 @Component({
-  selector: 'app-flow-work', standalone: true, imports: [CommonModule, RouterLink, LucideAngularModule],
+  selector: 'app-flow-work', standalone: true, imports: [CommonModule, RouterLink, LucideAngularModule, NeedsAttentionComponent],
   template: `
     <section class="work-page">
       <header class="work-intro"><div><span class="work-kicker">Shift workspace</span><h1>My Work</h1><p>Start the right material task, recover interrupted work, and resolve what is blocking flow.</p></div><button type="button" class="refresh-button" [disabled]="workQueue.loading()" (click)="workQueue.load()"><lucide-icon [img]="icons.RefreshCw" [size]="16"></lucide-icon> Refresh</button></header>
@@ -15,7 +15,7 @@ import { WorkQueueService } from '../../../core/operations/work-queue.service';
       @else if (workQueue.queue(); as queue) {
         <section class="next-task"><div class="next-task-marker">Next approved action</div><div class="next-task-copy"><span class="next-task-state"><lucide-icon [img]="icons.CheckCircle2" [size]="16"></lucide-icon> Lifecycle-ready</span><h2>{{ queue.nextAction.label }}</h2><p>ThriftOS has applied current material state, permission rules, and tenant policy before recommending this action.</p></div><a [routerLink]="flowRoute(queue.nextAction.route)" class="start-task">Start <lucide-icon [img]="icons.ArrowRight" [size]="17"></lucide-icon></a></section>
         <div class="work-summary"><article><span>Ready to transform</span><strong>{{ queue.summary.readyRags }}</strong><small>Available material units</small></article><article><span>Active work</span><strong>{{ queue.summary.activeSorting + queue.summary.activeGrading }}</strong><small>Sort and grade sessions</small></article><article><span>Ready stock</span><strong>{{ queue.summary.availableInventory }}</strong><small>Sellable inventory units</small></article></div>
-        @if (offlineDrafts.conflictedDrafts().length) { <section class="work-section"><header><div><span>Recovery</span><h2>Sync needs your review</h2></div><lucide-icon [img]="icons.CloudOff" [size]="20"></lucide-icon></header><div class="recovery-list">@for (draft of offlineDrafts.conflictedDrafts(); track draft.id) { <div class="recovery-row"><div><strong>{{ draft.type === 'RAG_INTAKE' ? 'Intake draft' : draft.type }}</strong><small>{{ draft.lastError || 'This draft has not synced yet.' }}</small></div><button type="button" [disabled]="!offlineDrafts.isOnline()" (click)="offlineDrafts.retry(draft)">Retry sync</button></div> }</div></section> }
+        <app-needs-attention />
         <div class="work-columns"><section class="work-section"><header><div><span>Continue</span><h2>Resumable work</h2></div></header>@if (queue.tasks.length) { <div class="task-list">@for (task of queue.tasks; track task.id) { <a [routerLink]="flowRoute(task.route)"><span class="task-type">{{ task.type.replace('_', ' ') }}</span><strong>{{ task.title }}</strong><small>Updated {{ task.updatedAt | date:'short' }}</small><lucide-icon [img]="icons.ArrowRight" [size]="16"></lucide-icon></a> }</div> } @else { <div class="empty-state"><lucide-icon [img]="icons.Play" [size]="20"></lucide-icon><p>No work is waiting to be resumed.</p></div> }</section>
         <section class="work-section attention"><header><div><span>Intervene</span><h2>Needs attention</h2></div></header>@if (queue.blockers.length) { <div class="blocker-list">@for (blocker of queue.blockers; track blocker.type) { <a [routerLink]="flowRoute(blocker.route)"><b>{{ blocker.count }}</b><span><strong>{{ blocker.title }}</strong><small>{{ blocker.detail }}</small></span><lucide-icon [img]="icons.ArrowRight" [size]="16"></lucide-icon></a> }</div> } @else { <div class="empty-state"><lucide-icon [img]="icons.CheckCircle2" [size]="20"></lucide-icon><p>No blocked records need action.</p></div> }</section></div>
       }
@@ -27,7 +27,6 @@ import { WorkQueueService } from '../../../core/operations/work-queue.service';
 })
 export class FlowWorkComponent implements OnInit {
   protected readonly workQueue = inject(WorkQueueService);
-  protected readonly offlineDrafts = inject(OfflineDraftService);
   protected readonly icons = { AlertTriangle, ArrowRight, CheckCircle2, CloudOff, Play, RefreshCw };
   ngOnInit(): void { this.workQueue.load(); }
   /** The shared queue also feeds Lite; keep Flow users in the guarded Flow route space. */

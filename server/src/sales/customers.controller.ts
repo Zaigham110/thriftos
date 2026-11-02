@@ -3,6 +3,7 @@ import { CurrentUser, CurrentUserData, TenantId } from '../common/decorators';
 import { TenantGuard } from '../common/guards/tenant.guard';
 import { CustomersService } from './customers.service';
 import { CreateCustomerDto, CustomersQueryDto, UpdateCustomerDto } from './dto/customer.dto';
+import { Idempotent } from '../common/idempotency/idempotent.interceptor';
 
 @Controller('customers')
 @UseGuards(TenantGuard)
@@ -19,6 +20,7 @@ export class CustomersController {
     return this.customers.get(tenantId, id);
   }
 
+  @Idempotent('CUSTOMER_CREATE')
   @Post()
   create(@TenantId() tenantId: string, @Body() dto: CreateCustomerDto, @CurrentUser() user: CurrentUserData) {
     return this.customers.create(tenantId, dto, user.userId);

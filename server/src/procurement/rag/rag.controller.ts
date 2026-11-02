@@ -21,6 +21,7 @@ import { RequirePermissions } from '../../common/decorators/permissions.decorato
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { RagStatus } from '@prisma/client';
+import { Idempotent } from '../../common/idempotency/idempotent.interceptor';
 
 @Controller('procurement')
 @UseGuards(TenantGuard, PermissionGuard)
@@ -29,6 +30,7 @@ export class RagController {
 
   /** The one way to record a lot: loose, or in a container (containerId). Safe to retry with an Idempotency-Key. */
   @Post('rags')
+  @Idempotent('RAG_INTAKE')
   @RequirePermissions('rag.create')
   @HttpCode(HttpStatus.CREATED)
   async createLooseRag(
@@ -37,7 +39,7 @@ export class RagController {
     @Req() req: Request,
   ) {
     const tenantId = (req as any).tenantId || user.tenantId;
-    return this.ragService.createIdempotent(tenantId, dto, user.userId, req.header('idempotency-key'));
+    return this.ragService.create(tenantId, dto, user.userId);
   }
 
   /**

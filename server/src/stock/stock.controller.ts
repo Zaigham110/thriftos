@@ -6,6 +6,7 @@ import { BaleService } from './bale.service';
 import { DirectStockService } from './direct-stock.service';
 import { InventoryService } from './inventory.service';
 import { AvailableStockQueryDto, MakeBaleDto, OpenBaleDto, ReceiveReadyStockDto, StockItemsQueryDto } from './stock.dto';
+import { Idempotent } from '../common/idempotency/idempotent.interceptor';
 
 @Controller('stock/bales')
 @UseGuards(TenantGuard, PermissionGuard)
@@ -24,6 +25,7 @@ export class BalesController {
     return this.bales.availableStock(tenantId, query);
   }
 
+  @Idempotent('BALE_MAKE')
   @Post()
   @RequirePermissions('REPACK_ALLOCATE')
   make(@TenantId() tenantId: string, @Body() dto: MakeBaleDto, @CurrentUser() user: CurrentUserData) {
@@ -52,12 +54,14 @@ export class StockItemsController {
   ) {}
 
   /** Receive stock bought ready to sell. */
+  @Idempotent('STOCK_RECEIVE')
   @Post()
   @RequirePermissions('INVENTORY_INTAKE')
   receive(@TenantId() tenantId: string, @Body() dto: ReceiveReadyStockDto, @CurrentUser() user: CurrentUserData) {
     return this.directStock.receive(tenantId, dto, user.userId);
   }
 
+  @Idempotent('STOCK_OPEN')
   @Post(':id/open')
   @RequirePermissions('INVENTORY_ADJUST')
   open(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: OpenBaleDto, @CurrentUser() user: CurrentUserData) {

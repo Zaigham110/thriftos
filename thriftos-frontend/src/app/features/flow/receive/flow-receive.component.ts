@@ -1,12 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AlertTriangle, ArrowRight, Camera, CheckCircle2, ClipboardList, History, Keyboard, LucideAngularModule, PackagePlus, RefreshCw, ScanLine, Scale, WifiOff } from 'lucide-angular';
 
 import { API_BASE_URL } from '../../../core/config/api.config';
-import { OfflineDraftService } from '../../../core/operations/offline-draft.service';
+import { OfflineQueueService } from '../../../core/offline/offline-queue.service';
 import { TenantService } from '../../../core/tenant/tenant.service';
 import { CameraScanSheetComponent } from '../shared/camera-scan-sheet.component';
 
@@ -35,7 +35,7 @@ type ReceiveType = 'BALE' | 'RAG';
           <fieldset><legend>Raw category <em>*</em></legend><div class="category-grid">@for (category of rawCategories(); track category.id) { <button type="button" [class.selected]="categoryId() === category.id" (click)="categoryId.set(category.id)">{{ category.name }}</button> } @empty { <span class="inline-state">Loading available categories…</span> }</div></fieldset>
           <div class="field-grid"><label><span>Net weight <em>*</em></span><div class="input-with-unit"><input type="number" min="0.01" step="0.1" [(ngModel)]="weightKg" placeholder="0.0"><b>kg</b></div><div class="weight-presets"><button type="button" (click)="addWeight(25)">+25</button><button type="button" (click)="addWeight(50)">+50</button><button type="button" (click)="addWeight(100)">+100</button></div></label><label><span>Purchase cost</span><div class="input-with-unit"><b>{{ currencySymbol() }}</b><input type="number" min="0" step="0.01" [(ngModel)]="cost" placeholder="0.00"></div>@if (costPerKg()) { <small>{{ currencySymbol() }}{{ costPerKg() | number:'1.2-2' }} / kg</small> }</label></div>
           <div class="field-grid"><label><span>Supplier</span><select [(ngModel)]="vendorId"><option value="">Direct / unassigned supplier</option>@for (vendor of vendors(); track vendor.id) { <option [value]="vendor.id">{{ vendor.name }}</option> }</select></label><label><span>Notes</span><input [(ngModel)]="notes" maxlength="420" placeholder="Condition, location, or receiving note"></label></div>
-          <div class="submit-row"><div><span class="connection-state" [class.offline]="!offlineDrafts.isOnline()"><lucide-icon [img]="offlineDrafts.isOnline() ? icons.CheckCircle2 : icons.WifiOff" [size]="15"></lucide-icon>{{ connectionMessage() }}</span><small>Lifecycle validation happens on the server.</small></div><button type="button" class="receive-submit" [disabled]="!canSubmit() || saving()" (click)="submit()">{{ saving() ? 'Recording…' : 'Record intake' }}<lucide-icon [img]="icons.ArrowRight" [size]="18"></lucide-icon></button></div>
+          <div class="submit-row"><div><span class="connection-state" [class.offline]="!queue.online()"><lucide-icon [img]="queue.online() ? icons.CheckCircle2 : icons.WifiOff" [size]="15"></lucide-icon>{{ connectionMessage() }}</span><small>Lifecycle validation happens on the server.</small></div><button type="button" class="receive-submit" [disabled]="!canSubmit() || saving()" (click)="submit()">{{ saving() ? 'Recording…' : 'Record intake' }}<lucide-icon [img]="icons.ArrowRight" [size]="18"></lucide-icon></button></div>
         </section>
         <aside class="receive-context"><section class="context-card"><header><div><span>Lifecycle</span><h2>Where this unit goes</h2></div></header><ol><li class="active"><b>1</b><span><strong>Receive</strong><small>Identity, weight, source, and cost</small></span></li><li><b>2</b><span><strong>Transform</strong><small>Category sorting and grade allocation</small></span></li><li><b>3</b><span><strong>Seal</strong><small>Approved sellable inventory</small></span></li><li><b>4</b><span><strong>Dispatch</strong><small>Reservation, sale, and fulfillment</small></span></li></ol></section>
         <section class="context-card recent-card"><header><div><span>Today</span><h2>Recently received</h2></div><button type="button" (click)="loadRecent()" aria-label="Refresh recent intake"><lucide-icon [img]="icons.RefreshCw" [size]="16"></lucide-icon></button></header>@if (loadingRecent()) { <div class="recent-state">Refreshing recent material…</div> } @else { <div class="recent-list">@for (item of recent(); track item.id) { <a [routerLink]="['/sort']" [queryParams]="{ baleCode: item.ragCode }"><span><strong>{{ item.ragCode }}</strong><small>{{ item.rawCategory?.name || 'Unclassified material' }} · {{ item.weightKg }} kg</small></span><span class="ready-status">Ready</span></a> } @empty { <div class="recent-state">No loose material has been received yet.</div> }</div> }</section></aside>
@@ -51,7 +51,7 @@ export class FlowReceiveComponent implements OnInit {
   private readonly tenantService = inject(TenantService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
-  protected readonly offlineDrafts = inject(OfflineDraftService);
+  protected readonly queue = inject(OfflineQueueService);
   protected readonly rawCategories = signal<RawCategory[]>([]);
   protected readonly vendors = signal<Vendor[]>([]);
   protected readonly recent = signal<ReceivedUnit[]>([]);
@@ -75,7 +75,7 @@ export class FlowReceiveComponent implements OnInit {
   protected costPerKg(): number | null { return this.weightKg && this.weightKg > 0 && this.cost !== null ? this.cost / this.weightKg : null; }
   protected canSubmit(): boolean { return Boolean(this.categoryId() && this.weightKg && this.weightKg > 0); }
   protected readonly currencySymbol = computed(() => this.tenantService.tenant()?.currency?.symbol || '$');
-  protected readonly connectionMessage = computed(() => this.offlineDrafts.isOnline() ? 'Connected · server validation on submit' : this.offlineDrafts.canQueueOffline() ? 'Offline · eligible drafts will queue' : 'Offline · this tenant requires a connection');
+  protected readonly connectionMessage = computed(() => this.queue.online() ? 'Connected · server validation on submit' : 'Offline · saved on phone until online');
 
   ngOnInit(): void { this.containerId.set(this.route.snapshot.queryParamMap.get('containerId') || ''); this.loadMasterData(); this.loadRecent(); }
   protected setCaptureMode(mode: 'scanner' | 'camera' | 'manual'): void { this.captureMode.set(mode); }
@@ -89,10 +89,10 @@ export class FlowReceiveComponent implements OnInit {
     const note = [this.sourceReference ? `Source reference: ${this.sourceReference}` : '', this.notes.trim()].filter(Boolean).join('\n');
     const payload = { rawCategoryId: this.categoryId(), weightKg: Number(this.weightKg), purchaseCost: this.containerId() ? undefined : Number(this.cost || 0), ragBaleType: this.receiveType(), vendorId: this.vendorId || undefined, containerId: this.containerId() || undefined, notes: note || undefined };
     this.saving.set(true); this.notice.set('');
-    this.http.post<ReceivedUnit>(`${API_BASE_URL}/procurement/rags`, payload, { headers: new HttpHeaders({ 'Idempotency-Key': crypto.randomUUID() }) }).subscribe({
-      next: (record) => { this.saving.set(false); this.noticeKind.set('success'); this.notice.set(`${record.ragCode} is received and ready for Transform.`); this.reset(); this.loadRecent(); },
-      error: (error) => { this.saving.set(false); if (error?.status === 0 && this.offlineDrafts.canQueueOffline()) { this.offlineDrafts.enqueue('RAG_INTAKE', payload); this.noticeKind.set('success'); this.notice.set('Connection lost. This intake has been saved locally and will sync when the connection returns.'); this.reset(); return; } this.noticeKind.set('error'); this.notice.set(error?.error?.message || 'The material could not be received. Check the details and try again.'); },
-    });
+    this.queue.send<ReceivedUnit>({ kind: 'receive', label: `Lot · ${payload.weightKg} kg`, url: `${API_BASE_URL}/procurement/rags`, body: payload }).then(
+      (r) => { this.saving.set(false); this.noticeKind.set('success'); this.notice.set(r.saved ? `${r.response.ragCode} is received and ready to sort.` : 'Saved on phone. It will sync when you are online.'); this.reset(); if (r.saved) this.loadRecent(); },
+      (error) => { this.saving.set(false); this.noticeKind.set('error'); this.notice.set(error?.error?.message || 'The lot could not be saved. Check the details and try again.'); },
+    );
   }
   private loadMasterData(): void { this.http.get<RawCategory[] | { data?: RawCategory[] }>(`${API_BASE_URL}/tenant/raw-categories`).subscribe({ next: (result) => { const categories = Array.isArray(result) ? result : result.data || []; this.rawCategories.set(categories); if (!this.categoryId() && categories[0]) this.categoryId.set(categories[0].id); } }); this.http.get<Vendor[] | { data?: Vendor[] }>(`${API_BASE_URL}/procurement/vendors`).subscribe({ next: (result) => this.vendors.set(Array.isArray(result) ? result : result.data || []) }); }
   private reset(): void { this.sourceReference = ''; this.vendorId = ''; this.weightKg = null; this.cost = null; this.notes = ''; this.captureMode.set(null); this.cameraOpen.set(false); }
