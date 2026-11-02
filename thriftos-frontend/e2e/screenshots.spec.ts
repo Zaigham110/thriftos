@@ -42,6 +42,7 @@ for (const lang of ['en', 'ur'] as const) {
     await page.goto('/receive');
     await shot(page, 'j1-receive', lang);
     await page.goto('/receive/container');
+    await page.getByRole('searchbox').first().fill(supplier.name);
     await page.getByRole('listitem').filter({ hasText: supplier.name }).click();
     await keypad(page, t('Invoice weight', 'بِل کا وزن'), 18000);
     await page.getByRole('button', { name: 'USD', exact: true }).click();
@@ -112,8 +113,14 @@ for (const lang of ['en', 'ur'] as const) {
     await page.getByRole('button', { name: t('JazzCash', 'جاز کیش'), exact: true }).click();
     await shot(page, 'j6-payment', lang);
 
-    // Home and the bill a customer sees on WhatsApp.
+    // Journey 7 — owner home and the lists behind it.
     await page.goto('/home');
-    await shot(page, 'home', lang);
+    await expect(page.locator('a.stat').first()).toBeVisible();
+    await shot(page, 'j7-owner-home', lang);
+    await page.goto('/home/containers');
+    await expect(page.locator('.list').first()).toBeVisible();
+    await shot(page, 'j7-containers', lang);
+    await page.goto('/home/today');
+    await shot(page, 'j7-today', lang);
   });
 }

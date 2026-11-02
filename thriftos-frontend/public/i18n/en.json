@@ -79,17 +79,23 @@
  },
  "home": {
   "basis": "Sold this month: price − cost",
+  "byOrigin": "By country",
   "bySupplier": "By supplier",
+  "customersOwing": "{n} customers",
   "lastContainers": "Last containers",
+  "lastN": "Average of the last {n} containers",
   "listContainers": "Containers",
   "listSales": "Today's sales",
   "listStock": "Ready stock",
   "lotsToSort": "Lots to sort",
   "munshiTitle": "Today's work",
   "noContainers": "No containers sold from yet.",
+  "noSalesToday": "No sales yet today.",
   "openSorting": "Sorting open",
+  "perKg": "{rs} per kg",
   "profit": "Profit this month",
   "profitPerContainer": "Profit per container",
+  "profitSoFar": "Profit so far",
   "salesCount": "{n} sales",
   "stockBasis": "{kg} · {bales} bales · {items} items",
   "stockReady": "Stock ready",
@@ -97,7 +103,8 @@
   "todaySales": "Today's sales",
   "topOwing": "Most udhaar",
   "udhaar": "Udhaar owed",
-  "yield": "A-grade {n}%"
+  "yield": "A-grade {n}%",
+  "yieldShort": "Yield {n}%"
  },
  "khata": {
   "addCustomer": "Customer",

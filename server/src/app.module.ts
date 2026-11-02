@@ -20,6 +20,7 @@ import { ReportsModule } from './reports/reports.module';
 import { HealthModule } from './health/health.module';
 import { AdminModule } from './admin/admin.module';
 import { SalesModule } from './sales/sales.module';
+import { HomeModule } from './home/home.module';
 import { SearchModule } from './search/search.module';
 
 @Module({
@@ -78,6 +79,7 @@ import { SearchModule } from './search/search.module';
     WasteModule,
     StockModule,
     SalesModule,
+    HomeModule,
     ReportsModule,
     SearchModule,
   ],

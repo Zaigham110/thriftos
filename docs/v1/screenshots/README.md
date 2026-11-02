@@ -23,4 +23,6 @@ Each screen has an `-en.png` and a `-ur.png`.
 | 5 Ready stock | What, counted in, how many, total cost | `j5-ready-stock` |
 | 6 Khata | Customers by udhaar | `j6-khata` |
 | 6 | Payment received: amount, JazzCash | `j6-payment` |
-| — | Home (floor) | `home` |
+| 7 Owner home | Profit per container, udhaar owed, stock ready, today's sales | `j7-owner-home` |
+| 7 | Behind profit per container: containers, by supplier, by country | `j7-containers` |
+| 7 | Behind today's sales | `j7-today` |

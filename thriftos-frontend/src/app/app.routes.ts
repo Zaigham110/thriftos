@@ -61,6 +61,8 @@ export const routes: Routes = [
         loadComponent: () => import('./features/home/home.component').then((m) => m.HomeComponent),
         title: 'ThriftOS',
       },
+      { path: 'home/containers', loadComponent: () => import('./features/home/containers.component').then((m) => m.HomeContainersComponent), title: 'ThriftOS' },
+      { path: 'home/today', loadComponent: () => import('./features/home/today.component').then((m) => m.HomeTodayComponent), title: 'ThriftOS' },
       {
         path: 'home/overview',
         loadComponent: () => import('./features/dashboard/dashboard/dashboard').then((m) => m.DashboardComponent),

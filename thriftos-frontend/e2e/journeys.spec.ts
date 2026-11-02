@@ -145,3 +145,29 @@ test('journey 5: a trader receives ready stock and opens a bale into pieces', as
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page).toHaveURL(/\/receive\/ready$/);
 });
+
+test('journey 7: the owner home shows three numbers and today, and each taps through to its list', async ({ page, request }) => {
+  const api = await apiAs(request);
+  const numbers = await api.get('/home');
+  await signIn(page);
+  const card = (name: string) => page.locator('a.stat').filter({ hasText: name });
+  await expect(card('Profit per container')).toBeVisible();
+  await expect(page.locator('a.stat')).toHaveCount(4);
+  await expect(card('Udhaar owed')).toContainText(loose(`Rs ${Number(numbers.udhaar.owed).toLocaleString('en-PK')}`));
+  await expect(card("Today's sales")).toContainText(`${numbers.today.sales} sales`);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+
+  await card('Profit per container').click();
+  await expect(page).toHaveURL(/\/home\/containers$/);
+  await expect(page.getByText('By supplier')).toBeVisible();
+  await page.goBack();
+  await card('Udhaar owed').click();
+  await expect(page).toHaveURL(/\/khata$/);
+  await page.goBack();
+  await card('Stock ready').click();
+  await expect(page).toHaveURL(/\/stock$/);
+  await page.goBack();
+  await card("Today's sales").click();
+  await expect(page).toHaveURL(/\/home\/today$/);
+  await expect(page.locator('.list li')).toHaveCount(Math.max(numbers.today.sales, 1));
+});

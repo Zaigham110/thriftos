@@ -79,17 +79,23 @@
  },
  "home": {
   "basis": "اس مہینے کی بِکری: ریٹ − لاگت",
+  "byOrigin": "ملک کے حساب سے",
   "bySupplier": "سپلائر کے حساب سے",
+  "customersOwing": "{n} گاہک",
   "lastContainers": "پچھلے کنٹینر",
+  "lastN": "پچھلے {n} کنٹینر کا اوسط",
   "listContainers": "کنٹینر",
   "listSales": "آج کی بِکری",
   "listStock": "تیار اسٹاک",
   "lotsToSort": "چھانٹی کے لیے لاٹ",
   "munshiTitle": "آج کا کام",
   "noContainers": "ابھی کسی کنٹینر کا مال نہیں بکا۔",
+  "noSalesToday": "آج ابھی کوئی بِکری نہیں۔",
   "openSorting": "جاری چھانٹی",
+  "perKg": "{rs} فی کلو",
   "profit": "اس مہینے کا منافع",
   "profitPerContainer": "فی کنٹینر منافع",
+  "profitSoFar": "اب تک منافع",
   "salesCount": "{n} بِکری",
   "stockBasis": "{kg} · {bales} گانٹھیں · {items} آئٹم",
   "stockReady": "تیار اسٹاک",
@@ -97,7 +103,8 @@
   "todaySales": "آج کی بِکری",
   "topOwing": "سب سے زیادہ اُدھار",
   "udhaar": "باقی اُدھار",
-  "yield": "A گریڈ {n}%"
+  "yield": "A گریڈ {n}%",
+  "yieldShort": "نتیجہ {n}%"
  },
  "khata": {
   "addCustomer": "گاہک",

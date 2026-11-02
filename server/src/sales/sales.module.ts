@@ -15,6 +15,6 @@ import { TenantSequenceModule } from '../procurement/shared/tenant-sequence.modu
   imports: [PrismaModule, AuditModule, TenantSequenceModule, StockModule],
   controllers: [SalesController, PublicBillController, CustomersController, KhataController],
   providers: [SalesService, CustomersService, KhataService, FileStorageService],
-  exports: [SalesService],
+  exports: [SalesService, KhataService],
 })
 export class SalesModule {}

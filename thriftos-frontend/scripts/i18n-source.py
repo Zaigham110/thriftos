@@ -122,6 +122,13 @@ T = {
   'home.listContainers': ('Containers', 'کنٹینر'),
   'home.listSales': ("Today's sales", 'آج کی بِکری'),
   'home.listStock': ('Ready stock', 'تیار اسٹاک'),
+  'home.byOrigin': ('By country', 'ملک کے حساب سے'),
+  'home.lastN': ('Average of the last {n} containers', 'پچھلے {n} کنٹینر کا اوسط'),
+  'home.profitSoFar': ('Profit so far', 'اب تک منافع'),
+  'home.yieldShort': ('Yield {n}%', 'نتیجہ {n}%'),
+  'home.perKg': ('{rs} per kg', '{rs} فی کلو'),
+  'home.customersOwing': ('{n} customers', '{n} گاہک'),
+  'home.noSalesToday': ('No sales yet today.', 'آج ابھی کوئی بِکری نہیں۔'),
 
   # receive (journeys 1 and 5)
   'receive.title': ('Maal aya', 'مال آیا'),
