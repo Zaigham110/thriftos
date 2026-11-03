@@ -62,11 +62,13 @@ jobs:
       - name: Publish the release (the server picks it up)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
         # A tag with a dash (v1.2.0-rc.1) is a prerelease: images only, never deployed (the server
         # follows GitHub's "latest" release, which skips prereleases).
         run: |
-          if [[ "${{ github.ref_name }}" == *-* ]]; then flag=--prerelease; else flag=--latest; fi
-          gh release create "${{ github.ref_name }}" --repo "${{ github.repository }}" --generate-notes $flag
+          if [[ "$TAG" == *-* ]]; then flag=--prerelease; else flag=--latest; fi
+          gh release create "$TAG" --repo "$REPO" --generate-notes "$flag"
 
   live:
     needs: release

@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       url:
-        description: Address to check (default: the APP_URL variable)
+        description: 'Address to check (default: the APP_URL variable)'
         required: false
 
 jobs:

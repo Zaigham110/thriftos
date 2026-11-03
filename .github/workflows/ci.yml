@@ -143,4 +143,6 @@ jobs:
       - name: No .env file gets into the images
         run: grep -qx '\*\*/.env' .dockerignore
       - name: Deploy scripts pass shellcheck
-        run: shellcheck deploy/deploy.sh deploy/server-setup.sh
+        run: shellcheck deploy/deploy.sh deploy/server-setup.sh deploy/auto-deploy.sh
+      - name: Workflows are valid (actionlint)
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7 -no-color
