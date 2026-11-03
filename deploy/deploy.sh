@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deploys one release on the production server and rolls back if it is not healthy.
-# Usage (as root, in /opt/thriftos):  deploy/deploy.sh <tag>
+# Usage (as root, in /opt/thriftos):  deploy/deploy.sh <tag>   (normally run by deploy/auto-deploy.sh)
 #   GHCR_USER / GHCR_TOKEN (optional): short-lived registry login for the pull; logged out right after.
 #   SKIP_PULL=1: use images already on this machine (rehearsals).
 # Steps: backup → pull → switch tag → up → wait for health → (fail: previous tag back) → prune.

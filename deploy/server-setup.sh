@@ -8,8 +8,10 @@
 # - automatic security updates (unattended-upgrades)
 # - /opt/thriftos/.env.prod with fresh secrets, mode 600 (replaces the JWT secret and DB password
 #   that are in git history)
-# Network access is not configured here: the AWS security group lets only CloudFront reach port 80,
-# and deploys come in through Systems Manager, so no SSH port is opened for them.
+# - thriftos-deploy.timer: every 2 minutes deploy/auto-deploy.sh deploys GitHub's latest release
+# Network access is not configured here: the AWS security group lets only CloudFront reach port 80.
+# Deploys are pulled by the server, so no port is opened for them.
+# Run it from a folder that also holds auto-deploy.sh (it is copied to /opt/thriftos/deploy).
 set -euo pipefail
 
 APP_URL="${1:?usage: server-setup.sh https://<id>.cloudfront.net}"
@@ -51,4 +53,29 @@ else
   echo "$DIR/.env.prod exists — left as it is."
 fi
 chmod 600 "$DIR/.env.prod"
-echo "Server ready: $DIR"
+
+install -m 755 "$(dirname "$0")/auto-deploy.sh" "$DIR/deploy/auto-deploy.sh"
+cat > /etc/systemd/system/thriftos-deploy.service <<EOF
+[Unit]
+Description=Deploy the latest ThriftOS release if it is new
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=$DIR/deploy/auto-deploy.sh
+EOF
+cat > /etc/systemd/system/thriftos-deploy.timer <<EOF
+[Unit]
+Description=Check for a new ThriftOS release every 2 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+
+[Install]
+WantedBy=timers.target
+EOF
+systemctl daemon-reload
+systemctl enable --now thriftos-deploy.timer
+echo "Server ready: $DIR (deploy log: journalctl -u thriftos-deploy)"
