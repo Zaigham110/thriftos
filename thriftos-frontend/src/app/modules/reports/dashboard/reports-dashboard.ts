@@ -8,7 +8,7 @@
 
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import {
   LucideAngularModule,
   BarChart3,
@@ -58,7 +58,6 @@ interface EnterpriseReportCard {
   standalone: true,
   imports: [
     CommonModule,
-    RouterLink,
     DecimalPipe,
     MoneyPipe,
     LucideAngularModule,

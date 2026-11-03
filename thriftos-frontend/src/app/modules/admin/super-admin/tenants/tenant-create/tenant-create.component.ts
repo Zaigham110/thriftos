@@ -21,9 +21,6 @@ import {
   AppPageComponent,
   AppPageHeaderComponent,
   AppPageBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSectionBodyComponent,
   AlertComponent,
 } from '../../../../../shared/ui';
 
@@ -60,9 +57,6 @@ const LOCALES = [
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
     AlertComponent,
   ],
   templateUrl: './tenant-create.component.html',

@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, v1-reshape]
+    branches: [main, v1-reshape, v2-go-live]
   pull_request:
 
 jobs:
@@ -70,7 +70,10 @@ jobs:
       - name: Every visible word in en and ur
         run: npm run i18n:check
       - run: npx tsc --noEmit -p tsconfig.app.json
-      - run: npm run build
+      - name: Build with no warnings
+        run: |
+          npm run build 2>&1 | tee build.log
+          if grep -q 'WARNING' build.log; then echo 'The Angular build has warnings (see above). Fix them.'; exit 1; fi
 
   browser:
     # Playwright on a 360px phone against the production build (service worker on).

@@ -21,11 +21,7 @@ import {
   AppPageComponent,
   AppPageHeaderComponent,
   AppPageBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSectionBodyComponent,
   AppLoadingComponent,
-  AppErrorStateComponent,
   AlertComponent,
 } from '../../../../../shared/ui';
 
@@ -67,11 +63,7 @@ const STATUSES = [
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
     AppLoadingComponent,
-    AppErrorStateComponent,
     AlertComponent,
   ],
   templateUrl: './tenant-edit.component.html',

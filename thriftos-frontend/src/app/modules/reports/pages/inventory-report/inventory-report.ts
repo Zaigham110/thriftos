@@ -13,14 +13,10 @@ import { ReportsService } from '../../reports.service';
 import { MoneyService } from '../../../../core/money/money.service';
 import { InventorySnapshotResponse, InventoryAgingResponse, ReportFilters } from '../../reports.models';
 import { ReportFiltersComponent } from '../../shared/report-filters.component';
-import { MoneyPipe } from '../../../../core/money/money.pipe';
 import {
   AppPageComponent,
   AppPageHeaderComponent,
   AppPageBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSectionBodyComponent,
   AppDataTableComponent,
   AppButtonComponent,
   AppErrorStateComponent,
@@ -36,15 +32,11 @@ import { LucideAngularModule, Package, Scale, RefreshCw, Layers, ShieldCheck, Cl
   imports: [
     CommonModule,
     DecimalPipe,
-    MoneyPipe,
     LucideAngularModule,
     ReportFiltersComponent,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
     AppDataTableComponent,
     AppButtonComponent,
     AppErrorStateComponent,

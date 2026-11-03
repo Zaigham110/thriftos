@@ -28,7 +28,6 @@ import type { SaleListItem, SaleStatus } from '../sales.models';
 import { MoneyPipe } from '../../../core/money/money.pipe';
 import {
   AppBreadcrumbComponent,
-  AppDialogComponent,
   AppEmptyStateComponent,
   AppErrorStateComponent,
   AppLoadingComponent,
@@ -55,7 +54,6 @@ type SalesTab = 'ALL' | 'DRAFTS' | 'ISSUED' | 'PAID';
     AppLoadingComponent,
     AppErrorStateComponent,
     AppEmptyStateComponent,
-    AppDialogComponent,
   ],
   templateUrl: './sales-index.page.html',
   styleUrl: './sales-index.page.scss',

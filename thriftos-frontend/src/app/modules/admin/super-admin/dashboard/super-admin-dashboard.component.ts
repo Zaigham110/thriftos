@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
-import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, of } from 'rxjs';
@@ -35,7 +35,6 @@ import {
   AppSectionBodyComponent,
   AppGridComponent,
   AppKpiCardComponent,
-  AppCardComponent,
   AppLoadingComponent,
   AppErrorStateComponent,
 } from '../../../../shared/ui';
@@ -46,7 +45,6 @@ import {
   imports: [
     CommonModule,
     DatePipe,
-    DecimalPipe,
     RouterLink,
     LucideAngularModule,
     AppPageComponent,
@@ -57,7 +55,6 @@ import {
     AppSectionBodyComponent,
     AppGridComponent,
     AppKpiCardComponent,
-    AppCardComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
   ],

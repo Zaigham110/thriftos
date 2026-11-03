@@ -8,7 +8,7 @@
  */
 
 import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import {
@@ -48,7 +48,6 @@ import {
   imports: [
     CommonModule,
     FormsModule,
-    DatePipe,
     LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
