@@ -1,4 +1,4 @@
-import { LOTS_LIST } from './features/workspace-lists/lists';
+import { EXPENSES_LIST, LOTS_LIST } from './features/workspace-lists/lists';
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth-guard';
 import { tenantAreaGuard } from './core/guards/tenant-area.guard';
@@ -160,6 +160,19 @@ export const routes: Routes = [
           { path: '', loadComponent: () => import('./features/sell/sell-home.component').then((m) => m.SellHomeComponent), title: 'ThriftOS' },
           { path: 'new', loadComponent: () => import('./features/sell/sale.component').then((m) => m.SaleComponent), title: 'ThriftOS' },
           { path: 'records', loadChildren: () => import('./modules/sales/sales.routes').then((m) => m.SALES_ROUTES) },
+        ],
+      },
+      {
+        // Finance (E3.6): management accounts on the laptop; each call checks its own permission.
+        path: 'finance',
+        children: [
+          { path: '', redirectTo: 'expenses', pathMatch: 'full' },
+          { path: 'expenses', loadComponent: () => import('./features/workspace-lists/list-page.component').then((m) => m.ListPageComponent), data: { list: EXPENSES_LIST }, title: 'ThriftOS' },
+          { path: 'expenses/new', loadComponent: () => import('./features/workspace-lists/expense.component').then((m) => m.ExpenseComponent), title: 'ThriftOS' },
+          { path: 'expenses/:id', loadComponent: () => import('./features/workspace-lists/expense.component').then((m) => m.ExpenseComponent), title: 'ThriftOS' },
+          { path: 'book', loadComponent: () => import('./features/workspace-lists/finance-book.component').then((m) => m.FinanceBookComponent), title: 'ThriftOS' },
+          { path: 'close', loadComponent: () => import('./features/workspace-lists/cash-close.component').then((m) => m.CashCloseComponent), title: 'ThriftOS' },
+          { path: 'pnl', loadComponent: () => import('./features/workspace-lists/pnl.component').then((m) => m.PnlComponent), title: 'ThriftOS' },
         ],
       },
       {

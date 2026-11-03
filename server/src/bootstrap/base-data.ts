@@ -131,6 +131,11 @@ export const PERMISSIONS = [
   { code: 'INVENTORY_INTAKE', name: 'Inventory - Intake', group: 'Inventory' },
   { code: 'INVENTORY_ADJUST', name: 'Inventory - Adjust', group: 'Inventory' },
   { code: 'INVENTORY_APPROVE', name: 'Inventory - Approve stock counts', group: 'Inventory' },
+
+  // Finance (enterprise E3.6): management accounts
+  { code: 'finance.view', name: 'Finance - View books, cash close and profit', group: 'Finance' },
+  { code: 'expense.create', name: 'Finance - Record and cancel expenses', group: 'Finance' },
+  { code: 'cash.close', name: 'Finance - Close the day\'s cash', group: 'Finance' },
   { code: 'INVENTORY_RESERVE', name: 'Inventory - Reserve/Release', group: 'Inventory' },
   
   // Reports

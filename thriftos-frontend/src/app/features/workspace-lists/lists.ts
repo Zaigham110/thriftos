@@ -217,3 +217,40 @@ export const LOTS_LIST: ListConfig = {
   create: { label: 'ws.new.lot', link: '/receive/lot' },
   board: { field: 'status', values: LOT_STATUSES, prefix: 'ws.lotStatus.', title: 'code', lines: ['container', 'kg', 'yield'] },
 };
+
+export const EXPENSE_CATEGORIES = ['RENT', 'LABOUR', 'TRANSPORT', 'ELECTRICITY', 'OTHER'] as const;
+export const PAYMENT_METHODS = ['CASH', 'JAZZCASH', 'EASYPAISA', 'RAAST', 'BANK', 'OTHER'] as const;
+
+/** Expenses (E3.6); a fresh list hides cancelled ones. */
+export const EXPENSES_LIST: ListConfig = {
+  resource: 'expenses',
+  title: 'ws.expenses.title',
+  count: 'ws.expenses.count',
+  searchPlaceholder: 'ws.expenses.search',
+  emptyHeading: 'ws.expenses.emptyHeading',
+  emptyMessage: 'ws.expenses.emptyMessage',
+  columns: [
+    { key: 'date', label: 'ws.col.date', format: 'date' },
+    { key: 'category', label: 'ws.container.category', enumPrefix: 'ws.expenseCategory.' },
+    { key: 'paidTo', label: 'ws.expenses.col.paidTo' },
+    { key: 'method', label: 'ws.sale.method', enumPrefix: 'method.' },
+    { key: 'amount', label: 'ws.sale.amount', format: 'money', total: true },
+    { key: 'note', label: 'ws.customer.note' },
+    { key: 'cancelled', label: 'ws.expenses.col.cancelled', format: 'date' },
+    { key: 'status', label: 'ws.col.status', enumPrefix: 'ws.expenses.status.', computed: true },
+  ],
+  defaultColumns: ['date', 'category', 'paidTo', 'method', 'amount', 'note'],
+  dateField: 'date',
+  defaultFilters: [{ field: 'cancelled', op: 'isnull' }],
+  groupBy: [
+    { key: 'category', label: 'ws.container.category', enumPrefix: 'ws.expenseCategory.' },
+    { key: 'method', label: 'ws.sale.method', enumPrefix: 'method.' },
+    { key: 'paidTo', label: 'ws.expenses.col.paidTo' },
+  ],
+  quickFilters: [
+    { field: 'category', label: 'ws.container.category', values: EXPENSE_CATEGORIES, prefix: 'ws.expenseCategory.' },
+    { field: 'method', label: 'ws.sale.method', values: PAYMENT_METHODS, prefix: 'method.' },
+  ],
+  rowLink: (id) => ['/finance/expenses', id],
+  create: { label: 'ws.expenses.new', link: '/finance/expenses/new' },
+};

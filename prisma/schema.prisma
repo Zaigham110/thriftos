@@ -233,21 +233,21 @@ enum RagBaleType {
 // =============================================================
 
 model Tenant {
-  id              String       @id @default(cuid())
-  name            String
-  companyCode     String       @unique
-  currency        String       @default("PKR")
-  locale          String       @default("ur-PK")
-  status          TenantStatus @default(ACTIVE)
+  id               String       @id @default(cuid())
+  name             String
+  companyCode      String       @unique
+  currency         String       @default("PKR")
+  locale           String       @default("ur-PK")
+  status           TenantStatus @default(ACTIVE)
   /// Visible tabs/APIs: RECEIVE, SORT, STOCK, SELL, KHATA, REPORTS, EXPORT, WAREHOUSES, PAYROLL
-  enabledModules  String[]     @default(["RECEIVE", "SORT", "STOCK", "SELL", "KHATA"])
+  enabledModules   String[]     @default(["RECEIVE", "SORT", "STOCK", "SELL", "KHATA"])
   /// 0 = trading only (no sorting), 1 = category only, 2 = category + grade
-  sortingStages   Int          @default(2)
-  defaultLanguage String       @default("ur")
+  sortingStages    Int          @default(2)
+  defaultLanguage  String       @default("ur")
   /// Set when the owner finished the setup wizard (journey 8); null = show the wizard after sign-in.
   setupCompletedAt DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   // Relations
   users                  User[]
@@ -325,7 +325,7 @@ model Customer {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   sales    Sale[]
   payments Payment[]
   promises PaymentPromise[]
@@ -551,12 +551,12 @@ model GlobalCategoryTemplate {
 // =============================================================
 
 model User {
-  id           String   @id @default(cuid())
-  tenantId     String
-  name         String
+  id                String    @id @default(cuid())
+  tenantId          String
+  name              String
   /// Owners and admins sign in with email + password; a munshi may have only a phone + PIN.
-  email        String?
-  passwordHash String?
+  email             String?
+  passwordHash      String?
   /// WhatsApp/phone in E.164 (+923001234567). Unique across tenants: it is the munshi's login.
   phone             String?   @unique
   /// bcrypt of the 4–6 digit PIN.
@@ -564,9 +564,9 @@ model User {
   /// Wrong PINs in a row; 5 locks the PIN for 15 minutes (the owner can unlock).
   failedPinAttempts Int       @default(0)
   pinLockedUntil    DateTime?
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   // Relations
   tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -1332,14 +1332,14 @@ model InventoryItem {
   updatedAt DateTime @updatedAt
 
   // Relations
-  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  repackUnit     RepackUnit?     @relation(fields: [repackUnitId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  category       Category?       @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  grade          Grade?          @relation(fields: [gradeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  vendor         Vendor?         @relation(fields: [vendorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  parentItem     InventoryItem?  @relation("OpenedPieces", fields: [parentItemId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  pieces         InventoryItem[] @relation("OpenedPieces")
-  warehouse      Warehouse?      @relation(fields: [warehouseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  tenant         Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  repackUnit     RepackUnit?       @relation(fields: [repackUnitId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  category       Category?         @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  grade          Grade?            @relation(fields: [gradeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  vendor         Vendor?           @relation(fields: [vendorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  parentItem     InventoryItem?    @relation("OpenedPieces", fields: [parentItemId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  pieces         InventoryItem[]   @relation("OpenedPieces")
+  warehouse      Warehouse?        @relation(fields: [warehouseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   stockMovements StockMovement[]
   adjustments    StockAdjustment[]
 
@@ -1521,4 +1521,54 @@ model Notification {
 
   @@index([userId, readAt, createdAt])
   @@index([tenantId])
+}
+
+// =============================================================
+// 💵 FINANCE (enterprise E3.6): management accounts, not a general ledger
+// =============================================================
+
+enum ExpenseCategory {
+  RENT
+  LABOUR
+  TRANSPORT
+  ELECTRICITY
+  OTHER
+}
+
+/// Money paid out for running the business. Cancelled expenses stay for the record and count nowhere.
+model Expense {
+  id          String          @id @default(cuid())
+  tenantId    String
+  /// The business day (Pakistan) it was paid.
+  day         DateTime        @db.Date
+  category    ExpenseCategory
+  amount      Decimal         @db.Decimal(14, 2)
+  method      PaymentMethod   @default(CASH)
+  paidTo      String?
+  note        String?
+  createdBy   String
+  cancelledAt DateTime?
+  cancelledBy String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([tenantId, day])
+  @@index([tenantId, category])
+}
+
+/// End of day: the cash counted against what the books say should be in the drawer. One per business day.
+model CashClose {
+  id         String   @id @default(cuid())
+  tenantId   String
+  day        DateTime @db.Date
+  /// What the cash book said at the end of the day (before this close).
+  expected   Decimal  @db.Decimal(14, 2)
+  counted    Decimal  @db.Decimal(14, 2)
+  /// counted − expected: short (negative) or over (positive); carried into the cash book.
+  difference Decimal  @db.Decimal(14, 2)
+  note       String?
+  closedBy   String
+  createdAt  DateTime @default(now())
+
+  @@unique([tenantId, day])
 }

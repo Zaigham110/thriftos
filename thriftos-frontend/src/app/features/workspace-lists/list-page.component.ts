@@ -236,7 +236,7 @@ export class ListPageComponent {
         const col = this.list().columns.find((c) => c.key === f.field);
         const quick = this.list().quickFilters.find((q) => q.field === f.field);
         const prefix = quick?.prefix ?? col?.enumPrefix;
-        const value = prefix && f.value ? this.i18n.t(prefix + f.value) : f.value ?? '—';
+        const value = f.op === 'isnull' ? this.i18n.t('ws.filter.none') : f.op === 'notnull' ? this.i18n.t('ws.filter.any') : prefix && f.value ? this.i18n.t(prefix + f.value) : f.value ?? '—';
         return { id: String(i), label: this.i18n.t(col?.label ?? quick?.label ?? f.field), value: f.op === 'ne' ? this.i18n.t('ws.filter.not', { value }) : value };
       }),
   );

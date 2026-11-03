@@ -261,7 +261,9 @@ export class WorkspaceShellComponent {
     (this.userName() || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join(''),
   );
 
-  private readonly allowed = (item: WsNavItem) => !item.module || this.tenantService.isModuleEnabled(item.module, this.tenantService.tenant());
+  private readonly allowed = (item: WsNavItem) =>
+    (!item.module || this.tenantService.isModuleEnabled(item.module, this.tenantService.tenant())) &&
+    (!item.permission || this.auth.isSuperAdmin() || this.auth.permissions().includes(item.permission));
   protected readonly navGroups = computed(() => WS_NAV.map((g) => ({ ...g, items: g.items.filter(this.allowed) })).filter((g) => g.items.length));
   protected readonly createItems = computed(() => WS_CREATE.filter(this.allowed));
   protected readonly commands = computed<PaletteCommand[]>(() => [

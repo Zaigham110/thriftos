@@ -1,7 +1,7 @@
 /** Records that have an activity panel (enterprise plan E2.4), with where each opens in the app. */
 export interface RecordType {
   /** Prisma model delegate name. */
-  model: 'sale' | 'container' | 'customer' | 'inventoryItem' | 'rag' | 'payment' | 'vendor';
+  model: 'sale' | 'container' | 'customer' | 'inventoryItem' | 'rag' | 'payment' | 'vendor' | 'expense';
   /** AuditLog.entityType values written for this kind of record. */
   auditEntities: string[];
   /** Field shown as the record's name in notifications. */
@@ -16,6 +16,7 @@ export const RECORD_TYPES: Record<string, RecordType> = {
   stockItem: { model: 'inventoryItem', auditEntities: ['InventoryItem', 'RepackUnit'], labelField: 'name', link: (id) => `/stock/items/${id}` },
   lot: { model: 'rag', auditEntities: ['Rag'], labelField: 'ragCode', link: (id) => `/sort/records/${id}` },
   payment: { model: 'payment', auditEntities: ['Payment'], labelField: 'reference', link: () => '/khata/records' },
+  expense: { model: 'expense', auditEntities: ['Expense'], labelField: 'category', link: (id) => `/finance/expenses/${id}` },
   supplier: { model: 'vendor', auditEntities: ['Vendor'], labelField: 'name', link: (id) => `/receive/records/suppliers/${id}` },
 };
 

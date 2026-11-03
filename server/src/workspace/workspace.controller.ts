@@ -8,6 +8,7 @@ import { ListsService } from '../lists/lists.service';
 import { WorkspaceRecordsService } from './records.service';
 import { CreditLimitDto, PromiseDto, ReceivablesService, ReminderDto, StatementQueryDto } from './receivables.service';
 import { SortingRecordsService, YieldQueryDto } from './sorting-records.service';
+import { BookQueryDto, CloseDto, CloseQueryDto, ExpenseDto, FinanceService, PnlQueryDto } from './finance.service';
 import { StockCountDto, StockDecisionDto, StockRecordsService, StockTransferDto } from './stock-records.service';
 
 /** Workspace record pages (enterprise plan E3): one call per page; cost and profit need cost.view. */
@@ -20,6 +21,7 @@ export class WorkspaceController {
     private readonly stock: StockRecordsService,
     private readonly receivables: ReceivablesService,
     private readonly sorting: SortingRecordsService,
+    private readonly finance: FinanceService,
   ) {}
 
   private async canSeeCost(user: CurrentUserData): Promise<boolean> {
@@ -93,6 +95,52 @@ export class WorkspaceController {
   @RequirePermissions('SORTING_STAGE1_VIEW')
   async sortingLot(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('lotId') id: string) {
     return this.sorting.lot(tenantId, id, await this.canSeeCost(user));
+  }
+
+  // ---- Finance (E3.6) ----
+  @Post('expenses')
+  @RequirePermissions('expense.create')
+  addExpense(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Body() dto: ExpenseDto) {
+    return this.finance.addExpense(tenantId, dto, user.userId);
+  }
+
+  @Get('expenses/:id')
+  @RequirePermissions('finance.view')
+  expense(@TenantId() tenantId: string, @Param('id') id: string) {
+    return this.finance.expense(tenantId, id);
+  }
+
+  @Post('expenses/:id/cancel')
+  @HttpCode(200)
+  @RequirePermissions('expense.create')
+  cancelExpense(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string) {
+    return this.finance.cancelExpense(tenantId, id, user.userId);
+  }
+
+  /** Cash or bank book by payment method. */
+  @Get('finance/book')
+  @RequirePermissions('finance.view')
+  book(@TenantId() tenantId: string, @Query() q: BookQueryDto) {
+    return this.finance.book(tenantId, q);
+  }
+
+  @Get('finance/close')
+  @RequirePermissions('finance.view')
+  closeView(@TenantId() tenantId: string, @Query() q: CloseQueryDto) {
+    return this.finance.closeView(tenantId, q);
+  }
+
+  @Post('finance/close')
+  @RequirePermissions('cash.close')
+  closeDay(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Body() dto: CloseDto) {
+    return this.finance.closeDay(tenantId, dto, user.userId);
+  }
+
+  /** Profit and loss by month; cost of goods needs cost.view too. */
+  @Get('finance/pnl')
+  @RequirePermissions('finance.view', 'cost.view')
+  pnl(@TenantId() tenantId: string, @Query() q: PnlQueryDto) {
+    return this.finance.pnl(tenantId, q);
   }
 
   // ---- Receivables (E3.5): open to everyone of the business, like the khata; profit needs cost.view ----

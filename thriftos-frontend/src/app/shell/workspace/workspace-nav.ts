@@ -9,9 +9,13 @@ import {
   Layers3,
   PackagePlus,
   PackageSearch,
+  Receipt,
   Settings2,
   ShoppingCart,
+  TrendingUp,
   Truck,
+  Vault,
+  Wallet,
 } from 'lucide-angular';
 import { TenantModule } from '../../core/tenant/tenant.service';
 
@@ -23,6 +27,8 @@ export interface WsNavItem {
   path: string;
   icon: Icon;
   module?: TenantModule;
+  /** Shown only to people with this permission. */
+  permission?: string;
   /** Extra words the command palette matches (English and Roman Urdu). */
   keywords?: string;
 }
@@ -52,6 +58,15 @@ export const WS_NAV: WsNavGroup[] = [
     items: [
       { label: 'ws.nav.sales', path: '/sell/records', icon: ShoppingCart, module: 'SELL', keywords: 'becho sale invoice bill' },
       { label: 'ws.nav.receivables', path: '/khata/records', icon: BookOpen, module: 'KHATA', keywords: 'khata udhaar customers payments' },
+    ],
+  },
+  {
+    label: 'ws.group.finance',
+    items: [
+      { label: 'ws.nav.expenses', path: '/finance/expenses', icon: Receipt, permission: 'finance.view', keywords: 'kharcha expense rent bijli labour transport' },
+      { label: 'ws.nav.book', path: '/finance/book', icon: Wallet, permission: 'finance.view', keywords: 'cash book bank jazzcash easypaisa raast' },
+      { label: 'ws.nav.close', path: '/finance/close', icon: Vault, permission: 'finance.view', keywords: 'cash close galla hisaab day end' },
+      { label: 'ws.nav.pnl', path: '/finance/pnl', icon: TrendingUp, permission: 'cost.view', keywords: 'profit loss munafa nuqsan p&l' },
     ],
   },
   { label: 'ws.group.insights', items: [{ label: 'ws.nav.reports', path: '/reports', icon: BarChart3, module: 'REPORTS', keywords: 'reports analytics' }] },
@@ -92,6 +107,11 @@ export const WS_CRUMBS: Record<string, string> = {
   suppliers: 'ws.nav.suppliers',
   value: 'ws.nav.stockValue',
   yield: 'ws.nav.yield',
+  finance: 'ws.group.finance',
+  expenses: 'ws.nav.expenses',
+  book: 'ws.nav.book',
+  close: 'ws.nav.close',
+  pnl: 'ws.nav.pnl',
   counts: 'ws.counts.title',
   today: 'ws.crumb.today',
   team: 'settings.team',

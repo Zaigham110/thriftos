@@ -428,10 +428,41 @@
    "moved": "Moved to {to}",
    "notAllowed": "That move is not allowed from here"
   },
+  "book": {
+   "closing": "Closing",
+   "empty": "Nothing in this period",
+   "in": "In",
+   "opening": "Opening",
+   "out": "Out",
+   "over": "Cash over at close",
+   "receipt": "From {party} {ref}",
+   "short": "Cash short at close",
+   "subtitle": "Money in and out for each way of paying",
+   "title": "Cash and bank book"
+  },
   "breadcrumbs": "You are here",
   "chart": {
    "showChart": "Show as chart",
    "showTable": "Show as table"
+  },
+  "close": {
+   "closeDay": "Close the day",
+   "closed": "Closed: {counted} counted by {by}.",
+   "counted": "Counted",
+   "difference": "Short / over",
+   "exact": "Exactly right.",
+   "expected": "Should be in the drawer",
+   "in": "Cash received",
+   "noneYet": "No days closed yet",
+   "nothing": "No cash in or out this day",
+   "out": "Cash paid out",
+   "overBy": "Over by {amount}.",
+   "recent": "Recent closes",
+   "saved": "Day closed",
+   "shortBy": "Short by {amount}.",
+   "subtitle": "Count the drawer at the end of the day",
+   "title": "Cash close",
+   "today": "This day"
   },
   "col": {
    "city": "City",
@@ -631,13 +662,46 @@
    "compact": "Compact rows"
   },
   "expand": "Expand menu",
+  "expenseCategory": {
+   "ELECTRICITY": "Electricity",
+   "LABOUR": "Labour",
+   "OTHER": "Other",
+   "RENT": "Rent",
+   "TRANSPORT": "Transport"
+  },
+  "expenses": {
+   "attachHint": "You can attach the bill or receipt on the next page.",
+   "cancel": "Cancel expense",
+   "cancelled": "Expense cancelled",
+   "cancelledBy": "Cancelled by {name} — counts nowhere",
+   "col": {
+    "cancelled": "Cancelled on",
+    "paidTo": "Paid to"
+   },
+   "count": "{n} expenses",
+   "emptyHeading": "No expenses",
+   "emptyMessage": "Record rent, labour, transport and bills to see real profit.",
+   "new": "New expense",
+   "newHint": "Money paid out to run the business",
+   "notFound": "This expense could not be opened",
+   "save": "Save expense",
+   "saved": "Expense saved",
+   "search": "Search paid to or note",
+   "status": {
+    "CANCELLED": "Cancelled",
+    "RECORDED": "Recorded"
+   },
+   "title": "Expenses"
+  },
   "export": {
    "csv": "CSV (any spreadsheet)",
    "label": "Export",
    "xlsx": "Excel"
   },
   "filter": {
+   "any": "any",
    "clear": "Clear filters",
+   "none": "none",
    "not": "not {value}",
    "remove": "Remove filter",
    "search": "Search"
@@ -650,6 +714,7 @@
    "total": "Total"
   },
   "group": {
+   "finance": "Finance",
    "insights": "Insights",
    "none": "No grouping",
    "operations": "Operations",
@@ -702,8 +767,12 @@
    "TRANSFER": "Moved"
   },
   "nav": {
+   "book": "Cash and bank",
+   "close": "Cash close",
+   "expenses": "Expenses",
    "home": "Home",
    "inventory": "Inventory",
+   "pnl": "Profit and loss",
    "purchasing": "Purchasing",
    "receivables": "Receivables",
    "reports": "Reports",
@@ -740,6 +809,23 @@
    "noResults": "Nothing matches.",
    "pages": "Go to",
    "records": "Records"
+  },
+  "pnl": {
+   "cashDifference": "Cash short / over",
+   "chart": "Gross profit, expenses and net profit",
+   "cost": "Cost of goods sold",
+   "expenses": "Expenses",
+   "gross": "Gross profit",
+   "lastMonths": "Last {n} months",
+   "line": "Line",
+   "margin": "{n}% margin",
+   "net": "Net profit",
+   "noAccess": "Profit and loss could not be loaded (it needs cost permission)",
+   "period": "Period",
+   "revenue": "Sales",
+   "subtitle": "Sales minus cost, write-offs and expenses, by month",
+   "title": "Profit and loss",
+   "writeOffs": "Stock written off"
   },
   "promise": {
    "BROKEN": "Broken",

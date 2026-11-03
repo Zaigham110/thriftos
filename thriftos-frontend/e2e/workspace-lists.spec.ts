@@ -223,3 +223,35 @@ test('sorting: lots list and board, a lot record, yield analysis', async ({ page
   await page.getByLabel('By').selectOption({ label: 'Month' });
   await expect(page.locator('ws-kpi-card').filter({ hasText: 'Lots sorted' })).toBeVisible();
 });
+
+test('finance: record an expense, close the day, cash book and profit and loss', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/finance/expenses');
+  await expect(page.getByRole('heading', { name: 'Expenses', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'New expense' }).click();
+  await page.getByLabel('Category').selectOption({ label: 'Transport' });
+  await page.getByLabel('Amount').fill('1500');
+  await page.getByLabel('Paid to').fill('Loader rickshaw');
+  await page.getByRole('button', { name: 'Save expense' }).click();
+  await expect(page.getByText('Expense saved')).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^Transport · / })).toContainText('1,500');
+  await expect(page.locator('ws-record-activity')).toBeVisible();
+
+  await page.goto('/finance/close');
+  await expect(page.getByRole('heading', { name: 'Cash close' })).toBeVisible();
+  const done = page.getByRole('status').filter({ hasText: 'Closed:' });
+  if (!(await done.isVisible())) {
+    await page.getByLabel('Counted').fill('0');
+    await page.getByRole('button', { name: 'Close the day' }).click();
+    await expect(page.getByText('Day closed')).toBeVisible();
+  }
+  await expect(page.getByRole('status').filter({ hasText: 'Closed:' })).toBeVisible();
+
+  await page.goto('/finance/book');
+  await expect(page.getByRole('heading', { name: 'Cash and bank book' })).toBeVisible();
+  await expect(page.locator('ws-data-grid tbody')).toContainText('Transport · Loader rickshaw');
+
+  await page.goto('/finance/pnl');
+  await expect(page.getByRole('heading', { name: 'Profit and loss' })).toBeVisible();
+  await expect(page.locator('ws-data-grid tbody tr').filter({ hasText: 'Net profit' })).toBeVisible();
+});

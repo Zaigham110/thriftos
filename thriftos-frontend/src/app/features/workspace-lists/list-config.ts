@@ -55,7 +55,7 @@ export interface ListConfig {
   /** Where a row opens (the row is there for lists whose rows point at another record). */
   rowLink: (id: string, row?: Record<string, unknown>) => unknown[];
   /** Filters a fresh list starts with (no saved view), e.g. stock that is not sold. */
-  defaultFilters?: Array<{ field: string; op: 'eq' | 'ne'; value: string }>;
+  defaultFilters?: Array<{ field: string; op: 'eq' | 'ne' | 'isnull' | 'notnull'; value?: string }>;
   /** Primary action in the header. */
   create?: { label: string; link: string };
   board?: BoardConfig;

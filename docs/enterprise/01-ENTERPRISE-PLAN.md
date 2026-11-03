@@ -117,7 +117,7 @@ Each area gets list + record (+ kanban where it has stages), using E2.
 - [x] E3.5 **Receivables (Khata)** — customer 360 record (balance, ageing, sales, payments, statement, credit limit,
   notes), ageing report 0–30 / 31–60 / 61–90 / 90+, collections worklist with promise-to-pay dates, bulk WhatsApp
   reminders, statement of account PDF.
-- [ ] E3.6 **Finance (management accounts)** — expenses with categories (rent, labour, transport, electricity, other)
+- [x] E3.6 **Finance (management accounts)** — expenses with categories (rent, labour, transport, electricity, other)
   and attachments, cash and bank book by payment method, daily cash close, profit and loss by month (gross profit from
   sales − expenses). A full general ledger is not in scope; noted for later.
 - Acceptance: the owner can run the whole business from a laptop without the phone screens, and every list has
