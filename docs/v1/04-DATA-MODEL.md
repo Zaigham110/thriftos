@@ -99,6 +99,13 @@ Auth/RBAC tables, `AuditLog`, `RefreshToken`, `IdempotencyKey`, `TenantSequence`
 - `Sale.billToken`: 24 random bytes, base64url (32 characters), unique; old sales got 2 × `gen_random_uuid()`.
 - Sale numbers are claimed inside the sale's own transaction, so a failed sale does not use up a number.
 
+## Added during Phase 3 (decisions)
+- `User.phone` is unique **across all tenants** (not per tenant as planned above): it is the munshi's whole login, so sign-in needs no business code. `email` and `passwordHash` are optional; DB check `User_can_sign_in`: email + password, or phone + PIN. `pinHash` (bcrypt, 4–6 digits), `failedPinAttempts` (5 in a row → `pinLockedUntil` = now + 15 min). Migration `v3_01`.
+- No `User.language` column: the language is chosen on the phone (kept in the browser) and falls back to `Tenant.defaultLanguage`.
+- `Tenant.setupCompletedAt` (migration `v3_02`): null = the owner gets the setup wizard after sign-in; every tenant existing at migration time is marked set up. The wizard keeps only the chosen categories and grades active (others are switched off, never deleted) and always ensures `Waste/Katran`.
+- New bales get short codes `B-0001`… per tenant; the QR text is `REPACK:<companyCode>:<code>` because `QRLabel.qrCode` is unique across tenants. No migration.
+- A lot's `rawCategoryId` may be left out: the tenant's first raw category is used ("Mixed", created on first use).
+
 ## Rules for the migration work
 - One migration per logical change, named clearly (e.g., `v1_01_remove_incoming_bale`).
 - Data migration SQL must be safe on the demo database and on an empty database.

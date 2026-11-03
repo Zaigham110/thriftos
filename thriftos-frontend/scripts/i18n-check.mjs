@@ -58,6 +58,7 @@ const TRANSLATED = [
   'features/khata/',
   'features/auth/login/',
   'features/settings/',
+  'features/setup/',
 ];
 const ALLOWED = /^(ThriftOS|Rs|kg|QR|PKR|USD|A4|اردو|English|[-–—·•×+−/%:()|.,0-9\s]*)$/;
 

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Patch, Delete, UseGuards, Req, Query, Body, Param } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { TenantService } from './tenant.service';
 import { TenantGuard } from '../common/guards/tenant.guard';
@@ -8,6 +8,9 @@ import { RequirePermissions, SkipPermissionCheck } from '../common/decorators/pe
 import { RagBaleType } from '@prisma/client';
 import { CreateRawCategoryDto, UpdateRawCategoryDto } from './dto/raw-category.dto';
 import { UpdateTenantSettingsDto } from './dto/tenant-settings.dto';
+import { Idempotent } from '../common/idempotency/idempotent.interceptor';
+import { TenantSetupDto } from './dto/setup.dto';
+import { SetupService } from './setup.service';
 
 /**
  * TenantController - the current tenant, its settings, and lookup lists for pickers
@@ -17,13 +20,32 @@ import { UpdateTenantSettingsDto } from './dto/tenant-settings.dto';
 @Controller('tenant')
 @UseGuards(TenantGuard, PermissionGuard)
 export class TenantController {
-  constructor(private readonly tenantService: TenantService) {}
+  constructor(
+    private readonly tenantService: TenantService,
+    private readonly setup: SetupService,
+  ) {}
 
   @Get()
   @SkipPermissionCheck()
   async getCurrentTenant(@CurrentUser() user: CurrentUserData, @Req() req: Request) {
     const tenantId = (req as any).tenantId || user.tenantId;
     return this.tenantService.findOne(tenantId);
+  }
+
+  /** Setup wizard (journey 8): where it starts from (Karachi template until done). */
+  @Get('setup')
+  @RequirePermissions('tenant.update')
+  setupDefaults(@CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    return this.setup.defaults((req as any).tenantId || user.tenantId);
+  }
+
+  /** Setup wizard: saves everything in one step. Safe to repeat with an Idempotency-Key. */
+  @Post('setup')
+  @Idempotent('TENANT_SETUP')
+  @RequirePermissions('tenant.update')
+  @HttpCode(HttpStatus.OK)
+  saveSetup(@Body() dto: TenantSetupDto, @CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    return this.setup.save((req as any).tenantId || user.tenantId, dto, user.userId);
   }
 
   @Get('work-queue')

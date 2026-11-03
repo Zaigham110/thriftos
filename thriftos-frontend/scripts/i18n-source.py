@@ -321,6 +321,10 @@ T = {
   'setup.finish': ('Start using ThriftOS', 'ThriftOS شروع کریں'),
   'setup.done': ('All set. Everything can be changed later in Settings.', 'سب تیار۔ بعد میں سیٹنگز سے سب بدل سکتے ہیں۔'),
   'setup.skip': ('Skip', 'چھوڑیں'),
+  'setup.removed': ('Removed — tap to add back', 'ہٹائی گئیں — واپس لانے کے لیے ٹیپ کریں'),
+  'setup.gradesHint': ('Best first: number 1 is your top grade.', 'بہترین پہلے: نمبر 1 آپ کا سب سے اچھا گریڈ ہے۔'),
+  'setup.addGrade': ('Add grade', 'گریڈ شامل کریں'),
+  'settings.business': ('Business setup', 'کاروبار کی سیٹنگ'),
 
   'settings.title': ('Settings', 'سیٹنگز'),
   'settings.team': ('Team', 'ٹیم'),

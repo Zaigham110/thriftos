@@ -7,6 +7,7 @@ import { Injectable, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, catchError, of, tap, throwError } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
+import { SIGNED_OUT_EVENT, sessionCache } from '../auth/session-cache';
 
 export type CategoryType = 'RAG' | 'BALE' | 'GENERAL';
 
@@ -28,6 +29,8 @@ export interface TenantProfile {
   /** 0 = trading only, 1 = category only, 2 = category + grade. */
   sortingStages?: number;
   defaultLanguage?: 'ur' | 'en';
+  /** Null until the owner finished the setup wizard. */
+  setupCompletedAt?: string | null;
 }
 
 /** Modules a tenant can turn on; the first five are on by default. */
@@ -55,7 +58,13 @@ export class TenantService {
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
 
-  constructor(private readonly http: HttpClient) {}
+  constructor(private readonly http: HttpClient) {
+    // Nothing about one business stays in memory for the next person who signs in on this phone.
+    window.addEventListener(SIGNED_OUT_EVENT, () => {
+      this._tenant.set(null);
+      this._categories.set([]);
+    });
+  }
 
   /** A module is on when the tenant lists it (or, before the tenant loads, the default five are on). */
   isModuleEnabled(module: TenantModule, tenant: TenantProfile | null = this._tenant()): boolean {
@@ -67,13 +76,24 @@ export class TenantService {
     if (this._tenant() && !force) {
       return of(this._tenant()!);
     }
+    // Installed app opening: this person's business as last seen, refreshed behind.
+    const cached = force ? null : sessionCache.tenant<TenantProfile>();
+    if (cached) {
+      this._tenant.set(cached);
+      this.fetchTenant().subscribe({ error: () => undefined });
+      return of(cached);
+    }
+    return this.fetchTenant();
+  }
 
+  private fetchTenant(): Observable<TenantProfile> {
     this._loading.set(true);
     this._error.set(null);
 
     return this.http.get<TenantProfile>(`${API_BASE_URL}/tenant`).pipe(
       tap((tenant) => {
         this._tenant.set(tenant);
+        sessionCache.saveTenant(tenant);
         this._loading.set(false);
       }),
       catchError((error) => this.handleError(error)),

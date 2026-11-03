@@ -45,7 +45,7 @@ html[dir='rtl'] .icon-btn.back lucide-icon { transform: scaleX(-1); }
 
 // Chips: small one-tap choices (currency, charge types, units).
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chip { min-height: 48px; padding-inline: 16px; border: 1px solid var(--tos-line); border-radius: 24px; background: #fff; color: var(--tos-ink); font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }
+.chip { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding-inline: 16px; border: 1px solid var(--tos-line); border-radius: 24px; background: #fff; color: var(--tos-ink); font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }
 .chip.on { border: 2px solid var(--tos-primary); background: var(--tos-primary-soft); color: var(--tos-primary); }
 
 // Lists with the amount on the end side.

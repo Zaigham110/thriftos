@@ -7,6 +7,7 @@ import { Injectable, computed, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, catchError, map, tap, throwError, of, BehaviorSubject, switchMap } from 'rxjs';
+import { sessionCache } from './session-cache';
 import { TokenService } from './token.service';
 import {
   AuthState,
@@ -108,6 +109,11 @@ export class AuthService {
           impersonationReady: true,
         });
         markReady();
+      } else if (!isImpersonating && payload?.sub && sessionCache.me(payload.sub)) {
+        // Installed app opening: show the person's own last profile at once, refresh it behind.
+        this.applyMe(sessionCache.me(payload.sub)!);
+        markReady();
+        this.loadCurrentUser().subscribe({ error: () => undefined });
       } else {
         // Impersonating Super Admin or tenant user - load full profile
         this.loadCurrentUser().subscribe({
@@ -232,32 +238,37 @@ export class AuthService {
   loadCurrentUser(retried = false): Observable<MeResponse> {
     return this.http.get<MeResponse>(`${API_ENDPOINTS.me}`).pipe(
       tap((response) => {
-        const isImpersonating =
-          this.tokenService.isImpersonating() ||
-          !!response.user.impersonatedTenantId ||
-          !!this.tokenService.getImpersonationContext().tenantId;
-        
-        this._state.set({
-          user: response.user,
-          permissions: response.permissions,
-          isAuthenticated: true,
-          isLoading: false,
-          isImpersonating,
-          authReady: true,
-          impersonationReady: true,
-        });
-        this.authReady$.next(true);
-        this.impersonationReady$.next(true);
+        this.applyMe(response);
+        if (!this.tokenService.isImpersonating()) sessionCache.saveMe(response);
       }),
       catchError((error) => {
         // If token is stale, try one silent refresh then retry /me once
         if (error.status === 401 && !retried && this.tokenService.getRefreshToken()) {
           return this.refreshTokenSilently().pipe(switchMap(() => this.loadCurrentUser(true)));
         }
-        this.clearAuthState();
+        // Signed out only when the server says so; no network keeps the person signed in (offline use).
+        if (error.status === 401 || error.status === 403 || !this._state().isAuthenticated) this.clearAuthState();
         return throwError(() => error);
       })
     );
+  }
+
+  private applyMe(response: MeResponse): void {
+    const isImpersonating =
+      this.tokenService.isImpersonating() ||
+      !!response.user.impersonatedTenantId ||
+      !!this.tokenService.getImpersonationContext().tenantId;
+    this._state.set({
+      user: response.user,
+      permissions: response.permissions,
+      isAuthenticated: true,
+      isLoading: false,
+      isImpersonating,
+      authReady: true,
+      impersonationReady: true,
+    });
+    this.authReady$.next(true);
+    this.impersonationReady$.next(true);
   }
 
   /**
@@ -452,6 +463,7 @@ export class AuthService {
    * Clear authentication state
    */
   private clearAuthState(): void {
+    sessionCache.clear();
     this.tokenService.clearTokens();
     this.tokenService.clearImpersonationContext();
     this._state.set({

@@ -27,3 +27,8 @@ Each screen has an `-en.png` and a `-ur.png`.
 | 7 Owner home | Profit per container, udhaar owed, stock ready, today's sales | `j7-owner-home` |
 | 7 | Behind profit per container: containers, by supplier, by country | `j7-containers` |
 | 7 | Behind today's sales | `j7-today` |
+| 8 Setup | Business name, currency, language | `j8-setup-1-business` |
+| 8 | Do you sort? (no / categories / categories then grades) | `j8-setup-2-sort` |
+| 8 | Karachi category list: tap to remove, add your own | `j8-setup-3-categories` |
+| 8 | Grade names, best first | `j8-setup-4-grades` |
+| 8 | Munshi with phone + PIN (or Skip) | `j8-setup-5-munshi` |

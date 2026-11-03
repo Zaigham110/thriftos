@@ -245,6 +245,7 @@
  "settings": {
   "addMunshi": "Add munshi",
   "advanced": "Advanced",
+  "business": "Business setup",
   "lockedUntil": "Locked",
   "munshiAdded": "{name} can now sign in with phone and PIN.",
   "pinSaved": "New PIN saved.",
@@ -256,6 +257,7 @@
  },
  "setup": {
   "addCategory": "Add category",
+  "addGrade": "Add grade",
   "businessName": "Business name",
   "categories": "Your categories",
   "categoriesHint": "Karachi list. Tap to remove, add your own.",
@@ -264,10 +266,12 @@
   "done": "All set. Everything can be changed later in Settings.",
   "finish": "Start using ThriftOS",
   "grades": "Grade names",
+  "gradesHint": "Best first: number 1 is your top grade.",
   "language": "Language",
   "munshi": "Add a munshi (optional)",
   "munshiName": "Munshi name",
   "munshiPin": "PIN for the munshi",
+  "removed": "Removed — tap to add back",
   "skip": "Skip",
   "sort0": "No, I sell as bought",
   "sort1": "Yes, into categories",

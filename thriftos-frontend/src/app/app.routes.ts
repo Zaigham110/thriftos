@@ -3,6 +3,7 @@ import { authGuard } from './core/guards/auth-guard';
 import { tenantAreaGuard } from './core/guards/tenant-area.guard';
 import { moduleGuard } from './core/guards/module.guard';
 import { superAdminGuard } from './core/guards/super-admin-guard';
+import { setupGuard } from './core/guards/setup.guard';
 
 export const routes: Routes = [
   // Auth routes (public)
@@ -49,11 +50,19 @@ export const routes: Routes = [
     ],
   },
 
+  // Setup wizard (journey 8): full screen, before the tenant app.
+  {
+    path: 'setup',
+    loadComponent: () => import('./features/setup/setup.component').then((m) => m.SetupComponent),
+    canActivate: [authGuard, tenantAreaGuard],
+    title: 'ThriftOS',
+  },
+
   // The tenant app: one shell, one route per job.
   {
     path: '',
     loadComponent: () => import('./shell/app-shell.component').then((m) => m.AppShellComponent),
-    canActivate: [authGuard, tenantAreaGuard],
+    canActivate: [authGuard, tenantAreaGuard, setupGuard],
     children: [
       { path: '', redirectTo: 'home', pathMatch: 'full' },
       {
@@ -151,8 +160,8 @@ export const routes: Routes = [
         children: [
           {
             path: '',
-            loadComponent: () => import('./features/flow/control/flow-control.component').then((m) => m.FlowControlComponent),
-            title: 'Settings - ThriftOS',
+            loadComponent: () => import('./features/settings/settings-home.component').then((m) => m.SettingsHomeComponent),
+            title: 'ThriftOS',
           },
           { path: 'team', loadComponent: () => import('./features/settings/team.component').then((m) => m.TeamComponent), title: 'ThriftOS' },
           {

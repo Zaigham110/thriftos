@@ -132,15 +132,16 @@ test('journey 5: a trader receives ready stock and opens a bale into pieces', as
   await page.getByRole('link', { name: new RegExp(`Ladies jackets ${tag}`) }).click();
   await keypad(page, /^Price/, 300);
   await keypad(page, /^Pieces/, 30);
-  await page.getByRole('button', { name: 'Price', exact: true }).last().click();
-  await page.getByRole('button', { name: /^Price/ }).nth(1).click();
-  await page.getByRole('dialog').getByRole('button', { name: '8', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: '0', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: '0', exact: true }).click();
-  await page.getByRole('dialog').locator('.ok').click();
-  await page.getByRole('button', { name: /^Pieces/ }).nth(1).click();
-  await page.getByRole('dialog').getByRole('button', { name: '9', exact: true }).click();
-  await page.getByRole('dialog').locator('.ok').click();
+  // A second price tier: Rs 800 × 9 pieces (fields 3 and 4 on the screen).
+  await page.locator('button.btn').filter({ hasText: 'Price' }).click();
+  const fields = page.locator('tos-number .field-btn');
+  await expect(fields).toHaveCount(4);
+  for (const [i, value] of [[2, '800'], [3, '9']] as const) {
+    await fields.nth(i).click();
+    for (const ch of value) await page.getByRole('dialog').getByRole('button', { name: ch, exact: true }).click();
+    await page.getByRole('dialog').locator('.ok').click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+  }
   await expect(page.locator('.action-bar')).toContainText('39');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page).toHaveURL(/\/receive\/ready$/);

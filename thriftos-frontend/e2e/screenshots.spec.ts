@@ -132,3 +132,30 @@ for (const lang of ['en', 'ur'] as const) {
     await shot(page, 'j7-today', lang);
   });
 }
+
+for (const lang of ['en', 'ur'] as const) {
+  test(`journey 8 setup wizard screenshots (${lang})`, async ({ page, request }) => {
+    const tag = Date.now().toString().slice(-6);
+    const admin = await apiAs(request, { email: 'superadmin@thriftos.com', password: 'SuperAdmin@123' });
+    const email = `shot${tag}@new.test`;
+    await admin.post('/superadmin/tenants', { name: `New ${tag}`, companyCode: `S${tag}`, adminEmail: email, adminName: 'Owner', adminPassword: 'owner-pass-1' });
+    await page.addInitScript((l) => localStorage.setItem('thriftos.lang', l), lang);
+    await page.goto('/auth/login');
+    await page.locator('.who .chip').nth(1).click();
+    await page.fill('input[type=email]', email);
+    await page.fill('input[type=password]', 'owner-pass-1');
+    await page.locator('button[type=submit]').click();
+    await page.waitForURL('**/setup');
+    await page.locator('input[name=biz]').fill(lang === 'en' ? 'Al-Madina Traders' : 'المدینہ ٹریڈرز');
+    await shot(page, 'j8-setup-1-business', lang);
+    await page.locator('.action-bar .btn.primary').click();
+    await page.locator('.option').nth(2).click();
+    await shot(page, 'j8-setup-2-sort', lang);
+    await page.locator('.action-bar .btn.primary').click();
+    await shot(page, 'j8-setup-3-categories', lang);
+    await page.locator('.action-bar .btn.primary').click();
+    await shot(page, 'j8-setup-4-grades', lang);
+    await page.locator('.action-bar .btn.primary').click();
+    await shot(page, 'j8-setup-5-munshi', lang);
+  });
+}

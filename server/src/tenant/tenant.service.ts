@@ -232,7 +232,7 @@ export class TenantService {
     };
   }
 
-  private async isCurrencyLocked(tenantId: string): Promise<boolean> {
+  async isCurrencyLocked(tenantId: string): Promise<boolean> {
     const [poCount, inventoryCount, reportAuditCount] = await Promise.all([
       this.prisma.purchaseOrder.count({ where: { tenantId } }),
       this.prisma.inventoryItem.count({ where: { tenantId } }),
