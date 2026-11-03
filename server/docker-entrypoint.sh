@@ -12,6 +12,8 @@ echo "🚀 Starting ThriftOS Backend Container..."
 if [ "${RUN_MIGRATIONS_ON_START:-0}" = "1" ] || node /app/scripts/db-guard.js "migrate on container start"; then
   echo "🔄 Applying Prisma migrations..."
   npx prisma migrate deploy --schema /app/prisma/schema.prisma
+  # Base data (SYSTEM business, settings, permissions): idempotent, so new permissions arrive with a release.
+  node dist/bootstrap/bootstrap.js --base
 else
   echo "⏭️  Not migrating (set RUN_MIGRATIONS_ON_START=1 to apply migrations on start)."
 fi
