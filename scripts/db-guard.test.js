@@ -78,7 +78,7 @@ test('seed, Docker entrypoint, e2e setup and apply scripts all carry the guard',
   assert.ok(entry.indexOf('db-guard.js') > -1 && entry.indexOf('db-guard.js') < entry.indexOf('prisma migrate deploy'));
   assert.match(read('server/test/e2e/test-db.ts'), /must end in _test/);
   assert.match(read('server/test/e2e/global-setup.ts'), /ALLOW_DEV_MIGRATE: _ignored/);
-  for (const p of ['scripts/apply-phase1.sh', 'scripts/apply-phase2.sh', 'scripts/apply-phase3.sh']) {
+  for (const p of ['scripts/apply-phase1.sh', 'scripts/apply-phase2.sh', 'scripts/apply-phase3.sh', 'scripts/apply-v2-phase5.sh']) {
     const s = read(p);
     assert.ok(s.indexOf('[ ! -t 0 ]') > -1 && s.indexOf('[ ! -t 0 ]') < s.indexOf('prisma migrate deploy'), p);
   }

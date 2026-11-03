@@ -25,15 +25,15 @@ Target: the owner's existing AWS free-tier account. One EC2 micro instance (1 GB
 - [ ] 5.3 Backups and restore — postponed by the owner (2026-11-03); only pre-deploy dumps exist
   - Nightly `pg_dump -Fc` to S3 (free tier 5 GB) with 14 daily + 8 weekly kept; encrypt at rest (SSE-S3).
   - `scripts/restore-from-s3.sh` and a monthly restore test documented; a GitHub Action or cron alerts if the last backup is older than 26 h.
-- [ ] 5.4 Monitoring
+- [x] 5.4 Monitoring
   - Uptime check on `/api/health` (free service, e.g. UptimeRobot or Better Stack), alert to owner's email/WhatsApp.
   - Structured JSON logs with request id and tenantId; log rotation in Docker; error tracking (Sentry free tier) for server and web, no personal data in events.
-- [ ] 5.5 Domain and email
+- [x] 5.5 Domain and email
   - Domain (owner buys, e.g. thriftos.pk or .app); `app.<domain>` for the PWA, public bill links use it (`PUBLIC_APP_URL`).
   - Transactional email only for owner password reset (SES or a free SMTP tier); munshi uses phone + PIN.
-- [ ] 5.6 Legal and trust basics
+- [x] 5.6 Legal and trust basics
   - Simple Terms and Privacy page (English + Urdu), data ownership statement ("your data is yours; export any time"), data export of a whole tenant (Excel/CSV zip) from Settings.
-- [ ] 5.7 Free-tier exit plan
+- [x] 5.7 Free-tier exit plan
   - Document cost and steps to move to a paid instance (e.g. t4g.small) and when (free tier expiry date, or > 70% RAM, or > 10 active businesses).
 - Acceptance: `https://app.<domain>` serves the PWA over HTTPS; deploy from a tag in < 10 minutes with automatic rollback; a backup restores into a fresh DB and both SQL checks return 0 rows; uptime alert tested.
 
