@@ -1,6 +1,6 @@
 import { Page, expect, test } from '@playwright/test';
 import path from 'node:path';
-import { keypad, keys } from './floor';
+import { keypad, keys, pickTile } from './floor';
 import { apiAs, signIn } from './helpers';
 
 /**
@@ -50,7 +50,7 @@ for (const lang of ['en', 'ur'] as const) {
     await page.goto('/receive');
     await shot(page, 'j1-receive', lang);
     await page.goto('/receive/container');
-    await page.getByRole('searchbox').first().fill(supplier.name);
+    if (await page.getByRole('searchbox').count()) await page.getByRole('searchbox').first().fill(supplier.name);
     await page.getByRole('listitem').filter({ hasText: supplier.name }).click();
     await keypad(page, t('Invoice weight', 'بِل کا وزن'), 18000);
     await page.getByRole('button', { name: 'USD', exact: true }).click();
@@ -93,10 +93,8 @@ for (const lang of ['en', 'ur'] as const) {
 
     // Journey 4 — sale.
     await page.goto('/sell/new');
-    await page.getByPlaceholder(t('Search name or phone', 'نام یا فون تلاش کریں')).fill(customer.name);
-    await page.getByRole('listitem').filter({ hasText: customer.name }).click();
-    await page.getByPlaceholder(t('Search stock', 'مال تلاش کریں')).fill(tag);
-    await page.getByRole('listitem').first().click();
+    await pickTile(page, t('Search name or phone', 'نام یا فون تلاش کریں'), customer.name);
+    await pickTile(page, t('Search stock', 'مال تلاش کریں'), tag);
     await keypad(page, t('Price', 'ریٹ'), 32000);
     await page.getByRole('button', { name: t('Part paid', 'کچھ ادا'), exact: true }).click();
     await keypad(page, t('Paid now', 'ابھی ادا'), 12000);

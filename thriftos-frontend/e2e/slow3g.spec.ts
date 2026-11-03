@@ -1,5 +1,5 @@
 import { Page, expect, test } from '@playwright/test';
-import { keypad, keys, loose } from './floor';
+import { keypad, keys, loose, pickTile } from './floor';
 import { apiAs, signIn, waitForOfflineReady } from './helpers';
 
 /**
@@ -67,10 +67,9 @@ test('daily screens pass the 10-second test on Slow 3G', async ({ page, request 
   results['sale'] = await timed('sale', async () => {
     await page.getByRole('link', { name: 'Becho' }).click();
     await page.getByRole('link', { name: 'New sale' }).click();
-    await page.getByPlaceholder('Search name or phone').fill(customer.name, { timeout: 20_000 });
-    await page.getByRole('listitem').filter({ hasText: customer.name }).click();
-    await page.getByPlaceholder('Search stock').fill(item.name);
-    await page.getByRole('listitem').filter({ hasText: item.name }).click();
+    await expect(page.getByRole('listitem').filter({ hasText: 'New customer' })).toBeVisible({ timeout: 20_000 });
+    await pickTile(page, 'Search name or phone', customer.name);
+    await pickTile(page, 'Search stock', item.name);
     await keypad(page, /^Quantity/, 10);
     await keypad(page, /^Price/, 400);
     await page.getByRole('button', { name: 'Save sale' }).click();

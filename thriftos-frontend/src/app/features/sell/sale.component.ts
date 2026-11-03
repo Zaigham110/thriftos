@@ -151,7 +151,7 @@ export class SaleComponent implements OnInit {
     const inCart = new Set(this.cart().map((l) => l.item.id));
     return this.inventory()
       .filter((i) => !inCart.has(i.id))
-      .map((i) => ({ id: i.id, label: this.name(i), sub: `${this.i18n.num(i.remainingQuantity)} ${this.i18n.t(this.unitKey(i.unit))}`, keywords: i.unitCode || '' }));
+      .map((i) => ({ id: i.id, label: this.name(i), sub: [i.unitCode, `${this.i18n.num(i.remainingQuantity)} ${this.i18n.t(this.unitKey(i.unit))}`].filter(Boolean).join(' · '), keywords: i.unitCode || '' }));
   });
   protected readonly total = computed(() => this.cart().reduce((sum, l) => sum + (l.quantity || 0) * (l.unitPrice || 0), 0));
   protected readonly canSave = computed(() => {

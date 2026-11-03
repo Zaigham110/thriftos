@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { keypad, loose } from './floor';
+import { keypad, loose, pickTile } from './floor';
 import { apiAs, signIn, waitForOfflineReady } from './helpers';
 
 /**
@@ -17,7 +17,7 @@ test('offline sale and payment sync once when the network returns', async ({ pag
   await waitForOfflineReady(page);
   // Open the screens once online so their data (customers, stock, khata) is cached on the phone.
   await page.goto('/sell/new');
-  await page.getByPlaceholder('Search name or phone').fill(customer.name);
+  if (await page.getByPlaceholder('Search name or phone').count()) await page.getByPlaceholder('Search name or phone').fill(customer.name);
   await expect(page.getByRole('listitem').filter({ hasText: customer.name })).toBeVisible();
   await page.goto(`/khata/${customer.id}`);
   await expect(page.getByRole('heading', { name: new RegExp(customer.name) })).toBeVisible();
@@ -26,10 +26,8 @@ test('offline sale and payment sync once when the network returns', async ({ pag
 
   // Sale on udhaar, with the network off.
   await page.goto('/sell/new');
-  await page.getByPlaceholder('Search name or phone').fill(customer.name);
-  await page.getByRole('listitem').filter({ hasText: customer.name }).click();
-  await page.getByPlaceholder('Search stock').fill(item.name);
-  await page.getByRole('listitem').filter({ hasText: item.name }).click();
+  await pickTile(page, 'Search name or phone', customer.name);
+  await pickTile(page, 'Search stock', item.name);
   await keypad(page, /^Quantity/, 10);
   await keypad(page, /^Price/, 450);
   await page.getByRole('button', { name: 'Udhaar', exact: true }).click();

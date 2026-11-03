@@ -51,3 +51,13 @@ export function loose(text: string): RegExp {
     .join('');
   return new RegExp(`[\\u2066\\u2069]*${pattern}`);
 }
+
+/**
+ * Taps a tile. The search box only appears with more than 8 tiles (docs/v1/05), so search when it is
+ * there, then tap the tile either way.
+ */
+export async function pickTile(page: Page, searchPlaceholder: string, text: string): Promise<void> {
+  const search = page.getByPlaceholder(searchPlaceholder);
+  if (await search.count()) await search.fill(text);
+  await page.getByRole('listitem').filter({ hasText: text }).first().click();
+}

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { checkFloorScreen, keypad, keys, loose } from './floor';
+import { checkFloorScreen, keypad, keys, loose, pickTile } from './floor';
 import { apiAs, signIn } from './helpers';
 
 /**
@@ -91,8 +91,7 @@ test('journeys 1–6 on a 360px phone', async ({ page, request }) => {
   await page.getByLabel('Name', { exact: true }).fill(`Haji Rafiq ${tag}`);
   await page.getByLabel('WhatsApp number').fill(`0300${tag}9`);
   await page.getByRole('button', { name: 'Add customer' }).click();
-  await page.getByPlaceholder('Search stock').fill(baleCode);
-  await page.getByRole('listitem').filter({ hasText: 'Jeans Grade A' }).first().click();
+  await pickTile(page, 'Search stock', baleCode);
   await keypad(page, /^Price/, 36000);
   await page.getByRole('button', { name: 'Udhaar', exact: true }).click();
   await expect(page.locator('.action-bar')).toContainText(loose('Rs 36,000'));
