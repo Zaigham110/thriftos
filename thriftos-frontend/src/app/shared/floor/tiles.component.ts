@@ -43,11 +43,11 @@ export interface Tile {
   `,
   styles: [`
     :host { display:grid; gap:10px; }
-    .search { display:flex; align-items:center; gap:8px; padding-inline-start:12px; border:1px solid var(--tos-line); border-radius:12px; background:#fff; }
+    .search { display:flex; align-items:center; gap:8px; padding-inline-start:12px; border:1px solid var(--tos-line); border-radius:12px; background:var(--tos-card); }
     .search input { flex:1; min-width:0; min-height:52px; border:0; background:transparent; font:inherit; font-size:17px; }
     .tiles { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 140px), 1fr)); gap:10px; }
     .tiles.two { grid-template-columns:repeat(2, minmax(0,1fr)); }
-    .tile { min-height:72px; display:grid; align-content:center; justify-items:start; gap:2px; padding:10px 14px; border:1px solid var(--tos-line); border-radius:14px; background:#fff; color:var(--tos-ink); font:inherit; text-align:start; cursor:pointer; overflow-wrap:anywhere; }
+    .tile { min-height:72px; display:grid; align-content:center; justify-items:start; gap:2px; padding:10px 14px; border:1px solid var(--tos-line); border-radius:14px; background:var(--tos-card); color:var(--tos-ink); font:inherit; text-align:start; cursor:pointer; overflow-wrap:anywhere; }
     .tile strong { font-size:17px; line-height:1.25; }
     .tile small { color:var(--tos-ink-soft); font-size:13px; font-weight:600; }
     .tile.on { border:2px solid var(--tos-primary); background:var(--tos-primary-soft); }

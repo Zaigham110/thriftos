@@ -62,7 +62,7 @@ const TRANSLATED = [
   'features/settings/',
   'features/setup/',
 ];
-const ALLOWED = /^(ThriftOS|Rs|kg|QR|PKR|USD|A4|اردو|English|[-–—·•×+−/%:()|.,0-9\s]*)$/;
+const ALLOWED = /^(ThriftOS|Rs|kg|QR|PKR|USD|A4|اردو|English|Esc|Ctrl|K|[-–—·•×+−/%:()|.,0-9\s]*)$/;
 
 for (const f of files.filter((p) => TRANSLATED.some((t) => path.relative(src, p).startsWith(t)))) {
   const text = read(f);

@@ -17,7 +17,7 @@ import { TPipe } from '../../core/i18n/t.pipe';
     </section>
   `,
   styles: [`
-    .choice { min-height:96px; display:flex; align-items:center; gap:16px; padding:16px 18px; border:1px solid var(--tos-line); border-radius:var(--tos-radius); background:#fff; color:var(--tos-ink); text-decoration:none; }
+    .choice { min-height:96px; display:flex; align-items:center; gap:16px; padding:16px 18px; border:1px solid var(--tos-line); border-radius:var(--tos-radius); background:var(--tos-card); color:var(--tos-ink); text-decoration:none; }
     .choice lucide-icon { color:var(--tos-primary); }
     .choice span { display:grid; gap:4px; }
     .choice strong { font-size:19px; }

@@ -75,7 +75,7 @@ const WASTE_TILE = '__waste__';
   `,
   styles: [`
     .totals { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-    .totals div { display:grid; padding:12px 14px; border:1px solid var(--tos-line); border-radius:var(--tos-radius); background:#fff; }
+    .totals div { display:grid; padding:12px 14px; border:1px solid var(--tos-line); border-radius:var(--tos-radius); background:var(--tos-card); }
     .totals small { color:var(--tos-ink-soft); font-weight:700; }
     .totals strong { font-size:24px; white-space:nowrap; font-variant-numeric:tabular-nums; }
     .bar { height:8px; border-radius:4px; background:var(--tos-line); overflow:hidden; }

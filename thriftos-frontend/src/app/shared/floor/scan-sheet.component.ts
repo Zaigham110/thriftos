@@ -31,7 +31,7 @@ type Detector = { detect(source: ImageBitmapSource): Promise<Array<{ rawValue?: 
   `,
   styles: [`
     .backdrop { position:fixed; inset:0; z-index:60; background:rgb(0 0 0 / .45); }
-    .sheet { position:fixed; inset-inline:0; inset-block-end:0; z-index:61; display:grid; gap:12px; max-width:520px; margin:0 auto; padding:12px 16px calc(16px + env(safe-area-inset-bottom)); border-radius:18px 18px 0 0; background:#fff; }
+    .sheet { position:fixed; inset-inline:0; inset-block-end:0; z-index:61; display:grid; gap:12px; max-width:520px; margin:0 auto; padding:12px 16px calc(16px + env(safe-area-inset-bottom)); border-radius:18px 18px 0 0; background:var(--tos-card); }
     header { display:flex; align-items:center; justify-content:space-between; }
     h2 { margin:0; font-size:18px; }
     .preview { position:relative; aspect-ratio:1; max-height:50vh; border-radius:14px; overflow:hidden; background:#1d1a1c; }

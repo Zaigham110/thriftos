@@ -22,6 +22,8 @@ import { I18nService } from '../core/i18n/i18n.service';
 import { TPipe } from '../core/i18n/t.pipe';
 import { ToastComponent } from '../shared/floor/toast.component';
 import { TenantModule, TenantService } from '../core/tenant/tenant.service';
+import { ThemeService } from '../core/theme/theme.service';
+import { WorkspaceShellComponent } from './workspace/workspace-shell.component';
 
 type LayoutMode = 'phone' | 'tablet' | 'desktop';
 
@@ -45,35 +47,18 @@ const NAV: NavItem[] = [
 
 /**
  * The one app shell: bottom tabs on phones (Home, Receive, Sort, Sell, Khata; the rest under
- * "More" in the top bar), an icon rail on tablets and a side nav on desktop.
+ * "More" in the top bar), an icon rail on tablets, and the workspace (ws-shell: top bar, grouped menu,
+ * Ctrl/⌘ K) from 1024 px.
  * Modules the tenant has not enabled are not shown at all.
  */
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [LucideAngularModule, RouterLink, RouterLinkActive, RouterOutlet, TPipe, ToastComponent],
+  imports: [LucideAngularModule, RouterLink, RouterLinkActive, RouterOutlet, TPipe, ToastComponent, WorkspaceShellComponent],
   template: `
     <tos-toast />
     @if (layout() === 'desktop') {
-      <div class="desktop">
-        <aside class="sidebar" [attr.aria-label]="'nav.menu' | t">
-          <a routerLink="/home" class="brand">ThriftOS</a>
-          <div class="tenant">{{ tenantName() }}</div>
-          <nav>
-            @for (item of visibleNav(); track item.path) {
-              <a [routerLink]="item.path" routerLinkActive="active" class="nav-item">
-                <lucide-icon [img]="item.icon" [size]="18" /><span>{{ item.label | t }}</span>
-              </a>
-            }
-          </nav>
-          <div class="sidebar-footer">
-            <span class="sync" [class.offline]="!offline.online()"><i></i>{{ syncLabel() }}</span>
-            <button type="button" class="signout" (click)="toggleLang()"><lucide-icon [img]="icons.Languages" [size]="17" /> {{ 'nav.language' | t }}</button>
-            <button type="button" class="signout" (click)="signOut()"><lucide-icon [img]="icons.LogOut" [size]="17" /> {{ 'nav.signOut' | t }}</button>
-          </div>
-        </aside>
-        <main class="content"><router-outlet /></main>
-      </div>
+      <ws-shell (signOut)="signOut()"><router-outlet /></ws-shell>
     } @else if (layout() === 'tablet') {
       <div class="tablet">
         <aside class="rail" [attr.aria-label]="'nav.menu' | t">
@@ -126,16 +111,6 @@ const NAV: NavItem[] = [
     .sync i { width:8px; height:8px; border-radius:50%; background:#2f9e8f; }
     .sync.offline i { background:#e09b2d; }
 
-    .desktop { min-height:100vh; display:grid; grid-template-columns:232px minmax(0,1fr); }
-    .sidebar { position:sticky; top:0; height:100vh; display:flex; flex-direction:column; padding:22px 14px 16px; box-sizing:border-box; background:var(--flow-ink); color:#eff5f2; }
-    .brand { color:#fff; text-decoration:none; font-size:20px; font-weight:800; letter-spacing:-.03em; }
-    .tenant { margin:20px 8px; color:#b7c7c4; font-size:12px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-    nav { display:grid; gap:4px; }
-    .nav-item { min-height:48px; display:flex; align-items:center; gap:12px; padding:0 12px; border-radius:var(--flow-radius-sm); color:#bdcfcb; font-size:14px; font-weight:650; text-decoration:none; }
-    .nav-item:hover { background:#243339; color:#fff; }
-    .nav-item.active { background:var(--tos-primary-soft); color:var(--tos-primary); }
-    .sidebar-footer { display:grid; gap:12px; margin-top:auto; padding:14px 8px 0; border-top:1px solid #334348; color:#b7c7c4; }
-    .signout { min-height:48px; display:flex; align-items:center; gap:9px; border:0; padding:0; background:transparent; color:#bdcfcb; font:inherit; font-size:13px; cursor:pointer; }
 
     .tablet { min-height:100vh; display:grid; grid-template-columns:84px minmax(0,1fr); }
     .rail { position:sticky; top:0; height:100vh; display:flex; flex-direction:column; align-items:center; gap:6px; padding:16px 8px; box-sizing:border-box; background:var(--flow-ink); }
@@ -169,6 +144,8 @@ export class AppShellComponent {
   protected readonly offline = inject(OfflineQueueService);
   protected readonly pwa = inject(PwaService);
   private readonly i18n = inject(I18nService);
+  // Applies the person's light/dark and density choice on every layout.
+  private readonly theme = inject(ThemeService);
   protected readonly icons = { Languages, LogOut, Menu };
   protected readonly layout = signal<LayoutMode>(layoutFor(window.innerWidth));
   protected readonly moreOpen = signal(false);

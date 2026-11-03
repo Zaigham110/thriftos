@@ -385,5 +385,68 @@
   "piece": "piece",
   "pieces": "pieces",
   "rs": "Rs {n}"
+ },
+ "ws": {
+  "account": "Your account",
+  "breadcrumbs": "You are here",
+  "collapse": "Collapse menu",
+  "create": "Create",
+  "crumb": {
+   "containers": "Containers",
+   "gallery": "Interface gallery",
+   "grading": "Grading",
+   "items": "Stock items",
+   "labels": "Labels",
+   "new": "New",
+   "records": "Records",
+   "today": "Today"
+  },
+  "density": {
+   "comfortable": "Comfortable rows",
+   "compact": "Compact rows"
+  },
+  "expand": "Expand menu",
+  "group": {
+   "insights": "Insights",
+   "operations": "Operations",
+   "sales": "Sales and money"
+  },
+  "nav": {
+   "home": "Home",
+   "inventory": "Inventory",
+   "purchasing": "Purchasing",
+   "receivables": "Receivables",
+   "reports": "Reports",
+   "sales": "Sales",
+   "settings": "Settings",
+   "sorting": "Sorting"
+  },
+  "new": {
+   "bale": "Make a bale",
+   "container": "Receive a container",
+   "lot": "Receive a loose lot",
+   "ready": "Receive ready stock",
+   "sale": "New sale"
+  },
+  "palette": {
+   "actions": "Actions",
+   "create": "Create",
+   "noResults": "Nothing matches.",
+   "pages": "Go to"
+  },
+  "search": "Search or jump to…",
+  "shortcut": {
+   "close": "Close a menu or window",
+   "help": "Show this list",
+   "nav": "Collapse or expand the menu",
+   "palette": "Search and commands"
+  },
+  "shortcuts": "Keyboard shortcuts",
+  "skip": "Skip to content",
+  "switchLanguage": "Switch to Urdu / English",
+  "theme": {
+   "dark": "Dark mode",
+   "light": "Light mode"
+  }
  }
 }

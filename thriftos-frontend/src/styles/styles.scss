@@ -23,6 +23,9 @@
 // 6. Floor screens (tiles, keypad, bottom action bar)
 @use 'floor';
 
+// 7. Workspace tokens (laptop ERP workspace; light/dark, density) — after floor so dark mode can remap it
+@use 'workspace';
+
 // Fonts are bundled (angular.json styles: Inter, Noto Naskh Arabic, Noto Nastaliq Urdu) so they work offline.
 
 .header-right-actions {

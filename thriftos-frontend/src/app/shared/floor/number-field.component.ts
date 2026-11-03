@@ -33,7 +33,7 @@ import { inject } from '@angular/core';
   `,
   styles: [`
     :host { display:block; }
-    .field-btn { width:100%; min-height:64px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:4px 12px; padding:8px 16px; border:1px solid var(--tos-line); border-radius:14px; background:#fff; color:var(--tos-ink); font:inherit; text-align:start; cursor:pointer; }
+    .field-btn { width:100%; min-height:64px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:4px 12px; padding:8px 16px; border:1px solid var(--tos-line); border-radius:14px; background:var(--tos-card); color:var(--tos-ink); font:inherit; text-align:start; cursor:pointer; }
     .label { font-size:15px; font-weight:700; }
     .label em { color:var(--tos-ink-soft); font-style:normal; font-weight:600; }
     .value { margin-inline-start:auto; white-space:nowrap; }
@@ -41,7 +41,7 @@ import { inject } from '@angular/core';
     .value small { margin-inline-start:4px; color:var(--tos-ink-soft); font-size:15px; font-weight:700; }
     .empty .value b { color:#b9b1b6; }
     .backdrop { position:fixed; inset:0; z-index:40; background:rgb(0 0 0 / .35); }
-    .sheet { position:fixed; inset-inline:0; inset-block-end:0; z-index:41; display:grid; gap:10px; max-width:520px; margin:0 auto; padding:16px 16px calc(16px + env(safe-area-inset-bottom)); border-radius:18px 18px 0 0; background:#fff; }
+    .sheet { position:fixed; inset-inline:0; inset-block-end:0; z-index:41; display:grid; gap:10px; max-width:520px; margin:0 auto; padding:16px 16px calc(16px + env(safe-area-inset-bottom)); border-radius:18px 18px 0 0; background:var(--tos-card); }
     header { display:flex; align-items:center; gap:12px; font-weight:700; }
     header span { flex:1; }
     .cancel { min-height:44px; padding-inline:4px; border:0; background:none; color:var(--tos-primary); font:inherit; font-weight:800; }

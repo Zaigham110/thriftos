@@ -385,5 +385,68 @@
   "piece": "پیس",
   "pieces": "پیس",
   "rs": "Rs {n}"
+ },
+ "ws": {
+  "account": "آپ کا اکاؤنٹ",
+  "breadcrumbs": "آپ یہاں ہیں",
+  "collapse": "مینو چھوٹا کریں",
+  "create": "نیا",
+  "crumb": {
+   "containers": "کنٹینر",
+   "gallery": "ڈیزائن گیلری",
+   "grading": "گریڈنگ",
+   "items": "اسٹاک آئٹم",
+   "labels": "لیبل",
+   "new": "نیا",
+   "records": "ریکارڈ",
+   "today": "آج"
+  },
+  "density": {
+   "comfortable": "کھلی قطاریں",
+   "compact": "گھنی قطاریں"
+  },
+  "expand": "مینو بڑا کریں",
+  "group": {
+   "insights": "جائزہ",
+   "operations": "کام کاج",
+   "sales": "بکری اور پیسہ"
+  },
+  "nav": {
+   "home": "ہوم",
+   "inventory": "اسٹاک",
+   "purchasing": "خریداری",
+   "receivables": "کھاتہ (وصولی)",
+   "reports": "رپورٹیں",
+   "sales": "بکری",
+   "settings": "سیٹنگز",
+   "sorting": "چھانٹی"
+  },
+  "new": {
+   "bale": "گانٹھ بنائیں",
+   "container": "کنٹینر وصول کریں",
+   "lot": "کھلا لاٹ وصول کریں",
+   "ready": "تیار مال وصول کریں",
+   "sale": "نئی بکری"
+  },
+  "palette": {
+   "actions": "کام",
+   "create": "نیا بنائیں",
+   "noResults": "کچھ نہیں ملا۔",
+   "pages": "یہاں جائیں"
+  },
+  "search": "تلاش کریں یا کسی صفحے پر جائیں…",
+  "shortcut": {
+   "close": "مینو یا ونڈو بند کریں",
+   "help": "یہ فہرست دکھائیں",
+   "nav": "مینو چھوٹا یا بڑا کریں",
+   "palette": "تلاش اور کمانڈ"
+  },
+  "shortcuts": "کی بورڈ شارٹ کٹ",
+  "skip": "مواد پر جائیں",
+  "switchLanguage": "اردو / انگریزی بدلیں",
+  "theme": {
+   "dark": "گہرا رنگ",
+   "light": "ہلکا رنگ"
+  }
  }
 }

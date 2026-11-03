@@ -95,7 +95,7 @@ type Step = 'business' | 'sort' | 'categories' | 'grades' | 'munshi';
     .bar { height:6px; border-radius:3px; background:var(--tos-line); overflow:hidden; }
     .bar i { display:block; height:100%; background:var(--tos-primary); transition:width .2s; }
     h2 { margin:4px 0 0; font-size:20px; }
-    .option { min-height:72px; display:flex; align-items:center; justify-content:space-between; padding:12px 18px; border:1px solid var(--tos-line); border-radius:var(--tos-radius); background:#fff; color:var(--tos-ink); font:inherit; font-size:17px; text-align:start; cursor:pointer; }
+    .option { min-height:72px; display:flex; align-items:center; justify-content:space-between; padding:12px 18px; border:1px solid var(--tos-line); border-radius:var(--tos-radius); background:var(--tos-card); color:var(--tos-ink); font:inherit; font-size:17px; text-align:start; cursor:pointer; }
     .option.on { border:2px solid var(--tos-primary); background:var(--tos-primary-soft); color:var(--tos-primary); }
     .chip lucide-icon { vertical-align:middle; }
     .add { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; }

@@ -62,7 +62,7 @@ interface PublicBill {
   `,
   styles: [`
     :host { display:block; min-height:100vh; background:#f4f6f5; color:#18252a; font-family:var(--font-family, system-ui); }
-    .bill { max-width:560px; margin:0 auto; padding:24px 16px; background:#fff; min-height:100vh; box-sizing:border-box; }
+    .bill { max-width:560px; margin:0 auto; padding:24px 16px; background:var(--tos-card); min-height:100vh; box-sizing:border-box; }
     header { text-align:center; margin-bottom:20px; }
     h1 { margin:0 0 6px; font-size:22px; }
     header p { margin:2px 0; color:#56666b; }
@@ -78,9 +78,9 @@ interface PublicBill {
     dt { color:#56666b; }
     dd { margin:0; font-weight:800; }
     .due dd { color:#b54a2c; }
-    button { width:100%; min-height:48px; border:1px solid #d6dedb; border-radius:12px; background:#fff; font:inherit; font-weight:700; }
+    button { width:100%; min-height:48px; border:1px solid #d6dedb; border-radius:12px; background:var(--tos-card); font:inherit; font-weight:700; }
     .missing { text-align:center; padding:48px 0; color:#56666b; }
-    @media print { button, .lang { display:none; } :host { background:#fff; } }
+    @media print { button, .lang { display:none; } :host { background:var(--tos-card); } }
   `],
 })
 export class PublicBillComponent implements OnInit {

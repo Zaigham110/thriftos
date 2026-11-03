@@ -53,7 +53,7 @@ import { ToastService } from '../../shared/floor/toast.service';
     </section>
   `,
   styles: [`
-    .search { display:flex; align-items:center; gap:8px; padding-inline-start:12px; border:1px solid var(--tos-line); border-radius:12px; background:#fff; }
+    .search { display:flex; align-items:center; gap:8px; padding-inline-start:12px; border:1px solid var(--tos-line); border-radius:12px; background:var(--tos-card); }
     .search input { flex:1; min-width:0; min-height:52px; border:0; background:transparent; font:inherit; font-size:17px; }
     .amount small { display:block; font-weight:600; }
   `],

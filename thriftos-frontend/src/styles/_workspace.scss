@@ -1,0 +1,198 @@
+// =====================================================================================================
+// Workspace design tokens (enterprise plan E1.1). Used by the laptop/tablet workspace (≥ 1024 px) and its
+// components in shared/ui/workspace. The floor screens keep their own --tos-* tokens; in dark mode those
+// are remapped below so floor pages shown inside the workspace darken with it.
+//
+// Theme: light by default; dark only when the person picks it (html[data-theme='dark'], ThemeService).
+// Density: comfortable by default; html[data-density='compact'] tightens rows and controls.
+// RTL: components use logical properties only (inline/block), so Urdu mirrors without overrides.
+//
+// Chart colours: the validated 8-slot categorical palette (dataviz reference instance), checked with
+// validate_palette.js against these surfaces (#ffffff light, #1c1a1d dark): all gates pass. In light mode
+// slots 3, 4 and 5 are below 3:1 on white, so every chart ships direct labels or a table view (relief rule).
+// The brand plum is an interface colour only; it is never a data series.
+// =====================================================================================================
+
+:root {
+  // Surfaces
+  --ws-page: #f6f5f7;
+  --ws-surface: #ffffff;
+  --ws-surface-2: #faf9fb;      // sunken: table headers, filter bars
+  --ws-surface-hover: #f2eff2;
+  --ws-overlay: rgb(20 16 20 / 0.42);
+
+  // Lines
+  --ws-line: #e4e0e4;
+  --ws-line-strong: #cfc8ce;
+
+  // Ink
+  --ws-ink: #1b171a;
+  --ws-ink-2: #5a5259;          // secondary
+  --ws-ink-3: #736a72;          // muted, captions (≥ 4.5:1 on page, surface and surface-2)
+
+  // Brand (plum) and focus
+  --ws-brand: #714b67;
+  --ws-brand-hover: #5e3e56;
+  --ws-brand-soft: #f3ecf1;
+  --ws-brand-ink: #ffffff;
+  --ws-focus: 0 0 0 3px rgb(113 75 103 / 0.28);
+
+  // Status (always with an icon or a word, never colour alone)
+  --ws-good: #1f7a45;
+  --ws-good-soft: #e5f3ea;
+  --ws-warn: #9a5b00;
+  --ws-warn-soft: #fdf1dc;
+  --ws-bad: #b42828;
+  --ws-bad-soft: #fbe7e7;
+  --ws-info: #2a63b5;
+  --ws-info-soft: #e7effb;
+
+  // Charts: categorical slots in fixed order (never cycled), sequential blue, hairline grid
+  --ws-series-1: #2a78d6;
+  --ws-series-2: #eb6834;
+  --ws-series-3: #1baf7a;
+  --ws-series-4: #eda100;
+  --ws-series-5: #e87ba4;
+  --ws-series-6: #008300;
+  --ws-series-7: #6250d6;
+  --ws-series-8: #e34948;
+  --ws-seq-low: #86b6ef;
+  --ws-seq-mid: #2a78d6;
+  --ws-seq-high: #104281;
+  --ws-grid: #e9e6e9;
+
+  // Type (Inter for Latin and digits, Noto Naskh Arabic for Urdu)
+  --ws-font: 'Inter', 'Noto Naskh Arabic', system-ui, sans-serif;
+  --ws-text-xs: 12px;
+  --ws-text-sm: 13px;
+  --ws-text-md: 14px;
+  --ws-text-lg: 16px;
+  --ws-text-xl: 20px;
+  --ws-text-2xl: 24px;
+  --ws-text-3xl: 30px;
+
+  // Space: 4 px grid
+  --ws-1: 4px;
+  --ws-2: 8px;
+  --ws-3: 12px;
+  --ws-4: 16px;
+  --ws-5: 20px;
+  --ws-6: 24px;
+  --ws-8: 32px;
+
+  // Shape and depth
+  --ws-r-sm: 6px;
+  --ws-r-md: 8px;
+  --ws-r-lg: 12px;
+  --ws-shadow-1: 0 1px 2px rgb(27 23 26 / 0.06);
+  --ws-shadow-2: 0 2px 8px rgb(27 23 26 / 0.08);
+  --ws-shadow-pop: 0 12px 32px rgb(27 23 26 / 0.18), 0 2px 6px rgb(27 23 26 / 0.08);
+
+  // Density (comfortable)
+  --ws-control-h: 36px;
+  --ws-row-h: 44px;
+  --ws-cell-px: 12px;
+
+  // Layout
+  --ws-topbar-h: 56px;
+  --ws-nav-w: 248px;
+  --ws-nav-w-min: 64px;
+  --ws-content-max: 1440px;
+}
+
+html[data-density='compact'] {
+  --ws-control-h: 30px;
+  --ws-row-h: 34px;
+  --ws-cell-px: 8px;
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+  --ws-page: #121013;
+  --ws-surface: #1c1a1d;
+  --ws-surface-2: #222024;
+  --ws-surface-hover: #2a272b;
+  --ws-overlay: rgb(0 0 0 / 0.6);
+  --ws-line: #322e33;
+  --ws-line-strong: #4a444b;
+  --ws-ink: #f1eef0;
+  --ws-ink-2: #c7bfc5;
+  --ws-ink-3: #9b939a;
+  --ws-brand: #c79bbb;
+  --ws-brand-hover: #d8b3ce;
+  --ws-brand-soft: #3a2b36;
+  --ws-brand-ink: #1c1a1d;
+  --ws-focus: 0 0 0 3px rgb(199 155 187 / 0.35);
+  --ws-good: #5cc489;
+  --ws-good-soft: #17301f;
+  --ws-warn: #e7b04c;
+  --ws-warn-soft: #34270f;
+  --ws-bad: #f08080;
+  --ws-bad-soft: #3a1b1b;
+  --ws-info: #7fb0f0;
+  --ws-info-soft: #172537;
+  --ws-series-1: #3987e5;
+  --ws-series-2: #d95926;
+  --ws-series-3: #199e70;
+  --ws-series-4: #c98500;
+  --ws-series-5: #d55181;
+  --ws-series-6: #008300;
+  --ws-series-7: #9085e9;
+  --ws-series-8: #e66767;
+  --ws-seq-low: #184f95;
+  --ws-seq-mid: #3987e5;
+  --ws-seq-high: #9ec5f4;
+  --ws-grid: #2c2a2d;
+  --ws-shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --ws-shadow-2: 0 2px 8px rgb(0 0 0 / 0.45);
+  --ws-shadow-pop: 0 12px 32px rgb(0 0 0 / 0.55);
+
+  // Floor screens shown inside the workspace follow the theme.
+  --tos-primary: var(--ws-brand);
+  --tos-primary-ink: var(--ws-brand-ink);
+  --tos-primary-soft: var(--ws-brand-soft);
+  --tos-ink: var(--ws-ink);
+  --tos-ink-soft: var(--ws-ink-2);
+  --tos-line: var(--ws-line);
+  --tos-canvas: var(--ws-page);
+  --tos-card: var(--ws-surface);
+  --tos-field: var(--ws-surface-2);
+  --tos-good: var(--ws-good);
+  --tos-good-soft: var(--ws-good-soft);
+  --tos-warn: var(--ws-bad);
+  --tos-warn-soft: var(--ws-bad-soft);
+  --flow-ink: var(--ws-ink);
+  --flow-ink-soft: var(--ws-ink-2);
+  --flow-canvas: var(--ws-page);
+  --flow-surface: var(--ws-surface);
+  --flow-line: var(--ws-line);
+
+  // Older ERP screens (--app-* and Tailwind's HSL triplets) follow the theme too.
+  --app-bg-page: var(--ws-page);
+  --app-bg-surface: var(--ws-surface);
+  --app-border-subtle: var(--ws-line);
+  --app-border-strong: var(--ws-line-strong);
+  --app-text-primary: var(--ws-ink);
+  --app-text-secondary: var(--ws-ink-2);
+  --app-text-muted: var(--ws-ink-3);
+  --app-primary: var(--ws-brand);
+  --app-primary-hover: var(--ws-brand-hover);
+  --app-primary-light: var(--ws-brand-soft);
+  --background: 300 6% 7%;
+  --foreground: 320 10% 94%;
+  --card: 285 6% 11%;
+  --card-foreground: 320 10% 94%;
+  --popover: 285 6% 11%;
+  --popover-foreground: 320 10% 94%;
+  --muted: 285 5% 15%;
+  --muted-foreground: 315 5% 60%;
+  --accent: 315 16% 20%;
+  --accent-foreground: 320 10% 94%;
+  --border: 290 5% 19%;
+  --input: 290 5% 19%;
+}
+
+// Shared workspace utilities (small, so components stay consistent).
+.ws-num { font-variant-numeric: tabular-nums; }
+.ws-visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+:where(.ws) :focus-visible { outline: none; box-shadow: var(--ws-focus); border-radius: var(--ws-r-sm); }
