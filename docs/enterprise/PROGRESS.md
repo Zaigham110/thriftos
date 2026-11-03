@@ -25,6 +25,8 @@ Plan: `01-ENTERPRISE-PLAN.md`. Branch: `enterprise-e1` (from `v2-go-live` at `10
   - Dev DB: `scripts/apply-enterprise-e2.sh` (owner runs it; production applies on start).
   - Screenshots: `docs/enterprise/screenshots/e2-sales-list.png`, `e2-sale-record.png`, `e2-sales-grouped.png`.
 
+- 2026-11-04 — **Released `v1.2.0`** (E1 + E2): `enterprise-e1` fast-forwarded into `v2-go-live` (and `v1-reshape` for PR #2); release run green including the live check; live ~7 minutes after the tag. On the server: migration `e2_01_workspace_records` applied on start, `cost.view` and `data.export` permissions present, ThriftOS ~135 MB. Through CloudFront: app, `/sell/records`, `/settings/ui-gallery` 200; `/api/lists`, `/api/views`, `/api/search` 401 without a login.
+
 ## Decisions
 - Dark mode is opt-in per person and device; light stays the default everywhere.
 - The brand plum is never a chart series; charts use the validated categorical slots in fixed order.
