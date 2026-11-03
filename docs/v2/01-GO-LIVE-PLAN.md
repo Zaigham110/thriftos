@@ -19,7 +19,7 @@ Target: the owner's existing AWS free-tier account. One EC2 micro instance (1 GB
   - Rename the migrate switch to `RUN_MIGRATIONS_ON_START` (production: 1); keep the dev guard behaviour from `scripts/db-guard.js`.
   - All secrets from `/opt/thriftos/.env.prod` on the server (never in git). New `JWT_SECRET` and DB password generated on the server (this closes "rotate secrets").
   - `NODE_ENV=production`, CORS limited to the app domain, rate limits on auth (already Throttler), secure cookies/headers in Caddy.
-- [ ] 5.2 Build and deploy pipeline
+- [x] 5.2 Build and deploy pipeline
   - GitHub Actions: on tag `v*` (and manual dispatch) build `server` and `web` images for `linux/amd64` (or arm64 if the instance is Graviton), push to GHCR, then deploy over SSH: `docker compose pull && docker compose up -d`, wait for `/api/health`, roll back to the previous image tag if health fails.
   - `scripts/server-setup.sh`: one-time EC2 setup (Docker, swap, firewall: 22 from owner IP only, 80/443 open; unattended security updates).
 - [ ] 5.3 Backups and restore
