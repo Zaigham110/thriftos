@@ -14,7 +14,8 @@ RUN cd server && npm ci
 
 COPY server ./server
 WORKDIR /app/server
-RUN npx prisma generate --schema /app/prisma/schema.prisma \
+# Only the server's client: the default generator would make Prisma run `npm i @prisma/client` in /app.
+RUN npx prisma generate --schema /app/prisma/schema.prisma --generator serverClient \
  && node ../scripts/ensure-prisma-client-link.js \
  && npx nest build
 
