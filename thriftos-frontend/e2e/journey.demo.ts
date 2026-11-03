@@ -64,7 +64,7 @@ for (const lang of ['ur', 'en'] as const) {
     await sortTile(page, 'Jackets', 250);
     await page.locator('.action-bar .btn.primary').click();
     await page.getByRole('alertdialog').locator('.btn.primary').click();
-    await expect(page.getByText(w('sort.closed'))).toBeVisible();
+    await expect(page.getByRole('heading', { name: w('sort.closed') })).toBeVisible();
     await expect(page.locator('li', { hasText: 'Jeans' })).toContainText('45%');
 
     // Grading the Jeans of this container into A / B / C.
@@ -74,7 +74,7 @@ for (const lang of ['ur', 'en'] as const) {
     await sortTile(page, 'B', 500);
     await sortTile(page, 'C', 200);
     await page.locator('.action-bar .btn.primary').click();
-    await expect(page.getByText(w('sort.closed'))).toBeVisible();
+    await expect(page.getByRole('heading', { name: w('sort.closed') })).toBeVisible();
 
     // 3. Two bales; the first one's QR label is opened from "Print label".
     const baleCodes: string[] = [];
