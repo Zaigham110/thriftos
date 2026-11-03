@@ -44,6 +44,8 @@
 
 - 2026-11-03 — Simpler GitHub setup (owner's call): one workflow only, `release.yml`, run when a `v*` tag is pushed: test (server tests on a throwaway Postgres; frontend dictionaries, typecheck, build without warnings) → ARM64 images → GitHub release → wait until live. `ci.yml` (every push: browser suite, demo journey, deploy-config and actionlint checks) and `uptime.yml` removed, so nothing runs on ordinary pushes and pull requests show no checks. The browser tests and everything else run on the Mac with `bash scripts/check-before-release.sh` before tagging (README → Release). Uptime monitoring moves to a free external monitor (owner step).
 
+- 2026-11-03 — `v1.1.1` live (~6 minutes after the tag, tests included), with the sort fix from the other session. The run's last job failed although the deploy was fine: `version.json` (web) showed `v1.1.1` while the API container was still restarting, and the single health call got a 502. The live check now retries health for a minute. Known: each deploy has a short gap (seconds, while the API restarts and runs migrations) in which API calls fail; the offline queue on phones retries them.
+
 ## Decisions
 - Where the work happens: tests, installs and the build run in the main folder (`/Users/zaigham/Data/me-projects/thriftos`). The agent's own session sits in a worktree it cannot leave and may not edit the main folder's files directly, so it edits and commits on a branch in its worktree, pushes to `origin/v2-go-live`, and fast-forwards `v2-go-live` in the main folder. Every commit and tag therefore ends up in the main folder too.
 - Production runs Caddy in front of nginx (`web`) and the API: Caddy only does HTTPS, headers and routing; nginx keeps the cache rules from v1 4.2.

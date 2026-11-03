@@ -124,7 +124,8 @@ jobs:
         run: |
           for _ in $(seq 1 60); do
             v=$(curl -fsS "${{ vars.APP_URL }}/thriftos/version.json?t=$(date +%s)" | jq -r .version || true)
-            [ "$v" = "${{ github.ref_name }}" ] && { echo "Live: $v"; curl -fsS "${{ vars.APP_URL }}/thriftos/api/health"; exit 0; }
+            # The app's version can show while the API is still restarting (a few seconds of 502), so retry health.
+            [ "$v" = "${{ github.ref_name }}" ] && { echo "Live: $v"; curl -fsS --retry 10 --retry-delay 6 --retry-all-errors "${{ vars.APP_URL }}/thriftos/api/health"; exit 0; }
             echo "running: ${v:-?}"; sleep 15
           done
           echo "Not live after 15 minutes: check 'journalctl -u thriftos-deploy' on the server."; exit 1
