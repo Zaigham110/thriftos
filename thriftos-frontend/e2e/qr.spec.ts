@@ -54,6 +54,8 @@ test('Task 3.5: labels print as 50×30 mm stickers or an A4 sheet of 3×8', asyn
 
   await page.emulateMedia({ media: 'screen' });
   await page.getByRole('button', { name: 'A4 sheet (3×8)' }).click();
+  // Measure only once the screen has switched to the sheet layout (a fast runner can measure the old one).
+  await expect(page.locator('.labels.a4')).toBeVisible();
   await page.emulateMedia({ media: 'print' });
   // The layout switches after the click is handled; measure once it has (a single read raced it in CI).
   await expect
