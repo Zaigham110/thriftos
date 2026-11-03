@@ -54,9 +54,13 @@ test('Task 3.5: labels print as 50×30 mm stickers or an A4 sheet of 3×8', asyn
 
   await page.emulateMedia({ media: 'screen' });
   await page.getByRole('button', { name: 'A4 sheet (3×8)' }).click();
+  // Measure only once the screen has switched to the sheet layout (a fast runner can measure the old one).
+  await expect(page.locator('.labels.a4')).toBeVisible();
   await page.emulateMedia({ media: 'print' });
-  const a4 = await label.boundingBox();
-  expect([mm(a4!.width), mm(a4!.height)]).toEqual([70, 37]);
+  await expect.poll(async () => {
+    const a4 = await label.boundingBox();
+    return [mm(a4!.width), mm(a4!.height)];
+  }).toEqual([70, 37]);
   // 3 columns × 8 rows of 70 × 37 mm fill an A4 page (210 × 297 mm) with the 0.5 mm page margin.
   expect(3 * 70).toBeLessThanOrEqual(210);
   expect(8 * 37 + 2 * 0.5).toBeLessThanOrEqual(297);
