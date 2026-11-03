@@ -32,8 +32,8 @@ export interface BoardConfig {
   /** Card title and the lines under it (column keys). */
   title: string;
   lines: string[];
-  /** PATCH body to move a record to a value (the server checks the allowed steps). */
-  move: (id: string, value: string) => { url: string; body: Record<string, unknown> };
+  /** PATCH body to move a record to a value (the server checks the allowed steps). Absent: the board only shows. */
+  move?: (id: string, value: string) => { url: string; body: Record<string, unknown> };
 }
 
 /** Everything a workspace list screen needs; screens are configured, not written (enterprise plan E2/E3). */

@@ -38,14 +38,16 @@ const PER_COLUMN = 50;
           <header><h2>{{ b.prefix + col.value | t }}</h2><span class="count">{{ i18n.num(col.total) }}</span></header>
           <div class="cards">
             @for (card of col.cards; track card.id) {
-              <article class="card" draggable="true" (dragstart)="drag($event, card.id)" [class.moving]="moving() === card.id">
+              <article class="bcard" [attr.draggable]="b.move ? 'true' : null" (dragstart)="drag($event, card.id)" [class.moving]="moving() === card.id" [class.locked]="!b.move">
                 <button type="button" class="open" (click)="open.emit(card.id)">{{ card.title }}</button>
                 @for (l of card.lines; track $index) { @if (l) { <p>{{ l }}</p> } }
+                @if (b.move) {
                 <label class="move">{{ 'ws.board.moveTo' | t }}
                   <select (change)="move(card.id, $any($event.target).value, col.value)">
                     @for (v of b.values; track v) { <option [value]="v" [selected]="v === col.value">{{ b.prefix + v | t }}</option> }
                   </select>
                 </label>
+                }
               </article>
             } @empty {
               <p class="empty">{{ 'ws.board.empty' | t }}</p>
@@ -64,8 +66,9 @@ const PER_COLUMN = 50;
     h2 { margin:0; font-size:var(--ws-text-sm); font-weight:600; color:var(--ws-ink); }
     .count { min-width:24px; padding:2px 8px; border-radius:999px; background:var(--ws-surface); color:var(--ws-ink-2); font-size:var(--ws-text-xs); text-align:center; }
     .cards { display:grid; align-content:start; gap:var(--ws-2); padding:var(--ws-2); }
-    .card { display:grid; gap:4px; padding:var(--ws-3); border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface); box-shadow:var(--ws-shadow-sm, none); cursor:grab; }
-    .card.moving { opacity:.5; }
+    .bcard { display:grid; gap:4px; padding:var(--ws-3); border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface); box-shadow:var(--ws-shadow-sm, none); cursor:grab; }
+    .bcard.moving { opacity:.5; }
+    .bcard.locked { cursor:default; }
     .open { padding:0; border:0; background:none; color:var(--ws-brand); font:inherit; font-weight:600; text-align:start; cursor:pointer; }
     .open:hover { text-decoration:underline; }
     p { margin:0; color:var(--ws-ink-2); font-size:var(--ws-text-sm); }
@@ -147,6 +150,7 @@ export class BoardComponent {
 
   protected drop(e: DragEvent, value: string): void {
     e.preventDefault();
+    if (!this.config().board?.move) return;
     this.over.set(null);
     const id = e.dataTransfer?.getData('text/plain');
     const from = this.columns().find((c) => c.cards.some((x) => x.id === id))?.value;
@@ -154,8 +158,9 @@ export class BoardComponent {
   }
 
   protected move(id: string, value: string, from: string): void {
-    if (value === from) return;
-    const { url, body } = this.config().board!.move(id, value);
+    const move = this.config().board!.move;
+    if (value === from || !move) return;
+    const { url, body } = move(id, value);
     this.moving.set(id);
     this.http.patch(url, body).subscribe({
       next: () => {

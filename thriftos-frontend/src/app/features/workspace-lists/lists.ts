@@ -176,3 +176,44 @@ export const STOCK_COUNTS_LIST: ListConfig = {
   quickFilters: [{ field: 'status', label: 'ws.col.status', values: ['PENDING', 'APPROVED', 'REJECTED'], prefix: 'ws.counts.status.' }],
   rowLink: (id, row) => ['/stock/items', row?.['itemId'] ?? id],
 };
+
+const LOT_STATUSES = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
+
+/** Lots to sort, being sorted and sorted (E3.2); the board shows where each lot is (sorting moves it). */
+export const LOTS_LIST: ListConfig = {
+  resource: 'lots',
+  title: 'ws.lots.title',
+  count: 'ws.lots.count',
+  searchPlaceholder: 'ws.lots.search',
+  emptyHeading: 'ws.lots.emptyHeading',
+  emptyMessage: 'ws.lots.emptyMessage',
+  columns: [
+    { key: 'code', label: 'ws.container.lot', width: '130px' },
+    { key: 'date', label: 'ws.containers.col.date', format: 'date' },
+    { key: 'container', label: 'ws.containers.col.number' },
+    { key: 'supplier', label: 'ws.containers.col.supplier', computed: true },
+    { key: 'origin', label: 'ws.containers.col.origin' },
+    { key: 'rawCategory', label: 'ws.lots.col.raw' },
+    { key: 'source', label: 'ws.stock.col.source', enumPrefix: 'ws.lots.source.' },
+    { key: 'status', label: 'ws.col.status', enumPrefix: 'ws.lotStatus.' },
+    { key: 'kg', label: 'ws.containers.col.kg', format: 'kg', total: true },
+    { key: 'cost', label: 'ws.col.cost', format: 'money', total: true },
+    { key: 'sortedKg', label: 'ws.lots.col.sorted', format: 'kg', computed: true },
+    { key: 'wasteKg', label: 'ws.lots.col.waste', format: 'kg', computed: true },
+    { key: 'yield', label: 'ws.containers.col.yield', format: 'percent', computed: true },
+    { key: 'worker', label: 'ws.lots.col.worker', computed: true },
+    { key: 'sortedAt', label: 'ws.lots.col.sortedAt', format: 'date', computed: true },
+  ],
+  defaultColumns: ['code', 'date', 'container', 'supplier', 'status', 'kg', 'sortedKg', 'wasteKg', 'yield', 'worker'],
+  dateField: 'date',
+  groupBy: [
+    { key: 'status', label: 'ws.col.status', enumPrefix: 'ws.lotStatus.' },
+    { key: 'containerId', label: 'ws.containers.col.number' },
+    { key: 'origin', label: 'ws.containers.col.origin' },
+    { key: 'rawCategoryId', label: 'ws.lots.col.raw' },
+  ],
+  quickFilters: [{ field: 'status', label: 'ws.col.status', values: LOT_STATUSES, prefix: 'ws.lotStatus.' }],
+  rowLink: (id) => ['/sort/records', id],
+  create: { label: 'ws.new.lot', link: '/receive/lot' },
+  board: { field: 'status', values: LOT_STATUSES, prefix: 'ws.lotStatus.', title: 'code', lines: ['container', 'kg', 'yield'] },
+};

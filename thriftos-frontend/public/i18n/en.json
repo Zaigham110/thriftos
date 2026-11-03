@@ -669,6 +669,24 @@
    "NOT_STARTED": "Waiting",
    "SORTED": "Sorted"
   },
+  "lots": {
+   "col": {
+    "raw": "Raw type",
+    "sorted": "Sorted kg",
+    "sortedAt": "Finished",
+    "waste": "Waste kg",
+    "worker": "Sorted by"
+   },
+   "count": "{n} lots",
+   "emptyHeading": "No lots match",
+   "emptyMessage": "Try other words, a wider period, or clear the filters.",
+   "search": "Search lot, container, origin or raw type",
+   "source": {
+    "CONTAINER": "Container",
+    "LOOSE_BALE": "Loose lot"
+   },
+   "title": "Lots and sorting"
+  },
   "mode": {
    "CASH": "Cash",
    "CREDIT": "Udhaar",
@@ -693,7 +711,8 @@
    "settings": "Settings",
    "sorting": "Sorting",
    "stockValue": "Stock value",
-   "suppliers": "Suppliers"
+   "suppliers": "Suppliers",
+   "yield": "Yield"
   },
   "new": {
    "bale": "Make a bale",
@@ -781,6 +800,25 @@
   },
   "shortcuts": "Keyboard shortcuts",
   "skip": "Skip to content",
+  "sortRecord": {
+   "amount": "Amount",
+   "by": "by {name}",
+   "continue": "Continue sorting",
+   "done": "done",
+   "graded": "Graded",
+   "input": "Kg in",
+   "minutes": "{n} min",
+   "noWaste": "No waste recorded",
+   "notFound": "This lot could not be opened",
+   "resale": "Resale value",
+   "share": "Share",
+   "stage": "Stage",
+   "stage1": "Sorting",
+   "stage2": "Grading",
+   "start": "Start sorting",
+   "time": "Time taken",
+   "waste": "Waste"
+  },
   "state": {
    "empty": "Nothing here yet",
    "error": "This could not be loaded.",
@@ -934,6 +972,22 @@
    "PACKAGING_SUPPLIER": "Packaging",
    "SERVICE_PROVIDER": "Services",
    "SUPPLIER": "Supplier"
+  },
+  "yield": {
+   "by": "By",
+   "chart": "Sorted % and A grade % by {by}",
+   "empty": "No sorting finished in this period",
+   "group": {
+    "container": "Container",
+    "month": "Month",
+    "origin": "Origin",
+    "rawCategory": "Raw type",
+    "supplier": "Supplier"
+   },
+   "lots": "Lots sorted",
+   "subtitle": "How much of what you bought came out as sellable stock",
+   "title": "Yield analysis",
+   "wasteHint": "{kg} waste"
   }
  }
 }

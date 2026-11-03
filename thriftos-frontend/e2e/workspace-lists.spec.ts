@@ -200,3 +200,26 @@ test('receivables: collections worklist, customer 360 with promise and payment, 
   await expect(page.getByRole('heading', { name: 'Statement of account' }).or(page.getByText('Statement of account').first())).toBeVisible();
   await expect(page.locator('tfoot')).toContainText('15,000');
 });
+
+test('sorting: lots list and board, a lot record, yield analysis', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/sort/records');
+  await expect(page.getByRole('heading', { name: 'Lots and sorting', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Board' }).click();
+  for (const column of ['Waiting', 'Sorting', 'Sorted']) await expect(page.locator(`app-board section[aria-label="${column}"]`)).toBeVisible();
+  // The board only shows here: sorting moves a lot, so there is no "Move to" picker.
+  await expect(page.locator('app-board').getByLabel('Move to')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Table' }).click();
+  const first = page.locator('ws-data-grid tbody tr').first();
+  if (await first.isVisible() && !(await first.textContent())?.includes('No lots match')) {
+    await first.click();
+    await expect(page).toHaveURL(/\/sort\/records\/[^/]+$/);
+    await expect(page.locator('ws-status-pipeline')).toBeVisible();
+  }
+
+  await page.goto('/sort/yield');
+  await expect(page.getByRole('heading', { name: 'Yield analysis' })).toBeVisible();
+  await page.getByLabel('By').selectOption({ label: 'Month' });
+  await expect(page.locator('ws-kpi-card').filter({ hasText: 'Lots sorted' })).toBeVisible();
+});

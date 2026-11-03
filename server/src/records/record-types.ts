@@ -14,7 +14,7 @@ export const RECORD_TYPES: Record<string, RecordType> = {
   container: { model: 'container', auditEntities: ['Container'], labelField: 'containerNumber', link: (id) => `/receive/records/containers/${id}` },
   customer: { model: 'customer', auditEntities: ['Customer'], labelField: 'name', link: (id) => `/khata/records/${id}` },
   stockItem: { model: 'inventoryItem', auditEntities: ['InventoryItem', 'RepackUnit'], labelField: 'name', link: (id) => `/stock/items/${id}` },
-  lot: { model: 'rag', auditEntities: ['Rag'], labelField: 'ragCode', link: (id) => `/receive/records/rags/${id}/edit` },
+  lot: { model: 'rag', auditEntities: ['Rag'], labelField: 'ragCode', link: (id) => `/sort/records/${id}` },
   payment: { model: 'payment', auditEntities: ['Payment'], labelField: 'reference', link: () => '/khata/records' },
   supplier: { model: 'vendor', auditEntities: ['Vendor'], labelField: 'name', link: (id) => `/receive/records/suppliers/${id}` },
 };

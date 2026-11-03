@@ -7,6 +7,7 @@ import { TenantGuard } from '../common/guards/tenant.guard';
 import { ListsService } from '../lists/lists.service';
 import { WorkspaceRecordsService } from './records.service';
 import { CreditLimitDto, PromiseDto, ReceivablesService, ReminderDto, StatementQueryDto } from './receivables.service';
+import { SortingRecordsService, YieldQueryDto } from './sorting-records.service';
 import { StockCountDto, StockDecisionDto, StockRecordsService, StockTransferDto } from './stock-records.service';
 
 /** Workspace record pages (enterprise plan E3): one call per page; cost and profit need cost.view. */
@@ -18,6 +19,7 @@ export class WorkspaceController {
     private readonly lists: ListsService,
     private readonly stock: StockRecordsService,
     private readonly receivables: ReceivablesService,
+    private readonly sorting: SortingRecordsService,
   ) {}
 
   private async canSeeCost(user: CurrentUserData): Promise<boolean> {
@@ -76,6 +78,21 @@ export class WorkspaceController {
   @RequirePermissions('INVENTORY_ADJUST')
   transfer(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string, @Body() dto: StockTransferDto) {
     return this.stock.transfer(tenantId, id, dto, user.userId);
+  }
+
+  // ---- Sorting (E3.2) ----
+  /** Yield analysis over finished sorting: by supplier, origin, raw type, container or month. */
+  @Get('sorting/yield')
+  @RequirePermissions('SORTING_STAGE1_VIEW')
+  sortingYield(@TenantId() tenantId: string, @Query() q: YieldQueryDto) {
+    return this.sorting.yieldAnalysis(tenantId, q);
+  }
+
+  /** A lot's sorting record: stage 1 categories, stage 2 grades, waste, cost. */
+  @Get('sorting/:lotId')
+  @RequirePermissions('SORTING_STAGE1_VIEW')
+  async sortingLot(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('lotId') id: string) {
+    return this.sorting.lot(tenantId, id, await this.canSeeCost(user));
   }
 
   // ---- Receivables (E3.5): open to everyone of the business, like the khata; profit needs cost.view ----

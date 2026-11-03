@@ -107,7 +107,7 @@ Each area gets list + record (+ kanban where it has stages), using E2.
 - [x] E3.1 **Purchasing** — suppliers (record with scorecard tab), containers (kanban by status, record with landed cost
   breakdown, charges, lots, sorting, bales, sales, profit — the traceability page), loose lots, purchase orders (when the
   module is on), goods received note PDF.
-- [ ] E3.2 **Sorting** — sessions list/kanban, session record with category/grade outputs and waste, yield analysis
+- [x] E3.2 **Sorting** — sessions list/kanban, session record with category/grade outputs and waste, yield analysis
   view.
 - [x] E3.3 **Inventory** — stock items (filter by category, grade, age, branch), bale record with full lineage and QR,
   movements ledger, stock ageing, stock valuation, stock count and adjustment with approval, godown transfers.
