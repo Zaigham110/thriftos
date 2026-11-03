@@ -1,6 +1,6 @@
 # ThriftOS Enterprise Workspace — Plan
 
-Status: approved direction, queued (2026-11-03). Owner chose to do v2 Phase 5 (AWS go-live) first; this plan starts after it. Branch: `enterprise-workspace` (from `v1-reshape` at `26f1ae3`, tag `v1.0.0-demo`).
+Status: in progress (E1 done 2026-11-03). v2 Phase 5 (AWS go-live) was done first, as the owner chose. Branch: `enterprise-workspace` (from `v1-reshape` at `26f1ae3`, tag `v1.0.0-demo`).
 
 ## Why
 The owner reviewed the v1 demo: it works, but it is not enough to pitch and does not look like serious business software.
@@ -73,18 +73,18 @@ Generic ERPs cannot do these without months of customisation; local tools cannot
 ## Phases
 
 ### Phase E1 — Design system and app shell (week 1–2)
-- [ ] E1.1 Design tokens (`thriftos-frontend/src/styles/tokens`): neutral grey scale + plum brand `#714b67`, semantic
+- [x] E1.1 Design tokens (`thriftos-frontend/src/styles/tokens`): neutral grey scale + plum brand `#714b67`, semantic
   colours (success, warning, danger, info), a validated chart palette, type scale (Inter for Latin, Noto Naskh Urdu for
   Urdu), 4px spacing grid, radii, shadows, comfortable/compact density, light and dark themes, RTL-safe (logical CSS
   properties only).
-- [ ] E1.2 Workspace shell (≥ 1024px): top bar, grouped collapsible left nav (Home · Purchasing · Sorting · Inventory ·
+- [x] E1.2 Workspace shell (≥ 1024px): top bar, grouped collapsible left nav (Home · Purchasing · Sorting · Inventory ·
   Sales · Receivables · Finance · Reports · Settings), breadcrumbs, command palette (Ctrl/⌘ K: go to any screen, find a
   container/bale/customer/sale by code or name, quick create), keyboard shortcuts help (`?`).
-- [ ] E1.3 Core components in `shared/ui/workspace`: page header with actions, command bar, data grid, filter bar,
+- [x] E1.3 Core components in `shared/ui/workspace`: page header with actions, command bar, data grid, filter bar,
   status pipeline, smart button, KPI card with sparkline, chart wrapper, record tabs, activity panel, side sheet,
   date-range picker, empty/loading/error states. A component gallery page (`/settings/ui-gallery`, owner only) to review
   them.
-- [ ] E1.4 The phone layout stays the default under 1024px; owners on a laptop land in the workspace. Floor tests stay
+- [x] E1.4 The phone layout stays the default under 1024px; owners on a laptop land in the workspace. Floor tests stay
   green.
 - Acceptance: every existing owner route renders inside the new shell at 1440×900 and 1024×768 in English and Urdu;
   light and dark; Lighthouse accessibility ≥ 95.
