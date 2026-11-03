@@ -62,11 +62,15 @@ jobs:
       - name: Publish the release (the server picks it up)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "${{ github.ref_name }}" --repo "${{ github.repository }}" --generate-notes --latest
+        # A tag with a dash (v1.2.0-rc.1) is a prerelease: images only, never deployed (the server
+        # follows GitHub's "latest" release, which skips prereleases).
+        run: |
+          if [[ "${{ github.ref_name }}" == *-* ]]; then flag=--prerelease; else flag=--latest; fi
+          gh release create "${{ github.ref_name }}" --repo "${{ github.repository }}" --generate-notes $flag
 
   live:
     needs: release
-    if: vars.APP_URL != ''
+    if: vars.APP_URL != '' && !contains(github.ref_name, '-')
     runs-on: ubuntu-latest
     steps:
       - name: Wait until ${{ vars.APP_URL }}/thriftos runs ${{ github.ref_name }}

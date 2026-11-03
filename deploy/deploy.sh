@@ -53,7 +53,8 @@ if [ "${SKIP_PULL:-0}" != 1 ]; then
   if [ -n "${GHCR_TOKEN:-}" ]; then echo "$GHCR_TOKEN" | docker login ghcr.io -u "${GHCR_USER:?}" --password-stdin >/dev/null; fi
   pull_ok=0; THRIFTOS_TAG="$TAG" "${COMPOSE[@]}" pull --quiet server web && pull_ok=1
   [ -n "${GHCR_TOKEN:-}" ] && docker logout ghcr.io >/dev/null
-  [ "$pull_ok" = 1 ] || { echo "Pull failed — nothing changed."; exit 1; }
+  # Exit 3 = nothing changed (e.g. images not public yet); auto-deploy.sh tries again later.
+  [ "$pull_ok" = 1 ] || { echo "Pull failed — nothing changed."; exit 3; }
 fi
 
 echo "== 3/5 Start $TAG"

@@ -35,8 +35,14 @@ if [ -f .ghcr-token ]; then
   GHCR_USER="$(sed -n 1p .ghcr-token)"; GHCR_TOKEN="$(sed -n 2p .ghcr-token)"; export GHCR_USER GHCR_TOKEN
 fi
 
-if deploy/deploy.sh "$latest"; then
-  exit 0
+rc=0
+deploy/deploy.sh "$latest" || rc=$?
+[ "$rc" = 0 ] && exit 0
+
+if [ "$rc" = 3 ]; then
+  # The images could not be pulled and nothing changed: put the deploy files back, retry next time.
+  for f in "${FILES[@]}"; do if [ -f "$old/$f" ]; then cp -p "$old/$f" "$f"; fi; done
+  exit 1
 fi
 
 echo "$latest" >> .failed-tags
