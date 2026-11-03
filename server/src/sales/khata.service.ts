@@ -27,7 +27,7 @@ const PHOTO_TYPES: Record<string, string> = {
 const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 
 /** Applies one customer's payments: those made with a sale pay it, the rest pay the oldest debt (./khata.ts). */
-function applyFor<S extends { id: string; totalAmount: Prisma.Decimal; issuedAt: Date | null; createdAt: Date }>(
+export function applyFor<S extends { id: string; totalAmount: Prisma.Decimal; issuedAt: Date | null; createdAt: Date }>(
   openingBalance: Prisma.Decimal,
   sales: S[],
   payments: { saleId: string | null; amount: Prisma.Decimal }[],

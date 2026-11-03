@@ -12,10 +12,10 @@ export interface RecordType {
 export const RECORD_TYPES: Record<string, RecordType> = {
   sale: { model: 'sale', auditEntities: ['Sale'], labelField: 'saleNumber', link: (id) => `/sell/records/${id}` },
   container: { model: 'container', auditEntities: ['Container'], labelField: 'containerNumber', link: (id) => `/receive/records/containers/${id}` },
-  customer: { model: 'customer', auditEntities: ['Customer'], labelField: 'name', link: (id) => `/khata/${id}` },
+  customer: { model: 'customer', auditEntities: ['Customer'], labelField: 'name', link: (id) => `/khata/records/${id}` },
   stockItem: { model: 'inventoryItem', auditEntities: ['InventoryItem', 'RepackUnit'], labelField: 'name', link: (id) => `/stock/items/${id}` },
   lot: { model: 'rag', auditEntities: ['Rag'], labelField: 'ragCode', link: (id) => `/receive/records/rags/${id}/edit` },
-  payment: { model: 'payment', auditEntities: ['Payment'], labelField: 'reference', link: () => '/khata' },
+  payment: { model: 'payment', auditEntities: ['Payment'], labelField: 'reference', link: () => '/khata/records' },
   supplier: { model: 'vendor', auditEntities: ['Vendor'], labelField: 'name', link: (id) => `/receive/records/suppliers/${id}` },
 };
 

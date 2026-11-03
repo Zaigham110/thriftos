@@ -114,7 +114,7 @@ Each area gets list + record (+ kanban where it has stages), using E2.
 - [ ] E3.4 **Sales** — sales list (filters, group by customer/category/month, totals and profit), sale record with
   lines, payments, profit, invoice PDF, WhatsApp share; a desktop sale entry form with keyboard-first line entry;
   price lists by customer group.
-- [ ] E3.5 **Receivables (Khata)** — customer 360 record (balance, ageing, sales, payments, statement, credit limit,
+- [x] E3.5 **Receivables (Khata)** — customer 360 record (balance, ageing, sales, payments, statement, credit limit,
   notes), ageing report 0–30 / 31–60 / 61–90 / 90+, collections worklist with promise-to-pay dates, bulk WhatsApp
   reminders, statement of account PDF.
 - [ ] E3.6 **Finance (management accounts)** — expenses with categories (rent, labour, transport, electricity, other)

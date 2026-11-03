@@ -328,6 +328,7 @@ model Customer {
   tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   sales    Sale[]
   payments Payment[]
+  promises PaymentPromise[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -397,6 +398,27 @@ model SaleLine {
 
   @@index([saleId])
   @@index([inventoryItemId])
+}
+
+/// "I will pay Rs X by <date>" (enterprise E3.5). Kept / broken is worked out from the payments received after
+/// the promise was made; only a cancellation is stored.
+model PaymentPromise {
+  id          String    @id @default(cuid())
+  tenantId    String
+  customerId  String
+  amount      Decimal   @db.Decimal(14, 2)
+  /// The business day (Pakistan) the customer promised to pay by.
+  promisedFor DateTime  @db.Date
+  note        String?
+  createdBy   String
+  cancelledAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([tenantId, promisedFor])
+  @@index([customerId])
 }
 
 /// Money received from a customer: against a sale, or on account. Applied to the oldest unpaid sales first.

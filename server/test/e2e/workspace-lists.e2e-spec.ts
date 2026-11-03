@@ -190,7 +190,7 @@ describe('Workspace lists, views, activity and search (e2e)', () => {
 
   it('global search finds sales, customers and stock of this business only, with v1 links', async () => {
     const res = (await api(app, a).get('/search/global?q=rafiq').expect(200)).body as Array<{ group: string; title: string; route: string }>;
-    expect(res.find((r) => r.group === 'customers')).toMatchObject({ title: 'Haji Rafiq & Sons', route: `/khata/${customers['rafiq']}` });
+    expect(res.find((r) => r.group === 'customers')).toMatchObject({ title: 'Haji Rafiq & Sons', route: `/khata/records/${customers['rafiq']}` });
     expect(res.filter((r) => r.group === 'sales').map((r) => r.title).sort()).toEqual(['S-001', 'S-002']);
     expect(res.every((r) => !r.route.startsWith('/app/'))).toBe(true);
     const theirs = (await api(app, b).get('/search/global?q=rafiq').expect(200)).body;

@@ -66,7 +66,7 @@ test('sale record: amounts, tabs, note with @mention and an attached file; Ctrl+
   await signIn(page);
 
   await page.keyboard.press('Control+k');
-  await page.keyboard.type(sale.saleNumber);
+  await page.locator('[role=dialog] input').fill(sale.saleNumber);
   // Other records (lots) can match the same digits; pick the sale itself.
   await page.getByRole('option', { name: new RegExp(sale.saleNumber) }).click();
   await expect(page).toHaveURL(new RegExp(`/sell/records/${sale.id}$`));
@@ -166,4 +166,37 @@ test('inventory: stock list, item record, a count approved, stock value page', a
   await page.goto('/stock/value');
   await expect(page.getByRole('heading', { name: 'Stock value and ageing' })).toBeVisible();
   await expect(page.locator('ws-data-grid').first()).toContainText('0–30 days');
+});
+
+test('receivables: collections worklist, customer 360 with promise and payment, printable statement', async ({ page, request }) => {
+  const { customer } = await makeSale(request);
+  await signIn(page);
+  await page.goto('/khata/records');
+  await expect(page.getByRole('heading', { name: 'Collections', exact: true })).toBeVisible();
+  await page.getByPlaceholder('Search customer, city or phone').fill(customer.name);
+  const row = page.locator('ws-data-grid tbody tr').filter({ hasText: customer.name });
+  await expect(row).toContainText('25,000');
+  await row.click();
+
+  await expect(page.getByRole('heading', { name: customer.name })).toBeVisible();
+  await expect(page.locator('ws-smart-button').filter({ hasText: 'Balance' })).toContainText('25,000');
+
+  await page.getByRole('button', { name: 'Promise to pay' }).click();
+  await page.getByLabel('Amount').fill('10000');
+  const tomorrow = new Date(Date.now() + 5 * 3_600_000 + 86_400_000).toISOString().slice(0, 10);
+  await page.getByLabel('Pay by').fill(tomorrow);
+  await page.getByRole('button', { name: 'Save promise' }).click();
+  await expect(page.getByText('Promise saved')).toBeVisible();
+  await expect(page.locator('ws-data-grid tbody tr').first()).toContainText('Promised');
+
+  await page.getByRole('button', { name: 'Receive payment' }).click();
+  await page.getByLabel('Amount').fill('10000');
+  await page.getByRole('button', { name: 'Save payment' }).click();
+  await expect(page.getByText('Payment saved')).toBeVisible();
+  await expect(page.locator('ws-smart-button').filter({ hasText: 'Balance' })).toContainText('15,000');
+  await expect(page.locator('ws-data-grid tbody tr').first()).toContainText('Kept');
+
+  await page.getByRole('link', { name: 'Statement' }).click();
+  await expect(page.getByRole('heading', { name: 'Statement of account' }).or(page.getByText('Statement of account').first())).toBeVisible();
+  await expect(page.locator('tfoot')).toContainText('15,000');
 });

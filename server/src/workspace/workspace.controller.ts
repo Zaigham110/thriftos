@@ -1,11 +1,12 @@
-import { Body, Controller, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
-import { RequirePermissions } from '../common/decorators/permissions.decorator';
+import { RequirePermissions, SkipPermissionCheck } from '../common/decorators/permissions.decorator';
 import { TenantId } from '../common/decorators/tenant-id.decorator';
 import { PermissionGuard } from '../common/guards/permission.guard';
 import { TenantGuard } from '../common/guards/tenant.guard';
 import { ListsService } from '../lists/lists.service';
 import { WorkspaceRecordsService } from './records.service';
+import { CreditLimitDto, PromiseDto, ReceivablesService, ReminderDto, StatementQueryDto } from './receivables.service';
 import { StockCountDto, StockDecisionDto, StockRecordsService, StockTransferDto } from './stock-records.service';
 
 /** Workspace record pages (enterprise plan E3): one call per page; cost and profit need cost.view. */
@@ -16,6 +17,7 @@ export class WorkspaceController {
     private readonly records: WorkspaceRecordsService,
     private readonly lists: ListsService,
     private readonly stock: StockRecordsService,
+    private readonly receivables: ReceivablesService,
   ) {}
 
   private async canSeeCost(user: CurrentUserData): Promise<boolean> {
@@ -74,5 +76,52 @@ export class WorkspaceController {
   @RequirePermissions('INVENTORY_ADJUST')
   transfer(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string, @Body() dto: StockTransferDto) {
     return this.stock.transfer(tenantId, id, dto, user.userId);
+  }
+
+  // ---- Receivables (E3.5): open to everyone of the business, like the khata; profit needs cost.view ----
+  /** Collections worklist and ageing: every customer who owes, biggest first. */
+  @SkipPermissionCheck()
+  @Get('receivables')
+  worklist(@TenantId() tenantId: string) {
+    return this.receivables.worklist(tenantId);
+  }
+
+  @SkipPermissionCheck()
+  @Get('customers/:id')
+  async customer(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string) {
+    return this.receivables.customer(tenantId, id, await this.canSeeCost(user));
+  }
+
+  @SkipPermissionCheck()
+  @Get('customers/:id/statement')
+  statement(@TenantId() tenantId: string, @Param('id') id: string, @Query() q: StatementQueryDto) {
+    return this.receivables.statement(tenantId, id, q);
+  }
+
+  @SkipPermissionCheck()
+  @Post('customers/:id/promises')
+  promise(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string, @Body() dto: PromiseDto) {
+    return this.receivables.addPromise(tenantId, id, dto, user.userId);
+  }
+
+  @SkipPermissionCheck()
+  @Post('promises/:id/cancel')
+  @HttpCode(200)
+  cancelPromise(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string) {
+    return this.receivables.cancelPromise(tenantId, id, user.userId);
+  }
+
+  /** The WhatsApp reminder link; logged as a reminder sent. */
+  @SkipPermissionCheck()
+  @Post('customers/:id/remind')
+  @HttpCode(200)
+  remind(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string, @Body() dto: ReminderDto) {
+    return this.receivables.remind(tenantId, id, dto, user.userId);
+  }
+
+  @SkipPermissionCheck()
+  @Patch('customers/:id/credit-limit')
+  creditLimit(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string, @Body() dto: CreditLimitDto) {
+    return this.receivables.setCreditLimit(tenantId, id, dto, user.userId);
   }
 }

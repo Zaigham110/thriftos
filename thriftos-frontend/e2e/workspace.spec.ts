@@ -68,7 +68,7 @@ test('keyboard: Ctrl+K jumps to a screen, / and ? open the palette and the short
   await expect(page.getByRole('dialog', { name: 'Search or jump to…' })).toBeVisible();
   await page.keyboard.type('khata');
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/khata$/);
+  await expect(page).toHaveURL(/\/khata\/records$/);
   await expect(page.locator('.nav-item.active')).toContainText('Receivables');
 
   await page.locator('#ws-main').click({ position: { x: 5, y: 5 } });

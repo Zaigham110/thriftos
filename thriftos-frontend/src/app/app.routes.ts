@@ -62,6 +62,13 @@ export const routes: Routes = [
   // the wildcard sends /admin to /app while tenantAreaGuard sends super admins
   // back to /admin, creating an infinite navigation loop.
   {
+    // Printable statement of account (E3.5), outside the shell so it prints as a clean A4 page.
+    path: 'statement/:id',
+    loadComponent: () => import('./features/workspace-lists/statement.component').then((m) => m.StatementComponent),
+    canActivate: [authGuard, tenantAreaGuard],
+    title: 'ThriftOS',
+  },
+  {
     path: 'admin',
     loadComponent: () =>
       import('./features/admin-shell/admin-shell.component').then((m) => m.AdminShellComponent),
@@ -155,6 +162,9 @@ export const routes: Routes = [
         canActivate: [moduleGuard],
         data: { module: 'KHATA' },
         children: [
+          // Workspace receivables (E3.5): collections worklist and ageing, customer 360.
+          { path: 'records', loadComponent: () => import('./features/workspace-lists/collections.component').then((m) => m.CollectionsComponent), title: 'ThriftOS' },
+          { path: 'records/:id', loadComponent: () => import('./features/workspace-lists/customer-record.component').then((m) => m.CustomerRecordComponent), title: 'ThriftOS' },
           {
             path: '',
             loadComponent: () => import('./features/khata/khata-list.component').then((m) => m.KhataListComponent),

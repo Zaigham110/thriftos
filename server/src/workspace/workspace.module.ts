@@ -4,10 +4,12 @@ import { ListsModule } from '../lists/lists.module';
 import { WorkspaceController } from './workspace.controller';
 import { WorkspaceRecordsService } from './records.service';
 import { StockRecordsService } from './stock-records.service';
+import { ReceivablesService } from './receivables.service';
+import { SalesModule } from '../sales/sales.module';
 
 @Module({
-  imports: [CommonModule, ListsModule],
+  imports: [CommonModule, ListsModule, SalesModule],
   controllers: [WorkspaceController],
-  providers: [WorkspaceRecordsService, StockRecordsService],
+  providers: [WorkspaceRecordsService, StockRecordsService, ReceivablesService],
 })
 export class WorkspaceModule {}

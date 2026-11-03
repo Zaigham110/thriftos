@@ -49,7 +49,7 @@ export const WS_NAV: WsNavGroup[] = [
     label: 'ws.group.sales',
     items: [
       { label: 'ws.nav.sales', path: '/sell/records', icon: ShoppingCart, module: 'SELL', keywords: 'becho sale invoice bill' },
-      { label: 'ws.nav.receivables', path: '/khata', icon: BookOpen, module: 'KHATA', keywords: 'khata udhaar customers payments' },
+      { label: 'ws.nav.receivables', path: '/khata/records', icon: BookOpen, module: 'KHATA', keywords: 'khata udhaar customers payments' },
     ],
   },
   { label: 'ws.group.insights', items: [{ label: 'ws.nav.reports', path: '/reports', icon: BarChart3, module: 'REPORTS', keywords: 'reports analytics' }] },
