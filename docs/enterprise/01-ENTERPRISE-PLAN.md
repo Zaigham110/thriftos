@@ -1,6 +1,6 @@
 # ThriftOS Enterprise Workspace — Plan
 
-Status: in progress (E1 done 2026-11-03). v2 Phase 5 (AWS go-live) was done first, as the owner chose. Branch: `enterprise-workspace` (from `v1-reshape` at `26f1ae3`, tag `v1.0.0-demo`).
+Status: in progress (E1 and E2 done 2026-11-03/04). v2 Phase 5 (AWS go-live) was done first, as the owner chose. Branch: `enterprise-workspace` (from `v1-reshape` at `26f1ae3`, tag `v1.0.0-demo`).
 
 ## Why
 The owner reviewed the v1 demo: it works, but it is not enough to pitch and does not look like serious business software.
@@ -90,15 +90,15 @@ Generic ERPs cannot do these without months of customisation; local tools cannot
   light and dark; Lighthouse accessibility ≥ 95.
 
 ### Phase E2 — List, kanban and record framework (week 2–3)
-- [ ] E2.1 Server: one list query contract for all list endpoints — `page`, `pageSize`, `sort`, `filter` (typed
+- [x] E2.1 Server: one list query contract for all list endpoints — `page`, `pageSize`, `sort`, `filter` (typed
   operators), `groupBy` with subtotals, `fields`; tenant-scoped, indexed; returns totals. Tests for each operator and
   for tenant isolation.
-- [ ] E2.2 Saved views per user (filters, columns, sort, group-by, density) — new table `SavedView`.
-- [ ] E2.3 Export of any list to Excel/CSV (server-side, streams, respects filters and the user's field permissions).
-- [ ] E2.4 Activity panel: audit trail per record from `AuditLog` (who changed what, before → after), notes,
+- [x] E2.2 Saved views per user (filters, columns, sort, group-by, density) — new table `SavedView`.
+- [x] E2.3 Export of any list to Excel/CSV (server-side, streams, respects filters and the user's field permissions).
+- [x] E2.4 Activity panel: audit trail per record from `AuditLog` (who changed what, before → after), notes,
   attachments (reusing `FileStorageService`), @mention → notification. New tables `RecordNote`, `Attachment`,
   `Notification`.
-- [ ] E2.5 Global search across containers, lots, bales, customers, suppliers, sales, payments (extend `search/`).
+- [x] E2.5 Global search across containers, lots, bales, customers, suppliers, sales, payments (extend `search/`).
 - Acceptance: a reusable grid + record page used by at least one real record type end to end; 10,000-row list loads a
   page in < 1 s on the test DB.
 
