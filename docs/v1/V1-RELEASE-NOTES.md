@@ -22,6 +22,16 @@ Measured (details in [`PROGRESS.md`](PROGRESS.md)): owner home on Slow 3G + 4× 
 in about 1.3 s (installed app); Lighthouse mobile 92 performance / 100 accessibility / 100 best practices / PWA installable
 ([`lighthouse/`](lighthouse/)).
 
+## Checked before tagging
+
+Server tests 168/168 (3 runs in a row), costing coverage gate, migrations match the schema, both builds within budget,
+every word in English and Urdu, browser tests 17/17 three times, the demo journey (fresh demo, Urdu, English, offline)
+five times in a row, and both data checks (`prisma/checks/*.sql`) on `thriftos_demo` return no rows.
+No database migration in Phase 4: nothing to apply to an existing database.
+
+**On an existing database:** the advanced modules are now refused unless listed in `enabledModules`. A business that
+used reports, warehouses or purchase orders before needs them turned on (Settings → Advanced, or in the database).
+
 ## Turned off in v1 (hidden in the app and refused by the server)
 
 These exist in the code but are not part of v1. The app hides them and the server answers 403 (`MODULE_DISABLED`)
