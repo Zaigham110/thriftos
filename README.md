@@ -94,6 +94,18 @@ cd thriftos-frontend && npm run e2e:demo          # the demo, in Urdu and Englis
 npm run test:db-guard                             # the guard that keeps tests away from your database
 ```
 
+## Release
+
+```bash
+bash scripts/check-before-release.sh              # all tests and builds, on the Mac (about 5 minutes)
+git tag -a v1.2.0 -m "what changed" && git push origin v1.2.0
+```
+
+Pushing the tag is the only thing that runs on GitHub (`.github/workflows/release.yml`): it tests again, builds the
+images, publishes the release, and the server deploys it by itself within about 2 minutes (backup, health check,
+automatic rollback). Live at https://dyit6jcdpteuk.cloudfront.net/thriftos. Roll back by marking an older release
+as "Latest" on GitHub.
+
 Migrations and seeds refuse any database whose name does not end in `_test` (see `scripts/db-guard.js`).
 Your own database is changed only by the `scripts/apply-phase*.sh` scripts, which you run yourself.
 
