@@ -136,6 +136,9 @@ export const PERMISSIONS = [
   { code: 'finance.view', name: 'Finance - View books, cash close and profit', group: 'Finance' },
   { code: 'expense.create', name: 'Finance - Record and cancel expenses', group: 'Finance' },
   { code: 'cash.close', name: 'Finance - Close the day\'s cash', group: 'Finance' },
+
+  // Sales (enterprise E3.4)
+  { code: 'price.manage', name: 'Sales - Manage price lists', group: 'Sales' },
   { code: 'INVENTORY_RESERVE', name: 'Inventory - Reserve/Release', group: 'Inventory' },
   
   // Reports

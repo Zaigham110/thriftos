@@ -27,13 +27,14 @@ export const SALES_LIST: ListConfig = {
     { key: 'status', label: 'ws.col.status', enumPrefix: 'ws.status.' },
     { key: 'paymentMode', label: 'ws.col.paymentMode', enumPrefix: 'ws.mode.' },
     { key: 'customerId', label: 'ws.col.customer' },
+    { key: 'date', label: 'ws.group.month', month: true },
   ],
   quickFilters: [
     { field: 'status', label: 'ws.col.status', values: ['ISSUED', 'PARTIALLY_PAID', 'PAID', 'CANCELLED'], prefix: 'ws.status.' },
     { field: 'paymentMode', label: 'ws.col.paymentMode', values: ['CASH', 'CREDIT', 'PARTIAL'], prefix: 'ws.mode.' },
   ],
   rowLink: (id) => ['/sell/records', id],
-  create: { label: 'ws.new.sale', link: '/sell/new' },
+  create: { label: 'ws.new.sale', link: '/sell/records/new' },
 };
 
 const CONTAINER_STATUSES = ['IN_TRANSIT', 'ARRIVED', 'CLEARED', 'CLOSED'] as const;
@@ -66,6 +67,7 @@ export const CONTAINERS_LIST: ListConfig = {
     { key: 'status', label: 'ws.col.status', enumPrefix: 'ws.cstatus.' },
     { key: 'supplierId', label: 'ws.containers.col.supplier' },
     { key: 'origin', label: 'ws.containers.col.origin' },
+    { key: 'date', label: 'ws.group.month', month: true },
   ],
   quickFilters: [{ field: 'status', label: 'ws.col.status', values: CONTAINER_STATUSES, prefix: 'ws.cstatus.' }],
   rowLink: (id) => ['/receive/records/containers', id],
@@ -246,6 +248,7 @@ export const EXPENSES_LIST: ListConfig = {
     { key: 'category', label: 'ws.container.category', enumPrefix: 'ws.expenseCategory.' },
     { key: 'method', label: 'ws.sale.method', enumPrefix: 'method.' },
     { key: 'paidTo', label: 'ws.expenses.col.paidTo' },
+    { key: 'date', label: 'ws.group.month', month: true },
   ],
   quickFilters: [
     { field: 'category', label: 'ws.container.category', values: EXPENSE_CATEGORIES, prefix: 'ws.expenseCategory.' },

@@ -181,7 +181,7 @@ export class ReceivablesService {
     return {
       customer: {
         id: c.id, name: c.name, phone: c.phone, city: c.city, companyName: c.companyName, address: c.billingAddress, notes: c.notes,
-        createdAt: c.createdAt, isActive: c.isActive, openingBalance: c.openingBalance, creditLimit: limit.greaterThan(0) ? limit : null,
+        createdAt: c.createdAt, isActive: c.isActive, openingBalance: c.openingBalance, creditLimit: limit.greaterThan(0) ? limit : null, priceGroup: c.priceGroup,
       },
       account: {
         balance: applied.balance, advance: applied.advance, openingDue: applied.openingDue, overdueDays: overdueDays(applied, c.createdAt, now),

@@ -8,8 +8,9 @@
 #                                               movement type TRANSFER (godown moves)
 #   2. 20261104140000_e3_02_payment_promises   PaymentPromise table (promises to pay)
 #   3. 20261104160000_e3_03_finance            Expense and CashClose tables
-# Data step: base data (server/src/bootstrap): adds INVENTORY_APPROVE, finance.view, expense.create and
-# cash.close, and gives every Admin (owner) role all permissions. Idempotent; nothing else changes.
+#   4. 20261104180000_e3_04_price_lists        PriceListEntry table, Customer.priceGroup (nullable)
+# Data step: base data (server/src/bootstrap): adds INVENTORY_APPROVE, finance.view, expense.create,
+# cash.close and price.manage, and gives every Admin (owner) role all permissions. Idempotent; nothing else changes.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -60,4 +61,4 @@ psql_db < prisma/checks/khata-check.sql
 echo
 echo "Done. Backup kept at: $BACKUP"
 echo "New in the app (laptop): containers board and traceability, suppliers; stock list, stock value, counts with"
-echo "approval; collections, customer 360, statements; lots board and yield; expenses, cash book, cash close, P&L."
+echo "approval; collections, customer 360, statements; lots board and yield; expenses, cash book, cash close, P&L; desktop sale form and price lists."

@@ -11,6 +11,7 @@ import {
   PackageSearch,
   Receipt,
   Settings2,
+  Tags,
   ShoppingCart,
   TrendingUp,
   Truck,
@@ -57,6 +58,7 @@ export const WS_NAV: WsNavGroup[] = [
     label: 'ws.group.sales',
     items: [
       { label: 'ws.nav.sales', path: '/sell/records', icon: ShoppingCart, module: 'SELL', keywords: 'becho sale invoice bill' },
+      { label: 'ws.nav.prices', path: '/sell/prices', icon: Tags, module: 'SELL', permission: 'price.manage', keywords: 'price list rate wholesale retail group' },
       { label: 'ws.nav.receivables', path: '/khata/records', icon: BookOpen, module: 'KHATA', keywords: 'khata udhaar customers payments' },
     ],
   },
@@ -76,7 +78,7 @@ export const WS_SETTINGS: WsNavItem = { label: 'ws.nav.settings', path: '/settin
 
 /** Quick create (top bar "+" and the command palette). */
 export const WS_CREATE: WsNavItem[] = [
-  { label: 'ws.new.sale', path: '/sell/new', icon: ShoppingCart, module: 'SELL', keywords: 'new sale becho' },
+  { label: 'ws.new.sale', path: '/sell/records/new', icon: ShoppingCart, module: 'SELL', keywords: 'new sale becho' },
   { label: 'ws.new.container', path: '/receive/container', icon: Truck, module: 'RECEIVE', keywords: 'new container' },
   { label: 'ws.new.lot', path: '/receive/lot', icon: Boxes, module: 'RECEIVE', keywords: 'loose lot' },
   { label: 'ws.new.ready', path: '/receive/ready', icon: PackagePlus, module: 'RECEIVE', keywords: 'ready stock' },
@@ -112,6 +114,7 @@ export const WS_CRUMBS: Record<string, string> = {
   book: 'ws.nav.book',
   close: 'ws.nav.close',
   pnl: 'ws.nav.pnl',
+  prices: 'ws.nav.prices',
   counts: 'ws.counts.title',
   today: 'ws.crumb.today',
   team: 'settings.team',

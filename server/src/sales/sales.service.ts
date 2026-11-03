@@ -6,6 +6,7 @@ import { money, saleProfit, sum, takeCost } from '../costing/costing';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantSequenceService } from '../procurement/shared/tenant-sequence.service';
 import { DirectStockService } from '../stock/direct-stock.service';
+import { priceListPrice } from '../workspace/price-lists.service';
 import { CreateSaleDto, LastPriceQueryDto } from './dto';
 import { KHATA_SALE_STATUSES, KhataService } from './khata.service';
 import { SaleLineError, saleTake } from './sale-lines';
@@ -185,9 +186,12 @@ export class SalesService {
   async lastPrice(tenantId: string, query: LastPriceQueryDto) {
     const item = await this.prisma.inventoryItem.findFirst({ where: { id: query.inventoryItemId, tenantId } });
     if (!item) throw new NotFoundException('Stock item not found');
-    const customer = await this.prisma.customer.findFirst({ where: { id: query.customerId, tenantId }, select: { id: true } });
+    const customer = await this.prisma.customer.findFirst({ where: { id: query.customerId, tenantId }, select: { id: true, priceGroup: true } });
     if (!customer) throw new NotFoundException('Customer not found');
     const unit = query.unit ?? item.unit;
+    // An agreed group price comes first (enterprise E3.4), then what this customer paid last.
+    const listed = await priceListPrice(this.prisma, tenantId, customer.priceGroup, item, unit);
+    if (listed) return { unit, unitPrice: listed.price, from: 'PRICE_LIST' as const, group: customer.priceGroup };
     const sameKind: Prisma.SaleLineWhereInput = {
       unit,
       sale: { tenantId, status: { in: KHATA_SALE_STATUSES } },

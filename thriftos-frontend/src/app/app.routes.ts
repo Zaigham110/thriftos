@@ -160,6 +160,7 @@ export const routes: Routes = [
           { path: '', loadComponent: () => import('./features/sell/sell-home.component').then((m) => m.SellHomeComponent), title: 'ThriftOS' },
           { path: 'new', loadComponent: () => import('./features/sell/sale.component').then((m) => m.SaleComponent), title: 'ThriftOS' },
           { path: 'records', loadChildren: () => import('./modules/sales/sales.routes').then((m) => m.SALES_ROUTES) },
+          { path: 'prices', loadComponent: () => import('./features/workspace-lists/price-lists.component').then((m) => m.PriceListsComponent), title: 'ThriftOS' },
         ],
       },
       {

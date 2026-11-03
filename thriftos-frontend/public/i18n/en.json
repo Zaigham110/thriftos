@@ -640,6 +640,10 @@
    "overLimit": "Over the credit limit of {limit} ({used}% used) — collect before selling more on udhaar.",
    "overdue": "Oldest due",
    "paidSince": "Paid since",
+   "priceGroup": "Group",
+   "priceGroupSaved": "Price list saved",
+   "priceList": "Price list",
+   "priceListHint": "Customers in a group get its prices suggested on the sale screen. Leave empty for none.",
    "promise": "Promise to pay",
    "promiseCancelled": "Promise cancelled",
    "promiseSaved": "Promise saved",
@@ -716,6 +720,7 @@
   "group": {
    "finance": "Finance",
    "insights": "Insights",
+   "month": "Month",
    "none": "No grouping",
    "operations": "Operations",
    "sales": "Sales and money"
@@ -773,6 +778,7 @@
    "home": "Home",
    "inventory": "Inventory",
    "pnl": "Profit and loss",
+   "prices": "Price lists",
    "purchasing": "Purchasing",
    "receivables": "Receivables",
    "reports": "Reports",
@@ -827,6 +833,21 @@
    "title": "Profit and loss",
    "writeOffs": "Stock written off"
   },
+  "prices": {
+   "addGroup": "Add",
+   "anyGrade": "Any grade",
+   "empty": "No prices in this group yet",
+   "groupInfo": "{prices} prices · {customers} customers",
+   "groups": "Groups",
+   "newGroup": "New group",
+   "newGroupHint": "e.g. Wholesale",
+   "removed": "Price removed",
+   "saved": "Price saved",
+   "setPrice": "Set price",
+   "start": "Add a group to start, e.g. Wholesale or Retail",
+   "subtitle": "Agreed prices per customer group, suggested first when selling",
+   "title": "Price lists"
+  },
   "promise": {
    "BROKEN": "Broken",
    "CANCELLED": "Cancelled",
@@ -866,6 +887,30 @@
    "share": "Share on WhatsApp",
    "unit": "Unit",
    "unitPrice": "Price"
+  },
+  "saleEntry": {
+   "addItem": "Add item",
+   "customerHint": "Type a customer name",
+   "from": {
+    "ANY_CUSTOMER": "last price",
+    "CUSTOMER": "their last price",
+    "ITEM": "item price",
+    "PRICE_LIST": "price list"
+   },
+   "itemHint": "Scan a bale code or type an item, then Enter",
+   "left": "{n} left",
+   "list": "Price list: {group}",
+   "noLines": "Add the first item above",
+   "noList": "No price list",
+   "notFound": "No stock item matches — pick one from the list",
+   "partialHint": "Enter what was paid now (less than the total)",
+   "pickCustomer": "Choose the customer first",
+   "remove": "Remove line",
+   "save": "Save sale",
+   "saved": "Sale {number} saved",
+   "shortcut": "Ctrl + Enter",
+   "subtitle": "Type the customer, scan or type items, Ctrl + Enter to save",
+   "title": "New sale"
   },
   "sales": {
    "count": "{n} sales",

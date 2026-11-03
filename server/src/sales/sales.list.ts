@@ -22,7 +22,7 @@ export const SALES_LIST: ListResource = {
   defaultSort: [{ field: 'date', dir: 'desc' }],
   fields: [
     { key: 'number', type: 'string', path: ['saleNumber'], sortable: true, filterable: true, searchable: true },
-    { key: 'date', type: 'date', path: ['createdAt'], sortable: true, filterable: true },
+    { key: 'date', type: 'date', path: ['createdAt'], sortable: true, filterable: true, groupByMonth: true },
     { key: 'customer', type: 'string', path: ['customer', 'name'], sortable: true, filterable: true, searchable: true },
     { key: 'customerId', type: 'string', path: ['customerId'], filterable: true, groupable: true, hidden: true },
     { key: 'city', type: 'string', path: ['customer', 'city'], sortable: true, filterable: true, searchable: true },

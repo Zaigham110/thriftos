@@ -211,7 +211,7 @@ export class ListPageComponent {
     return (this.result()?.groups ?? []).map((x) => ({
       id: x.key ?? '∅',
       key: x.key,
-      label: prefix && x.label ? this.i18n.t(prefix + x.label) : x.label || '—',
+      label: this.groupConfig()?.month && x.key ? this.monthName(x.key) : prefix && x.label ? this.i18n.t(prefix + x.label) : x.label || '—',
       count: x.count,
       ...x.totals,
     }));
@@ -333,8 +333,21 @@ export class ListPageComponent {
     if (next.length) this.patch({ columns: next });
   }
 
+  private monthName(ym: string): string {
+    return new Date(ym + '-15T00:00:00Z').toLocaleDateString(this.i18n.lang() === 'ur' ? 'ur-PK' : 'en-GB', { month: 'long', year: 'numeric', numberingSystem: 'latn' });
+  }
+
   protected openGroup(row: WsRow): void {
     const g = this.state().groupBy!;
+    if (this.groupConfig()?.month && row['key']) {
+      // A month opens as that month's date range.
+      const ym = String(row['key']);
+      const [y, m] = ym.split('-').map(Number);
+      const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      const rest = this.state().filters.filter((f) => f.field !== g);
+      this.patch({ groupBy: null, filters: [...rest, { field: g, op: 'between', value: `${ym}-01..${ym}-${String(last).padStart(2, '0')}` }], page: 1, datePreset: 'custom' });
+      return;
+    }
     const filter: ListFilterState = row['key'] === null ? { field: g, op: 'isnull' } : { field: g, op: 'eq', value: String(row['key']) };
     this.patch({ groupBy: null, filters: [...this.state().filters.filter((f) => f.field !== g), filter], page: 1 });
   }

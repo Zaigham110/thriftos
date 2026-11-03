@@ -229,7 +229,7 @@ test('finance: record an expense, close the day, cash book and profit and loss',
   await page.goto('/finance/expenses');
   await expect(page.getByRole('heading', { name: 'Expenses', exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'New expense' }).click();
-  await page.getByLabel('Category').selectOption({ label: 'Transport' });
+  await page.locator('form').getByLabel('Category').selectOption({ label: 'Transport' });
   await page.getByLabel('Amount').fill('1500');
   await page.getByLabel('Paid to').fill('Loader rickshaw');
   await page.getByRole('button', { name: 'Save expense' }).click();
@@ -254,4 +254,44 @@ test('finance: record an expense, close the day, cash book and profit and loss',
   await page.goto('/finance/pnl');
   await expect(page.getByRole('heading', { name: 'Profit and loss' })).toBeVisible();
   await expect(page.locator('ws-data-grid tbody tr').filter({ hasText: 'Net profit' })).toBeVisible();
+});
+
+test('sales extras: price list for a group, keyboard sale entry suggests the list price, sales by month', async ({ page, request }) => {
+  const api = await apiAs(request);
+  const tag = Date.now().toString().slice(-6);
+  const customer = await api.post('/customers', { name: `Wholesale Buyer ${tag}`, phone: `0302${tag}1`, city: 'Lahore' });
+  const item = await api.post('/stock/items', { name: `Mixed jeans ${tag}`, unit: 'KG', quantity: 500, totalCost: 50000 });
+
+  await signIn(page);
+  await page.goto('/sell/records/new');
+  await expect(page.getByRole('heading', { name: 'New sale' })).toBeVisible();
+  await page.getByLabel('Customer').fill(customer.name);
+  await expect(page.getByText('No price list')).toBeVisible();
+  const itemInput = page.getByLabel('Add item');
+  await itemInput.fill(`Mixed jeans ${tag}`);
+  await expect(page.locator(`#ws-stock option[value="Mixed jeans ${tag}"]`)).toHaveCount(1);
+  await itemInput.press('Enter');
+  const qty = page.getByLabel('Quantity');
+  await expect(qty).toBeFocused();
+  await qty.fill('100');
+  await page.getByLabel('Price', { exact: true }).fill('150');
+  await expect(page.locator('tfoot')).toContainText('15,000');
+  await page.getByRole('button', { name: 'Udhaar' }).click();
+  await qty.press('Control+Enter');
+  await expect(page).toHaveURL(/\/sell\/records\/(?!new)[^/]+$/);
+  await expect(page.locator('ws-smart-button').filter({ hasText: 'Due' })).toContainText('15,000');
+
+  await page.goto('/sell/records');
+  await page.getByLabel('Group by').selectOption({ label: 'Month' });
+  const month = page.locator('ws-data-grid tbody tr').first();
+  await expect(month).toContainText(new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }));
+  await month.click();
+  await expect(page.getByLabel('Group by')).toHaveValue('');
+  await expect(page.locator('ws-data-grid tbody tr').filter({ hasText: customer.name })).toBeVisible();
+
+  await page.goto('/sell/prices');
+  await expect(page.getByRole('heading', { name: 'Price lists', exact: true })).toBeVisible();
+  await page.getByLabel('New group').fill(`Wholesale ${tag}`);
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(page.getByRole('heading', { name: `Wholesale ${tag}`, level: 2 })).toBeVisible();
 });

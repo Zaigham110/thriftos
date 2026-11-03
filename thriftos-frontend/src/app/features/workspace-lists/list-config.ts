@@ -50,7 +50,8 @@ export interface ListConfig {
   defaultColumns: string[];
   /** Field the date-range picker filters on (absent: no date range). */
   dateField?: string;
-  groupBy: Array<{ key: string; label: string; enumPrefix?: string }>;
+  /** `month`: a date field grouped by month (the server sends "2026-11" keys). */
+  groupBy: Array<{ key: string; label: string; enumPrefix?: string; month?: boolean }>;
   quickFilters: QuickFilterConfig[];
   /** Where a row opens (the row is there for lists whose rows point at another record). */
   rowLink: (id: string, row?: Record<string, unknown>) => unknown[];

@@ -3,7 +3,7 @@ import { Component, computed, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { BookOpen, CalendarCheck, Clock, Coins, FileText, Gauge, LucideAngularModule, MessageCircle, Receipt, Wallet } from 'lucide-angular';
+import { BookOpen, CalendarCheck, Clock, Coins, FileText, Gauge, LucideAngularModule, MessageCircle, Receipt, Tags, Wallet } from 'lucide-angular';
 import { catchError, map, of, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -29,7 +29,7 @@ import { AGE_KEYS } from './collections.component';
 type Money = string | null;
 /** GET /api/workspace/customers/:id (profit is null without cost.view). */
 export interface Customer360 {
-  customer: { id: string; name: string; phone: string | null; city: string | null; companyName: string | null; address: string | null; notes: string | null; createdAt: string; isActive: boolean; openingBalance: string; creditLimit: string | null };
+  customer: { id: string; name: string; phone: string | null; city: string | null; companyName: string | null; address: string | null; notes: string | null; createdAt: string; isActive: boolean; openingBalance: string; creditLimit: string | null; priceGroup: string | null };
   account: { balance: string; advance: string; openingDue: string; overdueDays: number; buckets: Record<(typeof AGE_KEYS)[number], string>; overLimit: boolean; limitUsedPercent: number | null };
   totals: { sales: number; sold: string; received: string; profit: Money; lastSale: string | null; lastPayment: string | null };
   months: { month: string; sold: string; received: string }[];
@@ -77,6 +77,9 @@ const METHODS: readonly PaymentMethod[] = ['CASH', 'JAZZCASH', 'EASYPAISA', 'RAA
               }
               <button type="button" class="ws-btn" (click)="sheet.set('promise')"><lucide-icon [img]="icons.CalendarCheck" [size]="16" aria-hidden="true" />{{ 'ws.customer.promise' | t }}</button>
               <button type="button" class="ws-btn" (click)="limit = d.customer.creditLimit ? +d.customer.creditLimit : 0; sheet.set('limit')"><lucide-icon [img]="icons.Gauge" [size]="16" aria-hidden="true" />{{ 'ws.customer.setLimit' | t }}</button>
+              @if (can('price.manage')) {
+                <button type="button" class="ws-btn" (click)="openGroup()"><lucide-icon [img]="icons.Tags" [size]="16" aria-hidden="true" />{{ d.customer.priceGroup ?? ('ws.customer.priceList' | t) }}</button>
+              }
               <a class="ws-btn" [routerLink]="['/statement', d.customer.id]"><lucide-icon [img]="icons.FileText" [size]="16" aria-hidden="true" />{{ 'ws.customer.statement' | t }}</a>
             </ng-container>
           </ws-page-header>
@@ -146,6 +149,17 @@ const METHODS: readonly PaymentMethod[] = ['CASH', 'JAZZCASH', 'EASYPAISA', 'RAA
         </form>
       </ws-side-sheet>
 
+      <ws-side-sheet [open]="sheet() === 'group'" [heading]="'ws.customer.priceList' | t" (close)="sheet.set(null)">
+        <form class="form" (ngSubmit)="saveGroup()">
+          <p class="hint">{{ 'ws.customer.priceListHint' | t }}</p>
+          <label>{{ 'ws.customer.priceGroup' | t }}
+            <input name="group" list="ws-price-groups" maxlength="40" [(ngModel)]="priceGroup" />
+            <datalist id="ws-price-groups">@for (g of groups(); track g) { <option [value]="g"></option> }</datalist>
+          </label>
+          <button type="submit" class="ws-btn primary" [disabled]="busy()">{{ 'common.save' | t }}</button>
+        </form>
+      </ws-side-sheet>
+
       <ws-side-sheet [open]="!!cancelling()" [heading]="'ws.customer.cancelPromise' | t" (close)="cancelling.set(null)">
         <div class="form">
           <p class="hint">{{ cancelling()?.['label'] }}</p>
@@ -185,13 +199,15 @@ export class CustomerRecordComponent {
   readonly id = input.required<string>();
   readonly tabParam = input<string | undefined>(undefined, { alias: 'tab' });
 
-  protected readonly icons = { BookOpen, CalendarCheck, Clock, Coins, FileText, Gauge, MessageCircle, Receipt, Wallet };
+  protected readonly icons = { BookOpen, CalendarCheck, Clock, Coins, FileText, Gauge, MessageCircle, Receipt, Tags, Wallet };
   protected readonly ageKeys = AGE_KEYS;
   protected readonly methods = METHODS;
   protected readonly data = signal<Customer360 | null>(null);
   protected readonly failed = signal(false);
   protected readonly busy = signal(false);
-  protected readonly sheet = signal<'payment' | 'promise' | 'limit' | null>(null);
+  protected readonly sheet = signal<'payment' | 'promise' | 'limit' | 'group' | null>(null);
+  protected readonly groups = signal<string[]>([]);
+  protected priceGroup = '';
   protected readonly cancelling = signal<WsRow | null>(null);
   protected readonly chosenTab = signal<string | null>(null);
   private readonly reloads = signal(0);
@@ -328,6 +344,22 @@ export class CustomerRecordComponent {
     this.busy.set(true);
     this.http.patch(`/api/workspace/customers/${d.customer.id}/credit-limit`, { creditLimit: this.limit }).subscribe({
       next: () => this.done(this.i18n.t('ws.customer.limitSaved')),
+      error: (e) => this.failedWith(e),
+    });
+  }
+
+  protected openGroup(): void {
+    this.priceGroup = this.data()?.customer.priceGroup ?? '';
+    this.sheet.set('group');
+    this.http.get<{ groups: { name: string }[] }>('/api/workspace/price-lists').subscribe({ next: (p) => this.groups.set(p.groups.map((g) => g.name)), error: () => undefined });
+  }
+
+  protected saveGroup(): void {
+    const d = this.data();
+    if (!d) return;
+    this.busy.set(true);
+    this.http.patch(`/api/workspace/customers/${d.customer.id}/price-group`, { group: this.priceGroup.trim() || null }).subscribe({
+      next: () => this.done(this.i18n.t('ws.customer.priceGroupSaved')),
       error: (e) => this.failedWith(e),
     });
   }

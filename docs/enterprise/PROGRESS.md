@@ -64,11 +64,22 @@ Plan: `01-ENTERPRISE-PLAN.md`. Branch: `enterprise-e1` (from `v2-go-live` at `10
   - Dev DB: `scripts/apply-enterprise-e3.sh` applies all three E3 migrations (`e3_01_stock_adjustments`, `e3_02_payment_promises`, `e3_03_finance`) and the base data, with a backup first and the cost-chain and khata checks after (owner runs it; production applies on start).
   - Screenshots: `e3-expenses.png`, `e3-cash-close.png`, `e3-pnl.png`.
 
+- 2026-11-04 — **E3.4 Sales extras** (migration `e3_04_price_lists`, tested on `thriftos_test` only; nothing deployed). The sales list, sale record, bill and WhatsApp share came with E2; this adds:
+  - **Group by month** in the list engine (`groupByMonth` on a date field; Pakistan months, newest first; a month opens as that month's date range): sales, containers and expenses. Grouping sales by category is not a sale-level field (one sale has many categories); it comes with the sales analytics in E4.3.
+  - **Desktop sale entry** (`/sell/records/new`, the laptop's "New sale"; the phone keeps `/sell/new`): type the customer, scan or type items (Enter adds a line and jumps to its quantity, the same item again adds one), kg or bale for bales, Tab through quantity and price, Cash / Udhaar / Part paid, Ctrl/⌘ Enter saves with an Idempotency-Key. Prices are suggested with where they came from.
+  - **Price lists by customer group** (new `PriceListEntry`, `Customer.priceGroup`, permission `price.manage`): one price per group, category, grade (or any grade) and unit; `/sell/prices` to manage them, the customer page to put a customer in a group. The suggested price is now: the group's price (exact grade before any grade) → the customer's last price → anyone's last price → the item's own price.
+  - Tests: e2e `workspace-sales-extras.e2e-spec.ts` 3 (sales by month with totals; price list order, update in place, remove, leaving the group; permissions and isolation). Browser +1 (keyboard sale entry saved as udhaar, sales by month opening the month, price list group). The keyboard and finance browser tests now wait for the palette results and scope the form fields.
+  - `scripts/apply-enterprise-e3.sh` now applies all four E3 migrations.
+  - **E3 done.** Full runs after E3.4: server 82 unit + 141 e2e passed; browser 34 passed + 4 skipped (the same skips as before); i18n 926 keys; build without warnings. Not released yet.
+
 ## Decisions
 - Dark mode is opt-in per person and device; light stays the default everywhere.
 - The brand plum is never a chart series; charts use the validated categorical slots in fixed order.
 - Lists are server-driven: one contract for every list, fields declared per resource; field permissions (cost.view) apply to rows, totals, sorting, filters and exports alike.
 - Workspace only from 1024 px; 600–1023 px keeps the tablet rail, phones the floor tabs.
+- Every workspace screen is a configured list page or a record page on the same parts; class names inside components avoid generic names (`card`, `fixed`, `btn`) because older global styles and Tailwind define them.
+- Finance is management accounts (expenses, books, cash close, P&L); a general ledger is out of scope for now.
+- Suggested sale price: the customer's group price list first, then their last price, then anyone's, then the item's.
 
 ## Blockers
 - None.

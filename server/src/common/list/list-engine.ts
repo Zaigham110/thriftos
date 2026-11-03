@@ -16,6 +16,8 @@ export interface ListField {
   filterable?: boolean;
   /** Only top-level scalars can be grouped. */
   groupable?: boolean;
+  /** A top-level date field grouped by Pakistan month ("2026-11"); group keys open as a between filter. */
+  groupByMonth?: boolean;
   searchable?: boolean;
   /** Summed for the totals row and group subtotals (top-level numeric fields). */
   sum?: boolean;
@@ -81,7 +83,7 @@ export function visibleFields(resource: ListResource, permissions: ReadonlySet<s
 
 function field(resource: ListResource, fields: ListField[], key: string, need: 'sortable' | 'filterable' | 'groupable'): ListField {
   const f = fields.find((x) => x.key === key);
-  if (!f || !f[need] || f.computed) throw new BadRequestException(`${resource.name}: "${key}" cannot be ${need === 'sortable' ? 'sorted' : need === 'filterable' ? 'filtered' : 'grouped'}`);
+  if (!f || !(f[need] || (need === 'groupable' && f.groupByMonth)) || f.computed) throw new BadRequestException(`${resource.name}: "${key}" cannot be ${need === 'sortable' ? 'sorted' : need === 'filterable' ? 'filtered' : 'grouped'}`);
   return f;
 }
 
@@ -183,6 +185,9 @@ export async function runList(prisma: object, resource: ListResource, tenantId: 
     const g = field(resource, fields, query.groupBy, 'groupable');
     if (g.path.length !== 1) throw new BadRequestException(`${resource.name}: "${g.key}" cannot be grouped`);
     const col = g.path[0];
+    if (g.groupByMonth) {
+      groups = await monthGroups(d, where, col, sums);
+    } else {
     const raw = await d.groupBy({ by: [col], where, _count: { _all: true }, ...sumArg, orderBy: { _count: { [col]: 'desc' } }, take: 100 });
     const keys = raw.map((r) => (r[col] === null ? null : String(r[col])));
     const labels = resource.groupLabels ? await resource.groupLabels(prisma, tenantId, g.key, keys.filter((k): k is string => k !== null)) : {};
@@ -192,6 +197,7 @@ export async function runList(prisma: object, resource: ListResource, tenantId: 
       count: Number((r['_count'] as { _all: number })._all),
       totals: Object.fromEntries(sums.map((f) => [f.key, str((r['_sum'] as Record<string, unknown> | undefined)?.[f.path[0]])])),
     }));
+    }
   }
 
   return {
@@ -201,6 +207,25 @@ export async function runList(prisma: object, resource: ListResource, tenantId: 
     total,
     totals,
     groups,
-    fields: fields.map(({ key, type, sortable, filterable, groupable, sum, enumValues, hidden, computed }) => ({ key, type, sortable: sortable && !computed, filterable: filterable && !computed, groupable: groupable && !computed, sum, enumValues, hidden, computed })),
+    fields: fields.map(({ key, type, sortable, filterable, groupable, groupByMonth, sum, enumValues, hidden, computed }) => ({ key, type, sortable: sortable && !computed, filterable: filterable && !computed, groupable: (groupable || groupByMonth) && !computed, sum, enumValues, hidden, computed })),
   };
+}
+
+const MONTH_GROUP_LIMIT = 100_000;
+
+/** Groups by Pakistan month in memory (Prisma cannot group by a date part); newest month first. */
+async function monthGroups(d: ListDelegate, where: Record<string, unknown>, col: string, sums: ListField[]): Promise<ListGroup[]> {
+  const rows = await d.findMany({ where, select: { [col]: true, ...Object.fromEntries(sums.map((f) => [f.path[0], true])) }, take: MONTH_GROUP_LIMIT });
+  const by = new Map<string, { count: number; totals: Record<string, Prisma.Decimal> }>();
+  for (const r of rows) {
+    const at = r[col] as Date | null;
+    const key = at ? new Date(at.getTime() + BUSINESS_UTC_OFFSET_MINUTES * 60_000).toISOString().slice(0, 7) : '';
+    const g = by.get(key) ?? { count: 0, totals: Object.fromEntries(sums.map((f) => [f.key, new Prisma.Decimal(0)])) };
+    g.count += 1;
+    for (const f of sums) g.totals[f.key] = g.totals[f.key].add(new Prisma.Decimal((r[f.path[0]] as Prisma.Decimal.Value | null) ?? 0));
+    by.set(key, g);
+  }
+  return [...by.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([key, g]) => ({ key: key || null, label: key, count: g.count, totals: Object.fromEntries(Object.entries(g.totals).map(([k, v]) => [k, v.toString()])) }));
 }

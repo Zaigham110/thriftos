@@ -40,7 +40,7 @@ export const CONTAINERS_LIST: ListResource = {
   defaultSort: [{ field: 'date', dir: 'desc' }],
   fields: [
     { key: 'number', type: 'string', path: ['containerNumber'], sortable: true, filterable: true, searchable: true },
-    { key: 'date', type: 'date', path: ['createdAt'], sortable: true, filterable: true },
+    { key: 'date', type: 'date', path: ['createdAt'], sortable: true, filterable: true, groupByMonth: true },
     { key: 'arrivedAt', type: 'date', path: ['arrivedAt'], sortable: true, filterable: true },
     { key: 'supplier', type: 'string', path: ['vendor', 'name'], sortable: true, filterable: true, searchable: true },
     { key: 'supplierId', type: 'string', path: ['vendorId'], filterable: true, groupable: true, hidden: true },

@@ -316,6 +316,8 @@ model Customer {
   creditLimit       Decimal? @default(0) @db.Decimal(14, 2)
   paymentTerms      String?  @default("PREPAID")
   creditStatus      String?  @default("GOOD_STANDING")
+  /// Price list group (enterprise E3.4), e.g. "Wholesale"; null = no list.
+  priceGroup        String?
   currencyCode      String?  @default("PKR")
   bankName          String?
   bankAccountNumber String?
@@ -1571,4 +1573,22 @@ model CashClose {
   createdAt  DateTime @default(now())
 
   @@unique([tenantId, day])
+}
+
+/// A price agreed for a customer group (enterprise E3.4): per category (and grade, when given) and unit.
+/// The sale screen suggests it before the customer's last price.
+model PriceListEntry {
+  id         String    @id @default(cuid())
+  tenantId   String
+  group      String
+  categoryId String
+  /// null = any grade of the category.
+  gradeId    String?
+  unit       StockUnit
+  price      Decimal   @db.Decimal(14, 2)
+  updatedBy  String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([tenantId, group])
 }

@@ -9,6 +9,11 @@ export const SALES_ROUTES: Routes = [
     data: { list: SALES_LIST },
   },
   {
+    // Desktop sale entry, keyboard first (E3.4); the phone keeps /sell/new.
+    path: 'new',
+    loadComponent: () => import('../../features/workspace-lists/sale-entry.component').then((m) => m.SaleEntryComponent),
+  },
+  {
     path: ':id',
     loadComponent: () => import('../../features/sales-workspace/sale-record.component').then((m) => m.SaleRecordComponent),
   },

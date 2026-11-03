@@ -82,6 +82,7 @@ export function api(app: INestApplication, tenant: TestTenant) {
     get: (url: string) => request(server).get(`/api${url}`).set(auth),
     post: (url: string, body?: object) => request(server).post(`/api${url}`).set(auth).send(body),
     patch: (url: string, body?: object) => request(server).patch(`/api${url}`).set(auth).send(body),
+    put: (url: string, body?: object) => request(server).put(`/api${url}`).set(auth).send(body),
     delete: (url: string) => request(server).delete(`/api${url}`).set(auth),
   };
 }

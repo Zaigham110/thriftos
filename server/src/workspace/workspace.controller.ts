@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 import { RequirePermissions, SkipPermissionCheck } from '../common/decorators/permissions.decorator';
 import { TenantId } from '../common/decorators/tenant-id.decorator';
@@ -8,6 +8,7 @@ import { ListsService } from '../lists/lists.service';
 import { WorkspaceRecordsService } from './records.service';
 import { CreditLimitDto, PromiseDto, ReceivablesService, ReminderDto, StatementQueryDto } from './receivables.service';
 import { SortingRecordsService, YieldQueryDto } from './sorting-records.service';
+import { PriceEntryDto, PriceGroupDto, PriceListsService } from './price-lists.service';
 import { BookQueryDto, CloseDto, CloseQueryDto, ExpenseDto, FinanceService, PnlQueryDto } from './finance.service';
 import { StockCountDto, StockDecisionDto, StockRecordsService, StockTransferDto } from './stock-records.service';
 
@@ -22,6 +23,7 @@ export class WorkspaceController {
     private readonly receivables: ReceivablesService,
     private readonly sorting: SortingRecordsService,
     private readonly finance: FinanceService,
+    private readonly prices: PriceListsService,
   ) {}
 
   private async canSeeCost(user: CurrentUserData): Promise<boolean> {
@@ -95,6 +97,31 @@ export class WorkspaceController {
   @RequirePermissions('SORTING_STAGE1_VIEW')
   async sortingLot(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('lotId') id: string) {
     return this.sorting.lot(tenantId, id, await this.canSeeCost(user));
+  }
+
+  // ---- Price lists (E3.4) ----
+  @Get('price-lists')
+  @RequirePermissions('price.manage')
+  priceLists(@TenantId() tenantId: string) {
+    return this.prices.overview(tenantId);
+  }
+
+  @Put('price-lists/entries')
+  @RequirePermissions('price.manage')
+  setPrice(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Body() dto: PriceEntryDto) {
+    return this.prices.setPrice(tenantId, dto, user.userId);
+  }
+
+  @Delete('price-lists/entries/:id')
+  @RequirePermissions('price.manage')
+  removePrice(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string) {
+    return this.prices.removePrice(tenantId, id, user.userId);
+  }
+
+  @Patch('customers/:id/price-group')
+  @RequirePermissions('price.manage')
+  priceGroup(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string, @Body() dto: PriceGroupDto) {
+    return this.prices.setCustomerGroup(tenantId, id, dto, user.userId);
   }
 
   // ---- Finance (E3.6) ----
