@@ -14,3 +14,14 @@ server/*.tsbuildinfo
 
 # Misc
 .DS_Store
+
+# Test coverage reports
+server/coverage/
+
+# Uploaded files (payment screenshots)
+server/uploads/
+uploads/
+
+# Playwright
+thriftos-frontend/test-results/
+thriftos-frontend/playwright-report/

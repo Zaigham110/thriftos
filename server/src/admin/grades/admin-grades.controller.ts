@@ -4,8 +4,8 @@ import { TenantGuard } from '../../common/guards/tenant.guard';
 import { PermissionGuard } from '../../common/guards/permission.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
-import { GradesService } from '../../sorting-stage2/grades/grades.service';
-import { CreateGradeDto, UpdateGradeDto } from '../../sorting-stage2/grades/dto';
+import { GradesService } from '../../sorting/grades.service';
+import { CreateGradeDto, UpdateGradeDto } from '../../sorting/grades.dto';
 
 @Controller('admin/grades')
 @UseGuards(TenantGuard, PermissionGuard)

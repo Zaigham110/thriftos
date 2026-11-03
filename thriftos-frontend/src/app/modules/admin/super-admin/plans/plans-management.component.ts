@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
-import { CommonModule, CurrencyPipe } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, of } from 'rxjs';
 import {
@@ -21,7 +21,6 @@ import {
   AppPageHeaderComponent,
   AppPageBodyComponent,
   AppSectionComponent,
-  AppGridComponent,
   AppLoadingComponent,
   AppErrorStateComponent,
 } from '../../../../shared/ui';
@@ -31,13 +30,11 @@ import {
   standalone: true,
   imports: [
     CommonModule,
-    CurrencyPipe,
     LucideAngularModule,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
     AppSectionComponent,
-    AppGridComponent,
     AppLoadingComponent,
     AppErrorStateComponent,
   ],

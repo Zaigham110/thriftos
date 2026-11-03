@@ -38,6 +38,7 @@ import {
 import { ProcurementService } from '../procurement.service';
 import { ProcurementDashboardSummary } from '../procurement.models';
 import { AuthService } from '../../../core/auth/auth';
+import { TenantService } from '../../../core/tenant/tenant.service';
 
 @Component({
   selector: 'app-procurement-dashboard',
@@ -62,13 +63,16 @@ import { AuthService } from '../../../core/auth/auth';
 export class ProcurementDashboardComponent implements OnInit {
   private readonly procurementService = inject(ProcurementService);
   private readonly authService = inject(AuthService);
+  private readonly tenantService = inject(TenantService);
+  /** Purchase orders are not part of v1: hidden unless the business turned them on. */
+  protected readonly posEnabled = computed(() => this.tenantService.isModuleEnabled('PURCHASE_ORDERS'));
 
   readonly summary = signal<ProcurementDashboardSummary | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
 
   readonly breadcrumbs = [
-    { label: 'Procurement', route: '/app/procurement' },
+    { label: 'Procurement', route: '/receive/records' },
     { label: 'Dashboard' },
   ];
 

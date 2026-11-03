@@ -1,11 +1,30 @@
-import { IsNotEmpty, IsNumber, IsPositive, IsString } from 'class-validator';
+import { PaymentMethod } from '@prisma/client';
+import { IsDateString, IsEnum, IsNumber, IsOptional, IsPositive, IsString, MaxLength } from 'class-validator';
 
+/** "Payment received": who paid and how much. Method defaults to cash; a sale is optional (on account). */
 export class CreatePaymentDto {
-  @IsNumber()
+  @IsString()
+  customerId!: string;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
   @IsPositive()
-  amount: number;
+  amount!: number;
+
+  @IsEnum(PaymentMethod)
+  @IsOptional()
+  method?: PaymentMethod;
+
+  /** Pay this sale first; anything over its due amount goes to the oldest debt. */
+  @IsString()
+  @IsOptional()
+  saleId?: string;
 
   @IsString()
-  @IsNotEmpty()
-  method: string;
+  @MaxLength(100)
+  @IsOptional()
+  reference?: string;
+
+  @IsDateString()
+  @IsOptional()
+  receivedAt?: string;
 }

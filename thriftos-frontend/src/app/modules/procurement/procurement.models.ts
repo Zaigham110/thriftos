@@ -13,7 +13,8 @@ export type VendorType = 'SUPPLIER' | 'CUSTOMER' | 'SHIPPER' | 'CONSIGNEE' | 'OT
 export type PurchaseOrderType = 'CONTAINER' | 'LOOSE_BALE' | 'HYBRID';
 export type PurchaseOrderStatus = 'OPEN' | 'RECEIVED' | 'CLOSED';
 export type ContainerStatus = 'IN_TRANSIT' | 'ARRIVED' | 'CLEARED' | 'CLOSED';
-export type ChargeType = 'CIF' | 'FREIGHT' | 'DUTY' | 'TAX' | 'PORT_HANDLING' | 'MISC';
+/** CIF only appears on old containers; new ones keep the purchase price in Container.purchaseCost. */
+export type ChargeType = 'CIF' | 'FREIGHT' | 'DUTY' | 'TAX' | 'CLEARING' | 'PORT_HANDLING' | 'TRANSPORT' | 'LABOUR' | 'MISC';
 
 // =============================================================
 // VENDOR
@@ -55,10 +56,8 @@ export interface PurchaseOrder {
   updatedAt: string;
   vendor?: Vendor;
   containers?: Container[];
-  incomingBales?: IncomingBale[];
   _count?: {
     containers: number;
-    incomingBales: number;
   };
 }
 
@@ -86,7 +85,14 @@ export interface PurchaseOrderListResponse {
 export interface Container {
   id: string;
   tenantId: string;
-  purchaseOrderId: string;
+  purchaseOrderId: string | null;
+  vendorId?: string | null;
+  vendor?: { id: string; name: string; originCountry?: string | null } | null;
+  originCountry?: string | null;
+  /** Purchase price in purchaseCurrency; landed cost = purchase (× fxRate unless PKR) + charges. */
+  purchaseCost?: number | string;
+  purchaseCurrency?: string;
+  landedCostPKR?: number | string;
   containerNumber: string;
   referenceNumber: string | null;
   containerType: string | null;
@@ -122,10 +128,8 @@ export interface Container {
   updatedAt: string;
   purchaseOrder?: PurchaseOrder;
   containerCharges?: ContainerCharge[];
-  incomingBales?: IncomingBale[];
   _count?: {
     containerCharges: number;
-    incomingBales: number;
     rags: number;
   };
 }
@@ -229,63 +233,6 @@ export interface CostBreakdown {
 }
 
 // =============================================================
-// INCOMING BALE (Loose Bale)
-// =============================================================
-
-export interface IncomingBale {
-  id: string;
-  tenantId: string;
-  purchaseOrderId: string | null;
-  containerId: string | null;
-  vendorId: string | null;
-  baleCode: string;
-  categoryId: string | null;
-  categoryGuess: string | null;
-  rawCategoryId?: string | null;
-  weightKg: number;
-  cost: number;
-  createdAt: string;
-  updatedAt: string;
-  purchaseOrder?: PurchaseOrder;
-  container?: Container;
-  vendor?: Vendor;
-  rawCategory?: {
-    id: string;
-    name: string;
-  } | null;
-  sortSessions?: Array<{
-    id: string;
-    status: string;
-  }>;
-}
-
-export interface CreateIncomingBaleRequest {
-  purchaseOrderId: string;
-  containerId?: string;
-  vendorId?: string;
-  rawCategoryId: string;
-  weightKg: number;
-  cost?: number;
-}
-
-export interface UpdateIncomingBaleRequest {
-  purchaseOrderId?: string | null;
-  containerId?: string | null;
-  vendorId?: string;
-  rawCategoryId?: string;
-  weightKg?: number;
-  cost?: number;
-}
-
-export interface IncomingBaleListResponse {
-  data: IncomingBale[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
-// =============================================================
 // DASHBOARD STATS
 // =============================================================
 
@@ -338,11 +285,3 @@ export interface ContainerFilters {
   limit?: number;
 }
 
-export interface IncomingBaleFilters {
-  containerId?: string;
-  purchaseOrderId?: string;
-  vendorId?: string;
-  standalone?: boolean;
-  page?: number;
-  limit?: number;
-}

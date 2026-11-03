@@ -1,8 +1,11 @@
-import { ArrayContains, ArrayNotEmpty, IsArray, IsBoolean, IsEnum, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
-import { OperationMode, ConnectivityPolicy, CapturePolicy, GuidancePolicy } from '@prisma/client';
+import { ArrayUnique, IsArray, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { SUPPORTED_CURRENCY_CODES } from '../../common/currency/currency';
 
-export const OPERATIONAL_MODULES = ['WORK', 'INTAKE', 'SORTING', 'REPACK', 'STOCK', 'SALES', 'INSIGHTS', 'ADMINISTRATION'] as const;
+/** Modules a tenant can turn on. The first five are on by default; the rest are advanced. */
+export const TENANT_MODULES = ['RECEIVE', 'SORT', 'STOCK', 'SELL', 'KHATA', 'REPORTS', 'EXPORT', 'WAREHOUSES', 'PURCHASE_ORDERS', 'PAYROLL', 'BILLING'] as const;
+/** Not part of v1: refused (403) unless the business turned them on. BILLING is read from the SYSTEM business. */
+export const ADVANCED_MODULES = ['REPORTS', 'EXPORT', 'WAREHOUSES', 'PURCHASE_ORDERS', 'PAYROLL', 'BILLING'] as const;
+export type TenantModule = (typeof TENANT_MODULES)[number];
 
 export class UpdateTenantSettingsDto {
   @IsString()
@@ -16,22 +19,20 @@ export class UpdateTenantSettingsDto {
   @MaxLength(10)
   locale?: string;
 
-  @IsEnum(OperationMode)
-  @IsOptional()
-  operationMode?: OperationMode;
-
-  @IsEnum(ConnectivityPolicy) @IsOptional() connectivityPolicy?: ConnectivityPolicy;
-  @IsEnum(CapturePolicy) @IsOptional() capturePolicy?: CapturePolicy;
-  @IsEnum(GuidancePolicy) @IsOptional() guidancePolicy?: GuidancePolicy;
-
   @IsArray()
-  @ArrayNotEmpty()
-  @ArrayContains(['WORK'])
-  @IsIn(OPERATIONAL_MODULES, { each: true })
+  @ArrayUnique()
+  @IsIn(TENANT_MODULES, { each: true })
   @IsOptional()
-  operationalModules?: string[];
+  enabledModules?: TenantModule[];
 
-  @IsBoolean()
+  /** 0 = trading only, 1 = category only, 2 = category + grade. */
+  @IsInt()
+  @Min(0)
+  @Max(2)
   @IsOptional()
-  flowEnabled?: boolean;
+  sortingStages?: number;
+
+  @IsIn(['ur', 'en'])
+  @IsOptional()
+  defaultLanguage?: string;
 }

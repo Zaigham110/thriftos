@@ -4,10 +4,15 @@ FROM node:20-alpine AS build
 WORKDIR /app/thriftos-frontend
 
 COPY thriftos-frontend/package*.json ./
-RUN npm install
+RUN npm ci
 
 COPY thriftos-frontend/ ./
-RUN npm run build -- --configuration production
+# Path the app is served under: "/" by default, "/thriftos/" behind the shared server's proxy.
+ARG BASE_HREF=/
+RUN npm run build -- --configuration production --base-href "$BASE_HREF"
+# Release tag, served as version.json so a deploy can be checked from outside.
+ARG APP_VERSION=dev
+RUN printf '{"version":"%s"}\n' "$APP_VERSION" > dist/thriftos-frontend/browser/version.json
 
 # Stage 2: Nginx Server
 FROM nginx:alpine

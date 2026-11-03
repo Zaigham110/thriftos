@@ -323,7 +323,7 @@
               <lucide-icon [img]="icons.Award" [size]="18" class="text-amber-500"></lucide-icon>
               Shift Operator Throughput & Efficiency Leaderboard
             </h2>
-            <a [routerLink]="['/app/sorting/workstation']" class="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+            <a [routerLink]="['/sort']" class="text-xs font-bold text-primary hover:underline flex items-center gap-1">
               Open Workstation <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon>
             </a>
           </div>
@@ -384,7 +384,7 @@
               <lucide-icon [img]="icons.Scale" [size]="18" class="text-primary"></lucide-icon>
               Gate Weighbridge Scale Variance Audit Log
             </h2>
-            <a [routerLink]="['/app/procurement/containers']" class="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+            <a [routerLink]="['/receive/records/containers']" class="text-xs font-bold text-primary hover:underline flex items-center gap-1">
               View All Containers <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon>
             </a>
           </div>
@@ -460,7 +460,7 @@
               <lucide-icon [img]="icons.ShieldAlert" [size]="18" class="text-red-600"></lucide-icon>
               High-Risk Customer Financial Credit Controls
             </h2>
-            <a [routerLink]="['/app/sales/customers']" class="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+            <a [routerLink]="['/khata']" class="text-xs font-bold text-primary hover:underline flex items-center gap-1">
               Customer Directory <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon>
             </a>
           </div>
@@ -558,7 +558,7 @@
 
       <div class="pt-4 border-t flex gap-2">
         <button class="btn btn-secondary w-full" (click)="closeContainerDrawer()">Close</button>
-        <a [routerLink]="['/app/procurement/containers', cont.id]" (click)="closeContainerDrawer()" class="btn btn-primary w-full text-center">
+        <a [routerLink]="['/receive/records/containers', cont.id]" (click)="closeContainerDrawer()" class="btn btn-primary w-full text-center">
           Open Container Page
         </a>
       </div>
@@ -611,7 +611,7 @@
 
       <div class="pt-4 border-t flex gap-2">
         <button class="btn btn-secondary w-full" (click)="closeCustomerDrawer()">Close</button>
-        <a [routerLink]="['/app/sales/customers']" (click)="closeCustomerDrawer()" class="btn btn-primary w-full text-center">
+        <a [routerLink]="['/khata']" (click)="closeCustomerDrawer()" class="btn btn-primary w-full text-center">
           Open Customers Directory
         </a>
       </div>

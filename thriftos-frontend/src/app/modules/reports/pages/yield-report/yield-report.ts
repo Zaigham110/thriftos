@@ -27,9 +27,6 @@ import {
   AppPageComponent,
   AppPageHeaderComponent,
   AppPageBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSectionBodyComponent,
   AppDataTableComponent,
   AppButtonComponent,
   AppErrorStateComponent,
@@ -49,9 +46,6 @@ import {
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
     AppDataTableComponent,
     AppButtonComponent,
     AppErrorStateComponent,
@@ -83,7 +77,7 @@ export class YieldReportComponent implements OnInit {
   protected currentFilters: ReportFilters = {};
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Reports', route: '/app/reports' },
+    { label: 'Reports', route: '/reports/detail' },
     { label: 'Yield Audit & Mass Balance' },
   ];
 

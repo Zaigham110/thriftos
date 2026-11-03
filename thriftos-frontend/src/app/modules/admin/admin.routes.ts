@@ -17,6 +17,7 @@
 
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/guards/permission-guard';
+import { moduleGuard } from '../../core/guards/module.guard';
 
 export const ADMIN_ROUTES: Routes = [
   {
@@ -181,8 +182,8 @@ export const ADMIN_ROUTES: Routes = [
         (m) => m.WarehouseManagementComponent
       ),
     title: 'Warehouse Management - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['warehouse.read'] },
+    canActivate: [moduleGuard, permissionGuard],
+    data: { module: 'WAREHOUSES', permissions: ['warehouse.read'] },
   },
   {
     path: 'warehouses/new',
@@ -191,8 +192,8 @@ export const ADMIN_ROUTES: Routes = [
         (m) => m.WarehouseFormComponent
       ),
     title: 'New Warehouse - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['warehouse.create'] },
+    canActivate: [moduleGuard, permissionGuard],
+    data: { module: 'WAREHOUSES', permissions: ['warehouse.create'] },
   },
   {
     path: 'warehouses/:id/edit',
@@ -201,8 +202,8 @@ export const ADMIN_ROUTES: Routes = [
         (m) => m.WarehouseFormComponent
       ),
     title: 'Edit Warehouse - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['warehouse.update'] },
+    canActivate: [moduleGuard, permissionGuard],
+    data: { module: 'WAREHOUSES', permissions: ['warehouse.update'] },
   },
   {
     path: 'vendors',

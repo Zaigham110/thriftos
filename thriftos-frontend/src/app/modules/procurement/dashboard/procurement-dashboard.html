@@ -5,7 +5,7 @@
         <app-breadcrumb [items]="breadcrumbs"></app-breadcrumb>
       </div>
       <h1 class="page-title">Procurement Overview</h1>
-      <p class="page-subtitle">Track active purchase orders, ocean container shipments, loose bales intake, and vendor spend allocation.</p>
+      <p class="page-subtitle">Track active purchase orders, container shipments, loose lots and supplier spend allocation.</p>
     </div>
 
     <div class="header-right-actions">
@@ -13,8 +13,8 @@
         <lucide-icon [img]="icons.RefreshCw" [size]="15" [class.animate-spin]="loading()"></lucide-icon>
         Refresh
       </button>
-      @if (canCreate()) {
-        <button class="btn btn-primary" [routerLink]="['/app/procurement/pos/create']">
+      @if (canCreate() && posEnabled()) {
+        <button class="btn btn-primary" [routerLink]="['/receive/records/pos/create']">
           <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
           New Purchase Order
         </button>
@@ -32,7 +32,8 @@
 
     <!-- KPI Metric Summary Grid -->
     <div class="kpi-grid">
-      <div class="kpi-card" [routerLink]="['/app/procurement/pos']">
+      @if (posEnabled()) {
+      <div class="kpi-card" [routerLink]="['/receive/records/pos']">
         <div class="kpi-icon kpi-icon-purple">
           <lucide-icon [img]="icons.ShoppingBag" [size]="22"></lucide-icon>
         </div>
@@ -42,8 +43,9 @@
           <span class="kpi-link">View POs <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon></span>
         </div>
       </div>
+      }
 
-      <div class="kpi-card" [routerLink]="['/app/procurement/containers']">
+      <div class="kpi-card" [routerLink]="['/receive/records/containers']">
         <div class="kpi-icon kpi-icon-blue">
           <lucide-icon [img]="icons.Truck" [size]="22"></lucide-icon>
         </div>
@@ -54,12 +56,12 @@
         </div>
       </div>
 
-      <div class="kpi-card" [routerLink]="['/app/procurement/loose-bales']">
+      <div class="kpi-card" [routerLink]="['/sort']">
         <div class="kpi-icon kpi-icon-emerald">
           <lucide-icon [img]="icons.PackageCheck" [size]="22"></lucide-icon>
         </div>
         <div class="kpi-content">
-          <span class="kpi-label">Loose Bales Received</span>
+          <span class="kpi-label">Loose lots received</span>
           <span class="kpi-value">{{ kpiLooseBalesReceived() }}</span>
           <span class="kpi-link">View Bales <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon></span>
         </div>
@@ -69,6 +71,7 @@
     <!-- Analytics & Spend Share Section -->
     <app-section>
       <div class="analytics-grid">
+        @if (posEnabled()) {
         <!-- PO Spend vs Allocated Chart -->
         <div class="chart-panel-card">
           <div class="panel-header">
@@ -88,6 +91,7 @@
             }
           </div>
         </div>
+        }
 
         <!-- Vendor Distribution Share -->
         <div class="chart-panel-card">

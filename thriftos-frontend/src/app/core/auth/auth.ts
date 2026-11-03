@@ -7,6 +7,7 @@ import { Injectable, computed, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, catchError, map, tap, throwError, of, BehaviorSubject, switchMap } from 'rxjs';
+import { sessionCache } from './session-cache';
 import { TokenService } from './token.service';
 import {
   AuthState,
@@ -17,7 +18,6 @@ import {
   ImpersonationResponse,
 } from './auth.models';
 import { API_ENDPOINTS } from '../config/api.config';
-import { OperationModeService } from '../config/operation-mode.service';
 
 @Injectable({
   providedIn: 'root',
@@ -52,8 +52,7 @@ export class AuthService {
   constructor(
     private readonly http: HttpClient,
     private readonly tokenService: TokenService,
-    private readonly router: Router,
-    private readonly operationModeService: OperationModeService
+    private readonly router: Router
   ) {
     this.initializeAuth();
   }
@@ -110,6 +109,11 @@ export class AuthService {
           impersonationReady: true,
         });
         markReady();
+      } else if (!isImpersonating && payload?.sub && sessionCache.me(payload.sub)) {
+        // Installed app opening: show the person's own last profile at once, refresh it behind.
+        this.applyMe(sessionCache.me(payload.sub)!);
+        markReady();
+        this.loadCurrentUser().subscribe({ error: () => undefined });
       } else {
         // Impersonating Super Admin or tenant user - load full profile
         this.loadCurrentUser().subscribe({
@@ -171,8 +175,28 @@ export class AuthService {
    */
   login(credentials: LoginRequest): Observable<User> {
     this._state.update((s) => ({ ...s, isLoading: true }));
+    return this.startSession(this.http.post<LoginResponse>(`${API_ENDPOINTS.auth}/login`, credentials)).pipe(
+      catchError((error) => this.handleAuthError(error))
+    );
+  }
 
-    return this.http.post<LoginResponse>(`${API_ENDPOINTS.auth}/login`, credentials).pipe(
+  /**
+   * Munshi sign-in with phone + PIN. Errors are passed on as they come (the screen shows tries left or the
+   * lock time from `error.error`).
+   */
+  loginWithPin(credentials: { phone: string; pin: string }): Observable<User> {
+    this._state.update((s) => ({ ...s, isLoading: true }));
+    return this.startSession(this.http.post<LoginResponse>(`${API_ENDPOINTS.auth}/login/pin`, credentials)).pipe(
+      catchError((error) => {
+        this._state.update((s) => ({ ...s, isLoading: false }));
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /** Stores the tokens of a successful sign-in and loads the user (and permissions). */
+  private startSession(login$: Observable<LoginResponse>): Observable<User> {
+    return login$.pipe(
       tap((response) => {
         this.tokenService.setTokens(response.accessToken, response.refreshToken);
       }),
@@ -204,8 +228,7 @@ export class AuthService {
             return this._state().user!;
           })
         );
-      }),
-      catchError((error) => this.handleAuthError(error))
+      })
     );
   }
 
@@ -215,34 +238,37 @@ export class AuthService {
   loadCurrentUser(retried = false): Observable<MeResponse> {
     return this.http.get<MeResponse>(`${API_ENDPOINTS.me}`).pipe(
       tap((response) => {
-        const isImpersonating =
-          this.tokenService.isImpersonating() ||
-          !!response.user.impersonatedTenantId ||
-          !!this.tokenService.getImpersonationContext().tenantId;
-        
-        this.operationModeService.initFromMeResponse(response.user);
-        
-        this._state.set({
-          user: response.user,
-          permissions: response.permissions,
-          isAuthenticated: true,
-          isLoading: false,
-          isImpersonating,
-          authReady: true,
-          impersonationReady: true,
-        });
-        this.authReady$.next(true);
-        this.impersonationReady$.next(true);
+        this.applyMe(response);
+        if (!this.tokenService.isImpersonating()) sessionCache.saveMe(response);
       }),
       catchError((error) => {
         // If token is stale, try one silent refresh then retry /me once
         if (error.status === 401 && !retried && this.tokenService.getRefreshToken()) {
           return this.refreshTokenSilently().pipe(switchMap(() => this.loadCurrentUser(true)));
         }
-        this.clearAuthState();
+        // Signed out only when the server says so; no network keeps the person signed in (offline use).
+        if (error.status === 401 || error.status === 403 || !this._state().isAuthenticated) this.clearAuthState();
         return throwError(() => error);
       })
     );
+  }
+
+  private applyMe(response: MeResponse): void {
+    const isImpersonating =
+      this.tokenService.isImpersonating() ||
+      !!response.user.impersonatedTenantId ||
+      !!this.tokenService.getImpersonationContext().tenantId;
+    this._state.set({
+      user: response.user,
+      permissions: response.permissions,
+      isAuthenticated: true,
+      isLoading: false,
+      isImpersonating,
+      authReady: true,
+      impersonationReady: true,
+    });
+    this.authReady$.next(true);
+    this.impersonationReady$.next(true);
   }
 
   /**
@@ -336,7 +362,7 @@ export class AuthService {
           this.tokenService.setImpersonationContext(tenantId, userId);
           this._state.update(s => ({ ...s, isImpersonating: true, impersonationReady: true }));
           this.impersonationReady$.next(true);
-          this.router.navigate(['/app/dashboard']);
+          this.router.navigate(['/home']);
         }),
         map(() => void 0),
         catchError((error) => {
@@ -437,6 +463,7 @@ export class AuthService {
    * Clear authentication state
    */
   private clearAuthState(): void {
+    sessionCache.clear();
     this.tokenService.clearTokens();
     this.tokenService.clearImpersonationContext();
     this._state.set({

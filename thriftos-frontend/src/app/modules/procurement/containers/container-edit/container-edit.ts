@@ -106,9 +106,9 @@ export class ContainerEditComponent implements OnInit {
     const cont = this.container();
     const label = cont?.containerNumber || 'Container';
     return [
-      { label: 'Procurement', route: '/app/procurement' },
-      { label: 'Containers', route: '/app/procurement/containers' },
-      { label, route: cont ? `/app/procurement/containers/${cont.id}` : '/app/procurement/containers' },
+      { label: 'Procurement', route: '/receive/records' },
+      { label: 'Containers', route: '/receive/records/containers' },
+      { label, route: cont ? `/receive/records/containers/${cont.id}` : '/receive/records/containers' },
       { label: 'Edit' },
     ];
   });
@@ -245,7 +245,7 @@ export class ContainerEditComponent implements OnInit {
     forkJoin(requests).subscribe({
       next: () => {
         this.actionLoading.set(false);
-        this.router.navigate(['/app/procurement/containers', container.id]);
+        this.router.navigate(['/receive/records/containers', container.id]);
       },
       error: (err) => {
         this.error.set(err.message || 'Failed to update container');
@@ -257,10 +257,10 @@ export class ContainerEditComponent implements OnInit {
   onCancel(): void {
     const container = this.container();
     if (container) {
-      this.router.navigate(['/app/procurement/containers', container.id]);
+      this.router.navigate(['/receive/records/containers', container.id]);
       return;
     }
-    this.router.navigate(['/app/procurement/containers']);
+    this.router.navigate(['/receive/records/containers']);
   }
 
   private formatDate(value?: string | null): string {

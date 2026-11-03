@@ -6,8 +6,22 @@
 
 import { PrismaClient, TenantStatus, RagStatus, RagSourceType } from '../server/node_modules/.prisma/client';
 import * as bcrypt from 'bcrypt';
+import { ensureBaseData } from '../server/src/bootstrap/base-data';
+
+// Refuse to seed anything but a *_test database unless ALLOW_DEV_MIGRATE=1 (see scripts/db-guard.js).
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+require('../scripts/db-guard.js').assertSafeToMigrate('seed');
 
 const prisma = new PrismaClient();
+
+/** Every tenant gets a "Waste/Katran" waste type (same rule as migration v1_04 and tenant creation). */
+async function ensureDefaultWasteCategory(tenantId: string) {
+  await prisma.wasteCategory.upsert({
+    where: { tenantId_name: { tenantId, name: 'Waste/Katran' } },
+    update: {},
+    create: { tenantId, name: 'Waste/Katran', unitType: 'KG', defaultResalePrice: 0 },
+  });
+}
 
 async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 12);
@@ -17,29 +31,14 @@ async function main() {
   console.log('🌱 Starting ThriftOS V3 database seeding...\n');
 
   // =========================================================
-  // 0. CREATE SUPER ADMIN USER (Global user without tenantId)
+  // 0-3. BASE DATA (SYSTEM business, settings, templates, permissions) — shared with production,
+  //      where the server image runs the same code (server/src/bootstrap).
   // =========================================================
-  console.log('👑 Creating Super Admin user...');
-  
-  // First we need a "system" tenant for the super admin
-  // Super Admin is identified by having tenantId = null, but Prisma requires a valid tenant
-  // So we'll create a special system tenant for super admins
-  const systemTenant = await prisma.tenant.upsert({
-    where: { companyCode: 'SYSTEM' },
-    update: {},
-    create: {
-      name: 'System Administration',
-      companyCode: 'SYSTEM',
-      currency: 'USD',
-      locale: 'en-US',
-      status: TenantStatus.ACTIVE,
-    },
-  });
+  console.log('📦 Base data...');
+  const systemTenantId = await ensureBaseData(prisma);
+  const systemTenant = { id: systemTenantId };
 
-  const superAdminPassword = await hashPassword('SuperAdmin@123');
-  
-  // Note: For true Super Admin without tenant, we'll use a workaround
-  // The system will check if user belongs to SYSTEM tenant to grant super admin rights
+  // Dev/test only: a super admin with a known password (production uses bootstrap.js --super-admin).
   await prisma.user.upsert({
     where: { tenantId_email: { tenantId: systemTenant.id, email: 'superadmin@thriftos.com' } },
     update: {},
@@ -47,208 +46,17 @@ async function main() {
       tenantId: systemTenant.id,
       name: 'Super Admin',
       email: 'superadmin@thriftos.com',
-      passwordHash: superAdminPassword,
+      passwordHash: await hashPassword('SuperAdmin@123'),
       isActive: true,
     },
   });
-
   console.log('   ✅ Super Admin created: superadmin@thriftos.com / SuperAdmin@123');
 
-  // =========================================================
-  // 1. SEED GLOBAL CONFIGURATIONS
-  // =========================================================
-  console.log('📦 Seeding GlobalConfig...');
-  
-  // Add system tenant ID to config for super admin detection
-  await prisma.globalConfig.upsert({
-    where: { key: 'system.superAdminTenantId' },
-    update: { valueJson: { tenantId: systemTenant.id } },
-    create: {
-      key: 'system.superAdminTenantId',
-      valueJson: { tenantId: systemTenant.id },
-    },
-  });
-  
-  await prisma.globalConfig.upsert({
-    where: { key: 'system.version' },
-    update: {},
-    create: {
-      key: 'system.version',
-      valueJson: { version: '3.0.0', releaseDate: '2025-01-01' },
-    },
-  });
-
-  await prisma.globalConfig.upsert({
-    where: { key: 'defaults.currency' },
-    update: {},
-    create: {
-      key: 'defaults.currency',
-      valueJson: { currency: 'USD', symbol: '$' },
-    },
-  });
-
-  // =========================================================
-  // 2. SEED GLOBAL CATEGORY TEMPLATES
-  // =========================================================
-  console.log('📦 Seeding GlobalCategoryTemplate...');
-
-  const categoryTemplates = [
-    { categoryName: 'T-Shirts', defaultWeightUnit: 'KG', defaultSortPriority: 1 },
-    { categoryName: 'Jeans', defaultWeightUnit: 'KG', defaultSortPriority: 2 },
-    { categoryName: 'Dresses', defaultWeightUnit: 'KG', defaultSortPriority: 3 },
-    { categoryName: 'Jackets', defaultWeightUnit: 'KG', defaultSortPriority: 4 },
-    { categoryName: 'Shoes', defaultWeightUnit: 'KG', defaultSortPriority: 5 },
-    { categoryName: 'Accessories', defaultWeightUnit: 'PCS', defaultSortPriority: 6 },
-    { categoryName: 'Bags', defaultWeightUnit: 'PCS', defaultSortPriority: 7 },
-    { categoryName: 'Children Wear', defaultWeightUnit: 'KG', defaultSortPriority: 8 },
-    { categoryName: 'Winter Wear', defaultWeightUnit: 'KG', defaultSortPriority: 9 },
-    { categoryName: 'Sportswear', defaultWeightUnit: 'KG', defaultSortPriority: 10 },
-  ];
-
-  for (const template of categoryTemplates) {
-    const id = template.categoryName.toLowerCase().replace(/\s+/g, '-');
-    await prisma.globalCategoryTemplate.upsert({
-      where: { id },
-      update: {},
-      create: {
-        id,
-        ...template,
-      },
-    });
-  }
-
-  // =========================================================
-  // 3. SEED PERMISSIONS
-  // =========================================================
-  console.log('📦 Seeding Permissions...');
-
-  const permissions = [
-    // Super Admin
-    { code: 'tenant.create', name: 'Create Tenant', group: 'Super Admin' },
-    { code: 'tenant.read', name: 'View Tenants', group: 'Super Admin' },
-    { code: 'tenant.update', name: 'Update Tenant', group: 'Super Admin' },
-    { code: 'tenant.delete', name: 'Delete Tenant', group: 'Super Admin' },
-    
-    // User Management
-    { code: 'user.create', name: 'Create User', group: 'User Management' },
-    { code: 'user.read', name: 'View Users', group: 'User Management' },
-    { code: 'user.update', name: 'Update User', group: 'User Management' },
-    { code: 'user.delete', name: 'Delete User', group: 'User Management' },
-    
-    // Role Management
-    { code: 'role.create', name: 'Create Role', group: 'Role Management' },
-    { code: 'role.read', name: 'View Roles', group: 'Role Management' },
-    { code: 'role.update', name: 'Update Role', group: 'Role Management' },
-    { code: 'role.delete', name: 'Delete Role', group: 'Role Management' },
-    
-    // Category Management
-    { code: 'category.create', name: 'Create Category', group: 'Configuration' },
-    { code: 'category.read', name: 'View Categories', group: 'Configuration' },
-    { code: 'category.update', name: 'Update Category', group: 'Configuration' },
-    { code: 'category.delete', name: 'Delete Category', group: 'Configuration' },
-    
-    // Grade Management
-    { code: 'grade.create', name: 'Create Grade', group: 'Configuration' },
-    { code: 'grade.read', name: 'View Grades', group: 'Configuration' },
-    { code: 'grade.update', name: 'Update Grade', group: 'Configuration' },
-    { code: 'grade.delete', name: 'Delete Grade', group: 'Configuration' },
-    
-    // Warehouse Management
-    { code: 'warehouse.create', name: 'Create Warehouse', group: 'Configuration' },
-    { code: 'warehouse.read', name: 'View Warehouses', group: 'Configuration' },
-    { code: 'warehouse.update', name: 'Update Warehouse', group: 'Configuration' },
-    { code: 'warehouse.delete', name: 'Delete Warehouse', group: 'Configuration' },
-    
-    // Procurement - Purchase Orders
-    { code: 'po.create', name: 'Create Purchase Order', group: 'Procurement' },
-    { code: 'po.read', name: 'View Purchase Orders', group: 'Procurement' },
-    { code: 'po.update', name: 'Update Purchase Order', group: 'Procurement' },
-    { code: 'po.delete', name: 'Delete Purchase Order', group: 'Procurement' },
-    
-    // Procurement - Containers
-    { code: 'container.create', name: 'Create Container', group: 'Procurement' },
-    { code: 'container.read', name: 'View Containers', group: 'Procurement' },
-    { code: 'container.update', name: 'Update Container', group: 'Procurement' },
-    { code: 'container.delete', name: 'Delete Container', group: 'Procurement' },
-    
-    // Procurement - Rags
-    { code: 'rag.create', name: 'Create Rag', group: 'Procurement' },
-    { code: 'rag.read', name: 'View Rags', group: 'Procurement' },
-    { code: 'rag.delete', name: 'Delete Rag', group: 'Procurement' },
-    
-    // Procurement - Vendors
-    { code: 'vendor.create', name: 'Create Vendor', group: 'Procurement' },
-    { code: 'vendor.read', name: 'View Vendors', group: 'Procurement' },
-    { code: 'vendor.update', name: 'Update Vendor', group: 'Procurement' },
-    
-    // Sorting Stage 1
-    { code: 'sort.session.create', name: 'Create Sort Session', group: 'Sorting' },
-    { code: 'sort.session.read', name: 'View Sort Sessions', group: 'Sorting' },
-    { code: 'sort.session.update', name: 'Update Sort Session', group: 'Sorting' },
-    { code: 'sort.session.close', name: 'Close Sort Session', group: 'Sorting' },
-
-    // Sorting Stage 1 (Phase 3 prompt recommended permission codes)
-    { code: 'SORTING_STAGE1_VIEW', name: 'Sorting Stage 1 - View', group: 'Sorting' },
-    { code: 'SORTING_STAGE1_CREATE', name: 'Sorting Stage 1 - Create', group: 'Sorting' },
-    { code: 'SORTING_STAGE1_EDIT', name: 'Sorting Stage 1 - Edit', group: 'Sorting' },
-    { code: 'SORTING_STAGE1_CLOSE', name: 'Sorting Stage 1 - Close', group: 'Sorting' },
-    
-    // Sorting Stage 2 (Grading)
-    { code: 'grade.session.create', name: 'Create Grade Session', group: 'Grading' },
-    { code: 'grade.session.read', name: 'View Grade Sessions', group: 'Grading' },
-    { code: 'grade.session.update', name: 'Update Grade Session', group: 'Grading' },
-    { code: 'grade.session.close', name: 'Close Grade Session', group: 'Grading' },
-
-    // Sorting Stage 2 (Phase 4 prompt recommended permission codes)
-    { code: 'SORTING_STAGE2_VIEW', name: 'Sorting Stage 2 - View', group: 'Grading' },
-    { code: 'SORTING_STAGE2_CREATE', name: 'Sorting Stage 2 - Create', group: 'Grading' },
-    { code: 'SORTING_STAGE2_EDIT', name: 'Sorting Stage 2 - Edit', group: 'Grading' },
-    { code: 'SORTING_STAGE2_CLOSE', name: 'Sorting Stage 2 - Close', group: 'Grading' },
-    
-    // Repack
-    { code: 'repack.session.create', name: 'Create Repack Session', group: 'Repack' },
-    { code: 'repack.session.read', name: 'View Repack Sessions', group: 'Repack' },
-    { code: 'repack.session.update', name: 'Update Repack Session', group: 'Repack' },
-    { code: 'repack.unit.create', name: 'Create Repack Unit', group: 'Repack' },
-    { code: 'repack.unit.read', name: 'View Repack Units', group: 'Repack' },
-    { code: 'qr.generate', name: 'Generate QR Labels', group: 'Repack' },
-
-    // Repack (Phase 5 prompt recommended permission codes)
-    { code: 'REPACK_VIEW', name: 'Repack - View', group: 'Repack' },
-    { code: 'REPACK_CREATE', name: 'Repack - Create', group: 'Repack' },
-    { code: 'REPACK_EDIT', name: 'Repack - Edit', group: 'Repack' },
-    { code: 'REPACK_CLOSE', name: 'Repack - Close', group: 'Repack' },
-    { code: 'REPACK_ALLOCATE', name: 'Repack - Allocate', group: 'Repack' },
-    
-    // Inventory
-    { code: 'inventory.read', name: 'View Inventory', group: 'Inventory' },
-    { code: 'inventory.adjust', name: 'Adjust Inventory', group: 'Inventory' },
-    { code: 'inventory.transfer', name: 'Transfer Inventory', group: 'Inventory' },
-    { code: 'stockmovement.read', name: 'View Stock Movements', group: 'Inventory' },
-
-    // Inventory (Phase 6 prompt recommended permission codes)
-    { code: 'INVENTORY_VIEW', name: 'Inventory - View', group: 'Inventory' },
-    { code: 'INVENTORY_INTAKE', name: 'Inventory - Intake', group: 'Inventory' },
-    { code: 'INVENTORY_ADJUST', name: 'Inventory - Adjust', group: 'Inventory' },
-    { code: 'INVENTORY_RESERVE', name: 'Inventory - Reserve/Release', group: 'Inventory' },
-    
-    // Reports
-    { code: 'report.procurement', name: 'View Procurement Reports', group: 'Reports' },
-    { code: 'report.sorting', name: 'View Sorting Reports', group: 'Reports' },
-    { code: 'report.grading', name: 'View Grading Reports', group: 'Reports' },
-    { code: 'report.inventory', name: 'View Inventory Reports', group: 'Reports' },
-    { code: 'report.cost', name: 'View Cost Reports', group: 'Reports' },
-    { code: 'report.worker', name: 'View Worker Reports', group: 'Reports' },
-    { code: 'REPORTS_VIEW', name: 'Reports - View', group: 'Reports' },
-    { code: 'REPORTS_EXPORT', name: 'Reports - Export', group: 'Reports' },
-  ];
-
-  for (const permission of permissions) {
-    await prisma.permission.upsert({
-      where: { code: permission.code },
-      update: {},
-      create: permission,
-    });
+  // The demo database (npm run demo:reset) gets only the base data here; its businesses are made by
+  // server/src/demo/seed-demo.ts through the app's own services.
+  if (process.env.SEED_BASE_ONLY === '1') {
+    console.log('✅ Base data only (SEED_BASE_ONLY=1).');
+    return;
   }
 
   // =========================================================
@@ -262,9 +70,9 @@ async function main() {
     create: {
       name: 'Demo Thrift Company',
       companyCode: 'DEMO',
-      currency: 'USD',
-      locale: 'en-US',
       status: TenantStatus.ACTIVE,
+      // Seeded businesses are ready to use: no setup wizard (only new tenants get it).
+      setupCompletedAt: new Date(),
     },
   });
 
@@ -349,6 +157,15 @@ async function main() {
         isActive: true,
       },
     });
+  }
+
+  // =========================================================
+  // 6.5. DEFAULT WASTE TYPE (every tenant needs one to close a lot with a remainder)
+  // =========================================================
+  console.log('📦 Seeding default waste type...');
+
+  for (const tenantId of [systemTenant.id, demoTenant.id]) {
+    await ensureDefaultWasteCategory(tenantId);
   }
 
   // =========================================================
@@ -458,6 +275,7 @@ async function main() {
       tenantId: demoTenant.id,
       name: 'Global Thrift Suppliers',
       country: 'USA',
+      originCountry: 'USA',
       contactInfo: 'contact@globalthrift.com',
       isActive: true,
     },
@@ -476,8 +294,8 @@ async function main() {
       vendorId: demoVendor.id,
       poNumber: 'PO-2025-001',
       poType: 'CONTAINER',
-      currency: 'USD',
-      totalCost: 0,
+      currency: 'PKR',
+      totalCost: 1650.0,
       status: 'RECEIVED',
     },
   });
@@ -493,6 +311,8 @@ async function main() {
     create: {
       tenantId: demoTenant.id,
       purchaseOrderId: demoPO.id,
+      vendorId: demoVendor.id,
+      originCountry: 'USA',
       containerNumber: 'CONT-2025-001',
       referenceNumber: 'REF-001',
       containerType: '40ft',
@@ -502,6 +322,11 @@ async function main() {
       grossWeight: 5500.0,
       tareWeight: 500.0,
       netWeight: 5000.0,
+      // Landed cost 1,650 split by lot weight: 250 kg → 750, 300 kg → 900 (costing rules, docs/v1/03).
+      purchaseCost: 1650.0,
+      purchaseCurrency: 'PKR',
+      landedCostPKR: 1650.0,
+      landedCostPerKg: 3.0,
       billOfLadingNumber: 'BL-0001',
       shipmentReference: 'SHIP-0001',
       shippingLine: 'Maersk',
@@ -532,6 +357,8 @@ async function main() {
       tenantId: demoTenant.id,
       containerId: demoContainer.id,
       ragCode: 'RAG-2025-001',
+      vendorId: demoVendor.id,
+      originCountry: 'USA',
       weightKg: 250.00,
       allocatedCost: 750.00,
       sourceType: RagSourceType.CONTAINER,
@@ -548,6 +375,8 @@ async function main() {
       tenantId: demoTenant.id,
       containerId: demoContainer.id,
       ragCode: 'RAG-2025-002',
+      vendorId: demoVendor.id,
+      originCountry: 'USA',
       weightKg: 300.00,
       allocatedCost: 900.00,
       sourceType: RagSourceType.CONTAINER,
@@ -565,7 +394,10 @@ async function main() {
       tenantId: demoTenant.id,
       containerId: null,              // Loose bale - no container
       ragCode: 'LOOSE-2025-001',
+      vendorId: demoVendor.id,
+      originCountry: 'USA',
       weightKg: 150.00,
+      purchaseCost: 400.00,
       allocatedCost: 400.00,
       sourceType: RagSourceType.LOOSE_BALE,
       status: RagStatus.NOT_STARTED,  // Available for sorting

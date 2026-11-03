@@ -1,0 +1,81 @@
+{
+  "$schema": "./node_modules/@angular/service-worker/config/schema.json",
+  "index": "/index.html",
+  "navigationUrls": [
+    "/**",
+    "!/**/*.*",
+    "!/**/*__*",
+    "!/**/*__*/**",
+    "!api/**"
+  ],
+  "assetGroups": [
+    {
+      "name": "app",
+      "installMode": "prefetch",
+      "resources": {
+        "files": [
+          "/favicon.ico",
+          "/index.html",
+          "/manifest.webmanifest",
+          "/*.css",
+          "/*.js",
+          "/i18n/*.json",
+          "/media/*.woff2"
+        ]
+      }
+    },
+    {
+      "name": "assets",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": [
+          "/icons/**",
+          "/media/**",
+          "/*.(svg|png|jpg|webp|woff|ttf)"
+        ]
+      }
+    }
+  ],
+  "dataGroups": [
+    {
+      "name": "reference-data",
+      "urls": [
+        "api/tenant/categories**",
+        "api/tenant/grades**",
+        "api/tenant/waste-categories**",
+        "api/tenant/raw-categories**",
+        "api/procurement/vendors**"
+      ],
+      "cacheConfig": {
+        "strategy": "performance",
+        "maxSize": 50,
+        "maxAge": "5m"
+      }
+    },
+    {
+      "name": "live-data",
+      "urls": [
+        "api/tenant",
+        "api/me",
+        "api/procurement/rags**",
+        "api/procurement/containers**",
+        "api/sorting/*/queue**",
+        "api/sorting/*/summary**",
+        "api/sorting/*/sessions/**",
+        "api/stock/items**",
+        "api/stock/bales**",
+        "api/customers**",
+        "api/khata**",
+        "api/sales**",
+        "api/home/**"
+      ],
+      "cacheConfig": {
+        "strategy": "freshness",
+        "maxSize": 300,
+        "maxAge": "7d",
+        "timeout": "3s"
+      }
+    }
+  ]
+}

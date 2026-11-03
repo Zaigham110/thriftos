@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Put, Patch, Delete, UseGuards, Req, Query, Body, Param } from '@nestjs/common';
-import { Request } from 'express';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { Request, Response } from 'express';
 import { TenantService } from './tenant.service';
 import { TenantGuard } from '../common/guards/tenant.guard';
 import { PermissionGuard } from '../common/guards/permission.guard';
@@ -7,28 +7,59 @@ import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.
 import { RequirePermissions, SkipPermissionCheck } from '../common/decorators/permissions.decorator';
 import { RagBaleType } from '@prisma/client';
 import { CreateRawCategoryDto, UpdateRawCategoryDto } from './dto/raw-category.dto';
-import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
-import { CreateWarehouseDto, UpdateWarehouseDto } from './dto/warehouse.dto';
 import { UpdateTenantSettingsDto } from './dto/tenant-settings.dto';
+import { Idempotent } from '../common/idempotency/idempotent.interceptor';
+import { TenantSetupDto } from './dto/setup.dto';
+import { SetupService } from './setup.service';
+import { DataExportService } from './data-export.service';
+import { TenantId } from '../common/decorators/tenant-id.decorator';
 
 /**
- * TenantController - Returns current tenant information and lookup data.
- * 
- * Security: TenantGuard + PermissionGuard applied.
- * Uses SkipPermissionCheck since these are basic lookups needed by all 
- * authenticated users for dropdowns, filters, and tenant context.
- * This is not sensitive data - just categories, grades, warehouses, and stats.
+ * TenantController - the current tenant, its settings, and lookup lists for pickers
+ * (categories, raw categories, grades, warehouses). Lookups are open to every tenant user;
+ * writes need permissions. Managing categories and warehouses lives under /admin.
  */
 @Controller('tenant')
 @UseGuards(TenantGuard, PermissionGuard)
 export class TenantController {
-  constructor(private readonly tenantService: TenantService) {}
+  constructor(
+    private readonly tenantService: TenantService,
+    private readonly setup: SetupService,
+    private readonly dataExport: DataExportService,
+  ) {}
+
+  /** Everything that belongs to this business as a zip of CSV files (owner only: data.export). */
+  @Get('export')
+  @RequirePermissions('data.export')
+  async export(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Res() res: Response) {
+    const { filename, zip } = await this.dataExport.exportZip(tenantId, user.userId);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(Buffer.from(zip));
+  }
 
   @Get()
   @SkipPermissionCheck()
   async getCurrentTenant(@CurrentUser() user: CurrentUserData, @Req() req: Request) {
     const tenantId = (req as any).tenantId || user.tenantId;
     return this.tenantService.findOne(tenantId);
+  }
+
+  /** Setup wizard (journey 8): where it starts from (Karachi template until done). */
+  @Get('setup')
+  @RequirePermissions('tenant.update')
+  setupDefaults(@CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    return this.setup.defaults((req as any).tenantId || user.tenantId);
+  }
+
+  /** Setup wizard: saves everything in one step. Safe to repeat with an Idempotency-Key. */
+  @Post('setup')
+  @Idempotent('TENANT_SETUP')
+  @RequirePermissions('tenant.update')
+  @HttpCode(HttpStatus.OK)
+  saveSetup(@Body() dto: TenantSetupDto, @CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    return this.setup.save((req as any).tenantId || user.tenantId, dto, user.userId);
   }
 
   @Get('work-queue')
@@ -56,46 +87,9 @@ export class TenantController {
     return this.tenantService.getCategories(tenantId);
   }
 
-  @Get('categories/all')
-  @RequirePermissions('category.read')
-  async getAllCategories(@CurrentUser() user: CurrentUserData, @Req() req: Request) {
-    const tenantId = (req as any).tenantId || user.tenantId;
-    return this.tenantService.getAllCategories(tenantId);
-  }
 
-  @Post('categories')
-  @RequirePermissions('category.create')
-  async createCategory(
-    @CurrentUser() user: CurrentUserData,
-    @Req() req: Request,
-    @Body() dto: CreateCategoryDto,
-  ) {
-    const tenantId = (req as any).tenantId || user.tenantId;
-    return this.tenantService.createCategory(tenantId, dto);
-  }
 
-  @Patch('categories/:id')
-  @RequirePermissions('category.update')
-  async updateCategory(
-    @CurrentUser() user: CurrentUserData,
-    @Req() req: Request,
-    @Param('id') id: string,
-    @Body() dto: UpdateCategoryDto,
-  ) {
-    const tenantId = (req as any).tenantId || user.tenantId;
-    return this.tenantService.updateCategory(tenantId, id, dto);
-  }
 
-  @Delete('categories/:id')
-  @RequirePermissions('category.delete')
-  async deleteCategory(
-    @CurrentUser() user: CurrentUserData,
-    @Req() req: Request,
-    @Param('id') id: string,
-  ) {
-    const tenantId = (req as any).tenantId || user.tenantId;
-    return this.tenantService.deleteCategory(tenantId, id);
-  }
 
   @Get('raw-categories')
   @SkipPermissionCheck()
@@ -109,7 +103,7 @@ export class TenantController {
   }
 
   @Post('raw-categories')
-  @SkipPermissionCheck()
+  @RequirePermissions('category.create')
   async createRawCategory(
     @CurrentUser() user: CurrentUserData,
     @Req() req: Request,
@@ -120,7 +114,7 @@ export class TenantController {
   }
 
   @Put('raw-categories/:id')
-  @SkipPermissionCheck()
+  @RequirePermissions('category.update')
   async updateRawCategory(
     @CurrentUser() user: CurrentUserData,
     @Req() req: Request,
@@ -132,7 +126,7 @@ export class TenantController {
   }
 
   @Delete('raw-categories/:id')
-  @SkipPermissionCheck()
+  @RequirePermissions('category.delete')
   async deleteRawCategory(
     @CurrentUser() user: CurrentUserData,
     @Req() req: Request,
@@ -156,46 +150,9 @@ export class TenantController {
     return this.tenantService.getWarehouses(tenantId);
   }
 
-  @Get('warehouses/all')
-  @RequirePermissions('warehouse.read')
-  async getAllWarehouses(@CurrentUser() user: CurrentUserData, @Req() req: Request) {
-    const tenantId = (req as any).tenantId || user.tenantId;
-    return this.tenantService.getAllWarehouses(tenantId);
-  }
 
-  @Post('warehouses')
-  @RequirePermissions('warehouse.create')
-  async createWarehouse(
-    @CurrentUser() user: CurrentUserData,
-    @Req() req: Request,
-    @Body() dto: CreateWarehouseDto,
-  ) {
-    const tenantId = (req as any).tenantId || user.tenantId;
-    return this.tenantService.createWarehouse(tenantId, dto);
-  }
 
-  @Patch('warehouses/:id')
-  @RequirePermissions('warehouse.update')
-  async updateWarehouse(
-    @CurrentUser() user: CurrentUserData,
-    @Req() req: Request,
-    @Param('id') id: string,
-    @Body() dto: UpdateWarehouseDto,
-  ) {
-    const tenantId = (req as any).tenantId || user.tenantId;
-    return this.tenantService.updateWarehouse(tenantId, id, dto);
-  }
 
-  @Delete('warehouses/:id')
-  @RequirePermissions('warehouse.delete')
-  async deleteWarehouse(
-    @CurrentUser() user: CurrentUserData,
-    @Req() req: Request,
-    @Param('id') id: string,
-  ) {
-    const tenantId = (req as any).tenantId || user.tenantId;
-    return this.tenantService.deleteWarehouse(tenantId, id);
-  }
 
   @Get('stats')
   @SkipPermissionCheck()

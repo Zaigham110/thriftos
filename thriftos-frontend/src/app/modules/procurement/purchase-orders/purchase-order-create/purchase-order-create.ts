@@ -93,8 +93,8 @@ export class PurchaseOrderCreateComponent implements OnInit {
   ];
 
   readonly breadcrumbs = [
-    { label: 'Procurement', route: '/app/procurement' },
-    { label: 'Purchase Orders', route: '/app/procurement/pos' },
+    { label: 'Procurement', route: '/receive/records' },
+    { label: 'Purchase Orders', route: '/receive/records/pos' },
     { label: 'New' },
   ];
 
@@ -166,7 +166,7 @@ export class PurchaseOrderCreateComponent implements OnInit {
       next: (po) => {
         if (!includeContainer) {
           this.isSubmitting.set(false);
-          this.router.navigate(['/app/procurement/pos', po.id]);
+          this.router.navigate(['/receive/records/pos', po.id]);
           return;
         }
 
@@ -204,12 +204,12 @@ export class PurchaseOrderCreateComponent implements OnInit {
         this.procurementService.createContainer(containerData).subscribe({
           next: () => {
             this.isSubmitting.set(false);
-            this.router.navigate(['/app/procurement/pos', po.id]);
+            this.router.navigate(['/receive/records/pos', po.id]);
           },
           error: (err) => {
             // PO created successfully, redirect to PO detail even if initial container failed
             this.isSubmitting.set(false);
-            this.router.navigate(['/app/procurement/pos', po.id]);
+            this.router.navigate(['/receive/records/pos', po.id]);
           },
         });
       },
@@ -221,6 +221,6 @@ export class PurchaseOrderCreateComponent implements OnInit {
   }
 
   cancel(): void {
-    this.router.navigate(['/app/procurement/pos']);
+    this.router.navigate(['/receive/records/pos']);
   }
 }

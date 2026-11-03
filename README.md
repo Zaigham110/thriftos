@@ -1,196 +1,123 @@
 # ThriftOS
 
-ThriftOS is a multi-tenant ERP for thrift, textile recycling, and resale operations. The repository contains:
+**ThriftOS runs a landa (used-clothing) business from a phone.** It is made for container importers, sorting
+workshops and bale traders in Karachi, Lahore and Peshawar.
 
-- a NestJS backend API
-- an Angular frontend
-- a shared Prisma/PostgreSQL data model
+- **Maal aya** — a container or a lot arrives: supplier, weight, price, duty and clearing. ThriftOS works out
+  the landed cost per kg.
+- **Chhantai** — the munshi taps a category, types the kg, and moves on. Grading into A / B / C works the same way.
+  When the lot is closed you see the yield and the cost per kg of every grade.
+- **Bales** — make a bale, print its QR sticker, scan it when you sell.
+- **Becho** — sell by bale, kg or piece, cash or udhaar, and send the bill on WhatsApp.
+- **Khata** — who owes what, since when, and a WhatsApp reminder in Urdu or English.
+- **Home** — the owner sees profit per container, udhaar owed, stock ready and today's sales, and which
+  supplier and country give the best profit per kg.
 
-## Main business areas
+It works in **Urdu and English**, on a cheap Android phone, and **without internet**: entries are kept on the phone
+and sent when the connection comes back. A trader who does not sort can switch sorting off and only buy and sell.
 
-- Super admin and tenant management
-- Authentication and RBAC
-- Procurement
-- Sorting stage 1
-- Sorting stage 2
-- Repack and QR labels
-- Inventory
-- Sales
-- Reports
-- Waste tracking
+The docs are in [`docs/v1/`](docs/v1/README.md) (start there). What is in v1 and what is not:
+[`docs/v1/V1-RELEASE-NOTES.md`](docs/v1/V1-RELEASE-NOTES.md). A 5-minute demo for an owner:
+[`docs/v1/DEMO-SCRIPT.md`](docs/v1/DEMO-SCRIPT.md). Screens: [`docs/v1/screenshots/`](docs/v1/screenshots/README.md).
 
-## Repository structure
+## Try the demo
 
-```text
-.
-├── docker-compose.yml    # PostgreSQL Docker Compose configuration
-├── prisma/               # Shared Prisma schema, migrations, seed script
-├── server/               # NestJS backend API
-├── thriftos-frontend/    # Angular frontend
-├── docs/                 # Architecture and implementation notes
-├── scripts/              # Setup scripts (setup-db.sh)
-├── package.json          # Root Prisma/database scripts
-└── .env                  # Local database connection
+The demo is a separate database, `thriftos_demo`, with two businesses already full of data (3 months, 6 containers,
+120 bales, 15 customers, 60 sales — today's sales included):
+
+| Who | Sign in with |
+|---|---|
+| Owner, **Al-Madina Traders (Demo)**, Karachi | `owner@almadina.demo` / `Demo@1234` |
+| Munshi of Al-Madina (Munshi tab: phone + PIN) | `0300 7860786` / PIN `1234` |
+| Owner, **Lahore Bale House (Demo)** — a trader who does not sort | `owner@lahorebales.demo` / `Demo@1234` |
+| Super admin (all businesses) | `superadmin@thriftos.com` / `SuperAdmin@123` |
+
+You need Node.js 20+ and PostgreSQL 16 (or the Postgres from `docker compose up -d postgres`).
+
+```bash
+cp .env.example .env          # then set DATABASE_URL and JWT_SECRET
+npm ci && npm --prefix server ci && npm --prefix thriftos-frontend ci
+npm run demo:reset            # (re)creates thriftos_demo and fills it — about 40 seconds
 ```
 
-## Tech stack
+`npm run demo:reset` uses the Postgres server in your `DATABASE_URL` but only ever touches the database
+`thriftos_demo`; your own database is not changed. Run it again any time to start the demo fresh.
 
-- Node.js / npm
-- Docker & Docker Compose
-- PostgreSQL
-- Prisma
-- NestJS
-- Angular
-- Tailwind CSS
+Then start the app on the demo database (two terminals):
 
-## Prerequisites
+```bash
+cd server && DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/thriftos_demo?schema=public" JWT_SECRET=any-long-secret PUBLIC_APP_URL=http://localhost:4300 npm start
+```
 
-Install these before starting:
+```bash
+cd thriftos-frontend && npm run build && PORT=4300 API=http://localhost:3000 node e2e/serve.mjs
+```
 
-- **Option A (Full System in Docker)**: Only Docker Desktop (or Docker with Docker Compose) is required!
-- **Option B (Local Dev)**: Node.js 20+, npm, and Docker / PostgreSQL 14+.
+Open <http://localhost:4300>. To use it on your phone over Wi-Fi, see
+[`docs/v1/V1-RELEASE-NOTES.md` → "Demo on a phone"](docs/v1/V1-RELEASE-NOTES.md#demo-on-a-phone).
 
-## 🚀 Running the Whole System in Docker
+## Run it with Docker
 
-Create your local environment file first. Replace all placeholder secrets before starting; do not commit this file.
+`docker compose up` starts the database, the API and the web app together.
 
 ```bash
 cp .env.example .env
 ```
 
-Then launch the **entire application stack** (PostgreSQL Database + NestJS Backend API + Angular Frontend):
+In `.env`, set `POSTGRES_PASSWORD`, `JWT_SECRET` and a matching `DATABASE_URL`, and add `RUN_MIGRATIONS_ON_START=1`. That
+lets the server container set up its own database when it starts; the local `npm run db:*` scripts ignore it.
+Then:
 
 ```bash
 docker compose up -d --build
 ```
 
-This will automatically:
-1. Start PostgreSQL database container on port `5432`.
-2. Build and start NestJS API server container on port `3000` (applies reviewed migrations).
-3. Build and serve Angular frontend container via Nginx on port `4200`.
+The app is on <http://localhost:4200>, the API on <http://localhost:3000/api>. The first sign-in is the super admin
+(only if `SEED_DATABASE=true` was set for the first start); create a business there, and its owner gets the setup
+wizard. (This Docker setup was not run while building v1 — the browser tests use the steps above.)
 
-Access the application:
-- **Frontend Web App**: http://localhost:4200
-- **Backend API Docs (Swagger)**: http://localhost:3000/api/docs
-- **API Health**: http://localhost:3000/api/health
-
-To stop all services:
-```bash
-docker compose down
-```
-
----
-
-## Local Development & Database Setup
-
-If you are developing locally with Node.js and only want PostgreSQL in Docker:
-
-The backend reads the database connection from the root `.env` file. Start from `.env.example`; use `SEED_DATABASE=true` only for a local/demo Docker environment.
-
-### Automated Database Setup Command
-
-Spin up the PostgreSQL container, sync Prisma schema, and seed default data:
+## Develop
 
 ```bash
-npm run db:setup
+npm ci && npm --prefix server ci && npm --prefix thriftos-frontend ci
+npm --prefix server run build
+cd server && npm run start:dev                    # API on :3000
+cd thriftos-frontend && npm start                 # app on :4200 (no offline mode in dev)
 ```
 
-## First-time local setup
-
-Run these commands from the repository root:
+Tests (they use databases whose names end in `_test`, never yours):
 
 ```bash
-npm install
-npm --prefix server install
-npm --prefix thriftos-frontend install
-
-# Automated Database & Docker Setup
-npm run db:setup
+cd server && npm test                             # unit + API tests (TEST_DATABASE_URL or <your db>_test)
+cd thriftos-frontend && npm run e2e               # phone-size browser tests (thriftos_pw_test)
+cd thriftos-frontend && npm run e2e:demo          # the demo, in Urdu and English (thriftos_demo)
+npm run test:db-guard                             # the guard that keeps tests away from your database
 ```
 
-## How to run the project
-
-Open two terminals.
-
-### 1) Start the backend
+## Release
 
 ```bash
-cd server
-npm run start:dev
+bash scripts/check-before-release.sh              # all tests and builds, on the Mac (about 5 minutes)
+git tag -a v1.2.0 -m "what changed" && git push origin v1.2.0
 ```
 
-Backend URLs:
+Pushing the tag is the only thing that runs on GitHub (`.github/workflows/release.yml`): it tests again, builds the
+images, publishes the release, and the server deploys it by itself within about 2 minutes (backup, health check,
+automatic rollback). Live at https://dyit6jcdpteuk.cloudfront.net/thriftos. Roll back by marking an older release
+as "Latest" on GitHub.
 
-- API: http://localhost:3000/api
-- Swagger docs: http://localhost:3000/api/docs
-- Health: http://localhost:3000/api/health
+Migrations and seeds refuse any database whose name does not end in `_test` (see `scripts/db-guard.js`).
+Your own database is changed only by the `scripts/apply-phase*.sh` scripts, which you run yourself.
 
-### 2) Start the frontend
+## Repository
 
-```bash
-cd thriftos-frontend
-npm run start
+```text
+prisma/              schema, migrations, base seed, data checks (prisma/checks/*.sql)
+server/              NestJS API (server/src/demo has the demo seed)
+thriftos-frontend/   Angular app (PWA), browser tests in e2e/
+scripts/             apply-phase*.sh, demo-reset.mjs, db-guard.js
+docs/v1/             what v1 is, how it works, progress log — the source of truth
 ```
 
-Frontend URL:
-
-- App: http://localhost:4200
-
-The frontend uses `thriftos-frontend/proxy.conf.json` to proxy `/api` requests to `http://localhost:3000`.
-
-## Seeded login accounts
-
-After `npm run db:setup` (or `npm run db:seed`), you can use:
-
-### Super admin
-
-- Email: `superadmin@thriftos.com`
-- Password: `SuperAdmin@123`
-
-### Demo tenant admin
-
-- Email: `admin@demo.thriftos.com`
-- Password: `admin123`
-
-## Useful commands
-
-### Root
-
-```bash
-npm run db:setup     # Automated Docker start + Database creation + Schema push + Seeding
-npm run db:generate  # Generate Prisma client
-npm run db:migrate   # Run development migrations
-npm run db:migrate:prod
-npm run db:push      # Push Prisma schema to DB
-npm run db:seed      # Seed database
-npm run db:studio    # Launch Prisma Studio GUI
-npm run db:reset     # Reset database (WARNING: clears data)
-```
-
-### Backend
-
-```bash
-cd server
-
-npm run start:dev
-npm run build
-npm run lint
-```
-
-### Frontend
-
-```bash
-cd thriftos-frontend
-
-npm run start
-npm run build
-npm run lint
-npm run test
-```
-
-## Notes for new developers
-
-- Install dependencies in all three package locations: root, `server`, and `thriftos-frontend`.
-- The Prisma schema and migrations live at the repository root, not inside `server`.
-- The backend loads environment variables from the root `.env` file.
-- The frontend README inside `thriftos-frontend/` is the default Angular README; use this root README for project setup.
+Never commit `.env` files. An older `.env` was committed to git history: rotate `JWT_SECRET` and the database
+password before any shared or production use (see "Before first deploy" in the release notes).

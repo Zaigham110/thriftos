@@ -355,8 +355,8 @@ export class CategoryFormComponent implements OnInit {
   };
 
   readonly breadcrumbs = signal([
-    { label: 'Administration', route: '/app/admin' },
-    { label: 'Categories', route: '/app/admin/categories' },
+    { label: 'Administration', route: '/settings/admin' },
+    { label: 'Categories', route: '/settings/admin/categories' },
     { label: 'New' },
   ]);
 
@@ -371,8 +371,8 @@ export class CategoryFormComponent implements OnInit {
     if (id) {
       this.isEditMode.set(true);
       this.breadcrumbs.set([
-        { label: 'Administration', route: '/app/admin' },
-        { label: 'Categories', route: '/app/admin/categories' },
+        { label: 'Administration', route: '/settings/admin' },
+        { label: 'Categories', route: '/settings/admin/categories' },
         { label: 'Edit' },
       ]);
       this.loadCategory(id);
@@ -406,7 +406,7 @@ export class CategoryFormComponent implements OnInit {
       };
 
       this.adminService.updateCategory(this.category()!.id, dto).subscribe({
-        next: () => this.router.navigate(['/app/admin/categories']),
+        next: () => this.router.navigate(['/settings/admin/categories']),
         error: () => this.submitting.set(false),
       });
       return;
@@ -418,12 +418,12 @@ export class CategoryFormComponent implements OnInit {
     };
 
     this.adminService.createCategory(dto).subscribe({
-      next: () => this.router.navigate(['/app/admin/categories']),
+      next: () => this.router.navigate(['/settings/admin/categories']),
       error: () => this.submitting.set(false),
     });
   }
 
   onCancel(): void {
-    this.router.navigate(['/app/admin/categories']);
+    this.router.navigate(['/settings/admin/categories']);
   }
 }

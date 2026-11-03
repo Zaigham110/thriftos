@@ -70,7 +70,7 @@ export class CategoryManagementComponent implements OnInit {
   private readonly router = inject(Router);
 
   readonly breadcrumbs = [
-    { label: 'Administration', route: '/app/admin' },
+    { label: 'Administration', route: '/settings/admin' },
     { label: 'Categories' },
   ];
 
@@ -141,11 +141,11 @@ export class CategoryManagementComponent implements OnInit {
   }
 
   navigateToCreate(): void {
-    this.router.navigate(['/app/admin/categories/new']);
+    this.router.navigate(['/settings/admin/categories/new']);
   }
 
   navigateToEdit(category: Category): void {
-    this.router.navigate(['/app/admin/categories', category.id, 'edit']);
+    this.router.navigate(['/settings/admin/categories', category.id, 'edit']);
   }
 
   confirmDeactivate(category: Category): void {

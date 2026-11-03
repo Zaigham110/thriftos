@@ -83,8 +83,8 @@ export class RolePermissionsComponent implements OnInit {
   };
 
   readonly breadcrumbs = computed(() => [
-    { label: 'Administration', route: '/app/admin' },
-    { label: 'Roles', route: '/app/admin/roles' },
+    { label: 'Administration', route: '/settings/admin' },
+    { label: 'Roles', route: '/settings/admin/roles' },
     { label: this.role() ? `Permissions: ${this.role()!.name}` : 'Permissions' },
   ]);
 
@@ -102,7 +102,7 @@ export class RolePermissionsComponent implements OnInit {
       this.roleId.set(id);
       this.loadData(id);
     } else {
-      this.router.navigate(['/app/admin/roles']);
+      this.router.navigate(['/settings/admin/roles']);
     }
   }
 
@@ -139,7 +139,7 @@ export class RolePermissionsComponent implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/app/admin/roles']);
+    this.router.navigate(['/settings/admin/roles']);
   }
 
   isExpanded(groupName: string): boolean {

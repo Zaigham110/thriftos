@@ -1,0 +1,17 @@
+# Keep secrets, local installs and build output out of every image (build context = repo root).
+**/.env
+**/.env.*
+!**/.env.example
+**/node_modules
+**/dist
+**/coverage
+**/test-results
+**/playwright-report
+**/uploads
+**/.angular
+.git
+.github
+.claude
+docs
+*.dump
+*.log

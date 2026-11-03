@@ -18,9 +18,6 @@ import {
   AppPageComponent,
   AppPageHeaderComponent,
   AppPageBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSectionBodyComponent,
   AppDataTableComponent,
   AppButtonComponent,
   AppErrorStateComponent,
@@ -42,9 +39,6 @@ import { LucideAngularModule, DollarSign, Truck, RefreshCw, CheckCircle, AlertTr
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
     AppDataTableComponent,
     AppButtonComponent,
     AppErrorStateComponent,
@@ -68,7 +62,7 @@ export class ProcurementSummaryReportComponent implements OnInit {
   };
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Reports', route: '/app/reports' },
+    { label: 'Reports', route: '/reports/detail' },
     { label: 'Procurement Summary & Cost Reconciliation' },
   ];
 

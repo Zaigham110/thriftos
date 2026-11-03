@@ -4,7 +4,7 @@ import { TenantModule } from '../tenant/tenant.module';
 import { UsersModule } from '../users/users.module';
 import { RolesModule } from '../roles/roles.module';
 import { PermissionsModule } from '../permissions/permissions.module';
-import { GradesModule } from '../sorting-stage2/grades/grades.module';
+import { SortingModule } from '../sorting/sorting.module';
 import { VendorModule } from '../procurement/vendor/vendor.module';
 import { WasteModule } from '../waste/waste.module';
 
@@ -24,7 +24,7 @@ import { AdminWasteCategoriesController } from './waste-categories/admin-waste-c
     UsersModule,
     RolesModule,
     PermissionsModule,
-    GradesModule,
+    SortingModule,
     VendorModule,
     WasteModule,
   ],

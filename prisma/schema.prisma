@@ -54,11 +54,14 @@ enum ContainerStatus {
 }
 
 enum ChargeType {
-  CIF
+  CIF // Kept for old data; new containers use Container.purchaseCost
   FREIGHT
   DUTY
   TAX
+  CLEARING
   PORT_HANDLING
+  TRANSPORT
+  LABOUR
   MISC
 }
 
@@ -101,8 +104,16 @@ enum MeasurementType {
 // =============================================================
 
 enum SaleType {
+  LOCAL
   WHOLESALE
   EXPORT
+}
+
+/// How the customer paid at the time of sale: all now, nothing now (udhaar), or part now.
+enum PaymentMode {
+  CASH
+  CREDIT
+  PARTIAL
 }
 
 enum SaleStatus {
@@ -111,6 +122,15 @@ enum SaleStatus {
   PARTIALLY_PAID
   PAID
   CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK
+  RAAST
+  JAZZCASH
+  EASYPAISA
+  OTHER
 }
 
 enum FulfillmentStatus {
@@ -147,10 +167,24 @@ enum GradingOutputStatus {
 enum MovementType {
   INTAKE
   ADJUSTMENT
+  TRANSFER // moved to another godown (enterprise E3.3)
   RESERVATION
   RELEASE
   SALE
   EXPORT
+}
+
+/// Where a stock item came from: made here from sorted stock, or bought ready to sell.
+enum StockSource {
+  PROCESSED
+  PURCHASED
+}
+
+/// How a stock item is counted and sold.
+enum StockUnit {
+  KG
+  BALE
+  PIECE
 }
 
 enum InventoryStatus {
@@ -164,41 +198,10 @@ enum TenantStatus {
   INACTIVE
 }
 
-enum OperationMode {
-  FULL_ERP
-  SIMPLIFIED_MOBILE
-  USER_CHOICE
-}
-
-enum ConnectivityPolicy {
-  ONLINE_ONLY
-  OFFLINE_CAPABLE
-  AUTOMATIC
-}
-
-enum CapturePolicy {
-  HARDWARE_SCANNER
-  CAMERA_SCAN
-  MANUAL_ENTRY
-  ALL
-}
-
-enum GuidancePolicy {
-  GUIDED
-  FLEXIBLE
-  STRICT
-}
-
-enum SourceType {
-  CATEGORY_OUTPUT
-  GRADE_OUTPUT
-}
-
 enum SequenceScope {
   PURCHASE_ORDER
   CONTAINER
   RAG
-  INCOMING_BALE
   SALE
 }
 
@@ -230,47 +233,47 @@ enum RagBaleType {
 // =============================================================
 
 model Tenant {
-  id          String       @id @default(cuid())
-  name        String
-  companyCode String       @unique
-  currency    String       @default("USD")
-  locale      String        @default("en-US")
-  status      TenantStatus  @default(ACTIVE)
-  operationMode OperationMode @default(FULL_ERP)
-  connectivityPolicy ConnectivityPolicy @default(AUTOMATIC)
-  capturePolicy CapturePolicy @default(ALL)
-  guidancePolicy GuidancePolicy @default(GUIDED)
-  flowEnabled Boolean @default(false)
-  operationalModules String[] @default(["WORK", "INTAKE", "SORTING", "REPACK", "STOCK", "SALES", "INSIGHTS", "ADMINISTRATION"])
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime     @updatedAt
+  id               String       @id @default(cuid())
+  name             String
+  companyCode      String       @unique
+  currency         String       @default("PKR")
+  locale           String       @default("ur-PK")
+  status           TenantStatus @default(ACTIVE)
+  /// Visible tabs/APIs: RECEIVE, SORT, STOCK, SELL, KHATA, REPORTS, EXPORT, WAREHOUSES, PAYROLL
+  enabledModules   String[]     @default(["RECEIVE", "SORT", "STOCK", "SELL", "KHATA"])
+  /// 0 = trading only (no sorting), 1 = category only, 2 = category + grade
+  sortingStages    Int          @default(2)
+  defaultLanguage  String       @default("ur")
+  /// Set when the owner finished the setup wizard (journey 8); null = show the wizard after sign-in.
+  setupCompletedAt DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   // Relations
-  users           User[]
-  roles           Role[]
-  categories      Category[]
-  rawCategories   RawCategory[]
-  grades          Grade[]
-  warehouses      Warehouse[]
-  vendors         Vendor[]
-  purchaseOrders  PurchaseOrder[]
-  containers      Container[]
-  rags            Rag[]
-  incomingBales   IncomingBale[]
-  sortSessions    SortSession[]
-  categoryOutputs CategoryOutput[]
-  gradeSessions   GradeSession[]
-  gradeOutputs    GradeOutput[]
-  repackSessions  RepackSession[]
-  repackUnits     RepackUnit[]
+  users                  User[]
+  roles                  Role[]
+  categories             Category[]
+  rawCategories          RawCategory[]
+  grades                 Grade[]
+  warehouses             Warehouse[]
+  vendors                Vendor[]
+  purchaseOrders         PurchaseOrder[]
+  containers             Container[]
+  rags                   Rag[]
+  sortSessions           SortSession[]
+  categoryOutputs        CategoryOutput[]
+  gradeSessions          GradeSession[]
+  gradeOutputs           GradeOutput[]
+  repackSessions         RepackSession[]
+  repackUnits            RepackUnit[]
   repackInputAllocations RepackInputAllocation[]
-  inventoryItems  InventoryItem[]
-  sequences       TenantSequence[]
+  inventoryItems         InventoryItem[]
+  sequences              TenantSequence[]
 
   // Sales
-  customers       Customer[]
-  sales           Sale[]
-  inventoryReservations InventoryReservation[]
+  customers Customer[]
+  sales     Sale[]
+  payments  Payment[]
 
   // Waste configuration + line items
   wasteCategories WasteCategory[]
@@ -301,16 +304,21 @@ model Customer {
   id                String   @id @default(cuid())
   tenantId          String
   name              String
-  companyName       String
-  billingAddress    String
-  shippingAddress   String
-  contactEmail      String
-  contactPhone      String
+  phone             String? // WhatsApp number, E.164 (+923001234567)
+  city              String?
+  openingBalance    Decimal  @default(0) @db.Decimal(14, 2) // udhaar carried from the old register (negative = advance)
+  companyName       String?
+  billingAddress    String?
+  shippingAddress   String?
+  contactEmail      String?
+  contactPhone      String?
   taxId             String?
-  creditLimit       Decimal? @default(0) @db.Decimal(12, 2)
+  creditLimit       Decimal? @default(0) @db.Decimal(14, 2)
   paymentTerms      String?  @default("PREPAID")
   creditStatus      String?  @default("GOOD_STANDING")
-  currencyCode      String?  @default("USD")
+  /// Price list group (enterprise E3.4), e.g. "Wholesale"; null = no list.
+  priceGroup        String?
+  currencyCode      String?  @default("PKR")
   bankName          String?
   bankAccountNumber String?
   swiftBic          String?
@@ -319,50 +327,55 @@ model Customer {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  sales  Sale[]
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sales    Sale[]
+  payments Payment[]
+  promises PaymentPromise[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
   @@index([tenantId, isActive])
+  @@index([tenantId, phone])
   @@index([contactEmail])
 }
 
 model Sale {
-  id                  String     @id @default(cuid())
-  tenantId            String
-  saleNumber          String
-  customerId          String
-  type                SaleType
-  status              SaleStatus @default(DRAFT)
-  fulfillmentStatus   FulfillmentStatus @default(PENDING)
-  fulfilledAt         DateTime?
+  id                   String            @id @default(cuid())
+  tenantId             String
+  saleNumber           String
+  customerId           String
+  type                 SaleType          @default(LOCAL)
+  paymentMode          PaymentMode
+  billToken            String            @unique // unguessable; the public bill link shared on WhatsApp
+  status               SaleStatus        @default(DRAFT)
+  fulfillmentStatus    FulfillmentStatus @default(PENDING)
+  fulfilledAt          DateTime?
   fulfillmentReference String?
-  currencyCode        String
-  totalAmount         Decimal    @default(0) @db.Decimal(12, 2)
-  totalCost           Decimal    @default(0) @db.Decimal(12, 2)
-  totalProfit         Decimal    @default(0) @db.Decimal(12, 2)
-  issuedAt            DateTime?
-  createdBy           String
-  billOfLadingNumber  String?
-  containerSealNumber String?
-  vesselName          String?
-  portOfLoading       String?
-  portOfDischarge     String?
-  freightForwarder    String?
-  destinationCountry  String?
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
+  currencyCode         String
+  totalAmount          Decimal           @default(0) @db.Decimal(14, 2)
+  totalCost            Decimal           @default(0) @db.Decimal(14, 2)
+  totalProfit          Decimal           @default(0) @db.Decimal(14, 2)
+  issuedAt             DateTime?
+  createdBy            String
+  billOfLadingNumber   String?
+  containerSealNumber  String?
+  vesselName           String?
+  portOfLoading        String?
+  portOfDischarge      String?
+  freightForwarder     String?
+  destinationCountry   String?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
 
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  customer  Customer @relation(fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  creator   User     @relation("SaleCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  lines     SaleLine[]
-  payments  Payment[]
-  reservations InventoryReservation[]
+  tenant   Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  customer Customer   @relation(fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  creator  User       @relation("SaleCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  lines    SaleLine[]
+  payments Payment[]
 
   @@unique([tenantId, saleNumber])
   @@index([tenantId])
+  @@index([tenantId, createdAt])
   @@index([saleNumber])
   @@index([customerId])
   @@index([status])
@@ -370,74 +383,85 @@ model Sale {
 }
 
 model SaleLine {
-  id              String          @id @default(cuid())
+  id              String    @id @default(cuid())
   saleId          String
   inventoryItemId String
-  measurementType MeasurementType
-  quantity        Decimal         @db.Decimal(10, 2)
-  unitPrice       Decimal         @db.Decimal(12, 4)
-  lineTotal       Decimal         @db.Decimal(12, 2)
-  lineCost        Decimal         @db.Decimal(12, 2)
-  profit          Decimal         @db.Decimal(12, 2)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  unit            StockUnit // what the price is per: kg, bale or piece
+  quantity        Decimal   @db.Decimal(14, 2)
+  unitPrice       Decimal   @db.Decimal(14, 4)
+  lineTotal       Decimal   @db.Decimal(14, 2)
+  lineCost        Decimal   @db.Decimal(14, 2)
+  profit          Decimal   @db.Decimal(14, 2)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   sale          Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  reservation   InventoryReservation?
 
   @@index([saleId])
   @@index([inventoryItemId])
 }
 
-model InventoryReservation {
-  id              String   @id @default(cuid())
-  tenantId        String
-  inventoryItemId String   @unique
-  saleId          String
-  saleLineId      String?  @unique
-  reservedQuantity Decimal @db.Decimal(10, 2)
-  createdAt       DateTime @default(now())
+/// "I will pay Rs X by <date>" (enterprise E3.5). Kept / broken is worked out from the payments received after
+/// the promise was made; only a cancellation is stored.
+model PaymentPromise {
+  id          String    @id @default(cuid())
+  tenantId    String
+  customerId  String
+  amount      Decimal   @db.Decimal(14, 2)
+  /// The business day (Pakistan) the customer promised to pay by.
+  promisedFor DateTime  @db.Date
+  note        String?
+  createdBy   String
+  cancelledAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  sale          Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  saleLine      SaleLine?     @relation(fields: [saleLineId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
-  @@index([tenantId])
-  @@index([saleId])
-  @@index([createdAt])
+  @@index([tenantId, promisedFor])
+  @@index([customerId])
 }
 
+/// Money received from a customer: against a sale, or on account. Applied to the oldest unpaid sales first.
 model Payment {
-  id         String   @id @default(cuid())
-  saleId     String
-  amount     Decimal  @db.Decimal(12, 2)
-  method     String
-  receivedAt DateTime @default(now())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id            String        @id @default(cuid())
+  tenantId      String
+  customerId    String
+  saleId        String? // set when paid with a sale; null = on account
+  amount        Decimal       @db.Decimal(14, 2)
+  method        PaymentMethod @default(CASH)
+  reference     String? // bank/Raast/JazzCash transaction id
+  attachmentUrl String? // storage key of a receipt screenshot, e.g. local:payments/<tenant>/<id>.jpg
+  receivedBy    String? // user id
+  receivedAt    DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
-  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sale     Sale?    @relation(fields: [saleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
+  @@index([tenantId])
+  @@index([customerId])
   @@index([saleId])
   @@index([receivedAt])
 }
 
 model WasteCategory {
-  id                  String        @id @default(cuid())
-  tenantId             String
-  name                 String
-  linkedCategoryId     String?       // If auto-generated from Category
-  unitType             WasteUnitType
-  defaultResalePrice   Decimal       @default(0) @db.Decimal(12, 4)
-  isSystemGenerated    Boolean       @default(false)
-  isActive             Boolean       @default(true)
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
+  id                 String        @id @default(cuid())
+  tenantId           String
+  name               String
+  linkedCategoryId   String? // If auto-generated from Category
+  unitType           WasteUnitType
+  defaultResalePrice Decimal       @default(0) @db.Decimal(14, 4)
+  isSystemGenerated  Boolean       @default(false)
+  isActive           Boolean       @default(true)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
-  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  linkedCategory Category?      @relation(fields: [linkedCategoryId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  linkedCategory Category?       @relation(fields: [linkedCategoryId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   wasteLineItems WasteLineItem[]
 
   @@unique([tenantId, name])
@@ -449,31 +473,31 @@ model WasteCategory {
 
 model WasteLineItem {
   id              String        @id @default(cuid())
-  tenantId         String
-  stage            WasteStage
-  wasteCategoryId  String
-  amount           Decimal       @db.Decimal(10, 2)
-  unitType         WasteUnitType
-  estimatedValue   Decimal       @db.Decimal(12, 4)
+  tenantId        String
+  stage           WasteStage
+  wasteCategoryId String
+  amount          Decimal       @db.Decimal(10, 2)
+  unitType        WasteUnitType
+  estimatedValue  Decimal       @db.Decimal(14, 4)
 
   // Source references (exactly one session is used depending on stage)
-  sortSessionId    String?
-  gradeSessionId   String?
+  sortSessionId  String?
+  gradeSessionId String?
 
   // Traceability chain (denormalized for audit/report joins)
   containerId      String?
   ragId            String?
   categoryOutputId String?
 
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  wasteCategory WasteCategory @relation(fields: [wasteCategoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  sortSession   SortSession?  @relation(fields: [sortSessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  gradeSession  GradeSession? @relation(fields: [gradeSessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  rag           Rag?          @relation(fields: [ragId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  container      Container?    @relation(fields: [containerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  wasteCategory  WasteCategory   @relation(fields: [wasteCategoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sortSession    SortSession?    @relation(fields: [sortSessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  gradeSession   GradeSession?   @relation(fields: [gradeSessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  rag            Rag?            @relation(fields: [ragId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  container      Container?      @relation(fields: [containerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   categoryOutput CategoryOutput? @relation(fields: [categoryOutputId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([tenantId])
@@ -487,13 +511,13 @@ model WasteLineItem {
 }
 
 model TenantSequence {
-  id           String        @id @default(cuid())
-  tenantId     String
-  scope        SequenceScope
-  prefix       String?
-  nextNumber   Int           @default(1)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id         String        @id @default(cuid())
+  tenantId   String
+  scope      SequenceScope
+  prefix     String?
+  nextNumber Int           @default(1)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
@@ -529,15 +553,22 @@ model GlobalCategoryTemplate {
 // =============================================================
 
 model User {
-  id           String   @id @default(cuid())
-  tenantId     String
-  name         String
-  email        String
-  passwordHash String
-  isActive     Boolean        @default(true)
-  preferredOperationMode OperationMode?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime @updatedAt
+  id                String    @id @default(cuid())
+  tenantId          String
+  name              String
+  /// Owners and admins sign in with email + password; a munshi may have only a phone + PIN.
+  email             String?
+  passwordHash      String?
+  /// WhatsApp/phone in E.164 (+923001234567). Unique across tenants: it is the munshi's login.
+  phone             String?   @unique
+  /// bcrypt of the 4–6 digit PIN.
+  pinHash           String?
+  /// Wrong PINs in a row; 5 locks the PIN for 15 minutes (the owner can unlock).
+  failedPinAttempts Int       @default(0)
+  pinLockedUntil    DateTime?
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   // Relations
   tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -645,26 +676,25 @@ model Category {
   categoryOutputs     CategoryOutput[]
   repackUnits         RepackUnit[]
   inventoryItems      InventoryItem[]
-  linkedWasteCategory WasteCategory?       // Auto-generated waste category
+  linkedWasteCategory WasteCategory? // Auto-generated waste category
 
   @@unique([tenantId, name])
   @@index([tenantId])
 }
 
 model RawCategory {
-  id           String      @id @default(cuid())
-  tenantId     String
-  name         String
-  rawType      RagBaleType // RAG or BALE
-  sortOrder    Int         @default(0)
-  isActive     Boolean     @default(true)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id        String      @id @default(cuid())
+  tenantId  String
+  name      String
+  rawType   RagBaleType // RAG or BALE
+  sortOrder Int         @default(0)
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
   // Relations
-  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  rags          Rag[]
-  incomingBales IncomingBale[]
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  rags   Rag[]
 
   @@unique([tenantId, name, rawType])
   @@index([tenantId])
@@ -721,13 +751,14 @@ model Vendor {
   companyName       String?
   vendorType        VendorType @default(SUPPLIER)
   country           String?
+  originCountry     String? // Default origin for this supplier's containers
   taxId             String?
   contactPerson     String?
   contactEmail      String?
   contactPhone      String?
   contactInfo       String?
   paymentTerms      String?    @default("NET_30")
-  defaultCurrency   String?    @default("USD")
+  defaultCurrency   String?    @default("PKR")
   remittanceAccount String?
   physicalAddress   String?
   notes             String?
@@ -738,7 +769,9 @@ model Vendor {
   // Relations
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   purchaseOrders PurchaseOrder[]
-  incomingBales  IncomingBale[]
+  containers     Container[]
+  rags           Rag[]
+  stockItems     InventoryItem[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -753,8 +786,8 @@ model PurchaseOrder {
   poNumber  String
   poType    PurchaseOrderType
   currency  String              @default("USD")
-  totalCost Decimal             @db.Decimal(12, 2)
-  budgetCap Decimal?            @db.Decimal(12, 2)
+  totalCost Decimal             @db.Decimal(14, 2)
+  budgetCap Decimal?            @db.Decimal(14, 2)
   status    PurchaseOrderStatus @default(OPEN)
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
@@ -762,8 +795,7 @@ model PurchaseOrder {
   // Relations
   tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   vendor     Vendor?     @relation(fields: [vendorId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  containers    Container[]
-  incomingBales IncomingBale[]
+  containers Container[]
 
   @@unique([tenantId, poNumber])
   @@index([tenantId])
@@ -773,20 +805,22 @@ model PurchaseOrder {
 }
 
 model Container {
-  id              String          @id @default(cuid())
-  tenantId        String
-  purchaseOrderId String
-  containerNumber String
-  referenceNumber String?
-  containerType   String?
-  eta             DateTime?
-  etd             DateTime?
-  arrivedAt       DateTime?
-  clearedAt       DateTime?
-  releasedAt      DateTime?
-  grossWeight     Decimal         @db.Decimal(10, 2)
-  tareWeight      Decimal?        @db.Decimal(10, 2)
-  netWeight       Decimal         @db.Decimal(10, 2)
+  id                 String          @id @default(cuid())
+  tenantId           String
+  purchaseOrderId    String? // Optional: purchase orders are an advanced feature
+  vendorId           String?
+  originCountry      String?
+  containerNumber    String
+  referenceNumber    String?
+  containerType      String?
+  eta                DateTime?
+  etd                DateTime?
+  arrivedAt          DateTime?
+  clearedAt          DateTime?
+  releasedAt         DateTime?
+  grossWeight        Decimal         @db.Decimal(10, 2)
+  tareWeight         Decimal?        @db.Decimal(10, 2)
+  netWeight          Decimal         @db.Decimal(10, 2)
   billOfLadingNumber String?
   shipmentReference  String?
   shippingLine       String?
@@ -795,7 +829,7 @@ model Container {
   portOfDischarge    String?
   forwarder          String?
   notes              String?
-  status          ContainerStatus @default(IN_TRANSIT)
+  status             ContainerStatus @default(IN_TRANSIT)
 
   // Gate Weighbridge Scale Variance Audit Fields
   weighbridgeGrossWeight Decimal? @db.Decimal(10, 2)
@@ -804,27 +838,32 @@ model Container {
   weightVarianceKg       Decimal? @db.Decimal(10, 2)
   weightVariancePct      Decimal? @db.Decimal(5, 2)
   varianceAlertStatus    String?
+  /// Purchase price in purchaseCurrency (not a charge). Landed cost = purchaseCost × fxRate (if not PKR) + charges.
+  purchaseCost           Decimal  @default(0) @db.Decimal(14, 2)
+  purchaseCurrency       String   @default("PKR")
   fxRate                 Decimal  @default(1.0000) @db.Decimal(10, 4)
-  landedCostPerKg        Decimal? @db.Decimal(12, 4)
+  /// Stored by the costing engine.
+  landedCostPKR          Decimal  @default(0) @db.Decimal(14, 2)
+  landedCostPerKg        Decimal? @db.Decimal(14, 4)
 
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  purchaseOrder    PurchaseOrder     @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  purchaseOrder    PurchaseOrder?    @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  vendor           Vendor?           @relation(fields: [vendorId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   containerCharges ContainerCharge[]
   rags             Rag[]
-  incomingBales    IncomingBale[]
 
   // Phase 2.5: Downstream traceability (for container-level analytics)
   categoryOutputs CategoryOutput[] // Category outputs traced to this container
-  sortingWaste    SortingWaste[] // Waste outputs traced to this container
   wasteLineItems  WasteLineItem[] // Waste line items linked for audit/reporting
 
   @@unique([tenantId, containerNumber])
   @@index([tenantId])
   @@index([purchaseOrderId])
+  @@index([vendorId])
   @@index([containerNumber])
   @@index([status])
 }
@@ -833,7 +872,7 @@ model ContainerCharge {
   id          String     @id @default(cuid())
   containerId String
   description String
-  amount      Decimal    @db.Decimal(12, 2)
+  amount      Decimal    @db.Decimal(14, 2)
   chargeType  ChargeType
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -846,14 +885,19 @@ model ContainerCharge {
 }
 
 model Rag {
-  id            String  @id @default(cuid())
+  id            String      @id @default(cuid())
   tenantId      String
   containerId   String? // null for loose bale (sourceType = LOOSE_BALE)
   ragCode       String
   ragBaleType   RagBaleType @default(RAG)
   rawCategoryId String?
-  weightKg      Decimal @db.Decimal(10, 2)
-  allocatedCost Decimal @db.Decimal(12, 2)
+  vendorId      String?
+  originCountry String?
+  weightKg      Decimal     @db.Decimal(10, 2)
+  /// Price paid for a loose lot bought without a container (null for container lots).
+  purchaseCost  Decimal?    @db.Decimal(14, 2)
+  /// Container lots: share of the container's landed cost. Loose lots: purchaseCost.
+  allocatedCost Decimal     @db.Decimal(14, 2)
 
   // =============================================================
   // Phase 2.5: Rag/Bale Lifecycle & Source Tracking
@@ -873,53 +917,24 @@ model Rag {
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   container   Container?   @relation(fields: [containerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   rawCategory RawCategory? @relation(fields: [rawCategoryId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  vendor      Vendor?      @relation(fields: [vendorId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   // One-to-one with SortSession: Each Rag can only be sorted ONCE
   sortSession SortSession?
 
   // Downstream traceability relations (Phase 2.5)
   categoryOutputs CategoryOutput[] // Category outputs from this rag
-  sortingWaste    SortingWaste[] // Waste outputs from this rag
   wasteLineItems  WasteLineItem[] // Waste line items (Stage-1/Stage-2) linked for audit
 
   @@unique([tenantId, ragCode])
   @@index([tenantId])
   @@index([containerId])
   @@index([rawCategoryId])
+  @@index([vendorId])
   @@index([ragCode])
   @@index([ragBaleType])
   @@index([status]) // Index for filtering by status (e.g., WHERE status = 'NOT_STARTED')
   @@index([sourceType]) // Index for filtering by source type
-}
-
-model IncomingBale {
-  id              String   @id @default(cuid())
-  tenantId        String
-  rawCategoryId   String?
-  purchaseOrderId String?
-  containerId     String?
-  vendorId        String?
-  baleCode        String
-  weightKg        Decimal  @db.Decimal(10, 2)
-  cost            Decimal  @db.Decimal(12, 2)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  // Relations
-  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  rawCategory   RawCategory?   @relation(fields: [rawCategoryId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  container     Container?     @relation(fields: [containerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  vendor        Vendor?        @relation(fields: [vendorId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  sortSessions SortSession[]
-
-  @@unique([tenantId, baleCode])
-  @@index([tenantId])
-  @@index([rawCategoryId])
-  @@index([purchaseOrderId])
-  @@index([containerId])
-  @@index([vendorId])
-  @@index([baleCode])
 }
 
 // =============================================================
@@ -941,8 +956,7 @@ model SortSession {
   // ragId is UNIQUE: Prevents multiple sessions per Rag/Bale
   // This enforces ONE-TIME PROCESSING per Rag
   // =============================================================
-  ragId          String  @unique // UNIQUE: One Rag can only be sorted ONCE
-  incomingBaleId String? // Legacy support for IncomingBale
+  ragId String @unique // UNIQUE: One Rag can only be sorted ONCE
 
   workerId          String
   supervisorId      String
@@ -958,16 +972,13 @@ model SortSession {
   // Relations
   tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   rag                 Rag                  @relation(fields: [ragId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  incomingBale        IncomingBale?        @relation(fields: [incomingBaleId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   worker              User                 @relation("SortSessionWorker", fields: [workerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   supervisor          User                 @relation("SortSessionSupervisor", fields: [supervisorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   sortCategoryBuckets SortCategoryBucket[]
-  sortingWaste        SortingWaste? // One-to-one: waste output per session
   wasteLineItems      WasteLineItem[]
 
   @@index([tenantId])
   @@index([ragId])
-  @@index([incomingBaleId])
   @@index([workerId])
   @@index([supervisorId])
   @@index([status])
@@ -998,8 +1009,10 @@ model CategoryOutput {
   sortCategoryBucketId String
   categoryId           String
   weightKg             Decimal @db.Decimal(10, 2)
+  /// kg already put into bales directly (tenants that sort in one stage). Graded outputs stay 0.
+  usedKg               Decimal @default(0) @db.Decimal(10, 2)
   count                Int     @default(0)
-  allocatedCost        Decimal @db.Decimal(12, 2)
+  allocatedCost        Decimal @db.Decimal(14, 2)
 
   // =============================================================
   // Phase 2.5: Traceability Chain (MANDATORY)
@@ -1017,13 +1030,14 @@ model CategoryOutput {
   updatedAt DateTime @updatedAt
 
   // Relations
-  tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  sortCategoryBucket SortCategoryBucket @relation(fields: [sortCategoryBucketId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  category           Category           @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  rag                Rag                @relation(fields: [ragId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  container          Container?         @relation(fields: [containerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  tenant             Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sortCategoryBucket SortCategoryBucket      @relation(fields: [sortCategoryBucketId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  category           Category                @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  rag                Rag                     @relation(fields: [ragId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  container          Container?              @relation(fields: [containerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   gradeSessions      GradeSession[]
   wasteLineItems     WasteLineItem[]
+  baleAllocations    RepackInputAllocation[]
 
   @@index([tenantId])
   @@index([sortCategoryBucketId])
@@ -1039,34 +1053,6 @@ model CategoryOutput {
 // Waste output from Sorting Stage 1 with full traceability
 // One-to-one relationship with SortSession
 // =============================================================
-
-model SortingWaste {
-  id            String @id @default(cuid())
-  tenantId      String
-  sortSessionId String @unique // One waste record per session
-
-  // =============================================================
-  // Phase 2.5: Traceability Chain (MANDATORY)
-  // =============================================================
-  containerId String? // Nullable: null for loose bale origins
-  ragId       String // REQUIRED: Source Rag/Bale traceability
-
-  weightKg Decimal @db.Decimal(10, 2)
-  notes    String? // Optional notes about waste
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  sortSession SortSession @relation(fields: [sortSessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  rag         Rag         @relation(fields: [ragId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  container   Container?  @relation(fields: [containerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-
-  @@index([tenantId])
-  @@index([sortSessionId])
-  @@index([ragId])
-  @@index([containerId])
-}
 
 // =============================================================
 // 🟨 6. SORTING STAGE 2 — GRADING
@@ -1085,10 +1071,10 @@ model GradeSession {
   updatedAt        DateTime    @updatedAt
 
   // Relations
-  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  categoryOutput CategoryOutput @relation(fields: [categoryOutputId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  worker         User           @relation("GradeSessionWorker", fields: [workerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  supervisor     User           @relation("GradeSessionSupervisor", fields: [supervisorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  categoryOutput CategoryOutput  @relation(fields: [categoryOutputId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  worker         User            @relation("GradeSessionWorker", fields: [workerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  supervisor     User            @relation("GradeSessionSupervisor", fields: [supervisorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   gradeBuckets   GradeBucket[]
   wasteLineItems WasteLineItem[]
 
@@ -1119,31 +1105,31 @@ model GradeBucket {
 }
 
 model GradeOutput {
-  id            String   @id @default(cuid())
+  id            String  @id @default(cuid())
   tenantId      String
   gradeBucketId String
   gradeId       String
-  weightKg      Decimal  @db.Decimal(10, 2)
-  count         Int      @default(0)
-  allocatedCost Decimal  @db.Decimal(12, 2)
-  
+  weightKg      Decimal @db.Decimal(10, 2)
+  count         Int     @default(0)
+  allocatedCost Decimal @db.Decimal(14, 2)
+
   // =============================================================
   // Mixed-Source Repack v2: Usage Tracking (MANDATORY)
   // =============================================================
-  totalAmount      Decimal              @db.Decimal(10, 2) // Total available (weightKg or count)
-  usedAmount       Decimal              @default(0) @db.Decimal(10, 2) // Amount already allocated
-  remainingAmount  Decimal              @db.Decimal(10, 2) // Computed: totalAmount - usedAmount
-  measurementType  MeasurementType      @default(WEIGHT) // WEIGHT (kg) or QUANTITY (pcs)
-  status           GradingOutputStatus  @default(AVAILABLE) // AVAILABLE, PARTIALLY_USED, DEPLETED
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  totalAmount     Decimal             @db.Decimal(10, 2) // Total available (weightKg or count)
+  usedAmount      Decimal             @default(0) @db.Decimal(10, 2) // Amount already allocated
+  remainingAmount Decimal             @db.Decimal(10, 2) // Computed: totalAmount - usedAmount
+  measurementType MeasurementType     @default(WEIGHT) // WEIGHT (kg) or QUANTITY (pcs)
+  status          GradingOutputStatus @default(AVAILABLE) // AVAILABLE, PARTIALLY_USED, DEPLETED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
   tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   gradeBucket GradeBucket @relation(fields: [gradeBucketId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   grade       Grade       @relation(fields: [gradeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  
+
   // Repack allocations referencing this grading output
   repackAllocations RepackInputAllocation[]
 
@@ -1191,9 +1177,9 @@ model RepackUnit {
   unitType        UnitType
   weightKg        Decimal      @db.Decimal(10, 2)
   pcsCount        Int          @default(0)
-  totalCost       Decimal      @db.Decimal(12, 2)
+  totalCost       Decimal      @db.Decimal(14, 2)
   status          RepackStatus @default(READY)
-  
+
   // =============================================================
   // Mixed-Source Repack v2: Allocation Strategy (MANDATORY)
   // =============================================================
@@ -1227,10 +1213,9 @@ model RepackUnit {
   repackSession  RepackSession   @relation(fields: [repackSessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   category       Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   grade          Grade?          @relation(fields: [gradeId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  repackItems    RepackItem[]
   qrLabel        QRLabel?
   inventoryItems InventoryItem[]
-  
+
   // Mixed-Source v2: Input allocations (CRITICAL for traceability)
   inputAllocations RepackInputAllocation[]
 
@@ -1258,59 +1243,46 @@ model RepackUnit {
 // =============================================================
 
 model RepackInputAllocation {
-  id              String          @id @default(cuid())
-  tenantId        String
-  repackUnitId    String
-  gradingOutputId String
-  
+  id               String  @id @default(cuid())
+  tenantId         String
+  repackUnitId     String
+  /// Exactly one source is set (DB check constraint): a grade output (2-stage sorting)
+  /// or a category output (1-stage sorting).
+  gradingOutputId  String?
+  categoryOutputId String?
+
   // =============================================================
   // Traceability Chain (MANDATORY)
   // =============================================================
   // These are denormalized from GradingOutput for query performance
   // but MUST match the source GradingOutput's lineage
   // =============================================================
-  containerId     String? // Source container (null for loose bale origins)
-  ragBaleId       String? // Source rag/bale ID
-  
+  containerId String? // Source container (null for loose bale origins)
+  ragBaleId   String? // Source rag/bale ID
+
   // =============================================================
   // Allocation Details (MANDATORY)
   // =============================================================
   amountUsed      Decimal         @db.Decimal(10, 2) // kg or pcs used from this grading output
   measurementType MeasurementType // WEIGHT or QUANTITY (must match repack unit)
-  allocatedCost   Decimal         @default(0) @db.Decimal(12, 2) // Proportional cost from grading output
-  
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  allocatedCost   Decimal         @default(0) @db.Decimal(14, 2) // Proportional cost from grading output
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  repackUnit    RepackUnit   @relation(fields: [repackUnitId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  gradingOutput GradeOutput  @relation(fields: [gradingOutputId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  repackUnit     RepackUnit      @relation(fields: [repackUnitId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  gradingOutput  GradeOutput?    @relation(fields: [gradingOutputId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  categoryOutput CategoryOutput? @relation(fields: [categoryOutputId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([tenantId])
   @@index([repackUnitId])
   @@index([gradingOutputId])
+  @@index([categoryOutputId])
   @@index([containerId]) // Index for container-level analytics
   @@index([ragBaleId]) // Index for rag/bale-level analytics
   @@index([createdAt]) // Index for FIFO sorting
-}
-
-model RepackItem {
-  id           String     @id @default(cuid())
-  repackUnitId String
-  sourceType   SourceType
-  sourceId     String
-  weightKg     Decimal    @db.Decimal(10, 2)
-  pcsCount     Int        @default(0)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-
-  // Relations
-  repackUnit RepackUnit @relation(fields: [repackUnitId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
-  @@index([repackUnitId])
-  @@index([sourceType])
-  @@index([sourceId])
 }
 
 model QRLabel {
@@ -1334,49 +1306,91 @@ model QRLabel {
 model InventoryItem {
   id           String          @id @default(cuid())
   tenantId     String
-  repackUnitId String
-  categoryId   String
-  gradeId      String
-  weightKg     Decimal         @db.Decimal(10, 2)
+  source       StockSource     @default(PROCESSED)
+  repackUnitId String? // set for PROCESSED bales made here; null for bought stock and opened pieces
+  categoryId   String?
+  gradeId      String? // null for bales from 1-stage sorting (category only)
+  vendorId     String? // supplier of PURCHASED stock
+  name         String? // e.g. "Jeans A grade bale", "Ladies tops"
+  unit         StockUnit
+  quantity     Decimal         @db.Decimal(14, 2) // received, in `unit`
+  usedQuantity Decimal         @default(0) @db.Decimal(14, 2) // sold or opened, in `unit`
+  totalCost    Decimal         @db.Decimal(14, 2) // cost of the whole quantity
+  unitCost     Decimal         @db.Decimal(14, 4)
+  salePrice    Decimal?        @db.Decimal(14, 2)
+  priceTier    String? // pieces opened from a bale, e.g. "300"
+  parentItemId String? // the bale these pieces were opened from
+  weightKg     Decimal?        @db.Decimal(14, 2)
   pcsCount     Int             @default(0)
-  avgCost      Decimal         @db.Decimal(12, 2)
-  warehouseId  String?         // Optional - can be assigned later
+  avgCost      Decimal?        @db.Decimal(14, 2) // per kg, when the weight is known
+  warehouseId  String? // Optional - can be assigned later
   status       InventoryStatus @default(AVAILABLE)
 
-  // =============================================================
-  // Phase 2.5: Traceability Chain (MANDATORY)
-  // =============================================================
-  // Every downstream entity MUST reference its source chain
-  // These are denormalized for efficient querying
-  // containerId: Optional (null for loose bale origins)
-  // ragId: REQUIRED - Links back to source Rag/Bale
-  // =============================================================
-  containerId String? // Nullable: null for loose bale origins
-  ragId       String? // Source Rag/Bale traceability
+  // Lineage (denormalised): null for bought stock and loose-lot origins.
+  containerId String?
+  ragId       String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
-  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  repackUnit     RepackUnit      @relation(fields: [repackUnitId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  category       Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  grade          Grade           @relation(fields: [gradeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  warehouse      Warehouse?      @relation(fields: [warehouseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  tenant         Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  repackUnit     RepackUnit?       @relation(fields: [repackUnitId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  category       Category?         @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  grade          Grade?            @relation(fields: [gradeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  vendor         Vendor?           @relation(fields: [vendorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  parentItem     InventoryItem?    @relation("OpenedPieces", fields: [parentItemId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  pieces         InventoryItem[]   @relation("OpenedPieces")
+  warehouse      Warehouse?        @relation(fields: [warehouseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   stockMovements StockMovement[]
+  adjustments    StockAdjustment[]
 
   // Sales
-  saleLines     SaleLine[]
-  reservation   InventoryReservation?
+  saleLines SaleLine[]
 
   @@index([tenantId])
+  @@index([tenantId, source, status])
   @@index([repackUnitId])
   @@index([categoryId])
   @@index([gradeId])
+  @@index([vendorId])
+  @@index([parentItemId])
   @@index([warehouseId])
   @@index([status])
   @@index([ragId]) // Index for rag-level analytics
   @@index([containerId]) // Index for container-level analytics
+}
+
+enum StockAdjustmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// A stock count that differs from the books (enterprise E3.3): entered by anyone who may adjust stock,
+/// applied only when someone with INVENTORY_APPROVE approves it. Quantities are in the item's unit.
+model StockAdjustment {
+  id              String                @id @default(cuid())
+  tenantId        String
+  inventoryItemId String
+  /// What the books said was left when the count was entered.
+  bookQuantity    Decimal               @db.Decimal(14, 2)
+  countedQuantity Decimal               @db.Decimal(14, 2)
+  reason          String
+  status          StockAdjustmentStatus @default(PENDING)
+  requestedBy     String
+  decidedBy       String?
+  decidedAt       DateTime?
+  decisionNote    String?
+  /// Cost written off (negative) or added back (positive) when approved.
+  costChange      Decimal?              @db.Decimal(14, 2)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([tenantId, status, createdAt])
+  @@index([inventoryItemId])
 }
 
 model StockMovement {
@@ -1422,6 +1436,18 @@ model AuditLog {
   @@index([createdAt])
 }
 
+/// One-time link sent by email to set a new password (v2 5.5). Only the SHA-256 of the token is stored.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
 model RefreshToken {
   id        String    @id @default(cuid())
   userId    String
@@ -1433,4 +1459,136 @@ model RefreshToken {
   @@index([userId])
   @@index([token])
   @@index([expiresAt])
+}
+
+/// A person's saved list view (enterprise plan E2.2): filters, columns, sort, group-by, density.
+model SavedView {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  /// The list it belongs to (lists registry name, e.g. "sales").
+  resource  String
+  name      String
+  state     Json
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, resource, name])
+  @@index([tenantId, userId, resource])
+}
+
+/// A note on any record (E2.4), shown in its activity panel. Mentioned users get a Notification.
+model RecordNote {
+  id         String   @id @default(cuid())
+  tenantId   String
+  recordType String
+  recordId   String
+  authorId   String
+  text       String
+  mentions   String[] @default([])
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, recordType, recordId, createdAt])
+}
+
+/// A file attached to any record (E2.4); the bytes live in FileStorageService under storageKey.
+model Attachment {
+  id          String   @id @default(cuid())
+  tenantId    String
+  recordType  String
+  recordId    String
+  uploadedBy  String
+  fileName    String
+  contentType String
+  size        Int
+  storageKey  String   @unique
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, recordType, recordId, createdAt])
+}
+
+/// In-app notification for one user (E2.4: @mentions; later approvals, overdue customers, low stock).
+model Notification {
+  id        String    @id @default(cuid())
+  tenantId  String
+  userId    String
+  kind      String
+  title     String
+  body      String?
+  /// App route to open, e.g. /sell/records/<id>.
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt, createdAt])
+  @@index([tenantId])
+}
+
+// =============================================================
+// 💵 FINANCE (enterprise E3.6): management accounts, not a general ledger
+// =============================================================
+
+enum ExpenseCategory {
+  RENT
+  LABOUR
+  TRANSPORT
+  ELECTRICITY
+  OTHER
+}
+
+/// Money paid out for running the business. Cancelled expenses stay for the record and count nowhere.
+model Expense {
+  id          String          @id @default(cuid())
+  tenantId    String
+  /// The business day (Pakistan) it was paid.
+  day         DateTime        @db.Date
+  category    ExpenseCategory
+  amount      Decimal         @db.Decimal(14, 2)
+  method      PaymentMethod   @default(CASH)
+  paidTo      String?
+  note        String?
+  createdBy   String
+  cancelledAt DateTime?
+  cancelledBy String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([tenantId, day])
+  @@index([tenantId, category])
+}
+
+/// End of day: the cash counted against what the books say should be in the drawer. One per business day.
+model CashClose {
+  id         String   @id @default(cuid())
+  tenantId   String
+  day        DateTime @db.Date
+  /// What the cash book said at the end of the day (before this close).
+  expected   Decimal  @db.Decimal(14, 2)
+  counted    Decimal  @db.Decimal(14, 2)
+  /// counted − expected: short (negative) or over (positive); carried into the cash book.
+  difference Decimal  @db.Decimal(14, 2)
+  note       String?
+  closedBy   String
+  createdAt  DateTime @default(now())
+
+  @@unique([tenantId, day])
+}
+
+/// A price agreed for a customer group (enterprise E3.4): per category (and grade, when given) and unit.
+/// The sale screen suggests it before the customer's last price.
+model PriceListEntry {
+  id         String    @id @default(cuid())
+  tenantId   String
+  group      String
+  categoryId String
+  /// null = any grade of the category.
+  gradeId    String?
+  unit       StockUnit
+  price      Decimal   @db.Decimal(14, 2)
+  updatedBy  String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([tenantId, group])
 }

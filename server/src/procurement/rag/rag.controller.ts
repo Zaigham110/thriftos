@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Delete,
+  Patch,
   Body,
   Param,
   Query,
@@ -13,32 +14,23 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { RagService } from './rag.service';
-import { CreateRagDto } from './dto/create-rag.dto';
+import { CreateRagDto, UpdateRagDto } from './dto';
 import { TenantGuard } from '../../common/guards/tenant.guard';
 import { PermissionGuard } from '../../common/guards/permission.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
+import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { RagStatus } from '@prisma/client';
+import { Idempotent } from '../../common/idempotency/idempotent.interceptor';
 
 @Controller('procurement')
 @UseGuards(TenantGuard, PermissionGuard)
 export class RagController {
   constructor(private readonly ragService: RagService) {}
 
-  @Post('containers/:containerId/rags')
-  @RequirePermissions('rag.create')
-  @HttpCode(HttpStatus.CREATED)
-  async createForContainer(
-    @Param('containerId') containerId: string,
-    @Body() dto: Omit<CreateRagDto, 'containerId'>,
-    @CurrentUser() user: CurrentUserData,
-    @Req() req: Request,
-  ) {
-    const tenantId = (req as any).tenantId || user.tenantId;
-    return this.ragService.create(tenantId, { ...dto, containerId }, user.userId);
-  }
-
+  /** The one way to record a lot: loose, or in a container (containerId). Safe to retry with an Idempotency-Key. */
   @Post('rags')
+  @Idempotent('RAG_INTAKE')
   @RequirePermissions('rag.create')
   @HttpCode(HttpStatus.CREATED)
   async createLooseRag(
@@ -47,19 +39,7 @@ export class RagController {
     @Req() req: Request,
   ) {
     const tenantId = (req as any).tenantId || user.tenantId;
-    return this.ragService.createIdempotent(tenantId, dto, user.userId, req.header('idempotency-key'));
-  }
-
-  @Post('loose-bales')
-  @RequirePermissions('rag.create')
-  @HttpCode(HttpStatus.CREATED)
-  async createLooseBale(
-    @Body() dto: CreateRagDto,
-    @CurrentUser() user: CurrentUserData,
-    @Req() req: Request,
-  ) {
-    const tenantId = (req as any).tenantId || user.tenantId;
-    return this.ragService.create(tenantId, { ...dto, ragBaleType: dto.ragBaleType || 'BALE' }, user.userId);
+    return this.ragService.create(tenantId, dto, user.userId);
   }
 
   /**
@@ -99,6 +79,12 @@ export class RagController {
   ) {
     const tenantId = (req as any).tenantId || user.tenantId;
     return this.ragService.findOne(tenantId, id);
+  }
+
+  @Patch('rags/:id')
+  @RequirePermissions('rag.create')
+  update(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: UpdateRagDto, @CurrentUser() user: CurrentUserData) {
+    return this.ragService.update(tenantId, id, dto, user.userId);
   }
 
   @Delete('rags/:id')

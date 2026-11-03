@@ -39,6 +39,7 @@
         "build": {
           "builder": "@angular/build:application",
           "options": {
+            "allowedCommonJsDependencies": ["jsqr"],
             "browser": "src/main.ts",
             "polyfills": [
               "zone.js"
@@ -52,6 +53,13 @@
               }
             ],
             "styles": [
+              "@fontsource/inter/latin-400.css",
+              "@fontsource/inter/latin-600.css",
+              "@fontsource/inter/latin-700.css",
+              "@fontsource/noto-naskh-arabic/arabic-400.css",
+              "@fontsource/noto-naskh-arabic/arabic-700.css",
+              "@fontsource/noto-nastaliq-urdu/arabic-400.css",
+              "@fontsource/noto-nastaliq-urdu/arabic-700.css",
               "src/styles.scss"
             ]
           },
@@ -60,13 +68,13 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "1.2MB",
-                  "maximumError": "1.5MB"
+                  "maximumWarning": "520kB",
+                  "maximumError": "600kB"
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "12kB",
-                  "maximumError": "20kB"
+                  "maximumWarning": "10kB",
+                  "maximumError": "12kB"
                 }
               ],
               "fileReplacements": [
@@ -75,7 +83,8 @@
                   "with": "src/environments/environment.prod.ts"
                 }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "serviceWorker": "ngsw-config.json"
             },
             "development": {
               "optimization": false,

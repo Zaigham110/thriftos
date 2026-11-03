@@ -1,0 +1,77 @@
+// Floor screens (docs/v1/05): one job per screen, big tiles, numbers on a keypad, one primary button
+// at the bottom (thumb zone), 48px+ touch targets. Logical properties everywhere so Urdu (RTL) mirrors.
+:root {
+  --tos-primary: #714b67;
+  --tos-primary-ink: #ffffff;
+  --tos-primary-soft: #f4edf2;
+  --tos-ink: #1d1a1c;
+  --tos-ink-soft: #5d5560;
+  --tos-line: #e2dce0;
+  --tos-canvas: #faf8f9;
+  --tos-card: #ffffff;
+  --tos-field: #ffffff;
+  --tos-good: #2c7a4b;
+  --tos-good-soft: #e7f4ec;
+  --tos-warn: #a4441f;
+  --tos-warn-soft: #fbece5;
+  --tos-radius: 14px;
+  --tos-bar-h: 76px;
+  --tos-tabs-h: 64px;
+}
+
+.floor { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; max-width: 640px; margin: 0 auto; padding-block-end: calc(var(--tos-bar-h) + 16px); color: var(--tos-ink); }
+.floor-head { display: flex; align-items: center; gap: 4px; min-height: 48px; }
+.floor-head h1 { flex: 1; margin: 0; font-size: 22px; line-height: 1.3; }
+.floor-head .sub { display: block; color: var(--tos-ink-soft); font-size: 14px; font-weight: 600; }
+.icon-btn { width: 48px; height: 48px; display: grid; place-items: center; flex: none; border: 0; border-radius: 12px; background: transparent; color: var(--tos-ink); text-decoration: none; cursor: pointer; }
+html[dir='rtl'] .icon-btn.back lucide-icon { transform: scaleX(-1); }
+
+.card { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 16px; border: 1px solid var(--tos-line); border-radius: var(--tos-radius); background: var(--tos-card); }
+.card h2 { margin: 0; font-size: 17px; }
+.hint { margin: 0; color: var(--tos-ink-soft); font-size: 14px; }
+.big-number { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.good { color: var(--tos-good); }
+.warn { color: var(--tos-warn); }
+
+.field { display: grid; gap: 6px; font-size: 15px; font-weight: 700; }
+.field input:not([type='file']), .field select { width: 100%; min-width: 0; min-height: 52px; box-sizing: border-box; padding-inline: 14px; border: 1px solid var(--tos-line); border-radius: 12px; background: var(--tos-field); color: var(--tos-ink); font: inherit; font-size: 18px; font-weight: 600; }
+.field input:focus, .field select:focus { outline: 3px solid var(--tos-primary-soft); border-color: var(--tos-primary); }
+.row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+
+.btn { min-height: 52px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding-inline: 18px; border: 1px solid var(--tos-line); border-radius: 14px; background: var(--tos-field); color: var(--tos-ink); font: inherit; font-size: 16px; font-weight: 800; text-decoration: none; cursor: pointer; }
+.btn.primary { border-color: var(--tos-primary); background: var(--tos-primary); color: var(--tos-primary-ink); }
+.btn.block { width: 100%; }
+.btn:disabled { opacity: .45; cursor: default; }
+.link-btn { min-height: 48px; border: 0; background: none; color: var(--tos-primary); font: inherit; font-weight: 800; cursor: pointer; }
+
+// Chips: small one-tap choices (currency, charge types, units).
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding-inline: 16px; border: 1px solid var(--tos-line); border-radius: 24px; background: var(--tos-field); color: var(--tos-ink); font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }
+.chip.on { border: 2px solid var(--tos-primary); background: var(--tos-primary-soft); color: var(--tos-primary); }
+
+// Lists with the amount on the end side.
+.list { margin: 0; padding: 0; list-style: none; border: 1px solid var(--tos-line); border-radius: var(--tos-radius); background: var(--tos-card); overflow: hidden; }
+.list > li + li { border-block-start: 1px solid var(--tos-line); }
+.list .row { min-height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 16px; color: var(--tos-ink); text-decoration: none; }
+.list .row > span { display: grid; gap: 2px; min-width: 0; }
+.list .row small { color: var(--tos-ink-soft); font-size: 13px; }
+.list .amount { text-align: end; white-space: nowrap; font-weight: 800; font-variant-numeric: tabular-nums; }
+.empty { padding: 28px 16px; text-align: center; color: var(--tos-ink-soft); }
+
+.notice { margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--tos-good-soft); color: var(--tos-good); font-weight: 600; }
+.notice.error { background: var(--tos-warn-soft); color: var(--tos-warn); }
+
+details.more > summary { min-height: 48px; display: flex; align-items: center; color: var(--tos-primary); font-weight: 800; cursor: pointer; list-style: none; }
+details.more > summary::-webkit-details-marker { display: none; }
+details.more[open] { display: grid; gap: 12px; }
+
+// The one primary action, fixed above the tab bar on phones.
+.action-bar { position: fixed; inset-inline: 0; inset-block-end: calc(var(--tos-tabs-h) + env(safe-area-inset-bottom)); z-index: 6; display: flex; align-items: center; gap: 12px; min-height: var(--tos-bar-h); box-sizing: border-box; padding: 12px 16px; border-block-start: 1px solid var(--tos-line); background: var(--tos-card); }
+.action-bar .summary { display: grid; min-width: 0; }
+.action-bar .summary small { color: var(--tos-ink-soft); font-size: 13px; }
+.action-bar .summary strong { font-size: 20px; white-space: nowrap; }
+.action-bar .btn.primary { flex: 1; }
+@media (min-width: 600px) {
+  .action-bar { position: sticky; inset-block-end: 12px; border: 1px solid var(--tos-line); border-radius: var(--tos-radius); }
+  .floor { padding-block-end: 16px; }
+}

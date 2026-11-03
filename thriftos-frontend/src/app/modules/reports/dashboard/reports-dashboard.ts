@@ -8,7 +8,7 @@
 
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import {
   LucideAngularModule,
   BarChart3,
@@ -58,7 +58,6 @@ interface EnterpriseReportCard {
   standalone: true,
   imports: [
     CommonModule,
-    RouterLink,
     DecimalPipe,
     MoneyPipe,
     LucideAngularModule,
@@ -98,7 +97,7 @@ export class ReportsDashboardComponent implements OnInit {
   };
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Reports', route: '/app/reports' },
+    { label: 'Reports', route: '/reports/detail' },
     { label: 'Enterprise Intelligence Dashboard' },
   ];
 
@@ -167,7 +166,7 @@ export class ReportsDashboardComponent implements OnInit {
       id: 'yield',
       title: 'Yield Audit & Mass Balance',
       description: 'Raw bale intake vs Stage 1 category yield vs Stage 2 quality grade conversion and waste ratio.',
-      route: '/app/reports/yield',
+      route: '/reports/detail/yield',
       icon: TrendingUp,
       category: 'OPERATIONS',
       tag: 'High Impact',
@@ -176,7 +175,7 @@ export class ReportsDashboardComponent implements OnInit {
       id: 'final-product-cost',
       title: 'Final Sealed Goods Cost & COGS',
       description: 'Backend-derived sealed unit landed cost, labor allocations, container cost cascade, and margins.',
-      route: '/app/reports/final-product-cost',
+      route: '/reports/detail/final-product-cost',
       icon: DollarSign,
       category: 'FINANCIAL',
       tag: 'COGS Audit',
@@ -185,7 +184,7 @@ export class ReportsDashboardComponent implements OnInit {
       id: 'inventory',
       title: 'Finished Inventory Valuation',
       description: 'Warehouse stock levels, grade distribution, storage location valuation ($), and inventory aging.',
-      route: '/app/reports/inventory',
+      route: '/reports/detail/inventory',
       icon: Package,
       category: 'INVENTORY',
       tag: 'Stock Valuation',
@@ -194,7 +193,7 @@ export class ReportsDashboardComponent implements OnInit {
       id: 'procurement-summary',
       title: 'Procurement & Container Costs',
       description: 'PO total landed costs, ocean freight allocations, supplier volume performance, and bale intake.',
-      route: '/app/reports/procurement-summary',
+      route: '/reports/detail/procurement-summary',
       icon: Truck,
       category: 'FINANCIAL',
       tag: 'Procurement',
@@ -203,7 +202,7 @@ export class ReportsDashboardComponent implements OnInit {
       id: 'repack-summary',
       title: 'Repack & Batch Production',
       description: 'Draft vs sealed repack units grouped by category, quality grade, sealed dates, and batch counts.',
-      route: '/app/reports/repack-summary',
+      route: '/reports/detail/repack-summary',
       icon: Layers,
       category: 'OPERATIONS',
       tag: 'Batch Repack',
@@ -212,7 +211,7 @@ export class ReportsDashboardComponent implements OnInit {
       id: 'sorting-outputs',
       title: 'Sorting Outputs & Grade Breakdown',
       description: 'Stage 1 category outputs and Stage 2 finished grade outputs distribution with lineage tracking.',
-      route: '/app/reports/sorting-outputs',
+      route: '/reports/detail/sorting-outputs',
       icon: BarChart3,
       category: 'QUALITY',
       tag: 'Output Quality',
@@ -221,7 +220,7 @@ export class ReportsDashboardComponent implements OnInit {
       id: 'waste',
       title: 'Waste & Material Loss Audit',
       description: 'Stage 1 & Stage 2 categorized waste weight, disposal cost impact, and waste reduction metrics.',
-      route: '/app/reports/waste',
+      route: '/reports/detail/waste',
       icon: Trash2,
       category: 'QUALITY',
       tag: 'Loss Control',
@@ -230,7 +229,7 @@ export class ReportsDashboardComponent implements OnInit {
       id: 'inventory-movements',
       title: 'Inventory Movement Ledger',
       description: 'Auditable stock intake, allocation, repack reservation, and wholesale sales movement ledger.',
-      route: '/app/reports/inventory-movements',
+      route: '/reports/detail/inventory-movements',
       icon: ArrowRight,
       category: 'INVENTORY',
       tag: 'Audit Trail',

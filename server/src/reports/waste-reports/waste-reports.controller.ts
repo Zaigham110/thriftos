@@ -9,6 +9,9 @@ import { ReportsAuditService } from '../common/reports-audit.service';
 import { toCsv } from '../common/report-utils';
 import { WasteReportsService } from './waste-reports.service';
 
+import { RequireModule } from '../../common/decorators/require-module.decorator';
+
+@RequireModule('REPORTS')
 @Controller('reports/waste')
 @UseGuards(TenantGuard, PermissionGuard)
 export class WasteReportsController {

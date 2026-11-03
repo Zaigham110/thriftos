@@ -97,7 +97,7 @@ export class SuperAdminService {
       throw new BadRequestException(`Company code "${dto.companyCode}" already exists`);
     }
 
-    const desiredCurrency = dto.currencyCode || dto.currency || 'USD';
+    const desiredCurrency = dto.currencyCode || dto.currency || 'PKR';
     if (!isSupportedCurrencyCode(desiredCurrency)) {
       throw new BadRequestException(`Unsupported currency code: ${desiredCurrency}`);
     }
@@ -107,9 +107,8 @@ export class SuperAdminService {
         name: dto.name,
         companyCode: dto.companyCode,
         currency: desiredCurrency,
-        locale: dto.locale || 'en-US',
+        locale: dto.locale || 'ur-PK',
         status: dto.status || TenantStatus.ACTIVE,
-        operationMode: dto.operationMode || 'FULL_ERP',
       },
     });
 

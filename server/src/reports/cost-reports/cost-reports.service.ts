@@ -23,31 +23,13 @@ export class CostReportsService {
       Array<{ totalCost: string; totalWeightKg: string }>
     >(
       `
-      WITH rags AS (
-        SELECT
-          COALESCE(SUM(r."allocatedCost"), 0) AS "totalCost",
-          COALESCE(SUM(r."weightKg"), 0) AS "totalWeightKg"
-        FROM "Rag" r
-        JOIN "Container" c ON c."id" = r."containerId"
-        JOIN "PurchaseOrder" po ON po."id" = c."purchaseOrderId"
-        WHERE po."tenantId" = $1
-          AND ($2::timestamptz IS NULL OR r."createdAt" >= $2)
-          AND ($3::timestamptz IS NULL OR r."createdAt" <= $3)
-      ),
-      bales AS (
-        SELECT
-          COALESCE(SUM(b."cost"), 0) AS "totalCost",
-          COALESCE(SUM(b."weightKg"), 0) AS "totalWeightKg"
-        FROM "IncomingBale" b
-        WHERE b."tenantId" = $1
-          AND b."containerId" IS NULL
-          AND ($2::timestamptz IS NULL OR b."createdAt" >= $2)
-          AND ($3::timestamptz IS NULL OR b."createdAt" <= $3)
-      )
       SELECT
-        (rags."totalCost" + bales."totalCost") AS "totalCost",
-        (rags."totalWeightKg" + bales."totalWeightKg") AS "totalWeightKg"
-      FROM rags, bales
+        COALESCE(SUM(r."allocatedCost"), 0) AS "totalCost",
+        COALESCE(SUM(r."weightKg"), 0) AS "totalWeightKg"
+      FROM "Rag" r
+      WHERE r."tenantId" = $1
+        AND ($2::timestamptz IS NULL OR r."createdAt" >= $2)
+        AND ($3::timestamptz IS NULL OR r."createdAt" <= $3)
       `,
       tenantId,
       start ?? null,
@@ -108,7 +90,7 @@ export class CostReportsService {
     >(
       `
       SELECT
-        COALESCE(SUM(i."avgCost" * (CASE WHEN i."pcsCount" > 0 THEN i."pcsCount" ELSE i."weightKg" END)), 0) AS "lockedCost",
+        COALESCE(SUM(i."totalCost" * (i."quantity" - i."usedQuantity") / i."quantity"), 0) AS "lockedCost",
         COALESCE(SUM(CASE WHEN i."pcsCount" = 0 THEN i."weightKg" ELSE 0 END), 0) AS "denomKg",
         COALESCE(SUM(CASE WHEN i."pcsCount" > 0 THEN i."pcsCount" ELSE 0 END), 0)::int AS "denomPcs"
       FROM "InventoryItem" i
@@ -202,8 +184,8 @@ export class CostReportsService {
         g."name" AS "gradeName",
         COUNT(*)::int AS "unitsReady",
         COALESCE(SUM(i."weightKg"), 0) AS "totalWeightKg",
-        COALESCE(SUM(i."avgCost" * i."weightKg"), 0) AS "totalCost",
-        CASE WHEN COALESCE(SUM(i."weightKg"), 0) = 0 THEN 0 ELSE (COALESCE(SUM(i."avgCost" * i."weightKg"), 0) / COALESCE(SUM(i."weightKg"), 0)) END AS "avgCostPerKg"
+        COALESCE(SUM(i."totalCost" * (i."quantity" - i."usedQuantity") / i."quantity"), 0) AS "totalCost",
+        CASE WHEN COALESCE(SUM(i."weightKg"), 0) = 0 THEN 0 ELSE (COALESCE(SUM(i."totalCost" * (i."quantity" - i."usedQuantity") / i."quantity"), 0) / COALESCE(SUM(i."weightKg"), 0)) END AS "avgCostPerKg"
       FROM "InventoryItem" i
       JOIN "Category" c ON c."id" = i."categoryId"
       JOIN "Grade" g ON g."id" = i."gradeId"

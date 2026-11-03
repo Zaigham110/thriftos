@@ -42,12 +42,15 @@ export class CostBreakdownPanelComponent {
 
   getChargeTypeLabel(type: ChargeType): string {
     const labels: Record<ChargeType, string> = {
-      CIF: 'CIF Cost',
-      FREIGHT: 'Ocean Freight',
-      DUTY: 'Customs Duty',
-      TAX: 'Import Tax',
-      PORT_HANDLING: 'Port Handling',
-      MISC: 'Misc Fees',
+      CIF: 'CIF (old purchase cost)',
+      FREIGHT: 'Freight',
+      DUTY: 'Duty',
+      TAX: 'Tax',
+      CLEARING: 'Clearing',
+      PORT_HANDLING: 'Port handling',
+      TRANSPORT: 'Transport',
+      LABOUR: 'Labour',
+      MISC: 'Other',
     };
     return labels[type] || type;
   }

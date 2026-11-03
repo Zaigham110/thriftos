@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { MailService } from '../common/mail/mail.service';
+import { PasswordResetService } from './password-reset.service';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -32,6 +34,8 @@ import { CommonModule } from '../common/common.module';
   providers: [
     AuthService,
     PasswordService,
+    PasswordResetService,
+    MailService,
     JwtStrategy,
     {
       provide: APP_GUARD,

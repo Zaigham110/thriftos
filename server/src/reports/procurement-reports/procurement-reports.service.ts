@@ -14,10 +14,10 @@ export class ProcurementReportsService {
   async containerCostBreakdown(tenantId: string, containerId: string) {
     await this.consistency.assertTenantIsReportable(tenantId);
     const container = await this.prisma.container.findFirst({
-      where: { id: containerId, purchaseOrder: { tenantId } },
+      where: { id: containerId, tenantId },
       include: {
         containerCharges: true,
-        purchaseOrder: { include: { vendor: { select: { id: true, name: true } } } },
+        vendor: { select: { id: true, name: true } },
       },
     });
     if (!container) throw new NotFoundException('Container not found');
@@ -27,18 +27,19 @@ export class ProcurementReportsService {
         .filter((c) => types.includes(c.chargeType))
         .reduce((acc, c) => acc.add(c.amount), new Decimal(0));
 
-    const purchaseCost = sumBy(['CIF']);
-    const shippingCost = sumBy(['FREIGHT', 'PORT_HANDLING']);
-    const dutiesCost = sumBy(['DUTY', 'TAX']);
-    const otherCosts = sumBy(['MISC']);
-    const totalCost = container.containerCharges.reduce((acc, c) => acc.add(c.amount), new Decimal(0));
+    const charges = container.containerCharges.reduce((acc, c) => acc.add(c.amount), new Decimal(0));
+    const totalCost = container.landedCostPKR;
+    const purchaseCost = totalCost.sub(charges);
+    const shippingCost = sumBy(['FREIGHT', 'PORT_HANDLING', 'TRANSPORT']);
+    const dutiesCost = sumBy(['DUTY', 'TAX', 'CLEARING']);
+    const otherCosts = sumBy(['MISC', 'LABOUR', 'CIF']);
     const totalWeightKg = container.netWeight ?? new Decimal(0);
-    const costPerKg = totalWeightKg.equals(new Decimal(0)) ? new Decimal(0) : totalCost.div(totalWeightKg);
+    const costPerKg = container.landedCostPerKg ?? new Decimal(0);
 
     return {
       containerId: container.id,
       containerCode: container.containerNumber,
-      vendorName: container.purchaseOrder.vendor?.name ?? '—',
+      vendorName: container.vendor?.name ?? '—',
       landingDate: (container.clearedAt ?? container.arrivedAt ?? container.releasedAt ?? container.createdAt).toISOString(),
       purchaseCost: purchaseCost.toNumber(),
       shippingCost: shippingCost.toNumber(),
@@ -53,7 +54,7 @@ export class ProcurementReportsService {
   /**
    * Vendor procurement summary:
    * - Container purchases: sum rag weights + rag allocatedCost (represents container cost distributed)
-   * - Loose bales: sum IncomingBale weight and cost where containerId is null
+   * - Loose lots: sum lot weight and cost where the lot has no container
    */
   async vendorProcurementSummary(
     tenantId: string,
@@ -63,7 +64,7 @@ export class ProcurementReportsService {
     const { start, end } = parseDateRange(filters);
 
     // Build dynamic query with proper parameter positions
-    const ragConditions: string[] = ['po."tenantId" = $1', 'po."vendorId" IS NOT NULL'];
+    const ragConditions: string[] = ['c."tenantId" = $1', 'c."vendorId" IS NOT NULL'];
     const looseConditions: string[] = ['b."tenantId" = $1', 'b."vendorId" IS NOT NULL', 'b."containerId" IS NULL'];
     const ragParams: any[] = [tenantId];
     const looseParams: any[] = [tenantId];
@@ -103,23 +104,22 @@ export class ProcurementReportsService {
       `
       WITH container_rags AS (
         SELECT
-          po."vendorId" AS "vendorId",
+          c."vendorId" AS "vendorId",
           COUNT(DISTINCT c."id")::int AS "containers",
           SUM(r."weightKg") AS "weightKg",
           SUM(r."allocatedCost") AS "cost"
         FROM "Container" c
-        JOIN "PurchaseOrder" po ON po."id" = c."purchaseOrderId"
         JOIN "Rag" r ON r."containerId" = c."id"
         WHERE ${ragWhere}
-        GROUP BY po."vendorId"
+        GROUP BY c."vendorId"
       ),
       loose_bales AS (
         SELECT
           b."vendorId" AS "vendorId",
           0::int AS "containers",
           SUM(b."weightKg") AS "weightKg",
-          SUM(b."cost") AS "cost"
-        FROM "IncomingBale" b
+          SUM(b."allocatedCost") AS "cost"
+        FROM "Rag" b
         WHERE ${looseWhere}
         GROUP BY b."vendorId"
       ),
@@ -161,10 +161,10 @@ export class ProcurementReportsService {
   /**
    * Procurement Summary (ERP-grade):
    * - Break down by Purchase Order
-   * - Containers purchased: qty, weight, cost (from container charges)
-   * - Loose bales purchased: qty, weight, cost (IncomingBale where containerId is null)
+   * - Containers purchased: qty, weight, landed cost
+   * - Loose lots have no purchase order in v1; old loose-bale purchase orders show their stored total
    * - Validation (fail closed):
-   *   - PO totalCost must match (containersCost + looseBalesCost) within 0.01
+   *   - a container PO's totalCost must match its containers' landed cost within 0.01
    *   - PO currency must match tenant currency
    */
   async procurementSummary(tenantId: string, filters: { startDate?: string; endDate?: string }) {
@@ -238,24 +238,10 @@ export class ProcurementReportsService {
       container_cost AS (
         SELECT
           c."purchaseOrderId" AS "purchaseOrderId",
-          COALESCE(SUM(ch."amount"), 0) AS "containerCost"
+          COALESCE(SUM(c."landedCostPKR"), 0) AS "containerCost"
         FROM "Container" c
         JOIN po_base p ON p."purchaseOrderId" = c."purchaseOrderId"
-        LEFT JOIN "ContainerCharge" ch ON ch."containerId" = c."id"
         GROUP BY c."purchaseOrderId"
-      ),
-      loose_bales AS (
-        SELECT
-          b."purchaseOrderId" AS "purchaseOrderId",
-          COUNT(*)::int AS "looseBaleCount",
-          COALESCE(SUM(b."weightKg"), 0) AS "looseBaleWeightKg",
-          COALESCE(SUM(b."cost"), 0) AS "looseBaleCost"
-        FROM "IncomingBale" b
-        JOIN po_base p ON p."purchaseOrderId" = b."purchaseOrderId"
-        WHERE b."tenantId" = $1
-          AND b."purchaseOrderId" IS NOT NULL
-          AND b."containerId" IS NULL
-        GROUP BY b."purchaseOrderId"
       )
       SELECT
         p."purchaseOrderId",
@@ -269,14 +255,10 @@ export class ProcurementReportsService {
         p."vendorName",
         COALESCE(cs."containerCount", 0)::int AS "containerCount",
         COALESCE(cs."containerWeightKg", 0) AS "containerWeightKg",
-        COALESCE(cc."containerCost", 0) AS "containerCost",
-        COALESCE(lb."looseBaleCount", 0)::int AS "looseBaleCount",
-        COALESCE(lb."looseBaleWeightKg", 0) AS "looseBaleWeightKg",
-        COALESCE(lb."looseBaleCost", 0) AS "looseBaleCost"
+        COALESCE(cc."containerCost", 0) AS "containerCost"
       FROM po_base p
       LEFT JOIN container_stats cs ON cs."purchaseOrderId" = p."purchaseOrderId"
       LEFT JOIN container_cost cc ON cc."purchaseOrderId" = p."purchaseOrderId"
-      LEFT JOIN loose_bales lb ON lb."purchaseOrderId" = p."purchaseOrderId"
       ORDER BY p."createdAt" DESC
       `,
       ...params,
@@ -285,7 +267,10 @@ export class ProcurementReportsService {
     const data = rows.map((r) => {
       const poTotalCost = new Decimal(r.poTotalCost as any);
       const containerCost = new Decimal(r.containerCost as any);
-      const looseBaleCost = new Decimal(r.looseBaleCost as any);
+      // Loose lots are bought without a purchase order in v1. Old loose-bale purchase orders keep
+      // their stored total; only container purchase orders are reconciled.
+      const isLoosePo = r.poType === 'LOOSE_BALE';
+      const looseBaleCost = isLoosePo ? poTotalCost : new Decimal(0);
       const computedCost = containerCost.add(looseBaleCost);
       const delta = poTotalCost.sub(computedCost);
 
@@ -305,8 +290,8 @@ export class ProcurementReportsService {
           cost: containerCost.toNumber(),
         },
         looseBales: {
-          count: Number(r.looseBaleCount ?? 0),
-          weightKg: new Decimal(r.looseBaleWeightKg as any).toNumber(),
+          count: 0,
+          weightKg: 0,
           cost: looseBaleCost.toNumber(),
         },
 

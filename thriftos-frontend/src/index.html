@@ -4,12 +4,17 @@
   <meta charset="utf-8">
   <title>ThriftOS</title>
   <base href="/">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="ThriftOS - ERP built for the thrift industry">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#714b67">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="ThriftOS">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <!-- Start fetching the words of the language this phone uses while the app downloads (saves a round trip). -->
+  <script>try{var l=localStorage.getItem('thriftos.lang')==='ur'?'ur':'en',k=document.createElement('link');k.rel='preload';k.as='fetch';k.crossOrigin='anonymous';k.href='i18n/'+l+'.json';document.head.appendChild(k)}catch(e){}</script>
+  <meta name="description" content="ThriftOS — maal, chhantai, becho, khata on your phone">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <app-root></app-root>

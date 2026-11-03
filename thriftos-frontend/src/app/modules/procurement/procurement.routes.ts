@@ -11,6 +11,8 @@
 
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/guards/permission-guard';
+import { moduleGuard } from '../../core/guards/module.guard';
+import { CONTAINERS_LIST, SUPPLIERS_LIST } from '../../features/workspace-lists/lists';
 
 export const PROCUREMENT_ROUTES: Routes = [
   {
@@ -31,6 +33,9 @@ export const PROCUREMENT_ROUTES: Routes = [
   // Purchase Orders
   {
     path: 'pos',
+    // Purchase orders are not part of v1: only when the business turned them on.
+    canActivate: [moduleGuard],
+    data: { module: 'PURCHASE_ORDERS' },
     children: [
       {
         path: '',
@@ -49,16 +54,6 @@ export const PROCUREMENT_ROUTES: Routes = [
             (m) => m.PurchaseOrderCreateComponent
           ),
         title: 'Create Purchase Order - ThriftOS',
-        canActivate: [permissionGuard],
-        data: { permissions: ['po.create'] },
-      },
-      {
-        path: ':id/bales/create',
-        loadComponent: () =>
-          import('./purchase-orders/purchase-order-add-bale/purchase-order-add-bale').then(
-            (m) => m.PurchaseOrderAddBaleComponent
-          ),
-        title: 'Add Bale - ThriftOS',
         canActivate: [permissionGuard],
         data: { permissions: ['po.create'] },
       },
@@ -91,13 +86,11 @@ export const PROCUREMENT_ROUTES: Routes = [
     children: [
       {
         path: '',
-        loadComponent: () =>
-          import('./containers/container-list/container-list').then(
-            (m) => m.ContainerListComponent
-          ),
+        // Workspace list with a status board (enterprise plan E3.1).
+        loadComponent: () => import('../../features/workspace-lists/list-page.component').then((m) => m.ListPageComponent),
         title: 'Containers - ThriftOS',
         canActivate: [permissionGuard],
-        data: { permissions: ['container.read'] },
+        data: { permissions: ['container.read'], list: CONTAINERS_LIST },
       },
       {
         path: ':id/edit',
@@ -127,10 +120,8 @@ export const PROCUREMENT_ROUTES: Routes = [
       },
       {
         path: ':id',
-        loadComponent: () =>
-          import('./containers/container-detail/container-detail').then(
-            (m) => m.ContainerDetailComponent
-          ),
+        // Traceability record page: landed cost → lots → sorting → bales → sales (E3.1).
+        loadComponent: () => import('../../features/workspace-lists/container-record.component').then((m) => m.ContainerRecordComponent),
         title: 'Container - ThriftOS',
         canActivate: [permissionGuard],
         data: { permissions: ['container.read'] },
@@ -138,42 +129,18 @@ export const PROCUREMENT_ROUTES: Routes = [
     ],
   },
 
-  // Loose Bales (list/detail only - creation via PO)
+  // Suppliers: list and scorecard (E3.1).
   {
-    path: 'loose-bales',
+    path: 'suppliers',
+    canActivate: [permissionGuard],
+    data: { permissions: ['vendor.read'] },
     children: [
-      {
-        path: '',
-        loadComponent: () =>
-          import('./incoming-bales/incoming-bale-list/incoming-bale-list').then(
-            (m) => m.IncomingBaleListComponent
-          ),
-        title: 'Loose Bales - ThriftOS',
-        canActivate: [permissionGuard],
-        data: { permissions: ['po.read'] },
-      },
-      {
-        path: ':id',
-        loadComponent: () =>
-          import('./incoming-bales/incoming-bale-detail/incoming-bale-detail').then(
-            (m) => m.IncomingBaleDetailComponent
-          ),
-        title: 'Bale - ThriftOS',
-        canActivate: [permissionGuard],
-        data: { permissions: ['po.read'] },
-      },
-      {
-        path: ':id/edit',
-        loadComponent: () =>
-          import('./incoming-bales/incoming-bale-edit/incoming-bale-edit').then(
-            (m) => m.IncomingBaleEditComponent
-          ),
-        title: 'Edit Bale - ThriftOS',
-        canActivate: [permissionGuard],
-        data: { permissions: ['po.update'] },
-      },
+      { path: '', loadComponent: () => import('../../features/workspace-lists/list-page.component').then((m) => m.ListPageComponent), title: 'Suppliers - ThriftOS', data: { list: SUPPLIERS_LIST } },
+      { path: ':id', loadComponent: () => import('../../features/workspace-lists/supplier-record.component').then((m) => m.SupplierRecordComponent), title: 'Supplier - ThriftOS' },
     ],
   },
+
+  // Loose Bales (list/detail only - creation via PO)
 
   // Rags / Bales
   {

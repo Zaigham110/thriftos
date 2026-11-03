@@ -28,12 +28,12 @@ export const adminAreaGuard: CanActivateFn = (route, state): Observable<boolean 
 
       // If tenant user hits /admin/**, bounce to tenant space.
       if (!authService.isSuperAdmin()) {
-        return router.createUrlTree(['/app']);
+        return router.createUrlTree(['/home']);
       }
 
       // If superadmin is impersonating, they must stay in tenant space.
       if (authService.isImpersonating()) {
-        return router.createUrlTree(['/app']);
+        return router.createUrlTree(['/home']);
       }
 
       return true;

@@ -21,9 +21,6 @@ import {
   AppPageComponent,
   AppPageHeaderComponent,
   AppPageBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSectionBodyComponent,
   AlertComponent,
 } from '../../../../../shared/ui';
 
@@ -48,11 +45,6 @@ const LOCALES = [
   { value: 'fr-FR', label: 'French (FR)' },
 ];
 
-const OPERATION_MODES = [
-  { value: 'FULL_ERP', label: 'Full Desktop ERP Mode (High-Density Enterprise Interface)' },
-  { value: 'SIMPLIFIED_MOBILE', label: 'Simplified Mobile Mode (Touch Warehouse Operator Interface)' },
-  { value: 'USER_CHOICE', label: 'User Choice (Allow Users to Switch Interfaces)' },
-];
 
 @Component({
   selector: 'app-tenant-create',
@@ -65,9 +57,6 @@ const OPERATION_MODES = [
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
     AlertComponent,
   ],
   templateUrl: './tenant-create.component.html',
@@ -86,7 +75,6 @@ export class TenantCreateComponent {
 
   protected readonly currencies = CURRENCIES;
   protected readonly locales = LOCALES;
-  protected readonly operationModes = OPERATION_MODES;
 
   readonly icons = {
     Building2,
@@ -105,7 +93,6 @@ export class TenantCreateComponent {
       companyCode: ['', [Validators.required, Validators.pattern(/^[A-Z0-9_]{2,20}$/)]],
       currencyCode: ['USD', Validators.required],
       locale: ['en-US', Validators.required],
-      operationMode: ['FULL_ERP', Validators.required],
       adminEmail: ['', [Validators.required, Validators.email]],
       adminName: ['', [Validators.required, Validators.minLength(2)]],
       adminPassword: ['', [Validators.required, Validators.minLength(8)]],
@@ -127,7 +114,6 @@ export class TenantCreateComponent {
       companyCode: formValue.companyCode,
       currencyCode: formValue.currencyCode,
       locale: formValue.locale,
-      operationMode: formValue.operationMode,
       adminEmail: formValue.adminEmail,
       adminName: formValue.adminName,
       adminPassword: formValue.adminPassword,

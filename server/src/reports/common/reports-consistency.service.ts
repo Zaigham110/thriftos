@@ -44,10 +44,6 @@ export class ReportsConsistencyService {
 						AND s."status" = 'CLOSED'
 						AND s."wasteWeight" > 0
 						AND NOT EXISTS (
-							SELECT 1 FROM "SortingWaste" sw
-							WHERE sw."tenantId" = s."tenantId" AND sw."sortSessionId" = s."id"
-						)
-						AND NOT EXISTS (
 							SELECT 1 FROM "WasteLineItem" wli
 							WHERE wli."tenantId" = s."tenantId" AND wli."sortSessionId" = s."id" AND wli."stage" = 'STAGE_1'
 						)

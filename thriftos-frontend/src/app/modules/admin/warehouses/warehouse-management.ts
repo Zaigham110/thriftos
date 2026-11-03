@@ -70,7 +70,7 @@ export class WarehouseManagementComponent implements OnInit {
   private readonly router = inject(Router);
 
   readonly breadcrumbs = [
-    { label: 'Administration', route: '/app/admin' },
+    { label: 'Administration', route: '/settings/admin' },
     { label: 'Warehouses' },
   ];
 
@@ -147,11 +147,11 @@ export class WarehouseManagementComponent implements OnInit {
   }
 
   navigateToCreate(): void {
-    this.router.navigate(['/app/admin/warehouses/new']);
+    this.router.navigate(['/settings/admin/warehouses/new']);
   }
 
   navigateToEdit(warehouse: Warehouse): void {
-    this.router.navigate(['/app/admin/warehouses', warehouse.id, 'edit']);
+    this.router.navigate(['/settings/admin/warehouses', warehouse.id, 'edit']);
   }
 
   confirmDeactivate(warehouse: Warehouse): void {

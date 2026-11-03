@@ -72,7 +72,7 @@ export class RoleListComponent implements OnInit {
   private readonly router = inject(Router);
 
   readonly breadcrumbs = [
-    { label: 'Administration', route: '/app/admin' },
+    { label: 'Administration', route: '/settings/admin' },
     { label: 'Roles & Permissions' },
   ];
 
@@ -178,7 +178,7 @@ export class RoleListComponent implements OnInit {
 
   // Full page Role Permissions Navigation
   openPermissionsDrawer(role: Role): void {
-    this.router.navigate(['/app/admin/roles', role.id, 'permissions']);
+    this.router.navigate(['/settings/admin/roles', role.id, 'permissions']);
   }
 
   // Delete Handlers

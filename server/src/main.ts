@@ -1,13 +1,15 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { configureApp, swaggerEnabled } from './app.setup';
+import { JsonLogger } from './common/logging/request-log';
+import { initSentry } from './monitoring/sentry';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  initSentry();
+  const app = await NestFactory.create(AppModule, process.env.NODE_ENV === 'production' ? { logger: new JsonLogger() } : {});
 
-  // Global prefix
-  app.setGlobalPrefix('api');
+  configureApp(app);
 
   // Enable CORS
   const allowedOrigins = process.env.CORS_ORIGIN
@@ -24,18 +26,6 @@ async function bootstrap() {
     },
     credentials: true,
   });
-
-  // Global validation pipe
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-    }),
-  );
 
   // Swagger API Documentation
   const config = new DocumentBuilder()
@@ -98,20 +88,22 @@ Super Admins can impersonate tenants to access tenant-scoped data.
     .addTag('Reports', 'Analytics & reports')
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document, {
-    swaggerOptions: {
-      persistAuthorization: true,
-      tagsSorter: 'alpha',
-      operationsSorter: 'alpha',
-    },
-    customSiteTitle: 'ThriftOS V3 API Documentation',
-  });
+  if (swaggerEnabled(process.env)) {
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document, {
+      swaggerOptions: {
+        persistAuthorization: true,
+        tagsSorter: 'alpha',
+        operationsSorter: 'alpha',
+      },
+      customSiteTitle: 'ThriftOS V3 API Documentation',
+    });
+  }
 
   const port = process.env.PORT || 3000;
   await app.listen(port);
   console.log(`🚀 ThriftOS V3 API running on: http://localhost:${port}/api`);
-  console.log(`📚 Swagger docs available at: http://localhost:${port}/api/docs`);
+  if (swaggerEnabled(process.env)) console.log(`📚 Swagger docs available at: http://localhost:${port}/api/docs`);
 }
 
 bootstrap();

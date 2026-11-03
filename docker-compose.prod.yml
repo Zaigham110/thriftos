@@ -1,0 +1,91 @@
+# Production stack on the shared EC2 server (t4g.small, ARM64; another app runs beside it), behind
+# CloudFront, which serves https://<id>.cloudfront.net/thriftos. Nothing is built here: the server and
+# web images are built by GitHub Actions and pulled from GHCR.
+#
+# On the server, /opt/thriftos holds this file, deploy/Caddyfile, deploy/deploy.sh and .env.prod
+# (secrets, never in git; template: deploy/env.prod.example). Deploys run deploy/deploy.sh <tag>.
+name: thriftos
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set in .env.prod}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env.prod}
+      POSTGRES_DB: ${POSTGRES_DB:?set in .env.prod}
+    # Small on purpose: the server's memory is shared with another app.
+    command: >-
+      postgres
+      -c shared_buffers=48MB
+      -c max_connections=20
+      -c effective_cache_size=192MB
+      -c work_mem=2MB
+      -c maintenance_work_mem=32MB
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    mem_limit: 160m
+    logging: &logging
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    # No published port: only the API reaches the database.
+
+  server:
+    image: ghcr.io/zaigham110/thriftos-server:${THRIFTOS_TAG:?set THRIFTOS_TAG to the release tag}
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NODE_OPTIONS: --max-old-space-size=192
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public&connection_limit=8
+      RUN_MIGRATIONS_ON_START: ${RUN_MIGRATIONS_ON_START:-1}
+      # Two proxies in front (CloudFront, then Caddy): the client's IP is the one before them.
+      TRUST_PROXY: "2"
+      UPLOAD_DIR: /data/uploads
+      SEED_DATABASE: "false"
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 60s
+    mem_limit: 256m
+    logging: *logging
+
+  web:
+    image: ghcr.io/zaigham110/thriftos-web:${THRIFTOS_TAG:?set THRIFTOS_TAG to the release tag}
+    restart: unless-stopped
+    depends_on:
+      - server
+    mem_limit: 32m
+    logging: *logging
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      ORIGIN_SECRET: ${ORIGIN_SECRET:?set in .env.prod}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - web
+      - server
+    mem_limit: 48m
+    logging: *logging
+
+volumes:
+  postgres_data:
+  uploads:

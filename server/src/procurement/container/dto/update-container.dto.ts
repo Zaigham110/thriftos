@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsDateString, IsNumber, MaxLength, Min, IsEnum } from 'class-validator';
+import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, Length, MaxLength, Min } from 'class-validator';
 import { ContainerStatus } from '@prisma/client';
 
 export class UpdateContainerDto {
@@ -91,4 +91,23 @@ export class UpdateContainerDto {
   @IsOptional()
   @Min(0.0001)
   fxRate?: number;
+
+  @IsString()
+  @IsOptional()
+  vendorId?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(60)
+  originCountry?: string;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @IsOptional()
+  purchaseCost?: number;
+
+  @IsString()
+  @Length(3, 3)
+  @IsOptional()
+  purchaseCurrency?: string;
 }

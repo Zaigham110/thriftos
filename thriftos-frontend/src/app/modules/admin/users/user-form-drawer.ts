@@ -52,19 +52,11 @@ export class UserFormDrawerComponent {
   readonly formError = signal<string | null>(null);
   readonly selectedRoleIds = signal<string[]>([]);
 
-  readonly modeOptions = [
-    { value: '', label: 'Use Tenant Default Setting' },
-    { value: 'FULL_ERP', label: 'Full Desktop ERP Mode' },
-    { value: 'SIMPLIFIED_MOBILE', label: 'Simplified Mobile Mode' },
-    { value: 'USER_CHOICE', label: 'User Choice (Allow Switcher)' },
-  ];
-
   constructor() {
     this.form = this.fb.group({
       name: ['', [Validators.required, Validators.minLength(2)]],
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(8)]],
-      preferredOperationMode: [''],
     });
 
     // Watch for user changes to reset form
@@ -75,7 +67,6 @@ export class UserFormDrawerComponent {
           name: currentUser.name,
           email: currentUser.email,
           password: '',
-          preferredOperationMode: currentUser.preferredOperationMode || '',
         });
         // Password not required for edits
         this.form.get('password')?.clearValidators();
@@ -89,7 +80,6 @@ export class UserFormDrawerComponent {
           name: '',
           email: '',
           password: '',
-          preferredOperationMode: '',
         });
         this.form.get('password')?.setValidators([Validators.required, Validators.minLength(8)]);
         this.form.get('password')?.updateValueAndValidity();
@@ -136,13 +126,10 @@ export class UserFormDrawerComponent {
 
     const formValue = this.form.value;
     const roleIds = this.selectedRoleIds();
-    const preferredOperationMode = formValue.preferredOperationMode || null;
 
     if (this.isEditMode) {
       // Update existing user
-      const updateData: { name?: string; email?: string; preferredOperationMode?: any } = {
-        preferredOperationMode,
-      };
+      const updateData: { name?: string; email?: string } = {};
       if (formValue.name !== this.user()!.name) updateData.name = formValue.name;
       if (formValue.email !== this.user()!.email) updateData.email = formValue.email;
 
@@ -173,7 +160,6 @@ export class UserFormDrawerComponent {
         email: formValue.email,
         password: formValue.password,
         roleIds,
-        preferredOperationMode,
       }).subscribe({
         next: () => {
           this.saving.set(false);

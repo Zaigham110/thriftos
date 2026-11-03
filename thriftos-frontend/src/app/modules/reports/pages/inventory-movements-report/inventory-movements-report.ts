@@ -13,14 +13,10 @@ import { ReportsService } from '../../reports.service';
 import { MoneyService } from '../../../../core/money/money.service';
 import type { InventoryMovementsResponse, ReportFilters } from '../../reports.models';
 import { ReportFiltersComponent } from '../../shared/report-filters.component';
-import { MoneyPipe } from '../../../../core/money/money.pipe';
 import {
   AppPageComponent,
   AppPageHeaderComponent,
   AppPageBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSectionBodyComponent,
   AppDataTableComponent,
   AppButtonComponent,
   AppErrorStateComponent,
@@ -36,15 +32,11 @@ import { LucideAngularModule, ArrowRight, Scale, RefreshCw, Package, Layers } fr
   imports: [
     CommonModule,
     DecimalPipe,
-    MoneyPipe,
     LucideAngularModule,
     ReportFiltersComponent,
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
     AppDataTableComponent,
     AppButtonComponent,
     AppErrorStateComponent,
@@ -67,7 +59,7 @@ export class InventoryMovementsReportComponent implements OnInit {
   };
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Reports', route: '/app/reports' },
+    { label: 'Reports', route: '/reports/detail' },
     { label: 'Auditable Inventory Movement Ledger' },
   ];
 

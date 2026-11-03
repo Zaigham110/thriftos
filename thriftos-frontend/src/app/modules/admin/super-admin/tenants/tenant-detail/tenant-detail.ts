@@ -32,7 +32,6 @@ import {
 import {
   AppBadgeComponent,
   AppButtonComponent,
-  AppCardComponent,
   AppDialogComponent,
   AppErrorStateComponent,
   AppLinkComponent,
@@ -65,7 +64,6 @@ import {
     AppLinkComponent,
     AppButtonComponent,
     AppBadgeComponent,
-    AppCardComponent,
     AppDialogComponent,
     AppErrorStateComponent,
     AppLoadingComponent,

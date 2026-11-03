@@ -137,8 +137,8 @@ export class RoleFormComponent {
   readonly permissionGroups = this.adminService.permissionGroups;
 
   readonly breadcrumbs = signal([
-    { label: 'Administration', route: '/app/admin' },
-    { label: 'Roles', route: '/app/admin/roles' },
+    { label: 'Administration', route: '/settings/admin' },
+    { label: 'Roles', route: '/settings/admin/roles' },
     { label: 'New' },
   ]);
 
@@ -160,8 +160,8 @@ export class RoleFormComponent {
     if (id) {
       this.isEditMode.set(true);
       this.breadcrumbs.set([
-        { label: 'Administration', route: '/app/admin' },
-        { label: 'Roles', route: '/app/admin/roles' },
+        { label: 'Administration', route: '/settings/admin' },
+        { label: 'Roles', route: '/settings/admin/roles' },
         { label: 'Edit' },
       ]);
       this.loadRole(id);
@@ -212,7 +212,7 @@ export class RoleFormComponent {
       this.adminService.updateRole(this.role()!.id, dto).subscribe({
         next: (updated) => {
           this.adminService.assignRolePermissions(updated.id, this._selectedPermissionIds()).subscribe({
-            next: () => this.router.navigate(['/app/admin/roles']),
+            next: () => this.router.navigate(['/settings/admin/roles']),
             error: () => this.submitting.set(false),
           });
         },
@@ -229,7 +229,7 @@ export class RoleFormComponent {
     this.adminService.createRole(dto).subscribe({
       next: (created) => {
         this.adminService.assignRolePermissions(created.id, this._selectedPermissionIds()).subscribe({
-          next: () => this.router.navigate(['/app/admin/roles']),
+          next: () => this.router.navigate(['/settings/admin/roles']),
           error: () => this.submitting.set(false),
         });
       },
@@ -238,6 +238,6 @@ export class RoleFormComponent {
   }
 
   onCancel() {
-    this.router.navigate(['/app/admin/roles']);
+    this.router.navigate(['/settings/admin/roles']);
   }
 }

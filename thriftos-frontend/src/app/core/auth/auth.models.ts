@@ -29,13 +29,13 @@ export interface RefreshResponse {
 
 export interface User {
   id: string;
-  email: string;
+  /** Owners sign in with email; a munshi has only a phone + PIN. */
+  email: string | null;
+  phone?: string | null;
   name: string;
   tenantId: string | null;
   isSuperAdmin: boolean;
   impersonatedTenantId: string | null;
-  preferredOperationMode?: 'FULL_ERP' | 'SIMPLIFIED_MOBILE' | null;
-  tenantOperationMode?: 'FULL_ERP' | 'SIMPLIFIED_MOBILE' | 'USER_CHOICE';
 }
 
 export interface MeResponse {

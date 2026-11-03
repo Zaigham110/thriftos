@@ -61,9 +61,9 @@ export class RagEditPageComponent implements OnInit {
     const containerId = rag?.containerId;
     const containerLabel = rag?.container?.containerNumber || 'Container';
     return [
-      { label: 'Procurement', route: '/app/procurement' },
-      { label: 'Containers', route: '/app/procurement/containers' },
-      { label: containerLabel, route: containerId ? `/app/procurement/containers/${containerId}` : '/app/procurement/containers' },
+      { label: 'Procurement', route: '/receive/records' },
+      { label: 'Containers', route: '/receive/records/containers' },
+      { label: containerLabel, route: containerId ? `/receive/records/containers/${containerId}` : '/receive/records/containers' },
       { label: 'Edit Intake Item' },
     ];
   });
@@ -98,10 +98,10 @@ export class RagEditPageComponent implements OnInit {
   onUpdated(): void {
     const rag = this.rag();
     if (rag?.containerId) {
-      this.router.navigate(['/app/procurement/containers', rag.containerId]);
+      this.router.navigate(['/receive/records/containers', rag.containerId]);
       return;
     }
-    this.router.navigate(['/app/procurement/containers']);
+    this.router.navigate(['/receive/records/containers']);
   }
 
   onCancel(): void {

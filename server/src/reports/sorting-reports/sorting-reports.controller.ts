@@ -9,6 +9,9 @@ import { ReportsAuditService } from '../common/reports-audit.service';
 import { toCsv } from '../common/report-utils';
 import { SortingReportsService } from './sorting-reports.service';
 
+import { RequireModule } from '../../common/decorators/require-module.decorator';
+
+@RequireModule('REPORTS')
 @Controller('reports/sorting')
 @UseGuards(TenantGuard, PermissionGuard)
 export class SortingReportsController {
@@ -130,7 +133,7 @@ export class SortingReportsController {
       params: { ...filters },
     });
     const result = await this.service.sortingWaste(tenantId, filters);
-    const csv = toCsv(result.data as any[], ['createdAt', 'poNumber', 'containerNumber', 'ragCode', 'wasteWeightKg']);
+    const csv = toCsv(result.categorized.data as any[], ['createdAt', 'stage', 'wasteCategoryName', 'poNumber', 'containerNumber', 'ragCode', 'amount', 'unitType']);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="sorting-waste.csv"');
     return res.status(200).send(csv);

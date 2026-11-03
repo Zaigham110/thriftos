@@ -10,18 +10,20 @@ export class CreateRagDto {
   @IsNotEmpty()
   ragBaleType: RagBaleType;
 
+  /** Optional: defaults to the tenant's first raw category ("Mixed", created if missing). */
   @IsString()
-  @IsNotEmpty()
-  rawCategoryId: string;
+  @IsOptional()
+  rawCategoryId?: string;
 
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
   weightKg: number;
 
-  @IsNumber()
+  /** Price paid for a loose lot (no container). Container lots take a share of the landed cost. */
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @IsOptional()
-  allocatedCost?: number;
+  purchaseCost?: number;
 
   @IsString()
   @IsOptional()

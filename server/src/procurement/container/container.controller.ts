@@ -24,12 +24,14 @@ import { TenantGuard } from '../../common/guards/tenant.guard';
 import { PermissionGuard } from '../../common/guards/permission.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
+import { Idempotent } from '../../common/idempotency/idempotent.interceptor';
 
 @Controller('procurement/containers')
 @UseGuards(TenantGuard, PermissionGuard)
 export class ContainerController {
   constructor(private readonly containerService: ContainerService) {}
 
+  @Idempotent('CONTAINER_CREATE')
   @Post()
   @RequirePermissions('container.create')
   @HttpCode(HttpStatus.CREATED)
@@ -116,6 +118,7 @@ export class ContainerController {
   }
 
   // Charges endpoints
+  @Idempotent('CONTAINER_CHARGE')
   @Post(':id/charges')
   @RequirePermissions('container.update')
   @HttpCode(HttpStatus.CREATED)

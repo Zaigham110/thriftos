@@ -20,11 +20,11 @@
             {{ getPoTypeLabel(po.poType) }}
           </span>
         </div>
-        <p class="page-subtitle">Procurement Purchase Order details, shipment containers, and loose bales intake.</p>
+        <p class="page-subtitle">Purchase order details and its containers.</p>
       </div>
 
       <div class="header-right-actions">
-        <button class="btn btn-secondary" [routerLink]="['/app/procurement/pos']">
+        <button class="btn btn-secondary" [routerLink]="['/receive/records/pos']">
           <lucide-icon [img]="icons.ArrowLeft" [size]="15"></lucide-icon>
           Back to List
         </button>
@@ -99,90 +99,6 @@
         </div>
       </div>
 
-      <!-- Loose Bales Sub-section -->
-      @if (showLooseBaleSection()) {
-        <app-section>
-          <div class="section-toolbar">
-            <div class="toolbar-title">
-              <span class="section-label">Loose Bales Intake</span>
-              <span class="results-count">{{ incomingBales().length }} bales</span>
-            </div>
-
-            @if (isEditable() && canUpdate()) {
-              <button class="btn btn-primary" [routerLink]="['/app/procurement/pos', po.id, 'bales', 'create']" [disabled]="actionLoading()">
-                <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
-                Add Loose Bale
-              </button>
-            }
-          </div>
-
-          <div class="table-card">
-            @if (incomingBales().length === 0) {
-              <app-empty-state
-                title="No Loose Bales Linked"
-                message="No loose bales have been registered for this purchase order."
-              >
-                @if (isEditable() && canUpdate()) {
-                  <button class="btn btn-primary mt-3" [routerLink]="['/app/procurement/pos', po.id, 'bales', 'create']">
-                    <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
-                    Add Loose Bale
-                  </button>
-                }
-              </app-empty-state>
-            } @else {
-              <div class="table-wrapper">
-                <table class="detail-table">
-                  <thead>
-                    <tr>
-                      <th>Bale Code / Label</th>
-                      <th>Category</th>
-                      <th>Weight (KG)</th>
-                      <th>Cost</th>
-                      <th class="text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (bale of incomingBales(); track bale.id) {
-                      <tr>
-                        <td>
-                          <span class="item-id-badge">
-                            <lucide-icon [img]="icons.Package" [size]="13"></lucide-icon>
-                            {{ bale.baleCode || bale.id.slice(-6).toUpperCase() }}
-                          </span>
-                        </td>
-                        <td>{{ bale.rawCategory?.name || '—' }}</td>
-                        <td><span class="font-mono">{{ bale.weightKg }} KG</span></td>
-                        <td><span class="cost-text">{{ bale.cost | money }}</span></td>
-                        <td class="text-right">
-                          <div class="action-buttons">
-                            <button 
-                              class="action-icon-btn" 
-                              title="View Bale"
-                              [routerLink]="['/app/procurement/loose-bales', bale.id]"
-                            >
-                              <lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon>
-                            </button>
-                            @if (canEditBale(bale) && canUpdate()) {
-                              <button 
-                                class="action-icon-btn" 
-                                title="Edit Bale"
-                                [routerLink]="['/app/procurement/loose-bales', bale.id, 'edit']"
-                              >
-                                <lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>
-                              </button>
-                            }
-                          </div>
-                        </td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </div>
-            }
-          </div>
-        </app-section>
-      }
-
       <!-- Containers Sub-section -->
       @if (showContainerSection()) {
         <app-section>
@@ -193,7 +109,7 @@
             </div>
 
             @if (isEditable() && canUpdate()) {
-              <button class="btn btn-primary" [routerLink]="['/app/procurement/pos', po.id, 'containers', 'create']" [disabled]="actionLoading()">
+              <button class="btn btn-primary" [routerLink]="['/receive/records/pos', po.id, 'containers', 'create']" [disabled]="actionLoading()">
                 <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
                 Add Container
               </button>
@@ -207,7 +123,7 @@
                 message="No ocean freight containers have been added to this purchase order."
               >
                 @if (isEditable() && canUpdate()) {
-                  <button class="btn btn-primary mt-3" [routerLink]="['/app/procurement/pos', po.id, 'containers', 'create']">
+                  <button class="btn btn-primary mt-3" [routerLink]="['/receive/records/pos', po.id, 'containers', 'create']">
                     <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
                     Add Container
                   </button>
@@ -243,7 +159,7 @@
                           <button 
                             class="action-icon-btn" 
                             title="View Container Details"
-                            [routerLink]="['/app/procurement/containers', container.id]"
+                            [routerLink]="['/receive/records/containers', container.id]"
                           >
                             <lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon>
                           </button>

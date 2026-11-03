@@ -60,12 +60,14 @@ export class ContainerChargeCreateComponent implements OnInit {
   readonly actionLoading = signal(false);
 
   readonly chargeTypeOptions = [
-    { value: 'CIF', label: 'CIF (Cost, Insurance, Freight)' },
-    { value: 'FREIGHT', label: 'Freight' },
     { value: 'DUTY', label: 'Duty' },
+    { value: 'CLEARING', label: 'Clearing' },
+    { value: 'FREIGHT', label: 'Freight' },
+    { value: 'TRANSPORT', label: 'Transport' },
+    { value: 'LABOUR', label: 'Labour' },
     { value: 'TAX', label: 'Tax' },
-    { value: 'PORT_HANDLING', label: 'Port Handling' },
-    { value: 'MISC', label: 'Miscellaneous' },
+    { value: 'PORT_HANDLING', label: 'Port handling' },
+    { value: 'MISC', label: 'Other' },
   ];
 
   readonly currencyCode = computed(() => this.container()?.purchaseOrder?.currency || this.tenantService.tenant()?.currencyCode || '—');
@@ -74,9 +76,9 @@ export class ContainerChargeCreateComponent implements OnInit {
     const cont = this.container();
     const label = cont?.containerNumber || 'Container';
     return [
-      { label: 'Procurement', route: '/app/procurement' },
-      { label: 'Containers', route: '/app/procurement/containers' },
-      { label, route: cont ? `/app/procurement/containers/${cont.id}` : '/app/procurement/containers' },
+      { label: 'Procurement', route: '/receive/records' },
+      { label: 'Containers', route: '/receive/records/containers' },
+      { label, route: cont ? `/receive/records/containers/${cont.id}` : '/receive/records/containers' },
       { label: 'Add Charge' },
     ];
   });
@@ -85,7 +87,7 @@ export class ContainerChargeCreateComponent implements OnInit {
 
   ngOnInit(): void {
     this.form = this.fb.group({
-      chargeType: ['CIF', Validators.required],
+      chargeType: ['DUTY', Validators.required],
       description: ['', [Validators.required, Validators.maxLength(200)]],
       amount: [0, [Validators.required, Validators.min(0.01)]],
     });
@@ -135,7 +137,7 @@ export class ContainerChargeCreateComponent implements OnInit {
     this.procurementService.addContainerCharge(container.id, data).subscribe({
       next: () => {
         this.actionLoading.set(false);
-        this.router.navigate(['/app/procurement/containers', container.id]);
+        this.router.navigate(['/receive/records/containers', container.id]);
       },
       error: (err) => {
         this.error.set(err.message || 'Failed to add charge');
@@ -147,9 +149,9 @@ export class ContainerChargeCreateComponent implements OnInit {
   onCancel(): void {
     const container = this.container();
     if (container) {
-      this.router.navigate(['/app/procurement/containers', container.id]);
+      this.router.navigate(['/receive/records/containers', container.id]);
       return;
     }
-    this.router.navigate(['/app/procurement/containers']);
+    this.router.navigate(['/receive/records/containers']);
   }
 }

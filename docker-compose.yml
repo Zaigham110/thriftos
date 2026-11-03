@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -14,7 +12,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U labur -d thriftos"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-thriftos} -d $${POSTGRES_DB:-thriftos}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -35,6 +33,8 @@ services:
       JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-900s}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:4200,http://localhost:3000}
       SEED_DATABASE: ${SEED_DATABASE:-false}
+      # 1 = apply migrations when the container starts. Unset: only a *_test database is migrated.
+      RUN_MIGRATIONS_ON_START: ${RUN_MIGRATIONS_ON_START:-0}
     ports:
       - "3000:3000"
     depends_on:

@@ -114,8 +114,8 @@ export class WarehouseFormComponent {
   readonly submitting = signal(false);
 
   readonly breadcrumbs = signal([
-    { label: 'Administration', route: '/app/admin' },
-    { label: 'Warehouses', route: '/app/admin/warehouses' },
+    { label: 'Administration', route: '/settings/admin' },
+    { label: 'Warehouses', route: '/settings/admin/warehouses' },
     { label: 'New' },
   ]);
 
@@ -131,8 +131,8 @@ export class WarehouseFormComponent {
     if (id) {
       this.isEditMode.set(true);
       this.breadcrumbs.set([
-        { label: 'Administration', route: '/app/admin' },
-        { label: 'Warehouses', route: '/app/admin/warehouses' },
+        { label: 'Administration', route: '/settings/admin' },
+        { label: 'Warehouses', route: '/settings/admin/warehouses' },
         { label: 'Edit' },
       ]);
       this.loadWarehouse(id);
@@ -168,7 +168,7 @@ export class WarehouseFormComponent {
       };
 
       this.adminService.updateWarehouse(this.warehouse()!.id, dto).subscribe({
-        next: () => this.router.navigate(['/app/admin/warehouses']),
+        next: () => this.router.navigate(['/settings/admin/warehouses']),
         error: () => this.submitting.set(false),
       });
       return;
@@ -181,12 +181,12 @@ export class WarehouseFormComponent {
     };
 
     this.adminService.createWarehouse(dto).subscribe({
-      next: () => this.router.navigate(['/app/admin/warehouses']),
+      next: () => this.router.navigate(['/settings/admin/warehouses']),
       error: () => this.submitting.set(false),
     });
   }
 
   onCancel() {
-    this.router.navigate(['/app/admin/warehouses']);
+    this.router.navigate(['/settings/admin/warehouses']);
   }
 }

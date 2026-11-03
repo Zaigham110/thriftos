@@ -1,0 +1,32 @@
+// Unit tests live next to the code (src/**/*.spec.ts); e2e tests run against a separate *_test database.
+const tsJest = { '^.+\\.ts$': ['ts-jest', { tsconfig: 'tsconfig.json', isolatedModules: false }] };
+
+module.exports = {
+  // `npm run test:costing` runs unit + e2e and enforces full coverage of the money rules: src/costing (the rules and
+  // the service that applies them) and the khata rules (src/sales/khata.ts).
+  collectCoverageFrom: ['src/costing/**/*.ts', '!src/costing/**/*.spec.ts', '!src/costing/recompute.ts', 'src/sales/khata.ts'],
+  coverageThreshold: {
+    './src/costing/': { branches: 100, functions: 100, lines: 100, statements: 100 },
+    './src/sales/khata.ts': { branches: 100, functions: 100, lines: 100, statements: 100 },
+  },
+  projects: [
+    {
+      displayName: 'unit',
+      rootDir: '.',
+      testEnvironment: 'node',
+      testMatch: ['<rootDir>/src/**/*.spec.ts'],
+      transform: tsJest,
+      moduleNameMapper: { '^@/(.*)$': '<rootDir>/src/$1' },
+    },
+    {
+      displayName: 'e2e',
+      rootDir: '.',
+      testEnvironment: 'node',
+      testMatch: ['<rootDir>/test/**/*.e2e-spec.ts'],
+      transform: tsJest,
+      moduleNameMapper: { '^@/(.*)$': '<rootDir>/src/$1' },
+      globalSetup: '<rootDir>/test/e2e/global-setup.ts',
+      setupFiles: ['<rootDir>/test/e2e/setup-env.ts'],
+    },
+  ],
+};

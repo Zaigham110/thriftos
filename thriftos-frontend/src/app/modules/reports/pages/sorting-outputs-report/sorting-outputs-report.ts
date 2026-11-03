@@ -23,9 +23,6 @@ import {
   AppPageComponent,
   AppPageHeaderComponent,
   AppPageBodyComponent,
-  AppSectionComponent,
-  AppSectionHeaderComponent,
-  AppSectionBodyComponent,
   AppDataTableComponent,
   AppButtonComponent,
   AppErrorStateComponent,
@@ -47,9 +44,6 @@ import { LucideAngularModule, BarChart3, Scale, RefreshCw, DollarSign, Layers } 
     AppPageComponent,
     AppPageHeaderComponent,
     AppPageBodyComponent,
-    AppSectionComponent,
-    AppSectionHeaderComponent,
-    AppSectionBodyComponent,
     AppDataTableComponent,
     AppButtonComponent,
     AppErrorStateComponent,
@@ -72,7 +66,7 @@ export class SortingOutputsReportComponent implements OnInit {
   };
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Reports', route: '/app/reports' },
+    { label: 'Reports', route: '/reports/detail' },
     { label: 'Sorting & Grading Output Directory' },
   ];
 

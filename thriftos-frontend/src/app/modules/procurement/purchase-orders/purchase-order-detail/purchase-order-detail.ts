@@ -4,7 +4,7 @@
  * 
  * Route: /app/procurement/pos/:id
  * 
- * Detailed overview of a purchase order, linked ocean containers, and loose bales intake.
+ * Detailed overview of a purchase order and its containers.
  */
 
 import { ChangeDetectionStrategy, Component, OnInit, signal, computed, inject } from '@angular/core';
@@ -28,7 +28,7 @@ import {
 } from 'lucide-angular';
 
 import { ProcurementService } from '../../procurement.service';
-import { PurchaseOrder, PurchaseOrderStatus, Container, IncomingBale } from '../../procurement.models';
+import { PurchaseOrder, PurchaseOrderStatus, Container } from '../../procurement.models';
 import { AuthService } from '../../../../core/auth/auth';
 import { MoneyPipe } from '../../../../core/money/money.pipe';
 import {
@@ -74,7 +74,6 @@ export class PurchaseOrderDetailComponent implements OnInit {
 
   readonly purchaseOrder = signal<PurchaseOrder | null>(null);
   readonly containers = signal<Container[]>([]);
-  readonly incomingBales = signal<IncomingBale[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly actionLoading = signal(false);
@@ -107,17 +106,11 @@ export class PurchaseOrderDetailComponent implements OnInit {
     return po.poType === 'CONTAINER' || po.poType === 'HYBRID';
   });
 
-  readonly showLooseBaleSection = computed(() => {
-    const po = this.purchaseOrder();
-    if (!po) return false;
-    return po.poType === 'LOOSE_BALE' || po.poType === 'HYBRID';
-  });
-
   readonly breadcrumbs = computed(() => {
     const poNumber = this.purchaseOrder()?.poNumber || 'Loading…';
     return [
-      { label: 'Procurement', route: '/app/procurement' },
-      { label: 'Purchase Orders', route: '/app/procurement/pos' },
+      { label: 'Procurement', route: '/receive/records' },
+      { label: 'Purchase Orders', route: '/receive/records/pos' },
       { label: poNumber },
     ];
   });
@@ -168,12 +161,6 @@ export class PurchaseOrderDetailComponent implements OnInit {
       });
     }
 
-    if (poType === 'LOOSE_BALE' || poType === 'HYBRID') {
-      this.procurementService.loadIncomingBales({ purchaseOrderId: poId }).subscribe({
-        next: (res) => this.incomingBales.set(res.data || []),
-      });
-    }
-
     this.loading.set(false);
   }
 
@@ -216,8 +203,4 @@ export class PurchaseOrderDetailComponent implements OnInit {
     return type === 'CONTAINER' ? 'Container Procurement' : type === 'HYBRID' ? 'Mixed Procurement' : 'Loose Bale Procurement';
   }
 
-  canEditBale(bale: IncomingBale): boolean {
-    const isSorted = bale.sortSessions?.some((s) => s.status === 'COMPLETED');
-    return !isSorted;
-  }
 }

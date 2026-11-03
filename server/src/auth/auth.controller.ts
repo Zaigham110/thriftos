@@ -3,8 +3,10 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
-import { LoginDto, LoginResponseDto } from './dto/login.dto';
+import { LoginDto, LoginResponseDto, PinLoginDto } from './dto/login.dto';
 import { RefreshTokenDto, RefreshResponseDto } from './dto/refresh.dto';
+import { ChangePasswordDto, ForgotPasswordDto, ResetPasswordDto } from './dto/password.dto';
+import { PasswordResetService } from './password-reset.service';
 import { Public } from '../common/decorators/public.decorator';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 import { PermissionGuard } from '../common/guards/permission.guard';
@@ -24,12 +26,43 @@ import { SkipPermissionCheck } from '../common/decorators/permissions.decorator'
 @Controller('auth')
 @UseGuards(PermissionGuard)
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly passwordReset: PasswordResetService,
+  ) {}
+
+  @Post('password')
+  @SkipPermissionCheck()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Throttle({ short: { limit: () => Number(process.env.THROTTLE_LOGIN_LIMIT || 5), ttl: 60000 } })
+  @ApiOperation({ summary: 'Change my password', description: 'Ends every other session.' })
+  async changePassword(@CurrentUser() user: CurrentUserData, @Body() dto: ChangePasswordDto, @Req() req: Request): Promise<void> {
+    await this.passwordReset.change(user.userId, dto.currentPassword, dto.newPassword, req.ip);
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @Throttle({ short: { limit: () => Number(process.env.THROTTLE_LOGIN_LIMIT || 3), ttl: 60000 } })
+  @ApiOperation({ summary: 'Email a link to set a new password', description: 'Always 202, whether or not the email has an account.' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request): Promise<void> {
+    await this.passwordReset.requestReset(dto.email, dto.lang, req.ip);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Throttle({ short: { limit: () => Number(process.env.THROTTLE_LOGIN_LIMIT || 5), ttl: 60000 } })
+  @ApiOperation({ summary: 'Set a new password with the emailed link' })
+  async resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request): Promise<void> {
+    await this.passwordReset.reset(dto.token, dto.newPassword, req.ip);
+  }
 
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ short: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
+  // 5 attempts per minute (THROTTLE_LOGIN_LIMIT raises it for the browser tests only).
+  @Throttle({ short: { limit: () => Number(process.env.THROTTLE_LOGIN_LIMIT || 5), ttl: 60000 } })
   @ApiOperation({ summary: 'User login', description: 'Authenticate with email and password' })
   @ApiResponse({ status: 200, description: 'Login successful, returns JWT tokens' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
@@ -38,6 +71,15 @@ export class AuthController {
     const ipAddress = req.ip || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'];
     return this.authService.login(dto, ipAddress, userAgent);
+  }
+
+  /** Munshi sign-in with phone + PIN; 5 wrong PINs lock it for 15 minutes. */
+  @Public()
+  @Post('login/pin')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ short: { limit: () => Number(process.env.THROTTLE_LOGIN_LIMIT || 10), ttl: 60000 } })
+  async loginWithPin(@Body() dto: PinLoginDto, @Req() req: Request): Promise<LoginResponseDto> {
+    return this.authService.loginWithPin(dto, req.ip || req.socket.remoteAddress, req.headers['user-agent']);
   }
 
   @Post('logout')

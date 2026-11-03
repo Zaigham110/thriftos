@@ -9,6 +9,9 @@ import { ReportsAuditService } from '../common/reports-audit.service';
 import { toCsv } from '../common/report-utils';
 import { RepackReportsService } from './repack-reports.service';
 
+import { RequireModule } from '../../common/decorators/require-module.decorator';
+
+@RequireModule('REPORTS')
 @Controller('reports/repack')
 @UseGuards(TenantGuard, PermissionGuard)
 export class RepackReportsController {

@@ -8,6 +8,9 @@ import { ReportFiltersDto } from '../common/dto/report-filters.dto';
 import { ReportsAuditService } from '../common/reports-audit.service';
 import { DashboardReportsService } from './dashboard-reports.service';
 
+import { RequireModule } from '../../common/decorators/require-module.decorator';
+
+@RequireModule('REPORTS')
 @Controller('reports/dashboard')
 @UseGuards(TenantGuard, PermissionGuard)
 export class DashboardReportsController {

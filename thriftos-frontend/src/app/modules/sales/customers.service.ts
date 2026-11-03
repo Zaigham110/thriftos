@@ -12,8 +12,9 @@ export class CustomersService {
 
   constructor(private readonly http: HttpClient) {}
 
-  list(filters?: { isActive?: boolean }): Observable<Customer[]> {
+  list(filters?: { isActive?: boolean; search?: string }): Observable<Customer[]> {
     let params = new HttpParams();
+    if (filters?.search) params = params.set('search', filters.search);
     if (filters?.isActive === true) params = params.set('isActive', 'true');
     if (filters?.isActive === false) params = params.set('isActive', 'false');
 
@@ -24,35 +25,20 @@ export class CustomersService {
     return this.http.get<Customer>(`${this.API}/${id}`);
   }
 
-  create(dto: {
-    name: string;
-    companyName: string;
-    billingAddress: string;
-    shippingAddress: string;
-    contactEmail: string;
-    contactPhone: string;
-    taxId?: string | null;
-    creditLimit?: number | null;
-    paymentTerms?: string | null;
-  }): Observable<Customer> {
+  create(dto: CustomerInput): Observable<Customer> {
     return this.http.post<Customer>(this.API, dto);
   }
 
-  update(
-    id: string,
-    dto: Partial<{
-      name: string;
-      companyName: string;
-      billingAddress: string;
-      shippingAddress: string;
-      contactEmail: string;
-      contactPhone: string;
-      taxId: string | null;
-      creditLimit: number | null;
-      paymentTerms: string | null;
-      isActive: boolean;
-    }>,
-  ): Observable<Customer> {
+  update(id: string, dto: Partial<CustomerInput & { isActive: boolean }>): Observable<Customer> {
     return this.http.patch<Customer>(`${this.API}/${id}`, dto);
   }
+}
+
+/** Name and WhatsApp number are required. */
+export interface CustomerInput {
+  name: string;
+  phone: string;
+  city?: string;
+  openingBalance?: number;
+  notes?: string;
 }

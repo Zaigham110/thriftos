@@ -4,12 +4,13 @@
  * Isolated SuperAdmin shell (no tenant operational nav).
  */
 
-import { Component, computed } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 
 import { AppShellLayoutComponent, type SidebarNavConfig } from '../../shared/ui';
 import { AuthService } from '../../core/auth';
+import { SystemModulesService } from '../../core/guards/system-module.guard';
 
 @Component({
   selector: 'app-admin-shell',
@@ -20,7 +21,7 @@ import { AuthService } from '../../core/auth';
       [tenantName]="tenantName()"
       [userName]="userName()"
       [showSwitchTenant]="false"
-      [nav]="nav"
+      [nav]="nav()"
       (profile)="onProfile()"
       (signOut)="onSignOut()"
     />
@@ -32,7 +33,9 @@ export class AdminShellComponent {
   protected readonly tenantName = computed(() => 'ThriftOS Admin');
   protected readonly userName = computed(() => this.user()?.name || this.user()?.email || 'Super Admin');
 
-  protected readonly nav: SidebarNavConfig = {
+  private readonly systemModules = inject(SystemModulesService);
+
+  private readonly fullNav: SidebarNavConfig = {
     productName: 'ThriftOS',
     productSubtitle: 'SuperAdmin Console',
     logoUrl: '/os_logo.png',
@@ -68,10 +71,19 @@ export class AdminShellComponent {
     ],
   };
 
+  /** Plans and billing are not part of v1: shown only when the SYSTEM business has BILLING turned on. */
+  protected readonly nav = computed<SidebarNavConfig>(() =>
+    this.systemModules.modules().includes('BILLING')
+      ? this.fullNav
+      : { ...this.fullNav, groups: this.fullNav.groups.filter((g) => g.id !== 'commercial') },
+  );
+
   constructor(
     private readonly authService: AuthService,
     private readonly router: Router,
-  ) {}
+  ) {
+    this.systemModules.load().subscribe();
+  }
 
   onProfile(): void {}
 

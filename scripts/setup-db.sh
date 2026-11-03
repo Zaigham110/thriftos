@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# First-time setup of a local database. It pushes the schema and seeds, so it is refused for a
+# database whose name does not end in _test unless you run it as: ALLOW_DEV_MIGRATE=1 npm run db:setup
+
 # Exit on error
 set -e
 

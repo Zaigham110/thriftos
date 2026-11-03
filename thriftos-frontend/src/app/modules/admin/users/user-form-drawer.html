@@ -61,20 +61,6 @@
       }
     </div>
 
-    <!-- Operational Interface Mode Field -->
-    <div class="form-group">
-      <label for="preferredOperationMode" class="form-label">Preferred Interface Mode</label>
-      <select
-        id="preferredOperationMode"
-        formControlName="preferredOperationMode"
-        class="form-select"
-      >
-        @for (opt of modeOptions; track opt.value) {
-          <option [value]="opt.value">{{ opt.label }}</option>
-        }
-      </select>
-    </div>
-
     <!-- Roles Section -->
     <div class="form-group">
       <label class="form-label">Roles</label>

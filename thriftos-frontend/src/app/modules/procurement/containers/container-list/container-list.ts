@@ -86,8 +86,8 @@ export class ContainerListComponent implements OnInit {
   };
 
   readonly breadcrumbs: BreadcrumbItem[] = [
-    { label: 'Procurement', route: '/app/procurement' },
-    { label: 'Containers', route: '/app/procurement/containers' },
+    { label: 'Procurement', route: '/receive/records' },
+    { label: 'Containers', route: '/receive/records/containers' },
   ];
 
   // KPI Metrics computed from current container dataset
@@ -134,7 +134,7 @@ export class ContainerListComponent implements OnInit {
   }
 
   onRowClick(container: Container): void {
-    this.router.navigate(['/app/procurement/containers', container.id]);
+    this.router.navigate(['/receive/records/containers', container.id]);
   }
 
   getStatusLabel(status: ContainerStatus): string {

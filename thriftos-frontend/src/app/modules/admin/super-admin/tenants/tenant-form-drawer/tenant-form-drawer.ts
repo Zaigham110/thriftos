@@ -40,11 +40,6 @@ const STATUSES: { value: TenantStatus; label: string }[] = [
   { value: 'INACTIVE', label: 'Inactive' },
 ];
 
-const OPERATION_MODES = [
-  { value: 'FULL_ERP', label: 'Full Desktop ERP Mode' },
-  { value: 'SIMPLIFIED_MOBILE', label: 'Simplified Mobile Mode' },
-  { value: 'USER_CHOICE', label: 'User Choice (Allow Switcher)' },
-];
 
 @Component({
   selector: 'app-tenant-form-drawer',
@@ -72,7 +67,6 @@ export class TenantFormDrawerComponent implements OnInit {
   protected readonly currencies = CURRENCIES;
   protected readonly locales = LOCALES;
   protected readonly statuses = STATUSES;
-  protected readonly operationModes = OPERATION_MODES;
 
   protected readonly form: FormGroup;
   protected readonly isLoading = signal(false);
@@ -90,7 +84,6 @@ export class TenantFormDrawerComponent implements OnInit {
       currencyCode: ['USD', Validators.required],
       locale: ['en-US', Validators.required],
       status: ['ACTIVE', Validators.required],
-      operationMode: ['FULL_ERP', Validators.required],
       adminEmail: ['', [Validators.required, Validators.email]],
       adminName: ['', [Validators.required, Validators.minLength(2)]],
       adminPassword: ['', [Validators.required, Validators.minLength(8)]],
@@ -107,7 +100,6 @@ export class TenantFormDrawerComponent implements OnInit {
         currencyCode: tenant.currencyCode,
         locale: tenant.locale,
         status: tenant.status,
-        operationMode: tenant.operationMode || 'FULL_ERP',
       });
       this.form.get('companyCode')?.disable();
       this.form.get('adminEmail')?.clearValidators();
@@ -146,7 +138,6 @@ export class TenantFormDrawerComponent implements OnInit {
       companyCode: formValue.companyCode,
       currencyCode: formValue.currencyCode,
       locale: formValue.locale,
-      operationMode: formValue.operationMode,
       adminEmail: formValue.adminEmail,
       adminName: formValue.adminName,
       adminPassword: formValue.adminPassword,
@@ -174,7 +165,6 @@ export class TenantFormDrawerComponent implements OnInit {
       currencyCode: formValue.currencyCode,
       locale: formValue.locale,
       status: formValue.status,
-      operationMode: formValue.operationMode,
     };
 
     this.tenantsService.updateTenant(tenant.id, request).subscribe({

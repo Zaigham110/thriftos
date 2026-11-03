@@ -20,8 +20,13 @@
 // 5. Shared component styles
 @use 'components';
 
-// Inter font import from Google Fonts
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+// 6. Floor screens (tiles, keypad, bottom action bar)
+@use 'floor';
+
+// 7. Workspace tokens (laptop ERP workspace; light/dark, density) — after floor so dark mode can remap it
+@use 'workspace';
+
+// Fonts are bundled (angular.json styles: Inter, Noto Naskh Arabic, Noto Nastaliq Urdu) so they work offline.
 
 .header-right-actions {
     display: inline-flex;
@@ -34,3 +39,15 @@
         justify-content: flex-start;
     }
 }
+// ---- Language -------------------------------------------------------------------------------
+// One font stack for both languages: Inter draws Latin letters and digits (so numbers are always
+// Western digits), Noto Naskh Arabic draws Urdu body text. Headings in Urdu use Noto Nastaliq Urdu.
+:root {
+  --font-family: 'Inter', 'Noto Naskh Arabic', system-ui, sans-serif;
+  --font-urdu-heading: 'Inter', 'Noto Nastaliq Urdu', 'Noto Naskh Arabic', serif;
+}
+body { font-family: var(--font-family); }
+html[lang='ur'] body { line-height: 1.7; }
+html[lang='ur'] :is(h1, h2, h3) { font-family: var(--font-urdu-heading); line-height: 2; font-weight: 700; }
+// Phone numbers, codes and amounts stay left-to-right inside Urdu text.
+html[dir='rtl'] :is(input[type='tel'], input[inputmode='decimal'], input[inputmode='numeric'], .ltr) { direction: ltr; text-align: right; }

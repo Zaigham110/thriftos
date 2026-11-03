@@ -1,0 +1,131 @@
+name: Release
+
+# The only workflow. It runs when you push a tag v* (nothing runs on ordinary pushes):
+#   1. test     server tests on a throwaway Postgres; frontend typecheck, dictionaries, build without warnings
+#   2. images   ARM64 images (the server is a t4g, Graviton) on GitHub's ARM runners → GHCR
+#   3. release  publishes the GitHub release; the server deploys it by itself within ~2 minutes
+#               (deploy/auto-deploy.sh → deploy/deploy.sh: backup → pull → start → health → rollback)
+#   4. live     waits until the public address reports the new version
+# A tag with a dash (v1.2.0-rc.1) builds images only and is never deployed.
+# Roll back: mark an older release as "Latest" on GitHub.
+# Browser tests are run on the Mac before tagging: cd thriftos-frontend && npm run e2e
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io/zaigham110
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: thriftos
+          POSTGRES_PASSWORD: thriftos
+          POSTGRES_DB: thriftos_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U thriftos -d thriftos_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://thriftos:thriftos@localhost:5432/thriftos_test?schema=public
+      TEST_DATABASE_URL: postgresql://thriftos:thriftos@localhost:5432/thriftos_test?schema=public
+      JWT_SECRET: ci-only-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+            thriftos-frontend/package-lock.json
+      - run: npm ci
+      - name: Server tests
+        working-directory: server
+        run: |
+          npm ci
+          npm run prisma:generate
+          npm run typecheck
+          npm test
+      - name: Frontend checks and build (no warnings)
+        working-directory: thriftos-frontend
+        run: |
+          npm ci
+          npm run i18n:check
+          npx tsc --noEmit -p tsconfig.app.json
+          npm run build 2>&1 | tee build.log
+          if grep -q 'WARNING' build.log; then echo 'The Angular build has warnings (see above).'; exit 1; fi
+
+  images:
+    needs: test
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - name: server
+            dockerfile: server/Dockerfile
+          - name: web
+            dockerfile: thriftos-frontend/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/arm64
+          push: true
+          build-args: |
+            BASE_HREF=/thriftos/
+            APP_VERSION=${{ github.ref_name }}
+          tags: ${{ env.REGISTRY }}/thriftos-${{ matrix.name }}:${{ github.ref_name }}
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  release:
+    needs: images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish the release (the server picks it up)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [[ "$TAG" == *-* ]]; then flag=--prerelease; else flag=--latest; fi
+          gh release create "$TAG" --repo "$REPO" --generate-notes "$flag"
+
+  live:
+    needs: release
+    if: vars.APP_URL != '' && !contains(github.ref_name, '-')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait until ${{ vars.APP_URL }}/thriftos runs ${{ github.ref_name }}
+        run: |
+          for _ in $(seq 1 60); do
+            v=$(curl -fsS "${{ vars.APP_URL }}/thriftos/version.json?t=$(date +%s)" | jq -r .version || true)
+            # The app's version can show while the API is still restarting (a few seconds of 502), so retry health.
+            [ "$v" = "${{ github.ref_name }}" ] && { echo "Live: $v"; curl -fsS --retry 10 --retry-delay 6 --retry-all-errors "${{ vars.APP_URL }}/thriftos/api/health"; exit 0; }
+            echo "running: ${v:-?}"; sleep 15
+          done
+          echo "Not live after 15 minutes: check 'journalctl -u thriftos-deploy' on the server."; exit 1

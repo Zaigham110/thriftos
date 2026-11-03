@@ -21,6 +21,9 @@ import { PermissionGuard } from '../../common/guards/permission.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
 
+import { RequireModule } from '../../common/decorators/require-module.decorator';
+
+@RequireModule('PURCHASE_ORDERS')
 @Controller('procurement/purchase-orders')
 @UseGuards(TenantGuard, PermissionGuard)
 export class PurchaseOrderController {

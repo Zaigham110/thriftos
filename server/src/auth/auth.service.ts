@@ -1,14 +1,19 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, HttpException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { PasswordService } from './password.service';
 import { AuditService } from '../audit/audit.service';
-import { LoginDto, LoginResponseDto } from './dto/login.dto';
+import { LoginDto, LoginResponseDto, PinLoginDto } from './dto/login.dto';
+import { toE164 } from '../common/phone/phone';
 import { RefreshResponseDto } from './dto/refresh.dto';
 import { JwtPayload } from './jwt.strategy';
 import { randomBytes } from 'crypto';
 import { CurrentUserData } from '../common/decorators/current-user.decorator';
+
+/** Wrong PINs in a row before the PIN locks, and for how long. */
+export const MAX_PIN_ATTEMPTS = 5;
+export const PIN_LOCK_MINUTES = 15;
 
 @Injectable()
 export class AuthService {
@@ -62,7 +67,7 @@ export class AuthService {
       throw new UnauthorizedException('Account is inactive');
     }
 
-    const isPasswordValid = await this.passwordService.compare(dto.password, user.passwordHash);
+    const isPasswordValid = !!user.passwordHash && (await this.passwordService.compare(dto.password, user.passwordHash));
     if (!isPasswordValid) {
       await this.auditService.log({
         userId: user.id,
@@ -75,6 +80,59 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
+    return this.signIn(user, 'AUTH_LOGIN_SUCCESS', ipAddress, userAgent);
+  }
+
+  /**
+   * Munshi sign-in with phone + PIN. Five wrong PINs in a row lock the PIN for 15 minutes (the owner can
+   * unlock it sooner). The answer never says whether a phone is registered.
+   */
+  async loginWithPin(dto: PinLoginDto, ipAddress?: string, userAgent?: string): Promise<LoginResponseDto> {
+    const phone = toE164(dto.phone);
+    const user = phone
+      ? await this.prisma.user.findUnique({ where: { phone }, include: { tenant: true, userRoles: { include: { role: true } } } })
+      : null;
+    const wrong = (triesLeft?: number) =>
+      new UnauthorizedException({ message: 'Phone or PIN is wrong', code: 'PIN_WRONG', ...(triesLeft !== undefined && { triesLeft }) });
+
+    if (!user || !user.pinHash || !user.isActive) {
+      await this.auditService.log({ action: 'AUTH_PIN_FAILED', metadataJson: { phone: dto.phone, reason: 'Unknown phone or no PIN' }, ipAddress, userAgent });
+      throw wrong();
+    }
+    const now = new Date();
+    if (user.pinLockedUntil && user.pinLockedUntil > now) throw this.locked(user.pinLockedUntil, now);
+
+    if (!(await this.passwordService.compare(dto.pin, user.pinHash))) {
+      // Counted in the database, so attempts at the same moment are all counted.
+      const counted = await this.prisma.user.update({ where: { id: user.id }, data: { failedPinAttempts: { increment: 1 } }, select: { failedPinAttempts: true } });
+      await this.auditService.log({ userId: user.id, tenantId: user.tenantId, action: 'AUTH_PIN_FAILED', metadataJson: { attempts: counted.failedPinAttempts }, ipAddress, userAgent });
+      if (counted.failedPinAttempts >= MAX_PIN_ATTEMPTS) {
+        const until = new Date(now.getTime() + PIN_LOCK_MINUTES * 60_000);
+        await this.prisma.user.update({ where: { id: user.id }, data: { pinLockedUntil: until, failedPinAttempts: 0 } });
+        await this.auditService.log({ userId: user.id, tenantId: user.tenantId, action: 'AUTH_PIN_LOCKED', metadataJson: { until: until.toISOString() }, ipAddress, userAgent });
+        throw this.locked(until, now);
+      }
+      throw wrong(MAX_PIN_ATTEMPTS - counted.failedPinAttempts);
+    }
+
+    if (user.failedPinAttempts || user.pinLockedUntil) {
+      await this.prisma.user.update({ where: { id: user.id }, data: { failedPinAttempts: 0, pinLockedUntil: null } });
+    }
+    return this.signIn(user, 'AUTH_PIN_SUCCESS', ipAddress, userAgent);
+  }
+
+  private locked(until: Date, now: Date): HttpException {
+    const minutes = Math.max(1, Math.ceil((until.getTime() - now.getTime()) / 60_000));
+    return new HttpException({ message: `PIN locked. Try again in ${minutes} minutes or ask the owner.`, code: 'PIN_LOCKED', minutes, lockedUntil: until.toISOString() }, 423);
+  }
+
+  /** Tokens and the user view after a successful sign-in (password or PIN). */
+  private async signIn(
+    user: { id: string; email: string | null; name: string; phone?: string | null; tenantId: string; tenant: { id: string; name: string } | null },
+    action: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<LoginResponseDto> {
     // Check if user is Super Admin (belongs to SYSTEM tenant)
     const superAdminConfig = await this.prisma.globalConfig.findUnique({
       where: { key: 'system.superAdminTenantId' },
@@ -94,7 +152,7 @@ export class AuthService {
     await this.auditService.log({
       userId: user.id,
       tenantId: user.tenantId,
-      action: 'AUTH_LOGIN_SUCCESS',
+      action,
       ipAddress,
       userAgent,
     });
@@ -104,6 +162,7 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
+        phone: user.phone ?? null,
         name: user.name,
         tenantId: isSuperAdmin ? null : user.tenantId,
         isSuperAdmin,
@@ -294,7 +353,7 @@ export class AuthService {
 
   private async generateTokens(
     userId: string,
-    email: string,
+    email: string | null,
     tenantId: string | null,
     isSuperAdmin: boolean,
   ): Promise<{ accessToken: string; refreshToken: string; expiresIn: number }> {

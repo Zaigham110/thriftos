@@ -1,9 +1,11 @@
 import { Injectable, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../audit/audit.service';
-import { CostAllocationService } from '../cost-allocation/cost-allocation.service';
-import { CreateRagDto } from './dto/create-rag.dto';
+import { CostingService } from '../../costing/costing.service';
+import { Prisma } from '@prisma/client';
+import { CreateRagDto, UpdateRagDto } from './dto';
 import { ContainerStatus, RagStatus, RagSourceType, SequenceScope } from '@prisma/client';
+import { defaultRawCategoryId } from '../shared/default-raw-category';
 import { TenantSequenceService } from '../shared/tenant-sequence.service';
 
 @Injectable()
@@ -11,44 +13,9 @@ export class RagService {
   constructor(
     private prisma: PrismaService,
     private auditService: AuditService,
-    private costAllocationService: CostAllocationService,
+    private costing: CostingService,
     private tenantSequenceService: TenantSequenceService,
   ) {}
-
-  async createIdempotent(tenantId: string, dto: CreateRagDto, userId: string, idempotencyKey?: string) {
-    const key = idempotencyKey?.trim().slice(0, 128);
-    if (!key) return this.create(tenantId, dto, userId);
-
-    const scope = 'RAG_INTAKE';
-    let requestId: string;
-    try {
-      const request = await this.prisma.idempotencyKey.create({
-        data: { tenantId, scope, key },
-        select: { id: true },
-      });
-      requestId = request.id;
-    } catch (error: any) {
-      if (error?.code !== 'P2002') throw error;
-      const existing = await this.prisma.idempotencyKey.findFirst({
-        where: { tenantId, scope, key },
-        select: { responseJson: true },
-      });
-      if (existing?.responseJson) return existing.responseJson;
-      throw new ConflictException('This intake request is already being processed. Refresh before retrying.');
-    }
-
-    try {
-      const result = await this.create(tenantId, dto, userId);
-      await this.prisma.idempotencyKey.update({
-        where: { id: requestId },
-        data: { responseJson: JSON.parse(JSON.stringify(result)) },
-      });
-      return result;
-    } catch (error) {
-      await this.prisma.idempotencyKey.delete({ where: { id: requestId } }).catch(() => undefined);
-      throw error;
-    }
-  }
 
   async create(tenantId: string, dto: CreateRagDto, userId: string) {
     let container: any = null;
@@ -56,10 +23,7 @@ export class RagService {
     if (dto.containerId) {
       // Validate container if provided
       container = await this.prisma.container.findFirst({
-        where: {
-          id: dto.containerId,
-          purchaseOrder: { tenantId },
-        },
+        where: { id: dto.containerId, tenantId },
         include: {
           purchaseOrder: {
             select: { id: true, poNumber: true },
@@ -79,9 +43,10 @@ export class RagService {
       }
     }
 
-    // Validate raw category exists and is active
+    // Validate raw category exists and is active (none picked: the tenant's default)
+    const rawCategoryId = dto.rawCategoryId ?? (await defaultRawCategoryId(this.prisma, tenantId));
     const rawCategory = await this.prisma.rawCategory.findFirst({
-      where: { id: dto.rawCategoryId, tenantId, isActive: true },
+      where: { id: rawCategoryId, tenantId, isActive: true },
     });
 
     if (!rawCategory) {
@@ -90,19 +55,14 @@ export class RagService {
 
     if (container) {
       // Validate total weight doesn't exceed container net weight
-      const currentTotalWeight = container.rags.reduce((sum: number, rag: any) => sum + Number(rag.weightKg), 0);
-      const newTotalWeight = Number(currentTotalWeight) + Number(dto.weightKg);
-      const netWeight = Number(container.netWeight);
-
-      if (!Number.isFinite(netWeight) || netWeight <= 0) {
+      const currentTotalWeight = container.rags.reduce(
+        (sum: Prisma.Decimal, rag: { weightKg: Prisma.Decimal }) => sum.add(rag.weightKg),
+        new Prisma.Decimal(0),
+      );
+      const available = new Prisma.Decimal(container.netWeight).sub(currentTotalWeight);
+      if (new Prisma.Decimal(dto.weightKg).greaterThan(available)) {
         throw new BadRequestException(
-          'Container net weight is missing or invalid. Set gross/tare weights to compute net weight before adding rags.',
-        );
-      }
-
-      if (newTotalWeight > netWeight) {
-        throw new BadRequestException(
-          `Total weight (${newTotalWeight} kg) would exceed container net weight (${netWeight} kg). Available: ${netWeight - currentTotalWeight} kg`,
+          `Weight is more than the container has left (${available.toFixed(2)} kg). Enter ${available.toFixed(2)} or less.`,
         );
       }
     }
@@ -123,87 +83,43 @@ export class RagService {
       },
     );
 
-    let createdPo: any = null;
+    let vendorId = dto.vendorId ?? container?.vendorId ?? null;
+    if (dto.vendorId) {
+      const vendor = await this.prisma.vendor.findFirst({ where: { id: dto.vendorId, tenantId }, select: { id: true } });
+      if (!vendor) throw new BadRequestException('Supplier not found');
+      vendorId = vendor.id;
+    }
+    const originCountry = container?.originCountry
+      ?? (vendorId ? (await this.prisma.vendor.findUnique({ where: { id: vendorId }, select: { originCountry: true } }))?.originCountry : null)
+      ?? null;
+    const purchaseCost = container ? null : new Prisma.Decimal(dto.purchaseCost ?? 0);
 
-    if (!dto.containerId) {
-      // Automatically generate a Purchase Order for standalone loose bale intake
-      const { code: poNumber } = await this.tenantSequenceService.generateCode(
-        tenantId,
-        SequenceScope.PURCHASE_ORDER,
-        { prefix: 'PO', padSize: 3 },
-        async (candidate) => {
-          const collision = await this.prisma.purchaseOrder.findFirst({
-            where: { tenantId, poNumber: candidate },
-            select: { id: true },
-          });
-          return !collision;
-        },
-      );
-
-      createdPo = await this.prisma.purchaseOrder.create({
+    const rag = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.rag.create({
         data: {
           tenantId,
-          vendorId: dto.vendorId || null,
-          poNumber,
-          poType: 'LOOSE_BALE',
-          currency: 'USD',
-          totalCost: dto.allocatedCost ? Number(dto.allocatedCost) : 0,
-          status: 'RECEIVED',
-        },
-      });
-
-      // Create linked IncomingBale record
-      await this.prisma.incomingBale.create({
-        data: {
-          tenantId,
-          rawCategoryId: dto.rawCategoryId,
-          purchaseOrderId: createdPo.id,
-          vendorId: dto.vendorId || null,
-          baleCode: ragCode,
+          containerId: container?.id ?? null,
+          sourceType: container ? RagSourceType.CONTAINER : RagSourceType.LOOSE_BALE,
+          ragCode,
+          ragBaleType: dto.ragBaleType,
+          rawCategoryId,
+          vendorId,
+          originCountry,
           weightKg: dto.weightKg,
-          cost: dto.allocatedCost ? Number(dto.allocatedCost) : 0,
+          purchaseCost,
+          allocatedCost: purchaseCost ?? 0,
+          notes: dto.notes,
         },
       });
-    }
-
-    const rag = await this.prisma.rag.create({
-      data: {
-        tenantId,
-        containerId: dto.containerId || null,
-        sourceType: container ? RagSourceType.CONTAINER : RagSourceType.LOOSE_BALE,
-        ragCode,
-        ragBaleType: dto.ragBaleType,
-        rawCategoryId: dto.rawCategoryId,
-        weightKg: dto.weightKg,
-        allocatedCost: dto.allocatedCost ? Number(dto.allocatedCost) : 0,
-        notes: dto.notes || (createdPo ? `Auto-created from Mobile PO ${createdPo.poNumber}` : undefined),
-      },
-      include: {
-        container: {
-          select: { containerNumber: true },
+      // A container lot takes its share of the landed cost; the other lots are re-split too.
+      if (container) await this.costing.recalculateContainerTx(tx, tenantId, container.id, userId);
+      return tx.rag.findUniqueOrThrow({
+        where: { id: created.id },
+        include: {
+          container: { select: { containerNumber: true } },
+          rawCategory: { select: { id: true, name: true, rawType: true } },
         },
-        rawCategory: {
-          select: { id: true, name: true, rawType: true },
-        },
-      },
-    });
-
-    // Recalculate cost allocation if container is associated
-    if (dto.containerId) {
-      await this.costAllocationService.allocateContainerCosts(dto.containerId, tenantId, userId);
-    }
-
-    // Reload to get updated cost
-    const updatedRag = await this.prisma.rag.findUnique({
-      where: { id: rag.id },
-      include: {
-        container: {
-          select: { containerNumber: true },
-        },
-        rawCategory: {
-          select: { id: true, name: true, rawType: true },
-        },
-      },
+      });
     });
 
     await this.auditService.log({
@@ -214,17 +130,12 @@ export class RagService {
       entityId: rag.id,
       metadataJson: {
         ragCode: rag.ragCode,
-        poNumber: createdPo?.poNumber || null,
         containerNumber: container?.containerNumber || null,
         weightKg: dto.weightKg,
       },
     });
 
-    return {
-      ...(updatedRag || rag),
-      autoPoNumber: createdPo?.poNumber || null,
-      autoPoId: createdPo?.id || null,
-    };
+    return rag;
   }
 
   /**
@@ -318,6 +229,67 @@ export class RagService {
     return rag;
   }
 
+  /** Corrects a lot and re-runs costs for everything made from it, in one transaction. */
+  async update(tenantId: string, id: string, dto: UpdateRagDto, userId: string) {
+    const rag = await this.findOne(tenantId, id);
+    const reshapes = dto.weightKg !== undefined || dto.rawCategoryId !== undefined;
+    if (reshapes && rag.status !== RagStatus.NOT_STARTED) {
+      throw new ConflictException('Weight and type can only change before the lot is sorted');
+    }
+    if (dto.purchaseCost !== undefined && rag.containerId) {
+      throw new BadRequestException('A container lot takes its cost from the container. Change the container purchase cost or charges.');
+    }
+    if (dto.rawCategoryId) {
+      const raw = await this.prisma.rawCategory.findFirst({ where: { id: dto.rawCategoryId, tenantId, isActive: true } });
+      if (!raw) throw new BadRequestException('Raw category not found or inactive');
+    }
+    if (dto.weightKg !== undefined && rag.containerId) {
+      const others = await this.prisma.rag.aggregate({
+        where: { containerId: rag.containerId, NOT: { id: rag.id } },
+        _sum: { weightKg: true },
+      });
+      const container = await this.prisma.container.findUniqueOrThrow({ where: { id: rag.containerId }, select: { netWeight: true } });
+      const available = container.netWeight.sub(others._sum.weightKg ?? 0);
+      if (new Prisma.Decimal(dto.weightKg).greaterThan(available)) {
+        throw new BadRequestException(
+          `Weight is more than the container has left (${available.toFixed(2)} kg). Enter ${available.toFixed(2)} or less.`,
+        );
+      }
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.rag.update({
+        where: { id },
+        data: {
+          ...(dto.rawCategoryId !== undefined && { rawCategoryId: dto.rawCategoryId }),
+          ...(dto.weightKg !== undefined && { weightKg: new Prisma.Decimal(dto.weightKg) }),
+          ...(dto.purchaseCost !== undefined && { purchaseCost: new Prisma.Decimal(dto.purchaseCost) }),
+          ...(dto.notes !== undefined && { notes: dto.notes }),
+        },
+      });
+      if (dto.weightKg !== undefined || dto.purchaseCost !== undefined) {
+        await this.costing.recalculateLotChainTx(tx, tenantId, id, userId);
+      }
+      return tx.rag.findUniqueOrThrow({
+        where: { id },
+        include: {
+          container: { select: { containerNumber: true } },
+          rawCategory: { select: { id: true, name: true, rawType: true } },
+        },
+      });
+    });
+
+    await this.auditService.log({
+      userId,
+      tenantId,
+      action: 'RAG_UPDATED',
+      entityType: 'Rag',
+      entityId: id,
+      metadataJson: { ragCode: rag.ragCode, changes: { ...dto } },
+    });
+    return updated;
+  }
+
   async delete(tenantId: string, id: string, userId: string) {
     const rag = await this.findOne(tenantId, id);
 
@@ -333,12 +305,11 @@ export class RagService {
 
     const container = rag.container;
 
-    await this.prisma.rag.delete({
-      where: { id },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.rag.delete({ where: { id } });
+      // The remaining lots share the container's landed cost again.
+      if (container) await this.costing.recalculateContainerTx(tx, tenantId, container.id, userId);
     });
-
-    // Recalculate cost allocation for remaining rags
-    await this.costAllocationService.allocateContainerCosts(container.id, userId);
 
     await this.auditService.log({
       userId,
@@ -348,7 +319,7 @@ export class RagService {
       entityId: id,
       metadataJson: {
         ragCode: rag.ragCode,
-        containerNumber: container.containerNumber,
+        containerNumber: container?.containerNumber ?? null,
       },
     });
 

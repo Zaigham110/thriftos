@@ -1,674 +1,346 @@
-import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import {
-  InventoryStatus,
-  MeasurementType,
-  MovementType,
-  Prisma,
-  SaleStatus,
-  SaleType,
-  SequenceScope,
-} from '@prisma/client';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { InventoryStatus, MovementType, PaymentMode, Prisma, SaleStatus, SaleType, SequenceScope } from '@prisma/client';
+import { randomBytes } from 'crypto';
+import { IdempotencyService } from '../common/idempotency/idempotency.service';
+import { money, saleProfit, sum, takeCost } from '../costing/costing';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantSequenceService } from '../procurement/shared/tenant-sequence.service';
-import { AuditService } from '../audit/audit.service';
+import { DirectStockService } from '../stock/direct-stock.service';
+import { priceListPrice } from '../workspace/price-lists.service';
+import { CreateSaleDto, LastPriceQueryDto } from './dto';
+import { KHATA_SALE_STATUSES, KhataService } from './khata.service';
+import { SaleLineError, saleTake } from './sale-lines';
+import { billMessage, language, whatsappLink } from './whatsapp';
 
+type Tx = Prisma.TransactionClient;
+
+const itemSummary = {
+  select: {
+    id: true,
+    name: true,
+    unit: true,
+    priceTier: true,
+    weightKg: true,
+    category: { select: { id: true, name: true } },
+    grade: { select: { id: true, name: true } },
+    repackUnit: { select: { unitCode: true, qrLabel: { select: { qrCode: true } } } },
+  },
+} satisfies Prisma.InventoryItemDefaultArgs;
+
+/** What the bill calls an item: its name, else category + grade, plus the bale code. */
+export function describeItem(item: {
+  name: string | null;
+  priceTier?: string | null;
+  category: { name: string } | null;
+  grade: { name: string } | null;
+  repackUnit: { unitCode: string } | null;
+}): string {
+  const kind = item.name || [item.category?.name, item.grade?.name].filter(Boolean).join(' ') || 'Stock';
+  const tier = item.priceTier ? ` (${item.priceTier})` : '';
+  return item.repackUnit ? `${kind}${tier} · ${item.repackUnit.unitCode}` : `${kind}${tier}`;
+}
+
+/**
+ * Sales (journey 4): one request saves the whole sale: lines priced per kg, bale or piece, stock
+ * used at its exact cost (cumulative share), the payment taken now, and the customer's khata.
+ */
 @Injectable()
 export class SalesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly sequences: TenantSequenceService,
-    private readonly audit: AuditService,
+    private readonly idempotency: IdempotencyService,
+    private readonly khata: KhataService,
+    private readonly stock: DirectStockService,
   ) {}
 
-  private ensureDraft(sale: { status: SaleStatus }) {
-    if (sale.status !== SaleStatus.DRAFT) {
-      throw new ForbiddenException('Only DRAFT sales are editable');
-    }
-  }
+  /** Safe to repeat with the same Idempotency-Key: one sale, same response. */
+  async create(tenantId: string, dto: CreateSaleDto, userId: string, idempotencyKey?: string) {
+    const ids = dto.lines.map((l) => l.inventoryItemId);
+    if (new Set(ids).size !== ids.length) throw new BadRequestException('Each stock item can be on a sale only once');
 
-  private toMoney2(value: Prisma.Decimal): Prisma.Decimal {
-    return new Prisma.Decimal(value.toFixed(2));
-  }
+    return this.idempotency.run(tenantId, 'sale.create', idempotencyKey, async (tx) => {
+      await this.khata.lockCustomer(tx, tenantId, dto.customerId);
+      const [customer, tenant] = await Promise.all([
+        tx.customer.findUniqueOrThrow({ where: { id: dto.customerId }, select: { isActive: true } }),
+        tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { currency: true, enabledModules: true } }),
+      ]);
+      if (!customer.isActive) throw new BadRequestException('This customer is inactive');
+      const type = dto.type ?? SaleType.LOCAL;
+      if (type === SaleType.EXPORT && !tenant.enabledModules.includes('EXPORT')) {
+        // Same answer as a route of a module that is off (ModuleGuard).
+        throw new ForbiddenException({ statusCode: 403, error: 'Forbidden', code: 'MODULE_DISABLED', module: 'EXPORT', message: 'EXPORT is not turned on for this business' });
+      }
 
-  private computeLineAmounts(params: {
-    quantity: Prisma.Decimal;
-    unitPrice: Prisma.Decimal;
-    avgCost: Prisma.Decimal;
-  }): { lineTotal: Prisma.Decimal; lineCost: Prisma.Decimal; profit: Prisma.Decimal } {
-    const lineTotal = this.toMoney2(params.quantity.mul(params.unitPrice));
-    const lineCost = this.toMoney2(params.quantity.mul(params.avgCost));
-    const profit = this.toMoney2(lineTotal.sub(lineCost));
-    return { lineTotal, lineCost, profit };
-  }
-
-  private async recomputeSaleTotals(tx: Prisma.TransactionClient, saleId: string): Promise<void> {
-    const agg = await tx.saleLine.aggregate({
-      where: { saleId },
-      _sum: { lineTotal: true, lineCost: true, profit: true },
-    });
-
-    const totalAmount = agg._sum.lineTotal ?? new Prisma.Decimal(0);
-    const totalCost = agg._sum.lineCost ?? new Prisma.Decimal(0);
-    const totalProfit = agg._sum.profit ?? new Prisma.Decimal(0);
-
-    await tx.sale.update({
-      where: { id: saleId },
-      data: {
-        totalAmount: this.toMoney2(totalAmount),
-        totalCost: this.toMoney2(totalCost),
-        totalProfit: this.toMoney2(totalProfit),
-      },
-    });
-  }
-
-  private async getTenantCurrencyCode(tenantId: string): Promise<string> {
-    const tenant = await this.prisma.tenant.findFirst({ where: { id: tenantId }, select: { currency: true } });
-    if (!tenant) throw new NotFoundException('Tenant not found');
-    return tenant.currency;
-  }
-
-  async createSale(tenantId: string, dto: { customerId: string; type: SaleType }, createdBy: string) {
-    const currencyCode = await this.getTenantCurrencyCode(tenantId);
-
-    const { code: saleNumber } = await this.sequences.generateCode(
-      tenantId,
-      SequenceScope.SALE,
-      { prefix: 'SAL', includeYear: true, padSize: 4 },
-      async (candidate) => {
-        const existing = await this.prisma.sale.findFirst({
-          where: { tenantId, saleNumber: candidate },
-          select: { id: true },
-        });
-        return !existing;
-      },
-    );
-
-    let customer = await this.prisma.customer.findFirst({
-      where: { id: dto.customerId, tenantId, isActive: true },
-      select: { id: true },
-    });
-
-    if (!customer) {
-      const vendor = await this.prisma.vendor.findFirst({
-        where: { id: dto.customerId, tenantId, isActive: true },
-        select: { id: true, name: true, contactInfo: true },
+      const sale = await tx.sale.create({
+        data: {
+          tenantId,
+          saleNumber: await this.nextSaleNumber(tx, tenantId),
+          customerId: dto.customerId,
+          type,
+          paymentMode: dto.paymentMode,
+          status: SaleStatus.ISSUED,
+          issuedAt: new Date(),
+          currencyCode: tenant.currency,
+          billToken: randomBytes(24).toString('base64url'),
+          createdBy: userId,
+        },
       });
-      if (vendor) {
-        customer = await this.prisma.customer.upsert({
-          where: { id: vendor.id },
-          create: {
-            id: vendor.id,
-            tenantId,
-            name: vendor.name,
-            companyName: vendor.name,
-            billingAddress: vendor.contactInfo || 'Main Billing Address',
-            shippingAddress: vendor.contactInfo || 'Main Shipping Address',
-            contactEmail: `${vendor.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@vendor.com`,
-            contactPhone: vendor.contactInfo || '',
-            isActive: true,
+
+      const lines = [];
+      for (const line of dto.lines) {
+        const item = await tx.inventoryItem.findFirst({ where: { id: line.inventoryItemId, tenantId } });
+        if (!item) throw new BadRequestException('Stock item not found');
+        if (item.status !== InventoryStatus.AVAILABLE) throw new ConflictException('This stock is already sold');
+        let take: ReturnType<typeof saleTake>;
+        try {
+          take = saleTake(item, line);
+        } catch (e) {
+          if (e instanceof SaleLineError) throw e.kind === 'short' ? new ConflictException(e.message) : new BadRequestException(e.message);
+          throw e;
+        }
+        const lineCost = takeCost({ cost: item.totalCost, kg: item.quantity }, item.usedQuantity, take.use);
+        const lineTotal = money(new Prisma.Decimal(line.quantity).mul(line.unitPrice));
+        await this.stock.use(tx, item, take.use);
+        await tx.stockMovement.create({
+          data: {
+            inventoryItemId: item.id,
+            movementType: type === SaleType.EXPORT ? MovementType.EXPORT : MovementType.SALE,
+            quantityKg: take.kg,
+            quantityPcs: take.pieces,
+            referenceId: sale.id,
+            metadataJson: { saleNumber: sale.saleNumber, used: take.use.toString(), unit: item.unit },
           },
-          update: {},
-          select: { id: true },
+        });
+        lines.push({
+          saleId: sale.id,
+          inventoryItemId: item.id,
+          unit: take.unit,
+          quantity: new Prisma.Decimal(line.quantity),
+          unitPrice: new Prisma.Decimal(line.unitPrice),
+          lineTotal,
+          lineCost,
+          profit: saleProfit(lineTotal, lineCost),
         });
       }
-    }
+      await tx.saleLine.createMany({ data: lines });
 
-    if (!customer) throw new BadRequestException('Customer not found or inactive');
+      const totalAmount = money(sum(lines.map((l) => l.lineTotal)));
+      const totalCost = money(sum(lines.map((l) => l.lineCost)));
+      await tx.sale.update({
+        where: { id: sale.id },
+        data: { totalAmount, totalCost, totalProfit: saleProfit(totalAmount, totalCost) },
+      });
 
-    const sale = await this.prisma.sale.create({
-      data: {
-        tenantId,
-        saleNumber,
-        customerId: dto.customerId,
-        type: dto.type,
-        status: SaleStatus.DRAFT,
-        currencyCode,
-        createdBy,
-      },
-      include: { customer: true },
+      const paid = this.paidNow(dto, totalAmount);
+      if (paid.greaterThan(0)) {
+        await tx.payment.create({
+          data: {
+            tenantId,
+            customerId: dto.customerId,
+            saleId: sale.id,
+            amount: paid,
+            method: dto.paymentMethod,
+            reference: dto.paymentReference?.trim() || null,
+            receivedBy: userId,
+          },
+        });
+      }
+      await this.khata.refreshStatusesTx(tx, tenantId, dto.customerId);
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          userId,
+          action: 'SALE_CREATED',
+          entityType: 'Sale',
+          entityId: sale.id,
+          metadataJson: { saleNumber: sale.saleNumber, total: totalAmount.toFixed(2), paidNow: paid.toFixed(2), paymentMode: dto.paymentMode },
+        },
+      });
+      return this.view(tx, tenantId, sale.id);
     });
-
-    await this.audit.log({
-      tenantId,
-      userId: createdBy,
-      action: 'SALE_CREATED',
-      entityType: 'Sale',
-      entityId: sale.id,
-      metadataJson: { saleNumber: sale.saleNumber, type: sale.type },
-    });
-
-    return sale;
   }
 
-  async listSales(tenantId: string) {
+  /** The latest 200 sales, each with what is paid and still due. */
+  async list(tenantId: string) {
     const sales = await this.prisma.sale.findMany({
       where: { tenantId },
       orderBy: { createdAt: 'desc' },
-      include: {
-        customer: true,
-        payments: { select: { id: true, amount: true, method: true, receivedAt: true } },
-      },
+      take: 200,
+      include: { customer: { select: { id: true, name: true, phone: true, city: true } } },
     });
-
-    return sales.map((sale) => ({
-      ...sale,
-      paidAmount: sale.payments.reduce((total, payment) => total + Number(payment.amount), 0),
-    }));
+    const applied = new Map<string, { paid: Prisma.Decimal; due: Prisma.Decimal }>();
+    for (const customerId of new Set(sales.map((s) => s.customerId))) {
+      const account = await this.khata.accountTx(this.prisma, tenantId, customerId);
+      for (const s of account.applied.sales) applied.set(s.key.id, s);
+    }
+    const zero = new Prisma.Decimal(0);
+    return sales.map((s) => ({ ...s, paid: applied.get(s.id)?.paid ?? zero, due: applied.get(s.id)?.due ?? zero }));
   }
 
-  async getSale(tenantId: string, id: string) {
-    const sale = await this.prisma.sale.findFirst({
-      where: { id, tenantId },
-      include: {
-        customer: true,
-        lines: {
-          orderBy: { createdAt: 'asc' },
+  async get(tenantId: string, id: string) {
+    return this.view(this.prisma, tenantId, id);
+  }
+
+  /** Price to suggest: this customer's last price for the same kind of stock, else anyone's, else the item's sale price. */
+  async lastPrice(tenantId: string, query: LastPriceQueryDto) {
+    const item = await this.prisma.inventoryItem.findFirst({ where: { id: query.inventoryItemId, tenantId } });
+    if (!item) throw new NotFoundException('Stock item not found');
+    const customer = await this.prisma.customer.findFirst({ where: { id: query.customerId, tenantId }, select: { id: true, priceGroup: true } });
+    if (!customer) throw new NotFoundException('Customer not found');
+    const unit = query.unit ?? item.unit;
+    // An agreed group price comes first (enterprise E3.4), then what this customer paid last.
+    const listed = await priceListPrice(this.prisma, tenantId, customer.priceGroup, item, unit);
+    if (listed) return { unit, unitPrice: listed.price, from: 'PRICE_LIST' as const, group: customer.priceGroup };
+    const sameKind: Prisma.SaleLineWhereInput = {
+      unit,
+      sale: { tenantId, status: { in: KHATA_SALE_STATUSES } },
+      inventoryItem: { categoryId: item.categoryId, gradeId: item.gradeId, name: item.name, priceTier: item.priceTier },
+    };
+    const last = (where: Prisma.SaleLineWhereInput) =>
+      this.prisma.saleLine.findFirst({ where, orderBy: { createdAt: 'desc' }, select: { unitPrice: true } });
+
+    const own = await last({ ...sameKind, sale: { ...(sameKind.sale as object), customerId: customer.id } });
+    if (own) return { unit, unitPrice: own.unitPrice, from: 'CUSTOMER' as const };
+    const any = await last(sameKind);
+    if (any) return { unit, unitPrice: any.unitPrice, from: 'ANY_CUSTOMER' as const };
+    if (item.salePrice && unit === item.unit) return { unit, unitPrice: item.salePrice, from: 'ITEM' as const };
+    return { unit, unitPrice: null, from: null };
+  }
+
+  /** "Share bill on WhatsApp": a wa.me link with the bill summary and the public bill link. */
+  async whatsapp(tenantId: string, id: string, lang?: string) {
+    const [sale, tenant] = await Promise.all([
+      this.view(this.prisma, tenantId, id),
+      this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { name: true, defaultLanguage: true } }),
+    ]);
+    const billUrl = `${(process.env.PUBLIC_APP_URL || 'http://localhost:4200').replace(/\/$/, '')}/bill/${sale.billToken}`;
+    const text = billMessage(language(lang, tenant.defaultLanguage), {
+      business: tenant.name,
+      customer: sale.customer.name,
+      saleNumber: sale.saleNumber,
+      total: sale.totalAmount,
+      paid: sale.paid,
+      due: sale.due,
+      url: billUrl,
+    });
+    return { text, url: whatsappLink(sale.customer.phone, text), billUrl };
+  }
+
+  /**
+   * The bill behind a shared link, for anyone holding the token (no login). Shows only what is
+   * on the bill: business, number, date, customer name, lines, total, paid and due. No costs,
+   * profit, phone numbers or ids.
+   */
+  async publicBill(token: string) {
+    const sale = /^[A-Za-z0-9_-]{20,80}$/.test(token)
+      ? await this.prisma.sale.findUnique({
+          where: { billToken: token },
           include: {
-            inventoryItem: {
-              include: {
-                category: { select: { id: true, name: true } },
-                grade: { select: { id: true, name: true } },
-                repackUnit: { select: { unitCode: true, measurementType: true, qrLabel: { select: { qrCode: true } } } },
-              },
-            },
+            tenant: { select: { name: true } },
+            customer: { select: { name: true } },
+            lines: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], include: { inventoryItem: itemSummary } },
           },
-        },
-        payments: { orderBy: { receivedAt: 'asc' } },
-      },
-    });
-
-    if (!sale) throw new NotFoundException('Sale not found');
-    return sale;
+        })
+      : null;
+    if (!sale || !KHATA_SALE_STATUSES.includes(sale.status)) throw new NotFoundException('Bill not found');
+    const { applied } = await this.khata.accountTx(this.prisma, sale.tenantId, sale.customerId);
+    const own = applied.sales.find((x) => x.key.id === sale.id)!;
+    return {
+      business: sale.tenant.name,
+      saleNumber: sale.saleNumber,
+      date: sale.issuedAt ?? sale.createdAt,
+      customer: sale.customer.name,
+      currency: sale.currencyCode,
+      lines: sale.lines.map((l) => ({
+        description: describeItem(l.inventoryItem),
+        unit: l.unit,
+        quantity: l.quantity,
+        unitPrice: l.unitPrice,
+        lineTotal: l.lineTotal,
+      })),
+      total: sale.totalAmount,
+      paid: own.paid,
+      due: own.due,
+      status: own.status,
+    };
   }
 
-  async updateSale(tenantId: string, id: string, dto: { customerId?: string; type?: SaleType }) {
-    const sale = await this.prisma.sale.findFirst({ where: { id, tenantId }, select: { id: true, status: true } });
-    if (!sale) throw new NotFoundException('Sale not found');
-    this.ensureDraft(sale);
-
-    if (dto.customerId) {
-      const customer = await this.prisma.customer.findFirst({
-        where: { id: dto.customerId, tenantId, isActive: true },
-        select: { id: true },
-      });
-      if (!customer) throw new BadRequestException('Customer not found or inactive');
-    }
-
-    return this.prisma.sale.update({
-      where: { id },
-      data: {
-        customerId: dto.customerId,
-        type: dto.type,
-      },
-      include: { customer: true },
-    });
-  }
-
-  async addLine(
-    tenantId: string,
-    saleId: string,
-    dto: { inventoryItemId: string; measurementType: MeasurementType; quantity: number; unitPrice: number },
-    userId: string,
-  ) {
-    return this.prisma.$transaction(async (tx) => {
-      const sale = await tx.sale.findFirst({
-        where: { id: saleId, tenantId },
-        include: { customer: { select: { id: true, isActive: true } } },
-      });
-      if (!sale) throw new NotFoundException('Sale not found');
-      this.ensureDraft(sale);
-
-      if (!sale.customer || !sale.customer.isActive) {
-        throw new BadRequestException('Customer is inactive or not found');
-      }
-
-      const inventory = await tx.inventoryItem.findFirst({
-        where: { id: dto.inventoryItemId, tenantId },
-        include: { repackUnit: { select: { measurementType: true, unitCode: true } } },
-      });
-      if (!inventory) throw new NotFoundException('Inventory item not found');
-
-      if (inventory.status !== InventoryStatus.AVAILABLE) {
-        throw new ConflictException('Inventory item is not AVAILABLE');
-      }
-
-      if (inventory.repackUnit.measurementType !== dto.measurementType) {
-        throw new BadRequestException('measurementType does not match inventory item');
-      }
-
-      const qty = new Prisma.Decimal(dto.quantity);
-      if (dto.measurementType === MeasurementType.WEIGHT) {
-        if (!inventory.weightKg || !qty.equals(new Prisma.Decimal(inventory.weightKg.toFixed(2)))) {
-          throw new BadRequestException('Quantity must equal full inventory weightKg');
-        }
-      } else {
-        if (inventory.pcsCount <= 0 || !qty.equals(new Prisma.Decimal(inventory.pcsCount))) {
-          throw new BadRequestException('Quantity must equal full inventory pcsCount');
-        }
-      }
-
-      const avgCost = new Prisma.Decimal(inventory.avgCost);
-      if (avgCost.lte(0)) {
-        throw new BadRequestException('Inventory item cost is missing or invalid');
-      }
-
-      const unitPrice = new Prisma.Decimal(dto.unitPrice);
-      if (unitPrice.lt(0)) {
-        throw new BadRequestException('unitPrice must be >= 0');
-      }
-
-      const { lineTotal, lineCost, profit } = this.computeLineAmounts({ quantity: qty, unitPrice, avgCost });
-
-      const existingReservation = await tx.inventoryReservation.findFirst({
-        where: { inventoryItemId: inventory.id },
-        select: { id: true },
-      });
-      if (existingReservation) {
-        throw new ConflictException('Inventory item is already RESERVED');
-      }
-
-      const line = await tx.saleLine.create({
-        data: {
-          saleId: sale.id,
-          inventoryItemId: inventory.id,
-          measurementType: dto.measurementType,
-          quantity: qty,
-          unitPrice,
-          lineTotal,
-          lineCost,
-          profit,
-        },
-      });
-
-      await tx.inventoryReservation.create({
-        data: {
-          tenantId,
-          inventoryItemId: inventory.id,
-          saleId: sale.id,
-          saleLineId: line.id,
-          reservedQuantity: qty,
-        },
-      });
-
-      await tx.inventoryItem.update({
-        where: { id: inventory.id },
-        data: { status: InventoryStatus.RESERVED },
-      });
-
-      await tx.stockMovement.create({
-        data: {
-          inventoryItemId: inventory.id,
-          movementType: MovementType.RESERVATION,
-          quantityKg: dto.measurementType === MeasurementType.WEIGHT ? qty : new Prisma.Decimal(0),
-          quantityPcs: dto.measurementType === MeasurementType.QUANTITY ? Number(qty) : 0,
-          referenceId: sale.id,
-          metadataJson: {
-            saleNumber: sale.saleNumber,
-            saleType: sale.type,
-            repackUnitCode: inventory.repackUnit.unitCode,
-          },
-        },
-      });
-
-      await this.recomputeSaleTotals(tx, sale.id);
-
-      await this.audit.log({
-        tenantId,
-        userId,
-        action: 'SALE_LINE_ADDED',
-        entityType: 'Sale',
-        entityId: sale.id,
-        metadataJson: { saleLineId: line.id, inventoryItemId: inventory.id },
-      });
-
-      return tx.sale.findFirst({
-        where: { id: sale.id },
-        include: { customer: true, lines: true },
-      });
-    });
-  }
-
-  async deleteLine(tenantId: string, saleId: string, lineId: string, userId: string) {
-    const sale = await this.prisma.sale.findFirst({ where: { id: saleId, tenantId }, select: { id: true, status: true, saleNumber: true } });
-    if (!sale) throw new NotFoundException('Sale not found');
-    this.ensureDraft(sale);
-
-    const line = await this.prisma.saleLine.findFirst({
-      where: { id: lineId, saleId: sale.id },
-      select: { id: true, inventoryItemId: true, measurementType: true, quantity: true },
-    });
-    if (!line) throw new NotFoundException('Sale line not found');
-
-    const reservation = await this.prisma.inventoryReservation.findFirst({
-      where: { saleLineId: line.id, saleId: sale.id, tenantId },
-      select: { id: true },
-    });
-    if (!reservation) {
-      throw new ConflictException('Reservation not found for sale line');
-    }
-
-    return this.prisma.$transaction(async (tx) => {
-      await tx.saleLine.delete({ where: { id: line.id } });
-      await tx.inventoryReservation.delete({ where: { id: reservation.id } });
-
-      await tx.inventoryItem.update({
-        where: { id: line.inventoryItemId },
-        data: { status: InventoryStatus.AVAILABLE },
-      });
-
-      await tx.stockMovement.create({
-        data: {
-          inventoryItemId: line.inventoryItemId,
-          movementType: MovementType.RELEASE,
-          quantityKg: line.measurementType === MeasurementType.WEIGHT ? new Prisma.Decimal(line.quantity) : new Prisma.Decimal(0),
-          quantityPcs: line.measurementType === MeasurementType.QUANTITY ? Number(line.quantity) : 0,
-          referenceId: sale.id,
-          metadataJson: { saleNumber: sale.saleNumber, saleLineId: line.id },
-        },
-      });
-
-      await this.recomputeSaleTotals(tx, sale.id);
-
-      await this.audit.log({
-        tenantId,
-        userId,
-        action: 'SALE_LINE_REMOVED',
-        entityType: 'Sale',
-        entityId: sale.id,
-        metadataJson: { saleLineId: line.id, inventoryItemId: line.inventoryItemId },
-      });
-
-      return tx.sale.findFirst({ where: { id: sale.id }, include: { customer: true, lines: true } });
-    });
-  }
-
-  async issue(tenantId: string, saleId: string, userId: string) {
-    const sale = await this.prisma.sale.findFirst({
-      where: { id: saleId, tenantId },
-      include: { lines: true, customer: { select: { id: true, isActive: true } } },
-    });
-    if (!sale) throw new NotFoundException('Sale not found');
-    this.ensureDraft(sale);
-
-    if (!sale.customer || !sale.customer.isActive) {
-      throw new BadRequestException('Customer is inactive or not found');
-    }
-
-    if (sale.lines.length === 0) {
-      throw new BadRequestException('Cannot issue an empty sale');
-    }
-
-    // Customer Credit Limit Validation Check
-    const custData = await this.prisma.customer.findFirst({
-      where: { id: sale.customerId, tenantId },
-      select: { creditLimit: true, paymentTerms: true },
-    });
-
-    if (custData && custData.paymentTerms !== 'PREPAID' && custData.creditLimit && Number(custData.creditLimit) > 0) {
-      const unpaidAggregate = await this.prisma.sale.aggregate({
-        where: {
-          tenantId,
-          customerId: sale.customerId,
-          status: { in: [SaleStatus.ISSUED, SaleStatus.PARTIALLY_PAID] },
-        },
-        _sum: { totalAmount: true },
-      });
-
-      const currentUnpaid = Number(unpaidAggregate._sum.totalAmount || 0);
-      const newTotal = currentUnpaid + Number(sale.totalAmount);
-      const limit = Number(custData.creditLimit);
-
-      if (newTotal > limit) {
-        throw new BadRequestException(
-          `Customer credit limit exceeded! Outstanding balance ($${currentUnpaid.toLocaleString()}) plus this order ($${Number(sale.totalAmount).toLocaleString()}) exceeds total credit limit ($${limit.toLocaleString()}).`
-        );
-      }
-    }
-
-    return this.prisma.$transaction(async (tx) => {
-      const lines = await tx.saleLine.findMany({
-        where: { saleId: sale.id },
-        include: { inventoryItem: { include: { repackUnit: { select: { unitCode: true } } } } },
-      });
-
-      const reservations = await tx.inventoryReservation.findMany({
-        where: { tenantId, saleId: sale.id },
-      });
-
-      const reservationByItem = new Map(reservations.map((r) => [r.inventoryItemId, r]));
-
-      for (const line of lines) {
-        const inv = line.inventoryItem;
-        if (inv.tenantId !== tenantId) {
-          throw new ForbiddenException('Tenant data mismatch');
-        }
-        if (inv.status !== InventoryStatus.RESERVED) {
-          throw new ConflictException('All inventory items must be RESERVED before issuing');
-        }
-        const res = reservationByItem.get(inv.id);
-        if (!res || res.saleId !== sale.id) {
-          throw new ConflictException('Missing reservation for one or more sale lines');
-        }
-        if (!new Prisma.Decimal(res.reservedQuantity).equals(new Prisma.Decimal(line.quantity))) {
-          throw new ConflictException('Reservation quantity mismatch');
-        }
-      }
-
-      const inventoryIds = lines.map((l) => l.inventoryItemId);
-
-      const updateRes = await tx.inventoryItem.updateMany({
-        where: { tenantId, id: { in: inventoryIds }, status: InventoryStatus.RESERVED },
-        data: { status: InventoryStatus.SOLD },
-      });
-
-      if (updateRes.count !== inventoryIds.length) {
-        throw new ConflictException('Failed to mark all reserved inventory items as SOLD');
-      }
-
-      await tx.inventoryReservation.deleteMany({ where: { tenantId, saleId: sale.id } });
-
-      for (const line of lines) {
-        await tx.stockMovement.create({
-          data: {
-            inventoryItemId: line.inventoryItemId,
-            movementType: sale.type === SaleType.EXPORT ? MovementType.EXPORT : MovementType.SALE,
-            quantityKg: line.measurementType === MeasurementType.WEIGHT ? new Prisma.Decimal(line.quantity) : new Prisma.Decimal(0),
-            quantityPcs: line.measurementType === MeasurementType.QUANTITY ? Number(line.quantity) : 0,
-            referenceId: sale.id,
-            metadataJson: {
-              saleNumber: sale.saleNumber,
-              saleLineId: line.id,
-              repackUnitCode: line.inventoryItem.repackUnit.unitCode,
-            },
-          },
-        });
-      }
-
-      await tx.sale.update({
-        where: { id: sale.id },
-        data: { status: SaleStatus.ISSUED, issuedAt: new Date() },
-      });
-
-      await this.audit.log({
-        tenantId,
-        userId,
-        action: 'SALE_ISSUED',
-        entityType: 'Sale',
-        entityId: sale.id,
-        metadataJson: { saleNumber: sale.saleNumber },
-      });
-
-      return tx.sale.findFirst({
-        where: { id: sale.id },
-        include: { customer: true, lines: true, payments: true },
-      });
-    });
-  }
-
-  async cancel(tenantId: string, saleId: string, userId: string) {
-    const sale = await this.prisma.sale.findFirst({
-      where: { id: saleId, tenantId },
-      select: { id: true, status: true, saleNumber: true },
-    });
-    if (!sale) throw new NotFoundException('Sale not found');
-
-    // Non-negotiable: SOLD inventory is immutable. Since ISSUED converts RESERVED->SOLD,
-    // cancellation is only allowed while still DRAFT.
-    this.ensureDraft(sale);
-
-    return this.prisma.$transaction(async (tx) => {
-      const reservations = await tx.inventoryReservation.findMany({ where: { tenantId, saleId: sale.id } });
-
-      for (const res of reservations) {
-        const inv = await tx.inventoryItem.findFirst({ where: { id: res.inventoryItemId, tenantId } });
-        if (!inv) continue;
-
-        await tx.inventoryItem.update({ where: { id: inv.id }, data: { status: InventoryStatus.AVAILABLE } });
-        await tx.stockMovement.create({
-          data: {
-            inventoryItemId: inv.id,
-            movementType: MovementType.RELEASE,
-            quantityKg: inv.weightKg ?? new Prisma.Decimal(0),
-            quantityPcs: inv.pcsCount,
-            referenceId: sale.id,
-            metadataJson: { saleNumber: sale.saleNumber, reason: 'sale_cancelled' },
-          },
-        });
-      }
-
-      await tx.inventoryReservation.deleteMany({ where: { tenantId, saleId: sale.id } });
-
-      const updated = await tx.sale.update({ where: { id: sale.id }, data: { status: SaleStatus.CANCELLED } });
-
-      await this.audit.log({
-        tenantId,
-        userId,
-        action: 'SALE_CANCELLED',
-        entityType: 'Sale',
-        entityId: sale.id,
-        metadataJson: { saleNumber: sale.saleNumber },
-      });
-
-      return updated;
-    });
-  }
-
-  /** Records physical handover separately from financial and inventory issue states. */
+  /** Records the physical handover, separately from payment. */
   async fulfill(tenantId: string, saleId: string, fulfillmentReference: string | undefined, userId: string) {
     const sale = await this.prisma.sale.findFirst({
       where: { id: saleId, tenantId },
       select: { id: true, saleNumber: true, status: true, fulfillmentStatus: true },
     });
     if (!sale) throw new NotFoundException('Sale not found');
-    const fulfillableStatuses: SaleStatus[] = [SaleStatus.ISSUED, SaleStatus.PARTIALLY_PAID, SaleStatus.PAID];
-    if (!fulfillableStatuses.includes(sale.status)) {
-      throw new ConflictException('A sale must be issued before it can be fulfilled');
-    }
-    if (sale.fulfillmentStatus === 'FULFILLED') {
-      throw new ConflictException('This sale has already been fulfilled');
-    }
-
+    if (!KHATA_SALE_STATUSES.includes(sale.status)) throw new ConflictException('This sale cannot be handed over');
+    if (sale.fulfillmentStatus === 'FULFILLED') throw new ConflictException('This sale has already been handed over');
     const updated = await this.prisma.sale.update({
       where: { id: sale.id },
-      data: {
-        fulfillmentStatus: 'FULFILLED',
-        fulfilledAt: new Date(),
-        fulfillmentReference: fulfillmentReference?.trim() || null,
-      },
+      data: { fulfillmentStatus: 'FULFILLED', fulfilledAt: new Date(), fulfillmentReference: fulfillmentReference?.trim() || null },
     });
-
-    await this.audit.log({
-      tenantId,
-      userId,
-      action: 'SALE_FULFILLED',
-      entityType: 'Sale',
-      entityId: sale.id,
-      metadataJson: { saleNumber: sale.saleNumber, fulfillmentReference: fulfillmentReference?.trim() || null },
+    await this.prisma.auditLog.create({
+      data: { tenantId, userId, action: 'SALE_FULFILLED', entityType: 'Sale', entityId: sale.id, metadataJson: { saleNumber: sale.saleNumber } },
     });
     return updated;
   }
 
-  async addPayment(tenantId: string, saleId: string, dto: { amount: number; method: string }, userId: string) {
-    const sale = await this.prisma.sale.findFirst({
-      where: { id: saleId, tenantId },
-      select: { id: true, status: true, totalAmount: true, saleNumber: true },
-    });
-    if (!sale) throw new NotFoundException('Sale not found');
-
-    const payableStatuses = new Set<SaleStatus>([SaleStatus.ISSUED, SaleStatus.PARTIALLY_PAID, SaleStatus.PAID]);
-    if (!payableStatuses.has(sale.status)) {
-      throw new ForbiddenException('Payments can only be recorded after the sale is ISSUED');
-    }
-
-    const amount = new Prisma.Decimal(dto.amount);
-    if (amount.lte(0)) throw new BadRequestException('amount must be > 0');
-
-    return this.prisma.$transaction(async (tx) => {
-      await tx.payment.create({
-        data: {
-          saleId: sale.id,
-          amount,
-          method: dto.method,
-          receivedAt: new Date(),
-        },
-      });
-
-      const paidAgg = await tx.payment.aggregate({ where: { saleId: sale.id }, _sum: { amount: true } });
-      const paid = paidAgg._sum.amount ?? new Prisma.Decimal(0);
-      const due = new Prisma.Decimal(sale.totalAmount);
-
-      const nextStatus = paid.gte(due) ? SaleStatus.PAID : SaleStatus.PARTIALLY_PAID;
-      const updated = await tx.sale.update({ where: { id: sale.id }, data: { status: nextStatus } });
-
-      await this.audit.log({
-        tenantId,
-        userId,
-        action: 'SALE_PAYMENT_RECORDED',
-        entityType: 'Sale',
-        entityId: sale.id,
-        metadataJson: { saleNumber: sale.saleNumber, amount: amount.toString(), method: dto.method },
-      });
-
-      return updated;
-    });
-  }
-
-  async resolveQrToInventoryItem(tenantId: string, qrCodeOrUnitCode: string) {
+  /** QR scan: the stock item behind a bale code, if it can still be sold. */
+  async scan(tenantId: string, code: string) {
     const item = await this.prisma.inventoryItem.findFirst({
       where: {
         tenantId,
         status: InventoryStatus.AVAILABLE,
-        OR: [
-          { repackUnit: { unitCode: qrCodeOrUnitCode } },
-          { repackUnit: { qrLabel: { qrCode: qrCodeOrUnitCode } } },
-        ],
+        OR: [{ repackUnit: { unitCode: code } }, { repackUnit: { qrLabel: { qrCode: code } } }],
       },
       include: {
         category: { select: { id: true, name: true } },
         grade: { select: { id: true, name: true } },
-        repackUnit: { select: { id: true, unitCode: true, measurementType: true, qrLabel: { select: { qrCode: true } } } },
+        repackUnit: { select: { unitCode: true, qrLabel: { select: { qrCode: true } } } },
       },
     });
+    if (!item) throw new NotFoundException('This code is not a bale in stock');
+    return { ...item, remainingQuantity: item.quantity.sub(item.usedQuantity), description: describeItem(item) };
+  }
 
-    if (!item) {
-      throw new NotFoundException('QR did not resolve to an AVAILABLE inventory item');
-    }
-
+  /** A sale with its lines, payments made with it, and what is still due (payments applied oldest first). */
+  private async view(db: Tx | PrismaService, tenantId: string, id: string) {
+    const sale = await db.sale.findFirst({
+      where: { id, tenantId },
+      include: {
+        customer: { select: { id: true, name: true, phone: true, city: true } },
+        lines: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], include: { inventoryItem: itemSummary } },
+        payments: { orderBy: { receivedAt: 'asc' } },
+      },
+    });
+    if (!sale) throw new NotFoundException('Sale not found');
+    const { applied } = await this.khata.accountTx(db, tenantId, sale.customerId);
+    const own = applied.sales.find((s) => s.key.id === sale.id);
     return {
-      id: item.id,
-      status: item.status,
-      weightKg: item.weightKg,
-      pcsCount: item.pcsCount,
-      avgCost: item.avgCost,
-      category: item.category,
-      grade: item.grade,
-      repackUnit: item.repackUnit,
+      ...sale,
+      payments: sale.payments.map((p) => this.khata.publicPayment(p)),
+      lines: sale.lines.map((l) => ({ ...l, description: describeItem(l.inventoryItem) })),
+      paid: own?.paid ?? new Prisma.Decimal(0),
+      due: own?.due ?? new Prisma.Decimal(0),
+      customerBalance: applied.balance,
     };
+  }
+
+  private paidNow(dto: CreateSaleDto, total: Prisma.Decimal): Prisma.Decimal {
+    if (dto.paymentMode === PaymentMode.CASH) return total;
+    if (dto.paymentMode === PaymentMode.CREDIT) {
+      if (dto.paidAmount !== undefined) throw new BadRequestException('An udhaar sale takes no payment now');
+      return new Prisma.Decimal(0);
+    }
+    const paid = money(dto.paidAmount ?? 0);
+    if (paid.lte(0) || paid.gte(total)) throw new BadRequestException('Part paid: enter an amount more than 0 and less than the total');
+    return paid;
+  }
+
+  private async nextSaleNumber(tx: Tx, tenantId: string): Promise<string> {
+    for (;;) {
+      const code = this.sequences.formatCode(await this.sequences.nextInTx(tx, tenantId, SequenceScope.SALE), { prefix: 'SAL', includeYear: true, padSize: 4 });
+      if (!(await tx.sale.findFirst({ where: { tenantId, saleNumber: code }, select: { id: true } }))) return code;
+    }
   }
 }

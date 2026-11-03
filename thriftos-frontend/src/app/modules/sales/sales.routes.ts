@@ -1,24 +1,20 @@
 import { Routes } from '@angular/router';
+import { SALES_LIST } from '../../features/workspace-lists/lists';
 
 export const SALES_ROUTES: Routes = [
   {
+    // Enterprise workspace list and record page (E2); the printable bill stays at /bill/:token.
     path: '',
-    loadComponent: () => import('./sales-index/sales-index.page').then((m) => m.SalesIndexPage),
+    loadComponent: () => import('../../features/workspace-lists/list-page.component').then((m) => m.ListPageComponent),
+    data: { list: SALES_LIST },
   },
   {
-    path: 'customers',
-    loadComponent: () => import('./customers-index/customers-index.page').then((m) => m.CustomersIndexPage),
-  },
-  {
+    // Desktop sale entry, keyboard first (E3.4); the phone keeps /sell/new.
     path: 'new',
-    loadComponent: () => import('./sales-new/sales-new.page').then((m) => m.SalesNewPage),
-  },
-  {
-    path: ':id/invoice',
-    loadComponent: () => import('./sale-invoice/sale-invoice.page').then((m) => m.SaleInvoicePage),
+    loadComponent: () => import('../../features/workspace-lists/sale-entry.component').then((m) => m.SaleEntryComponent),
   },
   {
     path: ':id',
-    loadComponent: () => import('./sale-detail/sale-detail.page').then((m) => m.SaleDetailPage),
+    loadComponent: () => import('../../features/sales-workspace/sale-record.component').then((m) => m.SaleRecordComponent),
   },
 ];

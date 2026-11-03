@@ -1,0 +1,278 @@
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { Component, ElementRef, HostListener, computed, inject, signal, viewChildren } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { LucideAngularModule, Trash2 } from 'lucide-angular';
+import { catchError, debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { TPipe } from '../../core/i18n/t.pipe';
+import { ListResult } from '../../core/list/list-client';
+import { ToastService } from '../../shared/floor/toast.service';
+import { WsPageHeaderComponent } from '../../shared/ui/workspace';
+import { PAYMENT_METHODS } from './lists';
+
+interface CustomerOption { id: string; name: string; city: string | null; phone: string | null; priceGroup?: string | null }
+interface StockOption { id: string; code: string | null; name: string | null; unit: 'KG' | 'BALE' | 'PIECE'; left: string; salePrice: string | null }
+interface Line { item: StockOption; unit: 'KG' | 'BALE' | 'PIECE'; quantity: number; unitPrice: number | null; from: string | null }
+type Mode = 'CASH' | 'CREDIT' | 'PARTIAL';
+
+const optionLabel = (s: StockOption) => [s.code, s.name].filter(Boolean).join(' · ');
+
+/**
+ * New sale on the laptop (enterprise plan E3.4), keyboard first: type the customer, then scan or type items
+ * (Enter adds a line and jumps to its quantity), Tab through quantity and price, Ctrl/⌘ Enter saves. Prices are
+ * suggested from the customer's price list, then their last price, then anyone's, then the item's own.
+ */
+@Component({
+  selector: 'app-sale-entry',
+  standalone: true,
+  imports: [FormsModule, LucideAngularModule, TPipe, WsPageHeaderComponent],
+  template: `
+    <div class="page">
+      <ws-page-header [heading]="'ws.saleEntry.title' | t" [subtitle]="'ws.saleEntry.subtitle' | t" />
+      <form class="sheet" (ngSubmit)="save()" (keydown)="keys($event)">
+        <div class="row">
+          <label class="grow">{{ 'ws.col.customer' | t }}
+            <input #customerInput name="customer" list="ws-customers" autocomplete="off" [ngModel]="customerText()" (ngModelChange)="pickCustomer($event)" [placeholder]="'ws.saleEntry.customerHint' | t" autofocus />
+            <datalist id="ws-customers">@for (c of customers(); track c.id) { <option [value]="c.name">{{ [c.city, c.phone].filter(isText).join(' · ') }}</option> }</datalist>
+          </label>
+          @if (customer(); as c) { <p class="chip">{{ c.priceGroup ? ('ws.saleEntry.list' | t: { group: c.priceGroup }) : ('ws.saleEntry.noList' | t) }}</p> }
+        </div>
+
+        <label>{{ 'ws.saleEntry.addItem' | t }}
+          <input #itemInput name="item" list="ws-stock" autocomplete="off" [ngModel]="itemText()" (ngModelChange)="itemText.set($event)" (keydown.enter)="$event.preventDefault(); addItem()" [placeholder]="'ws.saleEntry.itemHint' | t" [disabled]="!customer()" />
+          <datalist id="ws-stock">@for (s of stock(); track s.id) { <option [value]="label(s)">{{ 'ws.saleEntry.left' | t: { n: qty(s.left, s.unit) } }}</option> }</datalist>
+        </label>
+
+        <table>
+          <caption class="sr-only">{{ 'ws.sale.lines' | t }}</caption>
+          <thead><tr><th scope="col">{{ 'ws.sale.item' | t }}</th><th scope="col">{{ 'ws.sale.unit' | t }}</th><th scope="col" class="num">{{ 'ws.sale.quantity' | t }}</th><th scope="col" class="num">{{ 'ws.sale.unitPrice' | t }}</th><th scope="col" class="num">{{ 'ws.col.total' | t }}</th><th scope="col"><span class="sr-only">{{ 'ws.saleEntry.remove' | t }}</span></th></tr></thead>
+          <tbody>
+            @for (l of lines(); track l.item.id; let i = $index) {
+              <tr>
+                <td>{{ label(l.item) }}<small>{{ 'ws.saleEntry.left' | t: { n: qty(l.item.left, l.item.unit) } }}</small></td>
+                <td>
+                  <select [name]="'unit' + i" [ngModel]="l.unit" (ngModelChange)="setUnit(i, $event)" [attr.aria-label]="'ws.sale.unit' | t">
+                    <option [value]="l.item.unit">{{ 'ws.stock.unit.' + l.item.unit | t }}</option>
+                    @if (l.item.unit === 'BALE') { <option value="KG">{{ 'ws.stock.unit.KG' | t }}</option> }
+                  </select>
+                </td>
+                <td class="num"><input #qtyInput [name]="'qty' + i" type="number" min="0.01" [step]="l.unit === 'KG' ? '0.01' : '1'" [ngModel]="l.quantity" (ngModelChange)="patch(i, { quantity: +$event })" [attr.aria-label]="'ws.sale.quantity' | t" /></td>
+                <td class="num">
+                  <input [name]="'price' + i" type="number" min="0" step="1" [ngModel]="l.unitPrice" (ngModelChange)="patch(i, { unitPrice: $event === null || $event === '' ? null : +$event })" [attr.aria-label]="'ws.sale.unitPrice' | t" />
+                  @if (l.from) { <small>{{ 'ws.saleEntry.from.' + l.from | t }}</small> }
+                </td>
+                <td class="num">{{ i18n.money(l.quantity * (l.unitPrice ?? 0)) }}</td>
+                <td><button type="button" class="icon" (click)="remove(i)" [attr.aria-label]="'ws.saleEntry.remove' | t"><lucide-icon [img]="icons.Trash2" [size]="16" aria-hidden="true" /></button></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6" class="empty">{{ (customer() ? 'ws.saleEntry.noLines' : 'ws.saleEntry.pickCustomer') | t }}</td></tr>
+            }
+          </tbody>
+          <tfoot><tr><td colspan="4">{{ 'ws.col.total' | t }}</td><td class="num">{{ i18n.money(total()) }}</td><td></td></tr></tfoot>
+        </table>
+
+        <div class="row pay">
+          <div class="modes" role="group" [attr.aria-label]="'ws.col.paymentMode' | t">
+            @for (m of modes; track m) {
+              <button type="button" class="ws-btn" [class.on]="mode() === m" [attr.aria-pressed]="mode() === m" (click)="mode.set(m)">{{ 'ws.mode.' + m | t }}</button>
+            }
+          </div>
+          @if (mode() === 'PARTIAL') {
+            <label>{{ 'ws.sale.paid' | t }}<input name="paid" type="number" min="1" step="1" [(ngModel)]="paid" /></label>
+          }
+          @if (mode() !== 'CREDIT') {
+            <label>{{ 'ws.sale.method' | t }}
+              <select name="method" [(ngModel)]="method">@for (m of methods; track m) { <option [value]="m">{{ 'method.' + m | t }}</option> }</select>
+            </label>
+          }
+          <span class="grow"></span>
+          <button type="submit" class="ws-btn primary" [disabled]="!canSave()">{{ 'ws.saleEntry.save' | t }} <kbd>{{ 'ws.saleEntry.shortcut' | t }}</kbd></button>
+        </div>
+      </form>
+    </div>
+  `,
+  styles: [`
+    .page { display:grid; gap:var(--ws-4); max-width:var(--ws-content-max); margin-inline:auto; font-family:var(--ws-font); color:var(--ws-ink); }
+    .sheet { display:grid; gap:var(--ws-4); padding:var(--ws-4); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); }
+    label { display:grid; gap:4px; color:var(--ws-ink-2); font-size:var(--ws-text-sm); }
+    input, select { height:var(--ws-control-h); padding-inline:var(--ws-2); border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface); color:var(--ws-ink); font:inherit; }
+    .row { display:flex; flex-wrap:wrap; align-items:end; gap:var(--ws-3); }
+    .grow { flex:1 1 280px; }
+    .chip { margin:0; padding:6px 10px; border-radius:999px; background:var(--ws-brand-soft); color:var(--ws-brand); font-size:var(--ws-text-sm); }
+    table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+    th, td { padding:var(--ws-2); border-bottom:1px solid var(--ws-line); text-align:start; vertical-align:top; }
+    th { color:var(--ws-ink-2); font-size:var(--ws-text-xs); font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
+    td small { display:block; color:var(--ws-ink-2); font-size:var(--ws-text-xs); }
+    .num { text-align:end; }
+    td.num input { width:120px; text-align:end; }
+    tfoot td { font-weight:700; }
+    .empty { color:var(--ws-ink-2); text-align:center; }
+    .icon { display:inline-grid; place-items:center; width:32px; height:32px; border:0; border-radius:var(--ws-r-md); background:transparent; color:var(--ws-ink-2); cursor:pointer; }
+    .icon:hover { background:var(--ws-surface-hover); color:var(--ws-bad); }
+    .modes { display:flex; gap:var(--ws-2); }
+    .modes .on { border-color:var(--ws-brand); background:var(--ws-brand-soft); color:var(--ws-brand); }
+    kbd { padding:0 4px; border:1px solid currentColor; border-radius:4px; font:inherit; font-size:11px; opacity:.8; }
+    .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+  `],
+})
+export class SaleEntryComponent {
+  protected readonly i18n = inject(I18nService);
+  private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
+  private readonly qtyInputs = viewChildren<ElementRef<HTMLInputElement>>('qtyInput');
+  protected readonly icons = { Trash2 };
+  protected readonly modes: Mode[] = ['CASH', 'CREDIT', 'PARTIAL'];
+  protected readonly methods = PAYMENT_METHODS;
+  protected readonly isText = (x: string | null): x is string => !!x;
+  protected readonly label = optionLabel;
+
+  protected readonly customerText = signal('');
+  protected readonly customers = signal<CustomerOption[]>([]);
+  protected readonly customer = signal<CustomerOption | null>(null);
+  protected readonly itemText = signal('');
+  protected readonly stock = signal<StockOption[]>([]);
+  protected readonly lines = signal<Line[]>([]);
+  protected readonly mode = signal<Mode>('CASH');
+  protected readonly busy = signal(false);
+  protected paid: number | null = null;
+  protected method = 'CASH';
+  /** One key per sale being entered: a double submit or retry records it once. */
+  private idempotencyKey = crypto.randomUUID();
+
+  protected readonly total = computed(() => this.lines().reduce((t, l) => t + l.quantity * (l.unitPrice ?? 0), 0));
+  protected readonly canSave = computed(
+    () => !this.busy() && !!this.customer() && this.lines().length > 0 && this.lines().every((l) => l.quantity > 0 && l.unitPrice !== null && l.unitPrice >= 0),
+  );
+
+  constructor() {
+    toObservable(this.customerText)
+      .pipe(
+        debounceTime(200),
+        distinctUntilChanged(),
+        switchMap((q) => this.http.get<CustomerOption[]>('/api/customers', { params: new HttpParams().set('search', q) }).pipe(catchError(() => of([])))),
+        takeUntilDestroyed(),
+      )
+      .subscribe((list) => {
+        this.customers.set(list.slice(0, 50));
+        // The name may have been typed in full before the matches arrived.
+        if (!this.customer()) this.pickCustomer(this.customerText());
+      });
+    toObservable(this.itemText)
+      .pipe(
+        debounceTime(200),
+        distinctUntilChanged(),
+        switchMap((q) =>
+          this.http
+            .get<ListResult>('/api/lists/stock', { params: new HttpParams().set('q', q).set('pageSize', '50').append('f', 'status:ne:SOLD') })
+            .pipe(catchError(() => of({ rows: [] } as unknown as ListResult))),
+        ),
+        takeUntilDestroyed(),
+      )
+      .subscribe((r) => this.stock.set(r.rows as unknown as StockOption[]));
+  }
+
+  protected qty(v: string | number, unit: string): string {
+    return unit === 'KG' ? this.i18n.kg(v) : this.i18n.num(v);
+  }
+
+  protected pickCustomer(text: string): void {
+    this.customerText.set(text);
+    const c = this.customers().find((x) => x.name === text) ?? null;
+    if (c?.id !== this.customer()?.id) {
+      this.customer.set(c);
+      // Prices depend on the customer: suggest again.
+      this.lines().forEach((_, i) => this.suggest(i));
+    }
+  }
+
+  protected addItem(): void {
+    const text = this.itemText().trim();
+    if (!text) return;
+    const s = this.stock().find((x) => optionLabel(x) === text) ?? this.stock().find((x) => x.code === text);
+    if (!s) {
+      this.toast.show(this.i18n.t('ws.saleEntry.notFound'));
+      return;
+    }
+    const existing = this.lines().findIndex((l) => l.item.id === s.id);
+    if (existing >= 0) this.patch(existing, { quantity: this.lines()[existing].quantity + 1 });
+    else {
+      this.lines.set([...this.lines(), { item: s, unit: s.unit, quantity: 1, unitPrice: null, from: null }]);
+      this.suggest(this.lines().length - 1);
+    }
+    this.itemText.set('');
+    setTimeout(() => this.qtyInputs()[existing >= 0 ? existing : this.lines().length - 1]?.nativeElement.select());
+  }
+
+  private suggest(i: number): void {
+    const c = this.customer();
+    const l = this.lines()[i];
+    if (!c || !l) return;
+    const params = new HttpParams().set('customerId', c.id).set('inventoryItemId', l.item.id).set('unit', l.unit);
+    this.http.get<{ unitPrice: string | null; from: string | null }>('/api/sales/last-price', { params }).subscribe({
+      next: (p) => {
+        const cur = this.lines()[i];
+        if (cur?.item.id === l.item.id && cur.unit === l.unit) this.patch(i, { unitPrice: p.unitPrice === null ? cur.unitPrice : +p.unitPrice, from: p.from });
+      },
+      error: () => undefined,
+    });
+  }
+
+  protected patch(i: number, p: Partial<Line>): void {
+    this.lines.set(this.lines().map((l, j) => (j === i ? { ...l, ...p } : l)));
+  }
+
+  protected setUnit(i: number, unit: Line['unit']): void {
+    this.patch(i, { unit, unitPrice: null, from: null });
+    this.suggest(i);
+  }
+
+  protected remove(i: number): void {
+    this.lines.set(this.lines().filter((_, j) => j !== i));
+  }
+
+  protected keys(e: KeyboardEvent): void {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      this.save();
+    }
+  }
+
+  @HostListener('document:keydown.alt.n', ['$event'])
+  protected focusItem(e: Event): void {
+    e.preventDefault();
+    (document.querySelector('input[name=item]') as HTMLInputElement | null)?.focus();
+  }
+
+  protected save(): void {
+    const c = this.customer();
+    if (!this.canSave() || !c) return;
+    if (this.mode() === 'PARTIAL' && (!this.paid || this.paid >= this.total())) {
+      this.toast.show(this.i18n.t('ws.saleEntry.partialHint'));
+      return;
+    }
+    this.busy.set(true);
+    const body = {
+      customerId: c.id,
+      lines: this.lines().map((l) => ({ inventoryItemId: l.item.id, unit: l.unit, quantity: l.quantity, unitPrice: l.unitPrice })),
+      paymentMode: this.mode(),
+      ...(this.mode() === 'CASH' ? { paidAmount: this.total(), paymentMethod: this.method } : {}),
+      ...(this.mode() === 'PARTIAL' ? { paidAmount: this.paid, paymentMethod: this.method } : {}),
+    };
+    this.http.post<{ id: string; saleNumber: string }>('/api/sales', body, { headers: new HttpHeaders({ 'Idempotency-Key': this.idempotencyKey }) }).subscribe({
+      next: (s) => {
+        this.busy.set(false);
+        this.idempotencyKey = crypto.randomUUID();
+        this.toast.show(this.i18n.t('ws.saleEntry.saved', { number: s.saleNumber }));
+        void this.router.navigate(['/sell/records', s.id]);
+      },
+      error: (e: { status?: number; error?: { message?: string | string[] } }) => {
+        this.busy.set(false);
+        const m = e.error?.message;
+        this.toast.show(e.status === 400 || e.status === 409 ? (Array.isArray(m) ? m.join(', ') : m ?? this.i18n.t('common.couldNotSave')) : this.i18n.t('common.couldNotSave'));
+      },
+    });
+  }
+}
