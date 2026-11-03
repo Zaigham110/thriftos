@@ -6,7 +6,7 @@
     "!/**/*.*",
     "!/**/*__*",
     "!/**/*__*/**",
-    "!/api/**"
+    "!api/**"
   ],
   "assetGroups": [
     {
@@ -41,11 +41,11 @@
     {
       "name": "reference-data",
       "urls": [
-        "/api/tenant/categories**",
-        "/api/tenant/grades**",
-        "/api/tenant/waste-categories**",
-        "/api/tenant/raw-categories**",
-        "/api/procurement/vendors**"
+        "api/tenant/categories**",
+        "api/tenant/grades**",
+        "api/tenant/waste-categories**",
+        "api/tenant/raw-categories**",
+        "api/procurement/vendors**"
       ],
       "cacheConfig": {
         "strategy": "performance",
@@ -56,19 +56,19 @@
     {
       "name": "live-data",
       "urls": [
-        "/api/tenant",
-        "/api/me",
-        "/api/procurement/rags**",
-        "/api/procurement/containers**",
-        "/api/sorting/*/queue**",
-        "/api/sorting/*/summary**",
-        "/api/sorting/*/sessions/**",
-        "/api/stock/items**",
-        "/api/stock/bales**",
-        "/api/customers**",
-        "/api/khata**",
-        "/api/sales**",
-        "/api/home/**"
+        "api/tenant",
+        "api/me",
+        "api/procurement/rags**",
+        "api/procurement/containers**",
+        "api/sorting/*/queue**",
+        "api/sorting/*/summary**",
+        "api/sorting/*/sessions/**",
+        "api/stock/items**",
+        "api/stock/bales**",
+        "api/customers**",
+        "api/khata**",
+        "api/sales**",
+        "api/home/**"
       ],
       "cacheConfig": {
         "strategy": "freshness",

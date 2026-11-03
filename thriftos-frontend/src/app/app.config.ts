@@ -16,6 +16,7 @@ import {
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideServiceWorker } from '@angular/service-worker';
+import { basePathInterceptor } from './core/http/base-path.interceptor';
 import {
   LucideAngularModule,
   Users,
@@ -42,7 +43,7 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes, withComponentInputBinding()),
-    provideHttpClient(withInterceptors([authInterceptor])),
+    provideHttpClient(withInterceptors([basePathInterceptor, authInterceptor])),
     // Dictionaries are loaded before the first screen, so no English flashes before Urdu.
     provideAppInitializer(() => inject(I18nService).init()),
     // Installable, works offline: app shell and reference data are cached by the service worker.
