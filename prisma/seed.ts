@@ -43,6 +43,7 @@ async function main() {
     create: {
       name: 'System Administration',
       companyCode: 'SYSTEM',
+      setupCompletedAt: new Date(),
       currency: 'USD',
       locale: 'en-US',
       status: TenantStatus.ACTIVE,
@@ -276,6 +277,8 @@ async function main() {
       name: 'Demo Thrift Company',
       companyCode: 'DEMO',
       status: TenantStatus.ACTIVE,
+      // Seeded businesses are ready to use: no setup wizard (only new tenants get it).
+      setupCompletedAt: new Date(),
     },
   });
 

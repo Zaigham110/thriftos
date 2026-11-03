@@ -27,6 +27,11 @@ describe('Setup wizard (e2e)', () => {
     await app.close();
   });
 
+  it('the seeded demo business is ready to use (no wizard after a fresh reset + seed)', async () => {
+    const demo = await prisma.tenant.findUniqueOrThrow({ where: { companyCode: 'DEMO' } });
+    expect(demo.setupCompletedAt).not.toBeNull();
+  });
+
   it('a new business starts from the Karachi list and is set up in one save', async () => {
     const owner = await newBusiness();
     expect((await api(app, owner).get('/tenant').expect(200)).body.setupCompletedAt).toBeNull();
