@@ -76,6 +76,7 @@ test('offline sale and payment sync once when the network returns', async ({ pag
 
 /** Task 3.2/3.4: receive, sort lines and a bale made with the network off sync once each. */
 test('offline lot, sort lines and bale sync once', async ({ page, context, request }) => {
+  const startedAt = Date.now() - 1000;
   const api = await apiAs(request);
   const tag = Date.now().toString().slice(-6);
   const categories = await api.get('/tenant/categories');
@@ -127,8 +128,9 @@ test('offline lot, sort lines and bale sync once', async ({ page, context, reque
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(page.getByText('Synced', { exact: true })).toBeVisible({ timeout: 60_000 });
 
-  const lots = (await api.get('/sorting/stage-1/queue?limit=100')).data as { weightKg: string; id: string; status: string }[];
-  expect(lots.filter((l) => l.weightKg === `3${tag.slice(-2)}`)).toHaveLength(1);
+  // The lot made offline, counted among lots created during this test only (earlier runs leave others).
+  const lots = (await api.get('/sorting/stage-1/queue?limit=100')).data as { weightKg: string; id: string; createdAt: string }[];
+  expect(lots.filter((l) => l.weightKg === `3${tag.slice(-2)}` && new Date(l.createdAt).getTime() >= startedAt)).toHaveLength(1);
   const summary = await api.get(`/sorting/stage-1/summary?ragId=${lot.id}`);
   const kg = Object.fromEntries(summary.buckets.map((b: { category: { name: string }; outputWeightKg: string }) => [b.category.name, b.outputWeightKg]));
   expect(kg).toEqual({ Jeans: '120', Dresses: '50' });

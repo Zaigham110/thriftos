@@ -11,6 +11,8 @@ interface SessionCache {
   userId: string;
   me?: MeResponse;
   tenant?: unknown;
+  /** Other answers a screen wants to show at once next time (owner home numbers). */
+  screens?: Record<string, unknown>;
 }
 
 function read(): SessionCache | null {
@@ -46,6 +48,14 @@ export const sessionCache = {
   saveTenant(tenant: unknown): void {
     const c = read();
     if (c) write({ ...c, tenant });
+  },
+  /** A screen's last answer for this person (shown at once while the fresh one loads). */
+  screen<T>(key: string): T | null {
+    return (read()?.screens?.[key] as T) ?? null;
+  },
+  saveScreen(key: string, value: unknown): void {
+    const c = read();
+    if (c) write({ ...c, screens: { ...c.screens, [key]: value } });
   },
   /** Sign-out: forget everything about this person on the phone, and tell the services holding it. */
   clear(): void {

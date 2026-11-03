@@ -4,13 +4,14 @@ import { tenantAreaGuard } from './core/guards/tenant-area.guard';
 import { moduleGuard } from './core/guards/module.guard';
 import { superAdminGuard } from './core/guards/super-admin-guard';
 import { setupGuard } from './core/guards/setup.guard';
+import { LoginComponent } from './features/auth/login/login.component';
 
 export const routes: Routes = [
   // Auth routes (public)
   {
     path: 'auth/login',
-    loadComponent: () =>
-      import('./features/auth/login/login.component').then((m) => m.LoginComponent),
+    // In the main bundle: the first screen anyone sees should not wait for another download.
+    component: LoginComponent,
     title: 'Sign in - ThriftOS',
   },
   {

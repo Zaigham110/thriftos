@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { ChevronRight, LucideAngularModule } from 'lucide-angular';
 import { I18N } from '../../core/i18n/t.pipe';
 import { NeedsAttentionComponent } from '../../shared/offline/needs-attention.component';
+import { sessionCache } from '../../core/auth/session-cache';
 import { HomeDataService, HomeSummary } from './home-data';
 
 /** Journey 7 — owner home: profit per container, udhaar owed, stock ready, and today's sales. Each taps to its list. */
@@ -54,10 +55,17 @@ import { HomeDataService, HomeSummary } from './home-data';
 export class OwnerHomeComponent implements OnInit {
   private readonly data = inject(HomeDataService);
   protected readonly icons = { ChevronRight };
-  protected readonly s = signal<HomeSummary | null>(null);
+  /** Last numbers on this phone, shown at once (Slow 3G: the fresh ones take a few seconds), then replaced. */
+  protected readonly s = signal<HomeSummary | null>(sessionCache.screen<HomeSummary>('home'));
   protected readonly failed = signal(false);
 
   ngOnInit(): void {
-    this.data.summary().subscribe({ next: (s) => this.s.set(s), error: () => this.failed.set(true) });
+    this.data.summary().subscribe({
+      next: (s) => {
+        this.s.set(s);
+        sessionCache.saveScreen('home', s);
+      },
+      error: () => this.failed.set(!this.s()),
+    });
   }
 }

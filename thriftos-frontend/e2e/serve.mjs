@@ -4,6 +4,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import zlib from 'node:zlib';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist/thriftos-frontend/browser');
 const port = Number(process.env.PORT || 4300);
@@ -13,6 +14,7 @@ const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/cs
 // Network throttling for every request (page and service worker alike), switched by the tests:
 // GET /__slow3g/on → Chrome's "Slow 3G" (2 s round trip, ~400 kbit/s down), /__slow3g/off → normal.
 let slow = false;
+const gzipped = new Map();
 const LATENCY_MS = 2000;
 const BYTES_PER_100MS = 5000;
 async function send(res, status, headers, body) {
@@ -58,6 +60,16 @@ http
     }
     let file = path.join(root, decodeURIComponent(req.url.split('?')[0]));
     if (!file.startsWith(root) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(root, 'index.html');
-    void send(res, 200, { 'content-type': types[path.extname(file)] || 'application/octet-stream', 'cache-control': 'no-cache' }, fs.readFileSync(file));
+    // Like nginx in production: text is gzipped, hashed build files are cached for a year.
+    const type = types[path.extname(file)] || 'application/octet-stream';
+    const hashed = /-[A-Za-z0-9_-]{8}\.(js|css)$/.test(file) || file.includes(`${path.sep}media${path.sep}`);
+    const headers = { 'content-type': type, 'cache-control': hashed ? 'public, max-age=31536000, immutable' : 'no-cache' };
+    let body = fs.readFileSync(file);
+    if (/text|javascript|json|svg/.test(type) && /\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
+      body = gzipped.get(file) ?? gzipped.set(file, zlib.gzipSync(body, { level: 6 })).get(file);
+      headers['content-encoding'] = 'gzip';
+      headers.vary = 'Accept-Encoding';
+    }
+    void send(res, 200, headers, body);
   })
   .listen(port, () => console.log(`serving ${root} on http://localhost:${port} (api ${api.origin})`));

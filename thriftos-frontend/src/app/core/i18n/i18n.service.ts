@@ -31,13 +31,19 @@ export class I18nService {
   readonly dir = computed(() => (this.lang() === 'ur' ? 'rtl' : 'ltr'));
   private readonly numbers = computed(() => new Intl.NumberFormat('en-PK-u-nu-latn', { maximumFractionDigits: 2 }));
 
-  /** Loads both dictionaries (cached by the service worker) before the app shows anything. */
+  /**
+   * Loads the dictionary of the language in use before the first screen (one small file; the other language
+   * loads when someone switches). Both are cached by the service worker for offline use.
+   */
   async init(): Promise<void> {
-    const [en, ur] = await Promise.all(
-      (['en', 'ur'] as const).map((l) => firstValueFrom(this.http.get<Dict>(`/i18n/${l}.json`)).catch(() => ({}) as Dict)),
-    );
-    this.dicts.set({ en, ur });
+    await this.load(this.lang());
     this.apply();
+  }
+
+  private async load(lang: Lang): Promise<void> {
+    if (this.dicts()[lang]) return;
+    const dict = await firstValueFrom(this.http.get<Dict>(`/i18n/${lang}.json`)).catch(() => ({}) as Dict);
+    this.dicts.update((d) => ({ ...d, [lang]: dict }));
   }
 
   /** The person picked a language on this phone: it wins over the tenant default from now on. */
@@ -48,15 +54,19 @@ export class I18nService {
     } catch {
       /* private mode */
     }
-    this.lang.set(lang);
-    this.apply();
+    void this.load(lang).then(() => {
+      this.lang.set(lang);
+      this.apply();
+    });
   }
 
   /** Tenant default language, used until the person picks one. */
   useDefault(lang: string | null | undefined): void {
     if (this.chosen || (lang !== 'ur' && lang !== 'en')) return;
-    this.lang.set(lang);
-    this.apply();
+    void this.load(lang).then(() => {
+      this.lang.set(lang);
+      this.apply();
+    });
   }
 
   /** `t('sell.save')`, `t('khata.owes', { amount: 'Rs 1,500' })`. A missing key shows the key, never blank. */

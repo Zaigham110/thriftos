@@ -1,0 +1,68 @@
+{
+  "owner-home": {
+    "url": "http://localhost:4300/home",
+    "cache": "service worker warm (installed app)",
+    "lighthouse": "11.7.1",
+    "throttling": "simulate",
+    "scores": {
+      "performance": 92,
+      "accessibility": 100,
+      "best-practices": 100,
+      "pwa": 100
+    },
+    "installable": true,
+    "metrics": {
+      "first-contentful-paint": "0.2 s",
+      "largest-contentful-paint": "1.0 s",
+      "total-blocking-time": "300 ms",
+      "cumulative-layout-shift": "0.075",
+      "speed-index": "0.6 s",
+      "interactive": "0.7 s"
+    },
+    "failedPwa": []
+  },
+  "sign-in": {
+    "url": "http://localhost:4300/auth/login",
+    "cache": "service worker warm (installed app)",
+    "lighthouse": "11.7.1",
+    "throttling": "simulate",
+    "scores": {
+      "performance": 95,
+      "accessibility": 100,
+      "best-practices": 100,
+      "pwa": 100
+    },
+    "installable": true,
+    "metrics": {
+      "first-contentful-paint": "0.2 s",
+      "largest-contentful-paint": "0.9 s",
+      "total-blocking-time": "260 ms",
+      "cumulative-layout-shift": "0",
+      "speed-index": "0.6 s",
+      "interactive": "0.7 s"
+    },
+    "failedPwa": []
+  },
+  "sign-in-first-visit": {
+    "url": "http://localhost:4300/auth/login",
+    "cache": "cleared (first visit)",
+    "lighthouse": "11.7.1",
+    "throttling": "simulate",
+    "scores": {
+      "performance": 80,
+      "accessibility": 100,
+      "best-practices": 100,
+      "pwa": 100
+    },
+    "installable": true,
+    "metrics": {
+      "first-contentful-paint": "2.4 s",
+      "largest-contentful-paint": "4.4 s",
+      "total-blocking-time": "180 ms",
+      "cumulative-layout-shift": "0",
+      "speed-index": "2.4 s",
+      "interactive": "3.6 s"
+    },
+    "failedPwa": []
+  }
+}
