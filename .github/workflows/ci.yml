@@ -113,6 +113,11 @@ jobs:
         working-directory: thriftos-frontend
       - run: npm run e2e
         working-directory: thriftos-frontend
+      - name: Demo journey on thriftos_demo (Urdu and English) and the offline sale
+        run: npm run e2e:demo
+        working-directory: thriftos-frontend
+        env:
+          DEMO_DATABASE_URL: postgresql://thriftos:thriftos@localhost:5432/thriftos_demo?schema=public
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

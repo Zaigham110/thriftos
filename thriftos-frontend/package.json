@@ -10,7 +10,8 @@
     "lint": "eslint src/**/*.{ts,html}",
     "e2e": "node e2e/reset-db.mjs && playwright test -c e2e/playwright.config.ts",
     "i18n:check": "node scripts/i18n-check.mjs",
-    "i18n:build": "python3 scripts/i18n-source.py"
+    "i18n:build": "python3 scripts/i18n-source.py",
+    "e2e:demo": "cd .. && DEMO_BUILD=0 npm run demo:reset && cd thriftos-frontend && playwright test -c e2e/playwright.demo.config.ts"
   },
   "prettier": {
     "printWidth": 100,

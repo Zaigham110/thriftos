@@ -57,6 +57,7 @@ export function loose(text: string): RegExp {
  * there, then tap the tile either way.
  */
 export async function pickTile(page: Page, searchPlaceholder: string, text: string): Promise<void> {
+  await page.locator('tos-tiles .tile').first().waitFor();
   const search = page.getByPlaceholder(searchPlaceholder);
   if (await search.count()) await search.fill(text);
   await page.getByRole('listitem').filter({ hasText: text }).first().click();

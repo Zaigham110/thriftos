@@ -1,6 +1,7 @@
 import { APIRequestContext, Page, expect } from '@playwright/test';
 
-export const DEMO = { email: 'admin@demo.thriftos.com', password: 'admin123' };
+/** The owner the browser tests sign in as (the demo config switches it to the Al-Madina owner). */
+export const DEMO = { email: process.env['PW_OWNER_EMAIL'] || 'admin@demo.thriftos.com', password: process.env['PW_OWNER_PASSWORD'] || 'admin123' };
 
 /** A signed-in API client for the demo tenant (for setting up data and checking what was saved). */
 export async function apiAs(request: APIRequestContext, who = DEMO) {
