@@ -1,6 +1,6 @@
 # ThriftOS Enterprise Workspace — Plan
 
-Status: draft for owner approval (2026-11-03). Branch: `enterprise-workspace` (from `v1-reshape` at `26f1ae3`, tag `v1.0.0-demo`).
+Status: approved direction, queued (2026-11-03). Owner chose to do v2 Phase 5 (AWS go-live) first; this plan starts after it. Branch: `enterprise-workspace` (from `v1-reshape` at `26f1ae3`, tag `v1.0.0-demo`).
 
 ## Why
 The owner reviewed the v1 demo: it works, but it is not enough to pitch and does not look like serious business software.
@@ -168,6 +168,6 @@ webhooks · SSO · buyer portal · Ask ThriftOS (if not done as a stretch in E4)
 The two plans touch different code except the shell and settings. Order is the owner's decision (see open questions).
 
 ## Open questions for the owner
-1. Order: Enterprise workspace first, v2 go-live first, or go-live Phase 5 (AWS) first and then this plan?
+1. ~~Order~~ — decided 2026-11-03: v2 Phase 5 (AWS go-live) first, then this plan.
 2. Finance depth: management accounts (expenses, cash book, P&L) as planned, or a full double-entry general ledger now?
 3. Ask ThriftOS (AI questions on your data): include in E4, or later?
