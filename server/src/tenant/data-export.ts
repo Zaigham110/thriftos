@@ -45,8 +45,8 @@ function cell(v: unknown): string {
   return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 
-/** CSV with a header row; UTF-8 BOM so Excel shows Urdu names correctly. */
-export function toCsv(columns: string[], rows: Record<string, unknown>[]): string {
-  const lines = [columns.join(','), ...rows.map((r) => columns.map((c) => cell(r[c])).join(','))];
+/** CSV with a header row (column keys, or `header` labels); UTF-8 BOM so Excel shows Urdu names correctly. */
+export function toCsv(columns: string[], rows: Record<string, unknown>[], header: string[] = columns): string {
+  const lines = [header.map((h) => cell(h)).join(','), ...rows.map((r) => columns.map((c) => cell(r[c])).join(','))];
   return '﻿' + lines.join('\r\n') + '\r\n';
 }

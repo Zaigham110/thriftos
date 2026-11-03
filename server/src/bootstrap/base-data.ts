@@ -144,6 +144,7 @@ export const PERMISSIONS = [
 
   // Data ownership (v2 5.6)
   { code: 'data.export', name: 'Export all business data', group: 'Data' },
+  { code: 'cost.view', name: 'See costs and profit', group: 'Data' },
 ];
 
 /** Creates or completes the base data; returns the SYSTEM business id. */

@@ -371,6 +371,7 @@ model Sale {
 
   @@unique([tenantId, saleNumber])
   @@index([tenantId])
+  @@index([tenantId, createdAt])
   @@index([saleNumber])
   @@index([customerId])
   @@index([status])
@@ -1400,4 +1401,68 @@ model RefreshToken {
   @@index([userId])
   @@index([token])
   @@index([expiresAt])
+}
+
+/// A person's saved list view (enterprise plan E2.2): filters, columns, sort, group-by, density.
+model SavedView {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  /// The list it belongs to (lists registry name, e.g. "sales").
+  resource  String
+  name      String
+  state     Json
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, resource, name])
+  @@index([tenantId, userId, resource])
+}
+
+/// A note on any record (E2.4), shown in its activity panel. Mentioned users get a Notification.
+model RecordNote {
+  id         String   @id @default(cuid())
+  tenantId   String
+  recordType String
+  recordId   String
+  authorId   String
+  text       String
+  mentions   String[] @default([])
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, recordType, recordId, createdAt])
+}
+
+/// A file attached to any record (E2.4); the bytes live in FileStorageService under storageKey.
+model Attachment {
+  id          String   @id @default(cuid())
+  tenantId    String
+  recordType  String
+  recordId    String
+  uploadedBy  String
+  fileName    String
+  contentType String
+  size        Int
+  storageKey  String   @unique
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, recordType, recordId, createdAt])
+}
+
+/// In-app notification for one user (E2.4: @mentions; later approvals, overdue customers, low stock).
+model Notification {
+  id        String    @id @default(cuid())
+  tenantId  String
+  userId    String
+  kind      String
+  title     String
+  body      String?
+  /// App route to open, e.g. /sell/records/<id>.
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt, createdAt])
+  @@index([tenantId])
 }
