@@ -115,8 +115,13 @@ export class SortWorkComponent implements OnInit {
   protected readonly wasteAtClose = signal(0);
 
   /** Lines saved on this phone but not synced yet, for this session. */
+  /** Writes whose answer the server totals already include (their entries leave the pending list a moment later). */
+  private readonly inServerTotals = signal<ReadonlySet<string>>(new Set());
   private readonly pendingLines = computed(() =>
-    this.queue.pendingOf('sort', (m) => m['target'] === this.id() && m['stage'] === this.stage() && (m['type'] === 'line' || m['type'] === 'undo' || m['type'] === 'waste')),
+    this.queue
+      .pendingOf('sort', (m) => m['target'] === this.id() && m['stage'] === this.stage() && (m['type'] === 'line' || m['type'] === 'undo' || m['type'] === 'waste'))
+      // Counting such a line twice would make the lot look fully sorted, and "Close lot" would skip the waste question.
+      .filter((w) => !this.inServerTotals().has(w.id)),
   );
   private readonly kgByKind = computed(() => {
     const kg = { ...this.serverKg() };
@@ -144,7 +149,10 @@ export class SortWorkComponent implements OnInit {
     const stop = this.queue.onSynced((write, response) => {
       const m = write.meta;
       if (m?.['target'] !== this.id() || m?.['stage'] !== this.stage()) return;
-      if (response && typeof response === 'object' && 'buckets' in response) this.applySummary(response as SortSummary);
+      if (response && typeof response === 'object' && 'buckets' in response) {
+        this.inServerTotals.update((ids) => new Set(ids).add(write.id));
+        this.applySummary(response as SortSummary);
+      }
     });
     inject(DestroyRef).onDestroy(stop);
   }

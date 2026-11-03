@@ -59,6 +59,11 @@ export function loose(text: string): RegExp {
 export async function pickTile(page: Page, searchPlaceholder: string, text: string): Promise<void> {
   await page.locator('tos-tiles .tile').first().waitFor();
   const search = page.getByPlaceholder(searchPlaceholder);
+  // A search box shows its words only once the language's dictionary has loaded (before that it reads
+  // "sell.searchCustomer", or the other language while the app switches), so give it a moment.
+  if (await page.locator('tos-tiles input[type=search]').count()) {
+    await search.waitFor({ timeout: 5000 }).catch(() => undefined);
+  }
   if (await search.count()) await search.fill(text);
   await page.getByRole('listitem').filter({ hasText: text }).first().click();
 }
