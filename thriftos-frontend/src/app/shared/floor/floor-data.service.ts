@@ -53,6 +53,10 @@ export class FloorDataService {
   lotsToSort(): Observable<Lot[]> {
     return this.get<Lot>('/sorting/stage-1/queue?limit=50');
   }
+  /** One lot, straight from the server (a lot received a moment ago may not be in the cached queue yet). */
+  lot(id: string): Observable<Lot | null> {
+    return this.http.get<Lot>(`${API_BASE_URL}/procurement/rags/${encodeURIComponent(id)}`).pipe(catchError(() => of(null)));
+  }
   toGrade(): Observable<GradeQueueItem[]> {
     return this.get<GradeQueueItem>('/sorting/stage-2/queue?limit=50');
   }

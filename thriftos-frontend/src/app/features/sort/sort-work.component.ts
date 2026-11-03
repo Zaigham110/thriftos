@@ -68,7 +68,7 @@ const WASTE_TILE = '__waste__';
 
         <footer class="action-bar">
           <div class="summary"><small>{{ 'common.total' | t }}</small><strong>{{ inputKg() | kg }}</strong></div>
-          <button type="button" class="btn primary" [disabled]="sortedKg() <= 0 || closing()" (click)="askClose()">{{ 'sort.closeLot' | t }}</button>
+          <button type="button" class="btn primary" [disabled]="sortedKg() <= 0 || inputKg() <= 0 || closing()" (click)="askClose()">{{ 'sort.closeLot' | t }}</button>
         </footer>
       }
     </section>
@@ -158,10 +158,9 @@ export class SortWorkComponent implements OnInit {
       this.data.categories().subscribe((c) => this.kinds.set(c));
       this.data.lotsToSort().subscribe((lots) => {
         const lot = lots.find((l) => l.id === this.id());
-        if (lot) {
-          this.title.set(lot.ragCode);
-          this.inputKg.set(Number(lot.weightKg));
-        }
+        if (lot) this.setLot(lot);
+        // Not in the (possibly cached) queue, e.g. received a moment ago: ask for this lot itself.
+        else this.data.lot(this.id()).subscribe((one) => one && this.setLot(one));
       });
       this.data.sortSummary(this.id()).subscribe((summary) => {
         if (!this.inputKg() && summary?.session?.totalInputWeight) this.inputKg.set(Number(summary.session.totalInputWeight));
@@ -233,6 +232,7 @@ export class SortWorkComponent implements OnInit {
   }
 
   protected askClose(): void {
+    if (this.inputKg() <= 0) return; // weight not known yet (the button is disabled meanwhile)
     if (this.leftKg() > 0) this.confirmClose.set(true);
     else void this.close();
   }
@@ -300,8 +300,14 @@ export class SortWorkComponent implements OnInit {
     return this.queue.ref(this.startQueueId()!, 'session.id');
   }
 
+  private setLot(lot: { ragCode: string; weightKg: string }): void {
+    this.title.set(lot.ragCode);
+    if (Number(lot.weightKg) > 0) this.inputKg.set(Number(lot.weightKg));
+  }
+
   private applySummary(summary: SortSummary | null): void {
     if (!summary?.session) return;
+    if (!this.inputKg() && Number(summary.session.totalInputWeight) > 0) this.inputKg.set(Number(summary.session.totalInputWeight));
     this.sessionId.set(summary.session.id);
     const kg: Record<string, number> = {};
     for (const b of summary.buckets) kg[(b.categoryId ?? b.gradeId)!] = Number(b.outputWeightKg);

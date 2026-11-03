@@ -171,3 +171,32 @@ test('journey 7: the owner home shows three numbers and today, and each taps thr
   await expect(page).toHaveURL(/\/home\/today$/);
   await expect(page.locator('.list li')).toHaveCount(Math.max(numbers.today.sales, 1));
 });
+
+test('a lot received a moment ago, missing from a stale sort queue and without its first summary, still asks before closing', async ({ page, context }) => {
+  // The sort queue can come from the phone's cache, made before this lot existed.
+  // (context.route also sees the requests the service worker makes.)
+  await context.route('**/api/sorting/stage-1/queue*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+  // …and on a slow connection the first summary of the lot may not arrive at all.
+  await context.route('**/api/sorting/stage-1/summary*', (route) => route.abort());
+  const tag = Date.now().toString().slice(-6);
+  await signIn(page);
+  await page.goto('/receive/container');
+  await page.getByRole('listitem').filter({ hasText: 'New supplier' }).click();
+  await page.getByLabel('Supplier name').fill(`Stale Queue ${tag}`);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await keypad(page, /^Invoice weight/, 500);
+  await keypad(page, /^Purchase cost/, 100000);
+  await page.getByRole('button', { name: 'Save container' }).click();
+  await page.locator('.done').getByRole('link', { name: 'Chhantai' }).click();
+
+  // The lot's own weight is fetched, so the screen knows what is left.
+  await expect(page.locator('.action-bar')).toContainText(loose('500.0 kg'));
+  await page.getByRole('listitem').filter({ hasText: 'Jeans' }).click();
+  await keys(page, 400);
+  await expect(page.locator('.totals')).toContainText(loose('100.0 kg'));
+  await page.getByRole('button', { name: 'Close lot' }).click();
+  await expect(page.getByText(loose('100.0 kg not sorted goes to waste. Close the lot?'))).toBeVisible();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Close lot' }).click();
+  await expect(page.getByText('Lot closed')).toBeVisible();
+  await expect(page.locator('li', { hasText: 'Jeans' })).toContainText('80%');
+});
