@@ -11,6 +11,7 @@
 
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/guards/permission-guard';
+import { moduleGuard } from '../../core/guards/module.guard';
 
 export const PROCUREMENT_ROUTES: Routes = [
   {
@@ -31,6 +32,9 @@ export const PROCUREMENT_ROUTES: Routes = [
   // Purchase Orders
   {
     path: 'pos',
+    // Purchase orders are not part of v1: only when the business turned them on.
+    canActivate: [moduleGuard],
+    data: { module: 'PURCHASE_ORDERS' },
     children: [
       {
         path: '',

@@ -13,7 +13,7 @@
         <lucide-icon [img]="icons.RefreshCw" [size]="15" [class.animate-spin]="loading()"></lucide-icon>
         Refresh
       </button>
-      @if (canCreate()) {
+      @if (canCreate() && posEnabled()) {
         <button class="btn btn-primary" [routerLink]="['/receive/records/pos/create']">
           <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
           New Purchase Order
@@ -32,6 +32,7 @@
 
     <!-- KPI Metric Summary Grid -->
     <div class="kpi-grid">
+      @if (posEnabled()) {
       <div class="kpi-card" [routerLink]="['/receive/records/pos']">
         <div class="kpi-icon kpi-icon-purple">
           <lucide-icon [img]="icons.ShoppingBag" [size]="22"></lucide-icon>
@@ -42,6 +43,7 @@
           <span class="kpi-link">View POs <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon></span>
         </div>
       </div>
+      }
 
       <div class="kpi-card" [routerLink]="['/receive/records/containers']">
         <div class="kpi-icon kpi-icon-blue">
@@ -69,6 +71,7 @@
     <!-- Analytics & Spend Share Section -->
     <app-section>
       <div class="analytics-grid">
+        @if (posEnabled()) {
         <!-- PO Spend vs Allocated Chart -->
         <div class="chart-panel-card">
           <div class="panel-header">
@@ -88,6 +91,7 @@
             }
           </div>
         </div>
+        }
 
         <!-- Vendor Distribution Share -->
         <div class="chart-panel-card">

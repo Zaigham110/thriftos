@@ -2,7 +2,9 @@ import { ArrayUnique, IsArray, IsIn, IsInt, IsOptional, IsString, Max, MaxLength
 import { SUPPORTED_CURRENCY_CODES } from '../../common/currency/currency';
 
 /** Modules a tenant can turn on. The first five are on by default; the rest are advanced. */
-export const TENANT_MODULES = ['RECEIVE', 'SORT', 'STOCK', 'SELL', 'KHATA', 'REPORTS', 'EXPORT', 'WAREHOUSES', 'PAYROLL'] as const;
+export const TENANT_MODULES = ['RECEIVE', 'SORT', 'STOCK', 'SELL', 'KHATA', 'REPORTS', 'EXPORT', 'WAREHOUSES', 'PURCHASE_ORDERS', 'PAYROLL', 'BILLING'] as const;
+/** Not part of v1: refused (403) unless the business turned them on. BILLING is read from the SYSTEM business. */
+export const ADVANCED_MODULES = ['REPORTS', 'EXPORT', 'WAREHOUSES', 'PURCHASE_ORDERS', 'PAYROLL', 'BILLING'] as const;
 export type TenantModule = (typeof TENANT_MODULES)[number];
 
 export class UpdateTenantSettingsDto {

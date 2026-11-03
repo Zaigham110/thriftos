@@ -22,6 +22,9 @@ import { TenantGuard } from '../common/guards/tenant.guard';
 import { SuperAdminOnly } from '../common/decorators/super-admin.decorator';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 import { BootstrapResult } from './tenant-bootstrap.service';
+import { RequireModule } from '../common/decorators/require-module.decorator';
+import { SYSTEM_COMPANY_CODE } from '../common/guards/module.guard';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('superadmin')
 @UseGuards(TenantGuard)
@@ -30,7 +33,15 @@ export class SuperAdminController {
   constructor(
     private readonly superAdminService: SuperAdminService,
     private readonly authService: AuthService,
+    private readonly prisma: PrismaService,
   ) {}
+
+  /** Modules turned on for the platform itself (the SYSTEM business): what the super admin console shows. */
+  @Get('modules')
+  async getModules() {
+    const system = await this.prisma.tenant.findUnique({ where: { companyCode: SYSTEM_COMPANY_CODE }, select: { enabledModules: true } });
+    return { enabledModules: system?.enabledModules ?? [] };
+  }
 
   @Get('summary')
   async getSummary() {
@@ -56,11 +67,13 @@ export class SuperAdminController {
   }
 
   @Get('plans')
+  @RequireModule('BILLING')
   async getPlans() {
     return this.superAdminService.getPlansCatalog();
   }
 
   @Get('billing')
+  @RequireModule('BILLING')
   async getBilling() {
     return this.superAdminService.getBillingSummary();
   }

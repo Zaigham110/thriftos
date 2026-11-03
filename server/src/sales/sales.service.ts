@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InventoryStatus, MovementType, PaymentMode, Prisma, SaleStatus, SaleType, SequenceScope } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { IdempotencyService } from '../common/idempotency/idempotency.service';
@@ -67,7 +67,8 @@ export class SalesService {
       if (!customer.isActive) throw new BadRequestException('This customer is inactive');
       const type = dto.type ?? SaleType.LOCAL;
       if (type === SaleType.EXPORT && !tenant.enabledModules.includes('EXPORT')) {
-        throw new BadRequestException('Export sales are not turned on');
+        // Same answer as a route of a module that is off (ModuleGuard).
+        throw new ForbiddenException({ statusCode: 403, error: 'Forbidden', code: 'MODULE_DISABLED', module: 'EXPORT', message: 'EXPORT is not turned on for this business' });
       }
 
       const sale = await tx.sale.create({

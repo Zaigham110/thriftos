@@ -33,8 +33,13 @@ export interface TenantProfile {
   setupCompletedAt?: string | null;
 }
 
-/** Modules a tenant can turn on; the first five are on by default. */
-export type TenantModule = 'RECEIVE' | 'SORT' | 'STOCK' | 'SELL' | 'KHATA' | 'REPORTS' | 'EXPORT' | 'WAREHOUSES' | 'PAYROLL';
+/**
+ * Modules a tenant can turn on; the first five are on by default. The rest are not part of v1 and stay hidden
+ * (and refused by the server) until turned on in `Tenant.enabledModules`. BILLING is read from the SYSTEM business.
+ */
+export type TenantModule =
+  | 'RECEIVE' | 'SORT' | 'STOCK' | 'SELL' | 'KHATA'
+  | 'REPORTS' | 'EXPORT' | 'WAREHOUSES' | 'PURCHASE_ORDERS' | 'PAYROLL' | 'BILLING';
 
 const DEFAULT_MODULES: TenantModule[] = ['RECEIVE', 'SORT', 'STOCK', 'SELL', 'KHATA'];
 

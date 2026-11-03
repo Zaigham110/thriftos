@@ -75,6 +75,8 @@ export const routes: Routes = [
       { path: 'home/today', loadComponent: () => import('./features/home/today.component').then((m) => m.HomeTodayComponent), title: 'ThriftOS' },
       {
         path: 'home/overview',
+        canActivate: [moduleGuard],
+        data: { module: 'REPORTS' },
         loadComponent: () => import('./features/dashboard/dashboard/dashboard').then((m) => m.DashboardComponent),
         title: 'ThriftOS',
       },

@@ -88,6 +88,7 @@ export class TenantSettingsComponent implements OnInit {
     { value: 'REPORTS', label: 'Reports', desc: 'Detailed reports (advanced)' },
     { value: 'EXPORT', label: 'Export', desc: 'Export sales (advanced)' },
     { value: 'WAREHOUSES', label: 'Warehouses', desc: 'More than one store (advanced)' },
+    { value: 'PURCHASE_ORDERS', label: 'Purchase orders', desc: 'Orders to suppliers before the container ships (advanced)' },
     { value: 'PAYROLL', label: 'Payroll', desc: 'Piece-rate pay (later)' },
   ];
 

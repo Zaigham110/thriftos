@@ -143,8 +143,14 @@ Running log of the v1 reshape. Newest entries at the bottom of each section.
 - 2026-11-03 — 4.4 README and demo script (no migration):
   - `README.md` rewritten in plain words: what ThriftOS does (maal aya, chhantai, bales, becho, khata, home), the demo logins, `npm run demo:reset` and how to start the app on the demo database, `docker compose up` (with `ALLOW_DEV_MIGRATE=1` in `.env`; not run in this environment), develop and test commands, where the docs are.
   - `docs/v1/DEMO-SCRIPT.md`: a 5-minute pitch for a Sher Shah owner, minute by minute (what to tap, what to say in English and Roman Urdu), starting with the owner home "profit per container" → by supplier / by country moment (USA ~Rs 30/kg profit and 18% A grade vs Korea ~Rs 14/kg and 10%), then udhaar, a container arriving, the munshi sorting, bale + QR + udhaar sale + WhatsApp bill, payment, and the ask. Every tap uses the screen's real words (checked against `public/i18n`), plus answers to the usual questions.
+- 2026-11-03 — 4.5 Modules that are not v1 are hidden and refused (no migration: `enabledModules` is a text list):
+  - Server: `@RequireModule(m)` + `ModuleGuard` (`server/src/common`) answer **403 `{ code: 'MODULE_DISABLED', module }`** unless the business has the module in `Tenant.enabledModules`. On: all 9 `reports/*` controllers (incl. CSV exports) → `REPORTS`; `admin/warehouses` → `WAREHOUSES`; `procurement/purchase-orders` → `PURCHASE_ORDERS` (new module name); super admin `plans` and `billing` → `BILLING` (new), read from the `SYSTEM` business because the super admin has none; export sales → `EXPORT` (was 400, now the same 403). New `GET /superadmin/modules`. The guard finds the business itself (own, impersonated, or SYSTEM), so it does not depend on guard order.
+  - App: routes `/reports`, `/home/overview`, `/settings/admin/warehouses…`, `/receive/records/pos…` go home when the module is off; the procurement records screen hides the PO card, button and chart; the super admin menu hides "Commercial" (plans, billing) and their routes go to the dashboard. Owners can turn on Purchase orders in the module list.
+  - Tests: `server/test/e2e/modules.e2e-spec.ts` (off → 403 for reports, warehouses, POs, export; on → 200; v1 screens work with only RECEIVE/STOCK/SELL/KHATA; per business; super admin billing/plans follow SYSTEM, `GET /superadmin/modules`); `thriftos-frontend/e2e/modules.spec.ts` (owner menus and addresses; super admin menu and addresses).
+  - Left open on purpose: `GET /tenant/warehouses` (a lookup v1 screens may use for the default store); Payroll has no screens or routes.
 
 ## Decisions
+- Super admin BILLING is a module of the `SYSTEM` business, so plans and billing are off on every install until the platform owner turns them on in the database.
 - "Owner home < 2 s" is measured on the installed app (service worker and the owner's last numbers on the phone), which is how an owner opens it every day; the first-ever visit is measured separately (7.7 s on Slow 3G + 4× CPU).
 - `NG_BUILD_OPTIMIZE_CHUNKS` is an experimental Angular build option; all browser tests pass with it. If a future Angular drops it, the build still works, only the first visit gets slower.
 - Demo profit per kg is realised profit over all kg bought (only ~10% of each container is baled and sold in the story), so the numbers are small (Rs 14–30); the comparison between countries is the point. The demo script says so.
@@ -177,7 +183,7 @@ Running log of the v1 reshape. Newest entries at the bottom of each section.
 - Customer, sale and khata endpoints need a tenant login but no specific permission (as the sales endpoints already did); roles for munshi vs owner come with phone + PIN login (3.7).
 - The old credit-limit check on issuing a sale is dropped with the draft sale flow (2.3); credit limits stay as optional data only.
 - One e2e run (of ~10) during 2.3 showed 6 failures that did not reproduce in any later run; noted here in case it returns.
-- Server-side enforcement of `enabledModules` (doc 03 rule 6) is not built yet; tabs are hidden in the app. To do with 4.5 (hide non-v1 modules).
+- Server-side enforcement of `enabledModules` (doc 03 rule 6): built in 4.5 for the advanced modules; the five v1 modules are still only hidden in the app (turning SORT off is a setting for traders, not a permission).
 
 ## Before first deploy
 - The Docker entrypoint migrates on start only if the database name ends in `_test` or `ALLOW_DEV_MIGRATE=1` is set; set it (or rename the variable to something production-shaped) in the production environment.

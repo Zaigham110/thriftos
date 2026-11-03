@@ -88,7 +88,7 @@ describe('Sales (e2e)', () => {
     await api(app, a).post('/sales', { customerId: ali.id, paymentMode: 'CREDIT', paidAmount: 100, lines: [line] }).expect(400);
     await api(app, a).post('/sales', { customerId: ali.id, paymentMode: 'CASH', lines: [line, line] }).expect(400);
     await api(app, a).post('/sales', { customerId: ali.id, paymentMode: 'CASH', lines: [{ ...line, quantity: 1.5 }] }).expect(400);
-    await api(app, a).post('/sales', { customerId: ali.id, paymentMode: 'CASH', type: 'EXPORT', lines: [line] }).expect(400);
+    await api(app, a).post('/sales', { customerId: ali.id, paymentMode: 'CASH', type: 'EXPORT', lines: [line] }).expect(403);
     await api(app, a).post('/sales', { customerId: ali.id, paymentMode: 'CASH', lines: [] }).expect(400);
     // The second line is short, so the first line's stock must not be used either.
     await api(app, a)
