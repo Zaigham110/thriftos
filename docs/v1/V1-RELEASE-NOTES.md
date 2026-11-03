@@ -78,8 +78,8 @@ in the database by the platform owner.
    your own super admin and deactivate this one.
 3. **Do not load the demo** into a real database: `npm run demo:reset` only ever writes `thriftos_demo`; keep it that way.
 4. **Migrations:** the Docker entrypoint migrates on start only if the database name ends in `_test` or
-   `ALLOW_DEV_MIGRATE=1` is set. Set it deliberately in production (or run the migrations yourself, as with
-   `scripts/apply-phase*.sh`).
+   `RUN_MIGRATIONS_ON_START=1` is set (renamed from `ALLOW_DEV_MIGRATE` in v2 task 5.1; the production stack
+   sets it). Locally, run the migrations yourself as with `scripts/apply-phase*.sh`.
 5. **Set** `PUBLIC_APP_URL` (the address in WhatsApp bill links), `CORS_ORIGIN` (if the app and API are on different
    addresses) and serve over **HTTPS** (needed for install, offline and the camera).
 6. Use `thriftos-frontend/nginx.conf` (or the same cache headers): `index.html` and `ngsw.json` must never be cached,

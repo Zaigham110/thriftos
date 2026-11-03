@@ -10,11 +10,11 @@ Phase 5 Go live → Phase 6 Onboarding (import, Play Store, printing) → Phase 
 ## Phase 5 — Housekeeping and go live on AWS (week 1–2)
 Target: the owner's existing AWS free-tier account. One EC2 micro instance (1 GB RAM) running Docker Compose. Nothing is built on the server.
 
-- [ ] 5.0 Housekeeping
+- [x] 5.0 Housekeeping
   - Work only in this repository folder (no separate clone/worktree); confirm installs, tags and commits land here.
   - Remove the unused imports behind every NG8113 warning; CI fails on new Angular warnings.
   - Make GitHub Actions run green on push (owner enables Actions if disabled); merge `v1-reshape` → `main` via PR once green.
-- [ ] 5.1 Production config
+- [x] 5.1 Production config
   - `docker-compose.prod.yml`: `postgres:16-alpine` (tuned for 1 GB: shared_buffers 128MB, max_connections 30), `server`, `web` (nginx serving the built app), `caddy` (HTTPS via Let's Encrypt, reverse proxy `/api` → server). Memory limits per container; 2 GB swap file documented in the server setup script.
   - Rename the migrate switch to `RUN_MIGRATIONS_ON_START` (production: 1); keep the dev guard behaviour from `scripts/db-guard.js`.
   - All secrets from `/opt/thriftos/.env.prod` on the server (never in git). New `JWT_SECRET` and DB password generated on the server (this closes "rotate secrets").

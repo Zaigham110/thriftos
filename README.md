@@ -64,7 +64,7 @@ Open <http://localhost:4300>. To use it on your phone over Wi-Fi, see
 cp .env.example .env
 ```
 
-In `.env`, set `POSTGRES_PASSWORD`, `JWT_SECRET` and a matching `DATABASE_URL`, and add `ALLOW_DEV_MIGRATE=1`. That
+In `.env`, set `POSTGRES_PASSWORD`, `JWT_SECRET` and a matching `DATABASE_URL`, and add `RUN_MIGRATIONS_ON_START=1`. That
 lets the server container set up its own database when it starts; the local `npm run db:*` scripts ignore it.
 Then:
 

@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { configureApp } from './app.setup';
+import { configureApp, swaggerEnabled } from './app.setup';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -85,20 +85,22 @@ Super Admins can impersonate tenants to access tenant-scoped data.
     .addTag('Reports', 'Analytics & reports')
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document, {
-    swaggerOptions: {
-      persistAuthorization: true,
-      tagsSorter: 'alpha',
-      operationsSorter: 'alpha',
-    },
-    customSiteTitle: 'ThriftOS V3 API Documentation',
-  });
+  if (swaggerEnabled(process.env)) {
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document, {
+      swaggerOptions: {
+        persistAuthorization: true,
+        tagsSorter: 'alpha',
+        operationsSorter: 'alpha',
+      },
+      customSiteTitle: 'ThriftOS V3 API Documentation',
+    });
+  }
 
   const port = process.env.PORT || 3000;
   await app.listen(port);
   console.log(`🚀 ThriftOS V3 API running on: http://localhost:${port}/api`);
-  console.log(`📚 Swagger docs available at: http://localhost:${port}/api/docs`);
+  if (swaggerEnabled(process.env)) console.log(`📚 Swagger docs available at: http://localhost:${port}/api/docs`);
 }
 
 bootstrap();

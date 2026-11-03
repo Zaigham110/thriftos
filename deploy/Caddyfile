@@ -1,0 +1,36 @@
+# HTTPS (Let's Encrypt, automatic) and routing for the production stack (docker-compose.prod.yml).
+{
+	email {$ACME_EMAIL}
+}
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# The floor app scans QR codes with the camera; nothing else needs device access.
+		Permissions-Policy "camera=(self), microphone=(), geolocation=()"
+		-Server
+	}
+
+	# API docs are not served in production.
+	handle /api/docs* {
+		respond 404
+	}
+
+	handle /api/* {
+		reverse_proxy server:3000
+	}
+
+	handle {
+		reverse_proxy web:80
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}
