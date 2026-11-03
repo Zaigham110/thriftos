@@ -389,17 +389,57 @@
  "ws": {
   "account": "آپ کا اکاؤنٹ",
   "activity": {
+   "attach": "فائل لگائیں",
+   "badFile": "10 MB تک تصویر، PDF، اسپریڈ شیٹ یا Word فائل لگائیں۔",
    "empty": "ابھی کوئی سرگرمی نہیں۔",
+   "mention": "جن کا ذکر کر سکتے ہیں",
    "placeholder": "ٹیم کے لیے نوٹ لکھیں…",
    "post": "نوٹ شامل کریں",
    "title": "سرگرمی"
+  },
+  "audit": {
+   "BALE_MADE": "نے گانٹھ بنائی",
+   "CONTAINER_CHARGE_ADDED": "نے خرچہ شامل کیا",
+   "CONTAINER_CHARGE_DELETED": "نے خرچہ ہٹایا",
+   "CONTAINER_CREATED": "نے کنٹینر وصول کیا",
+   "CONTAINER_STATUS_CHANGED": "نے کنٹینر کی حالت بدلی",
+   "CONTAINER_UPDATED": "نے کنٹینر میں تبدیلی کی",
+   "CONTAINER_WEIGHTS_UPDATED": "نے وزن بدلا",
+   "COST_ADJUSTMENT": "لاگت دوبارہ حساب ہوئی",
+   "CUSTOMER_CREATED": "نے گاہک شامل کیا",
+   "CUSTOMER_OPENING_BALANCE_CHANGED": "نے پرانا ادھار بدلا",
+   "GRADE_SESSION_CLOSED": "نے گریڈنگ مکمل کی",
+   "PAYMENT_PHOTO_ADDED": "نے ادائیگی کا اسکرین شاٹ لگایا",
+   "PAYMENT_RECEIVED": "نے ادائیگی درج کی",
+   "RAG_CREATED": "نے لاٹ شامل کیا",
+   "RAG_DELETED": "نے لاٹ ہٹایا",
+   "RAG_UPDATED": "نے لاٹ میں تبدیلی کی",
+   "SALE_CREATED": "نے بکری کی",
+   "SALE_FULFILLED": "نے مال حوالے کیا",
+   "SORT_SESSION_CLOSED": "نے چھانٹی مکمل کی"
   },
   "breadcrumbs": "آپ یہاں ہیں",
   "chart": {
    "showChart": "چارٹ میں دکھائیں",
    "showTable": "جدول میں دکھائیں"
   },
+  "col": {
+   "city": "شہر",
+   "cost": "لاگت",
+   "count": "بکریاں",
+   "createdBy": "درج کرنے والا",
+   "customer": "گاہک",
+   "customerId": "گاہک",
+   "date": "تاریخ",
+   "number": "بکری",
+   "paymentMode": "ادائیگی",
+   "profit": "منافع",
+   "status": "حالت",
+   "total": "کل",
+   "type": "قسم"
+  },
   "collapse": "مینو چھوٹا کریں",
+  "columns": "کالم",
   "create": "نیا",
   "crumb": {
    "containers": "کنٹینر",
@@ -416,6 +456,11 @@
    "compact": "گھنی قطاریں"
   },
   "expand": "مینو بڑا کریں",
+  "export": {
+   "csv": "CSV (کوئی بھی اسپریڈ شیٹ)",
+   "label": "ایکسپورٹ",
+   "xlsx": "Excel"
+  },
   "filter": {
    "clear": "فلٹر صاف کریں",
    "remove": "فلٹر ہٹائیں",
@@ -430,11 +475,18 @@
   },
   "group": {
    "insights": "جائزہ",
+   "none": "گروپ کے بغیر",
    "operations": "کام کاج",
    "sales": "بکری اور پیسہ"
   },
+  "groupBy": "گروپ بنائیں",
   "kpi": {
    "vsPrevious": "پچھلے عرصے کے مقابلے میں"
+  },
+  "mode": {
+   "CASH": "نقد",
+   "CREDIT": "ادھار",
+   "PARTIAL": "کچھ ادا"
   },
   "nav": {
    "home": "ہوم",
@@ -453,16 +505,31 @@
    "ready": "تیار مال وصول کریں",
    "sale": "نئی بکری"
   },
+  "notifications": {
+   "button": "اطلاعات: {n} نئی",
+   "none": "کچھ نیا نہیں۔",
+   "readAll": "سب پڑھ لیں",
+   "title": "اطلاعات"
+  },
+  "pager": {
+   "label": "صفحات",
+   "next": "اگلا صفحہ",
+   "perPage": "فی صفحہ قطاریں",
+   "previous": "پچھلا صفحہ",
+   "range": "{total} میں سے {from}–{to}"
+  },
   "palette": {
    "actions": "کام",
    "create": "نیا بنائیں",
    "noResults": "کچھ نہیں ملا۔",
-   "pages": "یہاں جائیں"
+   "pages": "یہاں جائیں",
+   "records": "ریکارڈ"
   },
   "range": {
    "30d": "پچھلے 30 دن",
    "7d": "پچھلے 7 دن",
    "90d": "پچھلے 90 دن",
+   "all": "سارا عرصہ",
    "custom": "اپنی تاریخیں",
    "from": "سے",
    "label": "عرصہ",
@@ -471,6 +538,32 @@
    "to": "تک",
    "today": "آج",
    "year": "اس سال"
+  },
+  "sale": {
+   "amount": "رقم",
+   "balance": "گاہک کا بقایا",
+   "bill": "بل کھولیں",
+   "due": "باقی",
+   "item": "چیز",
+   "lines": "اشیاء",
+   "method": "طریقہ",
+   "noPayments": "اس بکری کی ابھی کوئی ادائیگی نہیں",
+   "notFound": "یہ بکری نہیں ملی۔",
+   "paid": "ادا",
+   "payments": "ادائیگیاں",
+   "print": "پرنٹ",
+   "quantity": "مقدار",
+   "reference": "حوالہ",
+   "share": "واٹس ایپ پر بھیجیں",
+   "unit": "اکائی",
+   "unitPrice": "قیمت"
+  },
+  "sales": {
+   "count": "{n} بکریاں",
+   "emptyHeading": "کوئی بکری نہیں ملی",
+   "emptyMessage": "دوسرے الفاظ، لمبا عرصہ آزمائیں، یا فلٹر صاف کریں۔",
+   "search": "بکری نمبر، گاہک یا شہر تلاش کریں",
+   "title": "بکری"
   },
   "search": "تلاش کریں یا کسی صفحے پر جائیں…",
   "sheet": {
@@ -490,10 +583,26 @@
    "loading": "لوڈ ہو رہا ہے…",
    "retry": "دوبارہ کوشش کریں"
   },
+  "status": {
+   "CANCELLED": "منسوخ",
+   "DRAFT": "مسودہ",
+   "ISSUED": "ادھار",
+   "PAID": "ادا",
+   "PARTIALLY_PAID": "کچھ ادا"
+  },
   "switchLanguage": "اردو / انگریزی بدلیں",
   "theme": {
    "dark": "گہرا رنگ",
    "light": "ہلکا رنگ"
+  },
+  "views": {
+   "all": "سب ریکارڈ",
+   "default": "یہ ویو پہلے کھولیں",
+   "delete": "ویو مٹائیں",
+   "name": "ویو کا نام",
+   "save": "ویو محفوظ کریں",
+   "saved": "ویو \"{name}\" محفوظ ہو گیا۔",
+   "taken": "اس نام کا ویو پہلے سے موجود ہے۔"
   }
  }
 }

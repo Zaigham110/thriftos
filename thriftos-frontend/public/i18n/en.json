@@ -389,17 +389,57 @@
  "ws": {
   "account": "Your account",
   "activity": {
+   "attach": "Attach file",
+   "badFile": "Attach a photo, PDF, spreadsheet or Word file up to 10 MB.",
    "empty": "No activity yet.",
+   "mention": "People you can mention",
    "placeholder": "Write a note for the team…",
    "post": "Add note",
    "title": "Activity"
+  },
+  "audit": {
+   "BALE_MADE": "made the bale",
+   "CONTAINER_CHARGE_ADDED": "added a charge",
+   "CONTAINER_CHARGE_DELETED": "removed a charge",
+   "CONTAINER_CREATED": "received the container",
+   "CONTAINER_STATUS_CHANGED": "changed the container's status",
+   "CONTAINER_UPDATED": "edited the container",
+   "CONTAINER_WEIGHTS_UPDATED": "changed the weights",
+   "COST_ADJUSTMENT": "costs were recalculated",
+   "CUSTOMER_CREATED": "added the customer",
+   "CUSTOMER_OPENING_BALANCE_CHANGED": "changed the old udhaar",
+   "GRADE_SESSION_CLOSED": "closed the grading",
+   "PAYMENT_PHOTO_ADDED": "added a payment screenshot",
+   "PAYMENT_RECEIVED": "recorded a payment",
+   "RAG_CREATED": "added the lot",
+   "RAG_DELETED": "removed the lot",
+   "RAG_UPDATED": "edited the lot",
+   "SALE_CREATED": "made the sale",
+   "SALE_FULFILLED": "handed over the goods",
+   "SORT_SESSION_CLOSED": "closed the sorting"
   },
   "breadcrumbs": "You are here",
   "chart": {
    "showChart": "Show as chart",
    "showTable": "Show as table"
   },
+  "col": {
+   "city": "City",
+   "cost": "Cost",
+   "count": "Sales",
+   "createdBy": "Entered by",
+   "customer": "Customer",
+   "customerId": "Customer",
+   "date": "Date",
+   "number": "Sale",
+   "paymentMode": "Payment",
+   "profit": "Profit",
+   "status": "Status",
+   "total": "Total",
+   "type": "Type"
+  },
   "collapse": "Collapse menu",
+  "columns": "Columns",
   "create": "Create",
   "crumb": {
    "containers": "Containers",
@@ -416,6 +456,11 @@
    "compact": "Compact rows"
   },
   "expand": "Expand menu",
+  "export": {
+   "csv": "CSV (any spreadsheet)",
+   "label": "Export",
+   "xlsx": "Excel"
+  },
   "filter": {
    "clear": "Clear filters",
    "remove": "Remove filter",
@@ -430,11 +475,18 @@
   },
   "group": {
    "insights": "Insights",
+   "none": "No grouping",
    "operations": "Operations",
    "sales": "Sales and money"
   },
+  "groupBy": "Group by",
   "kpi": {
    "vsPrevious": "vs previous period"
+  },
+  "mode": {
+   "CASH": "Cash",
+   "CREDIT": "Udhaar",
+   "PARTIAL": "Part paid"
   },
   "nav": {
    "home": "Home",
@@ -453,16 +505,31 @@
    "ready": "Receive ready stock",
    "sale": "New sale"
   },
+  "notifications": {
+   "button": "Notifications: {n} unread",
+   "none": "Nothing new.",
+   "readAll": "Mark all read",
+   "title": "Notifications"
+  },
+  "pager": {
+   "label": "Pages",
+   "next": "Next page",
+   "perPage": "Rows per page",
+   "previous": "Previous page",
+   "range": "{from}–{to} of {total}"
+  },
   "palette": {
    "actions": "Actions",
    "create": "Create",
    "noResults": "Nothing matches.",
-   "pages": "Go to"
+   "pages": "Go to",
+   "records": "Records"
   },
   "range": {
    "30d": "Last 30 days",
    "7d": "Last 7 days",
    "90d": "Last 90 days",
+   "all": "All time",
    "custom": "Custom dates",
    "from": "From",
    "label": "Period",
@@ -471,6 +538,32 @@
    "to": "To",
    "today": "Today",
    "year": "This year"
+  },
+  "sale": {
+   "amount": "Amount",
+   "balance": "Customer balance",
+   "bill": "Open bill",
+   "due": "Due",
+   "item": "Item",
+   "lines": "Items",
+   "method": "Method",
+   "noPayments": "No payments for this sale yet",
+   "notFound": "This sale could not be found.",
+   "paid": "Paid",
+   "payments": "Payments",
+   "print": "Print",
+   "quantity": "Quantity",
+   "reference": "Reference",
+   "share": "Share on WhatsApp",
+   "unit": "Unit",
+   "unitPrice": "Price"
+  },
+  "sales": {
+   "count": "{n} sales",
+   "emptyHeading": "No sales match",
+   "emptyMessage": "Try other words, a wider period, or clear the filters.",
+   "search": "Search sale number, customer or city",
+   "title": "Sales"
   },
   "search": "Search or jump to…",
   "sheet": {
@@ -490,10 +583,26 @@
    "loading": "Loading…",
    "retry": "Try again"
   },
+  "status": {
+   "CANCELLED": "Cancelled",
+   "DRAFT": "Draft",
+   "ISSUED": "Udhaar",
+   "PAID": "Paid",
+   "PARTIALLY_PAID": "Part paid"
+  },
   "switchLanguage": "Switch to Urdu / English",
   "theme": {
    "dark": "Dark mode",
    "light": "Light mode"
+  },
+  "views": {
+   "all": "All records",
+   "default": "Open this view first",
+   "delete": "Delete view",
+   "name": "Name this view",
+   "save": "Save view",
+   "saved": "View \"{name}\" saved.",
+   "taken": "You already have a view with this name."
   }
  }
 }

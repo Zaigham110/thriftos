@@ -51,7 +51,7 @@ const MODES: PaymentMode[] = ['CASH', 'CREDIT', 'PARTIAL'];
           <h2>{{ 'sell.saved' | t: { no: sale.saleNumber, rs: (sale.totalAmount | rs) } }}</h2>
           <p class="hint">{{ 'sell.savedLine' | t: { name: customer()?.name ?? '', paid: (sale.paid | rs), due: (sale.due | rs), balance: (sale.customerBalance | rs) } }}</p>
           <button type="button" class="btn primary block" (click)="share(sale)"><lucide-icon [img]="icons.MessageCircle" [size]="20" /> {{ 'sell.share' | t }}</button>
-          <a class="btn block" [routerLink]="['/sell/records', sale.id]">{{ 'sell.openBill' | t }}</a>
+          <a class="btn block" [routerLink]="['/bill', sale.billToken]">{{ 'sell.openBill' | t }}</a>
           <button type="button" class="btn block" (click)="reset()">{{ 'sell.another' | t }}</button>
         </section>
       } @else {

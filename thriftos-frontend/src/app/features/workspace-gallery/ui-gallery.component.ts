@@ -14,6 +14,7 @@ import {
   WsFilterBarComponent,
   WsFilterChip,
   WsKpiCardComponent,
+  WsNote,
   WsPageHeaderComponent,
   WsRow,
   WsSideSheetComponent,
@@ -53,9 +54,9 @@ import {
   template: `
     <div class="gallery">
       <ws-page-header heading="Container C-0012 · Global Textile Recyclers, USA" subtitle="Interface gallery: sample data, not a working screen">
-        <button actions type="button" class="btn" (click)="theme.toggleTheme()">Theme: {{ theme.theme() }}</button>
-        <button actions type="button" class="btn" (click)="theme.setDensity(theme.density() === 'compact' ? 'comfortable' : 'compact')">Rows: {{ theme.density() }}</button>
-        <button actions type="button" class="btn primary" (click)="sheetOpen.set(true)">Open side sheet</button>
+        <button actions type="button" class="ws-btn" (click)="theme.toggleTheme()">Theme: {{ theme.theme() }}</button>
+        <button actions type="button" class="ws-btn" (click)="theme.setDensity(theme.density() === 'compact' ? 'comfortable' : 'compact')">Rows: {{ theme.density() }}</button>
+        <button actions type="button" class="ws-btn primary" (click)="sheetOpen.set(true)">Open side sheet</button>
       </ws-page-header>
 
       <ws-status-pipeline [steps]="['Received', 'Sorting', 'Baling', 'Selling', 'Closed']" [current]="2" label="Container status" />
@@ -76,9 +77,9 @@ import {
 
       <ws-command-bar>
         <div start class="row">
-          <button type="button" class="btn primary">New sale</button>
-          <button type="button" class="btn">Export</button>
-          <button type="button" class="btn">Print</button>
+          <button type="button" class="ws-btn primary">New sale</button>
+          <button type="button" class="ws-btn">Export</button>
+          <button type="button" class="ws-btn">Print</button>
         </div>
         <ws-date-range end [(value)]="range" />
       </ws-command-bar>
@@ -86,12 +87,12 @@ import {
       <ws-filter-bar [(query)]="query" placeholder="Search customers, bales, invoices" [chips]="chips()" (remove)="removeChip($event)" (clearAll)="chips.set([])" />
 
       <ws-data-grid caption="Sales" [columns]="columns" [rows]="filteredRows()" [(sort)]="sort" [(selected)]="selected" [selectable]="true" [clickable]="true" emptyHeading="No sales match" emptyMessage="Try other words or clear the filters.">
-        <button bulk type="button" class="btn small">Send reminders</button>
+        <button bulk type="button" class="ws-btn small">Send reminders</button>
       </ws-data-grid>
 
       <div class="two">
         <ws-bar-chart heading="Profit per kg by origin (Rs)" [categories]="['USA', 'UK', 'Korea', 'Canada']" [series]="[{ label: 'Last quarter', values: [27.1, 21.4, 13.2, 19.8] }, { label: 'This quarter', values: [29.7, 22.9, 14.1, 21.0] }]" />
-        <ws-activity-panel [items]="activity()" (note)="addNote($event)" />
+        <ws-activity-panel [items]="activity()" [people]="[{ id: 'u1', name: 'Munshi Aslam' }, { id: 'u2', name: 'Owner' }]" (note)="addNote($event)" />
       </div>
 
       <section>
@@ -108,8 +109,8 @@ import {
 
     <ws-side-sheet [open]="sheetOpen()" heading="Quick edit" (close)="sheetOpen.set(false)">
       <p>Side sheets hold quick edits and previews without leaving the list.</p>
-      <button footer type="button" class="btn" (click)="sheetOpen.set(false)">Cancel</button>
-      <button footer type="button" class="btn primary" (click)="sheetOpen.set(false)">Save</button>
+      <button footer type="button" class="ws-btn" (click)="sheetOpen.set(false)">Cancel</button>
+      <button footer type="button" class="ws-btn primary" (click)="sheetOpen.set(false)">Save</button>
     </ws-side-sheet>
   `,
   styles: [`
@@ -120,10 +121,10 @@ import {
     .states > * { border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); }
     .row { display:flex; gap:var(--ws-2); }
     .panel { padding:var(--ws-4); color:var(--ws-ink-2); }
-    .btn { height:var(--ws-control-h); padding-inline:var(--ws-3); border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface); color:var(--ws-ink); font:inherit; font-weight:500; cursor:pointer; }
-    .btn:hover { background:var(--ws-surface-hover); }
-    .btn.primary { border-color:var(--ws-brand); background:var(--ws-brand); color:var(--ws-brand-ink); }
-    .btn.small { height:28px; }
+    .ws-btn { height:var(--ws-control-h); padding-inline:var(--ws-3); border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface); color:var(--ws-ink); font:inherit; font-weight:500; cursor:pointer; }
+    .ws-btn:hover { background:var(--ws-surface-hover); }
+    .ws-btn.primary { border-color:var(--ws-brand); background:var(--ws-brand); color:var(--ws-brand-ink); }
+    .ws-btn.small { height:28px; }
     @media (max-width: 1200px) { .smart, .kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); } .two { grid-template-columns:1fr; } }
   `],
 })
@@ -174,7 +175,7 @@ export class UiGalleryComponent {
     this.chips.set(this.chips().filter((c) => c.id !== id));
   }
 
-  protected addNote(text: string): void {
-    this.activity.set([{ id: crypto.randomUUID(), at: new Date().toISOString(), who: 'You', text, kind: 'note' }, ...this.activity()]);
+  protected addNote(note: WsNote): void {
+    this.activity.set([{ id: crypto.randomUUID(), at: new Date().toISOString(), who: 'You', text: note.text, kind: 'note' }, ...this.activity()]);
   }
 }

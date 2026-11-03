@@ -2,11 +2,11 @@ import { Component, computed, input, model } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TPipe } from '../../../core/i18n/t.pipe';
 
-export type WsRangePreset = 'today' | '7d' | '30d' | 'month' | 'lastMonth' | '90d' | 'year' | 'custom';
+export type WsRangePreset = 'all' | 'today' | '7d' | '30d' | 'month' | 'lastMonth' | '90d' | 'year' | 'custom';
 
 export interface WsDateRange {
   preset: WsRangePreset;
-  /** Inclusive, YYYY-MM-DD (the business's local day). */
+  /** Inclusive, YYYY-MM-DD (the business's local day); both empty for "all time". */
   from: string;
   to: string;
 }
@@ -19,6 +19,7 @@ export function rangeFor(preset: Exclude<WsRangePreset, 'custom'>, today = new D
   const d = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const back = (days: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - days);
   switch (preset) {
+    case 'all': return { preset, from: '', to: '' };
     case 'today': return { preset, from: ymd(d), to: ymd(d) };
     case '7d': return { preset, from: ymd(back(6)), to: ymd(d) };
     case '30d': return { preset, from: ymd(back(29)), to: ymd(d) };
@@ -37,7 +38,7 @@ export function rangeFor(preset: Exclude<WsRangePreset, 'custom'>, today = new D
   template: `
     <div class="range" role="group" [attr.aria-label]="'ws.range.label' | t">
       <select [ngModel]="value().preset" (ngModelChange)="pick($event)" [attr.aria-label]="'ws.range.label' | t">
-        @for (p of presets; track p) { <option [value]="p">{{ 'ws.range.' + p | t }}</option> }
+        @for (p of presets(); track p) { <option [value]="p">{{ 'ws.range.' + p | t }}</option> }
       </select>
       @if (value().preset === 'custom') {
         <input type="date" [ngModel]="value().from" (ngModelChange)="value.set({ preset: 'custom', from: $event, to: value().to })" [max]="value().to" [attr.aria-label]="'ws.range.from' | t" />
@@ -58,14 +59,20 @@ export function rangeFor(preset: Exclude<WsRangePreset, 'custom'>, today = new D
 export class WsDateRangeComponent {
   readonly value = model<WsDateRange>(rangeFor('30d'));
   readonly today = input<Date>(new Date());
-  protected readonly presets: WsRangePreset[] = ['today', '7d', '30d', 'month', 'lastMonth', '90d', 'year', 'custom'];
+  /** Offer "All time" (no date limit) as the first choice. */
+  readonly allowAll = input(false);
+  protected readonly presets = computed<WsRangePreset[]>(() => [...(this.allowAll() ? (['all'] as const) : []), 'today', '7d', '30d', 'month', 'lastMonth', '90d', 'year', 'custom']);
   protected readonly label = computed(() => {
     const v = this.value();
+    if (!v.from || !v.to) return '';
     const f = (s: string) => new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     return v.from === v.to ? f(v.from) : `${f(v.from)} – ${f(v.to)}`;
   });
 
   protected pick(p: WsRangePreset): void {
-    this.value.set(p === 'custom' ? { ...this.value(), preset: 'custom' } : rangeFor(p, this.today()));
+    if (p === 'custom') {
+      const v = this.value();
+      this.value.set(v.from ? { ...v, preset: 'custom' } : { ...rangeFor('30d', this.today()), preset: 'custom' });
+    } else this.value.set(rangeFor(p, this.today()));
   }
 }

@@ -1,4 +1,6 @@
 import { Component, ElementRef, computed, effect, inject, input, output, signal, viewChild } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { Observable, catchError, debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { CornerDownLeft, LucideAngularModule, Search } from 'lucide-angular';
@@ -10,7 +12,10 @@ export interface PaletteCommand {
   id: string;
   /** Dictionary key. */
   label: string;
-  group: 'pages' | 'create' | 'actions';
+  group: 'pages' | 'create' | 'actions' | 'records';
+  /** Already-worded label (record results); otherwise `label` is a dictionary key. */
+  text?: string;
+  hint?: string;
   icon: Icon;
   keywords?: string;
   path?: string;
@@ -46,7 +51,8 @@ export function matches(query: string, haystack: string): boolean {
           @for (c of results(); track c.id; let i = $index) {
             @if (i === 0 || results()[i - 1].group !== c.group) { <li class="group" role="presentation">{{ 'ws.palette.' + c.group | t }}</li> }
             <li [id]="'ws-cmd-' + c.id" role="option" [attr.aria-selected]="i === active()" [class.active]="i === active()" (mouseenter)="active.set(i)" (click)="run(c)">
-              <lucide-icon [img]="c.icon" [size]="17" aria-hidden="true" /><span>{{ c.label | t }}</span>
+              <lucide-icon [img]="c.icon" [size]="17" aria-hidden="true" /><span>{{ c.text ?? (c.label | t) }}</span>
+              @if (c.hint) { <small class="hint">{{ c.hint }}</small> }
               @if (i === active()) { <lucide-icon class="enter" [img]="icons.CornerDownLeft" [size]="15" aria-hidden="true" /> }
             </li>
           } @empty {
@@ -67,7 +73,8 @@ export function matches(query: string, haystack: string): boolean {
     li[role='option'] lucide-icon { color:var(--ws-ink-3); }
     li.active { background:var(--ws-brand-soft); }
     li.active lucide-icon { color:var(--ws-brand); }
-    .enter { margin-inline-start:auto; }
+    .hint { color:var(--ws-ink-3); font-size:var(--ws-text-xs); overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+    .enter { margin-inline-start:auto; flex:none; }
     .group { padding:var(--ws-3) var(--ws-3) var(--ws-1); color:var(--ws-ink-3); font-size:var(--ws-text-xs); font-weight:600; text-transform:uppercase; letter-spacing:.06em; }
     .empty { padding:var(--ws-6); color:var(--ws-ink-3); text-align:center; }
   `],
@@ -76,6 +83,9 @@ export class CommandPaletteComponent {
   private readonly router = inject(Router);
   private readonly i18n = inject(I18nService);
   readonly commands = input.required<PaletteCommand[]>();
+  /** Record search (containers, bales, customers, sales…) for two or more characters. */
+  readonly search = input<((q: string) => Observable<PaletteCommand[]>) | null>(null);
+  private readonly found = signal<PaletteCommand[]>([]);
   readonly close = output<void>();
   protected readonly icons = { CornerDownLeft, Search };
   protected readonly query = signal('');
@@ -84,9 +94,8 @@ export class CommandPaletteComponent {
 
   protected readonly results = computed(() => {
     const q = this.query();
-    const order = { pages: 0, create: 1, actions: 2 } as const;
-    return this.commands()
-      .filter((c) => !q.trim() || matches(q, `${this.i18n.t(c.label)} ${c.keywords ?? ''}`))
+    const order = { records: 0, pages: 1, create: 2, actions: 3 } as const;
+    return [...this.found(), ...this.commands().filter((c) => !q.trim() || matches(q, `${this.i18n.t(c.label)} ${c.keywords ?? ''}`))]
       .sort((a, b) => order[a.group] - order[b.group]);
   });
   protected readonly activeId = computed(() => {
@@ -96,6 +105,17 @@ export class CommandPaletteComponent {
 
   constructor() {
     effect(() => this.box().nativeElement.focus());
+    toObservable(this.query)
+      .pipe(
+        debounceTime(250),
+        distinctUntilChanged(),
+        switchMap((q) => {
+          const search = this.search();
+          return search && q.trim().length >= 2 ? search(q.trim()).pipe(catchError(() => of([]))) : of([]);
+        }),
+        takeUntilDestroyed(),
+      )
+      .subscribe((list) => { this.found.set(list); this.active.set(0); });
   }
 
   protected onKey(e: KeyboardEvent): void {

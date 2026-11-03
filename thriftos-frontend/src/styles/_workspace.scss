@@ -196,3 +196,10 @@ html[data-theme='dark'] {
 .ws-num { font-variant-numeric: tabular-nums; }
 .ws-visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 :where(.ws) :focus-visible { outline: none; box-shadow: var(--ws-focus); border-radius: var(--ws-r-sm); }
+
+// Workspace buttons (the floor's .btn is a 52 px touch target and stays on floor screens).
+.ws-btn { box-sizing: border-box; height: var(--ws-control-h); min-height: 0; display: inline-flex; align-items: center; gap: 6px; padding-inline: var(--ws-3); border: 1px solid var(--ws-line); border-radius: var(--ws-r-md); background: var(--ws-surface); color: var(--ws-ink); font: inherit; font-size: var(--ws-text-md); font-weight: 500; text-decoration: none; white-space: nowrap; cursor: pointer; }
+.ws-btn:hover { background: var(--ws-surface-hover); }
+.ws-btn.primary { border-color: var(--ws-brand); background: var(--ws-brand); color: var(--ws-brand-ink); }
+.ws-btn.primary:hover { background: var(--ws-brand-hover); }
+.ws-btn:disabled { opacity: .55; cursor: default; }

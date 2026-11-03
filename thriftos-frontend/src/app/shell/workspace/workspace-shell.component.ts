@@ -1,8 +1,16 @@
-import { Component, HostListener, computed, inject, output, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { HttpClient } from '@angular/common/http';
+import { Component, DestroyRef, HostListener, computed, inject, output, signal } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import {
+  Bell,
+  BookOpen,
+  Boxes,
   ChevronRight,
+  Coins,
+  Package,
+  ShoppingCart,
+  Truck,
   ChevronsLeft,
   ChevronsRight,
   Keyboard,
@@ -16,7 +24,7 @@ import {
   Search,
   Sun,
 } from 'lucide-angular';
-import { filter, map } from 'rxjs';
+import { Observable, filter, interval, map, startWith, switchMap, catchError, of } from 'rxjs';
 import { AuthService } from '../../core/auth';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
@@ -71,6 +79,22 @@ function typing(e: KeyboardEvent): boolean {
           </button>
           <button type="button" class="tool" (click)="toggleLang()"><lucide-icon [img]="icons.Languages" [size]="16" aria-hidden="true" />{{ 'nav.language' | t }}</button>
           <div class="menu-wrap">
+            <button type="button" class="tool icon bell" (click)="toggleMenu('bell', $event)" [attr.aria-expanded]="menu() === 'bell'" aria-haspopup="menu" [attr.aria-label]="unreadLabel()">
+              <lucide-icon [img]="icons.Bell" [size]="17" aria-hidden="true" />
+              @if (unread().length) { <span class="count ws-num" aria-hidden="true">{{ unread().length > 9 ? '9+' : unread().length }}</span> }
+            </button>
+            @if (menu() === 'bell') {
+              <div class="menu end notes" role="menu" (click)="$event.stopPropagation()">
+                <div class="who"><strong>{{ 'ws.notifications.title' | t }}</strong>
+                  @if (unread().length) { <button type="button" class="link" (click)="readAll()">{{ 'ws.notifications.readAll' | t }}</button> }
+                </div>
+                @for (n of unread(); track n.id) {
+                  <a role="menuitem" [routerLink]="n.link || '/home'" (click)="read(n.id)"><span class="note"><strong>{{ n.title }}</strong><small>{{ n.body }}</small></span></a>
+                } @empty { <p class="none">{{ 'ws.notifications.none' | t }}</p> }
+              </div>
+            }
+          </div>
+          <div class="menu-wrap">
             <button type="button" class="avatar" (click)="toggleMenu('account', $event)" [attr.aria-expanded]="menu() === 'account'" aria-haspopup="menu" [title]="'ws.account' | t"><span aria-hidden="true">{{ initials() }}</span><span class="ws-visually-hidden">{{ 'ws.account' | t }}</span></button>
             @if (menu() === 'account') {
               <div class="menu end" role="menu" (click)="$event.stopPropagation()">
@@ -123,7 +147,7 @@ function typing(e: KeyboardEvent): boolean {
       </main>
     </div>
 
-    @if (paletteOpen()) { <ws-command-palette [commands]="commands()" (close)="paletteOpen.set(false)" /> }
+    @if (paletteOpen()) { <ws-command-palette [commands]="commands()" [search]="searchRecords" (close)="paletteOpen.set(false)" /> }
     @if (shortcutsOpen()) {
       <div class="backdrop" (click)="shortcutsOpen.set(false)">
         <section class="dialog" role="dialog" aria-modal="true" [attr.aria-label]="'ws.shortcuts' | t" (click)="$event.stopPropagation()">
@@ -171,6 +195,14 @@ function typing(e: KeyboardEvent): boolean {
     .menu lucide-icon { color:var(--ws-ink-3); }
     .who { display:grid; gap:2px; padding:var(--ws-2) var(--ws-3) var(--ws-3); margin-block-end:var(--ws-1); border-block-end:1px solid var(--ws-line); }
     .who small { color:var(--ws-ink-3); }
+    .bell { position:relative; }
+    .bell .count { position:absolute; inset-block-start:-4px; inset-inline-end:-4px; min-width:18px; height:18px; display:grid; place-items:center; padding-inline:3px; border-radius:9px; background:var(--ws-bad); color:#fff; font-size:11px; font-weight:700; }
+    .notes { width:320px; }
+    .notes .who { display:flex; align-items:center; justify-content:space-between; }
+    .notes .link { min-height:0; padding:0; border:0; background:transparent; color:var(--ws-brand); font:inherit; font-size:var(--ws-text-sm); cursor:pointer; }
+    .note { display:grid; gap:2px; padding-block:var(--ws-1); }
+    .note small { color:var(--ws-ink-2); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .none { margin:0; padding:var(--ws-3); color:var(--ws-ink-3); }
 
     .nav { position:sticky; top:var(--ws-topbar-h); height:calc(100vh - var(--ws-topbar-h)); display:flex; flex-direction:column; justify-content:space-between; padding:var(--ws-3) var(--ws-2); box-sizing:border-box; border-inline-end:1px solid var(--ws-line); background:var(--ws-surface); overflow-y:auto; }
     nav { display:grid; gap:2px; }
@@ -203,16 +235,18 @@ export class WorkspaceShellComponent {
   private readonly tenantService = inject(TenantService);
   private readonly router = inject(Router);
   private readonly i18n = inject(I18nService);
+  private readonly http = inject(HttpClient);
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly offline = inject(OfflineQueueService);
   protected readonly theme = inject(ThemeService);
   readonly signOut = output<void>();
 
-  protected readonly icons = { ChevronRight, ChevronsLeft, ChevronsRight, Keyboard, KeyRound, Languages, LogOut, Moon, Plus, Rows3, Search, Sun };
+  protected readonly icons = { Bell, ChevronRight, ChevronsLeft, ChevronsRight, Keyboard, KeyRound, Languages, LogOut, Moon, Plus, Rows3, Search, Sun };
   protected readonly settings = WS_SETTINGS;
   protected readonly modKey = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
   protected readonly paletteOpen = signal(false);
   protected readonly shortcutsOpen = signal(false);
-  protected readonly menu = signal<'create' | 'account' | null>(null);
+  protected readonly menu = signal<'create' | 'account' | 'bell' | null>(null);
   protected readonly collapsed = signal(readCollapsed());
 
   private readonly url = toSignal(
@@ -247,6 +281,32 @@ export class WorkspaceShellComponent {
     return this.offline.pendingCount() ? t('sync.pending', this.offline.pendingCount()) : this.i18n.t('sync.synced');
   });
 
+  // ---- notifications (mentions; checked every minute) ----
+  protected readonly unread = signal<Array<{ id: string; title: string; body?: string | null; link?: string | null }>>([]);
+  protected readonly unreadLabel = computed(() => this.i18n.t('ws.notifications.button', { n: this.unread().length }));
+  private readonly poll = interval(60_000)
+    .pipe(startWith(0), switchMap(() => this.http.get<Array<{ id: string; title: string; body?: string; link?: string }>>('/api/notifications', { params: { unread: '1' } }).pipe(catchError(() => of(null)))), takeUntilDestroyed(this.destroyRef))
+    .subscribe((list) => { if (list) this.unread.set(list); });
+
+  protected read(id: string): void {
+    this.menu.set(null);
+    this.unread.set(this.unread().filter((n) => n.id !== id));
+    this.http.post(`/api/notifications/${id}/read`, {}).subscribe({ error: () => undefined });
+  }
+
+  protected readAll(): void {
+    this.unread.set([]);
+    this.http.post('/api/notifications/all/read', {}).subscribe({ error: () => undefined });
+  }
+
+  /** Record search for the command palette (GET /api/search/global). */
+  protected readonly searchRecords = (q: string): Observable<PaletteCommand[]> => {
+    const icon: Record<string, typeof Truck> = { truck: Truck, boxes: Boxes, package: Package, book: BookOpen, cart: ShoppingCart, coins: Coins };
+    return this.http.get<Array<{ id: string; title: string; subtitle: string; route: string; type: string; icon: string }>>('/api/search/global', { params: { q } }).pipe(
+      map((list) => list.map((r) => ({ id: `rec-${r.type}-${r.id}`, label: '', text: r.title, hint: r.subtitle, group: 'records' as const, icon: icon[r.icon] ?? Package, path: r.route }))),
+    );
+  };
+
   @HostListener('document:keydown', ['$event'])
   protected onKey(e: KeyboardEvent): void {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); this.paletteOpen.set(!this.paletteOpen()); return; }
@@ -262,7 +322,7 @@ export class WorkspaceShellComponent {
     this.menu.set(null);
   }
 
-  protected toggleMenu(which: 'create' | 'account', e: Event): void {
+  protected toggleMenu(which: 'create' | 'account' | 'bell', e: Event): void {
     e.stopPropagation();
     this.menu.set(this.menu() === which ? null : which);
   }

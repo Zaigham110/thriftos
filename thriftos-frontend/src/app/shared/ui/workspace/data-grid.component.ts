@@ -116,6 +116,8 @@ export class WsDataGridComponent {
   readonly serverSort = input(false);
   readonly emptyHeading = input('');
   readonly emptyMessage = input('');
+  /** Totals from the server (all matching rows, not just this page); otherwise summed here. */
+  readonly serverTotals = input<Record<string, string> | null>(null);
   readonly sort = model<WsSort | null>(null);
   readonly selected = model<string[]>([]);
   readonly rowClick = output<WsRow>();
@@ -128,7 +130,9 @@ export class WsDataGridComponent {
     return [...rows].sort((a, b) => compare(a[s.key], b[s.key]) * dir);
   });
   protected readonly hasTotals = computed(() => this.columns().some((c) => c.total));
-  protected readonly totals = computed(() => {
+  protected readonly totals = computed<Record<string, string | number>>(() => {
+    const server = this.serverTotals();
+    if (server) return server;
     const out: Record<string, number> = {};
     for (const c of this.columns().filter((c) => c.total)) out[c.key] = this.rows().reduce((sum, r) => sum + (Number(r[c.key]) || 0), 0);
     return out;

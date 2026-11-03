@@ -84,9 +84,13 @@ export class I18nService {
     return new Intl.NumberFormat('en-PK-u-nu-latn', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(n);
   }
 
-  /** "Rs 12,500" — kept left-to-right inside Urdu text (Unicode isolate), so it never reads "12,500 Rs". */
+  /**
+   * "Rs 12,500" or "Rs 11,947.30": whole rupees without decimals, otherwise always two (paisa), kept
+   * left-to-right inside Urdu text (Unicode isolate), so it never reads "12,500 Rs".
+   */
   money(value: number | string | null | undefined): string {
-    const s = this.num(value);
+    const n = typeof value === 'string' ? Number(value) : value;
+    const s = n === null || n === undefined || Number.isNaN(n) ? '' : this.num(n, Number.isInteger(Math.round(n * 100) / 100) ? 0 : 2);
     return s === '' ? '' : ltr(this.t('unit.rs', { n: s }));
   }
 

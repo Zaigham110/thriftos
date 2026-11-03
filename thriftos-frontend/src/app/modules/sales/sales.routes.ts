@@ -2,11 +2,12 @@ import { Routes } from '@angular/router';
 
 export const SALES_ROUTES: Routes = [
   {
+    // Enterprise workspace list and record page (E2); the printable bill stays at /bill/:token.
     path: '',
-    loadComponent: () => import('./sales-index/sales-index.page').then((m) => m.SalesIndexPage),
+    loadComponent: () => import('../../features/sales-workspace/sales-list.component').then((m) => m.SalesListComponent),
   },
   {
     path: ':id',
-    loadComponent: () => import('./sale-invoice/sale-invoice.page').then((m) => m.SaleInvoicePage),
+    loadComponent: () => import('../../features/sales-workspace/sale-record.component').then((m) => m.SaleRecordComponent),
   },
 ];
