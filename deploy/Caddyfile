@@ -1,32 +1,36 @@
-# HTTPS (Let's Encrypt, automatic) and routing for the production stack (docker-compose.prod.yml).
+# Origin proxy on the shared EC2 server. CloudFront (https://<id>.cloudfront.net) terminates HTTPS and
+# forwards to this server over HTTP on port 80; the security group lets only CloudFront reach port 80.
+# CloudFront also sends a secret header (ORIGIN_SECRET), so other CloudFront distributions are refused too.
+# ThriftOS lives under /thriftos; the rest of the host is left for other apps.
 {
-	email {$ACME_EMAIL}
+	auto_https off
+	admin off
 }
 
-{$APP_DOMAIN} {
-	encode zstd gzip
+:80 {
+	header -Server
 
-	header {
-		Strict-Transport-Security "max-age=31536000; includeSubDomains"
-		X-Content-Type-Options "nosniff"
-		X-Frame-Options "DENY"
-		Referrer-Policy "strict-origin-when-cross-origin"
-		# The floor app scans QR codes with the camera; nothing else needs device access.
-		Permissions-Policy "camera=(self), microphone=(), geolocation=()"
-		-Server
-	}
+	# `route` keeps this order (Caddy would otherwise run handle_path before respond).
+	route {
+		@not_cloudfront not header X-Origin-Verify {$ORIGIN_SECRET}
+		respond @not_cloudfront 403
 
-	# API docs are not served in production.
-	handle /api/docs* {
+		# API docs are not served in production.
+		respond /thriftos/api/docs* 404
+
+		handle_path /thriftos/api/* {
+			rewrite * /api{path}
+			reverse_proxy server:3000
+		}
+
+		redir /thriftos /thriftos/ 308
+
+		handle_path /thriftos/* {
+			reverse_proxy web:80
+		}
+
+		redir / /thriftos/ 302
 		respond 404
-	}
-
-	handle /api/* {
-		reverse_proxy server:3000
-	}
-
-	handle {
-		reverse_proxy web:80
 	}
 
 	log {

@@ -1,0 +1,112 @@
+name: Release
+
+# A tag v* builds the ARM64 images (the server is a t4g, Graviton), pushes them to GHCR and deploys them.
+# Deploys go through AWS Systems Manager Run Command (no SSH port), with a short-lived role from
+# GitHub's OIDC token (no stored AWS keys). The server runs deploy/deploy.sh from the same tag:
+# backup → pull → start → health check → automatic rollback to the previous tag if unhealthy.
+# To redeploy or roll back by hand: Actions → Release → Run workflow, "Use workflow from" = the tag.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      build:
+        description: Build and push the images first (off = deploy images already in GHCR)
+        type: boolean
+        default: true
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io/zaigham110
+  AWS_REGION: ap-southeast-2
+  INSTANCE_ID: i-0d706fa3c91337c3f
+
+jobs:
+  images:
+    if: github.ref_type == 'tag' && (github.event_name == 'push' || inputs.build)
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - name: server
+            dockerfile: server/Dockerfile
+            build_args: ''
+          - name: web
+            dockerfile: thriftos-frontend/Dockerfile
+            build_args: BASE_HREF=/thriftos/
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/arm64
+          push: true
+          build-args: ${{ matrix.build_args }}
+          tags: ${{ env.REGISTRY }}/thriftos-${{ matrix.name }}:${{ github.ref_name }}
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  deploy:
+    needs: images
+    if: always() && github.ref_type == 'tag' && (needs.images.result == 'success' || needs.images.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      id-token: write
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Deploy ${{ github.ref_name }} on the server (Systems Manager)
+        env:
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          GHCR_USER: ${{ github.actor }}
+          # Short-lived: valid only while this job runs; the server logs out right after pulling.
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          raw="https://raw.githubusercontent.com/$REPO/$TAG"
+          script=$(cat <<EOF
+          set -euo pipefail
+          cd /opt/thriftos
+          for f in docker-compose.prod.yml deploy/Caddyfile deploy/deploy.sh; do curl -fsSL "$raw/\$f" -o "\$f"; done
+          chmod +x deploy/deploy.sh
+          GHCR_USER='$GHCR_USER' GHCR_TOKEN='$GHCR_TOKEN' deploy/deploy.sh '$TAG'
+          EOF
+          )
+          params=$(jq -n --arg s "$script" '{commands: [$s], executionTimeout: ["1200"]}')
+          id=$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name AWS-RunShellScript \
+                 --comment "thriftos deploy $TAG" --parameters "$params" --query Command.CommandId --output text)
+          echo "SSM command $id"
+          status=Pending
+          for _ in $(seq 1 120); do
+            sleep 10
+            status=$(aws ssm get-command-invocation --command-id "$id" --instance-id "$INSTANCE_ID" --query Status --output text 2>/dev/null || echo Pending)
+            case "$status" in Pending|InProgress|Delayed) continue ;; *) break ;; esac
+          done
+          aws ssm get-command-invocation --command-id "$id" --instance-id "$INSTANCE_ID" \
+            --query '[StandardOutputContent, StandardErrorContent]' --output text | grep -v "$GHCR_TOKEN" || true
+          echo "Result: $status"
+          [ "$status" = Success ]
+      - name: Public check through CloudFront
+        if: vars.APP_URL != ''
+        run: |
+          curl -fsS --retry 5 --retry-delay 5 "${{ vars.APP_URL }}/thriftos/api/health"
+          curl -fsS -o /dev/null "${{ vars.APP_URL }}/thriftos/"

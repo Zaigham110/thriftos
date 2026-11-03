@@ -16,10 +16,10 @@ else
   echo "⏭️  Not migrating (set RUN_MIGRATIONS_ON_START=1 to apply migrations on start)."
 fi
 
-# Seed data contains known demo credentials, so it must be explicitly enabled.
+# The image carries production dependencies only, so it cannot seed (seed data has known demo
+# credentials anyway). Seed from a checkout instead: npm run db:seed.
 if [ "${SEED_DATABASE:-false}" = "true" ]; then
-  echo "🌱 Seeding database..."
-  npx ts-node --compiler-options '{"module":"CommonJS"}' /app/prisma/seed.ts
+  echo "⚠️  SEED_DATABASE=true is ignored: seed from a checkout with npm run db:seed."
 fi
 
 echo "🚀 Starting NestJS API Server on port 3000..."
