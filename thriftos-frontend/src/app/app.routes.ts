@@ -137,6 +137,7 @@ export const routes: Routes = [
           { path: 'label/:id', loadComponent: () => import('./features/stock/labels.component').then((m) => m.LabelsComponent), title: 'ThriftOS' },
           { path: 'labels', loadComponent: () => import('./features/stock/labels.component').then((m) => m.LabelsComponent), title: 'ThriftOS' },
           { path: 'items', loadChildren: () => import('./modules/inventory/inventory.routes').then((m) => m.INVENTORY_ROUTES) },
+          { path: 'value', loadComponent: () => import('./features/workspace-lists/stock-summary.component').then((m) => m.StockSummaryComponent), title: 'ThriftOS' },
         ],
       },
       {

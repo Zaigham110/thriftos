@@ -520,6 +520,26 @@
    "search": "Search container number, supplier or country",
    "title": "Containers"
   },
+  "counts": {
+   "col": {
+    "book": "Books said",
+    "costChange": "Cost change",
+    "counted": "Counted",
+    "date": "Entered",
+    "difference": "Difference",
+    "reason": "Reason"
+   },
+   "count": "{n} counts",
+   "emptyHeading": "No stock counts",
+   "emptyMessage": "Counts entered on a stock item show here until they are approved.",
+   "search": "Search item or reason",
+   "status": {
+    "APPROVED": "Approved",
+    "PENDING": "Waiting for approval",
+    "REJECTED": "Rejected"
+   },
+   "title": "Stock counts"
+  },
   "create": "Create",
   "crumb": {
    "containers": "Containers",
@@ -549,6 +569,7 @@
   },
   "filter": {
    "clear": "Clear filters",
+   "not": "not {value}",
    "remove": "Remove filter",
    "search": "Search"
   },
@@ -584,6 +605,15 @@
    "CREDIT": "Udhaar",
    "PARTIAL": "Part paid"
   },
+  "movement": {
+   "ADJUSTMENT": "Count",
+   "EXPORT": "Export",
+   "INTAKE": "Received",
+   "RELEASE": "Released",
+   "RESERVATION": "Reserved",
+   "SALE": "Sold",
+   "TRANSFER": "Moved"
+  },
   "nav": {
    "home": "Home",
    "inventory": "Inventory",
@@ -593,6 +623,7 @@
    "sales": "Sales",
    "settings": "Settings",
    "sorting": "Sorting",
+   "stockValue": "Stock value",
    "suppliers": "Suppliers"
   },
   "new": {
@@ -686,6 +717,90 @@
    "ISSUED": "Udhaar",
    "PAID": "Paid",
    "PARTIALLY_PAID": "Part paid"
+  },
+  "stock": {
+   "col": {
+    "age": "Age (days)",
+    "code": "Code",
+    "godown": "Godown",
+    "left": "Left",
+    "name": "Item",
+    "price": "Price",
+    "quantity": "Received",
+    "source": "Source",
+    "unit": "Unit",
+    "value": "Value left"
+   },
+   "count": "{n} stock items",
+   "emptyHeading": "No stock matches",
+   "emptyMessage": "Try other words, a wider period, or clear the filters.",
+   "search": "Search bale code, item, category, grade or supplier",
+   "source": {
+    "PROCESSED": "Made here",
+    "PURCHASED": "Bought ready"
+   },
+   "status": {
+    "AVAILABLE": "In stock",
+    "RESERVED": "Reserved",
+    "SOLD": "Sold"
+   },
+   "title": "Stock",
+   "unit": {
+    "BALE": "Bales",
+    "KG": "kg",
+    "PIECE": "Pieces"
+   }
+  },
+  "stockItem": {
+   "approve": "Approve",
+   "approved": "Count approved — the books are updated",
+   "change": "Change",
+   "count": "Count stock",
+   "countApproval": "Nothing changes until someone who may approve stock counts approves it.",
+   "countHint": "The books say {book} is left. Enter what you counted.",
+   "countSent": "Count sent for approval",
+   "kgLeft": "Kg left",
+   "label": "Print label",
+   "move": "Move to godown",
+   "moveHint": "Now in: {from}. Everything left of this item moves.",
+   "moveNow": "Move",
+   "moved": "Moved to {to}",
+   "noCounts": "No counts yet",
+   "noGodown": "no godown",
+   "noMovements": "No movements yet",
+   "notFound": "This stock item could not be opened",
+   "openedFrom": "Opened from",
+   "pending": "Count waiting for approval: {counted} counted, books say {book} (by {by})",
+   "people": "Entered → decided",
+   "reject": "Reject",
+   "rejected": "Count rejected",
+   "sendCount": "Send for approval",
+   "tab": {
+    "counts": "Counts",
+    "lineage": "Where it came from",
+    "movements": "Movements",
+    "pieces": "Opened pieces"
+   },
+   "used": "Used"
+  },
+  "stockValue": {
+   "age": {
+    "0-30": "0–30 days",
+    "31-60": "31–60 days",
+    "61-90": "61–90 days",
+    "90+": "Over 90 days"
+   },
+   "ageCol": "Age",
+   "ageing": "Stock by age",
+   "byCategory": "By category",
+   "byGodown": "By godown",
+   "items": "Items",
+   "none": "Not set",
+   "old": "Older than 60 days",
+   "oldHint": "Sell these first",
+   "subtitle": "What is left, how old it is and what it cost",
+   "title": "Stock value and ageing",
+   "waiting": "{n} waiting"
   },
   "supplier": {
    "noContainers": "No containers from this supplier yet",

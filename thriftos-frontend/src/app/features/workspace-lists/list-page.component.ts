@@ -236,7 +236,8 @@ export class ListPageComponent {
         const col = this.list().columns.find((c) => c.key === f.field);
         const quick = this.list().quickFilters.find((q) => q.field === f.field);
         const prefix = quick?.prefix ?? col?.enumPrefix;
-        return { id: String(i), label: this.i18n.t(col?.label ?? quick?.label ?? f.field), value: prefix && f.value ? this.i18n.t(prefix + f.value) : f.value ?? '—' };
+        const value = prefix && f.value ? this.i18n.t(prefix + f.value) : f.value ?? '—';
+        return { id: String(i), label: this.i18n.t(col?.label ?? quick?.label ?? f.field), value: f.op === 'ne' ? this.i18n.t('ws.filter.not', { value }) : value };
       }),
   );
 
@@ -269,7 +270,7 @@ export class ListPageComponent {
     effect(() => {
       const resource = this.list().resource;
       untracked(() => {
-        this.state.set({ ...DEFAULT_LIST_STATE });
+        this.state.set(this.fresh());
         this.view.set(null);
         this.lists.views(resource).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
           next: (views) => {
@@ -286,6 +287,10 @@ export class ListPageComponent {
       this.state();
       untracked(() => this.menu.set(null));
     });
+  }
+
+  private fresh(): ListState & Extra {
+    return { ...DEFAULT_LIST_STATE, filters: [...(this.list().defaultFilters ?? [])] };
   }
 
   protected patch(p: Partial<ListState & Extra>): void {
@@ -335,7 +340,7 @@ export class ListPageComponent {
   }
 
   protected open(row: WsRow): void {
-    this.openId(row.id);
+    void this.router.navigate(this.list().rowLink(row.id, row as Record<string, unknown>));
   }
 
   protected openId(id: string): void {
@@ -359,7 +364,7 @@ export class ListPageComponent {
 
   protected applyView(v: SavedView | null): void {
     this.view.set(v);
-    this.state.set({ ...DEFAULT_LIST_STATE, ...(v?.state ?? {}), page: 1 });
+    this.state.set({ ...this.fresh(), ...(v?.state ?? {}), page: 1 });
   }
 
   protected saveView(name: string): void {

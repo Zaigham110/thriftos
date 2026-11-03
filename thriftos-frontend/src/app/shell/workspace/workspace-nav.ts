@@ -1,6 +1,7 @@
 import {
   BarChart3,
   BookOpen,
+  Coins,
   Factory,
   Boxes,
   Home,
@@ -40,7 +41,8 @@ export const WS_NAV: WsNavGroup[] = [
       { label: 'ws.nav.purchasing', path: '/receive/records/containers', icon: Truck, module: 'RECEIVE', keywords: 'receive maal aya container lot purchase' },
       { label: 'ws.nav.suppliers', path: '/receive/records/suppliers', icon: Factory, module: 'RECEIVE', keywords: 'supplier vendor scorecard' },
       { label: 'ws.nav.sorting', path: '/sort', icon: Layers3, module: 'SORT', keywords: 'chhantai sort grade' },
-      { label: 'ws.nav.inventory', path: '/stock', icon: PackageSearch, module: 'STOCK', keywords: 'stock bale inventory' },
+      { label: 'ws.nav.inventory', path: '/stock/items', icon: PackageSearch, module: 'STOCK', keywords: 'stock bale inventory maal' },
+      { label: 'ws.nav.stockValue', path: '/stock/value', icon: Coins, module: 'STOCK', keywords: 'stock value ageing purana maal valuation count' },
     ],
   },
   {
@@ -86,6 +88,8 @@ export const WS_CRUMBS: Record<string, string> = {
   grade: 'ws.crumb.grading',
   containers: 'ws.crumb.containers',
   suppliers: 'ws.nav.suppliers',
+  value: 'ws.nav.stockValue',
+  counts: 'ws.counts.title',
   today: 'ws.crumb.today',
   team: 'settings.team',
   password: 'settings.password',

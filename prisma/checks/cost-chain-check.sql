@@ -58,7 +58,9 @@ bought_used_up AS (
   SELECT i.id, i."tenantId", COALESCE(i.name, i.id) AS ref, i."totalCost" AS expected,
          COALESCE((SELECT SUM(l."lineCost") FROM "SaleLine" l JOIN "Sale" s ON s.id = l."saleId"
                    WHERE l."inventoryItemId" = i.id AND s.status <> 'CANCELLED'), 0)
-       + COALESCE((SELECT SUM(p."totalCost") FROM "InventoryItem" p WHERE p."parentItemId" = i.id), 0) AS stored
+       + COALESCE((SELECT SUM(p."totalCost") FROM "InventoryItem" p WHERE p."parentItemId" = i.id), 0)
+       -- approved stock counts write off (negative) or add back (positive) cost by position
+       - COALESCE((SELECT SUM(a."costChange") FROM "StockAdjustment" a WHERE a."inventoryItemId" = i.id AND a.status = 'APPROVED'), 0) AS stored
   FROM "InventoryItem" i
   WHERE i.source = 'PURCHASED' AND i."usedQuantity" = i.quantity
 )

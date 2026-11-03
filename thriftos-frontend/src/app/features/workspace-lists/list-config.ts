@@ -52,8 +52,10 @@ export interface ListConfig {
   dateField?: string;
   groupBy: Array<{ key: string; label: string; enumPrefix?: string }>;
   quickFilters: QuickFilterConfig[];
-  /** Where a row opens. */
-  rowLink: (id: string) => unknown[];
+  /** Where a row opens (the row is there for lists whose rows point at another record). */
+  rowLink: (id: string, row?: Record<string, unknown>) => unknown[];
+  /** Filters a fresh list starts with (no saved view), e.g. stock that is not sold. */
+  defaultFilters?: Array<{ field: string; op: 'eq' | 'ne'; value: string }>;
   /** Primary action in the header. */
   create?: { label: string; link: string };
   board?: BoardConfig;

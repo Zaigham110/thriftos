@@ -167,6 +167,7 @@ enum GradingOutputStatus {
 enum MovementType {
   INTAKE
   ADJUSTMENT
+  TRANSFER // moved to another godown (enterprise E3.3)
   RESERVATION
   RELEASE
   SALE
@@ -1318,6 +1319,7 @@ model InventoryItem {
   pieces         InventoryItem[] @relation("OpenedPieces")
   warehouse      Warehouse?      @relation(fields: [warehouseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   stockMovements StockMovement[]
+  adjustments    StockAdjustment[]
 
   // Sales
   saleLines SaleLine[]
@@ -1333,6 +1335,38 @@ model InventoryItem {
   @@index([status])
   @@index([ragId]) // Index for rag-level analytics
   @@index([containerId]) // Index for container-level analytics
+}
+
+enum StockAdjustmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// A stock count that differs from the books (enterprise E3.3): entered by anyone who may adjust stock,
+/// applied only when someone with INVENTORY_APPROVE approves it. Quantities are in the item's unit.
+model StockAdjustment {
+  id              String                @id @default(cuid())
+  tenantId        String
+  inventoryItemId String
+  /// What the books said was left when the count was entered.
+  bookQuantity    Decimal               @db.Decimal(14, 2)
+  countedQuantity Decimal               @db.Decimal(14, 2)
+  reason          String
+  status          StockAdjustmentStatus @default(PENDING)
+  requestedBy     String
+  decidedBy       String?
+  decidedAt       DateTime?
+  decisionNote    String?
+  /// Cost written off (negative) or added back (positive) when approved.
+  costChange      Decimal?              @db.Decimal(14, 2)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([tenantId, status, createdAt])
+  @@index([inventoryItemId])
 }
 
 model StockMovement {

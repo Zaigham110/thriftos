@@ -109,7 +109,7 @@ Each area gets list + record (+ kanban where it has stages), using E2.
   module is on), goods received note PDF.
 - [ ] E3.2 **Sorting** — sessions list/kanban, session record with category/grade outputs and waste, yield analysis
   view.
-- [ ] E3.3 **Inventory** — stock items (filter by category, grade, age, branch), bale record with full lineage and QR,
+- [x] E3.3 **Inventory** — stock items (filter by category, grade, age, branch), bale record with full lineage and QR,
   movements ledger, stock ageing, stock valuation, stock count and adjustment with approval, godown transfers.
 - [ ] E3.4 **Sales** — sales list (filters, group by customer/category/month, totals and profit), sale record with
   lines, payments, profit, invoice PDF, WhatsApp share; a desktop sale entry form with keyboard-first line entry;

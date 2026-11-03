@@ -67,8 +67,8 @@ test('sale record: amounts, tabs, note with @mention and an attached file; Ctrl+
 
   await page.keyboard.press('Control+k');
   await page.keyboard.type(sale.saleNumber);
-  await expect(page.getByRole('option', { name: new RegExp(sale.saleNumber) })).toBeVisible();
-  await page.keyboard.press('Enter');
+  // Other records (lots) can match the same digits; pick the sale itself.
+  await page.getByRole('option', { name: new RegExp(sale.saleNumber) }).click();
   await expect(page).toHaveURL(new RegExp(`/sell/records/${sale.id}$`));
 
   await expect(page.getByRole('heading', { name: `${sale.saleNumber} · ${customer.name}` })).toBeVisible();
@@ -134,4 +134,36 @@ test('containers: list, board move, traceability record; supplier scorecard', as
   await expect(page.getByRole('heading', { name: `Atlantic Rags ${tag}` })).toBeVisible();
   await expect(page.locator('ws-smart-button').filter({ hasText: 'Containers' })).toContainText('1');
   await expect(page.locator('ws-data-grid tbody tr')).toContainText(`TGHU-${tag}`);
+});
+
+test('inventory: stock list, item record, a count approved, stock value page', async ({ page, request }) => {
+  const api = await apiAs(request);
+  const tag = Date.now().toString().slice(-6);
+  const item = await api.post('/stock/items', { name: `Ladies tops ${tag}`, unit: 'PIECE', quantity: 10, totalCost: 1000 });
+
+  await signIn(page);
+  await page.goto('/stock/items');
+  await expect(page.getByRole('heading', { name: 'Stock', exact: true })).toBeVisible();
+  await expect(page.locator('.chip').filter({ hasText: 'not Sold' })).toBeVisible();
+  await page.getByPlaceholder('Search bale code, item, category, grade or supplier').fill(`Ladies tops ${tag}`);
+  const row = page.locator('ws-data-grid tbody tr').filter({ hasText: `Ladies tops ${tag}` });
+  await expect(row).toContainText('1,000');
+  await row.click();
+  await expect(page).toHaveURL(new RegExp(`/stock/items/${item.id}$`));
+  await expect(page.getByRole('heading', { name: `Ladies tops ${tag}` })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Count stock' }).click();
+  await page.getByLabel(/Counted/).fill('8');
+  await page.getByLabel('Reason').fill('Two torn, thrown away');
+  await page.getByRole('button', { name: 'Send for approval' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Count waiting for approval' })).toBeVisible();
+  await page.getByRole('button', { name: 'Approve' }).click();
+  await expect(page.getByText('Count approved — the books are updated')).toBeVisible();
+  await expect(page.locator('ws-smart-button').filter({ hasText: '8 / 10' })).toBeVisible();
+  await page.getByRole('tab', { name: /Counts/ }).click();
+  await expect(page.locator('ws-data-grid tbody tr').first()).toContainText('Approved');
+
+  await page.goto('/stock/value');
+  await expect(page.getByRole('heading', { name: 'Stock value and ageing' })).toBeVisible();
+  await expect(page.locator('ws-data-grid').first()).toContainText('0–30 days');
 });

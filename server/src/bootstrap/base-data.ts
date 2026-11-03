@@ -130,6 +130,7 @@ export const PERMISSIONS = [
   { code: 'INVENTORY_VIEW', name: 'Inventory - View', group: 'Inventory' },
   { code: 'INVENTORY_INTAKE', name: 'Inventory - Intake', group: 'Inventory' },
   { code: 'INVENTORY_ADJUST', name: 'Inventory - Adjust', group: 'Inventory' },
+  { code: 'INVENTORY_APPROVE', name: 'Inventory - Approve stock counts', group: 'Inventory' },
   { code: 'INVENTORY_RESERVE', name: 'Inventory - Reserve/Release', group: 'Inventory' },
   
   // Reports
