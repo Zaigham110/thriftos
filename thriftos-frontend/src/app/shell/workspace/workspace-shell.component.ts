@@ -49,7 +49,7 @@ function typing(e: KeyboardEvent): boolean {
       <header class="topbar">
         <a routerLink="/home" class="brand"><img src="os_sm.png" alt="" width="28" height="28" /><span>ThriftOS</span></a>
         <span class="business" [title]="tenantName()">{{ tenantName() }}</span>
-        <button type="button" class="search" (click)="paletteOpen.set(true)" [attr.aria-label]="'ws.search' | t">
+        <button type="button" class="search" (click)="paletteOpen.set(true)" aria-keyshortcuts="Control+K Meta+K /">
           <lucide-icon [img]="icons.Search" [size]="16" aria-hidden="true" /><span>{{ 'ws.search' | t }}</span><kbd>{{ modKey }} K</kbd>
         </button>
         <div class="tools">
@@ -71,7 +71,7 @@ function typing(e: KeyboardEvent): boolean {
           </button>
           <button type="button" class="tool" (click)="toggleLang()"><lucide-icon [img]="icons.Languages" [size]="16" aria-hidden="true" />{{ 'nav.language' | t }}</button>
           <div class="menu-wrap">
-            <button type="button" class="avatar" (click)="toggleMenu('account', $event)" [attr.aria-expanded]="menu() === 'account'" aria-haspopup="menu" [attr.aria-label]="'ws.account' | t">{{ initials() }}</button>
+            <button type="button" class="avatar" (click)="toggleMenu('account', $event)" [attr.aria-expanded]="menu() === 'account'" aria-haspopup="menu" [title]="'ws.account' | t"><span aria-hidden="true">{{ initials() }}</span><span class="ws-visually-hidden">{{ 'ws.account' | t }}</span></button>
             @if (menu() === 'account') {
               <div class="menu end" role="menu" (click)="$event.stopPropagation()">
                 <div class="who"><strong>{{ userName() }}</strong><small>{{ userContact() }}</small></div>

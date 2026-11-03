@@ -28,15 +28,15 @@ export interface Tile {
         <input type="search" [attr.aria-label]="'common.search' | t" [placeholder]="searchPlaceholder() | t" [ngModel]="query()" (ngModelChange)="query.set($event)" />
       </label>
     }
-    <div class="tiles" [class.two]="columns() === 2" role="list">
+    <div class="tiles" [class.two]="columns() === 2" role="group">
       @for (tile of shown(); track tile.id) {
-        <button type="button" role="listitem" class="tile" [class.on]="tile.id === selected()" [class.waste]="tile.tone === 'waste'" [attr.aria-pressed]="tile.id === selected()" (click)="choose(tile)">
+        <button type="button" class="tile" [class.on]="tile.id === selected()" [class.waste]="tile.tone === 'waste'" [attr.aria-pressed]="tile.id === selected()" (click)="choose(tile)">
           <strong>{{ tile.label }}</strong>
           @if (tile.sub) { <small>{{ tile.sub }}</small> }
         </button>
       }
       @if (newLabel(); as label) {
-        <button type="button" role="listitem" class="tile add" (click)="addNew.emit(query())"><lucide-icon [img]="icons.Plus" [size]="20" /><strong>{{ label | t }}</strong></button>
+        <button type="button" class="tile add" (click)="addNew.emit(query())"><lucide-icon [img]="icons.Plus" [size]="20" /><strong>{{ label | t }}</strong></button>
       }
     </div>
     @if (!shown().length && !newLabel()) { <p class="empty">{{ emptyText() | t }}</p> }

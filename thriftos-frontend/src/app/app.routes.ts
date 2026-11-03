@@ -192,6 +192,7 @@ export const routes: Routes = [
           },
           { path: 'team', loadComponent: () => import('./features/settings/team.component').then((m) => m.TeamComponent), title: 'ThriftOS' },
           { path: 'password', loadComponent: () => import('./features/settings/change-password.component').then((m) => m.ChangePasswordComponent), title: 'ThriftOS' },
+          { path: 'ui-gallery', loadComponent: () => import('./features/workspace-gallery/ui-gallery.component').then((m) => m.UiGalleryComponent), title: 'Interface gallery - ThriftOS' },
           {
             path: 'admin',
             loadChildren: () => import('./modules/admin/admin.routes').then((m) => m.ADMIN_ROUTES),

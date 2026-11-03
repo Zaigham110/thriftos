@@ -388,7 +388,17 @@
  },
  "ws": {
   "account": "Your account",
+  "activity": {
+   "empty": "No activity yet.",
+   "placeholder": "Write a note for the team…",
+   "post": "Add note",
+   "title": "Activity"
+  },
   "breadcrumbs": "You are here",
+  "chart": {
+   "showChart": "Show as chart",
+   "showTable": "Show as table"
+  },
   "collapse": "Collapse menu",
   "create": "Create",
   "crumb": {
@@ -406,10 +416,25 @@
    "compact": "Compact rows"
   },
   "expand": "Expand menu",
+  "filter": {
+   "clear": "Clear filters",
+   "remove": "Remove filter",
+   "search": "Search"
+  },
+  "grid": {
+   "clear": "Clear selection",
+   "selectAll": "Select all rows",
+   "selectRow": "Select row",
+   "selected": "{n} selected",
+   "total": "Total"
+  },
   "group": {
    "insights": "Insights",
    "operations": "Operations",
    "sales": "Sales and money"
+  },
+  "kpi": {
+   "vsPrevious": "vs previous period"
   },
   "nav": {
    "home": "Home",
@@ -434,7 +459,23 @@
    "noResults": "Nothing matches.",
    "pages": "Go to"
   },
+  "range": {
+   "30d": "Last 30 days",
+   "7d": "Last 7 days",
+   "90d": "Last 90 days",
+   "custom": "Custom dates",
+   "from": "From",
+   "label": "Period",
+   "lastMonth": "Last month",
+   "month": "This month",
+   "to": "To",
+   "today": "Today",
+   "year": "This year"
+  },
   "search": "Search or jump to…",
+  "sheet": {
+   "close": "Close"
+  },
   "shortcut": {
    "close": "Close a menu or window",
    "help": "Show this list",
@@ -443,6 +484,12 @@
   },
   "shortcuts": "Keyboard shortcuts",
   "skip": "Skip to content",
+  "state": {
+   "empty": "Nothing here yet",
+   "error": "This could not be loaded.",
+   "loading": "Loading…",
+   "retry": "Try again"
+  },
   "switchLanguage": "Switch to Urdu / English",
   "theme": {
    "dark": "Dark mode",

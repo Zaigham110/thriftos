@@ -59,7 +59,7 @@ test('daily screens pass the 10-second test on Slow 3G', async ({ page, request 
 
   results['sort line'] = await timed('sort line', async () => {
     await page.goto(`/sort/${lot.id}`);
-    await page.getByRole('listitem').filter({ hasText: 'Jeans' }).click({ timeout: 20_000 });
+    await page.locator('.tiles').getByRole('button').filter({ hasText: 'Jeans' }).click({ timeout: 20_000 });
     await keys(page, 120);
     await expect(page.getByRole('status').filter({ hasText: loose('120.0 kg Jeans added') })).toBeVisible({ timeout: 20_000 });
   });
@@ -67,7 +67,7 @@ test('daily screens pass the 10-second test on Slow 3G', async ({ page, request 
   results['sale'] = await timed('sale', async () => {
     await page.getByRole('link', { name: 'Becho' }).click();
     await page.getByRole('link', { name: 'New sale' }).click();
-    await expect(page.getByRole('listitem').filter({ hasText: 'New customer' })).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.tiles').getByRole('button').filter({ hasText: 'New customer' })).toBeVisible({ timeout: 20_000 });
     await pickTile(page, 'Search name or phone', customer.name);
     await pickTile(page, 'Search stock', item.name);
     await keypad(page, /^Quantity/, 10);

@@ -15,11 +15,11 @@ test('journeys 1–6 on a 360px phone', async ({ page, request }) => {
   await page.getByRole('link', { name: 'Maal aya' }).click();
   await page.getByRole('link', { name: /Container/ }).click();
   await checkFloorScreen(page, 'receive container');
-  await page.getByRole('listitem').filter({ hasText: 'New supplier' }).click();
+  await page.locator('.tiles').getByRole('button').filter({ hasText: 'New supplier' }).click();
   await page.getByLabel('Supplier name').fill(`Lahore Imports ${tag}`);
   await page.getByRole('button', { name: 'USA', exact: true }).first().click();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.getByRole('listitem').filter({ hasText: `Lahore Imports ${tag}` })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.tiles').getByRole('button').filter({ hasText: `Lahore Imports ${tag}` })).toHaveAttribute('aria-pressed', 'true');
   await keypad(page, /^Invoice weight/, 1000);
   await page.getByRole('button', { name: 'USD', exact: true }).click();
   await keypad(page, /^Purchase cost/, 1000);
@@ -36,20 +36,20 @@ test('journeys 1–6 on a 360px phone', async ({ page, request }) => {
   await page.locator('.done').getByRole('link', { name: 'Chhantai' }).click();
   await expect(page).toHaveURL(/\/sort\/[a-z0-9]+$/);
   await checkFloorScreen(page, 'sort');
-  await page.getByRole('listitem').filter({ hasText: 'Jeans' }).click();
+  await page.locator('.tiles').getByRole('button').filter({ hasText: 'Jeans' }).click();
   await keys(page, 600);
   await expect(page.getByRole('status').filter({ hasText: loose('600.0 kg Jeans added') })).toBeVisible();
-  await page.getByRole('listitem').filter({ hasText: 'T-Shirts' }).click();
+  await page.locator('.tiles').getByRole('button').filter({ hasText: 'T-Shirts' }).click();
   await keys(page, 350);
   // Undo takes back the line its toast names.
   await page.getByRole('status').filter({ hasText: loose('350.0 kg T-Shirts added') }).getByRole('button', { name: 'Undo' }).click();
   await expect(page.locator('.totals')).toContainText(loose('600.0 kg'));
-  await page.getByRole('listitem').filter({ hasText: 'T-Shirts' }).click();
+  await page.locator('.tiles').getByRole('button').filter({ hasText: 'T-Shirts' }).click();
   await keys(page, 300);
   await expect(page.locator('.totals')).toContainText(loose('900.0 kg'));
   await expect(page.locator('.totals')).toContainText(loose('100.0 kg'));
   // More than is left is refused on the keypad itself.
-  await page.getByRole('listitem').filter({ hasText: 'Jeans' }).click();
+  await page.locator('.tiles').getByRole('button').filter({ hasText: 'Jeans' }).click();
   for (const ch of '101') await page.getByRole('dialog').getByRole('button', { name: ch, exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText(loose('Weight is more than the lot left (100.0 kg)'));
   await expect(page.getByRole('dialog').locator('.ok')).toBeDisabled();
@@ -66,9 +66,9 @@ test('journeys 1–6 on a 360px phone', async ({ page, request }) => {
   // Grading (the demo tenant sorts in 2 stages).
   await page.getByRole('link', { name: 'Done' }).click();
   await page.getByRole('link', { name: /Jeans/ }).first().click();
-  await page.getByRole('listitem').filter({ hasText: 'Grade A' }).first().click();
+  await page.locator('.tiles').getByRole('button').filter({ hasText: 'Grade A' }).first().click();
   await keys(page, 400);
-  await page.getByRole('listitem').filter({ hasText: 'Grade B' }).first().click();
+  await page.locator('.tiles').getByRole('button').filter({ hasText: 'Grade B' }).first().click();
   await keys(page, 200);
   await page.getByRole('button', { name: 'Close lot' }).click();
   await expect(page.getByText('Lot closed')).toBeVisible();
@@ -76,7 +76,7 @@ test('journeys 1–6 on a 360px phone', async ({ page, request }) => {
   // Journey 3 — make a bale from Jeans · A.
   await page.goto('/stock/bale');
   await checkFloorScreen(page, 'make bale');
-  await page.getByRole('listitem').filter({ hasText: 'Jeans · Grade A' }).click();
+  await page.locator('.tiles').getByRole('button').filter({ hasText: 'Jeans · Grade A' }).click();
   await keypad(page, /^Bale weight/, 100);
   await page.getByRole('button', { name: 'Save bale' }).click();
   await expect(page.getByRole('link', { name: 'Print label' })).toBeVisible();
@@ -87,7 +87,7 @@ test('journeys 1–6 on a 360px phone', async ({ page, request }) => {
   await checkFloorScreen(page, 'sell home');
   await page.getByRole('link', { name: 'New sale' }).click();
   await checkFloorScreen(page, 'new sale');
-  await page.getByRole('listitem').filter({ hasText: 'New customer' }).click();
+  await page.locator('.tiles').getByRole('button').filter({ hasText: 'New customer' }).click();
   await page.getByLabel('Name', { exact: true }).fill(`Haji Rafiq ${tag}`);
   await page.getByLabel('WhatsApp number').fill(`0300${tag}9`);
   await page.getByRole('button', { name: 'Add customer' }).click();
@@ -181,7 +181,7 @@ test('a lot received a moment ago, missing from a stale sort queue and without i
   const tag = Date.now().toString().slice(-6);
   await signIn(page);
   await page.goto('/receive/container');
-  await page.getByRole('listitem').filter({ hasText: 'New supplier' }).click();
+  await page.locator('.tiles').getByRole('button').filter({ hasText: 'New supplier' }).click();
   await page.getByLabel('Supplier name').fill(`Stale Queue ${tag}`);
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await keypad(page, /^Invoice weight/, 500);
@@ -191,7 +191,7 @@ test('a lot received a moment ago, missing from a stale sort queue and without i
 
   // The lot's own weight is fetched, so the screen knows what is left.
   await expect(page.locator('.action-bar')).toContainText(loose('500.0 kg'));
-  await page.getByRole('listitem').filter({ hasText: 'Jeans' }).click();
+  await page.locator('.tiles').getByRole('button').filter({ hasText: 'Jeans' }).click();
   await keys(page, 400);
   await expect(page.locator('.totals')).toContainText(loose('100.0 kg'));
   await page.getByRole('button', { name: 'Close lot' }).click();

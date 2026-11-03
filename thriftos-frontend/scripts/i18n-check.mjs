@@ -47,6 +47,7 @@ for (const f of files) {
 // Screens that must have no hard-coded visible text (grows as screens are rewritten).
 const TRANSLATED = [
   'shell/',
+  'shared/ui/workspace/',
   'shared/offline/',
   'shared/floor/',
   'features/bill/',

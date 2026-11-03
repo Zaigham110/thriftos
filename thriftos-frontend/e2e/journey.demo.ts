@@ -23,7 +23,7 @@ async function home(request: APIRequestContext) {
 }
 
 async function sortTile(page: Page, name: string, kg: number) {
-  await page.getByRole('listitem').filter({ hasText: name }).first().click();
+  await page.locator('.tiles').getByRole('button').filter({ hasText: name }).first().click();
   await keys(page, kg);
   await expect(page.getByRole('status').filter({ hasText: name })).toBeVisible();
 }
@@ -80,7 +80,7 @@ for (const lang of ['ur', 'en'] as const) {
     const baleCodes: string[] = [];
     for (const [kind, kg] of [['Jeans · A', 50], ['Jeans · B', 55]] as const) {
       await page.goto('/stock/bale');
-      await page.getByRole('listitem').filter({ hasText: kind }).first().click();
+      await page.locator('.tiles').getByRole('button').filter({ hasText: kind }).first().click();
       await keypad(page, w('stock.baleWeight'), kg);
       await page.locator('.action-bar .btn.primary').click();
       await expect(page.locator('.done')).toBeVisible();

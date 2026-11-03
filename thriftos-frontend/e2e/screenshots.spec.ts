@@ -51,7 +51,7 @@ for (const lang of ['en', 'ur'] as const) {
     await shot(page, 'j1-receive', lang);
     await page.goto('/receive/container');
     if (await page.getByRole('searchbox').count()) await page.getByRole('searchbox').first().fill(supplier.name);
-    await page.getByRole('listitem').filter({ hasText: supplier.name }).click();
+    await page.locator('.tiles').getByRole('button').filter({ hasText: supplier.name }).click();
     await keypad(page, t('Invoice weight', 'بِل کا وزن'), 18000);
     await page.getByRole('button', { name: 'USD', exact: true }).click();
     await keypad(page, t('Purchase cost', 'خرید کی قیمت'), 14500);
@@ -67,7 +67,7 @@ for (const lang of ['en', 'ur'] as const) {
     await page.goto('/sort');
     await shot(page, 'j2-sort-lots', lang);
     await page.goto(`/sort/${lotId}`);
-    await page.getByRole('listitem').filter({ hasText: 'Shoes' }).click();
+    await page.locator('.tiles').getByRole('button').filter({ hasText: 'Shoes' }).click();
     await shot(page, 'j2-sort-keypad', lang);
     await keys(page, 900);
     await shot(page, 'j2-sort-lines', lang);
@@ -79,7 +79,7 @@ for (const lang of ['en', 'ur'] as const) {
 
     // Journey 3 — bale.
     await page.goto('/stock/bale');
-    await page.getByRole('listitem').filter({ hasText: 'Jeans' }).first().click();
+    await page.locator('.tiles').getByRole('button').filter({ hasText: 'Jeans' }).first().click();
     await keypad(page, t('Bale weight', 'گانٹھ کا وزن'), 45);
     await shot(page, 'j3-make-bale', lang);
     await page.locator('.action-bar .btn.primary').click();

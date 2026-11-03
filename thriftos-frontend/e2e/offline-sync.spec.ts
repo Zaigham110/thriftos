@@ -96,7 +96,7 @@ test('offline lot, sort lines and bale sync once', async ({ page, context, reque
     await expect(page.locator('.floor-head h1')).toBeVisible();
     await page.waitForLoadState('networkidle');
   }
-  await expect(page.getByRole('listitem').filter({ hasText: 'T-Shirts' }).first()).toBeVisible();
+  await expect(page.locator('.tiles').getByRole('button').filter({ hasText: 'T-Shirts' }).first()).toBeVisible();
 
   await context.setOffline(true);
 
@@ -107,17 +107,17 @@ test('offline lot, sort lines and bale sync once', async ({ page, context, reque
   await expect(page.getByText('Saved on phone. It will sync when you are online.').first()).toBeVisible();
 
   await page.goto(`/sort/${lot.id}`);
-  await page.getByRole('listitem').filter({ hasText: 'Jeans' }).click();
+  await page.locator('.tiles').getByRole('button').filter({ hasText: 'Jeans' }).click();
   for (const ch of '120') await page.getByRole('dialog').getByRole('button', { name: ch, exact: true }).click();
   await page.getByRole('dialog').locator('.ok').click();
-  await page.getByRole('listitem').filter({ hasText: 'Dresses' }).click();
+  await page.locator('.tiles').getByRole('button').filter({ hasText: 'Dresses' }).click();
   for (const ch of '50') await page.getByRole('dialog').getByRole('button', { name: ch, exact: true }).click();
   await page.getByRole('dialog').locator('.ok').click();
   await expect(page.locator('.totals')).toContainText(loose('170.0 kg'));
   await expect(page.locator('.totals')).toContainText(loose('30.0 kg'));
 
   await page.goto('/stock/bale');
-  await page.getByRole('listitem').filter({ hasText: 'T-Shirts' }).first().click();
+  await page.locator('.tiles').getByRole('button').filter({ hasText: 'T-Shirts' }).first().click();
   await keypad(page, /^Bale weight/, 40);
   await page.getByRole('button', { name: 'Save bale' }).click();
   await expect(page.getByText('Saved on phone. It will sync when you are online.').first()).toBeVisible();

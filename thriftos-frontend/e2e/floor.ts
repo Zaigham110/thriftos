@@ -65,5 +65,5 @@ export async function pickTile(page: Page, searchPlaceholder: string, text: stri
     await search.waitFor({ timeout: 5000 }).catch(() => undefined);
   }
   if (await search.count()) await search.fill(text);
-  await page.getByRole('listitem').filter({ hasText: text }).first().click();
+  await page.locator('.tiles').getByRole('button').filter({ hasText: text }).first().click();
 }
