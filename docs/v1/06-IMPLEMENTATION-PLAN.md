@@ -38,7 +38,7 @@ Work phase by phase, in order. Each task ends with: typecheck clean (server + fr
 - Acceptance: journeys 1–8 work on a 360px-wide screen, in Urdu and English, offline for 1–6.
 
 ## Phase 4 — Demo ready (weeks 7–8)
-- [ ] 4.1 Demo seed (`prisma/seed-demo.ts`): tenant "Al-Madina Traders (Demo)", 3 suppliers (USA, UK, Korea), 6 containers over 3 months with realistic PKR costs, duty and clearing, sorting with yields that differ by origin (e.g., USA 18% A grade, Korea 10%), 120 bales, 15 customers in Karachi/Lahore/Peshawar with udhaar, 60 sales, payments.
+- [x] 4.1 Demo seed (`prisma/seed-demo.ts`): tenant "Al-Madina Traders (Demo)", 3 suppliers (USA, UK, Korea), 6 containers over 3 months with realistic PKR costs, duty and clearing, sorting with yields that differ by origin (e.g., USA 18% A grade, Korea 10%), 120 bales, 15 customers in Karachi/Lahore/Peshawar with udhaar, 60 sales, payments.
 - [ ] 4.2 Performance: owner home < 2 s on throttled "Slow 3G" in Chrome devtools; bundle budgets in `angular.json`.
 - [ ] 4.3 Playwright smoke test of the 5-minute demo path on a mobile viewport.
 - [ ] 4.4 README rewrite: what ThriftOS is, run with `docker compose up`, demo logins, how to reset demo data.

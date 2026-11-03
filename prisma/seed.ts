@@ -265,6 +265,13 @@ async function main() {
     });
   }
 
+  // The demo database (npm run demo:reset) gets only the base data here; its businesses are made by
+  // server/src/demo/seed-demo.ts through the app's own services.
+  if (process.env.SEED_BASE_ONLY === '1') {
+    console.log('✅ Base data only (SEED_BASE_ONLY=1).');
+    return;
+  }
+
   // =========================================================
   // 4. SEED DEMO TENANT
   // =========================================================

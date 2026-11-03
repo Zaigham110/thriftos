@@ -3,6 +3,8 @@
  * Dev-DB guard. Anything automated that migrates, resets, pushes or seeds a database
  * (npm db:* scripts, prisma/seed.ts, the Docker entrypoint, the e2e setup) must call this
  * first. It refuses any database whose name does not end in `_test` unless ALLOW_DEV_MIGRATE=1.
+ * One exception: the demo database `thriftos_demo`, and only while `npm run demo:reset` runs
+ * (it sets THRIFTOS_DEMO_RESET=1 for its own steps).
  * Only the owner's apply scripts (scripts/apply-phase*.sh) migrate the dev DB.
  *
  *   node scripts/db-guard.js "<what is about to run>"   exits 1 if the target is not allowed
@@ -15,6 +17,8 @@ const fs = require('fs');
 const path = require('path');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
+/** The one database `npm run demo:reset` may recreate. */
+const DEMO_DB = 'thriftos_demo';
 
 function readEnvFile(file) {
   if (!fs.existsSync(file)) return {};
@@ -53,6 +57,7 @@ function checkDatabase(url, env = process.env) {
   const dbName = databaseNameOf(url);
   if (!dbName) return { ok: false, dbName, reason: 'cannot read a database name from DATABASE_URL' };
   if (dbName.endsWith('_test')) return { ok: true, dbName, reason: 'test database' };
+  if (dbName === DEMO_DB && env.THRIFTOS_DEMO_RESET === '1') return { ok: true, dbName, reason: 'demo database (demo:reset)' };
   if (env.ALLOW_DEV_MIGRATE === '1') return { ok: true, dbName, reason: 'ALLOW_DEV_MIGRATE=1' };
   return {
     ok: false,
@@ -151,4 +156,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { resolveDatabaseUrl, databaseNameOf, checkDatabase, assertSafeToMigrate, decideCommand };
+module.exports = { DEMO_DB, resolveDatabaseUrl, databaseNameOf, checkDatabase, assertSafeToMigrate, decideCommand };

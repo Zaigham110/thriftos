@@ -26,6 +26,14 @@ test('allows only *_test databases by default', () => {
   assert.equal(checkDatabase('not a url', {}).ok, false);
 });
 
+test('thriftos_demo is allowed only during demo:reset, and no other name is', () => {
+  const demo = 'postgresql://u@h/thriftos_demo';
+  assert.equal(checkDatabase(demo, {}).ok, false);
+  assert.equal(checkDatabase(demo, { THRIFTOS_DEMO_RESET: '1' }).ok, true);
+  assert.equal(checkDatabase(DEV, { THRIFTOS_DEMO_RESET: '1' }).ok, false);
+  assert.equal(checkDatabase('postgresql://u@h/thriftos_demo2', { THRIFTOS_DEMO_RESET: '1' }).ok, false);
+});
+
 test('ALLOW_DEV_MIGRATE=1 (and only exactly 1) allows another database', () => {
   assert.equal(checkDatabase(DEV, { ALLOW_DEV_MIGRATE: '1' }).ok, true);
   for (const v of ['0', 'true', 'yes', '']) assert.equal(checkDatabase(DEV, { ALLOW_DEV_MIGRATE: v }).ok, false);
