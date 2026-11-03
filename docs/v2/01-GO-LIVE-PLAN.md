@@ -22,7 +22,7 @@ Target: the owner's existing AWS free-tier account. One EC2 micro instance (1 GB
 - [x] 5.2 Build and deploy pipeline
   - GitHub Actions: on tag `v*` (and manual dispatch) build `server` and `web` images for `linux/amd64` (or arm64 if the instance is Graviton), push to GHCR, then deploy over SSH: `docker compose pull && docker compose up -d`, wait for `/api/health`, roll back to the previous image tag if health fails.
   - `scripts/server-setup.sh`: one-time EC2 setup (Docker, swap, firewall: 22 from owner IP only, 80/443 open; unattended security updates).
-- [ ] 5.3 Backups and restore
+- [ ] 5.3 Backups and restore — postponed by the owner (2026-11-03); only pre-deploy dumps exist
   - Nightly `pg_dump -Fc` to S3 (free tier 5 GB) with 14 daily + 8 weekly kept; encrypt at rest (SSE-S3).
   - `scripts/restore-from-s3.sh` and a monthly restore test documented; a GitHub Action or cron alerts if the last backup is older than 26 h.
 - [ ] 5.4 Monitoring
