@@ -72,6 +72,8 @@ Plan: `01-ENTERPRISE-PLAN.md`. Branch: `enterprise-e1` (from `v2-go-live` at `10
   - `scripts/apply-enterprise-e3.sh` now applies all four E3 migrations.
   - **E3 done.** Full runs after E3.4: server 82 unit + 141 e2e passed; browser 34 passed + 4 skipped (the same skips as before); i18n 926 keys; build without warnings. Not released yet.
 
+- 2026-11-04 — **Released `v1.3.0`** (E3): tag on `v2-go-live` (`v1-reshape` fast-forwarded for PR #2); release run green — test, both images, release, live check. On the server: web and server containers on `v1.3.0` (server healthy); migrations `e3_01_stock_adjustments`, `e3_02_payment_promises`, `e3_03_finance`, `e3_04_price_lists` applied on start; permissions `INVENTORY_APPROVE`, `finance.view`, `expense.create`, `cash.close`, `price.manage` present and on the Admin roles; ThriftOS ~136 MB. Through CloudFront: health up; `/sell/records/new`, `/finance/pnl`, `/khata/records`, `/sort/yield`, `/stock/value` 200; the new `/api/workspace/*` and `/api/lists/expenses` endpoints 401 without a login.
+
 ## Decisions
 - Dark mode is opt-in per person and device; light stays the default everywhere.
 - The brand plum is never a chart series; charts use the validated categorical slots in fixed order.
