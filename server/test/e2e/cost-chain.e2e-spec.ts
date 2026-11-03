@@ -35,6 +35,8 @@ describe('cost chain (tasks 1.3 + 1.4)', () => {
     owner = await createTenantWithOwner(app);
     other = await createTenantWithOwner(app);
     const t = owner.tenantId;
+    // This chain starts from a purchase order, which is an advanced module (off for a new business).
+    await prisma.tenant.update({ where: { id: t }, data: { enabledModules: { push: 'PURCHASE_ORDERS' } } });
     ids.raw = (await prisma.rawCategory.create({ data: { tenantId: t, name: 'Mixed', rawType: 'BALE' } })).id;
     for (const name of ['Jeans', 'Shirts', 'Kids']) ids[name] = (await prisma.category.create({ data: { tenantId: t, name } })).id;
     for (const name of ['A', 'B', 'C']) ids[`grade${name}`] = (await prisma.grade.create({ data: { tenantId: t, name } })).id;
