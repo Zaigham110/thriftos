@@ -2,9 +2,12 @@ import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { configureApp, swaggerEnabled } from './app.setup';
+import { JsonLogger } from './common/logging/request-log';
+import { initSentry } from './monitoring/sentry';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  initSentry();
+  const app = await NestFactory.create(AppModule, process.env.NODE_ENV === 'production' ? { logger: new JsonLogger() } : {});
 
   configureApp(app);
 

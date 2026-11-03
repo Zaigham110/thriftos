@@ -6,6 +6,7 @@
 
 import {
   ApplicationConfig,
+  ErrorHandler,
   importProvidersFrom,
   isDevMode,
   inject,
@@ -17,6 +18,7 @@ import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideServiceWorker } from '@angular/service-worker';
 import { basePathInterceptor } from './core/http/base-path.interceptor';
+import { ReportErrorsHandler } from './core/monitoring/report-errors.handler';
 import {
   LucideAngularModule,
   Users,
@@ -44,6 +46,7 @@ export const appConfig: ApplicationConfig = {
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes, withComponentInputBinding()),
     provideHttpClient(withInterceptors([basePathInterceptor, authInterceptor])),
+    { provide: ErrorHandler, useClass: ReportErrorsHandler },
     // Dictionaries are loaded before the first screen, so no English flashes before Urdu.
     provideAppInitializer(() => inject(I18nService).init()),
     // Installable, works offline: app shell and reference data are cached by the service worker.

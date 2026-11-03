@@ -141,6 +141,9 @@ export const PERMISSIONS = [
   { code: 'report.worker', name: 'View Worker Reports', group: 'Reports' },
   { code: 'REPORTS_VIEW', name: 'Reports - View', group: 'Reports' },
   { code: 'REPORTS_EXPORT', name: 'Reports - Export', group: 'Reports' },
+
+  // Data ownership (v2 5.6)
+  { code: 'data.export', name: 'Export all business data', group: 'Data' },
 ];
 
 /** Creates or completes the base data; returns the SYSTEM business id. */
@@ -175,6 +178,16 @@ export async function ensureBaseData(prisma: PrismaClient): Promise<string> {
 
   for (const permission of PERMISSIONS) {
     await prisma.permission.upsert({ where: { code: permission.code }, update: {}, create: permission });
+  }
+
+  // "Admin" (the owner's role) holds every permission, including ones added by a later release.
+  const all = await prisma.permission.findMany({ select: { id: true } });
+  const admins = await prisma.role.findMany({ where: { name: 'Admin' }, select: { id: true } });
+  if (admins.length) {
+    await prisma.rolePermission.createMany({
+      data: admins.flatMap((r) => all.map((p) => ({ roleId: r.id, permissionId: p.id }))),
+      skipDuplicates: true,
+    });
   }
 
   // Every business has the default waste type (same rule as migration v1_04 and tenant creation).

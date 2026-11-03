@@ -1,5 +1,5 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
-import { Request } from 'express';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { Request, Response } from 'express';
 import { TenantService } from './tenant.service';
 import { TenantGuard } from '../common/guards/tenant.guard';
 import { PermissionGuard } from '../common/guards/permission.guard';
@@ -11,6 +11,8 @@ import { UpdateTenantSettingsDto } from './dto/tenant-settings.dto';
 import { Idempotent } from '../common/idempotency/idempotent.interceptor';
 import { TenantSetupDto } from './dto/setup.dto';
 import { SetupService } from './setup.service';
+import { DataExportService } from './data-export.service';
+import { TenantId } from '../common/decorators/tenant-id.decorator';
 
 /**
  * TenantController - the current tenant, its settings, and lookup lists for pickers
@@ -23,7 +25,19 @@ export class TenantController {
   constructor(
     private readonly tenantService: TenantService,
     private readonly setup: SetupService,
+    private readonly dataExport: DataExportService,
   ) {}
+
+  /** Everything that belongs to this business as a zip of CSV files (owner only: data.export). */
+  @Get('export')
+  @RequirePermissions('data.export')
+  async export(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Res() res: Response) {
+    const { filename, zip } = await this.dataExport.exportZip(tenantId, user.userId);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(Buffer.from(zip));
+  }
 
   @Get()
   @SkipPermissionCheck()

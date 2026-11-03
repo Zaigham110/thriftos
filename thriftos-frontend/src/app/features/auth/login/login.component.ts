@@ -1,7 +1,7 @@
 import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Delete, LucideAngularModule } from 'lucide-angular';
 import { filter, take } from 'rxjs';
@@ -18,7 +18,7 @@ type Mode = 'owner' | 'munshi';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [FormsModule, LucideAngularModule, TPipe],
+  imports: [FormsModule, RouterLink, LucideAngularModule, TPipe],
   template: `
     <main class="login">
       <header>
@@ -40,6 +40,7 @@ type Mode = 'owner' | 'munshi';
           <label class="field">{{ 'auth.email' | t }}<input name="email" type="email" autocomplete="username" [(ngModel)]="email" class="ltr" required /></label>
           <label class="field">{{ 'auth.password' | t }}<input name="password" type="password" autocomplete="current-password" [(ngModel)]="password" required /></label>
           <button type="submit" class="btn primary block" [disabled]="!email.trim() || !password || busy()">{{ (busy() ? 'auth.signingIn' : 'auth.signIn') | t }}</button>
+          <a class="link-btn forgot" routerLink="/auth/forgot-password">{{ 'auth.forgot' | t }}</a>
         </form>
       } @else {
         <form class="card" (ngSubmit)="signInMunshi()">
@@ -59,10 +60,15 @@ type Mode = 'owner' | 'munshi';
           <button type="submit" class="btn primary block" [disabled]="!canPin() || busy()">{{ (busy() ? 'auth.signingIn' : 'auth.signIn') | t }}</button>
         </form>
       }
+
+      <nav class="legal"><a routerLink="/terms">{{ 'legal.terms.title' | t }}</a><a routerLink="/privacy">{{ 'legal.privacy.title' | t }}</a></nav>
     </main>
   `,
   styles: [`
     :host { display:block; min-height:100vh; background:var(--tos-canvas); }
+    .forgot { justify-self:center; }
+    .legal { display:flex; justify-content:center; gap:16px; font-size:14px; }
+    .legal a { color:var(--tos-ink-soft); }
     .login { display:grid; gap:14px; max-width:420px; margin:0 auto; padding:24px 16px 32px; }
     header { position:relative; display:grid; justify-items:center; gap:4px; text-align:center; }
     header h1 { margin:6px 0 0; font-size:26px; }

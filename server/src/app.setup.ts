@@ -1,4 +1,5 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { requestLogger, requestLogsEnabled } from './common/logging/request-log';
 
 /**
  * Express `trust proxy` from TRUST_PROXY: unset/empty → off; a number → that many proxies in front
@@ -18,6 +19,7 @@ export function swaggerEnabled(env: NodeJS.ProcessEnv): boolean {
 export function configureApp(app: INestApplication): void {
   const trustProxy = trustProxySetting(process.env.TRUST_PROXY);
   if (trustProxy) app.getHttpAdapter().getInstance().set('trust proxy', trustProxy);
+  if (requestLogsEnabled(process.env)) app.use(requestLogger());
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
     new ValidationPipe({

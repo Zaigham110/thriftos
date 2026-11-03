@@ -57,6 +57,8 @@ const TRANSLATED = [
   'features/sell/',
   'features/khata/',
   'features/auth/login/',
+  'features/auth/password/',
+  'features/legal/',
   'features/settings/',
   'features/setup/',
 ];

@@ -22,6 +22,7 @@ import { AdminModule } from './admin/admin.module';
 import { SalesModule } from './sales/sales.module';
 import { HomeModule } from './home/home.module';
 import { SearchModule } from './search/search.module';
+import { MonitoringModule } from './monitoring/monitoring.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { SearchModule } from './search/search.module';
     AuditModule,
     IdempotencyModule,
     HealthModule,
+    MonitoringModule,
 
     // Auth & RBAC
     AuthModule,

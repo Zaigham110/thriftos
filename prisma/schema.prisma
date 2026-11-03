@@ -1377,6 +1377,18 @@ model AuditLog {
   @@index([createdAt])
 }
 
+/// One-time link sent by email to set a new password (v2 5.5). Only the SHA-256 of the token is stored.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
 model RefreshToken {
   id        String    @id @default(cuid())
   userId    String

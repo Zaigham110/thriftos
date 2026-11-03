@@ -1,0 +1,30 @@
+name: Uptime
+
+# Every 10 minutes: the live app and its API must answer through CloudFront. A failed run makes GitHub
+# email the person who last changed this schedule (Settings → Notifications → Actions decides how).
+# Run it by hand with another URL to test the alert. Note: GitHub pauses schedules in a public repository
+# after 60 days without commits; re-enable it under Actions if that happens.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Address to check (default: the APP_URL variable)
+        required: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: App and API answer
+        env:
+          URL: ${{ inputs.url || vars.APP_URL }}
+        run: |
+          set -euo pipefail
+          [ -n "$URL" ] || { echo "APP_URL is not set"; exit 1; }
+          curl -fsS --retry 3 --retry-delay 10 --max-time 20 "$URL/thriftos/api/health" | jq -e '.status == "ok"' >/dev/null
+          curl -fsS --retry 3 --retry-delay 10 --max-time 20 -o /dev/null "$URL/thriftos/"
+          v=$(curl -fsS --max-time 20 "$URL/thriftos/version.json" | jq -r .version)
+          echo "Up: $URL/thriftos ($v)"

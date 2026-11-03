@@ -27,6 +27,30 @@ export const routes: Routes = [
     title: 'Access Restricted - ThriftOS',
   },
 
+  {
+    path: 'auth/forgot-password',
+    loadComponent: () => import('./features/auth/password/forgot-password.component').then((m) => m.ForgotPasswordComponent),
+    title: 'Forgot password - ThriftOS',
+  },
+  {
+    path: 'auth/reset-password',
+    loadComponent: () => import('./features/auth/password/reset-password.component').then((m) => m.ResetPasswordComponent),
+    title: 'New password - ThriftOS',
+  },
+  // Terms and Privacy: public, no login.
+  {
+    path: 'terms',
+    loadComponent: () => import('./features/legal/legal-page.component').then((m) => m.LegalPageComponent),
+    data: { kind: 'terms' },
+    title: 'Terms - ThriftOS',
+  },
+  {
+    path: 'privacy',
+    loadComponent: () => import('./features/legal/legal-page.component').then((m) => m.LegalPageComponent),
+    data: { kind: 'privacy' },
+    title: 'Privacy - ThriftOS',
+  },
+
   // The bill link shared on WhatsApp: public, no login.
   {
     path: 'bill/:token',
@@ -167,6 +191,7 @@ export const routes: Routes = [
             title: 'ThriftOS',
           },
           { path: 'team', loadComponent: () => import('./features/settings/team.component').then((m) => m.TeamComponent), title: 'ThriftOS' },
+          { path: 'password', loadComponent: () => import('./features/settings/change-password.component').then((m) => m.ChangePasswordComponent), title: 'ThriftOS' },
           {
             path: 'admin',
             loadChildren: () => import('./modules/admin/admin.routes').then((m) => m.ADMIN_ROUTES),
