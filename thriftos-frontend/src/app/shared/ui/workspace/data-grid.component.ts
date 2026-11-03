@@ -4,7 +4,7 @@ import { I18nService } from '../../../core/i18n/i18n.service';
 import { TPipe } from '../../../core/i18n/t.pipe';
 import { WsStateComponent } from './state.component';
 
-export type WsCellFormat = 'text' | 'number' | 'money' | 'kg' | 'date';
+export type WsCellFormat = 'text' | 'number' | 'money' | 'kg' | 'date' | 'percent';
 
 export interface WsColumn {
   key: string;
@@ -141,7 +141,7 @@ export class WsDataGridComponent {
   protected readonly someSelected = computed(() => !!this.selected().length && !this.allSelected());
 
   protected isNumeric(c: WsColumn): boolean {
-    return c.format === 'number' || c.format === 'money' || c.format === 'kg';
+    return c.format === 'number' || c.format === 'money' || c.format === 'kg' || c.format === 'percent';
   }
 
   protected cell(v: unknown, format: WsCellFormat = 'text'): string {
@@ -150,6 +150,7 @@ export class WsDataGridComponent {
       case 'money': return this.i18n.money(v as number | string);
       case 'kg': return this.i18n.kg(v as number | string);
       case 'number': return this.i18n.num(v as number | string);
+      case 'percent': return `${this.i18n.num(v as number | string, 0)}%`;
       case 'date': {
         const d = new Date(v as string);
         return isNaN(d.getTime()) ? String(v) : d.toLocaleDateString(this.i18n.lang() === 'ur' ? 'ur-PK' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric', numberingSystem: 'latn' });

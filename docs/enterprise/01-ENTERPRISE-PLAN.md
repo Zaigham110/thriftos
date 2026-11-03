@@ -104,7 +104,7 @@ Generic ERPs cannot do these without months of customisation; local tools cannot
 
 ### Phase E3 — Workspace modules (week 3–6)
 Each area gets list + record (+ kanban where it has stages), using E2.
-- [ ] E3.1 **Purchasing** — suppliers (record with scorecard tab), containers (kanban by status, record with landed cost
+- [x] E3.1 **Purchasing** — suppliers (record with scorecard tab), containers (kanban by status, record with landed cost
   breakdown, charges, lots, sorting, bales, sales, profit — the traceability page), loose lots, purchase orders (when the
   module is on), goods received note PDF.
 - [ ] E3.2 **Sorting** — sessions list/kanban, session record with category/grade outputs and waste, yield analysis

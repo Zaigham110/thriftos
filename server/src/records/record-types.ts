@@ -16,7 +16,7 @@ export const RECORD_TYPES: Record<string, RecordType> = {
   stockItem: { model: 'inventoryItem', auditEntities: ['InventoryItem', 'RepackUnit'], labelField: 'name', link: (id) => `/stock/items/${id}` },
   lot: { model: 'rag', auditEntities: ['Rag'], labelField: 'ragCode', link: (id) => `/receive/records/rags/${id}/edit` },
   payment: { model: 'payment', auditEntities: ['Payment'], labelField: 'reference', link: () => '/khata' },
-  supplier: { model: 'vendor', auditEntities: ['Vendor'], labelField: 'name', link: () => '/settings/admin/vendors' },
+  supplier: { model: 'vendor', auditEntities: ['Vendor'], labelField: 'name', link: (id) => `/receive/records/suppliers/${id}` },
 };
 
 /** What can be attached: photos, PDFs, spreadsheets and documents (≤ 10 MB). */

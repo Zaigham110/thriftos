@@ -25,6 +25,7 @@ import { SearchModule } from './search/search.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { ListsModule } from './lists/lists.module';
 import { RecordsModule } from './records/records.module';
+import { WorkspaceModule } from './workspace/workspace.module';
 
 @Module({
   imports: [
@@ -88,6 +89,7 @@ import { RecordsModule } from './records/records.module';
     SearchModule,
     ListsModule,
     RecordsModule,
+    WorkspaceModule,
   ],
 })
 export class AppModule {}

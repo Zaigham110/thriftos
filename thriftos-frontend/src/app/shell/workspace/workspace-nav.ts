@@ -1,6 +1,7 @@
 import {
   BarChart3,
   BookOpen,
+  Factory,
   Boxes,
   Home,
   Layers3,
@@ -36,7 +37,8 @@ export const WS_NAV: WsNavGroup[] = [
   {
     label: 'ws.group.operations',
     items: [
-      { label: 'ws.nav.purchasing', path: '/receive', icon: Truck, module: 'RECEIVE', keywords: 'receive maal aya container lot supplier purchase' },
+      { label: 'ws.nav.purchasing', path: '/receive/records/containers', icon: Truck, module: 'RECEIVE', keywords: 'receive maal aya container lot purchase' },
+      { label: 'ws.nav.suppliers', path: '/receive/records/suppliers', icon: Factory, module: 'RECEIVE', keywords: 'supplier vendor scorecard' },
       { label: 'ws.nav.sorting', path: '/sort', icon: Layers3, module: 'SORT', keywords: 'chhantai sort grade' },
       { label: 'ws.nav.inventory', path: '/stock', icon: PackageSearch, module: 'STOCK', keywords: 'stock bale inventory' },
     ],
@@ -44,7 +46,7 @@ export const WS_NAV: WsNavGroup[] = [
   {
     label: 'ws.group.sales',
     items: [
-      { label: 'ws.nav.sales', path: '/sell', icon: ShoppingCart, module: 'SELL', keywords: 'becho sale invoice bill' },
+      { label: 'ws.nav.sales', path: '/sell/records', icon: ShoppingCart, module: 'SELL', keywords: 'becho sale invoice bill' },
       { label: 'ws.nav.receivables', path: '/khata', icon: BookOpen, module: 'KHATA', keywords: 'khata udhaar customers payments' },
     ],
   },
@@ -83,6 +85,7 @@ export const WS_CRUMBS: Record<string, string> = {
   items: 'ws.crumb.items',
   grade: 'ws.crumb.grading',
   containers: 'ws.crumb.containers',
+  suppliers: 'ws.nav.suppliers',
   today: 'ws.crumb.today',
   team: 'settings.team',
   password: 'settings.password',

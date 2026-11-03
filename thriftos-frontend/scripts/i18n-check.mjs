@@ -61,6 +61,7 @@ const TRANSLATED = [
   'features/auth/password/',
   'features/legal/',
   'features/sales-workspace/',
+  'features/workspace-lists/',
   'features/settings/',
   'features/setup/',
 ];

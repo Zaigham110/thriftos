@@ -24,6 +24,8 @@ export interface ListField {
   permission?: string;
   /** Hidden from the column list (used for filters/groups only, e.g. customerId). */
   hidden?: boolean;
+  /** Worked out per page by the resource's `enrich` (e.g. profit so far); shown only, never sorted/filtered. */
+  computed?: boolean;
 }
 
 export interface ListDelegate {
@@ -41,6 +43,8 @@ export interface ListResource {
   delegate(prisma: Prisma.TransactionClient | object): ListDelegate;
   select: Record<string, unknown>;
   toRow(record: Record<string, unknown>): Record<string, unknown> & { id: string };
+  /** Adds computed fields to a page of rows (one batch of queries for the whole page). */
+  enrich?: (prisma: object, tenantId: string, rows: Array<Record<string, unknown> & { id: string }>) => Promise<Array<Record<string, unknown> & { id: string }>>;
   /** Display names for group keys (e.g. customerId → customer name). */
   groupLabels?: (prisma: object, tenantId: string, field: string, keys: string[]) => Promise<Record<string, string>>;
 }
@@ -59,7 +63,7 @@ export interface ListResult {
   total: number;
   totals: Record<string, string>;
   groups?: ListGroup[];
-  fields: Array<Pick<ListField, 'key' | 'type' | 'sortable' | 'filterable' | 'groupable' | 'sum' | 'enumValues' | 'hidden'>>;
+  fields: Array<Pick<ListField, 'key' | 'type' | 'sortable' | 'filterable' | 'groupable' | 'sum' | 'enumValues' | 'hidden' | 'computed'>>;
 }
 
 /** Pakistan is UTC+5 with no daylight saving; a date filter "2026-11-03" means that local day. */
@@ -77,7 +81,7 @@ export function visibleFields(resource: ListResource, permissions: ReadonlySet<s
 
 function field(resource: ListResource, fields: ListField[], key: string, need: 'sortable' | 'filterable' | 'groupable'): ListField {
   const f = fields.find((x) => x.key === key);
-  if (!f || !f[need]) throw new BadRequestException(`${resource.name}: "${key}" cannot be ${need === 'sortable' ? 'sorted' : need === 'filterable' ? 'filtered' : 'grouped'}`);
+  if (!f || !f[need] || f.computed) throw new BadRequestException(`${resource.name}: "${key}" cannot be ${need === 'sortable' ? 'sorted' : need === 'filterable' ? 'filtered' : 'grouped'}`);
   return f;
 }
 
@@ -159,7 +163,7 @@ export async function runList(prisma: object, resource: ListResource, tenantId: 
   const fields = visibleFields(resource, permissions);
   const where = buildWhere(resource, fields, tenantId, query);
   const orderBy = buildOrderBy(resource, fields, query.sort);
-  const sums = fields.filter((f) => f.sum && f.path.length === 1);
+  const sums = fields.filter((f) => f.sum && !f.computed && f.path.length === 1);
   const sumArg = sums.length ? { _sum: Object.fromEntries(sums.map((f) => [f.path[0], true])) } : {};
   const d = resource.delegate(prisma);
 
@@ -170,7 +174,9 @@ export async function runList(prisma: object, resource: ListResource, tenantId: 
   ]);
   const totals = Object.fromEntries(sums.map((f) => [f.key, str(agg._sum?.[f.path[0]])]));
   const allowed = new Set(fields.map((f) => f.key).concat('id'));
-  const rows = records.map((r) => Object.fromEntries(Object.entries(resource.toRow(r)).filter(([k]) => allowed.has(k))));
+  let full = records.map((r) => resource.toRow(r));
+  if (resource.enrich) full = await resource.enrich(prisma, tenantId, full);
+  const rows = full.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => allowed.has(k))));
 
   let groups: ListGroup[] | undefined;
   if (query.groupBy) {
@@ -195,6 +201,6 @@ export async function runList(prisma: object, resource: ListResource, tenantId: 
     total,
     totals,
     groups,
-    fields: fields.map(({ key, type, sortable, filterable, groupable, sum, enumValues, hidden }) => ({ key, type, sortable, filterable, groupable, sum, enumValues, hidden })),
+    fields: fields.map(({ key, type, sortable, filterable, groupable, sum, enumValues, hidden, computed }) => ({ key, type, sortable: sortable && !computed, filterable: filterable && !computed, groupable: groupable && !computed, sum, enumValues, hidden, computed })),
   };
 }

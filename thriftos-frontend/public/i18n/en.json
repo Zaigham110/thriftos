@@ -207,11 +207,14 @@
  },
  "receive": {
   "charge": {
+   "CIF": "CIF",
    "CLEARING": "Clearing",
    "DUTY": "Duty",
    "FREIGHT": "Freight",
    "LABOUR": "Labour",
    "MISC": "Other",
+   "PORT_HANDLING": "Port handling",
+   "TAX": "Tax",
    "TRANSPORT": "Transport"
   },
   "charges": "Charges",
@@ -418,6 +421,13 @@
    "SALE_FULFILLED": "handed over the goods",
    "SORT_SESSION_CLOSED": "closed the sorting"
   },
+  "board": {
+   "empty": "Nothing here",
+   "more": "{n} more — use the table to see all",
+   "moveTo": "Move to",
+   "moved": "Moved to {to}",
+   "notAllowed": "That move is not allowed from here"
+  },
   "breadcrumbs": "You are here",
   "chart": {
    "showChart": "Show as chart",
@@ -434,12 +444,82 @@
    "number": "Sale",
    "paymentMode": "Payment",
    "profit": "Profit",
+   "records": "Records",
    "status": "Status",
    "total": "Total",
    "type": "Type"
   },
   "collapse": "Collapse menu",
   "columns": "Columns",
+  "container": {
+   "addCharge": "Add charge",
+   "addLot": "Add lot",
+   "bale": "Bale",
+   "bales": "Bales made from this container",
+   "balesSold": "Bales sold",
+   "categories": "By category",
+   "category": "Category",
+   "charges": "Charges",
+   "costFromHere": "Cost from here",
+   "description": "Description",
+   "edit": "Edit",
+   "flow": {
+    "bales": "Bales",
+    "costPerKg": "{amount} per kg",
+    "graded": "Graded",
+    "landed": "Landed",
+    "lots": "Lots",
+    "perKg": "Profit {amount} per kg",
+    "revenue": "Sold",
+    "sold": "{n} sold",
+    "sorted": "Sorted",
+    "waste": "{kg} waste"
+   },
+   "grade": "Grade",
+   "grades": "By grade",
+   "inStock": "In stock",
+   "lot": "Lot",
+   "lots": "Lots",
+   "noBales": "No bales yet",
+   "noCharges": "No charges yet",
+   "noLots": "No lots yet",
+   "noSales": "Nothing sold yet",
+   "notFound": "This container could not be opened",
+   "notGraded": "Not graded yet",
+   "notSorted": "Not sorted yet",
+   "purchase": "Purchase",
+   "sales": "Sales of its stock",
+   "share": "Its share",
+   "sold": "Sold",
+   "tab": {
+    "bales": "Bales",
+    "cost": "Landed cost",
+    "sales": "Sales",
+    "sorting": "Lots and sorting"
+   },
+   "trace": "From landed cost to profit"
+  },
+  "containers": {
+   "col": {
+    "arrivedAt": "Arrived",
+    "costPerKg": "Cost per kg",
+    "date": "Received",
+    "kg": "Net kg",
+    "landedCost": "Landed cost",
+    "number": "Container",
+    "origin": "Origin",
+    "profit": "Profit so far",
+    "revenue": "Sold so far",
+    "supplier": "Supplier",
+    "topGrade": "A grade %",
+    "yield": "Sorted %"
+   },
+   "count": "{n} containers",
+   "emptyHeading": "No containers match",
+   "emptyMessage": "Try other words, a wider period, or clear the filters.",
+   "search": "Search container number, supplier or country",
+   "title": "Containers"
+  },
   "create": "Create",
   "crumb": {
    "containers": "Containers",
@@ -450,6 +530,12 @@
    "new": "New",
    "records": "Records",
    "today": "Today"
+  },
+  "cstatus": {
+   "ARRIVED": "Arrived",
+   "CLEARED": "Cleared",
+   "CLOSED": "Closed",
+   "IN_TRANSIT": "On the way"
   },
   "density": {
    "comfortable": "Comfortable rows",
@@ -483,6 +569,16 @@
   "kpi": {
    "vsPrevious": "vs previous period"
   },
+  "layout": {
+   "board": "Board",
+   "label": "Layout",
+   "table": "Table"
+  },
+  "lotStatus": {
+   "IN_SORTING": "Sorting",
+   "NOT_STARTED": "Waiting",
+   "SORTED": "Sorted"
+  },
   "mode": {
    "CASH": "Cash",
    "CREDIT": "Udhaar",
@@ -496,7 +592,8 @@
    "reports": "Reports",
    "sales": "Sales",
    "settings": "Settings",
-   "sorting": "Sorting"
+   "sorting": "Sorting",
+   "suppliers": "Suppliers"
   },
   "new": {
    "bale": "Make a bale",
@@ -590,6 +687,24 @@
    "PAID": "Paid",
    "PARTIALLY_PAID": "Part paid"
   },
+  "supplier": {
+   "noContainers": "No containers from this supplier yet",
+   "notFound": "This supplier could not be opened"
+  },
+  "suppliers": {
+   "col": {
+    "containers": "Containers",
+    "kg": "Kg bought",
+    "name": "Supplier",
+    "phone": "Phone",
+    "profitPerKg": "Profit per kg"
+   },
+   "count": "{n} suppliers",
+   "emptyHeading": "No suppliers match",
+   "emptyMessage": "Try other words or clear the filters.",
+   "search": "Search supplier, country or phone",
+   "title": "Suppliers"
+  },
   "switchLanguage": "Switch to Urdu / English",
   "theme": {
    "dark": "Dark mode",
@@ -603,6 +718,14 @@
    "save": "Save view",
    "saved": "View \"{name}\" saved.",
    "taken": "You already have a view with this name."
+  },
+  "vtype": {
+   "CUSTOMER": "Customer",
+   "EQUIPMENT_VENDOR": "Equipment",
+   "FREIGHT_CARRIER": "Freight",
+   "PACKAGING_SUPPLIER": "Packaging",
+   "SERVICE_PROVIDER": "Services",
+   "SUPPLIER": "Supplier"
   }
  }
 }

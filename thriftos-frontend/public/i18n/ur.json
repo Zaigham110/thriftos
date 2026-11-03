@@ -207,11 +207,14 @@
  },
  "receive": {
   "charge": {
+   "CIF": "سی آئی ایف",
    "CLEARING": "کلیئرنگ",
    "DUTY": "ڈیوٹی",
    "FREIGHT": "کرایہ",
    "LABOUR": "مزدوری",
    "MISC": "دیگر",
+   "PORT_HANDLING": "پورٹ ہینڈلنگ",
+   "TAX": "ٹیکس",
    "TRANSPORT": "ٹرانسپورٹ"
   },
   "charges": "خرچے",
@@ -418,6 +421,13 @@
    "SALE_FULFILLED": "نے مال حوالے کیا",
    "SORT_SESSION_CLOSED": "نے چھانٹی مکمل کی"
   },
+  "board": {
+   "empty": "یہاں کچھ نہیں",
+   "more": "{n} مزید — سب دیکھنے کے لیے ٹیبل کھولیں",
+   "moveTo": "منتقل کریں",
+   "moved": "{to} میں منتقل ہو گیا",
+   "notAllowed": "یہاں سے یہ تبدیلی نہیں ہو سکتی"
+  },
   "breadcrumbs": "آپ یہاں ہیں",
   "chart": {
    "showChart": "چارٹ میں دکھائیں",
@@ -434,12 +444,82 @@
    "number": "بکری",
    "paymentMode": "ادائیگی",
    "profit": "منافع",
+   "records": "ریکارڈ",
    "status": "حالت",
    "total": "کل",
    "type": "قسم"
   },
   "collapse": "مینو چھوٹا کریں",
   "columns": "کالم",
+  "container": {
+   "addCharge": "خرچہ شامل کریں",
+   "addLot": "لاٹ شامل کریں",
+   "bale": "گانٹھ",
+   "bales": "اس کنٹینر سے بنی گانٹھیں",
+   "balesSold": "بکی گانٹھیں",
+   "categories": "قسم کے حساب سے",
+   "category": "قسم",
+   "charges": "خرچے",
+   "costFromHere": "یہاں سے لاگت",
+   "description": "تفصیل",
+   "edit": "تبدیل کریں",
+   "flow": {
+    "bales": "گانٹھیں",
+    "costPerKg": "{amount} فی کلو",
+    "graded": "گریڈنگ",
+    "landed": "کل لاگت",
+    "lots": "لاٹ",
+    "perKg": "منافع {amount} فی کلو",
+    "revenue": "بکری",
+    "sold": "{n} بک گئیں",
+    "sorted": "چھانٹی",
+    "waste": "{kg} ضائع"
+   },
+   "grade": "گریڈ",
+   "grades": "گریڈ کے حساب سے",
+   "inStock": "اسٹاک میں",
+   "lot": "لاٹ",
+   "lots": "لاٹ",
+   "noBales": "ابھی کوئی گانٹھ نہیں",
+   "noCharges": "ابھی کوئی خرچہ نہیں",
+   "noLots": "ابھی کوئی لاٹ نہیں",
+   "noSales": "ابھی کچھ نہیں بکا",
+   "notFound": "یہ کنٹینر نہیں کھل سکا",
+   "notGraded": "ابھی گریڈنگ نہیں ہوئی",
+   "notSorted": "ابھی چھانٹی نہیں ہوئی",
+   "purchase": "خرید",
+   "sales": "اس کے مال کی بکری",
+   "share": "اس کا حصہ",
+   "sold": "بک گئی",
+   "tab": {
+    "bales": "گانٹھیں",
+    "cost": "کل لاگت",
+    "sales": "بکری",
+    "sorting": "لاٹ اور چھانٹی"
+   },
+   "trace": "کل لاگت سے منافع تک"
+  },
+  "containers": {
+   "col": {
+    "arrivedAt": "پہنچا",
+    "costPerKg": "فی کلو لاگت",
+    "date": "وصولی",
+    "kg": "خالص کلو",
+    "landedCost": "کل لاگت",
+    "number": "کنٹینر",
+    "origin": "ملک",
+    "profit": "اب تک منافع",
+    "revenue": "اب تک بکری",
+    "supplier": "سپلائر",
+    "topGrade": "اے گریڈ %",
+    "yield": "چھانٹی %"
+   },
+   "count": "{n} کنٹینر",
+   "emptyHeading": "کوئی کنٹینر نہیں ملا",
+   "emptyMessage": "دوسرے الفاظ، لمبی مدت آزمائیں یا فلٹر ہٹا دیں۔",
+   "search": "کنٹینر نمبر، سپلائر یا ملک تلاش کریں",
+   "title": "کنٹینر"
+  },
   "create": "نیا",
   "crumb": {
    "containers": "کنٹینر",
@@ -450,6 +530,12 @@
    "new": "نیا",
    "records": "ریکارڈ",
    "today": "آج"
+  },
+  "cstatus": {
+   "ARRIVED": "پہنچ گیا",
+   "CLEARED": "کلیئر",
+   "CLOSED": "بند",
+   "IN_TRANSIT": "راستے میں"
   },
   "density": {
    "comfortable": "کھلی قطاریں",
@@ -483,6 +569,16 @@
   "kpi": {
    "vsPrevious": "پچھلے عرصے کے مقابلے میں"
   },
+  "layout": {
+   "board": "بورڈ",
+   "label": "ترتیب",
+   "table": "ٹیبل"
+  },
+  "lotStatus": {
+   "IN_SORTING": "چھانٹی جاری",
+   "NOT_STARTED": "انتظار میں",
+   "SORTED": "چھانٹی مکمل"
+  },
   "mode": {
    "CASH": "نقد",
    "CREDIT": "ادھار",
@@ -496,7 +592,8 @@
    "reports": "رپورٹیں",
    "sales": "بکری",
    "settings": "سیٹنگز",
-   "sorting": "چھانٹی"
+   "sorting": "چھانٹی",
+   "suppliers": "سپلائر"
   },
   "new": {
    "bale": "گانٹھ بنائیں",
@@ -590,6 +687,24 @@
    "PAID": "ادا",
    "PARTIALLY_PAID": "کچھ ادا"
   },
+  "supplier": {
+   "noContainers": "اس سپلائر سے ابھی کوئی کنٹینر نہیں",
+   "notFound": "یہ سپلائر نہیں کھل سکا"
+  },
+  "suppliers": {
+   "col": {
+    "containers": "کنٹینر",
+    "kg": "خریدا کلو",
+    "name": "سپلائر",
+    "phone": "فون",
+    "profitPerKg": "فی کلو منافع"
+   },
+   "count": "{n} سپلائر",
+   "emptyHeading": "کوئی سپلائر نہیں ملا",
+   "emptyMessage": "دوسرے الفاظ آزمائیں یا فلٹر ہٹا دیں۔",
+   "search": "سپلائر، ملک یا فون تلاش کریں",
+   "title": "سپلائر"
+  },
   "switchLanguage": "اردو / انگریزی بدلیں",
   "theme": {
    "dark": "گہرا رنگ",
@@ -603,6 +718,14 @@
    "save": "ویو محفوظ کریں",
    "saved": "ویو \"{name}\" محفوظ ہو گیا۔",
    "taken": "اس نام کا ویو پہلے سے موجود ہے۔"
+  },
+  "vtype": {
+   "CUSTOMER": "گاہک",
+   "EQUIPMENT_VENDOR": "سامان",
+   "FREIGHT_CARRIER": "فریٹ",
+   "PACKAGING_SUPPLIER": "پیکنگ",
+   "SERVICE_PROVIDER": "خدمات",
+   "SUPPLIER": "سپلائر"
   }
  }
 }

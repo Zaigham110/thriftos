@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InventoryStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { KHATA_SALE_STATUSES, KhataService } from '../sales/khata.service';
-import { byContainer, LineSource, percent, startOfDayPKT, topGradePercent } from './home';
+import { startOfDayPKT } from './home';
+import { combine, containerEconomics, topPercent, yieldPercent } from './container-economics';
 
 const ZERO = new Prisma.Decimal(0);
 const LAST_CONTAINERS = 5;
@@ -44,61 +45,13 @@ export class HomeService {
       where: { tenantId },
       orderBy: { createdAt: 'desc' },
       take: Math.min(Math.max(limit, 1), 50),
-      select: {
-        id: true,
-        containerNumber: true,
-        originCountry: true,
-        landedCostPKR: true,
-        createdAt: true,
-        vendor: { select: { id: true, name: true } },
-        rags: { select: { weightKg: true } },
-      },
+      select: { id: true, containerNumber: true, originCountry: true, landedCostPKR: true, createdAt: true, vendor: { select: { id: true, name: true } } },
     });
-    const ids = list.map((c) => c.id);
-    if (!ids.length) return { containers: [], bySupplier: [], byOrigin: [] };
-
-    const [lines, outputs, graded, topGrade] = await Promise.all([
-      this.prisma.saleLine.findMany({
-        where: {
-          sale: { tenantId, status: { in: KHATA_SALE_STATUSES } },
-          inventoryItem: { tenantId, OR: [{ containerId: { in: ids } }, { repackUnit: { inputAllocations: { some: { containerId: { in: ids } } } } }] },
-        },
-        select: {
-          profit: true,
-          lineTotal: true,
-          inventoryItem: { select: { containerId: true, repackUnit: { select: { inputAllocations: { select: { containerId: true, allocatedCost: true } } } } } },
-        },
-      }),
-      this.prisma.categoryOutput.groupBy({ by: ['containerId'], where: { tenantId, containerId: { in: ids } }, _sum: { weightKg: true } }),
-      this.prisma.gradeOutput.findMany({
-        where: { tenantId, gradeBucket: { gradeSession: { categoryOutput: { containerId: { in: ids } } } } },
-        select: { weightKg: true, grade: { select: { rank: true } }, gradeBucket: { select: { gradeSession: { select: { categoryOutput: { select: { containerId: true } } } } } } },
-      }),
-      this.prisma.grade.findFirst({ where: { tenantId, isActive: true }, orderBy: { rank: 'asc' }, select: { rank: true } }),
-    ]);
-
-    const sources: LineSource[] = lines.map((l) => {
-      const allocations = l.inventoryItem.repackUnit?.inputAllocations ?? [];
-      return {
-        profit: l.profit,
-        revenue: l.lineTotal,
-        shares: allocations.length
-          ? allocations.map((a) => ({ containerId: a.containerId, weight: a.allocatedCost }))
-          : [{ containerId: l.inventoryItem.containerId, weight: 1 }],
-      };
-    });
-    const money = byContainer(sources);
-    const outputKg = new Map(outputs.map((o) => [o.containerId, o._sum.weightKg ?? ZERO]));
-    const gradedBy = new Map<string, { rank: number; kg: Prisma.Decimal }[]>();
-    for (const g of graded) {
-      const cid = g.gradeBucket.gradeSession.categoryOutput.containerId;
-      if (!cid) continue;
-      gradedBy.set(cid, [...(gradedBy.get(cid) ?? []), { rank: g.grade.rank, kg: g.weightKg }]);
-    }
+    if (!list.length) return { containers: [], bySupplier: [], byOrigin: [] };
+    const econ = await containerEconomics(this.prisma, tenantId, list.map((c) => c.id));
 
     const rows = list.map((c) => {
-      const kg = c.rags.reduce((s, r) => s.add(r.weightKg), ZERO);
-      const m = money.get(c.id);
+      const e = econ.get(c.id)!;
       return {
         id: c.id,
         containerNumber: c.containerNumber,
@@ -106,34 +59,26 @@ export class HomeService {
         supplierId: c.vendor?.id ?? null,
         origin: c.originCountry,
         date: c.createdAt,
-        kg: kg.toString(),
+        kg: e.kg.toString(),
         landedCost: c.landedCostPKR.toString(),
-        revenue: (m?.revenue ?? ZERO).toString(),
-        profit: (m?.profit ?? ZERO).toString(),
+        revenue: e.revenue.toString(),
+        profit: e.profit.toString(),
         // Not sorted yet: no yield to show (rather than 0%).
-        yieldPercent: (outputKg.get(c.id) ?? ZERO).isZero() ? null : percent(outputKg.get(c.id)!, kg),
-        topGradePercent: topGrade ? topGradePercent(gradedBy.get(c.id) ?? [], topGrade.rank) : null,
+        yieldPercent: yieldPercent(e),
+        topGradePercent: topPercent(e),
       };
     });
 
     const compare = (key: (r: (typeof rows)[number]) => string | null) => {
-      const groups = new Map<string, typeof rows>();
+      const groups = new Map<string, string[]>();
       for (const r of rows) {
         const k = key(r);
-        if (k) groups.set(k, [...(groups.get(k) ?? []), r]);
+        if (k) groups.set(k, [...(groups.get(k) ?? []), r.id]);
       }
       return [...groups.entries()]
-        .map(([name, rs]) => {
-          const kg = rs.reduce((s, r) => s.add(r.kg), ZERO);
-          const profit = rs.reduce((s, r) => s.add(r.profit), ZERO);
-          const allGraded = rs.flatMap((r) => gradedBy.get(r.id) ?? []);
-          return {
-            name,
-            containers: rs.length,
-            profit: profit.toString(),
-            profitPerKg: kg.isZero() ? '0' : profit.div(kg).toDecimalPlaces(2).toString(),
-            topGradePercent: topGrade ? topGradePercent(allGraded, topGrade.rank) : null,
-          };
+        .map(([name, ids]) => {
+          const t = combine(ids.map((id) => econ.get(id)!));
+          return { name, containers: ids.length, profit: t.profit.toString(), profitPerKg: t.profitPerKg.toString(), topGradePercent: t.topGradePercent };
         })
         .sort((a, b) => new Prisma.Decimal(b.profitPerKg).comparedTo(a.profitPerKg));
     };

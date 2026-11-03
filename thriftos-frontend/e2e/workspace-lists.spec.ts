@@ -91,3 +91,47 @@ test('sale record: amounts, tabs, note with @mention and an attached file; Ctrl+
   await expect(page.locator('ws-activity-panel li.attachment')).toContainText('jazzcash-slip.pdf');
   await expect(page.locator('ws-activity-panel li.change')).toContainText('made the sale');
 });
+
+test('containers: list, board move, traceability record; supplier scorecard', async ({ page, request }) => {
+  const api = await apiAs(request);
+  const tag = Date.now().toString().slice(-6);
+  const supplier = await api.post('/procurement/vendors', { name: `Atlantic Rags ${tag}`, originCountry: 'Canada' });
+  const container = await api.post('/procurement/containers', { vendorId: supplier.id, containerNumber: `TGHU-${tag}`, netWeightKg: 12000, purchaseCost: 900000 });
+  await api.post(`/procurement/containers/${container.id}/charges`, { chargeType: 'CLEARING', amount: 60000 });
+
+  await signIn(page);
+  await page.goto('/receive/records/containers');
+  await expect(page.getByRole('heading', { name: 'Containers', exact: true })).toBeVisible();
+  await page.getByPlaceholder('Search container number, supplier or country').fill(`TGHU-${tag}`);
+  const row = page.locator('ws-data-grid tbody tr').filter({ hasText: `TGHU-${tag}` });
+  await expect(row).toContainText('On the way');
+  await expect(row).toContainText('960,000');
+
+  // Board: move it to Arrived with the card's picker (the keyboard way; dragging calls the same move).
+  await page.getByRole('button', { name: 'Board' }).click();
+  const card = page.locator('app-board article').filter({ hasText: `TGHU-${tag}` });
+  await expect(card).toBeVisible();
+  await card.getByLabel('Move to').selectOption({ label: 'Arrived' });
+  await expect(page.locator('app-board section[aria-label="Arrived"] article').filter({ hasText: `TGHU-${tag}` })).toBeVisible();
+  // Closed is not a step from Arrived: the server refuses and the card stays.
+  await page.locator('app-board section[aria-label="Arrived"] article').filter({ hasText: `TGHU-${tag}` }).getByLabel('Move to').selectOption({ label: 'Closed' });
+  await expect(page.getByText('That move is not allowed from here')).toBeVisible();
+  await expect(page.locator('app-board section[aria-label="Arrived"] article').filter({ hasText: `TGHU-${tag}` })).toBeVisible();
+
+  await page.locator('app-board article').filter({ hasText: `TGHU-${tag}` }).getByRole('button', { name: `TGHU-${tag}` }).click();
+  await expect(page).toHaveURL(new RegExp(`/receive/records/containers/${container.id}$`));
+  await expect(page.getByRole('heading', { name: `TGHU-${tag} · Atlantic Rags ${tag}` })).toBeVisible();
+  await expect(page.locator('ws-status-pipeline [aria-current="step"]')).toHaveText('Arrived');
+  await expect(page.getByRole('list', { name: 'From landed cost to profit' })).toContainText('960,000');
+  await expect(page.getByRole('tab', { name: /Landed cost/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('ws-data-grid tbody tr')).toContainText('Clearing');
+  await page.getByRole('tab', { name: /Lots and sorting/ }).click();
+  await expect(page.getByText('Not sorted yet')).toBeVisible();
+
+  await page.goto('/receive/records/suppliers');
+  await page.getByPlaceholder('Search supplier, country or phone').fill(`Atlantic Rags ${tag}`);
+  await page.locator('ws-data-grid tbody tr').filter({ hasText: `Atlantic Rags ${tag}` }).click();
+  await expect(page.getByRole('heading', { name: `Atlantic Rags ${tag}` })).toBeVisible();
+  await expect(page.locator('ws-smart-button').filter({ hasText: 'Containers' })).toContainText('1');
+  await expect(page.locator('ws-data-grid tbody tr')).toContainText(`TGHU-${tag}`);
+});

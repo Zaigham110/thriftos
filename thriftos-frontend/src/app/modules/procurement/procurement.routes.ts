@@ -12,6 +12,7 @@
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/guards/permission-guard';
 import { moduleGuard } from '../../core/guards/module.guard';
+import { CONTAINERS_LIST, SUPPLIERS_LIST } from '../../features/workspace-lists/lists';
 
 export const PROCUREMENT_ROUTES: Routes = [
   {
@@ -85,13 +86,11 @@ export const PROCUREMENT_ROUTES: Routes = [
     children: [
       {
         path: '',
-        loadComponent: () =>
-          import('./containers/container-list/container-list').then(
-            (m) => m.ContainerListComponent
-          ),
+        // Workspace list with a status board (enterprise plan E3.1).
+        loadComponent: () => import('../../features/workspace-lists/list-page.component').then((m) => m.ListPageComponent),
         title: 'Containers - ThriftOS',
         canActivate: [permissionGuard],
-        data: { permissions: ['container.read'] },
+        data: { permissions: ['container.read'], list: CONTAINERS_LIST },
       },
       {
         path: ':id/edit',
@@ -121,14 +120,23 @@ export const PROCUREMENT_ROUTES: Routes = [
       },
       {
         path: ':id',
-        loadComponent: () =>
-          import('./containers/container-detail/container-detail').then(
-            (m) => m.ContainerDetailComponent
-          ),
+        // Traceability record page: landed cost → lots → sorting → bales → sales (E3.1).
+        loadComponent: () => import('../../features/workspace-lists/container-record.component').then((m) => m.ContainerRecordComponent),
         title: 'Container - ThriftOS',
         canActivate: [permissionGuard],
         data: { permissions: ['container.read'] },
       },
+    ],
+  },
+
+  // Suppliers: list and scorecard (E3.1).
+  {
+    path: 'suppliers',
+    canActivate: [permissionGuard],
+    data: { permissions: ['vendor.read'] },
+    children: [
+      { path: '', loadComponent: () => import('../../features/workspace-lists/list-page.component').then((m) => m.ListPageComponent), title: 'Suppliers - ThriftOS', data: { list: SUPPLIERS_LIST } },
+      { path: ':id', loadComponent: () => import('../../features/workspace-lists/supplier-record.component').then((m) => m.SupplierRecordComponent), title: 'Supplier - ThriftOS' },
     ],
   },
 

@@ -62,10 +62,9 @@ export class ListsService {
     const rows: (string | number | null)[][] = [];
     for (let skip = 0; skip < EXPORT_MAX_ROWS; skip += BATCH) {
       const batch = await d.findMany({ where, orderBy, skip, take: Math.min(BATCH, EXPORT_MAX_ROWS - skip), select: list.resource.select });
-      for (const r of batch) {
-        const row = list.resource.toRow(r);
-        rows.push(chosen.map((f) => exportValue(f, row[f.key])));
-      }
+      let page = batch.map((r) => list.resource.toRow(r));
+      if (list.resource.enrich) page = await list.resource.enrich(this.prisma, tenantId, page);
+      for (const row of page) rows.push(chosen.map((f) => exportValue(f, row[f.key])));
       if (batch.length < BATCH) break;
     }
     await this.audit.log({ tenantId, userId: user.userId, action: 'LIST_EXPORTED', entityType: 'List', entityId: name, metadataJson: { rows: rows.length, filters: query.filters.length } as never });
