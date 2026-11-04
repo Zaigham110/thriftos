@@ -4,7 +4,7 @@
       <div>
         <h1 class="page-title text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
           <lucide-icon [img]="icons.Shield" [size]="24" class="text-emerald-600"></lucide-icon>
-          Global Security & Audit Stream
+          Audit trail
         </h1>
         <p class="page-subtitle text-sm text-gray-600">
           Real-time security log inspection, tenant creation audits, and impersonation access history.
@@ -14,7 +14,7 @@
       <div class="actions flex items-center gap-2">
         <button class="btn btn-secondary btn-sm" (click)="loadLogs()" [disabled]="loading()">
           <lucide-icon [img]="icons.RefreshCw" [size]="14" [class.animate-spin]="loading()"></lucide-icon>
-          Refresh Stream
+          Refresh
         </button>
       </div>
     </div>

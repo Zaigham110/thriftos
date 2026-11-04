@@ -26,7 +26,7 @@ export const SUPER_ADMIN_ROUTES: Routes = [
     path: 'users',
     loadComponent: () =>
       import('./users/global-users.component').then((m) => m.GlobalUsersComponent),
-    title: 'Global Users Directory - ThriftOS Admin',
+    title: 'People - ThriftOS Admin',
   },
   {
     path: 'plans',

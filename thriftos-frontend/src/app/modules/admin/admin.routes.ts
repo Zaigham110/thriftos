@@ -17,13 +17,13 @@
 
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/guards/permission-guard';
-import { moduleGuard } from '../../core/guards/module.guard';
 
 export const ADMIN_ROUTES: Routes = [
   {
+    // Index of the business's master data (enterprise UI pass): every screen below in one place.
     path: '',
-    redirectTo: 'tenant',
-    pathMatch: 'full',
+    loadComponent: () => import('../../features/workspace-lists/admin-index.component').then((m) => m.AdminIndexComponent),
+    title: 'ThriftOS',
   },
   {
     path: 'tenant',
@@ -182,8 +182,9 @@ export const ADMIN_ROUTES: Routes = [
         (m) => m.WarehouseManagementComponent
       ),
     title: 'Warehouse Management - ThriftOS',
-    canActivate: [moduleGuard, permissionGuard],
-    data: { module: 'WAREHOUSES', permissions: ['warehouse.read'] },
+    // Godowns are part of every business now (stock transfers, E3.3), not an optional module.
+    canActivate: [permissionGuard],
+    data: { permissions: ['warehouse.read'] },
   },
   {
     path: 'warehouses/new',
@@ -192,8 +193,8 @@ export const ADMIN_ROUTES: Routes = [
         (m) => m.WarehouseFormComponent
       ),
     title: 'New Warehouse - ThriftOS',
-    canActivate: [moduleGuard, permissionGuard],
-    data: { module: 'WAREHOUSES', permissions: ['warehouse.create'] },
+    canActivate: [permissionGuard],
+    data: { permissions: ['warehouse.create'] },
   },
   {
     path: 'warehouses/:id/edit',
@@ -202,8 +203,8 @@ export const ADMIN_ROUTES: Routes = [
         (m) => m.WarehouseFormComponent
       ),
     title: 'Edit Warehouse - ThriftOS',
-    canActivate: [moduleGuard, permissionGuard],
-    data: { module: 'WAREHOUSES', permissions: ['warehouse.update'] },
+    canActivate: [permissionGuard],
+    data: { permissions: ['warehouse.update'] },
   },
   {
     path: 'vendors',

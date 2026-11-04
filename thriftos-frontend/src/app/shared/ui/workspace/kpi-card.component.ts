@@ -41,7 +41,7 @@ import { TPipe } from '../../../core/i18n/t.pipe';
     .card:hover { border-color:var(--ws-line-strong); box-shadow:var(--ws-shadow-2); }
     .top { display:flex; align-items:flex-start; justify-content:space-between; gap:var(--ws-3); }
     .label { color:var(--ws-ink-2); font-size:var(--ws-text-sm); font-weight:500; }
-    .value { font-size:var(--ws-text-3xl); font-weight:600; line-height:1.2; letter-spacing:-.01em; }
+    .value { font-size:clamp(20px, 2.1vw, var(--ws-text-3xl)); font-weight:600; line-height:1.2; letter-spacing:-.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .foot { display:flex; flex-wrap:wrap; align-items:center; gap:var(--ws-1) var(--ws-2); min-height:20px; font-size:var(--ws-text-xs); }
     .delta { display:inline-flex; align-items:center; gap:2px; color:var(--ws-ink-2); font-weight:600; }
     .delta.good { color:var(--ws-good); }

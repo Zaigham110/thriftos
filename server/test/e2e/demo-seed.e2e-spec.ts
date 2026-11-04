@@ -81,4 +81,22 @@ describe('Demo seed (e2e)', () => {
     await request(server).post('/api/auth/login').send(DEMO.trader).expect(200);
     await request(server).post('/api/auth/login/pin').send(DEMO.munshi).expect(200);
   });
+
+  it('server demo: remove takes away both demo businesses and every row of theirs, and nothing else', async () => {
+    const { removeDemo } = await import('../../src/demo/server-demo');
+    const { Prisma } = await import('@prisma/client');
+    const demoIds = (await prisma.tenant.findMany({ where: { name: { endsWith: '(Demo)' } }, select: { id: true } })).map((t) => t.id);
+    expect(demoIds).toHaveLength(2);
+    const others = await prisma.tenant.count({ where: { id: { notIn: demoIds } } });
+    const r = await removeDemo(prisma);
+    expect(r.businesses).toHaveLength(2);
+    expect(await prisma.tenant.count({ where: { id: { in: demoIds } } })).toBe(0);
+    expect(await prisma.tenant.count()).toBe(others);
+    // No table keeps a row of a removed business.
+    for (const m of Prisma.dmmf.datamodel.models.filter((x) => x.fields.some((f) => f.name === 'tenantId'))) {
+      const delegate = (prisma as unknown as Record<string, { count(a: object): Promise<number> }>)[m.name[0].toLowerCase() + m.name.slice(1)];
+      expect([m.name, await delegate.count({ where: { tenantId: { in: demoIds } } })]).toEqual([m.name, 0]);
+    }
+    expect(await removeDemo(prisma)).toEqual({ businesses: [], rows: 0 });
+  }, 120_000);
 });

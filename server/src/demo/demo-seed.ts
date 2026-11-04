@@ -1,3 +1,4 @@
+import { SYSTEM_COMPANY_CODE } from '../bootstrap/base-data';
 import { INestApplicationContext } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import * as fs from 'fs';
@@ -30,10 +31,14 @@ import { startOfDayPKT } from '../home/home';
  * statuses and costs are untouched. Deterministic: the same story on every reset.
  */
 
+/**
+ * Demo logins. On a real server (server-demo.ts) the password and PIN come from DEMO_PASSWORD / DEMO_PIN, so the
+ * public defaults below only ever work on a local demo or test database.
+ */
 export const DEMO = {
-  owner: { email: 'owner@almadina.demo', password: 'Demo@1234' },
-  munshi: { phone: '03007860786', pin: '1234' },
-  trader: { email: 'owner@lahorebales.demo', password: 'Demo@1234' },
+  owner: { email: 'owner@almadina.demo', password: process.env.DEMO_PASSWORD || 'Demo@1234' },
+  munshi: { phone: '03007860786', pin: process.env.DEMO_PIN || '1234' },
+  trader: { email: 'owner@lahorebales.demo', password: process.env.DEMO_PASSWORD || 'Demo@1234' },
   companyCode: 'ALMADINA',
   traderCode: 'LAHOREBALES',
 };
@@ -156,7 +161,8 @@ export async function seedDemo(app: INestApplicationContext, opts: { today?: Dat
   const sales = get(SalesService);
   const khata = get(KhataService);
 
-  const admin = await prisma.user.findFirstOrThrow({ where: { email: 'superadmin@thriftos.com' }, select: { id: true } });
+  // Any super admin of this database (the SYSTEM business's users) creates the demo businesses.
+  const admin = await prisma.user.findFirstOrThrow({ where: { tenant: { companyCode: SYSTEM_COMPANY_CODE } }, orderBy: { createdAt: 'asc' }, select: { id: true } });
 
   // ── Al-Madina Traders (Demo) ────────────────────────────────────────────────────────────────────
   log('Al-Madina Traders (Demo)');

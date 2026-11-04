@@ -15,9 +15,11 @@ export interface SuperAdminKpis {
 
 export interface SystemHealth {
   databaseStatus: string;
-  authStatus: string;
-  auditStatus: string;
+  /** How long the API server has been running. */
   uptimeHours: number;
+  /** Release tag, e.g. v1.4.0 (null when not set). */
+  version: string | null;
+  lastAuditAt: string | null;
 }
 
 export interface RecentTenantRow {

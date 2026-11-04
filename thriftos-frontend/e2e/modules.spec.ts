@@ -6,21 +6,22 @@ import { signIn } from './helpers';
  * modules they are not in the menus, and opening their address goes back home (the server refuses them too —
  * server/test/e2e/modules.e2e-spec.ts).
  */
-test('an owner with the v1 modules sees no reports, warehouses or purchase orders', async ({ page }) => {
+test('an owner with the v1 modules sees no reports or purchase orders (godowns are core)', async ({ page }) => {
   await signIn(page);
   await expect(page.getByRole('link', { name: 'Khata', exact: true }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Reports', exact: true })).toHaveCount(0);
 
-  for (const url of ['/reports', '/reports/detail', '/home/overview', '/settings/admin/warehouses', '/receive/records/pos', '/receive/records/pos/create']) {
+  for (const url of ['/reports', '/reports/detail', '/home/overview', '/receive/records/pos', '/receive/records/pos/create']) {
     await page.goto(url);
     await page.waitForURL('**/home');
   }
 
+  // Godowns are part of every business (stock transfers).
+  await page.goto('/settings/admin/warehouses');
+  await expect(page).toHaveURL(/\/settings\/admin\/warehouses$/);
+  // The old procurement overview is gone: its address opens the containers list.
   await page.goto('/receive/records/dashboard');
-  await expect(page.getByRole('heading', { name: 'Procurement Overview' })).toBeVisible();
-  await expect(page.getByText('Active Purchase Orders', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('PO Spend vs. Allocation', { exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /New Purchase Order/ })).toHaveCount(0);
+  await expect(page).toHaveURL(/\/receive\/records\/containers$/);
 });
 
 test('the super admin console hides plans and billing unless the platform turned them on', async ({ page }) => {
@@ -31,7 +32,7 @@ test('the super admin console hides plans and billing unless the platform turned
   await page.fill('input[type=password]', 'SuperAdmin@123');
   await page.click('button[type=submit]');
   await page.waitForURL('**/admin/**');
-  await expect(page.getByText('Platform Governance', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Businesses' })).toBeVisible();
   // The "Commercial" group (Plans, Billing) is not in the menu.
   await expect(page.getByText('Commercial', { exact: true })).toHaveCount(0);
 

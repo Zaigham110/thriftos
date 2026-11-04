@@ -84,6 +84,17 @@ Plan: `01-ENTERPRISE-PLAN.md`. Branch: `enterprise-e1` (from `v2-go-live` at `10
   - Full runs: server 82 unit + 146 e2e passed; browser 35 passed + 4 skipped. The 10,000-sale list test timed out once at Jest's default 5 s while the browser suite ran alongside it — inserting the rows takes ~4.4 s; it now has its own 30 s limit (the page-under-1-s checks are unchanged).
   - Screenshots: `e4-dashboard.png`, `e4-scorecard.png`, `e4-sales-analytics.png`, `e4-reports.png`, `e4-stock-ageing.png`.
 
+- 2026-11-04 — **UI pass: old routes, old forms, navigation, Super Admin; demo data on the server** (no migration; nothing deployed):
+  - Audit: every route opened at laptop width as owner and as super admin (61 screens, screenshots compared; no console errors except the godown one below).
+  - Navigation: on the laptop the phone hub screens forward to their workspace pages — `/receive` → containers, `/sort` → lots, `/stock` → stock list, `/sell` → sales, `/sell/new` → the desktop sale form, `/khata` and `/khata/:id` → collections and the customer 360, `/home/containers` and `/home/today` → containers and sales, `/reports` → the report centre (phones and tablets keep the hubs). Breadcrumb roots therefore land on the right page. `/receive/records` and its old "Procurement Overview" now open the containers list. Unknown routes still go Home.
+  - Settings → Advanced is now an index of the master data (business profile, users, roles, raw types, categories, grades, waste types, suppliers, godowns, price lists); before, it opened the business profile and the other screens could not be reached from the menu. Breadcrumbs name each of them.
+  - Godowns are part of every business (stock transfers need them): the screens and `/api/admin/warehouses` no longer depend on the optional "Warehouses" module (server test updated; the per-business module test now uses purchase orders).
+  - Old forms and pages inside the workspace (container edit, add charge, register / edit lot, every Advanced screen, Super Admin pages) get the workspace look from one stylesheet (`src/styles/_workspace-legacy.scss`, scoped to the laptop shells): no duplicate in-page breadcrumb, workspace title and buttons, and titles back on the left (they were pushed right by the hidden breadcrumb).
+  - Dashboard tiles show whole rupees and never wrap the amount; KPI values ellipsize instead of breaking.
+  - **Super Admin:** new shell in the workspace look (brand, "Platform admin", theme, account / sign out; menu Overview, Businesses, People, Audit trail, Platform settings; Plans and Billing only with BILLING). Removed the fake top-bar widgets ("Search PO #", "Live Systems", "Quick Action", "Mobile Mode"). New Overview: businesses, people, kg received and sales recorded; **real** server status (database connected, server uptime, release from `APP_VERSION`, last activity) instead of the hard-coded "HEALTHY / OPERATIONAL / 720 hours"; newest businesses with "Open" (as owner, audited); latest activity without the super admin's own page visits. Platform settings no longer offer session timeout, 2FA, retention and maintenance mode — none of them was enforced. Wording: businesses and people instead of tenants and global users.
+  - **Demo data on the server** (`server/src/demo/server-demo.ts`): `add` creates the two demo businesses through the app's services with your `DEMO_PASSWORD` / `DEMO_PIN` (the public defaults are refused), refuses if they exist, and runs both data checks (`prisma/checks` now ships in the server image); `remove` deletes exactly the two "(Demo)" businesses (company code and name must both match) and every row of theirs. The demo seed now uses whichever super admin the database has. Test: the demo-seed e2e removes the demo and checks no table keeps a demo row and other businesses remain.
+  - Steps for you: `docs/enterprise/RELEASE-AND-DEMO.md` (release by tag; demo add / remove on the server with a backup first).
+
 ## Decisions
 - Dark mode is opt-in per person and device; light stays the default everywhere.
 - The brand plum is never a chart series; charts use the validated categorical slots in fixed order.
@@ -92,6 +103,8 @@ Plan: `01-ENTERPRISE-PLAN.md`. Branch: `enterprise-e1` (from `v2-go-live` at `10
 - Every workspace screen is a configured list page or a record page on the same parts; class names inside components avoid generic names (`card`, `fixed`, `btn`) because older global styles and Tailwind define them.
 - Finance is management accounts (expenses, books, cash close, P&L); a general ledger is out of scope for now.
 - Suggested sale price: the customer's group price list first, then their last price, then anyone's, then the item's.
+- On the laptop, phone hub screens forward to their workspace pages; phones keep the hubs. Godowns are core, not a module.
+- The Super Admin console shows only real numbers and settings that are enforced.
 
 ## Blockers
 - None.

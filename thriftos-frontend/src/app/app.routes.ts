@@ -1,4 +1,5 @@
 import { EXPENSES_LIST, LOTS_LIST } from './features/workspace-lists/lists';
+import { desktopRedirect } from './core/guards/desktop-redirect.guard';
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth-guard';
 import { tenantAreaGuard } from './core/guards/tenant-area.guard';
@@ -103,8 +104,8 @@ export const routes: Routes = [
         loadComponent: () => import('./features/home/home.component').then((m) => m.HomeComponent),
         title: 'ThriftOS',
       },
-      { path: 'home/containers', loadComponent: () => import('./features/home/containers.component').then((m) => m.HomeContainersComponent), title: 'ThriftOS' },
-      { path: 'home/today', loadComponent: () => import('./features/home/today.component').then((m) => m.HomeTodayComponent), title: 'ThriftOS' },
+      { path: 'home/containers', canActivate: [desktopRedirect('/receive/records/containers')], loadComponent: () => import('./features/home/containers.component').then((m) => m.HomeContainersComponent), title: 'ThriftOS' },
+      { path: 'home/today', canActivate: [desktopRedirect('/sell/records')], loadComponent: () => import('./features/home/today.component').then((m) => m.HomeTodayComponent), title: 'ThriftOS' },
       {
         path: 'home/overview',
         canActivate: [moduleGuard],
@@ -117,7 +118,7 @@ export const routes: Routes = [
         canActivate: [moduleGuard],
         data: { module: 'RECEIVE' },
         children: [
-          { path: '', loadComponent: () => import('./features/receive/receive-home.component').then((m) => m.ReceiveHomeComponent), title: 'ThriftOS' },
+          { path: '', canActivate: [desktopRedirect('/receive/records/containers')], loadComponent: () => import('./features/receive/receive-home.component').then((m) => m.ReceiveHomeComponent), title: 'ThriftOS' },
           { path: 'container', loadComponent: () => import('./features/receive/receive-container.component').then((m) => m.ReceiveContainerComponent), title: 'ThriftOS' },
           { path: 'lot', loadComponent: () => import('./features/receive/receive-lot.component').then((m) => m.ReceiveLotComponent), title: 'ThriftOS' },
           { path: 'ready', loadComponent: () => import('./features/receive/receive-ready.component').then((m) => m.ReceiveReadyComponent), title: 'ThriftOS' },
@@ -131,7 +132,7 @@ export const routes: Routes = [
         canActivate: [moduleGuard],
         data: { module: 'SORT' },
         children: [
-          { path: '', loadComponent: () => import('./features/sort/sort-home.component').then((m) => m.SortHomeComponent), title: 'ThriftOS' },
+          { path: '', canActivate: [desktopRedirect('/sort/records')], loadComponent: () => import('./features/sort/sort-home.component').then((m) => m.SortHomeComponent), title: 'ThriftOS' },
           // Workspace sorting (E3.2): lots list and board, a lot's sorting record, yield analysis.
           { path: 'records', loadComponent: () => import('./features/workspace-lists/list-page.component').then((m) => m.ListPageComponent), data: { list: LOTS_LIST }, title: 'ThriftOS' },
           { path: 'records/:id', loadComponent: () => import('./features/workspace-lists/sorting-record.component').then((m) => m.SortingRecordComponent), title: 'ThriftOS' },
@@ -145,7 +146,7 @@ export const routes: Routes = [
         canActivate: [moduleGuard],
         data: { module: 'STOCK' },
         children: [
-          { path: '', loadComponent: () => import('./features/stock/stock-home.component').then((m) => m.StockHomeComponent), title: 'ThriftOS' },
+          { path: '', canActivate: [desktopRedirect('/stock/items')], loadComponent: () => import('./features/stock/stock-home.component').then((m) => m.StockHomeComponent), title: 'ThriftOS' },
           { path: 'bale', loadComponent: () => import('./features/stock/make-bale.component').then((m) => m.MakeBaleComponent), title: 'ThriftOS' },
           { path: 'label/:id', loadComponent: () => import('./features/stock/labels.component').then((m) => m.LabelsComponent), title: 'ThriftOS' },
           { path: 'labels', loadComponent: () => import('./features/stock/labels.component').then((m) => m.LabelsComponent), title: 'ThriftOS' },
@@ -158,8 +159,8 @@ export const routes: Routes = [
         canActivate: [moduleGuard],
         data: { module: 'SELL' },
         children: [
-          { path: '', loadComponent: () => import('./features/sell/sell-home.component').then((m) => m.SellHomeComponent), title: 'ThriftOS' },
-          { path: 'new', loadComponent: () => import('./features/sell/sale.component').then((m) => m.SaleComponent), title: 'ThriftOS' },
+          { path: '', canActivate: [desktopRedirect('/sell/records')], loadComponent: () => import('./features/sell/sell-home.component').then((m) => m.SellHomeComponent), title: 'ThriftOS' },
+          { path: 'new', canActivate: [desktopRedirect('/sell/records/new')], loadComponent: () => import('./features/sell/sale.component').then((m) => m.SaleComponent), title: 'ThriftOS' },
           { path: 'records', loadChildren: () => import('./modules/sales/sales.routes').then((m) => m.SALES_ROUTES) },
           { path: 'analytics', loadComponent: () => import('./features/workspace-lists/sales-analytics.component').then((m) => m.SalesAnalyticsComponent), title: 'ThriftOS' },
           { path: 'prices', loadComponent: () => import('./features/workspace-lists/price-lists.component').then((m) => m.PriceListsComponent), title: 'ThriftOS' },
@@ -190,11 +191,13 @@ export const routes: Routes = [
           { path: 'records/:id', loadComponent: () => import('./features/workspace-lists/customer-record.component').then((m) => m.CustomerRecordComponent), title: 'ThriftOS' },
           {
             path: '',
+            canActivate: [desktopRedirect('/khata/records')],
             loadComponent: () => import('./features/khata/khata-list.component').then((m) => m.KhataListComponent),
             title: 'Khata - ThriftOS',
           },
           {
             path: ':id',
+            canActivate: [desktopRedirect('/khata/records/:id')],
             loadComponent: () => import('./features/khata/khata-customer.component').then((m) => m.KhataCustomerComponent),
             title: 'Khata - ThriftOS',
           },
@@ -202,7 +205,8 @@ export const routes: Routes = [
       },
       {
         path: 'reports',
-        canActivate: [moduleGuard],
+        // On the laptop the report centre has every report; the phone keeps the insights screen.
+        canActivate: [desktopRedirect('/insights'), moduleGuard],
         data: { module: 'REPORTS' },
         children: [
           {

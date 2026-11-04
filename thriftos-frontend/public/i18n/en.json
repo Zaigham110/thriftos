@@ -400,6 +400,57 @@
    "post": "Add note",
    "title": "Activity"
   },
+  "adminIdx": {
+   "area": {
+    "categories": {
+     "hint": "What you sort into, e.g. Jeans, Shirts",
+     "name": "Categories"
+    },
+    "godowns": {
+     "hint": "Where stock is kept; move stock between them",
+     "name": "Godowns"
+    },
+    "grades": {
+     "hint": "A, B, C… for graded stock",
+     "name": "Grades"
+    },
+    "prices": {
+     "hint": "Agreed prices per customer group",
+     "name": "Price lists"
+    },
+    "rawCategories": {
+     "hint": "What arrives in containers and lots",
+     "name": "Raw types"
+    },
+    "roles": {
+     "hint": "What each role may see and do",
+     "name": "Roles"
+    },
+    "tenant": {
+     "hint": "Name, currency and how you work",
+     "name": "Business profile"
+    },
+    "users": {
+     "hint": "Logins, roles and blocked accounts",
+     "name": "Users"
+    },
+    "vendors": {
+     "hint": "Who you buy from and pay",
+     "name": "Suppliers and vendors"
+    },
+    "waste": {
+     "hint": "Katran and other waste, with resale value",
+     "name": "Waste types"
+    }
+   },
+   "group": {
+    "business": "Business and people",
+    "goods": "Goods",
+    "partners": "Suppliers, godowns and prices"
+   },
+   "subtitle": "The lists the rest of ThriftOS uses: people, goods, suppliers, godowns and prices",
+   "title": "Business setup"
+  },
   "audit": {
    "BALE_MADE": "made the bale",
    "CONTAINER_CHARGE_ADDED": "added a charge",
@@ -611,6 +662,7 @@
   "create": "Create",
   "crumb": {
    "containers": "Containers",
+   "edit": "Edit",
    "gallery": "Interface gallery",
    "grading": "Grading",
    "items": "Stock items",

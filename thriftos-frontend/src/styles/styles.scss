@@ -26,6 +26,9 @@
 // 7. Workspace tokens (laptop ERP workspace; light/dark, density) — after floor so dark mode can remap it
 @use 'workspace';
 
+// Older screens shown inside the workspace, in the workspace look
+@use 'workspace-legacy';
+
 // Fonts are bundled (angular.json styles: Inter, Noto Naskh Arabic, Noto Nastaliq Urdu) so they work offline.
 
 .header-right-actions {

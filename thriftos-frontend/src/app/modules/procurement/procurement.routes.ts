@@ -15,20 +15,10 @@ import { moduleGuard } from '../../core/guards/module.guard';
 import { CONTAINERS_LIST, SUPPLIERS_LIST } from '../../features/workspace-lists/lists';
 
 export const PROCUREMENT_ROUTES: Routes = [
-  {
-    path: '',
-    redirectTo: 'dashboard',
-    pathMatch: 'full',
-  },
+  // The old procurement overview is replaced by the containers list and the scorecard (enterprise E3/E4).
+  { path: '', redirectTo: 'containers', pathMatch: 'full' },
+  { path: 'dashboard', redirectTo: 'containers', pathMatch: 'full' },
 
-  {
-    path: 'dashboard',
-    loadComponent: () =>
-      import('./dashboard/procurement-dashboard').then((m) => m.ProcurementDashboardComponent),
-    title: 'Procurement Dashboard - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['po.read'] },
-  },
 
   // Purchase Orders
   {

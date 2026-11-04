@@ -15,7 +15,6 @@ describe('Modules that are off are refused by the server (e2e)', () => {
   const OFF_ROUTES: [string, string][] = [
     ['REPORTS', '/reports/dashboard/summary'],
     ['REPORTS', '/reports/inventory/snapshot'],
-    ['WAREHOUSES', '/admin/warehouses'],
     ['PURCHASE_ORDERS', '/procurement/purchase-orders'],
   ];
 
@@ -62,7 +61,8 @@ describe('Modules that are off are refused by the server (e2e)', () => {
 
   it('the v1 screens never depend on an advanced module', async () => {
     await api(app, owner).patch('/tenant/settings', { enabledModules: ['RECEIVE', 'STOCK', 'SELL', 'KHATA'] }).expect(200);
-    for (const url of ['/home', '/home/containers', '/khata', '/stock/bales', '/procurement/containers', '/sales', '/tenant']) {
+    // Godowns are core since stock transfers (enterprise E3.3), not a module.
+    for (const url of ['/home', '/home/containers', '/khata', '/stock/bales', '/procurement/containers', '/sales', '/tenant', '/admin/warehouses']) {
       const res = await api(app, owner).get(url);
       expect({ url, status: res.status }).toEqual({ url, status: 200 });
     }
@@ -70,9 +70,9 @@ describe('Modules that are off are refused by the server (e2e)', () => {
 
   it('a module the business turned off for one business stays on for another', async () => {
     const other = await createTenantWithOwner(app);
-    await prisma.tenant.update({ where: { id: other.tenantId }, data: { enabledModules: { push: 'WAREHOUSES' } } });
-    await api(app, other).get('/admin/warehouses').expect(200);
-    await api(app, owner).get('/admin/warehouses').expect(403);
+    await prisma.tenant.update({ where: { id: other.tenantId }, data: { enabledModules: { push: 'PURCHASE_ORDERS' } } });
+    await api(app, other).get('/procurement/purchase-orders').expect(200);
+    await api(app, owner).get('/procurement/purchase-orders').expect(403);
   });
 
   it('super admin billing and plans follow the SYSTEM business; tenants are unaffected', async () => {

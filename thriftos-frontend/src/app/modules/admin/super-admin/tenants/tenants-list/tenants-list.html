@@ -1,14 +1,14 @@
 <app-page>
   <app-page-header>
     <app-stack direction="vertical" spacing="xs">
-      <h1 class="page-title">Tenants</h1>
-      <p class="page-subtitle">Manage tenant organizations (SuperAdmin)</p>
+      <h1 class="page-title">Businesses</h1>
+      <p class="page-subtitle">Every business on ThriftOS</p>
     </app-stack>
     <div class="actions">
       <app-button variant="secondary" (click)="loadTenants()" [disabled]="tenantsService.loading()">
         Refresh
       </app-button>
-      <app-button variant="primary" (click)="openCreateDrawer()">Add Tenant</app-button>
+      <app-button variant="primary" (click)="openCreateDrawer()">New business</app-button>
     </div>
   </app-page-header>
 
@@ -21,7 +21,7 @@
 
     <app-section>
       <app-section-header>
-        <h2 class="section-title">All Tenants</h2>
+        <h2 class="section-title">All businesses</h2>
       </app-section-header>
       <app-section-body>
         <app-data-table

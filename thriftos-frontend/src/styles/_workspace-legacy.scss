@@ -1,0 +1,68 @@
+// Older screens inside the laptop workspace (master data under Settings → Advanced, container edit, charges,
+// lots, and the Super Admin pages): the same look as the workspace without rewriting each screen. Scoped to the
+// workspace shells only, so the phone screens keep their own styles. `ws-shell main` / `ws-admin main` add enough
+// weight to win over the older component and floor styles.
+
+ws-shell main,
+app-admin-shell main {
+  // The workspace already shows breadcrumbs in its bar: the old in-page trail is a duplicate.
+  app-breadcrumb,
+  .eyebrow-container {
+    display: none !important;
+  }
+
+  .app-page-header {
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--ws-3);
+    padding: 0 0 var(--ws-4);
+    &::after { display: none; }
+  }
+
+  .page-title {
+    margin: 0;
+    color: var(--ws-ink);
+    font-family: var(--ws-font);
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+
+  .page-subtitle {
+    margin: 4px 0 0;
+    color: var(--ws-ink-2);
+    font-size: var(--ws-text-sm);
+    font-weight: 400;
+  }
+
+  // Buttons: the workspace size and colours (the floor's 52 px touch buttons do not belong here).
+  .btn {
+    min-height: 0;
+    height: var(--ws-control-h);
+    padding-inline: var(--ws-3);
+    border: 1px solid var(--ws-line);
+    border-radius: var(--ws-r-md);
+    background: var(--ws-surface);
+    color: var(--ws-ink);
+    font: inherit;
+    font-size: var(--ws-text-md);
+    font-weight: 500;
+    gap: 6px;
+    box-shadow: none;
+    &:hover:not(:disabled) { background: var(--ws-surface-hover); }
+  }
+  .btn.btn-primary,
+  .btn.primary {
+    border-color: var(--ws-brand);
+    background: var(--ws-brand);
+    color: var(--ws-brand-ink);
+    &:hover:not(:disabled) { background: var(--ws-brand); filter: brightness(1.08); }
+  }
+  .btn.btn-danger {
+    border-color: var(--ws-bad);
+    background: var(--ws-surface);
+    color: var(--ws-bad);
+  }
+}

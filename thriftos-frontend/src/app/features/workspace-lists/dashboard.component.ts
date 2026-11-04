@@ -62,17 +62,17 @@ const change = (now: string | number | null, before: string | number | null): nu
         <ws-state kind="error" (retry)="load()" />
       } @else if (data(); as d) {
         <section class="kpis">
-          <ws-kpi-card [label]="'ws.dash.revenue' | t" [value]="i18n.money(d.sales.revenue)" [delta]="delta(d.sales.revenue, d.sales.previousRevenue)" [trend]="revenueTrend()" link="/sell/records" />
+          <ws-kpi-card [label]="'ws.dash.revenue' | t" [value]="rs(d.sales.revenue)" [delta]="delta(d.sales.revenue, d.sales.previousRevenue)" [trend]="revenueTrend()" link="/sell/records" />
           @if (d.sales.grossProfit !== null) {
-            <ws-kpi-card [label]="'ws.pnl.gross' | t" [value]="i18n.money(d.sales.grossProfit)" [delta]="delta(d.sales.grossProfit, d.sales.previousGrossProfit)" [trend]="profitTrend()" [hint]="d.sales.marginPercent !== null ? ('ws.pnl.margin' | t: { n: i18n.num(d.sales.marginPercent, 1) }) : ''" link="/finance/pnl" />
+            <ws-kpi-card [label]="'ws.pnl.gross' | t" [value]="rs(d.sales.grossProfit)" [delta]="delta(d.sales.grossProfit, d.sales.previousGrossProfit)" [trend]="profitTrend()" [hint]="d.sales.marginPercent !== null ? ('ws.pnl.margin' | t: { n: i18n.num(d.sales.marginPercent, 1) }) : ''" link="/finance/pnl" />
           }
-          <ws-kpi-card [label]="'ws.dash.collected' | t" [value]="i18n.money(d.cash.collected)" [delta]="delta(d.cash.collected, d.cash.previousCollected)" [hint]="methods()" link="/finance/book" />
-          <ws-kpi-card [label]="'ws.collections.owed' | t" [value]="i18n.money(d.udhaar.owed)" [higherIsBetter]="false" [hint]="'ws.dash.owing' | t: { n: i18n.num(d.udhaar.customers), broken: i18n.num(d.udhaar.brokenPromises) }" link="/khata/records" />
+          <ws-kpi-card [label]="'ws.dash.collected' | t" [value]="rs(d.cash.collected)" [delta]="delta(d.cash.collected, d.cash.previousCollected)" [hint]="methods()" link="/finance/book" />
+          <ws-kpi-card [label]="'ws.collections.owed' | t" [value]="rs(d.udhaar.owed)" [higherIsBetter]="false" [hint]="'ws.dash.owing' | t: { n: i18n.num(d.udhaar.customers), broken: i18n.num(d.udhaar.brokenPromises) }" link="/khata/records" />
           @if (d.stock.value !== null) {
-            <ws-kpi-card [label]="'ws.stock.col.value' | t" [value]="i18n.money(d.stock.value)" [hint]="'ws.dash.stockHint' | t: { kg: i18n.kg(d.stock.kg), n: i18n.num(d.stock.items) }" link="/stock/value" />
+            <ws-kpi-card [label]="'ws.stock.col.value' | t" [value]="rs(d.stock.value)" [hint]="'ws.dash.stockHint' | t: { kg: i18n.kg(d.stock.kg), n: i18n.num(d.stock.items) }" link="/stock/value" />
           }
           @if (d.expenses?.netProfit; as net) {
-            <ws-kpi-card [label]="'ws.pnl.net' | t" [value]="i18n.money(net)" [hint]="'ws.dash.afterExpenses' | t: { amount: i18n.money(d.expenses!.total) }" link="/finance/pnl" />
+            <ws-kpi-card [label]="'ws.pnl.net' | t" [value]="rs(net)" [hint]="'ws.dash.afterExpenses' | t: { amount: i18n.money(d.expenses!.total) }" link="/finance/pnl" />
           }
         </section>
 
@@ -181,6 +181,11 @@ export class DashboardComponent {
       this.range();
       untracked(() => this.load());
     });
+  }
+
+  /** Headline tiles show whole rupees (the lists keep paisa). */
+  protected rs(v: string | null): string {
+    return this.i18n.money(Math.round(Number(v ?? 0)));
   }
 
   protected delta(now: string | null, before: string | null): number | null {

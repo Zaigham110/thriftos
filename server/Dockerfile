@@ -34,6 +34,8 @@ COPY --from=build /app/server/node_modules/.prisma ./server/node_modules/.prisma
 COPY --from=build /app/server/dist ./server/dist
 COPY prisma/schema.prisma ./prisma/schema.prisma
 COPY prisma/migrations ./prisma/migrations
+# Data checks: the demo seed (dist/demo/server-demo.js) runs them after adding the demo businesses.
+COPY prisma/checks ./prisma/checks
 COPY scripts/db-guard.js scripts/ensure-prisma-client-link.js ./scripts/
 COPY server/docker-entrypoint.sh ./server/docker-entrypoint.sh
 # Payment screenshots live on a volume mounted at /data/uploads; it starts owned by the app user.

@@ -49,6 +49,8 @@ services:
       TRUST_PROXY: "2"
       UPLOAD_DIR: /data/uploads
       SEED_DATABASE: "false"
+      # Shown to the super admin (platform overview).
+      APP_VERSION: ${THRIFTOS_TAG}
     volumes:
       - uploads:/data/uploads
     depends_on:

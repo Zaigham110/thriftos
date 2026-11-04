@@ -367,7 +367,9 @@ export class SuperAdminService {
           },
         },
       }),
+      // The overview shows what people did; the super admin's own page visits stay in the full audit trail.
       this.prisma.auditLog.findMany({
+        where: { action: { not: 'SUPER_ADMIN_ROUTE_ACCESS' } },
         orderBy: { createdAt: 'desc' },
         take: 8,
       }),
@@ -397,11 +399,12 @@ export class SuperAdminService {
         totalWeightKg,
         totalSalesAmount,
       },
+      // Real values only: the database answered the queries above; how long this server has been running; the release.
       systemHealth: {
         databaseStatus: 'HEALTHY',
-        authStatus: 'OPERATIONAL',
-        auditStatus: 'ACTIVE',
-        uptimeHours: 720,
+        uptimeHours: Math.round((process.uptime() / 3600) * 10) / 10,
+        version: process.env.APP_VERSION || null,
+        lastAuditAt: recentLogs[0]?.createdAt ?? null,
       },
       recentTenants: recentTenants.map((t) => ({
         id: t.id,

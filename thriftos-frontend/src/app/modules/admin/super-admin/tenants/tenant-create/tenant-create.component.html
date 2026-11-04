@@ -3,11 +3,11 @@
     <div class="flex justify-between items-center w-full">
       <div>
         <a [routerLink]="['/admin/tenants']" class="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1 mb-1.5">
-          <lucide-icon [img]="icons.ArrowLeft" [size]="12"></lucide-icon> Back to Tenants Directory
+          <lucide-icon [img]="icons.ArrowLeft" [size]="12"></lucide-icon> Back to businesses
         </a>
         <h1 class="page-title text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2.5">
           <lucide-icon [img]="icons.Building2" [size]="24" class="text-primary"></lucide-icon>
-          Provision New Tenant Organization
+          New business
         </h1>
         <p class="page-subtitle text-xs text-gray-600 mt-1">
           Set up company profile, currency and the first administrator.
@@ -22,7 +22,7 @@
             Provisioning Tenant...
           } @else {
             <lucide-icon [img]="icons.Save" [size]="14"></lucide-icon>
-            Provision Tenant Workspace
+            Create business
           }
         </button>
       </div>

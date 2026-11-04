@@ -220,7 +220,7 @@ test('sorting: lots list and board, a lot record, yield analysis', async ({ page
 
   await page.goto('/sort/yield');
   await expect(page.getByRole('heading', { name: 'Yield analysis' })).toBeVisible();
-  await page.getByLabel('By').selectOption({ label: 'Month' });
+  await page.locator('ws-command-bar select').first().selectOption({ label: 'Month' });
   await expect(page.locator('ws-kpi-card').filter({ hasText: 'Lots sorted' })).toBeVisible();
 });
 

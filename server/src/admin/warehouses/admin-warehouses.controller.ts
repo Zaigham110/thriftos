@@ -7,9 +7,8 @@ import { CurrentUser, CurrentUserData } from '../../common/decorators/current-us
 import { TenantService } from '../../tenant/tenant.service';
 import { CreateWarehouseDto, UpdateWarehouseDto } from '../../tenant/dto/warehouse.dto';
 
-import { RequireModule } from '../../common/decorators/require-module.decorator';
 
-@RequireModule('WAREHOUSES')
+// Godowns are part of every business (stock transfers, enterprise E3.3), not an optional module.
 @Controller('admin/warehouses')
 @UseGuards(TenantGuard, PermissionGuard)
 export class AdminWarehousesController {
