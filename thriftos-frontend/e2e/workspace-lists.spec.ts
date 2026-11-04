@@ -55,10 +55,17 @@ test('sales list: search, filter chip, group by status, saved view, Excel export
   await expect(page.getByRole('menuitemradio', { name: viewName })).toBeVisible();
   await page.keyboard.press('Escape');
 
-  await page.getByRole('button', { name: 'Export' }).click();
-  const download = page.waitForEvent('download');
-  await page.getByRole('menuitem', { name: 'Excel' }).click();
-  expect((await download).suggestedFilename()).toMatch(/^thriftos-sales-\d{4}-\d{2}-\d{2}\.xlsx$/);
+  // The list closes open menus whenever its state changes (e.g. the saved view applied after the reload), so wait for
+  // the page to settle and retry the whole export step if a late change closed the menu.
+  await page.waitForLoadState('networkidle');
+  let file = '';
+  await expect(async () => {
+    const download = page.waitForEvent('download', { timeout: 8000 });
+    if (!(await page.getByRole('menuitem', { name: 'Excel' }).isVisible())) await page.getByRole('button', { name: 'Export' }).click();
+    await page.getByRole('menuitem', { name: 'Excel' }).click({ timeout: 2000 });
+    file = (await download).suggestedFilename();
+  }).toPass({ timeout: 40000 });
+  expect(file).toMatch(/^thriftos-sales-\d{4}-\d{2}-\d{2}\.xlsx$/);
 });
 
 test('sale record: amounts, tabs, note with @mention and an attached file; Ctrl+K finds it', async ({ page, request }) => {

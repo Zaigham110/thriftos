@@ -211,3 +211,6 @@
   margin-top: 1.5rem;
   border-top: 1px solid hsl(var(--border));
 }
+.stale { color: var(--color-text-secondary, #6b6468); }
+.support-reason { display: grid; gap: 6px; margin-top: 12px; font-weight: 600; font-size: 14px; }
+.support-reason textarea { padding: 8px 12px; border: 1px solid var(--color-border, #d6cfd3); border-radius: 8px; font: inherit; font-weight: 400; resize: vertical; background: transparent; color: inherit; }

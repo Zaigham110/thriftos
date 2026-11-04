@@ -8,7 +8,7 @@ async function signOut(page: Page): Promise<void> {
 }
 
 async function pinSignIn(page: Page, phone: string, pin: string): Promise<void> {
-  await page.getByRole('tab', { name: 'Munshi' }).click();
+  await page.getByRole('tab', { name: 'Phone + PIN' }).click();
   await page.getByLabel('WhatsApp number').fill(phone);
   for (const d of pin) await page.locator('.keys').getByRole('button', { name: d, exact: true }).click();
   await page.getByRole('button', { name: 'Sign in' }).click();
@@ -35,7 +35,7 @@ test('munshi phone + PIN sign-in with lockout after 5 wrong PINs', async ({ page
   await signOut(page);
 
   // The phone remembers: Munshi is selected and the number is filled in.
-  await expect(page.getByRole('tab', { name: 'Munshi' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: 'Phone + PIN' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByLabel('WhatsApp number')).toHaveValue(phone);
 
   for (const left of [4, 3, 2, 1]) {
@@ -48,7 +48,7 @@ test('munshi phone + PIN sign-in with lockout after 5 wrong PINs', async ({ page
   await expect(page.getByRole('alert')).toContainText('Too many wrong PINs');
 
   // The owner unlocks it.
-  await page.getByRole('tab', { name: 'Owner' }).click();
+  await page.getByRole('tab', { name: 'Email' }).click();
   await page.fill('input[type=email]', 'admin@demo.thriftos.com');
   await page.fill('input[type=password]', 'admin123');
   await page.getByRole('button', { name: 'Sign in' }).click();

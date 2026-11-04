@@ -43,6 +43,8 @@ export interface Tenant {
   updatedAt: string;
   users?: TenantUserRow[];
   auditLogs?: TenantAuditRow[];
+  /** v2 6.5: newest sign-in or work of the business (support visits do not count). */
+  lastActivity?: { at: string; kind: 'sale' | 'payment' | 'container' | 'app' } | null;
   _count?: {
     users: number;
     roles: number;

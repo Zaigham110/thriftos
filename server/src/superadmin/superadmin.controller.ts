@@ -25,6 +25,8 @@ import { BootstrapResult } from './tenant-bootstrap.service';
 import { RequireModule } from '../common/decorators/require-module.decorator';
 import { SYSTEM_COMPANY_CODE } from '../common/guards/module.guard';
 import { PrismaService } from '../prisma/prisma.service';
+import { OnboardingService } from './onboarding.service';
+import { QuickCreateTenantDto, SupportViewDto } from './dto/quick-create.dto';
 
 @Controller('superadmin')
 @UseGuards(TenantGuard)
@@ -34,6 +36,7 @@ export class SuperAdminController {
     private readonly superAdminService: SuperAdminService,
     private readonly authService: AuthService,
     private readonly prisma: PrismaService,
+    private readonly onboarding: OnboardingService,
   ) {}
 
   /** Modules turned on for the platform itself (the SYSTEM business): what the super admin console shows. */
@@ -100,18 +103,29 @@ export class SuperAdminController {
     return this.superAdminService.createTenant(dto, user.userId);
   }
 
+  /** v2 6.5: business name, owner name and phone → ready to sign in, with the welcome message to send. */
+  @Post('tenants/quick')
+  @HttpCode(HttpStatus.CREATED)
+  quickCreate(@Body() dto: QuickCreateTenantDto, @CurrentUser() user: CurrentUserData) {
+    return this.onboarding.quickCreate(dto, user.userId);
+  }
+
   @Get('tenants')
   async findAll(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('status') status?: TenantStatus,
   ): Promise<TenantListResponseDto> {
-    return this.superAdminService.findAll(page || 1, limit || 20, status);
+    const list = await this.superAdminService.findAll(page || 1, limit || 20, status);
+    const last = await this.onboarding.lastActivity(list.data.map((t: any) => t.id));
+    return { ...list, data: list.data.map((t: any) => ({ ...t, lastActivity: last.get(t.id) ?? null })) };
   }
 
   @Get('tenants/:id')
   async findOne(@Param('id') id: string): Promise<TenantResponseDto> {
-    return this.superAdminService.findOne(id);
+    const tenant = await this.superAdminService.findOne(id);
+    const last = await this.onboarding.lastActivity([id]);
+    return { ...tenant, lastActivity: last.get(id) ?? null } as TenantResponseDto;
   }
 
   @Patch('tenants/:id')
@@ -147,10 +161,11 @@ export class SuperAdminController {
     @Param('id') id: string,
     @CurrentUser() user: CurrentUserData,
     @Req() req: Request,
-  ): Promise<{ accessToken: string; impersonationToken: string; tenantId: string; expiresIn: number; expiresAt: string }> {
+    @Body() body: SupportViewDto = {},
+  ): Promise<{ accessToken: string; impersonationToken: string; tenantId: string; expiresIn: number; expiresAt: string; readOnly: true }> {
     const ipAddress = req.ip || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'];
-    const result = await this.authService.createImpersonationToken(user.userId, id, ipAddress, userAgent);
+    const result = await this.authService.createImpersonationToken(user.userId, id, ipAddress, userAgent, body?.reason?.trim() || undefined);
     const expiresAt = new Date(Date.now() + result.expiresIn * 1000).toISOString();
     return {
       accessToken: result.accessToken,
@@ -158,6 +173,7 @@ export class SuperAdminController {
       tenantId: id,
       expiresIn: result.expiresIn,
       expiresAt,
+      readOnly: true,
     };
   }
 }

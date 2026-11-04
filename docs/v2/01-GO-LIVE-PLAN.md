@@ -47,7 +47,7 @@ Target: the owner's existing AWS free-tier account. One EC2 micro instance (1 GB
   - Bluetooth thermal printer support for 58 mm and 80 mm (ESC/POS) via Web Bluetooth where available, with fallback to the Android print dialog / shared PDF. Templates: bale QR label (50×30 mm), sale bill, payment receipt. Test on at least one common local printer model.
 - [x] 6.4 First-week experience
   - In-app checklist on Home for a new business (add supplier → first container → first sale → invite munshi), each one tap. Short Urdu help videos/screens linked from empty states.
-- [ ] 6.5 Super-admin onboarding tools
+- [x] 6.5 Super-admin onboarding tools
   - Create a business for a customer in < 2 minutes, impersonate read-only for support (audited), see last activity per business.
 - Acceptance: a pilot business is onboarded from its paper register in one visit (< 1 hour), installs the Play Store app, and prints a bale label and a bill.
 

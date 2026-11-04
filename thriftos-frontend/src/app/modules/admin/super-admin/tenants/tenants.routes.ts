@@ -12,6 +12,12 @@ export const TENANTS_ROUTES: Routes = [
     title: 'Tenants Directory - ThriftOS Admin',
   },
   {
+    path: 'quick',
+    loadComponent: () =>
+      import('./tenant-quick/tenant-quick.component').then((m) => m.TenantQuickComponent),
+    title: 'New business - ThriftOS Admin',
+  },
+  {
     path: 'new',
     loadComponent: () =>
       import('./tenant-create/tenant-create.component').then((m) => m.TenantCreateComponent),

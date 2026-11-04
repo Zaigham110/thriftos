@@ -4,6 +4,8 @@
 
 import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { activityLabel } from '../tenants-list/tenants-list';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { TenantsService } from '../tenants';
 import { Tenant, TenantStatus } from '../tenant.models';
@@ -52,6 +54,7 @@ import {
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     RouterModule,
     LucideAngularModule,
     AppPageComponent,
@@ -165,7 +168,12 @@ export class TenantDetailComponent implements OnInit {
     this.showConfirmModal.set(true);
   }
 
+  /** Why support is opening the business; kept in the audit log. */
+  protected supportReason = '';
+  protected readonly activityLabel = activityLabel;
+
   confirmImpersonate(): void {
+    this.supportReason = '';
     this.confirmAction.set('impersonate');
     this.showConfirmModal.set(true);
   }
@@ -201,7 +209,7 @@ export class TenantDetailComponent implements OnInit {
         error: () => this.isActionLoading.set(false),
       });
     } else if (action === 'impersonate') {
-      this.authService.impersonateTenant(t.id).subscribe({
+      this.authService.impersonateTenant(t.id, { reason: this.supportReason.trim() || undefined, name: t.name }).subscribe({
         next: () => {
           this.isActionLoading.set(false);
           this.closeConfirmModal();
@@ -243,7 +251,7 @@ export class TenantDetailComponent implements OnInit {
     const action = this.confirmAction();
     if (action === 'activate') return 'Activate Tenant';
     if (action === 'deactivate') return 'Deactivate Tenant';
-    if (action === 'impersonate') return 'Impersonate Tenant Context';
+    if (action === 'impersonate') return 'Open support view';
     return 'Confirm Action';
   }
 
@@ -254,7 +262,7 @@ export class TenantDetailComponent implements OnInit {
 
     if (action === 'activate') return `Are you sure you want to activate "${t.name}"? Users will be allowed to log in.`;
     if (action === 'deactivate') return `Are you sure you want to deactivate "${t.name}"? Active user sessions will be restricted.`;
-    if (action === 'impersonate') return `You are entering context for "${t.name}" (${t.companyCode}). SuperAdmin actions will be audited.`;
+    if (action === 'impersonate') return `You will see "${t.name}" (${t.companyCode}) as its owner does, read-only: nothing can be changed. Opening it and every page you look at are recorded in the audit log.`;
     return '';
   }
 
@@ -262,7 +270,7 @@ export class TenantDetailComponent implements OnInit {
     const action = this.confirmAction();
     if (action === 'activate') return 'Activate';
     if (action === 'deactivate') return 'Deactivate';
-    if (action === 'impersonate') return 'Impersonate Now';
+    if (action === 'impersonate') return 'Open read-only';
     return 'Confirm';
   }
 

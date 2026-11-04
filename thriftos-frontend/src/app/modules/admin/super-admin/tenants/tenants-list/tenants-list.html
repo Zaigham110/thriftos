@@ -38,6 +38,9 @@
               @case ('status') {
                 <app-badge [variant]="getStatusBadgeType(row.status)">{{ row.status }}</app-badge>
               }
+              @case ('lastActivity') {
+                <span [class.stale]="!row.lastActivity" [title]="row.lastActivity?.at ?? ''">{{ activityLabel(row.lastActivity) }}</span>
+              }
               @case ('createdAt') {
                 {{ row.createdAt | date:'mediumDate' }}
               }
@@ -78,6 +81,12 @@
       [loading]="isActionLoading()"
       (cancelled)="closeConfirmModal()"
       (confirmed)="executeConfirmedAction()"
-    />
+    >
+      @if (confirmAction() === 'impersonate') {
+        <label class="support-reason">Why are you opening it? (kept in the audit log)
+          <textarea rows="2" maxlength="300" [(ngModel)]="supportReason" name="supportReason" placeholder="Owner says the udhaar total looks wrong"></textarea>
+        </label>
+      }
+    </app-dialog>
   </app-page-body>
 </app-page>

@@ -10,7 +10,7 @@ import { TPipe } from '../../../core/i18n/t.pipe';
   standalone: true,
   imports: [FormsModule, LucideAngularModule, TPipe],
   template: `
-    <div class="wrap">
+    <div class="wrap" (keydown.escape)="open.set(false)">
       <button type="button" class="ws-btn" (click)="open.set(!open())" [attr.aria-expanded]="open()" aria-haspopup="menu">
         <lucide-icon [img]="icons.Bookmark" [size]="16" aria-hidden="true" />{{ current()?.name || ('ws.views.all' | t) }}<lucide-icon [img]="icons.ChevronDown" [size]="14" aria-hidden="true" />
       </button>

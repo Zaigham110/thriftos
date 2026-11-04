@@ -23,7 +23,7 @@
         @if (t.status === 'ACTIVE') {
           <app-button variant="secondary" (click)="confirmToggleStatus()">Deactivate</app-button>
           <app-button variant="primary" (click)="confirmImpersonate()">
-            Impersonate Tenant
+            Open support view (read-only)
           </app-button>
         } @else {
           <app-button variant="primary" (click)="confirmToggleStatus()">Activate Tenant</app-button>
@@ -92,6 +92,11 @@
             <div>
               <span class="text-gray-500 font-bold uppercase block mb-1">Currency & Locale</span>
               <span class="font-bold text-gray-900 block">{{ t.currencyCode }} ({{ t.locale }})</span>
+            </div>
+
+            <div>
+              <span class="text-gray-500 font-bold uppercase block mb-1">Last activity</span>
+              <span class="font-bold text-gray-900 block">{{ activityLabel(t.lastActivity) }}</span>
             </div>
 
             <div>
@@ -249,6 +254,12 @@
       [loading]="isActionLoading()"
       (cancelled)="closeConfirmModal()"
       (confirmed)="executeConfirmedAction()"
-    />
+    >
+      @if (confirmAction() === 'impersonate') {
+        <label class="support-reason">Why are you opening it? (kept in the audit log)
+          <textarea rows="2" maxlength="300" [(ngModel)]="supportReason" name="supportReason" placeholder="Owner says the udhaar total looks wrong"></textarea>
+        </label>
+      }
+    </app-dialog>
   </app-page-body>
 </app-page>

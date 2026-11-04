@@ -17,9 +17,9 @@
   "linkExpired": "This link has expired. Ask for a new one.",
   "linkSent": "If this email has an account, a link is on its way. It works for 30 minutes.",
   "locked": "Too many wrong PINs. Try again in {n} minutes or ask the owner.",
-  "munshi": "Munshi",
+  "munshi": "Phone + PIN",
   "newPassword": "New password",
-  "owner": "Owner",
+  "owner": "Email",
   "password": "Password",
   "passwordRule": "At least 10 characters.",
   "passwordSaved": "Password changed. Your other devices are signed out.",
@@ -584,6 +584,11 @@
   "scan": "Scan QR",
   "sold": "Sold",
   "title": "Stock"
+ },
+ "support": {
+  "banner": "Support view · {name} · read-only",
+  "leave": "Leave",
+  "thisBusiness": "this business"
  },
  "sync": {
   "attention": "{n} need attention",

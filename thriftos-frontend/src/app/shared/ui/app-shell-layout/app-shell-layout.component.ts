@@ -81,7 +81,7 @@ interface CmdSearchItem {
             </div>
             <button type="button" class="btn-exit-impersonation" (click)="exitImpersonation.emit()">
               <lucide-icon [img]="icons.LogOut" [size]="14"></lucide-icon>
-              <span>Exit Impersonation</span>
+              <span>Leave support view</span>
             </button>
           </div>
         }

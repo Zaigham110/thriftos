@@ -19,6 +19,9 @@ import {
 } from './auth.models';
 import { API_ENDPOINTS } from '../config/api.config';
 
+/** Name of the business open in support view, for the banner. */
+export const SUPPORT_NAME_KEY = 'thriftos.support.name';
+
 @Injectable({
   providedIn: 'root',
 })
@@ -333,7 +336,13 @@ export class AuthService {
   /**
    * Start impersonating a tenant (Super Admin only)
    */
-  impersonateTenant(tenantId: string): Observable<void> {
+  /** Opens the business read-only for support (v2 6.5); `reason` goes to the audit log, `name` to the banner. */
+  impersonateTenant(tenantId: string, opts: { reason?: string; name?: string } = {}): Observable<void> {
+    try {
+      sessionStorage.setItem(SUPPORT_NAME_KEY, opts.name ?? '');
+    } catch {
+      /* private window */
+    }
     // Store current token before impersonation
     const currentToken = this.tokenService.getAccessToken();
     const currentRefreshToken = this.tokenService.getRefreshToken();
@@ -345,7 +354,7 @@ export class AuthService {
     }
 
     return this.http
-      .post<ImpersonationResponse>(`${API_ENDPOINTS.superadmin}/tenants/${tenantId}/impersonate`, {})
+      .post<ImpersonationResponse>(`${API_ENDPOINTS.superadmin}/tenants/${tenantId}/impersonate`, opts.reason ? { reason: opts.reason } : {})
       .pipe(
         tap((response) => {
           const token = response.impersonationToken || response.accessToken;
@@ -378,6 +387,22 @@ export class AuthService {
    * Exit impersonation and restore Super Admin session
    */
   exitImpersonation(): Observable<void> {
+    // Tell the server first (with the support token) so leaving is in the audit log; leave even if that fails.
+    if (this.tokenService.getOriginalToken()) {
+      return this.http.post<void>(`${API_ENDPOINTS.auth}/exit-impersonation`, {}).pipe(
+        catchError(() => of(void 0)),
+        switchMap(() => this.restoreSuperAdmin()),
+      );
+    }
+    return this.restoreSuperAdmin();
+  }
+
+  private restoreSuperAdmin(): Observable<void> {
+    try {
+      sessionStorage.removeItem(SUPPORT_NAME_KEY);
+    } catch {
+      /* private window */
+    }
     // Restore original tokens first
     const originalToken = this.tokenService.getOriginalToken();
     const originalRefreshToken = this.tokenService.getOriginalRefreshToken();

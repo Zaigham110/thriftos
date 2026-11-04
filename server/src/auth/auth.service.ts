@@ -276,6 +276,7 @@ export class AuthService {
     targetTenantId: string,
     ipAddress?: string,
     userAgent?: string,
+    reason?: string,
   ): Promise<{ accessToken: string; expiresIn: number }> {
     const superAdmin = await this.prisma.user.findUnique({
       where: { id: superAdminId },
@@ -321,7 +322,7 @@ export class AuthService {
       action: 'SUPERADMIN_IMPERSONATE',
       entityType: 'Tenant',
       entityId: targetTenantId,
-      metadataJson: { tenantName: tenant.name },
+      metadataJson: { tenantName: tenant.name, readOnly: true, ...(reason ? { reason } : {}) },
       ipAddress,
       userAgent,
     });

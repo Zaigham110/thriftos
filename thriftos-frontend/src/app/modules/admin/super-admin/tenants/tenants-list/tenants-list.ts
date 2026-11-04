@@ -5,6 +5,7 @@
 
 import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { TenantsService } from '../tenants';
 import { Tenant, TenantStatus } from '../tenant.models';
@@ -36,6 +37,7 @@ import {
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     RouterModule,
     AppPageComponent,
     AppPageHeaderComponent,
@@ -104,6 +106,12 @@ export class TenantsListComponent implements OnInit {
       width: '140',
     },
     {
+      key: 'lastActivity',
+      label: 'Last activity',
+      getValue: (row) => (row as Tenant).lastActivity?.at ?? '',
+      width: '200',
+    },
+    {
       key: 'createdAt',
       label: 'Created',
       sortable: true,
@@ -164,7 +172,7 @@ export class TenantsListComponent implements OnInit {
       { label: 'View', value: 'view' },
       { label: 'Edit', value: 'edit' },
       { label: tenant.status === 'ACTIVE' ? 'Deactivate' : 'Activate', value: 'toggle' },
-      { label: 'Impersonate', value: 'impersonate', disabled: tenant.status !== 'ACTIVE' },
+      { label: 'Open support view (read-only)', value: 'impersonate', disabled: tenant.status !== 'ACTIVE' },
     ];
   }
 
@@ -180,8 +188,13 @@ export class TenantsListComponent implements OnInit {
   }
 
   openCreateDrawer(): void {
-    void this.router.navigate(['/admin/tenants', 'new']);
+    void this.router.navigate(['/admin/tenants', 'quick']);
   }
+
+  /** Why support is opening the business; kept in the audit log. */
+  protected supportReason = '';
+
+  protected readonly activityLabel = activityLabel;
 
   openEditDrawer(tenant: Tenant): void {
     this.editingTenant.set(tenant);
@@ -207,6 +220,7 @@ export class TenantsListComponent implements OnInit {
   confirmImpersonate(tenant: Tenant): void {
     this.selectedTenant.set(tenant);
     this.confirmAction.set('impersonate');
+    this.supportReason = '';
     this.showConfirmModal.set(true);
   }
 
@@ -245,7 +259,7 @@ export class TenantsListComponent implements OnInit {
         },
       });
     } else if (action === 'impersonate') {
-      this.authService.impersonateTenant(tenant.id).subscribe({
+      this.authService.impersonateTenant(tenant.id, { reason: this.supportReason.trim() || undefined, name: tenant.name }).subscribe({
         next: () => {
           this.isActionLoading.set(false);
           this.closeConfirmModal();
@@ -274,7 +288,7 @@ export class TenantsListComponent implements OnInit {
     const action = this.confirmAction();
     if (action === 'activate') return 'Activate Tenant';
     if (action === 'deactivate') return 'Deactivate Tenant';
-    if (action === 'impersonate') return 'Impersonate Tenant';
+    if (action === 'impersonate') return 'Open support view';
     return '';
   }
 
@@ -291,7 +305,7 @@ export class TenantsListComponent implements OnInit {
       return `Are you sure you want to deactivate "${tenant.name}"? Users will not be able to access the tenant.`;
     }
     if (action === 'impersonate') {
-      return `You are about to impersonate "${tenant.name}". You will have full access to this tenant's data. Are you sure?`;
+      return `You will see "${tenant.name}" as its owner does, read-only: nothing can be changed. Opening it and every page you look at are recorded in the audit log.`;
     }
     return '';
   }
@@ -300,13 +314,25 @@ export class TenantsListComponent implements OnInit {
     const action = this.confirmAction();
     if (action === 'activate') return 'Activate';
     if (action === 'deactivate') return 'Deactivate';
-    if (action === 'impersonate') return 'Start Impersonation';
+    if (action === 'impersonate') return 'Open read-only';
     return 'Confirm';
   }
 
   getConfirmButtonVariant(): 'primary' | 'danger' {
     const action = this.confirmAction();
-    if (action === 'deactivate' || action === 'impersonate') return 'danger';
+    if (action === 'deactivate') return 'danger';
     return 'primary';
   }
+}
+
+/** "Today 5:12 pm · sale", "3 days ago · signed in", "No activity yet". */
+export function activityLabel(last: Tenant['lastActivity'], now = new Date()): string {
+  if (!last) return 'No activity yet';
+  const at = new Date(last.at);
+  const what = { sale: 'sale', payment: 'payment', container: 'container', app: 'used the app' }[last.kind];
+  const day = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((day(now) - day(at)) / 86_400_000);
+  const time = at.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const when = days <= 0 ? `Today ${time}` : days === 1 ? `Yesterday ${time}` : days < 30 ? `${days} days ago` : at.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return `${when} · ${what}`;
 }
