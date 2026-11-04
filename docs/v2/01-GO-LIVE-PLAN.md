@@ -5,7 +5,7 @@ v1 docs in `docs/v1/` stay the source of truth for product rules, UX rules, arch
 Product rule still applies to every task: **sell easiness and productivity, not a complex tool.**
 
 Order (owner had no preference; chosen to reach a first paying pilot fastest):
-Phase 5 Go live → Phase 6 Onboarding (import, Play Store, printing) → Phase 7 Billing → Phase 8 Payroll → Phase 9 FBR e-invoicing and export.
+Phase 5 Go live → Phase 6 Onboarding (import, printing, first week, support tools) → Phase 7 Billing → Phase 8 Payroll → Phase 9 FBR e-invoicing and export.
 
 ## Phase 5 — Housekeeping and go live on AWS (week 1–2)
 Target: the owner's existing AWS free-tier account. One EC2 micro instance (1 GB RAM) running Docker Compose. Nothing is built on the server.
@@ -41,15 +41,14 @@ Target: the owner's existing AWS free-tier account. One EC2 micro instance (1 GB
 - [x] 6.1 Import from register/Excel
   - Downloadable Excel templates (Urdu + English headers): customers with opening udhaar, suppliers, opening stock (bales/kg/pieces with cost).
   - Upload → preview with row-level errors in plain words → confirm. Idempotent (re-uploading the same file does not duplicate). Tests with messy real-world data (Roman Urdu names, phone formats, blank rows, "Rs 1,25,000").
-- [ ] 6.2 Android app on Play Store
-  - Trusted Web Activity wrapping the PWA (Bubblewrap), Digital Asset Links on the domain, app name "ThriftOS", Urdu + English store listing, screenshots from `docs/v1/screenshots/`, privacy policy URL. Internal testing track first.
+- [x] ~~6.2 Android app on Play Store~~ — dropped by the owner (2026-11-05): the installable web app (PWA) is enough; no Play Store listing.
 - [x] 6.3 Printing (built and tested in the browser; not yet tried on a real printer — see PROGRESS.md owner actions)
   - Bluetooth thermal printer support for 58 mm and 80 mm (ESC/POS) via Web Bluetooth where available, with fallback to the Android print dialog / shared PDF. Templates: bale QR label (50×30 mm), sale bill, payment receipt. Test on at least one common local printer model.
 - [x] 6.4 First-week experience
   - In-app checklist on Home for a new business (add supplier → first container → first sale → invite munshi), each one tap. Short Urdu help videos/screens linked from empty states.
 - [x] 6.5 Super-admin onboarding tools
   - Create a business for a customer in < 2 minutes, impersonate read-only for support (audited), see last activity per business.
-- Acceptance: a pilot business is onboarded from its paper register in one visit (< 1 hour), installs the Play Store app, and prints a bale label and a bill.
+- Acceptance: a pilot business is onboarded from its paper register in one visit (< 1 hour), installs the app from Chrome (Add to Home screen), and prints a bale label and a bill.
 
 ## Phase 7 — Subscriptions and billing (weeks 6–7)
 - [ ] 7.1 Plans in data, not code: Free (1 device, khata + direct stock), Workshop, Importer, Export (prices editable by super admin; PKR). Plan decides `enabledModules` and limits (users, devices).
