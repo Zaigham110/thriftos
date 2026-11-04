@@ -3,6 +3,7 @@ import { InventoryStatus, MovementType, PaymentMode, Prisma, SaleStatus, SaleTyp
 import { randomBytes } from 'crypto';
 import { IdempotencyService } from '../common/idempotency/idempotency.service';
 import { money, saleProfit, sum, takeCost } from '../costing/costing';
+import * as QRCode from 'qrcode';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantSequenceService } from '../procurement/shared/tenant-sequence.service';
 import { DirectStockService } from '../stock/direct-stock.service';
@@ -44,6 +45,12 @@ export function describeItem(item: {
  * Sales (journey 4): one request saves the whole sale: lines priced per kg, bale or piece, stock
  * used at its exact cost (cumulative share), the payment taken now, and the customer's khata.
  */
+const billInclude = {
+  tenant: { select: { name: true } },
+  customer: { select: { name: true } },
+  lines: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], include: { inventoryItem: itemSummary } },
+} satisfies Prisma.SaleInclude;
+
 @Injectable()
 export class SalesService {
   constructor(
@@ -234,19 +241,28 @@ export class SalesService {
    */
   async publicBill(token: string) {
     const sale = /^[A-Za-z0-9_-]{20,80}$/.test(token)
-      ? await this.prisma.sale.findUnique({
-          where: { billToken: token },
-          include: {
-            tenant: { select: { name: true } },
-            customer: { select: { name: true } },
-            lines: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], include: { inventoryItem: itemSummary } },
-          },
-        })
+      ? await this.prisma.sale.findUnique({ where: { billToken: token }, include: billInclude })
       : null;
     if (!sale || !KHATA_SALE_STATUSES.includes(sale.status)) throw new NotFoundException('Bill not found');
+    const { bill } = await this.billView(sale);
+    return bill;
+  }
+
+  /** Everything a printed bill needs (v2 6.3): the public bill, the customer's balance now and the bill link for its QR. */
+  async printBill(tenantId: string, id: string) {
+    const sale = await this.prisma.sale.findFirst({ where: { id, tenantId }, include: billInclude });
+    if (!sale || !KHATA_SALE_STATUSES.includes(sale.status)) throw new NotFoundException('Bill not found');
+    const { bill, balance } = await this.billView(sale);
+    const base = (process.env.PUBLIC_APP_URL || 'http://localhost:4200').replace(/\/$/, '');
+    const billUrl = sale.billToken ? `${base}/bill/${sale.billToken}` : null;
+    const billQrSvg = billUrl ? await QRCode.toString(billUrl, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' }) : null;
+    return { ...bill, customerBalance: balance, billUrl, billQrSvg };
+  }
+
+  private async billView(sale: Prisma.SaleGetPayload<{ include: typeof billInclude }>) {
     const { applied } = await this.khata.accountTx(this.prisma, sale.tenantId, sale.customerId);
     const own = applied.sales.find((x) => x.key.id === sale.id)!;
-    return {
+    const bill = {
       business: sale.tenant.name,
       saleNumber: sale.saleNumber,
       date: sale.issuedAt ?? sale.createdAt,
@@ -264,6 +280,7 @@ export class SalesService {
       due: own.due,
       status: own.status,
     };
+    return { bill, balance: applied.balance };
   }
 
   /** Records the physical handover, separately from payment. */

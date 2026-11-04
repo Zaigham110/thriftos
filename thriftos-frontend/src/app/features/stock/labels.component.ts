@@ -2,7 +2,9 @@ import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, ViewEncapsulation, computed, inject, input, signal } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { ArrowLeft, LucideAngularModule, Printer } from 'lucide-angular';
+import { ArrowLeft, Bluetooth, LucideAngularModule, Printer } from 'lucide-angular';
+import { PrintDocsService, PrintJob } from '../../core/print/print-docs.service';
+import { PrintSheetComponent } from '../../shared/print/print-sheet.component';
 import { API_BASE_URL } from '../../core/config/api.config';
 import { I18N } from '../../core/i18n/t.pipe';
 
@@ -16,7 +18,7 @@ type Layout = 'a4' | 'thermal';
 @Component({
   selector: 'app-labels',
   standalone: true,
-  imports: [RouterLink, LucideAngularModule, I18N],
+  imports: [RouterLink, LucideAngularModule, I18N, PrintSheetComponent],
   encapsulation: ViewEncapsulation.None,
   template: `
     <section class="floor no-print">
@@ -29,6 +31,7 @@ type Layout = 'a4' | 'thermal';
         <button type="button" class="chip" [class.on]="layout() === 'a4'" (click)="layout.set('a4')">{{ 'stock.printSheet' | t }}</button>
       </div>
       <footer class="action-bar">
+        <button type="button" class="btn" [disabled]="!labels().length" (click)="bluetooth()"><lucide-icon [img]="icons.Bluetooth" [size]="20" /> {{ 'print.bluetoothStickers' | t }}</button>
         <button type="button" class="btn primary" [disabled]="!labels().length" (click)="print()"><lucide-icon [img]="icons.Printer" [size]="20" /> {{ 'bill.print' | t }}</button>
       </footer>
     </section>
@@ -46,6 +49,7 @@ type Layout = 'a4' | 'thermal';
         </article>
       }
     </div>
+    @if (printJob(); as job) { <app-print-sheet [tickets]="job.tickets" kind="label" [title]="job.title" (closed)="printJob.set(null)" /> }
   `,
   styles: [`
     app-labels .labels { display:grid; gap:12px; max-width:640px; margin:12px auto 0; }
@@ -77,7 +81,14 @@ export class LabelsComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly http = inject(HttpClient);
   private readonly sanitizer = inject(DomSanitizer);
-  protected readonly icons = { ArrowLeft, Printer };
+  protected readonly icons = { ArrowLeft, Bluetooth, Printer };
+  private readonly printDocs = inject(PrintDocsService);
+  protected readonly printJob = signal<PrintJob | null>(null);
+
+  /** One 50 × 30 mm sticker per bale on a Bluetooth label printer (v2 6.3). */
+  protected bluetooth(): void {
+    this.printJob.set(this.printDocs.labels(this.labels()));
+  }
   protected readonly labels = signal<Label[]>([]);
   protected readonly layout = signal<Layout>('thermal');
   private readonly svgCache = computed(() => new Map(this.labels().map((l) => [l.id, this.sanitizer.bypassSecurityTrustHtml(l.qrSvg)])));

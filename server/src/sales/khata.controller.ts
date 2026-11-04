@@ -37,6 +37,11 @@ export class KhataController {
     return this.khata.recordPayment(tenantId, dto, user.userId, idempotencyKey);
   }
 
+  @Get('payments/:id/receipt')
+  receipt(@TenantId() tenantId: string, @Param('id') id: string) {
+    return this.khata.printReceipt(tenantId, id);
+  }
+
   @Post('payments/:id/photo')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 + 1 } }))
   attachPhoto(

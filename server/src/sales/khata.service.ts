@@ -224,6 +224,32 @@ export class KhataService {
     });
   }
 
+  /** Everything a printed payment receipt needs (v2 6.3): amount, method, who received it and the balance now. */
+  async printReceipt(tenantId: string, paymentId: string) {
+    const payment = await this.prisma.payment.findFirst({
+      where: { id: paymentId, tenantId },
+      include: { tenant: { select: { name: true } }, customer: { select: { id: true, name: true } }, sale: { select: { saleNumber: true } } },
+    });
+    if (!payment) throw new NotFoundException('Payment not found');
+    const [{ applied }, receiver] = await Promise.all([
+      this.accountTx(this.prisma, tenantId, payment.customerId),
+      payment.receivedBy ? this.prisma.user.findFirst({ where: { id: payment.receivedBy, tenantId }, select: { name: true } }) : null,
+    ]);
+    return {
+      business: payment.tenant.name,
+      receiptNo: `R-${payment.id.slice(-6).toUpperCase()}`,
+      date: payment.receivedAt,
+      customer: payment.customer.name,
+      amount: payment.amount,
+      method: payment.method,
+      reference: payment.reference,
+      saleNumber: payment.sale?.saleNumber ?? null,
+      receivedBy: receiver?.name ?? null,
+      balance: applied.balance,
+      advance: applied.advance,
+    };
+  }
+
   /** Attaches a receipt screenshot (JPEG/PNG/WebP/PDF, up to 5 MB) to a payment. */
   async attachPhoto(tenantId: string, paymentId: string, file: UploadedPhoto | undefined, userId: string) {
     if (!file) throw new BadRequestException('Choose a photo');

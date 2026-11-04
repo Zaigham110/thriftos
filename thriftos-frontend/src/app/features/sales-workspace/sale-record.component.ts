@@ -10,6 +10,8 @@ import { KhataService } from '../../modules/sales/khata.service';
 import type { SaleDetail } from '../../modules/sales/sales.models';
 import { SalesService } from '../../modules/sales/sales.service';
 import { ToastService } from '../../shared/floor/toast.service';
+import { PrintDocsService, PrintJob } from '../../core/print/print-docs.service';
+import { PrintSheetComponent } from '../../shared/print/print-sheet.component';
 import {
   WsColumn,
   WsDataGridComponent,
@@ -45,6 +47,7 @@ const UNIT_KEYS: Record<string, string> = { KG: 'unit.kgShort', BALE: 'unit.bale
     WsStateComponent,
     WsStatusPipelineComponent,
     WsTabsComponent,
+    PrintSheetComponent,
   ],
   template: `
     @if (failed()) {
@@ -56,6 +59,7 @@ const UNIT_KEYS: Record<string, string> = { KG: 'unit.kgShort', BALE: 'unit.bale
             <button actions type="button" class="ws-btn" (click)="share()"><lucide-icon [img]="icons.MessageCircle" [size]="16" aria-hidden="true" />{{ 'ws.sale.share' | t }}</button>
             <a actions class="ws-btn" [routerLink]="['/bill', s.billToken]"><lucide-icon [img]="icons.FileText" [size]="16" aria-hidden="true" />{{ 'ws.sale.bill' | t }}</a>
             <button actions type="button" class="ws-btn" (click)="print()"><lucide-icon [img]="icons.Printer" [size]="16" aria-hidden="true" />{{ 'ws.sale.print' | t }}</button>
+            <button actions type="button" class="ws-btn" (click)="printThermal(s.id)"><lucide-icon [img]="icons.Receipt" [size]="16" aria-hidden="true" />{{ 'print.printBill' | t }}</button>
           </ws-page-header>
 
           @if (s.status === 'CANCELLED') {
@@ -86,6 +90,7 @@ const UNIT_KEYS: Record<string, string> = { KG: 'unit.kgShort', BALE: 'unit.bale
     } @else {
       <ws-state kind="loading" />
     }
+    @if (printJob(); as job) { <app-print-sheet [tickets]="job.tickets" [kind]="job.kind" [title]="job.title" (closed)="printJob.set(null)" /> }
   `,
   styles: [`
     .record { display:grid; grid-template-columns:minmax(0, 1fr) 340px; gap:var(--ws-5); max-width:var(--ws-content-max); margin-inline:auto; align-items:start; font-family:var(--ws-font); color:var(--ws-ink); }
@@ -187,6 +192,14 @@ export class SaleRecordComponent {
       next: (m) => window.open(m.url, '_blank', 'noopener'),
       error: () => this.toast.show(this.i18n.t('common.couldNotLoad')),
     });
+  }
+
+  private readonly printDocs = inject(PrintDocsService);
+  protected readonly printJob = signal<PrintJob | null>(null);
+
+  /** The thermal bill (Bluetooth printer, print dialog or picture), v2 6.3. */
+  protected printThermal(saleId: string): void {
+    this.printDocs.bill(saleId).subscribe({ next: (job) => this.printJob.set(job), error: () => this.toast.show(this.i18n.t('common.couldNotLoad')) });
   }
 
   protected print(): void {

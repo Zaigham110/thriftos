@@ -2,7 +2,9 @@ import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ArrowLeft, Camera, LucideAngularModule, MessageCircle, Pencil } from 'lucide-angular';
+import { ArrowLeft, Camera, CheckCircle2, LucideAngularModule, MessageCircle, Pencil, Printer } from 'lucide-angular';
+import { PrintDocsService, PrintJob } from '../../core/print/print-docs.service';
+import { PrintSheetComponent } from '../../shared/print/print-sheet.component';
 import { switchMap } from 'rxjs';
 
 import { I18nService, Lang } from '../../core/i18n/i18n.service';
@@ -22,7 +24,7 @@ import { METHODS } from '../sell/sale.component';
 @Component({
   selector: 'app-khata-customer',
   standalone: true,
-  imports: [DatePipe, FormsModule, RouterLink, LucideAngularModule, I18N, NumberFieldComponent],
+  imports: [DatePipe, FormsModule, RouterLink, LucideAngularModule, I18N, NumberFieldComponent, PrintSheetComponent],
   template: `
     <section class="floor">
       <header class="floor-head">
@@ -55,6 +57,13 @@ import { METHODS } from '../sell/sale.component';
           </form>
         }
 
+        @if (lastPaymentId(); as pid) {
+          <section class="card paid">
+            <span><lucide-icon [img]="icons.CheckCircle2" [size]="20" class="good" /> {{ 'print.paymentSaved' | t }}</span>
+            <button type="button" class="btn" (click)="printReceipt(pid)"><lucide-icon [img]="icons.Printer" [size]="18" /> {{ 'print.printReceipt' | t }}</button>
+          </section>
+        }
+
         @if (paying()) {
           <section class="card">
             <h2>{{ 'khata.paymentReceived' | t }}</h2>
@@ -85,6 +94,7 @@ import { METHODS } from '../sell/sale.component';
         </footer>
       }
     </section>
+    @if (printJob(); as job) { <app-print-sheet [tickets]="job.tickets" [kind]="job.kind" [title]="job.title" (closed)="printJob.set(null)" /> }
   `,
   styles: [`
     .balance { justify-items:center; text-align:center; }
@@ -93,6 +103,9 @@ import { METHODS } from '../sell/sale.component';
     .lang { justify-content:center; }
     .photo { min-height:48px; display:flex; align-items:center; gap:8px; color:var(--tos-primary); font-weight:700; cursor:pointer; }
     .amount small { display:block; font-weight:600; }
+    .paid { grid-template-columns:1fr auto; align-items:center; }
+    .paid span { display:flex; align-items:center; gap:8px; font-weight:700; }
+    .paid .good { color:var(--tos-good, #2f7d5b); }
   `],
 })
 export class KhataCustomerComponent implements OnInit {
@@ -103,7 +116,11 @@ export class KhataCustomerComponent implements OnInit {
   private readonly customers = inject(CustomersService);
   private readonly toast = inject(ToastService);
   private readonly i18n = inject(I18nService);
-  protected readonly icons = { ArrowLeft, Camera, MessageCircle, Pencil };
+  protected readonly icons = { ArrowLeft, Camera, CheckCircle2, MessageCircle, Pencil, Printer };
+  private readonly printDocs = inject(PrintDocsService);
+  protected readonly printJob = signal<PrintJob | null>(null);
+  /** The payment just saved, so its receipt can be printed. */
+  protected readonly lastPaymentId = signal<string | null>(null);
   protected readonly methods = METHODS;
   protected readonly ledger = signal<Ledger | null>(null);
   protected readonly paying = signal(false);
@@ -153,6 +170,7 @@ export class KhataCustomerComponent implements OnInit {
         this.toast.show(this.i18n.t('khata.receivedOffline', { rs: this.i18n.money(amount) }));
         return;
       }
+      this.lastPaymentId.set(r.response.payment.id);
       if (photo) this.khata.addPhoto(r.response.payment.id, photo).subscribe({ error: () => this.toast.error(this.i18n.t('khata.photoFailed')) });
       this.toast.show(this.i18n.t('khata.received', { rs: this.i18n.money(amount), balance: this.i18n.money(r.response.balance) }));
       this.load();
@@ -161,6 +179,10 @@ export class KhataCustomerComponent implements OnInit {
     } finally {
       this.saving.set(false);
     }
+  }
+
+  protected printReceipt(paymentId: string): void {
+    this.printDocs.receipt(paymentId).subscribe({ next: (job) => this.printJob.set(job), error: () => this.toast.error(this.i18n.t('common.couldNotLoad')) });
   }
 
   protected remind(): void {

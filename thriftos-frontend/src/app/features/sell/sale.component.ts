@@ -1,7 +1,9 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ArrowLeft, CheckCircle2, LucideAngularModule, MessageCircle, ScanLine, Trash2 } from 'lucide-angular';
+import { ArrowLeft, CheckCircle2, LucideAngularModule, MessageCircle, Printer, ScanLine, Trash2 } from 'lucide-angular';
+import { PrintDocsService, PrintJob } from '../../core/print/print-docs.service';
+import { PrintSheetComponent } from '../../shared/print/print-sheet.component';
 import { HttpClient } from '@angular/common/http';
 import { API_BASE_URL } from '../../core/config/api.config';
 import { ScanSheetComponent } from '../../shared/floor/scan-sheet.component';
@@ -37,7 +39,7 @@ const MODES: PaymentMode[] = ['CASH', 'CREDIT', 'PARTIAL'];
 @Component({
   selector: 'app-sale',
   standalone: true,
-  imports: [FormsModule, RouterLink, LucideAngularModule, I18N, NumberFieldComponent, TilesComponent, ScanSheetComponent],
+  imports: [FormsModule, RouterLink, LucideAngularModule, I18N, NumberFieldComponent, TilesComponent, ScanSheetComponent, PrintSheetComponent],
   template: `
     <section class="floor">
       <header class="floor-head">
@@ -51,6 +53,7 @@ const MODES: PaymentMode[] = ['CASH', 'CREDIT', 'PARTIAL'];
           <h2>{{ 'sell.saved' | t: { no: sale.saleNumber, rs: (sale.totalAmount | rs) } }}</h2>
           <p class="hint">{{ 'sell.savedLine' | t: { name: customer()?.name ?? '', paid: (sale.paid | rs), due: (sale.due | rs), balance: (sale.customerBalance | rs) } }}</p>
           <button type="button" class="btn primary block" (click)="share(sale)"><lucide-icon [img]="icons.MessageCircle" [size]="20" /> {{ 'sell.share' | t }}</button>
+          <button type="button" class="btn block" (click)="printBill(sale.id)"><lucide-icon [img]="icons.Printer" [size]="20" /> {{ 'print.printBill' | t }}</button>
           <a class="btn block" [routerLink]="['/bill', sale.billToken]">{{ 'sell.openBill' | t }}</a>
           <button type="button" class="btn block" (click)="reset()">{{ 'sell.another' | t }}</button>
         </section>
@@ -106,6 +109,7 @@ const MODES: PaymentMode[] = ['CASH', 'CREDIT', 'PARTIAL'];
         </footer>
       }
     </section>
+    @if (printJob(); as job) { <app-print-sheet [tickets]="job.tickets" [kind]="job.kind" [title]="job.title" (closed)="printJob.set(null)" /> }
   `,
   styles: [`
     .done { justify-items:center; text-align:center; }
@@ -125,7 +129,9 @@ export class SaleComponent implements OnInit {
   private readonly queue = inject(OfflineQueueService);
   private readonly toast = inject(ToastService);
   private readonly i18n = inject(I18nService);
-  protected readonly icons = { ArrowLeft, CheckCircle2, MessageCircle, ScanLine, Trash2 };
+  protected readonly icons = { ArrowLeft, CheckCircle2, MessageCircle, Printer, ScanLine, Trash2 };
+  private readonly printDocs = inject(PrintDocsService);
+  protected readonly printJob = signal<PrintJob | null>(null);
   private readonly http = inject(HttpClient);
   protected readonly scanning = signal(false);
   protected readonly modes = MODES;
@@ -260,6 +266,10 @@ export class SaleComponent implements OnInit {
     } finally {
       this.saving.set(false);
     }
+  }
+
+  protected printBill(saleId: string): void {
+    this.printDocs.bill(saleId).subscribe({ next: (job) => this.printJob.set(job), error: () => this.toast.error(this.i18n.t('common.couldNotLoad')) });
   }
 
   protected share(sale: SaleDetail): void {

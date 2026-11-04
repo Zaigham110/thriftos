@@ -283,6 +283,43 @@
   "sort": "Chhantai",
   "stock": "Stock"
  },
+ "print": {
+  "advance": "Advance with us",
+  "amount": "Amount",
+  "balanceNow": "Balance now",
+  "bluetooth": "Print on Bluetooth printer",
+  "bluetoothStickers": "Bluetooth printer",
+  "change": "Change printer",
+  "dialog": "Print or save PDF",
+  "error": {
+   "failed": "Could not print. Check that the printer is on, has paper and is near, then try again.",
+   "notAPrinter": "That device is not a printer ThriftOS can use. Pick your printer's name from the list.",
+   "share": "This phone cannot share pictures from here.",
+   "unsupported": "This phone or browser cannot reach a Bluetooth printer."
+  },
+  "forBill": "For bill",
+  "from": "From",
+  "method": "Paid by",
+  "noBluetooth": "This phone or browser cannot reach a Bluetooth printer (iPhones cannot). Use Print, or share the picture.",
+  "paper": "Paper",
+  "paymentSaved": "Payment saved",
+  "printBill": "Print bill",
+  "printOn": "Print on {name}",
+  "printReceipt": "Print receipt",
+  "receipt": "Payment receipt",
+  "receivedBy": "Received by {name}",
+  "reference": "Ref",
+  "scanBill": "Scan to see this bill online",
+  "sending": "Sending to the printer…",
+  "sent": "Sent to the printer.",
+  "share": "Share picture",
+  "thanks": "Thank you",
+  "title": {
+   "bill": "Print bill",
+   "labels": "Print stickers",
+   "receipt": "Print receipt"
+  }
+ },
  "pwa": {
   "install": "Add ThriftOS to your phone",
   "installButton": "Install",

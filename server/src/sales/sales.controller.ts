@@ -46,6 +46,12 @@ export class SalesController {
     return this.sales.whatsapp(tenantId, id, query.lang);
   }
 
+  /** A printable bill: the customer's bill plus their balance now and the bill link (v2 6.3). */
+  @Get(':id/print')
+  print(@TenantId() tenantId: string, @Param('id') id: string) {
+    return this.sales.printBill(tenantId, id);
+  }
+
   @Post(':id/fulfill')
   fulfill(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: FulfillSaleDto, @CurrentUser() user: CurrentUserData) {
     return this.sales.fulfill(tenantId, id, dto.fulfillmentReference, user.userId);
