@@ -15,8 +15,7 @@ html {
   font-family: $font-family-base;
   font-size: 16px;
   line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  // No "antialiased" smoothing: on macOS it turns off the normal stroke thickening and text looks very thin.
   text-rendering: optimizeLegibility;
 }
 
