@@ -125,6 +125,91 @@
   "yield": "A-grade {n}%",
   "yieldShort": "Yield {n}%"
  },
+ "import": {
+  "add": "Add {n} rows",
+  "adding": "Adding…",
+  "another": "Upload another file",
+  "choose": "Choose file",
+  "col": {
+   "line": "Row",
+   "problem": "What to fix",
+   "status": "Status"
+  },
+  "count": {
+   "error": "{n} need fixing",
+   "exists": "{n} already in ThriftOS",
+   "imported": "{n} added before",
+   "new": "{n} ready to add"
+  },
+  "done": "Added {n}. Skipped {skipped}.",
+  "doneSuppliers": "{n} new suppliers added.",
+  "download": "Download sheet",
+  "err": {
+   "belowZero": "{field} cannot be below zero",
+   "categoryKept": "Category \"{value}\" is not in your list; kept in the item name.",
+   "costEmpty": "Total cost is empty (or fill \"Cost per unit\")",
+   "exists": "Already in ThriftOS; left as it is.",
+   "gradeKept": "Grade \"{value}\" is not in your list; kept in the item name.",
+   "nameEmpty": "Name is empty",
+   "nameLong": "Name is longer than 120 letters",
+   "newSupplier": "New supplier \"{value}\" will be added.",
+   "notAmount": "{field}: \"{value}\" is not an amount",
+   "phoneBad": "Phone \"{value}\" is not a mobile number (e.g. 0300-1234567)",
+   "qtyEmpty": "Quantity is empty or zero",
+   "qtyWhole": "Bales and pieces are counted in whole numbers",
+   "sameName": "Same name as row {row}. Give each one a different name (e.g. add the city).",
+   "tooLarge": "{field}: \"{value}\" is too large",
+   "unitBad": "\"{value}\" is not a unit: write bale, kg or piece",
+   "unitEmpty": "Unit is empty: write bale, kg or piece",
+   "whatIsIt": "Write what it is: an item name or a category"
+  },
+  "field": {
+   "category": "Category",
+   "city": "City",
+   "contactPerson": "Contact person",
+   "country": "Country",
+   "creditLimit": "Credit limit",
+   "grade": "Grade",
+   "item": "Item",
+   "name": "Name",
+   "notes": "Notes",
+   "openingBalance": "Opening udhaar",
+   "phone": "Phone",
+   "quantity": "Quantity",
+   "salePrice": "Sale price",
+   "supplier": "Supplier",
+   "totalCost": "Total cost",
+   "unit": "Unit",
+   "unitCost": "Cost per unit",
+   "weightKg": "Weight kg"
+  },
+  "fixHint": "Fix the red rows in your file and upload it again. Rows already added are never added twice.",
+  "missing": "Your sheet has no column for: {cols}. Use the downloaded sheet.",
+  "notAllowed": "Only the owner can bring in data.",
+  "nothing": "Nothing new to add.",
+  "onlyProblems": "Only rows to fix",
+  "open": "Open the list",
+  "reading": "Reading the file…",
+  "status": {
+   "error": "Fix",
+   "exists": "Already there",
+   "imported": "Added before",
+   "new": "Ready"
+  },
+  "step1": "1. Download the sheet",
+  "step1Hint": "Fill one row per line of your register. Urdu or English both work.",
+  "step2": "2. Choose your filled file",
+  "step2Hint": "Excel (.xlsx) or CSV, up to 5,000 rows. Your own sheet works too if its headers say what each column is.",
+  "step3": "3. Check and add",
+  "subtitle": "Customers with their udhaar, suppliers and opening stock, from Excel or CSV",
+  "tab": {
+   "customers": "Customers",
+   "stock": "Opening stock",
+   "suppliers": "Suppliers"
+  },
+  "title": "Bring in your register",
+  "unknown": "Columns not used: {cols}"
+ },
  "khata": {
   "addCustomer": "Customer",
   "advance": "Paid in advance",
@@ -413,6 +498,10 @@
     "grades": {
      "hint": "A, B, C… for graded stock",
      "name": "Grades"
+    },
+    "import": {
+     "hint": "Customers, suppliers and opening stock from Excel",
+     "name": "Bring in your register"
     },
     "prices": {
      "hint": "Agreed prices per customer group",

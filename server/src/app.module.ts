@@ -11,6 +11,7 @@ import { UsersModule } from './users/users.module';
 import { MeModule } from './me/me.module';
 import { AuditModule } from './audit/audit.module';
 import { TenantModule } from './tenant/tenant.module';
+import { ImportModule } from './import/import.module';
 import { ProcurementModule } from './procurement/procurement.module';
 import { CostingModule } from './costing/costing.module';
 import { SortingModule } from './sorting/sorting.module';
@@ -76,6 +77,7 @@ import { WorkspaceModule } from './workspace/workspace.module';
     SuperAdminModule,
     AdminModule,
     TenantModule,
+    ImportModule,
 
     // Business modules
     CostingModule,

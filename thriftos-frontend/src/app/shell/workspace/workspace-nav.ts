@@ -114,6 +114,7 @@ export const WS_CRUMBS: Record<string, string> = {
   warehouses: 'ws.adminIdx.area.godowns.name',
   vendors: 'ws.adminIdx.area.vendors.name',
   'waste-categories': 'ws.adminIdx.area.waste.name',
+  import: 'ws.adminIdx.area.import.name',
   container: 'ws.new.container',
   lot: 'ws.new.lot',
   ready: 'ws.new.ready',

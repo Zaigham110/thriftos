@@ -26,6 +26,14 @@ export const ADMIN_ROUTES: Routes = [
     title: 'ThriftOS',
   },
   {
+    // Bring an old register in from Excel/CSV (v2 6.1), owner only.
+    path: 'import',
+    loadComponent: () => import('../../features/import/import.component').then((m) => m.ImportComponent),
+    title: 'Import - ThriftOS',
+    canActivate: [permissionGuard],
+    data: { permissions: ['data.import'] },
+  },
+  {
     path: 'tenant',
     loadComponent: () =>
       import('./tenant/tenant-settings').then(

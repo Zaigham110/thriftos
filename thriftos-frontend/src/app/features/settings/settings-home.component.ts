@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { Building2, ChevronRight, Download, FileText, KeyRound, Languages, LucideAngularModule, SlidersHorizontal, Users } from 'lucide-angular';
+import { Building2, ChevronRight, Download, FileText, FileUp, KeyRound, Languages, LucideAngularModule, SlidersHorizontal, Users } from 'lucide-angular';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { I18N } from '../../core/i18n/t.pipe';
 import { ToastService } from '../../shared/floor/toast.service';
@@ -19,6 +19,7 @@ import { ToastService } from '../../shared/floor/toast.service';
         <li><a class="row" routerLink="/settings/team"><span class="item"><lucide-icon [img]="icons.Users" [size]="22" /><strong>{{ 'settings.team' | t }}</strong></span><lucide-icon [img]="icons.ChevronRight" [size]="20" class="go" /></a></li>
         <li><a class="row" routerLink="/settings/password"><span class="item"><lucide-icon [img]="icons.KeyRound" [size]="22" /><strong>{{ 'settings.password' | t }}</strong></span><lucide-icon [img]="icons.ChevronRight" [size]="20" class="go" /></a></li>
         <li><button type="button" class="row" (click)="toggleLang()"><span class="item"><lucide-icon [img]="icons.Languages" [size]="22" /><strong>{{ 'setup.language' | t }}</strong></span><span class="amount">{{ 'nav.language' | t }}</span></button></li>
+        <li><a class="row" routerLink="/settings/admin/import"><span class="item"><lucide-icon [img]="icons.FileUp" [size]="22" /><strong>{{ 'import.title' | t }}</strong></span><lucide-icon [img]="icons.ChevronRight" [size]="20" class="go" /></a></li>
         <li><button type="button" class="row" (click)="exportData()" [disabled]="exporting()"><span class="item"><lucide-icon [img]="icons.Download" [size]="22" /><strong>{{ 'settings.export' | t }}</strong></span><span class="amount">{{ (exporting() ? 'common.loading' : 'settings.exportHint') | t }}</span></button></li>
         <li><a class="row" routerLink="/terms"><span class="item"><lucide-icon [img]="icons.FileText" [size]="22" /><strong>{{ 'legal.terms.title' | t }} · {{ 'legal.privacy.title' | t }}</strong></span><lucide-icon [img]="icons.ChevronRight" [size]="20" class="go" /></a></li>
         <li><a class="row" routerLink="/settings/admin"><span class="item"><lucide-icon [img]="icons.SlidersHorizontal" [size]="22" /><strong>{{ 'settings.advanced' | t }}</strong></span><lucide-icon [img]="icons.ChevronRight" [size]="20" class="go" /></a></li>
@@ -36,7 +37,7 @@ export class SettingsHomeComponent {
   private readonly i18n = inject(I18nService);
   private readonly http = inject(HttpClient);
   private readonly toast = inject(ToastService);
-  protected readonly icons = { Building2, ChevronRight, Download, FileText, KeyRound, Languages, SlidersHorizontal, Users };
+  protected readonly icons = { Building2, ChevronRight, Download, FileText, FileUp, KeyRound, Languages, SlidersHorizontal, Users };
   protected readonly exporting = signal(false);
 
   /** Everything this business has, as a zip of CSV files (owners only). */

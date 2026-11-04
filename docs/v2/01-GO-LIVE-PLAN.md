@@ -38,7 +38,7 @@ Target: the owner's existing AWS free-tier account. One EC2 micro instance (1 GB
 - Acceptance: `https://app.<domain>` serves the PWA over HTTPS; deploy from a tag in < 10 minutes with automatic rollback; a backup restores into a fresh DB and both SQL checks return 0 rows; uptime alert tested.
 
 ## Phase 6 — Onboarding real customers (weeks 3–5)
-- [ ] 6.1 Import from register/Excel
+- [x] 6.1 Import from register/Excel
   - Downloadable Excel templates (Urdu + English headers): customers with opening udhaar, suppliers, opening stock (bales/kg/pieces with cost).
   - Upload → preview with row-level errors in plain words → confirm. Idempotent (re-uploading the same file does not duplicate). Tests with messy real-world data (Roman Urdu names, phone formats, blank rows, "Rs 1,25,000").
 - [ ] 6.2 Android app on Play Store

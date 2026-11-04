@@ -1592,3 +1592,19 @@ model PriceListEntry {
 
   @@index([tenantId, group])
 }
+
+/// One row brought in from a register/Excel import (v2 6.1). The key is a hash of the row's cleaned values (plus how
+/// many identical rows came before it in the file), so uploading the same file again adds nothing.
+model ImportedRow {
+  id        String   @id @default(cuid())
+  tenantId  String
+  /// CUSTOMERS, SUPPLIERS or STOCK
+  kind      String
+  rowKey    String
+  entityId  String
+  createdBy String
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, kind, rowKey])
+  @@index([tenantId])
+}

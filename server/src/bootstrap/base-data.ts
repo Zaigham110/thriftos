@@ -153,6 +153,7 @@ export const PERMISSIONS = [
 
   // Data ownership (v2 5.6)
   { code: 'data.export', name: 'Export all business data', group: 'Data' },
+  { code: 'data.import', name: 'Import customers, suppliers and stock from Excel', group: 'Data' },
   { code: 'cost.view', name: 'See costs and profit', group: 'Data' },
 ];
 

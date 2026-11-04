@@ -5,8 +5,8 @@
 
 import { CanActivateFn, Router, UrlTree } from '@angular/router';
 import { inject } from '@angular/core';
-import { map, filter, take } from 'rxjs/operators';
-import { Observable } from 'rxjs';
+import { catchError, filter, map, switchMap, take } from 'rxjs/operators';
+import { Observable, of } from 'rxjs';
 import { AuthService } from '../auth';
 
 export const permissionGuard: CanActivateFn = (
@@ -22,33 +22,35 @@ export const permissionGuard: CanActivateFn = (
   return authService.waitForAuth().pipe(
     filter((ready) => ready),
     take(1),
-    map(() => {
+    switchMap(() => {
       if (!authService.isAuthenticated()) {
-        return router.createUrlTree(['/auth/login'], {
+        return of(router.createUrlTree(['/auth/login'], {
           queryParams: { returnUrl: state.url },
-        });
+        }));
       }
 
       // Super Admin bypasses permission checks
       if (authService.isSuperAdmin()) {
-        return true;
+        return of(true);
       }
 
       // If no permissions required, allow access
       if (!requiredPermissions || requiredPermissions.length === 0) {
-        return true;
+        return of(true);
       }
 
-      // Check permissions
-      const hasPermission = requireAll
-        ? authService.hasAllPermissions(requiredPermissions)
-        : authService.hasAnyPermission(requiredPermissions);
-
-      if (hasPermission) {
-        return true;
+      const allowed = () =>
+        requireAll ? authService.hasAllPermissions(requiredPermissions) : authService.hasAnyPermission(requiredPermissions);
+      if (allowed()) {
+        return of(true);
       }
 
-      return router.createUrlTree(['/auth/unauthorized']);
+      // The app opens with the last saved profile; a permission added since (e.g. by a new release) is only in a
+      // fresh one. Ask once before saying no.
+      return authService.loadCurrentUser().pipe(
+        map(() => (allowed() ? true : router.createUrlTree(['/auth/unauthorized']))),
+        catchError(() => of(router.createUrlTree(['/auth/unauthorized']))),
+      );
     })
   );
 };
