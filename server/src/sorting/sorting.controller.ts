@@ -82,6 +82,15 @@ export class SortingStage1Controller {
     return this.sessions.removeKg(tenantId, dto, user.userId);
   }
 
+  /** v2 6.6: kat (put into stock when the lot closed) that nobody will buy. */
+  @Idempotent('SORT1_KAT_AWAY')
+  @Post('kat/:itemId/throw-away')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('SORTING_STAGE1_EDIT')
+  throwAwayKat(@TenantId() tenantId: string, @Param('itemId') itemId: string, @CurrentUser() user: CurrentUserData) {
+    return this.sessions.throwAwayKat(tenantId, itemId, user.userId);
+  }
+
   @Idempotent('SORT1_WASTE')
   @Post('waste')
   @RequirePermissions('SORTING_STAGE1_EDIT')

@@ -4,6 +4,8 @@ import { Observable, catchError, map, of } from 'rxjs';
 import { API_BASE_URL } from '../../core/config/api.config';
 
 export interface Named { id: string; name: string }
+/** A category, with the usual kg of one of its bales (v2 6.6) when set. */
+export interface CategoryRow extends Named { baleWeightKg?: string | null }
 export interface Supplier extends Named { originCountry?: string | null; country?: string | null }
 export interface WasteType extends Named {}
 export interface Lot {
@@ -17,12 +19,21 @@ export interface Lot {
   createdAt: string;
 }
 export interface SessionLine { categoryId?: string; gradeId?: string; outputWeightKg: string; category?: Named; grade?: Named }
-export interface SessionOutput { id: string; name: string; weightKg: string; cost: string; costPerKg: string }
+export interface SessionOutput { id: string; name: string; weightKg: string; cost: string; costPerKg: string; bales?: number }
+/** What a lot gave per kind (category + grade), all of it and today (v2 6.6). */
+export interface SortKind { categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; kg: string; bales: number; todayKg: string; todayBales: number }
 export interface SortSummary {
   session: { id: string; status: 'OPEN' | 'CLOSED'; totalInputWeight?: string; totalOutputWeight?: string; totalGradeOutputWeight?: string; categoryOutput?: { weightKg: string; category: Named } } | null;
   buckets: SessionLine[];
   wasteLineItems: { amount: string; wasteCategoryId: string }[];
   outputs: SessionOutput[];
+  kinds?: SortKind[];
+  today?: { kg: string; bales: number };
+  bales?: number;
+  /** Kat put into stock when the lot closed. */
+  kat?: { id: string; name: string; kg: string; leftKg: string; status: string } | null;
+  /** Bales made by the entry just saved (for printing stickers). */
+  baleIds?: string[];
 }
 export interface GradeQueueItem { id: string; weightKg: string; category: Named; rag?: { ragCode: string } | null; gradeSessions: { id: string; status: string }[] }
 export interface BaleKind { categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; availableKg: string }
@@ -41,8 +52,8 @@ export class FloorDataService {
   suppliers(): Observable<Supplier[]> {
     return this.get<Supplier>('/procurement/vendors');
   }
-  categories(): Observable<Named[]> {
-    return this.get<Named>('/tenant/categories');
+  categories(): Observable<CategoryRow[]> {
+    return this.get<CategoryRow>('/tenant/categories');
   }
   grades(): Observable<Named[]> {
     return this.get<Named>('/tenant/grades');

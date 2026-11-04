@@ -1,22 +1,47 @@
 import { Component, DestroyRef, OnInit, computed, inject, input, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { ArrowLeft, CheckCircle2, LucideAngularModule } from 'lucide-angular';
+import { ArrowLeft, CheckCircle2, LucideAngularModule, Minus, Plus, Printer } from 'lucide-angular';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { I18N } from '../../core/i18n/t.pipe';
 import { OfflineQueueService } from '../../core/offline/offline-queue.service';
-import { FloorDataService, Named, SessionOutput, SortSummary, WasteType, countUse, usageOrder } from '../../shared/floor/floor-data.service';
+import { TenantService } from '../../core/tenant/tenant.service';
+import { CategoryRow, FloorDataService, Named, SessionOutput, SortSummary, WasteType, countUse, usageOrder } from '../../shared/floor/floor-data.service';
 import { NumberFieldComponent } from '../../shared/floor/number-field.component';
 import { Tile, TilesComponent } from '../../shared/floor/tiles.component';
 import { ToastService } from '../../shared/floor/toast.service';
 
 type Stage = 1 | 2;
+type Mode = 'bales' | 'kg';
 const WASTE_TILE = '__waste__';
+const BALE_KG_KEY = 'thriftos.baleKg';
+
+/** One tile while sorting: a category, with its grade when the business grades (v2 6.6). */
+interface Kind {
+  id: string;
+  name: string;
+  categoryId: string;
+  gradeId: string | null;
+  baleKg: number | null;
+}
+
+/** What is being entered for the tile just tapped. */
+interface Entry {
+  kind: Kind;
+  mode: Mode;
+  bales: number;
+  baleKg: number | null;
+  kg: number | null;
+}
+
+const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:${gradeId ?? ''}`;
 
 /**
- * Journey 2 — sorting (< 10 s per line). Grid of big tiles (categories, or grades when grading),
- * tap → kg keypad → saved; repeat. Sorted / left are always on top. The Waste tile is always there.
- * Every line goes through the offline queue (works with no network); Undo takes the last line back for 10 s.
- * "Close lot" shows the yield and the cost per kg of each output; a remainder goes to waste after a confirm.
+ * Journey 2 — sorting a lot (gaari). Since v2 6.6 one step sorts, grades and bales: big tiles are category + grade
+ * (CCR 1, Baby 2…); tap one, then enter bales (count × kg per bale, pre-filled) or loose kg. Bales go straight into
+ * stock with QR stickers; loose kg can be baled at once. The lot stays open for days; Today shows what came out today.
+ * "Close lot" when the gaari is finished: what is left is kat — into stock, to sell or throw away.
+ * Stage 2 (grading a category output separately) is kept for lots sorted before.
+ * Every entry goes through the offline queue; Undo takes the last one back for 10 s.
  */
 @Component({
   selector: 'app-sort-work',
@@ -33,24 +58,74 @@ const WASTE_TILE = '__waste__';
         <section class="card">
           <h2><lucide-icon [img]="icons.CheckCircle2" [size]="22" class="good" /> {{ 'sort.closed' | t }} · {{ 'sort.yield' | t }}</h2>
           <ul class="list">
-            @for (o of r; track o.name) {
-              <li class="row"><span><strong>{{ o.name }}</strong><small>{{ 'unit.percent' | t: { n: pct(o.weightKg) } }}</small></span>
+            @for (o of r; track o.id) {
+              <li class="row"><span><strong>{{ o.name }}</strong><small>{{ 'unit.percent' | t: { n: pct(o.weightKg) } }}@if (o.bales) { · {{ o.bales | num }} {{ (o.bales === 1 ? 'unit.bale' : 'unit.bales') | t }} }</small></span>
                 <span class="amount">{{ o.weightKg | kg }}@if (o.costPerKg) { <small>{{ 'sort.costPerKg' | t: { rs: (o.costPerKg | rs) } }}</small> }</span></li>
             }
-            <li class="row"><span><strong>{{ 'sort.waste' | t }}</strong><small>{{ 'unit.percent' | t: { n: pct(wasteAtClose()) } }}</small></span><span class="amount">{{ wasteAtClose() | kg }}</span></li>
+            <li class="row"><span><strong>{{ 'sort.kat' | t }}</strong><small>{{ 'unit.percent' | t: { n: pct(wasteAtClose()) } }}</small></span><span class="amount">{{ wasteAtClose() | kg }}</span></li>
           </ul>
           @if (!closedOnline()) { <p class="hint">{{ 'sync.savedOnPhone' | t }}</p> }
-          <a class="btn primary block" routerLink="/sort">{{ 'common.done' | t }}</a>
         </section>
+        @if (kat(); as k) {
+          <section class="card kat">
+            @if (+k.leftKg > 0) {
+              <h2>{{ 'sort.katInStock' | t: { kg: (k.leftKg | kg) } }}</h2>
+              <p class="hint">{{ 'sort.katHint' | t }}</p>
+              <button type="button" class="btn" [disabled]="throwing()" (click)="throwAway(k.id)">{{ 'sort.katThrowAway' | t }}</button>
+            } @else {
+              <p class="hint">{{ 'sort.katDone' | t }}</p>
+            }
+          </section>
+        }
+        <a class="btn primary block" routerLink="/sort">{{ 'common.done' | t }}</a>
       } @else {
         <div class="totals" aria-live="polite">
           <div><small>{{ 'sort.sortedLabel' | t }}</small><strong>{{ sortedKg() | kg }}</strong></div>
           <div [class.warn]="leftKg() < 0"><small>{{ 'sort.leftLabel' | t }}</small><strong>{{ leftKg() | kg }}</strong></div>
         </div>
         <div class="bar" role="progressbar" [attr.aria-valuenow]="donePct()" aria-valuemin="0" aria-valuemax="100"><i [style.width.%]="donePct()"></i></div>
+        @if (stage() === 1 && today(); as td) {
+          <p class="today">{{ 'sort.today' | t: { bales: (td.bales | num), kg: (td.kg | kg) } }}@if (totalBales()) { · {{ 'sort.allBales' | t: { n: (totalBales() | num) } }} }</p>
+        }
+
+        @if (lastBales(); as lb) {
+          <a class="card printed" [routerLink]="['/stock/labels']" [queryParams]="{ ids: lb.ids.join(',') }">
+            <lucide-icon [img]="icons.Printer" [size]="20" /><span>{{ 'sort.printStickers' | t: { n: (lb.ids.length | num), name: lb.name } }}</span>
+          </a>
+        }
 
         <p class="hint">{{ 'sort.tapTile' | t }}</p>
-        <tos-tiles [items]="tiles()" [limit]="60" [columns]="2" (pick)="startLine($event)" />
+        <tos-tiles [items]="tiles()" [limit]="80" [columns]="2" (pick)="startLine($event)" />
+
+        @if (entry(); as e) {
+          <div class="entry-backdrop" (click)="entry.set(null)" aria-hidden="true"></div>
+          <section class="card entry" role="group" [attr.aria-label]="e.kind.name">
+            <h2>{{ e.kind.name }}</h2>
+            <div class="seg" role="group" [attr.aria-label]="'sort.howEntered' | t">
+              <button type="button" [class.on]="e.mode === 'bales'" [attr.aria-pressed]="e.mode === 'bales'" (click)="setMode('bales')">{{ 'sort.modeBales' | t }}</button>
+              <button type="button" [class.on]="e.mode === 'kg'" [attr.aria-pressed]="e.mode === 'kg'" (click)="setMode('kg')">{{ 'sort.modeLoose' | t }}</button>
+            </div>
+            @if (e.mode === 'bales') {
+              <div class="count">
+                <span>{{ 'sort.howManyBales' | t }}</span>
+                <div class="stepper">
+                  <button type="button" [attr.aria-label]="'sort.fewer' | t" [disabled]="e.bales <= 1" (click)="step(-1)"><lucide-icon [img]="icons.Minus" [size]="22" /></button>
+                  <output aria-live="polite">{{ e.bales | num }}</output>
+                  <button type="button" [attr.aria-label]="'sort.more' | t" (click)="step(1)"><lucide-icon [img]="icons.Plus" [size]="22" /></button>
+                </div>
+              </div>
+              <tos-number label="sort.kgPerBale" unit="unit.kgShort" [value]="e.baleKg" (valueChange)="patch({ baleKg: $event })" />
+              @if (e.baleKg) { <p class="sum">{{ 'sort.balesTotal' | t: { n: (e.bales | num), kg: (entryKg() | kg) } }}</p> }
+            } @else {
+              <tos-number label="sort.looseKg" unit="unit.kgShort" [max]="leftKg()" maxMessage="sort.tooMuch" [value]="e.kg" (valueChange)="patch({ kg: $event })" />
+            }
+            @if (tooMuch()) { <p class="err" role="alert">{{ 'sort.tooMuch' | t: { kg: (leftKg() | kg) } }}</p> }
+            <div class="row2">
+              <button type="button" class="btn" (click)="entry.set(null)">{{ 'common.cancel' | t }}</button>
+              <button type="button" class="btn primary" [disabled]="!entryKg() || tooMuch()" (click)="saveEntry()">{{ 'common.save' | t }}</button>
+            </div>
+          </section>
+        }
 
         @if (picking(); as p) {
           <tos-number class="hidden-field" [label]="p.label" unit="unit.kgShort" [max]="leftKg()" maxMessage="sort.tooMuch" [value]="null" (valueChange)="saveLine(p, $event)" />
@@ -58,7 +133,7 @@ const WASTE_TILE = '__waste__';
 
         @if (confirmClose()) {
           <section class="card confirm" role="alertdialog" [attr.aria-label]="'sort.closeLot' | t">
-            <p><strong>{{ 'sort.closeConfirm' | t: { kg: (leftKg() | kg) } }}</strong></p>
+            <p><strong>{{ (stage() === 1 ? 'sort.closeConfirmKat' : 'sort.closeConfirm') | t: { kg: (leftKg() | kg) } }}</strong></p>
             <div class="row2">
               <button type="button" class="btn" (click)="confirmClose.set(false)">{{ 'common.cancel' | t }}</button>
               <button type="button" class="btn primary" (click)="close()">{{ 'sort.closeLot' | t }}</button>
@@ -80,9 +155,26 @@ const WASTE_TILE = '__waste__';
     .totals strong { font-size:24px; white-space:nowrap; font-variant-numeric:tabular-nums; }
     .bar { height:8px; border-radius:4px; background:var(--tos-line); overflow:hidden; }
     .bar i { display:block; height:100%; background:var(--tos-primary); }
+    .today { margin:0; color:var(--tos-ink-soft); font-weight:700; }
+    .printed { display:flex; flex-direction:row; align-items:center; gap:10px; color:var(--tos-primary); font-weight:700; text-decoration:none; }
     .hidden-field ::ng-deep .field-btn { display:none; }
     .confirm { border-color:var(--tos-warn); background:var(--tos-warn-soft); }
     .confirm p { margin:0; }
+    /* A sheet at the bottom: it opens over the tiles wherever the list was scrolled to. */
+    .entry-backdrop { position:fixed; inset:0; z-index:40; background:rgb(0 0 0 / .35); }
+    .entry { position:fixed; z-index:41; inset-inline:0; inset-block-end:0; max-height:85vh; overflow:auto; margin:0 auto; max-width:560px; padding-block-end:calc(16px + env(safe-area-inset-bottom)); border-color:var(--tos-primary); border-radius:18px 18px 0 0; box-shadow:0 -8px 30px rgb(0 0 0 / .2); }
+    .entry h2 { margin:0; }
+    .seg { display:grid; grid-template-columns:1fr 1fr; padding:4px; border-radius:12px; background:var(--tos-line); }
+    .seg button { min-height:44px; border:0; border-radius:9px; background:transparent; color:var(--tos-ink); font:inherit; font-weight:700; cursor:pointer; }
+    .seg button.on { background:var(--tos-card); box-shadow:0 1px 3px rgb(0 0 0 / .15); color:var(--tos-primary); }
+    .count { display:flex; align-items:center; justify-content:space-between; gap:12px; font-weight:700; }
+    .stepper { display:flex; align-items:center; gap:6px; }
+    .stepper button { display:grid; place-items:center; width:52px; height:52px; border:1px solid var(--tos-line); border-radius:12px; background:var(--tos-card); color:var(--tos-ink); cursor:pointer; }
+    .stepper button:disabled { opacity:.4; }
+    .stepper output { min-width:56px; text-align:center; font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; }
+    .sum { margin:0; color:var(--tos-ink-soft); font-weight:700; }
+    .err { margin:0; color:var(--tos-danger, #b3261e); font-weight:600; }
+    .kat h2 { margin:0; }
   `],
 })
 export class SortWorkComponent implements OnInit {
@@ -92,35 +184,43 @@ export class SortWorkComponent implements OnInit {
   private readonly data = inject(FloorDataService);
   private readonly queue = inject(OfflineQueueService);
   private readonly toast = inject(ToastService);
+  private readonly tenant = inject(TenantService);
   private readonly i18n = inject(I18nService);
-  protected readonly icons = { ArrowLeft, CheckCircle2 };
+  protected readonly icons = { ArrowLeft, CheckCircle2, Minus, Plus, Printer };
   protected readonly stage = signal<Stage>(1);
 
   protected readonly title = signal('');
   protected readonly inputKg = signal(0);
-  private readonly kinds = signal<Named[]>([]);
+  private readonly categories = signal<CategoryRow[]>([]);
+  private readonly grades = signal<Named[]>([]);
   private readonly waste = signal<WasteType | null>(null);
   /** Session id from the server, or the id of the queued "start" while offline. */
   private readonly sessionId = signal<string | null>(null);
   private readonly startQueueId = signal<string | null>(null);
-  /** kg per kind already on the server (from the summary). */
+  /** kg and bales per kind already on the server (from the summary). */
   private readonly serverKg = signal<Record<string, number>>({});
+  private readonly serverBales = signal<Record<string, number>>({});
   private readonly serverWasteKg = signal(0);
+  protected readonly today = signal<{ kg: number; bales: number } | null>(null);
   protected readonly picking = signal<Tile | null>(null);
+  protected readonly entry = signal<Entry | null>(null);
+  protected readonly lastBales = signal<{ ids: string[]; name: string } | null>(null);
   private readonly kgField = viewChild(NumberFieldComponent);
   protected readonly confirmClose = signal(false);
   protected readonly closing = signal(false);
+  protected readonly throwing = signal(false);
   protected readonly result = signal<SessionOutput[] | null>(null);
+  protected readonly kat = signal<SortSummary['kat'] | null>(null);
   protected readonly closedOnline = signal(true);
   protected readonly wasteAtClose = signal(0);
 
-  /** Lines saved on this phone but not synced yet, for this session. */
   /** Writes whose answer the server totals already include (their entries leave the pending list a moment later). */
   private readonly inServerTotals = signal<ReadonlySet<string>>(new Set());
+  /** Lines saved on this phone but not synced yet, for this session. */
   private readonly pendingLines = computed(() =>
     this.queue
       .pendingOf('sort', (m) => m['target'] === this.id() && m['stage'] === this.stage() && (m['type'] === 'line' || m['type'] === 'undo' || m['type'] === 'waste'))
-      // Counting such a line twice would make the lot look fully sorted, and "Close lot" would skip the waste question.
+      // Counting such a line twice would make the lot look fully sorted, and "Close lot" would skip the kat question.
       .filter((w) => !this.inServerTotals().has(w.id)),
   );
   private readonly kgByKind = computed(() => {
@@ -132,17 +232,52 @@ export class SortWorkComponent implements OnInit {
     }
     return kg;
   });
+  private readonly balesByKind = computed(() => {
+    const n = { ...this.serverBales() };
+    for (const w of this.pendingLines()) {
+      const m = w.meta as { kind: string; bales?: number; type: string };
+      if (!m.bales) continue;
+      n[m.kind] = (n[m.kind] ?? 0) + (m.type === 'undo' ? -m.bales : m.bales);
+    }
+    return n;
+  });
+  protected readonly totalBales = computed(() => Object.values(this.balesByKind()).reduce((s, v) => s + v, 0));
   private readonly wasteKg = computed(() => this.serverWasteKg() + this.pendingLines().filter((w) => w.meta?.['type'] === 'waste').reduce((s, w) => s + Number(w.meta?.['kg'] ?? 0), 0));
   protected readonly sortedKg = computed(() => round(Object.values(this.kgByKind()).reduce((s, v) => s + v, 0) + this.wasteKg()));
   protected readonly leftKg = computed(() => round(this.inputKg() - this.sortedKg()));
   protected readonly donePct = computed(() => (this.inputKg() ? Math.min(100, Math.round((this.sortedKg() / this.inputKg()) * 100)) : 0));
 
+  /** Stage 1: category × grade when the business grades, else categories. Stage 2: grades. */
+  private readonly kinds = computed<Kind[]>(() => {
+    if (this.stage() === 2) return this.grades().map((g) => ({ id: g.id, name: g.name, categoryId: '', gradeId: g.id, baleKg: null }));
+    const grades = (this.tenant.tenant()?.sortingStages ?? 2) >= 2 ? this.grades() : [];
+    return this.categories().flatMap((c): Kind[] => {
+      const baleKg = c.baleWeightKg ? Number(c.baleWeightKg) : null;
+      return grades.length
+        ? grades.map((g) => ({ id: kindKey(c.id, g.id), name: `${c.name} · ${g.name}`, categoryId: c.id, gradeId: g.id, baleKg }))
+        : [{ id: kindKey(c.id, null), name: c.name, categoryId: c.id, gradeId: null, baleKg }];
+    });
+  });
+
   protected readonly tiles = computed<Tile[]>(() => {
     const kg = this.kgByKind();
-    const tiles: Tile[] = usageOrder(this.kinds(), this.usageKey()).map((k) => ({ id: k.id, label: k.name, sub: kg[k.id] ? this.i18n.kg(kg[k.id]) : '' }));
-    tiles.push({ id: WASTE_TILE, label: this.waste()?.name || this.i18n.t('sort.waste'), sub: this.wasteKg() ? this.i18n.kg(this.wasteKg()) : '', tone: 'waste' });
+    const bales = this.balesByKind();
+    const tiles: Tile[] = usageOrder(this.kinds(), this.usageKey()).map((k) => ({
+      id: k.id,
+      label: k.name,
+      sub: [bales[k.id] ? `${this.i18n.num(bales[k.id])} ${this.i18n.t(bales[k.id] === 1 ? 'unit.bale' : 'unit.bales')}` : '', kg[k.id] ? this.i18n.kg(kg[k.id]) : ''].filter(Boolean).join(' · '),
+    }));
+    // Grading a category output separately still records its waste; sorting a lot books kat at the end.
+    if (this.stage() === 2) tiles.push({ id: WASTE_TILE, label: this.waste()?.name || this.i18n.t('sort.waste'), sub: this.wasteKg() ? this.i18n.kg(this.wasteKg()) : '', tone: 'waste' });
     return tiles;
   });
+
+  protected readonly entryKg = computed(() => {
+    const e = this.entry();
+    if (!e) return 0;
+    return e.mode === 'bales' ? round(e.bales * (e.baleKg ?? 0)) : e.kg ?? 0;
+  });
+  protected readonly tooMuch = computed(() => this.entryKg() > this.leftKg() + 0.001);
 
   constructor() {
     // Lines are sent in the background: when one reaches the server, its answer is the session's new state.
@@ -159,11 +294,11 @@ export class SortWorkComponent implements OnInit {
 
   ngOnInit(): void {
     this.stage.set(this.route.snapshot.data['stage'] === 2 ? 2 : 1);
-    const waste$ = this.data.wasteTypes();
     // Each part shows as soon as it arrives: tiles first (cached on the phone), totals when the session loads.
     this.data.wasteTypes().subscribe((w) => this.setWaste(w));
+    this.data.grades().subscribe((g) => this.grades.set(g));
     if (this.stage() === 1) {
-      this.data.categories().subscribe((c) => this.kinds.set(c));
+      this.data.categories().subscribe((c) => this.categories.set(c));
       this.data.lotsToSort().subscribe((lots) => {
         const lot = lots.find((l) => l.id === this.id());
         if (lot) this.setLot(lot);
@@ -175,7 +310,6 @@ export class SortWorkComponent implements OnInit {
         this.applySummary(summary);
       });
     } else {
-      this.data.grades().subscribe((g) => this.kinds.set(g));
       this.data.toGrade().subscribe((outputs) => {
         const output = outputs.find((o) => o.id === this.id());
         this.title.set(output?.category.name ?? '');
@@ -191,20 +325,95 @@ export class SortWorkComponent implements OnInit {
   }
 
   protected startLine(tile: Tile): void {
-    this.picking.set(tile);
-    // Open the keypad straight away: one tap on the tile, then the kg.
+    if (this.stage() === 2 || tile.id === WASTE_TILE) {
+      this.picking.set(tile);
+      // Open the keypad straight away: one tap on the tile, then the kg.
+      setTimeout(() => this.kgField()?.open());
+      return;
+    }
+    const kind = this.kinds().find((k) => k.id === tile.id);
+    if (!kind) return;
+    const baleKg = lastBaleKg(kind.id) ?? kind.baleKg;
+    // Bales first when this kind has a bale weight; the worker can switch to loose kg.
+    this.entry.set({ kind, mode: baleKg ? 'bales' : 'kg', bales: 1, baleKg, kg: null });
+    if (!baleKg) this.openKgPad();
+  }
+
+  protected setMode(mode: Mode): void {
+    this.patch({ mode });
+    if (mode === 'kg' && !this.entry()?.kg) this.openKgPad();
+  }
+
+  /** Loose kg: the keypad opens at once (one tap on the tile, then the kg). */
+  private openKgPad(): void {
     setTimeout(() => this.kgField()?.open());
   }
 
+  protected step(by: number): void {
+    const e = this.entry();
+    if (e) this.patch({ bales: Math.max(1, Math.min(200, e.bales + by)) });
+  }
+
+  protected patch(change: Partial<Entry>): void {
+    this.entry.update((e) => (e ? { ...e, ...change } : e));
+  }
+
+  /** Saves the entry: bales (into stock with stickers) or loose kg. */
+  protected async saveEntry(): Promise<void> {
+    const e = this.entry();
+    const kg = this.entryKg();
+    if (!e || !kg || this.tooMuch()) return;
+    this.entry.set(null);
+    const bales = e.mode === 'bales' ? e.bales : 0;
+    if (bales) rememberBaleKg(e.kind.id, e.baleKg!);
+    const sessionId = await this.ensureSession();
+    const body = { sessionId, categoryId: e.kind.categoryId, ...(e.kind.gradeId ? { gradeId: e.kind.gradeId } : {}), ...(bales ? { bales, baleWeightKg: e.baleKg } : { amountKg: kg }) };
+    const what = bales ? `${this.i18n.num(bales)} ${this.i18n.t(bales === 1 ? 'unit.bale' : 'unit.bales')} · ${this.i18n.kg(kg)}` : this.i18n.kg(kg);
+    try {
+      const r = await this.queue.send<SortSummary>({
+        kind: 'sort',
+        label: `${this.title()} · ${e.kind.name} · ${what}`,
+        url: '/api/sorting/stage-1/allocate',
+        body,
+        meta: { target: this.id(), stage: 1, type: 'line', kind: e.kind.id, kg, bales },
+        background: !bales,
+      });
+      if (r.saved) {
+        this.applySummary(r.response);
+        if (r.response.baleIds?.length) this.lastBales.set({ ids: r.response.baleIds, name: e.kind.name });
+      }
+      countUse(this.usageKey(), e.kind.id);
+      this.toast.show(this.i18n.t('sort.added', { kg: what, name: e.kind.name }), { undo: () => void this.undoEntry(e.kind, body, kg, bales, what) });
+    } catch (err: any) {
+      this.toast.error(err?.error?.message || this.i18n.t('common.couldNotSave'));
+    }
+  }
+
+  private async undoEntry(kind: Kind, body: Record<string, unknown>, kg: number, bales: number, what: string): Promise<void> {
+    try {
+      const r = await this.queue.send<SortSummary>({
+        kind: 'sort',
+        label: `${this.title()} · ${kind.name} · −${what}`,
+        url: '/api/sorting/stage-1/unallocate',
+        body: { ...body, sessionId: await this.ensureSession() },
+        meta: { target: this.id(), stage: 1, type: 'undo', kind: kind.id, kg, bales },
+        background: true,
+      });
+      if (r.saved) this.applySummary(r.response);
+      if (bales) this.lastBales.set(null);
+    } catch (e: any) {
+      this.toast.error(e?.error?.message || this.i18n.t('common.couldNotSave'));
+    }
+  }
+
+  /** Stage 2 (and waste while grading): one kg line. */
   protected async saveLine(tile: Tile, kg: number | null): Promise<void> {
     this.picking.set(null);
     if (!kg) return;
     const isWaste = tile.id === WASTE_TILE;
     const base = `/api/sorting/stage-${this.stage()}`;
     const sessionId = await this.ensureSession();
-    const body = isWaste
-      ? { sessionId, wasteCategoryId: this.waste()?.id, amount: kg }
-      : { sessionId, [this.stage() === 1 ? 'categoryId' : 'gradeId']: tile.id, amountKg: kg };
+    const body = isWaste ? { sessionId, wasteCategoryId: this.waste()?.id, amount: kg } : { sessionId, gradeId: tile.id, amountKg: kg };
     try {
       const r = await this.queue.send<SortSummary>({
         kind: 'sort',
@@ -216,20 +425,20 @@ export class SortWorkComponent implements OnInit {
       });
       if (r.saved) this.applySummary(r.response);
       if (!isWaste) countUse(this.usageKey(), tile.id);
-      this.toast.show(this.i18n.t('sort.added', { kg: this.i18n.kg(kg), name: tile.label }), isWaste ? {} : { undo: () => void this.undo(tile, kg) });
+      this.toast.show(this.i18n.t('sort.added', { kg: this.i18n.kg(kg), name: tile.label }), isWaste ? {} : { undo: () => void this.undoLine(tile, kg) });
     } catch (e: any) {
       this.toast.error(e?.error?.message || this.i18n.t('common.couldNotSave'));
     }
   }
 
-  private async undo(tile: Tile, kg: number): Promise<void> {
+  private async undoLine(tile: Tile, kg: number): Promise<void> {
     const base = `/api/sorting/stage-${this.stage()}`;
     try {
       const r = await this.queue.send<SortSummary>({
         kind: 'sort',
         label: `${this.title()} · ${tile.label} · −${this.i18n.kg(kg)}`,
         url: `${base}/unallocate`,
-        body: { sessionId: await this.ensureSession(), [this.stage() === 1 ? 'categoryId' : 'gradeId']: tile.id, amountKg: kg },
+        body: { sessionId: await this.ensureSession(), gradeId: tile.id, amountKg: kg },
         meta: { target: this.id(), stage: this.stage(), type: 'undo', kind: tile.id, kg },
         background: true,
       });
@@ -261,17 +470,19 @@ export class SortWorkComponent implements OnInit {
         meta: { target: this.id(), stage: this.stage(), type: 'close' },
       });
       this.wasteAtClose.set(round(this.wasteKg() + left));
+      const names = new Map(this.kinds().map((k) => [k.id, k.name]));
       const local = Object.entries(this.kgByKind())
         .filter(([, kg]) => kg > 0)
-        .map(([id, kg]) => ({ id, name: this.kinds().find((k) => k.id === id)?.name ?? '', weightKg: String(kg), cost: '', costPerKg: '' }));
+        .map(([id, kg]) => ({ id, name: names.get(id) ?? '', weightKg: String(kg), cost: '', costPerKg: '', bales: this.balesByKind()[id] ?? 0 }));
       let outputs: SessionOutput[] = local;
       if (r.saved) {
         const summary = 'outputs' in r.response ? r.response : null;
         const fresh = summary?.outputs?.length ? summary : await this.reload();
         if (fresh?.outputs?.length) {
           outputs = fresh.outputs;
-          // The server's outputs are the truth: waste is what the lot weighed minus what came out.
+          // The server's outputs are the truth: kat is what the lot weighed minus what came out.
           this.wasteAtClose.set(round(this.inputKg() - outputs.reduce((s, o) => s + Number(o.weightKg), 0)));
+          this.kat.set(fresh.kat ?? null);
         }
       }
       this.closedOnline.set(r.saved);
@@ -280,6 +491,19 @@ export class SortWorkComponent implements OnInit {
       this.toast.error(e?.error?.message || this.i18n.t('common.couldNotSave'));
     } finally {
       this.closing.set(false);
+    }
+  }
+
+  /** Kat nobody will buy: out of stock (it cost nothing). */
+  protected async throwAway(itemId: string): Promise<void> {
+    this.throwing.set(true);
+    try {
+      await this.queue.send({ kind: 'sort', label: `${this.title()} · ${this.i18n.t('sort.katThrowAway')}`, url: `/api/sorting/stage-1/kat/${itemId}/throw-away`, body: {}, meta: { target: this.id(), stage: 1, type: 'kat' } });
+      this.kat.update((k) => (k ? { ...k, leftKg: '0' } : k));
+    } catch (e: any) {
+      this.toast.error(e?.error?.message || this.i18n.t('common.couldNotSave'));
+    } finally {
+      this.throwing.set(false);
     }
   }
 
@@ -318,11 +542,29 @@ export class SortWorkComponent implements OnInit {
     if (!this.inputKg() && Number(summary.session.totalInputWeight) > 0) this.inputKg.set(Number(summary.session.totalInputWeight));
     this.sessionId.set(summary.session.id);
     const kg: Record<string, number> = {};
-    for (const b of summary.buckets) kg[(b.categoryId ?? b.gradeId)!] = Number(b.outputWeightKg);
+    const bales: Record<string, number> = {};
+    if (this.stage() === 1 && summary.kinds) {
+      for (const k of summary.kinds) {
+        const key = kindKey(k.categoryId, k.gradeId);
+        kg[key] = Number(k.kg);
+        bales[key] = k.bales;
+      }
+      // Kg on a category from before v2 6.6 that has no entry yet (an older open lot).
+      for (const b of summary.buckets) {
+        const entered = summary.kinds.filter((k) => k.categoryId === b.categoryId).reduce((s, k) => s + Number(k.kg), 0);
+        const rest = round(Number(b.outputWeightKg) - entered);
+        if (rest > 0 && b.categoryId) kg[kindKey(b.categoryId, null)] = (kg[kindKey(b.categoryId, null)] ?? 0) + rest;
+      }
+      if (summary.today) this.today.set({ kg: Number(summary.today.kg), bales: summary.today.bales });
+    } else {
+      for (const b of summary.buckets) kg[(b.categoryId ?? b.gradeId)!] = Number(b.outputWeightKg);
+    }
     this.serverKg.set(kg);
+    this.serverBales.set(bales);
     this.serverWasteKg.set(summary.wasteLineItems.reduce((s, w) => s + Number(w.amount), 0));
     if (summary.session.status === 'CLOSED' && summary.outputs?.length && !this.result()) {
       this.result.set(summary.outputs);
+      this.kat.set(summary.kat ?? null);
       this.wasteAtClose.set(round(this.inputKg() - summary.outputs.reduce((s, o) => s + Number(o.weightKg), 0)));
     }
   }
@@ -339,7 +581,7 @@ export class SortWorkComponent implements OnInit {
   }
 
   private usageKey(): string {
-    return this.stage() === 1 ? 'category' : 'grade';
+    return this.stage() === 1 ? 'sortKind' : 'grade';
   }
 }
 
@@ -347,3 +589,22 @@ function round(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+/** The bale weight last used for a kind on this phone (it beats the category's usual weight). */
+function lastBaleKg(kind: string): number | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(BALE_KG_KEY) || '{}')[kind];
+    return typeof v === 'number' && v > 0 ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberBaleKg(kind: string, kg: number): void {
+  try {
+    const all = JSON.parse(localStorage.getItem(BALE_KG_KEY) || '{}');
+    all[kind] = kg;
+    localStorage.setItem(BALE_KG_KEY, JSON.stringify(all));
+  } catch {
+    /* private window */
+  }
+}

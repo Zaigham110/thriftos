@@ -100,6 +100,8 @@ export interface Category {
   name: string;
   sortOrder: number;
   isActive: boolean;
+  /** Usual kg of one bale (v2 6.6). */
+  baleWeightKg?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -107,12 +109,14 @@ export interface Category {
 export interface CreateCategoryRequest {
   name: string;
   sortOrder?: number;
+  baleWeightKg?: number | null;
 }
 
 export interface UpdateCategoryRequest {
   name?: string;
   sortOrder?: number;
   isActive?: boolean;
+  baleWeightKg?: number | null;
 }
 
 // =============================================================

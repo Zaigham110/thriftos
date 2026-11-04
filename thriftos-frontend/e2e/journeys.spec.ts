@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { checkFloorScreen, keypad, keys, loose, pickTile } from './floor';
+import { checkFloorScreen, keypad, loose, pickTile, sortBales, sortLoose } from './floor';
 import { apiAs, signIn } from './helpers';
 
 /**
@@ -32,46 +32,44 @@ test('journeys 1–6 on a 360px phone', async ({ page, request }) => {
   await expect(page.getByText('Ready to sort').first()).toBeVisible();
   await expect(page.getByText(loose('Landed cost Rs 300 per kg'))).toBeVisible();
 
-  // Journey 2 — sorting: tile → kg → saved; Undo; close with a remainder.
+  // Journey 2 — sorting, grading and baling in one step (v2 6.6): tile → bales or loose kg; Undo; close books kat.
   await page.locator('.done').getByRole('link', { name: 'Chhantai' }).click();
   await expect(page).toHaveURL(/\/sort\/[a-z0-9]+$/);
   await checkFloorScreen(page, 'sort');
-  await page.locator('.tiles').getByRole('button').filter({ hasText: 'Jeans' }).click();
-  await keys(page, 600);
-  await expect(page.getByRole('status').filter({ hasText: loose('600.0 kg Jeans added') })).toBeVisible();
-  await page.locator('.tiles').getByRole('button').filter({ hasText: 'T-Shirts' }).click();
-  await keys(page, 350);
+  await sortLoose(page, 'Jeans · Grade A', 400);
+  await expect(page.getByRole('status').filter({ hasText: loose('400.0 kg Jeans · Grade A added') })).toBeVisible();
+  await sortLoose(page, 'T-Shirts · Grade B', 350);
   // Undo takes back the line its toast names.
-  await page.getByRole('status').filter({ hasText: loose('350.0 kg T-Shirts added') }).getByRole('button', { name: 'Undo' }).click();
-  await expect(page.locator('.totals')).toContainText(loose('600.0 kg'));
-  await page.locator('.tiles').getByRole('button').filter({ hasText: 'T-Shirts' }).click();
-  await keys(page, 300);
+  await page.getByRole('status').filter({ hasText: loose('350.0 kg T-Shirts · Grade B added') }).getByRole('button', { name: 'Undo' }).click();
+  await expect(page.locator('.totals')).toContainText(loose('400.0 kg'));
+  // Two bales of 100 kg straight into stock, with stickers to print.
+  await sortBales(page, 'Jeans · Grade B', 2, 100);
+  await expect(page.getByRole('link', { name: /Print stickers for the 2 bales of Jeans · Grade B/ })).toBeVisible();
+  await expect(page.locator('.today')).toContainText(loose('Today: 2 bales · 600.0 kg'));
+  await sortLoose(page, 'T-Shirts · Grade A', 300);
   await expect(page.locator('.totals')).toContainText(loose('900.0 kg'));
   await expect(page.locator('.totals')).toContainText(loose('100.0 kg'));
   // More than is left is refused on the keypad itself.
-  await page.locator('.tiles').getByRole('button').filter({ hasText: 'Jeans' }).click();
-  for (const ch of '101') await page.getByRole('dialog').getByRole('button', { name: ch, exact: true }).click();
-  await expect(page.getByRole('dialog')).toContainText(loose('Weight is more than the lot left (100.0 kg)'));
-  await expect(page.getByRole('dialog').locator('.ok')).toBeDisabled();
-  await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+  await page.locator('.tiles').getByRole('button').filter({ hasText: 'Jeans · Grade A' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  for (const ch of '101') await page.getByRole('dialog').last().getByRole('button', { name: ch, exact: true }).click();
+  await expect(page.getByRole('dialog').last()).toContainText(loose('Weight is more than the lot left (100.0 kg)'));
+  await expect(page.getByRole('dialog').last().locator('.ok')).toBeDisabled();
+  await page.getByRole('dialog').last().getByRole('button', { name: 'Cancel' }).click();
+  await page.locator('.entry > .row2').getByRole('button', { name: 'Cancel' }).click();
   await page.getByRole('button', { name: 'Close lot' }).click();
-  await expect(page.getByText(loose('100.0 kg not sorted goes to waste. Close the lot?'))).toBeVisible();
+  await expect(page.getByText(loose('Is this gaari finished? The 100.0 kg left becomes kat and goes into stock.'))).toBeVisible();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Close lot' }).click();
   await expect(page.getByText('Lot closed')).toBeVisible();
   // Rs 300,000 over 900 kg of outputs.
-  await expect(page.locator('li', { hasText: 'Jeans' })).toContainText('60%');
-  await expect(page.locator('li', { hasText: 'Jeans' })).toContainText(loose('Rs 333.33/kg'));
-  await expect(page.locator('li', { hasText: 'Waste / Katran' }).or(page.locator('li', { hasText: 'Waste/Katran' }))).toContainText('10%');
-
-  // Grading (the demo tenant sorts in 2 stages).
+  await expect(page.locator('li', { hasText: 'Jeans · Grade A' })).toContainText('40%');
+  await expect(page.locator('li', { hasText: 'Jeans · Grade A' })).toContainText(loose('Rs 333.33/kg'));
+  await expect(page.locator('li', { hasText: 'Jeans · Grade B' })).toContainText('2 bales');
+  await expect(page.locator('li', { hasText: /^Kat/ })).toContainText('10%');
+  await expect(page.getByText(loose('Kat 100.0 kg is in stock'))).toBeVisible();
+  await page.getByRole('button', { name: 'Throw away kat' }).click();
+  await expect(page.getByText('Kat is sold or thrown away.')).toBeVisible();
   await page.getByRole('link', { name: 'Done' }).click();
-  await page.getByRole('link', { name: /Jeans/ }).first().click();
-  await page.locator('.tiles').getByRole('button').filter({ hasText: 'Grade A' }).first().click();
-  await keys(page, 400);
-  await page.locator('.tiles').getByRole('button').filter({ hasText: 'Grade B' }).first().click();
-  await keys(page, 200);
-  await page.getByRole('button', { name: 'Close lot' }).click();
-  await expect(page.getByText('Lot closed')).toBeVisible();
 
   // Journey 3 — make a bale from Jeans · A.
   await page.goto('/stock/bale');
@@ -191,11 +189,10 @@ test('a lot received a moment ago, missing from a stale sort queue and without i
 
   // The lot's own weight is fetched, so the screen knows what is left.
   await expect(page.locator('.action-bar')).toContainText(loose('500.0 kg'));
-  await page.locator('.tiles').getByRole('button').filter({ hasText: 'Jeans' }).click();
-  await keys(page, 400);
+  await sortLoose(page, 'Jeans', 400);
   await expect(page.locator('.totals')).toContainText(loose('100.0 kg'));
   await page.getByRole('button', { name: 'Close lot' }).click();
-  await expect(page.getByText(loose('100.0 kg not sorted goes to waste. Close the lot?'))).toBeVisible();
+  await expect(page.getByText(loose('Is this gaari finished? The 100.0 kg left becomes kat and goes into stock.'))).toBeVisible();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Close lot' }).click();
   await expect(page.getByText('Lot closed')).toBeVisible();
   await expect(page.locator('li', { hasText: 'Jeans' })).toContainText('80%');

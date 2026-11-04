@@ -109,6 +109,7 @@
                 <tr>
                   <th>Category Name</th>
                   <th>Linked Waste Category</th>
+                  <th>{{ 'catalogue.baleWeight' | t }}</th>
                   <th>Sort Priority</th>
                   <th>Status</th>
                   <th>Created Date</th>
@@ -133,6 +134,8 @@
                         {{ category.name }} Waste
                       </span>
                     </td>
+
+                    <td>{{ category.baleWeightKg ? (category.baleWeightKg | kg) : '—' }}</td>
 
                     <td>
                       <span class="order-pill">

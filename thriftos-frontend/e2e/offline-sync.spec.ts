@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { keypad, loose, pickTile } from './floor';
+import { keypad, loose, pickTile, sortLoose } from './floor';
 import { apiAs, signIn, waitForOfflineReady } from './helpers';
 
 /**
@@ -107,12 +107,8 @@ test('offline lot, sort lines and bale sync once', async ({ page, context, reque
   await expect(page.getByText('Saved on phone. It will sync when you are online.').first()).toBeVisible();
 
   await page.goto(`/sort/${lot.id}`);
-  await page.locator('.tiles').getByRole('button').filter({ hasText: 'Jeans' }).click();
-  for (const ch of '120') await page.getByRole('dialog').getByRole('button', { name: ch, exact: true }).click();
-  await page.getByRole('dialog').locator('.ok').click();
-  await page.locator('.tiles').getByRole('button').filter({ hasText: 'Dresses' }).click();
-  for (const ch of '50') await page.getByRole('dialog').getByRole('button', { name: ch, exact: true }).click();
-  await page.getByRole('dialog').locator('.ok').click();
+  await sortLoose(page, 'Jeans', 120);
+  await sortLoose(page, 'Dresses', 50);
   await expect(page.locator('.totals')).toContainText(loose('170.0 kg'));
   await expect(page.locator('.totals')).toContainText(loose('30.0 kg'));
 

@@ -106,6 +106,15 @@ export function outputCosts<K>(inputCost: DecimalLike, outputs: { key: K; kg: De
 }
 
 /**
+ * Cost of kg sorted from a lot that is still open (v2 6.6): the lot's cost per kg it weighed. Kat is only known when
+ * the lot closes; then the whole lot cost is shared over what came out ({@link outputCosts}), so outputs cost more.
+ */
+export function openLotCost(lotCost: DecimalLike, lotKg: DecimalLike, kg: DecimalLike): Decimal {
+  const weight = dec(lotKg);
+  return weight.isZero() ? ZERO : dec(lotCost).mul(dec(kg)).div(weight).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+}
+
+/**
  * Cost of taking `takeKg` from a sorted output that has already given `usedKg`.
  * Uses the cumulative share (cost of everything taken so far minus cost taken before), so when an
  * output is fully used the takes add up to its cost exactly, whatever the order of takes.

@@ -7,6 +7,8 @@
 #   1. 20261105100000_v6_01_imports     ImportedRow table (which register rows were already imported, so a file
 #                                        uploaded twice adds nothing)
 #   2. 20261106100000_v6_04_first_week  Tenant.firstWeekHiddenAt (the owner hid the first-week checklist on Home)
+#   3. 20261107100000_v6_06_sort_grade_bale  Category.baleWeightKg, CategoryOutput.gradeId + entryBales, stock source
+#                                        KAT; the "made-here stock has an origin" check also accepts kat from its lot
 # Data step: base data (server/src/bootstrap): adds data.import and gives every Admin (owner) role all permissions.
 # Idempotent; nothing else changes.
 set -euo pipefail

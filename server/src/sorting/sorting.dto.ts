@@ -35,6 +35,10 @@ export class StartSortDto {
   supervisorId?: string;
 }
 
+/**
+ * One sorting entry (v2 6.6): a category, its grade when the business grades, and either loose kg (`amountKg`) or
+ * `bales` of `baleWeightKg` each — bales go straight into stock with a QR sticker.
+ */
 export class AddCategoryKgDto {
   @IsString()
   sessionId!: string;
@@ -42,9 +46,27 @@ export class AddCategoryKgDto {
   @IsString()
   categoryId!: string;
 
+  @IsString()
+  @IsOptional()
+  gradeId?: string;
+
+  /** Loose kg. Leave out when entering bales. */
   @IsNumber()
   @IsPositive()
-  amountKg!: number;
+  @IsOptional()
+  amountKg?: number;
+
+  @IsInt()
+  @Min(1)
+  @Max(200)
+  @IsOptional()
+  bales?: number;
+
+  @IsNumber()
+  @IsPositive()
+  @Max(5000)
+  @IsOptional()
+  baleWeightKg?: number;
 
   @IsInt()
   @Min(0)

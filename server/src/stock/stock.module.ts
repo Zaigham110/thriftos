@@ -8,6 +8,6 @@ import { BalesController, StockItemsController } from './stock.controller';
 @Module({
   controllers: [BalesController, StockItemsController],
   providers: [BaleService, DirectStockService, InventoryService],
-  exports: [DirectStockService],
+  exports: [DirectStockService, BaleService],
 })
 export class StockModule {}

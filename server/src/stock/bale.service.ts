@@ -8,7 +8,6 @@ import {
   Prisma,
   RepackSessionStatus,
   RepackStatus,
-  SortStatus,
   StockSource,
   StockUnit,
   UnitType,
@@ -114,8 +113,22 @@ export class BaleService {
 
   /** Makes a ready bale: takes kg from sorted stock, costs it, creates stock + QR. */
   async makeBale(tenantId: string, dto: MakeBaleDto, userId: string) {
+    const result = await this.prisma.$transaction((tx) => this.makeBaleTx(tx, tenantId, dto, userId));
+    await this.audit.log({
+      tenantId,
+      userId,
+      action: 'BALE_MADE',
+      entityType: 'RepackUnit',
+      entityId: result.baleId,
+      metadataJson: { unitCode: result.unitCode, weightKg: new Decimal(dto.weightKg).toFixed(2), totalCost: result.totalCost.toFixed(2) },
+    });
+    return this.findOne(tenantId, result.baleId);
+  }
+
+  /** Makes one bale inside the caller's transaction (also used when bales are made while sorting, v2 6.6). */
+  async makeBaleTx(tx: Tx, tenantId: string, dto: MakeBaleDto, userId: string): Promise<{ baleId: string; unitCode: string; totalCost: Decimal }> {
     const weightKg = new Decimal(dto.weightKg);
-    const result = await this.prisma.$transaction(async (tx) => {
+    {
       const { sessionId, unitCode, qrCode } = await this.openSessionAndCode(tx, tenantId, dto.categoryId, dto.gradeId, userId);
       const sources = await this.loadSources(tx, tenantId, dto.categoryId, dto.gradeId);
       const takes = dto.allocations?.length ? this.pickManual(sources, dto.allocations, weightKg) : this.pickFifo(sources, weightKg);
@@ -209,17 +222,7 @@ export class BaleService {
       // QR text is unique across tenants (the company code), the short code only within one.
       await tx.qRLabel.create({ data: { repackUnitId: sealed.id, qrCode } });
       return { baleId: sealed.id, unitCode, totalCost };
-    });
-
-    await this.audit.log({
-      tenantId,
-      userId,
-      action: 'BALE_MADE',
-      entityType: 'RepackUnit',
-      entityId: result.baleId,
-      metadataJson: { unitCode: result.unitCode, weightKg: weightKg.toFixed(2), totalCost: result.totalCost.toFixed(2) },
-    });
-    return this.findOne(tenantId, result.baleId);
+    }
   }
 
   async list(tenantId: string) {
@@ -350,10 +353,19 @@ export class BaleService {
 
   /**
    * Stock a bale of this category (and grade) can take from, oldest first.
-   * With a grade: open grade outputs. Without: closed-lot category outputs that were never graded.
+   * With a grade: grade outputs (two-step grading) and outputs graded while sorting. Without: ungraded category
+   * outputs. Since v2 6.6 sorted kg is usable at once, before its lot is closed.
    */
   private async loadSources(db: Tx | PrismaService, tenantId: string, categoryId?: string, gradeId?: string): Promise<SortedSource[]> {
-    if (gradeId) {
+    const fromSorting = await this.categorySources(db, tenantId, categoryId, gradeId ?? null);
+    if (!gradeId) return fromSorting;
+    const fromGrading = await this.gradeSources(db, tenantId, categoryId, gradeId);
+    const ready = (s: SortedSource) => (s.readyAt ?? s.createdAt).getTime();
+    return [...fromGrading, ...fromSorting].sort((a, b) => ready(a) - ready(b) || a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
+  }
+
+  private async gradeSources(db: Tx | PrismaService, tenantId: string, categoryId: string | undefined, gradeId: string): Promise<SortedSource[]> {
+    {
       const rows = await db.gradeOutput.findMany({
         where: {
           tenantId,
@@ -402,20 +414,22 @@ export class BaleService {
         };
       });
     }
+  }
 
+  private async categorySources(db: Tx | PrismaService, tenantId: string, categoryId: string | undefined, gradeId: string | null): Promise<SortedSource[]> {
     const rows = await db.categoryOutput.findMany({
       where: {
         tenantId,
+        gradeId,
         ...(categoryId ? { categoryId } : {}),
         gradeSessions: { none: {} },
-        sortCategoryBucket: { sortSession: { status: SortStatus.CLOSED } },
       },
       include: {
         category: { select: { name: true } },
+        grade: { select: { name: true } },
         rag: LOT,
-        sortCategoryBucket: { select: { sortSession: { select: { endTime: true } } } },
       },
-      orderBy: [{ sortCategoryBucket: { sortSession: { endTime: 'asc' } } }, { createdAt: 'asc' }, { id: 'asc' }],
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });
     return rows
       .filter((o) => o.usedKg.lessThan(o.weightKg))
@@ -427,15 +441,16 @@ export class BaleService {
         usedKg: o.usedKg,
         categoryId: o.categoryId,
         categoryName: o.category.name,
-        gradeId: null,
-        gradeName: null,
+        gradeId: o.gradeId,
+        gradeName: o.grade?.name ?? null,
         sortSessionId: o.sortSessionId,
         gradeSessionId: null,
         ragId: o.rag.id,
         ragCode: o.rag.ragCode,
         containerId: o.rag.containerId,
         containerNumber: o.rag.container?.containerNumber ?? null,
-        readyAt: o.sortCategoryBucket.sortSession.endTime,
+        // Ready when it was entered (v2 6.6); outputs from before were made when their lot closed.
+        readyAt: o.createdAt,
         createdAt: o.createdAt,
       }));
   }

@@ -46,15 +46,15 @@ test('a new business is set up through the wizard and ready to work', async ({ p
   await page.waitForURL('**/home');
   console.log(`setup took ${((Date.now() - started) / 1000).toFixed(1)} s of app time (5 screens, 4 fields typed)`);
 
-  // Its own categories on the sort screen, in order, with the Waste/Katran tile; no Bags.
+  // Its own categories on the sort screen, in order (with their grades, v2 6.6); no Bags. Kat is booked at close.
   const owner = await apiAs(request, { email, password: 'owner-pass-1' });
   const lot = await owner.post('/procurement/rags', { ragBaleType: 'BALE', weightKg: 300, purchaseCost: 60000 });
   await page.goto(`/sort/${lot.id}`);
   const tiles = page.locator('tos-tiles .tile strong');
-  await expect(tiles.first()).toHaveText('Jeans');
-  await expect(tiles.filter({ hasText: 'Pathani suits' })).toHaveCount(1);
+  await expect(tiles.first()).toHaveText(/^Jeans/);
+  await expect(tiles.filter({ hasText: 'Pathani suits' }).first()).toBeVisible();
   await expect(tiles.filter({ hasText: 'Bags' })).toHaveCount(0);
-  await expect(tiles.last()).toHaveText('Waste/Katran');
+  await expect(tiles.filter({ hasText: 'Waste/Katran' })).toHaveCount(0);
 
   // The wizard does not come back; the munshi can sign in.
   await page.goto('/home');

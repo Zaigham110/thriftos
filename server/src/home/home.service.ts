@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { InventoryStatus, Prisma } from '@prisma/client';
+import { InventoryStatus, Prisma, StockSource } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { KHATA_SALE_STATUSES, KhataService } from '../sales/khata.service';
 import { startOfDayPKT } from './home';
@@ -114,7 +114,8 @@ export class HomeService {
   /** What is ready to sell: kg (bales with a weight, and kg stock), bales, items, and their cost. */
   async stockReady(tenantId: string) {
     const items = await this.prisma.inventoryItem.findMany({
-      where: { tenantId, status: InventoryStatus.AVAILABLE },
+      // Kat (sorting waste kept to sell, v2 6.6) is not counted as stock ready.
+      where: { tenantId, status: InventoryStatus.AVAILABLE, source: { not: StockSource.KAT } },
       select: { unit: true, quantity: true, usedQuantity: true, weightKg: true, totalCost: true },
     });
     let kg = ZERO;

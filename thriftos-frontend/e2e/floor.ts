@@ -10,6 +10,32 @@ export async function keypad(page: Page, label: string | RegExp, value: string |
   await expect(sheet).toBeHidden();
 }
 
+/** Sorting (v2 6.6): tap a category + grade tile, enter loose kg, Save. */
+export async function sortLoose(page: Page, tile: string | RegExp, kg: string | number): Promise<void> {
+  await page.locator('.tiles').getByRole('button').filter({ hasText: tile }).first().click();
+  const entry = page.locator('.entry');
+  // Loose kg opens the keypad by itself (straight away when the kind has no bale weight).
+  await page.getByRole('dialog').waitFor({ timeout: 1500 }).catch(() => undefined);
+  if (!(await page.getByRole('dialog').isVisible())) await entry.locator('.seg').getByRole('button', { name: 'Loose kg' }).click();
+  await keys(page, kg);
+  await entry.getByRole('button', { name: 'Save' }).click();
+  await expect(entry).toBeHidden();
+}
+
+/** Sorting (v2 6.6): tap a tile, enter bales (count × kg per bale), Save. */
+export async function sortBales(page: Page, tile: string | RegExp, bales: number, kgPerBale: number): Promise<void> {
+  await page.locator('.tiles').getByRole('button').filter({ hasText: tile }).first().click();
+  const entry = page.locator('.entry');
+  // A kind without a bale weight opens the loose-kg keypad first: close it to switch to bales.
+  await page.getByRole('dialog').waitFor({ timeout: 1500 }).catch(() => undefined);
+  if (await page.getByRole('dialog').isVisible()) await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+  await entry.locator('.seg').getByRole('button', { name: 'Bales' }).click();
+  for (let i = 1; i < bales; i++) await entry.getByRole('button', { name: 'One bale more' }).click();
+  await keypad(page, /^Kg per bale/, kgPerBale);
+  await entry.getByRole('button', { name: 'Save' }).click();
+  await expect(entry).toBeHidden();
+}
+
 /** Keypad already open (a sort tile opens it directly): tap the keys, OK. */
 export async function keys(page: Page, value: string | number): Promise<void> {
   const sheet = page.getByRole('dialog');

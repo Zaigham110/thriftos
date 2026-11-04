@@ -1,5 +1,5 @@
 import { Page, expect, test } from '@playwright/test';
-import { keypad, keys, loose, pickTile } from './floor';
+import { keypad, loose, pickTile, sortLoose } from './floor';
 import { apiAs, signIn, waitForOfflineReady } from './helpers';
 
 /**
@@ -59,9 +59,9 @@ test('daily screens pass the 10-second test on Slow 3G', async ({ page, request 
 
   results['sort line'] = await timed('sort line', async () => {
     await page.goto(`/sort/${lot.id}`);
-    await page.locator('.tiles').getByRole('button').filter({ hasText: 'Jeans' }).click({ timeout: 20_000 });
-    await keys(page, 120);
-    await expect(page.getByRole('status').filter({ hasText: loose('120.0 kg Jeans added') })).toBeVisible({ timeout: 20_000 });
+    await page.locator('.tiles').getByRole('button').filter({ hasText: 'Jeans' }).first().waitFor({ timeout: 20_000 });
+    await sortLoose(page, 'Jeans', 120);
+    await expect(page.getByRole('status').filter({ hasText: loose('120.0 kg Jeans') })).toBeVisible({ timeout: 20_000 });
   });
 
   results['sale'] = await timed('sale', async () => {

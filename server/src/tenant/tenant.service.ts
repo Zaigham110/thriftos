@@ -280,6 +280,7 @@ export class TenantService {
           tenantId,
           name: dto.name,
           sortOrder: dto.sortOrder ?? 0,
+          baleWeightKg: dto.baleWeightKg ?? null,
         },
       });
 
@@ -321,6 +322,7 @@ export class TenantService {
           ...(dto.name && { name: dto.name }),
           ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
           ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+          ...(dto.baleWeightKg !== undefined && { baleWeightKg: dto.baleWeightKg }),
         },
       });
 

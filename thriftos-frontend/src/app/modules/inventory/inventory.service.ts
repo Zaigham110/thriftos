@@ -25,7 +25,7 @@ export class InventoryService {
    * List inventory items with filters
    */
   getAll(filters?: {
-    source?: 'PROCESSED' | 'PURCHASED';
+    source?: 'PROCESSED' | 'PURCHASED' | 'KAT';
     categoryId?: string;
     gradeId?: string;
     warehouseId?: string;

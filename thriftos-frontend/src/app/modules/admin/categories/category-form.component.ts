@@ -29,6 +29,7 @@ import {
 } from '../../../shared/ui';
 
 import { AdminService } from '../admin.service';
+import { TPipe } from '../../../core/i18n/t.pipe';
 import type { Category, CreateCategoryRequest, UpdateCategoryRequest } from '../admin.models';
 
 @Component({
@@ -42,6 +43,7 @@ import type { Category, CreateCategoryRequest, UpdateCategoryRequest } from '../
     AppPageHeaderComponent,
     AppPageBodyComponent,
     AppBreadcrumbComponent,
+    TPipe,
   ],
   template: `
     <app-page>
@@ -95,6 +97,13 @@ import type { Category, CreateCategoryRequest, UpdateCategoryRequest } from '../
                 placeholder="0"
               />
               <span class="field-hint">Lower numbers prioritize this category in sorting selection menus (e.g. 1 appears first).</span>
+            </div>
+
+            <!-- Usual bale weight (v2 6.6): pre-filled when bales are made while sorting -->
+            <div class="form-group">
+              <label class="form-label" for="baleWeightKg">{{ 'catalogue.baleWeight' | t }}</label>
+              <input id="baleWeightKg" type="number" min="1" max="5000" step="0.5" inputmode="decimal" formControlName="baleWeightKg" class="form-input" placeholder="45" />
+              <span class="field-hint">{{ 'catalogue.baleWeightHint' | t }}</span>
             </div>
 
             <!-- Active Status (Edit Mode) -->
@@ -364,6 +373,7 @@ export class CategoryFormComponent implements OnInit {
     name: ['', Validators.required],
     sortOrder: [0],
     isActive: [true],
+    baleWeightKg: [null as number | null, [Validators.min(1), Validators.max(5000)]],
   });
 
   ngOnInit(): void {
@@ -387,6 +397,7 @@ export class CategoryFormComponent implements OnInit {
           name: data.name,
           sortOrder: data.sortOrder,
           isActive: data.isActive,
+          baleWeightKg: data.baleWeightKg ? Number(data.baleWeightKg) : null,
         });
       },
     });
@@ -403,6 +414,7 @@ export class CategoryFormComponent implements OnInit {
         name: raw.name || undefined,
         sortOrder: raw.sortOrder ?? 0,
         isActive: raw.isActive === true,
+        baleWeightKg: raw.baleWeightKg ? Number(raw.baleWeightKg) : null,
       };
 
       this.adminService.updateCategory(this.category()!.id, dto).subscribe({
@@ -415,6 +427,7 @@ export class CategoryFormComponent implements OnInit {
     const dto: CreateCategoryRequest = {
       name: raw.name!,
       sortOrder: raw.sortOrder ?? 0,
+      baleWeightKg: raw.baleWeightKg ? Number(raw.baleWeightKg) : null,
     };
 
     this.adminService.createCategory(dto).subscribe({

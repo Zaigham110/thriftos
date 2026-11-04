@@ -152,7 +152,7 @@ export const STOCK_LIST: ListConfig = {
   ],
   quickFilters: [
     { field: 'status', label: 'ws.col.status', values: ['AVAILABLE', 'RESERVED', 'SOLD'], prefix: 'ws.stock.status.' },
-    { field: 'source', label: 'ws.stock.col.source', values: ['PROCESSED', 'PURCHASED'], prefix: 'ws.stock.source.' },
+    { field: 'source', label: 'ws.stock.col.source', values: ['PROCESSED', 'PURCHASED', 'KAT'], prefix: 'ws.stock.source.' },
     { field: 'unit', label: 'ws.stock.col.unit', values: ['BALE', 'KG', 'PIECE'], prefix: 'ws.stock.unit.' },
   ],
   rowLink: (id) => ['/stock/items', id],

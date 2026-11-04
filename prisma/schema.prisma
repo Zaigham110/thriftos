@@ -178,6 +178,8 @@ enum MovementType {
 enum StockSource {
   PROCESSED
   PURCHASED
+  /// Kat (sorting waste) left when a lot is closed, kept to sell by kg at zero cost (v2 6.6).
+  KAT
 }
 
 /// How a stock item is counted and sold.
@@ -233,23 +235,23 @@ enum RagBaleType {
 // =============================================================
 
 model Tenant {
-  id               String       @id @default(cuid())
-  name             String
-  companyCode      String       @unique
-  currency         String       @default("PKR")
-  locale           String       @default("ur-PK")
-  status           TenantStatus @default(ACTIVE)
+  id                String       @id @default(cuid())
+  name              String
+  companyCode       String       @unique
+  currency          String       @default("PKR")
+  locale            String       @default("ur-PK")
+  status            TenantStatus @default(ACTIVE)
   /// Visible tabs/APIs: RECEIVE, SORT, STOCK, SELL, KHATA, REPORTS, EXPORT, WAREHOUSES, PAYROLL
-  enabledModules   String[]     @default(["RECEIVE", "SORT", "STOCK", "SELL", "KHATA"])
+  enabledModules    String[]     @default(["RECEIVE", "SORT", "STOCK", "SELL", "KHATA"])
   /// 0 = trading only (no sorting), 1 = category only, 2 = category + grade
-  sortingStages    Int          @default(2)
-  defaultLanguage  String       @default("ur")
+  sortingStages     Int          @default(2)
+  defaultLanguage   String       @default("ur")
   /// Set when the owner finished the setup wizard (journey 8); null = show the wizard after sign-in.
-  setupCompletedAt DateTime?
+  setupCompletedAt  DateTime?
   /// Set when the owner hides the first-week checklist on Home (v2 6.4).
   firstWeekHiddenAt DateTime?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   // Relations
   users                  User[]
@@ -664,13 +666,15 @@ model UserRole {
 // =============================================================
 
 model Category {
-  id        String   @id @default(cuid())
-  tenantId  String
-  name      String
-  sortOrder Int      @default(0)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  tenantId     String
+  name         String
+  sortOrder    Int      @default(0)
+  /// Usual weight of one bale of this category (v2 6.6); pre-filled when bales are made while sorting, editable.
+  baleWeightKg Decimal? @db.Decimal(10, 2)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Relations
   tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -714,11 +718,12 @@ model Grade {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  gradeBuckets   GradeBucket[]
-  gradeOutputs   GradeOutput[]
-  repackUnits    RepackUnit[]
-  inventoryItems InventoryItem[]
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  gradeBuckets    GradeBucket[]
+  gradeOutputs    GradeOutput[]
+  categoryOutputs CategoryOutput[]
+  repackUnits     RepackUnit[]
+  inventoryItems  InventoryItem[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -1014,6 +1019,10 @@ model CategoryOutput {
   /// kg already put into bales directly (tenants that sort in one stage). Graded outputs stay 0.
   usedKg               Decimal @default(0) @db.Decimal(10, 2)
   count                Int     @default(0)
+  /// Graded while sorting (v2 6.6): this output is already of this grade. Null = not graded.
+  gradeId              String?
+  /// Bales made straight from this sorting entry (v2 6.6); 0 = a loose-kg entry.
+  entryBales           Int     @default(0)
   allocatedCost        Decimal @db.Decimal(14, 2)
 
   // =============================================================
@@ -1035,6 +1044,7 @@ model CategoryOutput {
   tenant             Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   sortCategoryBucket SortCategoryBucket      @relation(fields: [sortCategoryBucketId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   category           Category                @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  grade              Grade?                  @relation(fields: [gradeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   rag                Rag                     @relation(fields: [ragId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   container          Container?              @relation(fields: [containerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   gradeSessions      GradeSession[]
@@ -1044,6 +1054,7 @@ model CategoryOutput {
   @@index([tenantId])
   @@index([sortCategoryBucketId])
   @@index([categoryId])
+  @@index([gradeId])
   @@index([ragId]) // Index for rag-level yield analytics
   @@index([containerId]) // Index for container-level yield analytics
   @@index([sortSessionId]) // Index for session traceability

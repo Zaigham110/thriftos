@@ -7,6 +7,7 @@
  * Manages sorting output categories and linked waste category assignments.
  */
 
+import { I18N } from '../../../core/i18n/t.pipe';
 import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -48,6 +49,7 @@ import {
   imports: [
     CommonModule,
     FormsModule,
+    I18N,
     DatePipe,
     LucideAngularModule,
     AppPageComponent,

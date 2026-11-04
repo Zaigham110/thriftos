@@ -3,7 +3,7 @@
  * counted in kg, bales or pieces. Money and quantities arrive as decimal strings.
  */
 
-export type StockSource = 'PROCESSED' | 'PURCHASED';
+export type StockSource = 'PROCESSED' | 'PURCHASED' | 'KAT';
 export type StockUnit = 'KG' | 'BALE' | 'PIECE';
 
 export interface InventoryItem {

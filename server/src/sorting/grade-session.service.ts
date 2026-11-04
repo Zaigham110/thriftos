@@ -27,6 +27,7 @@ export class GradeSessionService {
       tenantId,
       sortCategoryBucket: { is: { sortSession: { is: { status: SortStatus.CLOSED } } } },
       usedKg: 0,
+      gradeId: null, // graded while sorting (v2 6.6)
       OR: [{ gradeSessions: { none: {} } }, { gradeSessions: { some: { status: GradeStatus.OPEN } } }],
     };
     const [rows, total] = await Promise.all([
@@ -59,9 +60,10 @@ export class GradeSessionService {
   async start(tenantId: string, dto: StartGradingDto, userId: string) {
     const output = await this.prisma.categoryOutput.findFirst({
       where: { id: dto.categoryOutputId, tenantId },
-      select: { id: true, weightKg: true, allocatedCost: true, usedKg: true },
+      select: { id: true, weightKg: true, allocatedCost: true, usedKg: true, gradeId: true },
     });
     if (!output) throw new BadRequestException('Sorted output not found');
+    if (output.gradeId) throw new ConflictException('This output was graded while sorting');
     if (output.usedKg.greaterThan(ZERO)) {
       throw new ConflictException('Part of this output is already in bales, so it cannot be graded');
     }

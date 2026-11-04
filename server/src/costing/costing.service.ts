@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, SortStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service';
-import { costPerKg, landedCost, lotCosts, money, outputCosts, sum, takeCost } from './costing';
+import { costPerKg, landedCost, lotCosts, money, openLotCost, outputCosts, sum, takeCost } from './costing';
 
 type Tx = Prisma.TransactionClient;
 
@@ -95,10 +95,23 @@ export class CostingService {
     return result;
   }
 
+  /**
+   * Re-costs what a lot gave (its outputs, bales from them) at the lot's current cost — used while sorting, when
+   * outputs are added, and when the lot closes (v2 6.6). Sold bales keep their cost; changes are logged.
+   */
+  async recostLotOutputsTx(tx: Tx, tenantId: string, ragId: string, userId?: string): Promise<RecalculationResult> {
+    const lot = await tx.rag.findFirst({ where: { id: ragId, tenantId } });
+    if (!lot) throw new NotFoundException('Lot not found');
+    const result = emptyResult();
+    await this.recalculateLotTx(tx, tenantId, lot, lot.allocatedCost, result);
+    await this.logAdjustments(tx, tenantId, result.adjustments, userId);
+    return result;
+  }
+
   private async recalculateLotTx(
     tx: Tx,
     tenantId: string,
-    lot: { id: string; allocatedCost: Decimal },
+    lot: { id: string; allocatedCost: Decimal; weightKg: Decimal },
     lotCost: Decimal,
     result: RecalculationResult,
   ) {
@@ -113,7 +126,12 @@ export class CostingService {
     });
     if (!outputs.length) return;
     const units = new Set<string>();
-    for (const share of outputCosts(lotCost, outputs.map((o) => ({ key: o, kg: o.weightKg })))) {
+    // Still being sorted: each output costs its kg at the lot's cost per kg; the kat's cost is shared at close.
+    const open = await tx.sortSession.count({ where: { tenantId, ragId: lot.id, status: SortStatus.OPEN } });
+    const shares = open
+      ? outputs.map((o) => ({ key: o, amount: openLotCost(lotCost, lot.weightKg, o.weightKg) }))
+      : outputCosts(lotCost, outputs.map((o) => ({ key: o, kg: o.weightKg })));
+    for (const share of shares) {
       const output = share.key;
       if (!share.amount.equals(output.allocatedCost)) {
         await tx.categoryOutput.update({ where: { id: output.id }, data: { allocatedCost: share.amount } });
