@@ -22,6 +22,7 @@ export interface SessionLine { categoryId?: string; gradeId?: string; outputWeig
 export interface SessionOutput { id: string; name: string; weightKg: string; cost: string; costPerKg: string; bales?: number }
 /** What a lot gave per kind (category + grade), all of it and today (v2 6.6). */
 export interface SortKind { categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; kg: string; bales: number; todayKg: string; todayBales: number }
+export interface ReadyRow { categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; availableKg: string }
 export interface SortSummary {
   session: { id: string; status: 'OPEN' | 'CLOSED'; totalInputWeight?: string; totalOutputWeight?: string; totalGradeOutputWeight?: string; categoryOutput?: { weightKg: string; category: Named } } | null;
   buckets: SessionLine[];
@@ -30,6 +31,10 @@ export interface SortSummary {
   kinds?: SortKind[];
   today?: { kg: string; bales: number };
   bales?: number;
+  /** Kg sorted and not baled yet, per kind: what "Make bales" can take (v2 6.6). */
+  ready?: ReadyRow[];
+  /** Bales made from this lot, per kind of bale. */
+  madeBales?: { categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; bales: number; kg: string; todayBales: number }[];
   /** Kat put into stock when the lot closed. */
   kat?: { id: string; name: string; kg: string; leftKg: string; status: string } | null;
   /** Bales made by the entry just saved (for printing stickers). */

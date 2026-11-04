@@ -112,17 +112,26 @@ export class BaleService {
   }
 
   /** Makes a ready bale: takes kg from sorted stock, costs it, creates stock + QR. */
+  /** One bale, or `count` bales of the same weight (all or none). Answers with the first bale and every bale id. */
   async makeBale(tenantId: string, dto: MakeBaleDto, userId: string) {
-    const result = await this.prisma.$transaction((tx) => this.makeBaleTx(tx, tenantId, dto, userId));
-    await this.audit.log({
-      tenantId,
-      userId,
-      action: 'BALE_MADE',
-      entityType: 'RepackUnit',
-      entityId: result.baleId,
-      metadataJson: { unitCode: result.unitCode, weightKg: new Decimal(dto.weightKg).toFixed(2), totalCost: result.totalCost.toFixed(2) },
-    });
-    return this.findOne(tenantId, result.baleId);
+    const count = dto.count ?? 1;
+    if (count > 1 && dto.allocations?.length) throw new BadRequestException('Pick stock by hand for one bale at a time');
+    const made = await this.prisma.$transaction(async (tx) => {
+      const out: { baleId: string; unitCode: string; totalCost: Decimal }[] = [];
+      for (let i = 0; i < count; i++) out.push(await this.makeBaleTx(tx, tenantId, dto, userId));
+      return out;
+    }, { timeout: 60_000, maxWait: 10_000 });
+    for (const result of made) {
+      await this.audit.log({
+        tenantId,
+        userId,
+        action: 'BALE_MADE',
+        entityType: 'RepackUnit',
+        entityId: result.baleId,
+        metadataJson: { unitCode: result.unitCode, weightKg: new Decimal(dto.weightKg).toFixed(2), totalCost: result.totalCost.toFixed(2), ...(dto.ragId ? { ragId: dto.ragId } : {}) },
+      });
+    }
+    return { ...(await this.findOne(tenantId, made[0].baleId)), baleIds: made.map((m) => m.baleId) };
   }
 
   /** Makes one bale inside the caller's transaction (also used when bales are made while sorting, v2 6.6). */
@@ -130,7 +139,10 @@ export class BaleService {
     const weightKg = new Decimal(dto.weightKg);
     {
       const { sessionId, unitCode, qrCode } = await this.openSessionAndCode(tx, tenantId, dto.categoryId, dto.gradeId, userId);
-      const sources = await this.loadSources(tx, tenantId, dto.categoryId, dto.gradeId);
+      const sources = dto.fromUngraded
+        ? await this.categorySources(tx, tenantId, dto.categoryId, null, dto.ragId)
+        : await this.loadSources(tx, tenantId, dto.categoryId, dto.gradeId, dto.ragId);
+      if (dto.gradeId && !(await tx.grade.findFirst({ where: { id: dto.gradeId, tenantId }, select: { id: true } }))) throw new BadRequestException('Invalid grade');
       const takes = dto.allocations?.length ? this.pickManual(sources, dto.allocations, weightKg) : this.pickFifo(sources, weightKg);
 
       const unit = await tx.repackUnit.create({
@@ -356,10 +368,10 @@ export class BaleService {
    * With a grade: grade outputs (two-step grading) and outputs graded while sorting. Without: ungraded category
    * outputs. Since v2 6.6 sorted kg is usable at once, before its lot is closed.
    */
-  private async loadSources(db: Tx | PrismaService, tenantId: string, categoryId?: string, gradeId?: string): Promise<SortedSource[]> {
-    const fromSorting = await this.categorySources(db, tenantId, categoryId, gradeId ?? null);
+  private async loadSources(db: Tx | PrismaService, tenantId: string, categoryId?: string, gradeId?: string, ragId?: string): Promise<SortedSource[]> {
+    const fromSorting = await this.categorySources(db, tenantId, categoryId, gradeId ?? null, ragId);
     if (!gradeId) return fromSorting;
-    const fromGrading = await this.gradeSources(db, tenantId, categoryId, gradeId);
+    const fromGrading = (await this.gradeSources(db, tenantId, categoryId, gradeId)).filter((s) => !ragId || s.ragId === ragId);
     const ready = (s: SortedSource) => (s.readyAt ?? s.createdAt).getTime();
     return [...fromGrading, ...fromSorting].sort((a, b) => ready(a) - ready(b) || a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id));
   }
@@ -416,10 +428,11 @@ export class BaleService {
     }
   }
 
-  private async categorySources(db: Tx | PrismaService, tenantId: string, categoryId: string | undefined, gradeId: string | null): Promise<SortedSource[]> {
+  private async categorySources(db: Tx | PrismaService, tenantId: string, categoryId: string | undefined, gradeId: string | null, ragId?: string): Promise<SortedSource[]> {
     const rows = await db.categoryOutput.findMany({
       where: {
         tenantId,
+        ...(ragId ? { ragId } : {}),
         gradeId,
         ...(categoryId ? { categoryId } : {}),
         gradeSessions: { none: {} },

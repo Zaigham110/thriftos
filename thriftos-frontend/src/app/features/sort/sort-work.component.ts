@@ -5,7 +5,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { I18N } from '../../core/i18n/t.pipe';
 import { OfflineQueueService } from '../../core/offline/offline-queue.service';
 import { TenantService } from '../../core/tenant/tenant.service';
-import { CategoryRow, FloorDataService, Named, SessionOutput, SortSummary, WasteType, countUse, usageOrder } from '../../shared/floor/floor-data.service';
+import { CategoryRow, FloorDataService, Named, ReadyRow, SessionOutput, SortSummary, WasteType, countUse, usageOrder } from '../../shared/floor/floor-data.service';
 import { NumberFieldComponent } from '../../shared/floor/number-field.component';
 import { Tile, TilesComponent } from '../../shared/floor/tiles.component';
 import { ToastService } from '../../shared/floor/toast.service';
@@ -14,8 +14,9 @@ type Stage = 1 | 2;
 type Mode = 'bales' | 'kg';
 const WASTE_TILE = '__waste__';
 const BALE_KG_KEY = 'thriftos.baleKg';
+const GRADE_KEY = 'thriftos.sortGrade';
 
-/** One tile while sorting: a category, with its grade when the business grades (v2 6.6). */
+/** One tile while sorting: a category (stage 1, v2 6.6) or a grade (stage 2). */
 interface Kind {
   id: string;
   name: string;
@@ -24,10 +25,18 @@ interface Kind {
   baleKg: number | null;
 }
 
-/** What is being entered for the tile just tapped. */
+/**
+ * The sheet: sorting an entry for the tile just tapped (bales or loose kg, grade optional), or making bales from
+ * this lot's sorted kg ("Make bales" on a ready row).
+ */
 interface Entry {
+  purpose: 'sort' | 'bale';
   kind: Kind;
+  /** For "Make bales": the sorted kg it takes from. */
+  ready: ReadyRow | null;
   mode: Mode;
+  /** Grade given now; null = no grade. */
+  gradeId: string | null;
   bales: number;
   baleKg: number | null;
   kg: number | null;
@@ -94,17 +103,55 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
           </a>
         }
 
+        @if (stage() === 1 && (ready().length || madeBales().length)) {
+          <section class="card ready">
+            <h2>{{ 'sort.readyTitle' | t }}</h2>
+            @if (ready().length) {
+              <ul class="list">
+                @for (r of ready(); track readyKey(r)) {
+                  <li class="row">
+                    <span><strong>{{ rowName(r) }}</strong><small>{{ 'sort.readyKg' | t: { kg: (r.availableKg | kg) } }}</small></span>
+                    <button type="button" class="btn" (click)="startBales(r)">{{ 'sort.makeBales' | t }}</button>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="hint">{{ 'sort.nothingReady' | t }}</p>
+            }
+            @if (madeBales().length) {
+              <p class="made"><strong>{{ 'sort.balesMade' | t }}</strong>
+                @for (b of madeBales(); track $index) { <span>{{ rowName(b) }} · {{ b.bales | num }}</span> }
+              </p>
+            }
+          </section>
+        }
+
         <p class="hint">{{ 'sort.tapTile' | t }}</p>
         <tos-tiles [items]="tiles()" [limit]="80" [columns]="2" (pick)="startLine($event)" />
 
         @if (entry(); as e) {
           <div class="entry-backdrop" (click)="entry.set(null)" aria-hidden="true"></div>
           <section class="card entry" role="group" [attr.aria-label]="e.kind.name">
-            <h2>{{ e.kind.name }}</h2>
-            <div class="seg" role="group" [attr.aria-label]="'sort.howEntered' | t">
-              <button type="button" [class.on]="e.mode === 'bales'" [attr.aria-pressed]="e.mode === 'bales'" (click)="setMode('bales')">{{ 'sort.modeBales' | t }}</button>
-              <button type="button" [class.on]="e.mode === 'kg'" [attr.aria-pressed]="e.mode === 'kg'" (click)="setMode('kg')">{{ 'sort.modeLoose' | t }}</button>
-            </div>
+            @if (e.purpose === 'bale') {
+              <h2>{{ 'sort.makeBalesOf' | t: { name: rowName(e.ready!) } }}</h2>
+              <p class="sum">{{ 'sort.readyKg' | t: { kg: (e.ready!.availableKg | kg) } }}</p>
+            } @else {
+              <h2>{{ e.kind.name }}</h2>
+            }
+            @if (canPickGrade(e)) {
+              <div class="grades" role="group" [attr.aria-label]="'sort.grade' | t">
+                <button type="button" class="chip" [class.on]="!e.gradeId" [attr.aria-pressed]="!e.gradeId" (click)="patch({ gradeId: null })">{{ 'sort.noGrade' | t }}</button>
+                @for (g of gradeOptions(); track g.id) {
+                  <button type="button" class="chip" [class.on]="e.gradeId === g.id" [attr.aria-pressed]="e.gradeId === g.id" (click)="patch({ gradeId: g.id })">{{ g.name }}</button>
+                }
+              </div>
+            }
+            @if (e.purpose === 'sort') {
+              <div class="seg" role="group" [attr.aria-label]="'sort.howEntered' | t">
+                <button type="button" [class.on]="e.mode === 'bales'" [attr.aria-pressed]="e.mode === 'bales'" (click)="setMode('bales')">{{ 'sort.modeBales' | t }}</button>
+                <button type="button" [class.on]="e.mode === 'kg'" [attr.aria-pressed]="e.mode === 'kg'" (click)="setMode('kg')">{{ 'sort.modeLoose' | t }}</button>
+              </div>
+            }
             @if (e.mode === 'bales') {
               <div class="count">
                 <span>{{ 'sort.howManyBales' | t }}</span>
@@ -119,10 +166,10 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
             } @else {
               <tos-number label="sort.looseKg" unit="unit.kgShort" [max]="leftKg()" maxMessage="sort.tooMuch" [value]="e.kg" (valueChange)="patch({ kg: $event })" />
             }
-            @if (tooMuch()) { <p class="err" role="alert">{{ 'sort.tooMuch' | t: { kg: (leftKg() | kg) } }}</p> }
+            @if (tooMuch()) { <p class="err" role="alert">{{ (e.purpose === 'bale' ? 'sort.tooMuchReady' : 'sort.tooMuch') | t: { kg: (limitKg() | kg) } }}</p> }
             <div class="row2">
               <button type="button" class="btn" (click)="entry.set(null)">{{ 'common.cancel' | t }}</button>
-              <button type="button" class="btn primary" [disabled]="!entryKg() || tooMuch()" (click)="saveEntry()">{{ 'common.save' | t }}</button>
+              <button type="button" class="btn primary" [disabled]="!entryKg() || tooMuch()" (click)="save()">{{ (e.purpose === 'bale' ? 'sort.saveBales' : 'common.save') | t }}</button>
             </div>
           </section>
         }
@@ -175,6 +222,12 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
     .sum { margin:0; color:var(--tos-ink-soft); font-weight:700; }
     .err { margin:0; color:var(--tos-danger, #b3261e); font-weight:600; }
     .kat h2 { margin:0; }
+    .ready h2 { margin:0; }
+    .ready .row { align-items:center; }
+    .ready .row .btn { flex:none; min-height:44px; padding:0 14px; }
+    .made { display:flex; flex-wrap:wrap; gap:4px 12px; margin:0; color:var(--tos-ink-soft); font-size:14px; }
+    .grades { display:flex; flex-wrap:wrap; gap:8px; }
+    .grades .chip { min-height:44px; }
   `],
 })
 export class SortWorkComponent implements OnInit {
@@ -205,6 +258,9 @@ export class SortWorkComponent implements OnInit {
   protected readonly picking = signal<Tile | null>(null);
   protected readonly entry = signal<Entry | null>(null);
   protected readonly lastBales = signal<{ ids: string[]; name: string } | null>(null);
+  /** This lot's sorted kg not baled yet, and the bales made from it (v2 6.6). */
+  protected readonly ready = signal<ReadyRow[]>([]);
+  protected readonly madeBales = signal<NonNullable<SortSummary['madeBales']>>([]);
   private readonly kgField = viewChild(NumberFieldComponent);
   protected readonly confirmClose = signal(false);
   protected readonly closing = signal(false);
@@ -247,17 +303,14 @@ export class SortWorkComponent implements OnInit {
   protected readonly leftKg = computed(() => round(this.inputKg() - this.sortedKg()));
   protected readonly donePct = computed(() => (this.inputKg() ? Math.min(100, Math.round((this.sortedKg() / this.inputKg()) * 100)) : 0));
 
-  /** Stage 1: category × grade when the business grades, else categories. Stage 2: grades. */
+  /** Stage 1: one tile per category (the grade, if any, is picked in the sheet). Stage 2: grades. */
   private readonly kinds = computed<Kind[]>(() => {
     if (this.stage() === 2) return this.grades().map((g) => ({ id: g.id, name: g.name, categoryId: '', gradeId: g.id, baleKg: null }));
-    const grades = (this.tenant.tenant()?.sortingStages ?? 2) >= 2 ? this.grades() : [];
-    return this.categories().flatMap((c): Kind[] => {
-      const baleKg = c.baleWeightKg ? Number(c.baleWeightKg) : null;
-      return grades.length
-        ? grades.map((g) => ({ id: kindKey(c.id, g.id), name: `${c.name} · ${g.name}`, categoryId: c.id, gradeId: g.id, baleKg }))
-        : [{ id: kindKey(c.id, null), name: c.name, categoryId: c.id, gradeId: null, baleKg }];
-    });
+    return this.categories().map((c) => ({ id: c.id, name: c.name, categoryId: c.id, gradeId: null, baleKg: c.baleWeightKg ? Number(c.baleWeightKg) : null }));
   });
+
+  /** Grades a worker may give while sorting or baling — none when the business does not grade. */
+  protected readonly gradeOptions = computed(() => ((this.tenant.tenant()?.sortingStages ?? 2) >= 2 ? this.grades() : []));
 
   protected readonly tiles = computed<Tile[]>(() => {
     const kg = this.kgByKind();
@@ -277,7 +330,12 @@ export class SortWorkComponent implements OnInit {
     if (!e) return 0;
     return e.mode === 'bales' ? round(e.bales * (e.baleKg ?? 0)) : e.kg ?? 0;
   });
-  protected readonly tooMuch = computed(() => this.entryKg() > this.leftKg() + 0.001);
+  /** Sorting can take what is left of the lot; "Make bales" what is sorted and not baled. */
+  protected readonly limitKg = computed(() => {
+    const e = this.entry();
+    return e?.purpose === 'bale' && e.ready ? Number(e.ready.availableKg) : this.leftKg();
+  });
+  protected readonly tooMuch = computed(() => this.entryKg() > this.limitKg() + 0.001);
 
   constructor() {
     // Lines are sent in the background: when one reaches the server, its answer is the session's new state.
@@ -334,9 +392,57 @@ export class SortWorkComponent implements OnInit {
     const kind = this.kinds().find((k) => k.id === tile.id);
     if (!kind) return;
     const baleKg = lastBaleKg(kind.id) ?? kind.baleKg;
-    // Bales first when this kind has a bale weight; the worker can switch to loose kg.
-    this.entry.set({ kind, mode: baleKg ? 'bales' : 'kg', bales: 1, baleKg, kg: null });
+    // Bales first when this category has a bale weight; the worker can switch to loose kg. The grade is optional.
+    this.entry.set({ purpose: 'sort', kind, ready: null, mode: baleKg ? 'bales' : 'kg', gradeId: this.lastGrade(kind.id), bales: 1, baleKg, kg: null });
     if (!baleKg) this.openKgPad();
+  }
+
+  /** "Make bales" from this lot's sorted kg of one kind; ungraded kg can be given a grade now. */
+  protected startBales(r: ReadyRow): void {
+    const kind = this.kinds().find((k) => k.id === r.categoryId) ?? { id: r.categoryId, name: r.categoryName, categoryId: r.categoryId, gradeId: null, baleKg: null };
+    this.entry.set({ purpose: 'bale', kind, ready: r, mode: 'bales', gradeId: r.gradeId, bales: 1, baleKg: lastBaleKg(kind.id) ?? kind.baleKg, kg: null });
+  }
+
+  protected canPickGrade(e: Entry): boolean {
+    return this.gradeOptions().length > 0 && (e.purpose === 'sort' || !e.ready?.gradeId);
+  }
+
+  protected readyKey(r: ReadyRow): string {
+    return kindKey(r.categoryId, r.gradeId);
+  }
+
+  protected rowName(r: { categoryName: string; gradeName: string | null }): string {
+    return r.gradeName ? `${r.categoryName} · ${r.gradeName}` : r.categoryName;
+  }
+
+  protected save(): void {
+    void (this.entry()?.purpose === 'bale' ? this.saveBales() : this.saveEntry());
+  }
+
+  /** Bales from sorted kg of this lot: into stock with stickers, sellable at once; the lot stays in sorting. */
+  private async saveBales(): Promise<void> {
+    const e = this.entry();
+    const kg = this.entryKg();
+    if (!e?.ready || !e.baleKg || !kg || this.tooMuch()) return;
+    this.entry.set(null);
+    rememberBaleKg(e.kind.id, e.baleKg);
+    const grade = this.gradeOptions().find((g) => g.id === e.gradeId) ?? null;
+    const name = grade ? `${e.kind.name} · ${grade.name}` : e.kind.name;
+    const what = `${this.i18n.num(e.bales)} ${this.i18n.t(e.bales === 1 ? 'unit.bale' : 'unit.bales')} · ${this.i18n.kg(kg)}`;
+    try {
+      const r = await this.queue.send<{ baleIds?: string[] }>({
+        kind: 'bale',
+        label: `${this.title()} · ${name} · ${what}`,
+        url: '/api/stock/bales',
+        body: { categoryId: e.kind.categoryId, ...(e.gradeId ? { gradeId: e.gradeId } : {}), fromUngraded: !e.ready.gradeId, ragId: this.id(), count: e.bales, weightKg: e.baleKg },
+        meta: { kind: kindKey(e.kind.categoryId, e.ready.gradeId), kg },
+      });
+      if (r.saved && r.response.baleIds?.length) this.lastBales.set({ ids: r.response.baleIds, name });
+      this.toast.show(r.saved ? this.i18n.t('sort.balesSaved', { what, name }) : this.i18n.t('sync.savedOnPhone'));
+      this.data.sortSummary(this.id()).subscribe((s) => this.applySummary(s));
+    } catch (err: any) {
+      this.toast.error(err?.error?.message || this.i18n.t('common.couldNotSave'));
+    }
   }
 
   protected setMode(mode: Mode): void {
@@ -366,13 +472,16 @@ export class SortWorkComponent implements OnInit {
     this.entry.set(null);
     const bales = e.mode === 'bales' ? e.bales : 0;
     if (bales) rememberBaleKg(e.kind.id, e.baleKg!);
+    rememberGrade(e.kind.id, e.gradeId);
+    const grade = this.gradeOptions().find((g) => g.id === e.gradeId) ?? null;
+    const kind = { ...e.kind, name: grade ? `${e.kind.name} · ${grade.name}` : e.kind.name };
     const sessionId = await this.ensureSession();
-    const body = { sessionId, categoryId: e.kind.categoryId, ...(e.kind.gradeId ? { gradeId: e.kind.gradeId } : {}), ...(bales ? { bales, baleWeightKg: e.baleKg } : { amountKg: kg }) };
+    const body = { sessionId, categoryId: e.kind.categoryId, ...(e.gradeId ? { gradeId: e.gradeId } : {}), ...(bales ? { bales, baleWeightKg: e.baleKg } : { amountKg: kg }) };
     const what = bales ? `${this.i18n.num(bales)} ${this.i18n.t(bales === 1 ? 'unit.bale' : 'unit.bales')} · ${this.i18n.kg(kg)}` : this.i18n.kg(kg);
     try {
       const r = await this.queue.send<SortSummary>({
         kind: 'sort',
-        label: `${this.title()} · ${e.kind.name} · ${what}`,
+        label: `${this.title()} · ${kind.name} · ${what}`,
         url: '/api/sorting/stage-1/allocate',
         body,
         meta: { target: this.id(), stage: 1, type: 'line', kind: e.kind.id, kg, bales },
@@ -380,10 +489,10 @@ export class SortWorkComponent implements OnInit {
       });
       if (r.saved) {
         this.applySummary(r.response);
-        if (r.response.baleIds?.length) this.lastBales.set({ ids: r.response.baleIds, name: e.kind.name });
+        if (r.response.baleIds?.length) this.lastBales.set({ ids: r.response.baleIds, name: kind.name });
       }
       countUse(this.usageKey(), e.kind.id);
-      this.toast.show(this.i18n.t('sort.added', { kg: what, name: e.kind.name }), { undo: () => void this.undoEntry(e.kind, body, kg, bales, what) });
+      this.toast.show(this.i18n.t('sort.added', { kg: what, name: kind.name }), { undo: () => void this.undoEntry(kind, body, kg, bales, what) });
     } catch (err: any) {
       this.toast.error(err?.error?.message || this.i18n.t('common.couldNotSave'));
     }
@@ -544,18 +653,12 @@ export class SortWorkComponent implements OnInit {
     const kg: Record<string, number> = {};
     const bales: Record<string, number> = {};
     if (this.stage() === 1 && summary.kinds) {
-      for (const k of summary.kinds) {
-        const key = kindKey(k.categoryId, k.gradeId);
-        kg[key] = Number(k.kg);
-        bales[key] = k.bales;
-      }
-      // Kg on a category from before v2 6.6 that has no entry yet (an older open lot).
-      for (const b of summary.buckets) {
-        const entered = summary.kinds.filter((k) => k.categoryId === b.categoryId).reduce((s, k) => s + Number(k.kg), 0);
-        const rest = round(Number(b.outputWeightKg) - entered);
-        if (rest > 0 && b.categoryId) kg[kindKey(b.categoryId, null)] = (kg[kindKey(b.categoryId, null)] ?? 0) + rest;
-      }
+      // Tiles are categories: kg sorted per category (all grades, and kg from before v2 6.6), bales made from it.
+      for (const b of summary.buckets) if (b.categoryId) kg[b.categoryId] = Number(b.outputWeightKg);
+      for (const k of summary.kinds) bales[k.categoryId] = (bales[k.categoryId] ?? 0) + k.bales;
       if (summary.today) this.today.set({ kg: Number(summary.today.kg), bales: summary.today.bales });
+      this.ready.set(summary.ready ?? []);
+      this.madeBales.set(summary.madeBales ?? []);
     } else {
       for (const b of summary.buckets) kg[(b.categoryId ?? b.gradeId)!] = Number(b.outputWeightKg);
     }
@@ -580,8 +683,18 @@ export class SortWorkComponent implements OnInit {
     this.waste.set(list.find((w) => /katran/i.test(w.name)) ?? list[0] ?? null);
   }
 
+  /** The grade last given to this category on this phone (sorting the same pile again is common). */
+  private lastGrade(categoryId: string): string | null {
+    try {
+      const id = JSON.parse(localStorage.getItem(GRADE_KEY) || '{}')[categoryId];
+      return typeof id === 'string' && this.gradeOptions().some((g) => g.id === id) ? id : null;
+    } catch {
+      return null;
+    }
+  }
+
   private usageKey(): string {
-    return this.stage() === 1 ? 'sortKind' : 'grade';
+    return this.stage() === 1 ? 'category' : 'grade';
   }
 }
 
@@ -604,6 +717,16 @@ function rememberBaleKg(kind: string, kg: number): void {
     const all = JSON.parse(localStorage.getItem(BALE_KG_KEY) || '{}');
     all[kind] = kg;
     localStorage.setItem(BALE_KG_KEY, JSON.stringify(all));
+  } catch {
+    /* private window */
+  }
+}
+
+function rememberGrade(categoryId: string, gradeId: string | null): void {
+  try {
+    const all = JSON.parse(localStorage.getItem(GRADE_KEY) || '{}');
+    all[categoryId] = gradeId;
+    localStorage.setItem(GRADE_KEY, JSON.stringify(all));
   } catch {
     /* private window */
   }

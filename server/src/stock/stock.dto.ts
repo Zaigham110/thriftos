@@ -1,20 +1,6 @@
 import { StockSource, StockUnit } from '@prisma/client';
 import { Type } from 'class-transformer';
-import {
-  ArrayMaxSize,
-  ArrayMinSize,
-  IsArray,
-  IsEnum,
-  IsInt,
-  IsNumber,
-  IsOptional,
-  IsPositive,
-  IsString,
-  Max,
-  MaxLength,
-  Min,
-  ValidateNested,
-} from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsEnum, IsInt, IsNumber, IsOptional, IsPositive, IsString, Max, MaxLength, Min, ValidateNested, IsBoolean } from 'class-validator';
 
 export class AvailableStockQueryDto {
   @IsString() @IsOptional() categoryId?: string;
@@ -65,6 +51,23 @@ export class MakeBaleDto {
   @IsString()
   @IsOptional()
   warehouseId?: string;
+
+  /** Several bales of this weight in one go (v2 6.6). */
+  @IsInt()
+  @Min(1)
+  @Max(200)
+  @IsOptional()
+  count?: number;
+
+  /** Take the kg from this category's ungraded sorted kg; the bale gets `gradeId` (grade chosen when baling). */
+  @IsBoolean()
+  @IsOptional()
+  fromUngraded?: boolean;
+
+  /** Only from this lot (gaari): bales made from its sorting screen. */
+  @IsString()
+  @IsOptional()
+  ragId?: string;
 }
 
 export class StockItemsQueryDto {

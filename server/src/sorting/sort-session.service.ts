@@ -141,7 +141,12 @@ export class SortSessionService {
       this.waste.listLines(tenantId, WasteStage.STAGE_1, sessionId),
       this.prisma.categoryOutput.findMany({
         where: { tenantId, sortSessionId: sessionId },
-        select: { categoryId: true, gradeId: true, weightKg: true, allocatedCost: true, entryBales: true, createdAt: true, category: { select: { name: true } }, grade: { select: { name: true, rank: true } } },
+        select: {
+          categoryId: true, gradeId: true, weightKg: true, usedKg: true, allocatedCost: true, entryBales: true, createdAt: true,
+          category: { select: { name: true } }, grade: { select: { name: true, rank: true } },
+          _count: { select: { gradeSessions: true } },
+          baleAllocations: { select: { repackUnitId: true, repackUnit: { select: { createdAt: true, weightKg: true, categoryId: true, gradeId: true, category: { select: { name: true } }, grade: { select: { name: true, rank: true } } } } } },
+        },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       }),
       this.prisma.inventoryItem.findFirst({
@@ -156,18 +161,41 @@ export class SortSessionService {
     // What came out, per kind (category + grade): all of it, and today's (Pakistan time).
     const today = startOfDayPKT(now);
     const kinds = new Map<string, { categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; rank: number; kg: Decimal; bales: number; todayKg: Decimal; todayBales: number; cost: Decimal }>();
+    // Bales made from this lot — while sorting or later from its sorted kg — each counted once, by the bale's kind.
+    const units = new Map<string, { createdAt: Date; weightKg: Decimal; categoryId: string; gradeId: string | null; category: { name: string }; grade: { name: string; rank: number } | null }>();
+    // Kg sorted and not baled yet, per kind: what "Make bales" can still take.
+    const loose = new Map<string, { categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; rank: number; availableKg: Decimal }>();
     for (const o of outputs) {
       const key = `${o.categoryId}:${o.gradeId ?? ''}`;
       const k = kinds.get(key) ?? { categoryId: o.categoryId, categoryName: o.category.name, gradeId: o.gradeId, gradeName: o.grade?.name ?? null, rank: o.grade?.rank ?? 0, kg: ZERO, bales: 0, todayKg: ZERO, todayBales: 0, cost: ZERO };
       k.kg = k.kg.add(o.weightKg);
-      k.bales += o.entryBales;
       k.cost = k.cost.add(o.allocatedCost);
-      if (o.createdAt >= today) {
-        k.todayKg = k.todayKg.add(o.weightKg);
-        k.todayBales += o.entryBales;
-      }
+      if (o.createdAt >= today) k.todayKg = k.todayKg.add(o.weightKg);
       kinds.set(key, k);
+      for (const a of o.baleAllocations) {
+        // A bale counts once, on the kind of the sorted kg it was made from.
+        if (units.has(a.repackUnitId)) continue;
+        units.set(a.repackUnitId, a.repackUnit);
+        k.bales += 1;
+        if (a.repackUnit.createdAt >= today) k.todayBales += 1;
+      }
+      const left = o.weightKg.sub(o.usedKg);
+      if (left.greaterThan(ZERO) && !o._count.gradeSessions) {
+        const l = loose.get(key) ?? { categoryId: o.categoryId, categoryName: o.category.name, gradeId: o.gradeId, gradeName: o.grade?.name ?? null, rank: o.grade?.rank ?? 0, availableKg: ZERO };
+        l.availableKg = l.availableKg.add(left);
+        loose.set(key, l);
+      }
     }
+    const baleKinds = new Map<string, { categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; rank: number; bales: number; kg: Decimal; todayBales: number }>();
+    for (const u of units.values()) {
+      const key = `${u.categoryId}:${u.gradeId ?? ''}`;
+      const b = baleKinds.get(key) ?? { categoryId: u.categoryId, categoryName: u.category.name, gradeId: u.gradeId, gradeName: u.grade?.name ?? null, rank: u.grade?.rank ?? 0, bales: 0, kg: ZERO, todayBales: 0 };
+      b.bales += 1;
+      b.kg = b.kg.add(u.weightKg);
+      if (u.createdAt >= today) b.todayBales += 1;
+      baleKinds.set(key, b);
+    }
+    const byName = <T extends { categoryName: string; rank: number }>(a: T, b: T) => a.categoryName.localeCompare(b.categoryName) || a.rank - b.rank;
     const kindRows = [...kinds.values()]
       .sort((a, b) => a.categoryName.localeCompare(b.categoryName) || a.rank - b.rank)
       .map(({ rank: _rank, cost: _cost, ...k }) => ({ ...k, kg: k.kg.toString(), todayKg: k.todayKg.toString() }));
@@ -182,8 +210,10 @@ export class SortSessionService {
       buckets,
       wasteLineItems,
       kinds: kindRows,
-      today: { kg: kindRows.reduce((s, k) => s.add(k.todayKg), ZERO).toString(), bales: kindRows.reduce((s, k) => s + k.todayBales, 0) },
-      bales: kindRows.reduce((s, k) => s + k.bales, 0),
+      ready: [...loose.values()].sort(byName).map(({ rank: _r, ...l }) => ({ ...l, availableKg: l.availableKg.toString() })),
+      madeBales: [...baleKinds.values()].sort(byName).map(({ rank: _r, ...b }) => ({ ...b, kg: b.kg.toString() })),
+      today: { kg: kindRows.reduce((s, k) => s.add(k.todayKg), ZERO).toString(), bales: [...units.values()].filter((u) => u.createdAt >= today).length },
+      bales: units.size,
       // After closing: each kind with its share of the lot cost (the yield screen), and the kat put into stock.
       outputs: closed
         ? [...kinds.values()]

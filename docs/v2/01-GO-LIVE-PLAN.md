@@ -49,7 +49,7 @@ Target: the owner's existing AWS free-tier account. One EC2 micro instance (1 GB
 - [x] 6.5 Super-admin onboarding tools
   - Create a business for a customer in < 2 minutes, impersonate read-only for support (audited), see last activity per business.
 - [x] 6.6 Sort, grade and bale in one step (vendor feedback, 2026-11-05)
-  - One sorting screen: category + grade tiles, entries as bales (count × kg per bale, pre-filled from the category, editable; straight into stock with QR) or loose kg (bale-able at once); the lot stays open for days with today's output; closing books kat (not weighed) into stock to sell at no cost or throw away, and shares the lot cost over what came out.
+  - One sorting screen: category tiles with an optional grade, entries as bales (count × kg per bale, pre-filled from the category, editable; straight into stock with QR) or loose kg; "Sorted, ready to bale" makes bales (count, grade if not graded) from the gaari's sorted kg while it is still being sorted; the lot stays open for days with today's output; closing books kat (not weighed) into stock to sell at no cost or throw away, and shares the lot cost over what came out.
 - Acceptance: a pilot business is onboarded from its paper register in one visit (< 1 hour), installs the app from Chrome (Add to Home screen), and prints a bale label and a bill.
 
 ## Phase 7 — Subscriptions and billing (weeks 6–7)

@@ -82,7 +82,7 @@ describe('Sort, grade and bale in one step (e2e)', () => {
     katId = closed.body.kat.id;
     expect(closed.body.outputs.map((o: any) => [o.name, o.weightKg, o.bales])).toEqual([
       ['Jeans · A', '40', 2],
-      ['Shirts · B', '30', 0],
+      ['Shirts · B', '30', 1], // baled from its loose kg before the close
     ]);
 
     const kat = await prisma.inventoryItem.findUniqueOrThrow({ where: { id: katId } });
@@ -139,5 +139,49 @@ describe('Sort, grade and bale in one step (e2e)', () => {
     const queue = (await api(app, a).get('/sorting/stage-2/queue').expect(200)).body;
     const rows = queue.data ?? queue;
     expect(rows.filter((r: any) => r.rag?.id === data.lot.id || r.ragId === data.lot.id)).toEqual([]);
+  });
+
+  it("the vendor's week: grade optional while sorting, bales made from sorted kg while the gaari is still open, sold at once", async () => {
+    const prisma_ = prisma;
+    const lot = await prisma_.rag.create({ data: { tenantId: a.tenantId, ragCode: `GAARI-${Date.now().toString().slice(-6)}`, ragBaleType: 'BALE', weightKg: 1000, allocatedCost: 300000, sourceType: 'LOOSE_BALE' } });
+    const blanket = await prisma_.category.create({ data: { tenantId: a.tenantId, name: `Baby blanket ${Date.now()}`, baleWeightKg: 40 } });
+    const children = await prisma_.category.create({ data: { tenantId: a.tenantId, name: `Children mix ${Date.now()}` } });
+    const s = (await api(app, a).post('/sorting/stage-1/start', { ragId: lot.id }).expect(201)).body.session.id;
+
+    // 5 Nov: 200 kg baby blanket, sorted without a grade. 6 Nov: 60 kg more, and 512 kg children.
+    await api(app, a).post('/sorting/stage-1/allocate', { sessionId: s, categoryId: blanket.id, amountKg: 200 }).expect(200);
+    await api(app, a).post('/sorting/stage-1/allocate', { sessionId: s, categoryId: blanket.id, amountKg: 60 }).expect(200);
+    const sorted = (await api(app, a).post('/sorting/stage-1/allocate', { sessionId: s, categoryId: children.id, amountKg: 512 }).expect(200)).body;
+    expect(sorted.session.totalOutputWeight).toBe('772');
+    expect(sorted.ready.map((r: any) => [r.categoryId, r.gradeId, r.availableKg])).toEqual(
+      expect.arrayContaining([[blanket.id, null, '260'], [children.id, null, '512']]),
+    );
+
+    // While 228 kg is still waiting: 5 bales of 40 kg baby blanket, graded A as they are baled; 12 of children.
+    const baby = await api(app, a).post('/stock/bales', { categoryId: blanket.id, gradeId: data.gradeA.id, fromUngraded: true, ragId: lot.id, count: 5, weightKg: 40 }).expect(201);
+    expect(baby.body.baleIds).toHaveLength(5);
+    const kids = await api(app, a).post('/stock/bales', { categoryId: children.id, fromUngraded: true, ragId: lot.id, count: 12, weightKg: 40 }).expect(201);
+    expect(kids.body.baleIds).toHaveLength(12);
+    // Not more than this gaari has sorted.
+    await api(app, a).post('/stock/bales', { categoryId: children.id, fromUngraded: true, ragId: lot.id, count: 1, weightKg: 40 }).expect(400);
+
+    const items = await prisma_.inventoryItem.findMany({ where: { tenantId: a.tenantId, repackUnitId: { in: baby.body.baleIds } } });
+    expect(items.map((i) => [i.gradeId, i.categoryId, i.status, i.totalCost.toString()])).toEqual(Array(5).fill([data.gradeA.id, blanket.id, 'AVAILABLE', '12000'])); // 40 kg × Rs 300
+
+    const summary = (await api(app, a).get(`/sorting/stage-1/sessions/${s}`).expect(200)).body;
+    expect(summary.session.status).toBe('OPEN');
+    expect(summary.bales).toBe(17);
+    expect(summary.today.bales).toBe(17);
+    expect(summary.ready.map((r: any) => [r.categoryId, r.availableKg])).toEqual(expect.arrayContaining([[blanket.id, '60'], [children.id, '32']]));
+    expect(summary.madeBales).toEqual(expect.arrayContaining([expect.objectContaining({ categoryId: blanket.id, gradeId: data.gradeA.id, bales: 5, kg: '200' }), expect.objectContaining({ categoryId: children.id, gradeId: null, bales: 12, kg: '480' })]));
+    expect(summary.kinds.find((k: any) => k.categoryId === blanket.id)).toMatchObject({ kg: '260', bales: 5 });
+    expect((await prisma_.rag.findUniqueOrThrow({ where: { id: lot.id } })).status).toBe('IN_SORTING');
+
+    // A bale sells while the gaari is still being sorted.
+    const customer = (await api(app, a).post('/customers', { name: 'Week Buyer', phone: '0321 5550009' }).expect(201)).body;
+    await api(app, a).post('/sales', { customerId: customer.id, paymentMode: 'CASH', paymentMethod: 'CASH', lines: [{ inventoryItemId: items[0].id, quantity: 1, unitPrice: 15000 }] }).expect(201);
+
+    // Another business cannot bale this gaari's kg.
+    await api(app, b).post('/stock/bales', { categoryId: children.id, fromUngraded: true, ragId: lot.id, weightKg: 10 }).expect(400);
   });
 });
