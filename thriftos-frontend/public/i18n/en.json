@@ -96,6 +96,99 @@
   "undo": "Undo",
   "weight": "Weight"
  },
+ "fw": {
+  "container": {
+   "hint": "Weight and cost, about a minute",
+   "title": "Receive your first container"
+  },
+  "done": "Done",
+  "hide": "Hide",
+  "how": "How?",
+  "import": "Have a paper register? Bring it in from Excel",
+  "progress": "{done} of 4 done",
+  "sale": {
+   "hint": "The bill goes to the customer on WhatsApp",
+   "title": "Make your first sale"
+  },
+  "supplier": {
+   "hint": "Who sends you containers. Name and country only.",
+   "title": "Add your supplier"
+  },
+  "team": {
+   "hint": "Name, phone and a 4-digit PIN",
+   "title": "Add your munshi"
+  },
+  "title": "Your first week"
+ },
+ "help": {
+  "container": {
+   "go": "New container",
+   "s1": "Open Maal aya and start a new container.",
+   "s2": "Tap the supplier, write the invoice weight in kg and the purchase cost.",
+   "s3": "Tap the charges you paid (freight, clearing, labour) and write each amount. You can add them later too.",
+   "s4": "Save. The cost per kg is worked out, and Home shows the container's profit as you sell.",
+   "title": "Receive a container"
+  },
+  "how": "How does this work?",
+  "import": {
+   "go": "Open import",
+   "s1": "Open Settings, then Bring in your register.",
+   "s2": "Download the sheet and fill in customers with their udhaar, suppliers or stock.",
+   "s3": "Choose the file and check the rows. Fix any row marked red.",
+   "s4": "Tap Add. Adding the same file again does not add anything twice.",
+   "title": "Bring in your paper register"
+  },
+  "intro": "Short guides, one task each.",
+  "khata": {
+   "go": "Open Khata",
+   "s1": "Every udhaar sale is written in the customer's khata by itself.",
+   "s2": "Open Khata and tap the customer.",
+   "s3": "When money comes, tap Payment received, write the amount and save. You can print a receipt.",
+   "s4": "Tap Remind to send the balance on WhatsApp.",
+   "title": "Udhaar and payments"
+  },
+  "sale": {
+   "go": "New sale",
+   "s1": "Open Becho and tap New sale.",
+   "s2": "Pick the customer, or add one with name and phone.",
+   "s3": "Pick the stock, write how many and the price.",
+   "s4": "Choose cash or udhaar and save. Send the bill on WhatsApp or print it.",
+   "title": "Make a sale"
+  },
+  "sorting": {
+   "go": "Open Chhantai",
+   "s1": "Open Chhantai and tap the lot that is waiting.",
+   "s2": "Tap a category, write the kg, save. Do the same for each pile.",
+   "s3": "When the lot is finished, tap Close lot. What is left counts as waste.",
+   "s4": "Sorted kg go to Stock by themselves, with their cost per kg.",
+   "title": "Sort a lot"
+  },
+  "stock": {
+   "go": "Make bale",
+   "s1": "Open Stock and tap Make bale.",
+   "s2": "Tap the kind and write the bale weight in kg.",
+   "s3": "Save, then tap Print label for the QR sticker.",
+   "s4": "When you sell, scan the sticker and the bale is picked for you.",
+   "title": "Make a bale and its sticker"
+  },
+  "supplier": {
+   "go": "New container",
+   "s1": "Open Maal aya and start a new container.",
+   "s2": "Under Which supplier?, tap + New supplier.",
+   "s3": "Write the name and tap the country. That is all.",
+   "s4": "Next time your supplier is the first tile. Profit per supplier shows in reports.",
+   "title": "Add a supplier"
+  },
+  "team": {
+   "go": "Open Team",
+   "s1": "Open Settings, then Team.",
+   "s2": "Tap Add munshi and write the name and phone number.",
+   "s3": "Choose a 4-digit PIN and tell it to the munshi.",
+   "s4": "The munshi signs in with phone and PIN, and sees floor work, not your profit.",
+   "title": "Add your munshi"
+  },
+  "title": "Help"
+ },
  "home": {
   "basis": "Sold this month: price − cost",
   "byOrigin": "By country",

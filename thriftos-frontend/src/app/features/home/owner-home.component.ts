@@ -5,16 +5,18 @@ import { I18N } from '../../core/i18n/t.pipe';
 import { NeedsAttentionComponent } from '../../shared/offline/needs-attention.component';
 import { sessionCache } from '../../core/auth/session-cache';
 import { HomeDataService, HomeSummary } from './home-data';
+import { FirstWeekComponent } from './first-week.component';
 
 /** Journey 7 — owner home: profit per container, udhaar owed, stock ready, and today's sales. Each taps to its list. */
 @Component({
   selector: 'app-owner-home',
   standalone: true,
-  imports: [RouterLink, LucideAngularModule, I18N, NeedsAttentionComponent],
+  imports: [RouterLink, LucideAngularModule, I18N, NeedsAttentionComponent, FirstWeekComponent],
   template: `
     <section class="floor home">
       <header class="floor-head"><h1>{{ 'home.title' | t }}</h1></header>
       <app-needs-attention />
+      <app-first-week />
       @if (s(); as s) {
         <a class="card stat" routerLink="/home/containers">
           <small>{{ 'home.profitPerContainer' | t }}</small>

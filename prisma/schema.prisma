@@ -246,6 +246,8 @@ model Tenant {
   defaultLanguage  String       @default("ur")
   /// Set when the owner finished the setup wizard (journey 8); null = show the wizard after sign-in.
   setupCompletedAt DateTime?
+  /// Set when the owner hides the first-week checklist on Home (v2 6.4).
+  firstWeekHiddenAt DateTime?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 

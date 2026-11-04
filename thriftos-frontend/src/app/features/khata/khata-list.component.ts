@@ -1,3 +1,4 @@
+import { HelpLinkComponent } from '../help/help-link.component';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -14,7 +15,7 @@ import { ToastService } from '../../shared/floor/toast.service';
 @Component({
   selector: 'app-khata-list',
   standalone: true,
-  imports: [FormsModule, RouterLink, LucideAngularModule, I18N, NumberFieldComponent],
+  imports: [HelpLinkComponent, FormsModule, RouterLink, LucideAngularModule, I18N, NumberFieldComponent],
   template: `
     <section class="floor">
       <header class="floor-head">
@@ -42,7 +43,7 @@ import { ToastService } from '../../shared/floor/toast.service';
               @if (row.overdueDays > 0) { <small [class.warn]="row.overdueDays > 30">{{ 'unit.days' | t: { n: row.overdueDays } }}</small> }
             </span>
           </a></li>
-        } @empty { <li class="empty">{{ 'khata.noCustomers' | t }}</li> }
+        } @empty { <li class="empty">{{ 'khata.noCustomers' | t }}<app-help-link topic="khata" /></li> }
       </ul>
 
       @if (!adding()) {

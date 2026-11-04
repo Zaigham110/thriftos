@@ -46,6 +46,8 @@ export interface ListConfig {
   searchPlaceholder: string;
   emptyHeading: string;
   emptyMessage: string;
+  /** Help screen offered when the list is empty (v2 6.4), e.g. `sale` opens /help/sale. */
+  help?: string;
   columns: ListColumnConfig[];
   defaultColumns: string[];
   /** Field the date-range picker filters on (absent: no date range). */

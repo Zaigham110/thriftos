@@ -167,6 +167,8 @@ export const routes: Routes = [
         ],
       },
       // Report centre on the laptop (E4.5): owner analytics, not tied to the older detailed-reports module.
+      { path: 'help', loadComponent: () => import('./features/help/help.component').then((m) => m.HelpComponent), title: 'ThriftOS' },
+      { path: 'help/:topic', loadComponent: () => import('./features/help/help.component').then((m) => m.HelpComponent), title: 'ThriftOS' },
       { path: 'insights', loadComponent: () => import('./features/workspace-lists/report-centre.component').then((m) => m.ReportCentreComponent), title: 'ThriftOS' },
       {
         // Finance (E3.6): management accounts on the laptop; each call checks its own permission.

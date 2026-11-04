@@ -1,3 +1,4 @@
+import { HelpLinkComponent } from '../help/help-link.component';
 import { Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -38,6 +39,7 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
   selector: 'app-list-page',
   standalone: true,
   imports: [
+    HelpLinkComponent,
     FormsModule,
     RouterLink,
     LucideAngularModule,
@@ -121,7 +123,9 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
       } @else {
         <ws-data-grid [caption]="c.title | t" [columns]="columns()" [rows]="rows()" [loading]="loading()" [clickable]="true" [serverSort]="true"
           [sort]="gridSort()" (sortChange)="setSort($event)" [serverTotals]="totals()" (rowClick)="open($event)"
-          [emptyHeading]="c.emptyHeading | t" [emptyMessage]="c.emptyMessage | t" />
+          [emptyHeading]="c.emptyHeading | t" [emptyMessage]="c.emptyMessage | t">
+          @if (c.help) { <app-help-link empty [topic]="c.help" /> }
+        </ws-data-grid>
         <ws-pager [page]="state().page" (pageChange)="patch({ page: $event })" [pageSize]="state().pageSize" (pageSizeChange)="patch({ pageSize: $event, page: 1 })" [total]="result()?.total ?? 0" />
       }
     </div>

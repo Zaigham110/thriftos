@@ -7,6 +7,8 @@ import { combine, containerEconomics, topPercent, yieldPercent } from './contain
 
 const ZERO = new Prisma.Decimal(0);
 const LAST_CONTAINERS = 5;
+/** How long a new business sees the first-week checklist on Home. */
+const FIRST_WEEK_DAYS = 30;
 
 /** Owner home (journey 7): three numbers and today's sales, and the lists behind them. Every query is per tenant. */
 @Injectable()
@@ -37,6 +39,29 @@ export class HomeService {
       stockReady: stock,
       today: { sales: today._count, total: (today._sum.totalAmount ?? ZERO).toString(), profit: (today._sum.totalProfit ?? ZERO).toString() },
     };
+  }
+
+  /**
+   * First-week checklist (v2 6.4): what a new business has done of the four first steps. Shown for 30 days after the
+   * business was made, until all four are done or the owner hides it.
+   */
+  async firstWeek(tenantId: string, now = new Date()) {
+    const [tenant, suppliers, containers, sales, team] = await Promise.all([
+      this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { createdAt: true, firstWeekHiddenAt: true } }),
+      this.prisma.vendor.count({ where: { tenantId } }),
+      this.prisma.container.count({ where: { tenantId } }),
+      this.prisma.sale.count({ where: { tenantId } }),
+      this.prisma.user.count({ where: { tenantId, isActive: true } }),
+    ]);
+    const steps = { supplier: suppliers > 0, container: containers > 0, sale: sales > 0, team: team > 1 };
+    const done = Object.values(steps).filter(Boolean).length;
+    const young = now.getTime() - tenant.createdAt.getTime() < FIRST_WEEK_DAYS * 86_400_000;
+    return { show: young && !tenant.firstWeekHiddenAt && done < 4, done, steps };
+  }
+
+  async hideFirstWeek(tenantId: string) {
+    await this.prisma.tenant.update({ where: { id: tenantId }, data: { firstWeekHiddenAt: new Date() } });
+    return { show: false };
   }
 
   /** The last containers with profit so far (from what has been sold), yield and top-grade %, and supplier / origin comparison. */

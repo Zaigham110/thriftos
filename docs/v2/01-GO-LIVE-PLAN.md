@@ -45,7 +45,7 @@ Target: the owner's existing AWS free-tier account. One EC2 micro instance (1 GB
   - Trusted Web Activity wrapping the PWA (Bubblewrap), Digital Asset Links on the domain, app name "ThriftOS", Urdu + English store listing, screenshots from `docs/v1/screenshots/`, privacy policy URL. Internal testing track first.
 - [x] 6.3 Printing (built and tested in the browser; not yet tried on a real printer — see PROGRESS.md owner actions)
   - Bluetooth thermal printer support for 58 mm and 80 mm (ESC/POS) via Web Bluetooth where available, with fallback to the Android print dialog / shared PDF. Templates: bale QR label (50×30 mm), sale bill, payment receipt. Test on at least one common local printer model.
-- [ ] 6.4 First-week experience
+- [x] 6.4 First-week experience
   - In-app checklist on Home for a new business (add supplier → first container → first sale → invite munshi), each one tap. Short Urdu help videos/screens linked from empty states.
 - [ ] 6.5 Super-admin onboarding tools
   - Create a business for a customer in < 2 minutes, impersonate read-only for support (audited), see last activity per business.

@@ -1,3 +1,4 @@
+import { HelpLinkComponent } from '../help/help-link.component';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { LucideAngularModule, ChevronRight } from 'lucide-angular';
@@ -10,7 +11,7 @@ import { FloorDataService, GradeQueueItem, Lot } from '../../shared/floor/floor-
 @Component({
   selector: 'app-sort-home',
   standalone: true,
-  imports: [RouterLink, LucideAngularModule, I18N],
+  imports: [HelpLinkComponent, RouterLink, LucideAngularModule, I18N],
   template: `
     <section class="floor">
       <header class="floor-head"><h1>{{ 'sort.title' | t }}</h1></header>
@@ -22,7 +23,7 @@ import { FloorDataService, GradeQueueItem, Lot } from '../../shared/floor/floor-
               <span><strong class="ltr">{{ lot.ragCode }}</strong><small>{{ lot.vendor?.name || lot.container?.containerNumber || '' }}@if (lot.originCountry) { · {{ lot.originCountry }} }</small></span>
               <span class="amount">{{ lot.weightKg | kg }}@if (lot.status === 'IN_SORTING') { <small class="warn">{{ 'sort.inProgress' | t }}</small> }</span>
             </a></li>
-          } @empty { <li class="empty">{{ 'sort.noLots' | t }}</li> }
+          } @empty { <li class="empty">{{ 'sort.noLots' | t }}<app-help-link topic="sorting" /></li> }
         </ul>
       </section>
       @if (grades() && toGrade().length) {

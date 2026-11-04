@@ -3,9 +3,10 @@
 # by itself when a release starts.)
 # Usage (from repo root):  bash scripts/apply-v2-phase6.sh
 #
-# New migration (only adds; nothing existing is changed or removed):
-#   1. 20261105100000_v6_01_imports  ImportedRow table (which register rows were already imported, so a file
-#                                     uploaded twice adds nothing)
+# New migrations (only add; nothing existing is changed or removed):
+#   1. 20261105100000_v6_01_imports     ImportedRow table (which register rows were already imported, so a file
+#                                        uploaded twice adds nothing)
+#   2. 20261106100000_v6_04_first_week  Tenant.firstWeekHiddenAt (the owner hid the first-week checklist on Home)
 # Data step: base data (server/src/bootstrap): adds data.import and gives every Admin (owner) role all permissions.
 # Idempotent; nothing else changes.
 set -euo pipefail

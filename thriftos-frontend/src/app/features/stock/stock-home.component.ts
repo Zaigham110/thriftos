@@ -1,5 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { HelpLinkComponent } from '../help/help-link.component';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { LucideAngularModule, PackagePlus, Printer, ScanLine } from 'lucide-angular';
@@ -31,7 +32,7 @@ export function stockName(i: StockRow): string {
 @Component({
   selector: 'app-stock-home',
   standalone: true,
-  imports: [RouterLink, LucideAngularModule, I18N, ScanSheetComponent],
+  imports: [HelpLinkComponent, RouterLink, LucideAngularModule, I18N, ScanSheetComponent],
   template: `
     <section class="floor">
       <header class="floor-head">
@@ -46,7 +47,7 @@ export function stockName(i: StockRow): string {
             <span><strong>{{ name(i) }}</strong><small class="ltr">{{ i.unitCode || '' }}</small></span>
             <span class="amount">@if (i.unit === 'KG') { {{ i.remainingQuantity | kg }} } @else { {{ i.remainingQuantity | num }} {{ (i.unit === 'BALE' ? 'unit.bales' : 'unit.pcs') | t }} }</span>
           </a></li>
-        } @empty { <li class="empty">{{ 'stock.empty' | t }}</li> }
+        } @empty { <li class="empty">{{ 'stock.empty' | t }}<app-help-link topic="stock" /></li> }
       </ul>
       <footer class="action-bar">
         <a class="btn primary" routerLink="/stock/bale"><lucide-icon [img]="icons.PackagePlus" [size]="20" /> {{ 'stock.makeBale' | t }}</a>

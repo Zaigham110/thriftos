@@ -4,6 +4,7 @@ import type { ListConfig } from './list-config';
 
 export const SALES_LIST: ListConfig = {
   resource: 'sales',
+  help: 'sale',
   title: 'ws.sales.title',
   count: 'ws.sales.count',
   searchPlaceholder: 'ws.sales.search',
@@ -41,6 +42,7 @@ const CONTAINER_STATUSES = ['IN_TRANSIT', 'ARRIVED', 'CLEARED', 'CLOSED'] as con
 
 export const CONTAINERS_LIST: ListConfig = {
   resource: 'containers',
+  help: 'container',
   title: 'ws.containers.title',
   count: 'ws.containers.count',
   searchPlaceholder: 'ws.containers.search',
@@ -84,6 +86,7 @@ export const CONTAINERS_LIST: ListConfig = {
 
 export const SUPPLIERS_LIST: ListConfig = {
   resource: 'suppliers',
+  help: 'supplier',
   title: 'ws.suppliers.title',
   count: 'ws.suppliers.count',
   searchPlaceholder: 'ws.suppliers.search',
@@ -112,6 +115,7 @@ export const SUPPLIERS_LIST: ListConfig = {
 
 export const STOCK_LIST: ListConfig = {
   resource: 'stock',
+  help: 'stock',
   title: 'ws.stock.title',
   count: 'ws.stock.count',
   searchPlaceholder: 'ws.stock.search',
@@ -184,6 +188,7 @@ const LOT_STATUSES = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
 /** Lots to sort, being sorted and sorted (E3.2); the board shows where each lot is (sorting moves it). */
 export const LOTS_LIST: ListConfig = {
   resource: 'lots',
+  help: 'sorting',
   title: 'ws.lots.title',
   count: 'ws.lots.count',
   searchPlaceholder: 'ws.lots.search',
