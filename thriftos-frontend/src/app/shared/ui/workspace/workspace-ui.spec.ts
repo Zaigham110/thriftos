@@ -1,5 +1,8 @@
 import { matches } from '../../../shell/workspace/command-palette.component';
-import { niceMax } from './bar-chart.component';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { TestBed } from '@angular/core/testing';
+import { WsBarChartComponent, niceMax } from './bar-chart.component';
 import { compare } from './data-grid.component';
 import { rangeFor } from './date-range.component';
 import { sparkPoints } from './kpi-card.component';
@@ -36,5 +39,23 @@ describe('workspace components (logic)', () => {
     expect(matches('new SALE', 'New sale becho')).toBeTrue();
     expect(matches('sale stock', 'New sale becho')).toBeFalse();
     expect(matches('  ', 'anything')).toBeTrue();
+  });
+
+  it('bar chart draws losses below a zero line and never a negative height', () => {
+    TestBed.configureTestingModule({ imports: [WsBarChartComponent], providers: [provideHttpClient(), provideHttpClientTesting()] });
+    const f = TestBed.createComponent(WsBarChartComponent);
+    f.componentRef.setInput('heading', 'Net profit');
+    f.componentRef.setInput('categories', ['Oct', 'Nov']);
+    f.componentRef.setInput('series', [{ label: 'Net', values: [-200, 4000] }]);
+    f.detectChanges();
+    const rects = [...(f.nativeElement as HTMLElement).querySelectorAll('rect')];
+    const zero = [...(f.nativeElement as HTMLElement).querySelectorAll('line.grid.zero')];
+    expect(rects.length).toBe(2);
+    expect(rects.every((r) => Number(r.getAttribute('height')) >= 0)).toBeTrue();
+    expect(zero.length).toBe(1);
+    const zeroY = Number(zero[0].getAttribute('y1'));
+    // The loss starts at the zero line and goes down; the profit ends at the zero line.
+    expect(Number(rects[0].getAttribute('y'))).toBeCloseTo(zeroY, 5);
+    expect(Number(rects[1].getAttribute('y')) + Number(rects[1].getAttribute('height'))).toBeCloseTo(zeroY, 5);
   });
 });

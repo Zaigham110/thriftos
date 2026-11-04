@@ -24,6 +24,7 @@ import { AppIconComponent } from '../app-icon/app-icon.component';
     <div class="password-input-wrapper">
       <input
         [type]="showPassword() ? 'text' : 'password'"
+        [attr.autocomplete]="autocomplete"
         [placeholder]="placeholder"
         [value]="value"
         (input)="onInput($event)"
@@ -117,6 +118,8 @@ import { AppIconComponent } from '../app-icon/app-icon.component';
 })
 export class AppPasswordInputComponent implements ControlValueAccessor {
   @Input() placeholder: string = '';
+  /** Password managers: 'new-password' when setting one (the default here), 'current-password' when signing in. */
+  @Input() autocomplete: 'new-password' | 'current-password' = 'new-password';
 
   value: string = '';
   disabled: boolean = false;

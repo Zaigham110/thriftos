@@ -40,12 +40,12 @@ export interface WsSeries {
         <div class="plot" (mouseleave)="hover.set(null)">
           <svg [attr.viewBox]="'0 0 ' + W + ' ' + H" role="img" [attr.aria-label]="heading()">
             @for (t of ticks(); track t.v) {
-              <line class="grid" [attr.x1]="PAD_L" [attr.x2]="W" [attr.y1]="t.y" [attr.y2]="t.y" />
+              <line class="grid" [class.zero]="t.v === 0 && min() < 0" [attr.x1]="PAD_L" [attr.x2]="W" [attr.y1]="t.y" [attr.y2]="t.y" />
               <text class="axis" [attr.x]="PAD_L - 6" [attr.y]="t.y + 4" text-anchor="end">{{ short(t.v) }}</text>
             }
             @for (c of categories(); track c; let ci = $index) {
               @for (s of series(); track s.label; let si = $index) {
-                <rect [attr.x]="barX(ci, si)" [attr.y]="y(s.values[ci])" [attr.width]="barW()" [attr.height]="H - PAD_B - y(s.values[ci])" [attr.fill]="color(si)" rx="4"
+                <rect [attr.x]="barX(ci, si)" [attr.y]="barY(s.values[ci])" [attr.width]="barW()" [attr.height]="barH(s.values[ci])" [attr.fill]="color(si)" rx="4"
                   tabindex="0" [attr.aria-label]="c + ', ' + s.label + ': ' + fmt(s.values[ci])"
                   (mouseenter)="hover.set({ ci, si })" (focus)="hover.set({ ci, si })" (blur)="hover.set(null)" />
               }
@@ -76,6 +76,7 @@ export interface WsSeries {
     .plot { position:relative; direction:ltr; }
     svg { display:block; width:100%; height:auto; }
     .grid { stroke:var(--ws-grid); stroke-width:1; }
+    .grid.zero { stroke:var(--ws-line-strong, var(--ws-ink-3)); }
     .axis { fill:var(--ws-ink-3); font-size:11px; font-family:var(--ws-font); }
     rect { stroke:var(--ws-surface); stroke-width:2; cursor:pointer; outline:none; }
     rect:focus-visible { stroke:var(--ws-ink); }
@@ -103,13 +104,37 @@ export class WsBarChartComponent {
   protected readonly asTable = signal(false);
   protected readonly hover = signal<{ ci: number; si: number } | null>(null);
 
-  private readonly max = computed(() => niceMax(Math.max(0, ...this.series().flatMap((s) => s.values))));
-  protected readonly ticks = computed(() => [0, 0.25, 0.5, 0.75, 1].map((f) => ({ v: this.max() * f, y: this.y(this.max() * f) })));
+  private readonly values = computed(() => this.series().flatMap((s) => s.values).filter((v) => Number.isFinite(v)));
+  /** Top of the scale (at least 1 so an empty chart still has an axis). */
+  private readonly max = computed(() => {
+    const top = Math.max(0, ...this.values());
+    return top > 0 || this.min() === 0 ? niceMax(top) : 0;
+  });
+  /** Bottom of the scale: 0, or below 0 when a value is negative (a loss), so bars hang down from the zero line. */
+  protected readonly min = computed(() => {
+    const low = Math.min(0, ...this.values());
+    return low < 0 ? -niceMax(-low) : 0;
+  });
+  protected readonly ticks = computed(() => {
+    const [lo, hi] = [this.min(), this.max()];
+    const vs = lo < 0 ? [lo, lo / 2, 0, hi / 2, hi] : [0, 0.25, 0.5, 0.75, 1].map((f) => hi * f);
+    return [...new Set(vs)].map((v) => ({ v, y: this.y(v) }));
+  });
   protected readonly groupW = computed(() => (this.W - this.PAD_L) / Math.max(1, this.categories().length));
   protected readonly barW = computed(() => Math.max(4, Math.min(32, (this.groupW() * 0.7) / Math.max(1, this.series().length) - 2)));
 
+  /** Value → y on the plot (top padding 8, bottom axis at H − PAD_B). */
   protected y(v: number): number {
-    return this.H - this.PAD_B - ((v || 0) / (this.max() || 1)) * (this.H - this.PAD_B - 8);
+    const lo = this.min();
+    const span = this.max() - lo || 1;
+    return this.H - this.PAD_B - (((v || 0) - lo) / span) * (this.H - this.PAD_B - 8);
+  }
+  /** A bar goes from the zero line to its value: up for positive, down for negative; never a negative height. */
+  protected barY(v: number): number {
+    return Math.min(this.y(v), this.y(0));
+  }
+  protected barH(v: number): number {
+    return Math.abs(this.y(0) - this.y(v));
   }
   protected groupX(ci: number): number {
     return this.PAD_L + ci * this.groupW();
@@ -127,7 +152,9 @@ export class WsBarChartComponent {
     return this.format() === 'money' ? this.i18n.money(v) : this.format() === 'kg' ? this.i18n.kg(v) : this.i18n.num(v);
   }
   protected short(v: number): string {
-    return v >= 1e6 ? `${this.i18n.num(v / 1e6, 1)}M` : v >= 1e3 ? `${this.i18n.num(v / 1e3, 0)}k` : this.i18n.num(v);
+    const a = Math.abs(v);
+    const sign = v < 0 ? '−' : '';
+    return a >= 1e6 ? `${sign}${this.i18n.num(a / 1e6, 1)}M` : a >= 1e3 ? `${sign}${this.i18n.num(a / 1e3, 0)}k` : `${sign}${this.i18n.num(a)}`;
   }
 }
 
