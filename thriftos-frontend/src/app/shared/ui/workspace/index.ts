@@ -8,6 +8,7 @@ export * from './kpi-card.component';
 export * from './page-header.component';
 export * from './pager.component';
 export * from './record-activity.component';
+export * from './report-actions.component';
 export * from './side-sheet.component';
 export * from './smart-button.component';
 export * from './state.component';

@@ -13,6 +13,7 @@ import {
   WsDateRangeComponent,
   WsKpiCardComponent,
   WsPageHeaderComponent,
+  WsReportActionsComponent,
   WsRow,
   WsStateComponent,
   rangeFor,
@@ -28,6 +29,8 @@ export interface YieldReport {
   rows: { key: string; lots: number; inputKg: string; outputKg: string; wasteKg: string; yieldPercent: number | null; topGradePercent: number | null }[];
   categories: { name: string; kg: string; sharePercent: number | null }[];
   grades: { name: string; kg: string; pieces: number; sharePercent: number | null }[];
+  waste: { stage: string; category: string; kg: string }[];
+  trend: { month: string; inputKg: string; outputKg: string; yieldPercent: number | null }[];
 }
 
 /**
@@ -37,10 +40,12 @@ export interface YieldReport {
 @Component({
   selector: 'app-yield',
   standalone: true,
-  imports: [FormsModule, TPipe, WsBarChartComponent, WsCommandBarComponent, WsDataGridComponent, WsDateRangeComponent, WsKpiCardComponent, WsPageHeaderComponent, WsStateComponent],
+  imports: [FormsModule, TPipe, WsBarChartComponent, WsCommandBarComponent, WsDataGridComponent, WsDateRangeComponent, WsKpiCardComponent, WsPageHeaderComponent, WsReportActionsComponent, WsStateComponent],
   template: `
     <div class="page">
-      <ws-page-header [heading]="'ws.yield.title' | t" [subtitle]="'ws.yield.subtitle' | t" />
+      <ws-page-header [heading]="'ws.yield.title' | t" [subtitle]="'ws.yield.subtitle' | t">
+        <ws-report-actions actions [columns]="columns()" [rows]="rows()" [filename]="'thriftos-yield-by-' + by()" />
+      </ws-page-header>
       <ws-command-bar>
         <label start class="select">{{ 'ws.yield.by' | t }}
           <select [ngModel]="by()" (ngModelChange)="by.set($event)">
@@ -62,6 +67,12 @@ export interface YieldReport {
           <ws-bar-chart [heading]="'ws.yield.chart' | t: { by: ('ws.yield.group.' + d.by | t) }" [categories]="labels()" [series]="series()" format="number" />
         }
         <ws-data-grid [caption]="'ws.yield.title' | t" [columns]="columns()" [rows]="rows()" [emptyHeading]="'ws.yield.empty' | t" />
+        @if (d.trend.length > 1) {
+          <ws-bar-chart [heading]="'ws.yield.trend' | t" [categories]="trendLabels()" [series]="trendSeries()" format="number" />
+        }
+        <div class="two">
+          <ws-data-grid [caption]="'ws.yield.waste' | t" [columns]="wasteColumns()" [rows]="wasteRows()" [emptyHeading]="'ws.sortRecord.noWaste' | t" />
+        </div>
         <div class="two">
           <ws-data-grid [caption]="'ws.container.categories' | t" [columns]="categoryColumns()" [rows]="categoryRows()" />
           <ws-data-grid [caption]="'ws.container.grades' | t" [columns]="gradeColumns()" [rows]="gradeRows()" />
@@ -89,9 +100,9 @@ export class YieldComponent {
   protected readonly data = signal<YieldReport | null>(null);
   protected readonly failed = signal(false);
 
-  private name(key: string): string {
+  private name(key: string, isMonth = false): string {
     if (!key) return this.i18n.t('ws.stockValue.none');
-    if (this.data()?.by === 'month') return new Date(key + '-15T00:00:00Z').toLocaleDateString(this.i18n.lang() === 'ur' ? 'ur-PK' : 'en-GB', { month: 'short', year: 'numeric', numberingSystem: 'latn' });
+    if (isMonth || this.data()?.by === 'month') return new Date(key + '-15T00:00:00Z').toLocaleDateString(this.i18n.lang() === 'ur' ? 'ur-PK' : 'en-GB', { month: 'short', year: 'numeric', numberingSystem: 'latn' });
     return key;
   }
   protected readonly labels = computed(() => (this.data()?.rows ?? []).map((r) => this.name(r.key)));
@@ -112,6 +123,16 @@ export class YieldComponent {
     { key: 'topGradePercent', label: this.i18n.t('ws.containers.col.topGrade'), format: 'percent' },
   ]);
   protected readonly rows = computed<WsRow[]>(() => (this.data()?.rows ?? []).map((r) => ({ id: r.key || '∅', name: this.name(r.key), ...r })));
+  protected readonly trendLabels = computed(() => (this.data()?.trend ?? []).map((t) => this.name(t.month, true)));
+  protected readonly trendSeries = computed(() => [{ label: this.i18n.t('ws.containers.col.yield'), values: (this.data()?.trend ?? []).map((t) => t.yieldPercent ?? 0) }]);
+  protected readonly wasteColumns = computed<WsColumn[]>(() => [
+    { key: 'stage', label: this.i18n.t('ws.sortRecord.stage') },
+    { key: 'category', label: this.i18n.t('ws.container.category') },
+    { key: 'kg', label: this.i18n.t('ws.containers.col.kg'), format: 'kg', total: true },
+  ]);
+  protected readonly wasteRows = computed<WsRow[]>(() =>
+    (this.data()?.waste ?? []).map((w, i) => ({ id: String(i), ...w, stage: this.i18n.t(w.stage === 'STAGE_1' ? 'ws.sortRecord.stage1' : 'ws.sortRecord.stage2') })),
+  );
   protected readonly categoryColumns = computed(() => this.mixColumns('ws.container.category'));
   protected readonly gradeColumns = computed(() => this.mixColumns('ws.container.grade'));
   protected readonly categoryRows = computed<WsRow[]>(() => (this.data()?.categories ?? []).map((c) => ({ id: c.name, ...c })));

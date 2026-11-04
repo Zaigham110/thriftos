@@ -169,6 +169,8 @@ function typing(e: KeyboardEvent): boolean {
     .skip:focus { inset-inline-start:8px; }
     .ws { display:grid; grid-template-columns:var(--ws-nav-w) minmax(0,1fr); grid-template-rows:var(--ws-topbar-h) minmax(0,1fr); min-height:100vh; }
     .ws.collapsed { grid-template-columns:var(--ws-nav-w-min) minmax(0,1fr); }
+    /* Printing a report: only the page itself, full width. */
+    @media print { .skip, .topbar, .nav, .crumbs { display:none !important; } .ws, .ws.collapsed { display:block; min-height:0; } }
 
     .topbar { grid-column:1 / -1; position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:var(--ws-4); padding-inline:var(--ws-4); border-block-end:1px solid var(--ws-line); background:var(--ws-surface); }
     .brand { display:flex; align-items:center; gap:var(--ws-2); color:var(--ws-ink); font-size:var(--ws-text-lg); font-weight:700; text-decoration:none; }

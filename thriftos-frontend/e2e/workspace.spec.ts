@@ -68,7 +68,7 @@ test('keyboard: Ctrl+K jumps to a screen, / and ? open the palette and the short
   await expect(page.getByRole('dialog', { name: 'Search or jump to…' })).toBeVisible();
   // Fill the palette's own input: keys typed while it is still opening can be lost.
   await page.locator('[role=dialog] input').fill('khata');
-  await expect(page.getByRole('option').first()).toContainText('Receivables');
+  await expect(page.getByRole('dialog').getByRole('option').first()).toContainText('Receivables');
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/khata\/records$/);
   await expect(page.locator('.nav-item.active')).toContainText('Receivables');
@@ -77,7 +77,7 @@ test('keyboard: Ctrl+K jumps to a screen, / and ? open the palette and the short
   await page.keyboard.press('/');
   await expect(page.getByRole('dialog', { name: 'Search or jump to…' })).toBeVisible();
   await page.locator('[role=dialog] input').fill('new sale');
-  await expect(page.getByRole('option').first()).toContainText('New sale');
+  await expect(page.getByRole('dialog').getByRole('option').first()).toContainText('New sale');
   await page.keyboard.press('Enter');
   // On the laptop "New sale" opens the keyboard-first sale form.
   await expect(page).toHaveURL(/\/sell\/records\/new$/);

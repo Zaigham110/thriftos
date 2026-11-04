@@ -11,6 +11,7 @@ import {
   WsDataGridComponent,
   WsKpiCardComponent,
   WsPageHeaderComponent,
+  WsReportActionsComponent,
   WsRow,
   WsStateComponent,
 } from '../../shared/ui/workspace';
@@ -23,19 +24,21 @@ export interface StockSummary {
   byCategory: (Bucket & { name: string })[];
   byGodown: (Bucket & { name: string })[];
   pendingCounts: number;
+  ageByCategory: { name: string; buckets: Record<string, { kg: string; value: string | null }> }[];
 }
 
 /** Stock ageing and valuation (enterprise plan E3.3): what is left, how old it is, what it is worth, where. */
 @Component({
   selector: 'app-stock-summary',
   standalone: true,
-  imports: [RouterLink, LucideAngularModule, TPipe, WsBarChartComponent, WsDataGridComponent, WsKpiCardComponent, WsPageHeaderComponent, WsStateComponent],
+  imports: [RouterLink, LucideAngularModule, TPipe, WsBarChartComponent, WsDataGridComponent, WsKpiCardComponent, WsPageHeaderComponent, WsReportActionsComponent, WsStateComponent],
   template: `
     @if (failed()) {
       <ws-state kind="error" (retry)="load()" />
     } @else if (data(); as d) {
       <div class="page">
         <ws-page-header [heading]="'ws.stockValue.title' | t" [subtitle]="'ws.stockValue.subtitle' | t">
+          <ws-report-actions actions [columns]="matrixColumns()" [rows]="matrixRows()" filename="thriftos-stock-ageing" />
           <a actions class="ws-btn" routerLink="/stock/items/counts"><lucide-icon [img]="icons.ClipboardCheck" [size]="16" aria-hidden="true" />{{ 'ws.counts.title' | t }}@if (d.pendingCounts) { · {{ 'ws.stockValue.waiting' | t: { n: d.pendingCounts } }} }</a>
         </ws-page-header>
         <section class="kpis">
@@ -48,6 +51,7 @@ export interface StockSummary {
           <ws-bar-chart [heading]="'ws.stockValue.ageing' | t" [categories]="ageLabels()" [series]="ageSeries()" [format]="d.total.value !== null ? 'money' : 'kg'" />
           <ws-data-grid [caption]="'ws.stockValue.ageing' | t" [columns]="ageColumns()" [rows]="ageRows()" />
         </div>
+        <ws-data-grid [caption]="'ws.stockValue.matrix' | t" [columns]="matrixColumns()" [rows]="matrixRows()" />
         <div class="two">
           <ws-data-grid [caption]="'ws.stockValue.byCategory' | t" [columns]="categoryColumns()" [rows]="categoryRows()" />
           <ws-data-grid [caption]="'ws.stockValue.byGodown' | t" [columns]="godownColumns()" [rows]="godownRows()" />
@@ -82,6 +86,21 @@ export class StockSummaryComponent {
   protected readonly ageColumns = computed<WsColumn[]>(() => this.groupColumns('ws.stockValue.ageCol'));
   protected readonly ageRows = computed<WsRow[]>(() => (this.data()?.ageing ?? []).map((a) => ({ id: a.bucket, name: this.i18n.t(`ws.stockValue.age.${a.bucket}`), items: a.items, kg: a.kg, value: a.value })));
 
+  /** Category × age: value left (or kg without cost permission); old stock to clear first. */
+  protected readonly matrixColumns = computed<WsColumn[]>(() => {
+    const money = this.data()?.total.value !== null;
+    return [
+      { key: 'name', label: this.i18n.t('ws.container.category') },
+      ...['0-30', '31-60', '61-90', '90+'].map((k) => ({ key: k, label: this.i18n.t(`ws.stockValue.age.${k}`), format: (money ? 'money' : 'kg') as 'money' | 'kg', total: true })),
+    ];
+  });
+  protected readonly matrixRows = computed<WsRow[]>(() => {
+    const money = this.data()?.total.value !== null;
+    return (this.data()?.ageByCategory ?? []).map((c, i) => ({
+      id: String(i), name: c.name || this.i18n.t('ws.stockValue.none'),
+      ...Object.fromEntries(Object.entries(c.buckets).map(([k, b]) => [k, money ? b.value : b.kg])),
+    }));
+  });
   protected readonly categoryRows = computed(() => this.rows(this.data()?.byCategory ?? []));
   protected readonly godownRows = computed(() => this.rows(this.data()?.byGodown ?? []));
   protected readonly categoryColumns = computed(() => this.groupColumns('ws.container.category'));

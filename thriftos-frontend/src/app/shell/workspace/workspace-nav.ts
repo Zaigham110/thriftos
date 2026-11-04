@@ -71,7 +71,14 @@ export const WS_NAV: WsNavGroup[] = [
       { label: 'ws.nav.pnl', path: '/finance/pnl', icon: TrendingUp, permission: 'cost.view', keywords: 'profit loss munafa nuqsan p&l' },
     ],
   },
-  { label: 'ws.group.insights', items: [{ label: 'ws.nav.reports', path: '/reports', icon: BarChart3, module: 'REPORTS', keywords: 'reports analytics' }] },
+  {
+    label: 'ws.group.insights',
+    items: [
+      { label: 'ws.nav.reports', path: '/insights', icon: BarChart3, permission: 'REPORTS_VIEW', keywords: 'reports analytics report centre' },
+      { label: 'ws.nav.salesAnalytics', path: '/sell/analytics', icon: TrendingUp, module: 'SELL', permission: 'REPORTS_VIEW', keywords: 'sales analytics customer city grade price trend' },
+      { label: 'ws.nav.scorecard', path: '/receive/scorecard', icon: Factory, module: 'RECEIVE', permission: 'REPORTS_VIEW', keywords: 'supplier origin scorecard ranking profit per kg' },
+    ],
+  },
 ];
 
 export const WS_SETTINGS: WsNavItem = { label: 'ws.nav.settings', path: '/settings', icon: Settings2, keywords: 'settings team password language export' };
@@ -114,6 +121,9 @@ export const WS_CRUMBS: Record<string, string> = {
   book: 'ws.nav.book',
   close: 'ws.nav.close',
   pnl: 'ws.nav.pnl',
+  analytics: 'ws.nav.salesAnalytics',
+  insights: 'ws.nav.reports',
+  scorecard: 'ws.nav.scorecard',
   prices: 'ws.nav.prices',
   counts: 'ws.counts.title',
   today: 'ws.crumb.today',

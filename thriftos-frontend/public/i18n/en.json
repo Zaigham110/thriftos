@@ -661,6 +661,22 @@
    "sold": "Sold",
    "statement": "Statement"
   },
+  "dash": {
+   "activity": "Latest activity",
+   "afterExpenses": "after {amount} expenses",
+   "collected": "Cash collected",
+   "containers": "Containers in progress ({n})",
+   "noContainers": "No containers in progress",
+   "owing": "{n} customers owe · {broken} broken promises",
+   "period": "{from} – {to}",
+   "quiet": "Nothing yet",
+   "revenue": "Sales",
+   "stockHint": "{kg} in {n} items",
+   "title": "Dashboard",
+   "today": "Today: {sales} sales, {revenue} · {collected} received",
+   "trendDay": "Sales and gross profit by day",
+   "trendMonth": "Sales and gross profit by month"
+  },
   "density": {
    "comfortable": "Comfortable rows",
    "compact": "Compact rows"
@@ -783,6 +799,8 @@
    "receivables": "Receivables",
    "reports": "Reports",
    "sales": "Sales",
+   "salesAnalytics": "Sales analytics",
+   "scorecard": "Supplier scorecard",
    "settings": "Settings",
    "sorting": "Sorting",
    "stockValue": "Stock value",
@@ -869,6 +887,67 @@
    "today": "Today",
    "year": "This year"
   },
+  "report": {
+   "csv": "Export CSV",
+   "print": "Print"
+  },
+  "reports": {
+   "item": {
+    "book": {
+     "hint": "Money in and out per payment method",
+     "name": "Cash and bank book"
+    },
+    "collections": {
+     "hint": "Who owes what and for how long",
+     "name": "Udhaar ageing"
+    },
+    "dashboard": {
+     "hint": "Sales, profit, cash, udhaar and stock at a glance",
+     "name": "Dashboard"
+    },
+    "expenses": {
+     "hint": "By category, method and month",
+     "name": "Expenses"
+    },
+    "lots": {
+     "hint": "Waiting, sorting and sorted lots",
+     "name": "Lots and sorting"
+    },
+    "pnl": {
+     "hint": "By month, after cost, write-offs and expenses",
+     "name": "Profit and loss"
+    },
+    "salesAnalytics": {
+     "hint": "By customer, category, grade, city or month",
+     "name": "Sales analytics"
+    },
+    "scorecard": {
+     "hint": "Profit per kg, sorted % and A grade, ranked",
+     "name": "Supplier scorecard"
+    },
+    "stockList": {
+     "hint": "Every item with what is left and its value",
+     "name": "Stock list"
+    },
+    "stockValue": {
+     "hint": "What is left, how old, what it cost",
+     "name": "Stock value and ageing"
+    },
+    "yield": {
+     "hint": "Sorted % and waste by supplier, origin or month",
+     "name": "Sorting yield"
+    }
+   },
+   "section": {
+    "money": "Money",
+    "overview": "Overview",
+    "purchasing": "Buying and sorting",
+    "sales": "Sales and udhaar",
+    "stock": "Stock"
+   },
+   "subtitle": "Every report in one place: filters, chart and table, export and print",
+   "title": "Reports"
+  },
   "sale": {
    "amount": "Amount",
    "balance": "Customer balance",
@@ -918,6 +997,37 @@
    "emptyMessage": "Try other words, a wider period, or clear the filters.",
    "search": "Search sale number, customer or city",
    "title": "Sales"
+  },
+  "salesAn": {
+   "avgPerKg": "average {amount} per kg",
+   "bills": "Bills",
+   "chart": "Sales and gross profit by {by}",
+   "empty": "No sales in this period",
+   "group": {
+    "category": "Category",
+    "city": "City",
+    "customer": "Customer",
+    "grade": "Grade",
+    "month": "Month"
+   },
+   "kgSold": "Kg sold",
+   "margin": "Margin",
+   "noTrend": "No graded sales by kg yet",
+   "perKg": "Per kg",
+   "priceTrend": "Price per kg by grade and month",
+   "salesCount": "{n} sales",
+   "subtitle": "What sold, to whom and where, and how prices moved",
+   "title": "Sales analytics",
+   "top": "Top customers"
+  },
+  "score": {
+   "chartProfit": "Profit per kg",
+   "chartYield": "Sorted % and A grade %",
+   "empty": "No containers in this period",
+   "profitSoFar": "{amount} profit so far",
+   "rank": "Rank",
+   "subtitle": "Who gives the most profit per kg bought, sorted % and A grade — ranked",
+   "title": "Supplier and origin scorecard"
   },
   "search": "Search or jump to…",
   "sheet": {
@@ -1057,6 +1167,7 @@
    "byCategory": "By category",
    "byGodown": "By godown",
    "items": "Items",
+   "matrix": "Stock by category and age",
    "none": "Not set",
    "old": "Older than 60 days",
    "oldHint": "Sell these first",
@@ -1118,6 +1229,8 @@
    "lots": "Lots sorted",
    "subtitle": "How much of what you bought came out as sellable stock",
    "title": "Yield analysis",
+   "trend": "Sorted % by month",
+   "waste": "Waste by type",
    "wasteHint": "{kg} waste"
   }
  }

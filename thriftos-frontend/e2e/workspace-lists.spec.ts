@@ -232,6 +232,8 @@ test('finance: record an expense, close the day, cash book and profit and loss',
   await page.locator('form').getByLabel('Category').selectOption({ label: 'Transport' });
   await page.getByLabel('Amount').fill('1500');
   await page.getByLabel('Paid to').fill('Loader rickshaw');
+  // Paid by bank: a cash expense on a day whose cash is already closed is refused (re-runs on the same database).
+  await page.locator('form').getByLabel('Method').selectOption({ label: 'Bank' });
   await page.getByRole('button', { name: 'Save expense' }).click();
   await expect(page.getByText('Expense saved')).toBeVisible();
   await expect(page.getByRole('heading', { name: /^Transport · / })).toContainText('1,500');
@@ -249,6 +251,7 @@ test('finance: record an expense, close the day, cash book and profit and loss',
 
   await page.goto('/finance/book');
   await expect(page.getByRole('heading', { name: 'Cash and bank book' })).toBeVisible();
+  await page.getByRole('button', { name: 'Bank', exact: true }).click();
   await expect(page.locator('ws-data-grid tbody')).toContainText('Transport · Loader rickshaw');
 
   await page.goto('/finance/pnl');
@@ -294,4 +297,34 @@ test('sales extras: price list for a group, keyboard sale entry suggests the lis
   await page.getByLabel('New group').fill(`Wholesale ${tag}`);
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(page.getByRole('heading', { name: `Wholesale ${tag}`, level: 2 })).toBeVisible();
+});
+
+test('dashboards: owner dashboard on Home, scorecard, sales analytics with CSV, report centre', async ({ page, request }) => {
+  await makeSale(request);
+  await signIn(page);
+  await page.goto('/home');
+  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible();
+  const sales = page.locator('ws-kpi-card').filter({ hasText: 'Sales' }).first();
+  await expect(sales).toContainText('Rs');
+  await expect(page.getByRole('heading', { name: 'Latest activity' })).toBeVisible();
+  await sales.click();
+  await expect(page).toHaveURL(/\/sell\/records$/);
+
+  await page.goto('/receive/scorecard');
+  await expect(page.getByRole('heading', { name: 'Supplier and origin scorecard' })).toBeVisible();
+  await page.getByRole('button', { name: 'Origin' }).click();
+  await expect(page.locator('ws-data-grid')).toBeVisible();
+
+  await page.goto('/sell/analytics');
+  await expect(page.getByRole('heading', { name: 'Sales analytics' })).toBeVisible();
+  await page.locator('ws-command-bar select').first().selectOption({ label: 'City' });
+  await expect(page.locator('ws-data-grid').first().locator('tbody tr').filter({ hasText: 'Karachi' })).toBeVisible();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export CSV' }).click();
+  expect((await download).suggestedFilename()).toMatch(/^thriftos-sales-by-city-\d{4}-\d{2}-\d{2}\.csv$/);
+
+  await page.goto('/insights');
+  await expect(page.getByRole('heading', { name: 'Reports', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: /Supplier scorecard/ }).first().click();
+  await expect(page).toHaveURL(/\/receive\/scorecard$/);
 });

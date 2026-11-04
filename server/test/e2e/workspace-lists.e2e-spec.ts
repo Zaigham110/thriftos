@@ -220,5 +220,6 @@ describe('Workspace lists, views, activity and search (e2e)', () => {
       expect(ms).toBeLessThan(1000);
     }
     expect((await list(big, 'pageSize=1').expect(200)).body.total).toBe(10000);
-  });
+    // Inserting the 10,000 rows takes ~4 s; only the page times above are the check.
+  }, 30_000);
 });

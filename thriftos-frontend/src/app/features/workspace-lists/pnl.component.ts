@@ -4,7 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
-import { WsBarChartComponent, WsColumn, WsDataGridComponent, WsKpiCardComponent, WsPageHeaderComponent, WsRow, WsStateComponent } from '../../shared/ui/workspace';
+import { WsBarChartComponent, WsColumn, WsDataGridComponent, WsKpiCardComponent, WsPageHeaderComponent, WsReportActionsComponent, WsRow, WsStateComponent } from '../../shared/ui/workspace';
 import { EXPENSE_CATEGORIES } from './lists';
 
 type Money = string;
@@ -19,10 +19,11 @@ export interface Pnl { months: Month[]; totals: Omit<Month, 'month' | 'marginPer
 @Component({
   selector: 'app-pnl',
   standalone: true,
-  imports: [FormsModule, TPipe, WsBarChartComponent, WsDataGridComponent, WsKpiCardComponent, WsPageHeaderComponent, WsStateComponent],
+  imports: [FormsModule, TPipe, WsBarChartComponent, WsDataGridComponent, WsKpiCardComponent, WsPageHeaderComponent, WsReportActionsComponent, WsStateComponent],
   template: `
     <div class="page">
       <ws-page-header [heading]="'ws.pnl.title' | t" [subtitle]="'ws.pnl.subtitle' | t">
+        <ws-report-actions actions [columns]="columns()" [rows]="rows()" filename="thriftos-profit-and-loss" />
         <label actions class="select">{{ 'ws.pnl.period' | t }}
           <select [ngModel]="months()" (ngModelChange)="months.set($event)">
             @for (n of periods; track n) { <option [ngValue]="n">{{ 'ws.pnl.lastMonths' | t: { n } }}</option> }

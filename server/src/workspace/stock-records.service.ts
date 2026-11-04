@@ -149,6 +149,7 @@ export class StockRecordsService {
     });
     const ageing = AGE_BUCKETS.map((b) => ({ bucket: b.key, items: 0, kg: ZERO, value: ZERO }));
     const byCategory = new Map<string, { name: string; items: number; kg: Prisma.Decimal; value: Prisma.Decimal }>();
+    const ageByCategory = new Map<string, Record<string, { kg: Prisma.Decimal; value: Prisma.Decimal }>>();
     const byGodown = new Map<string, { name: string; items: number; kg: Prisma.Decimal; value: Prisma.Decimal }>();
     let total = { items: 0, kg: ZERO, value: ZERO };
     const add = (row: { items: number; kg: Prisma.Decimal; value: Prisma.Decimal }, kg: Prisma.Decimal, value: Prisma.Decimal) => {
@@ -161,8 +162,12 @@ export class StockRecordsService {
       if (left.lessThanOrEqualTo(0)) continue;
       const kg = leftKg ?? ZERO;
       const age = ageDays(i.createdAt, now);
-      add(ageing[AGE_BUCKETS.findIndex((b) => age <= b.max)], kg, value);
+      const bucket = AGE_BUCKETS.findIndex((b) => age <= b.max);
+      add(ageing[bucket], kg, value);
       const cat = i.category?.name ?? '';
+      const row = ageByCategory.get(cat) ?? Object.fromEntries(AGE_BUCKETS.map((b) => [b.key, { kg: ZERO, value: ZERO }]));
+      row[AGE_BUCKETS[bucket].key] = { kg: row[AGE_BUCKETS[bucket].key].kg.add(kg), value: row[AGE_BUCKETS[bucket].key].value.add(value) };
+      ageByCategory.set(cat, row);
       if (!byCategory.has(cat)) byCategory.set(cat, { name: cat, items: 0, kg: ZERO, value: ZERO });
       add(byCategory.get(cat)!, kg, value);
       const gd = i.warehouse?.name ?? '';
@@ -178,6 +183,10 @@ export class StockRecordsService {
       byCategory: [...byCategory.values()].sort((a, b) => b.value.comparedTo(a.value) || b.kg.comparedTo(a.kg)).map(hide),
       byGodown: [...byGodown.values()].sort((a, b) => b.value.comparedTo(a.value) || b.kg.comparedTo(a.kg)).map(hide),
       pendingCounts,
+      ageByCategory: [...ageByCategory.entries()].map(([name, b]) => ({
+        name,
+        buckets: Object.fromEntries(Object.entries(b).map(([k, v]) => [k, { kg: v.kg, value: money(canSeeCost, v.value) }])),
+      })),
     };
   }
 

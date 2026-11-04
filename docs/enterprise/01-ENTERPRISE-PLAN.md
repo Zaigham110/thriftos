@@ -124,12 +124,12 @@ Each area gets list + record (+ kanban where it has stages), using E2.
   filters, group-by, totals and export.
 
 ### Phase E4 — Dashboards and analytics (week 6–7)
-- [ ] E4.1 Owner dashboard: revenue, gross profit and margin with trend, cash collected, udhaar owed with ageing, stock
+- [x] E4.1 Owner dashboard: revenue, gross profit and margin with trend, cash collected, udhaar owed with ageing, stock
   value with ageing, containers in progress, today's activity; date range and branch filter; every number opens its list.
-- [ ] E4.2 Supplier & origin scorecard (differentiator 2) with charts and ranking.
-- [ ] E4.3 Sales analytics: by customer, category, grade, city, month; top customers; price trend per grade.
-- [ ] E4.4 Sorting analytics (yield, waste, by supplier and category) and stock ageing dashboard.
-- [ ] E4.5 Report centre: all reports in one place, each with filters, chart + table, export and print.
+- [x] E4.2 Supplier & origin scorecard (differentiator 2) with charts and ranking.
+- [x] E4.3 Sales analytics: by customer, category, grade, city, month; top customers; price trend per grade.
+- [x] E4.4 Sorting analytics (yield, waste, by supplier and category) and stock ageing dashboard.
+- [x] E4.5 Report centre: all reports in one place, each with filters, chart + table, export and print.
 - Acceptance: each dashboard loads in < 2 s on the demo data; numbers match the SQL checks and the list totals (tests).
 
 ### Phase E5 — Control, multi-branch and administration (week 7–8)

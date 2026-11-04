@@ -8,6 +8,7 @@ import { ListsService } from '../lists/lists.service';
 import { WorkspaceRecordsService } from './records.service';
 import { CreditLimitDto, PromiseDto, ReceivablesService, ReminderDto, StatementQueryDto } from './receivables.service';
 import { SortingRecordsService, YieldQueryDto } from './sorting-records.service';
+import { AnalyticsService, PeriodDto, SalesAnalyticsQueryDto, ScorecardQueryDto } from './analytics.service';
 import { PriceEntryDto, PriceGroupDto, PriceListsService } from './price-lists.service';
 import { BookQueryDto, CloseDto, CloseQueryDto, ExpenseDto, FinanceService, PnlQueryDto } from './finance.service';
 import { StockCountDto, StockDecisionDto, StockRecordsService, StockTransferDto } from './stock-records.service';
@@ -24,6 +25,7 @@ export class WorkspaceController {
     private readonly sorting: SortingRecordsService,
     private readonly finance: FinanceService,
     private readonly prices: PriceListsService,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   private async canSeeCost(user: CurrentUserData): Promise<boolean> {
@@ -97,6 +99,26 @@ export class WorkspaceController {
   @RequirePermissions('SORTING_STAGE1_VIEW')
   async sortingLot(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('lotId') id: string) {
     return this.sorting.lot(tenantId, id, await this.canSeeCost(user));
+  }
+
+  // ---- Dashboards and analytics (E4) ----
+  @Get('dashboard')
+  @RequirePermissions('REPORTS_VIEW')
+  async dashboard(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Query() q: PeriodDto) {
+    const perms = await this.lists.permissionsOf(user);
+    return this.analytics.dashboard(tenantId, q, { cost: perms.has('cost.view'), finance: perms.has('finance.view') });
+  }
+
+  @Get('analytics/suppliers')
+  @RequirePermissions('REPORTS_VIEW')
+  async scorecard(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Query() q: ScorecardQueryDto) {
+    return this.analytics.scorecard(tenantId, q, await this.canSeeCost(user));
+  }
+
+  @Get('analytics/sales')
+  @RequirePermissions('REPORTS_VIEW')
+  async salesAnalytics(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Query() q: SalesAnalyticsQueryDto) {
+    return this.analytics.sales(tenantId, q, await this.canSeeCost(user));
   }
 
   // ---- Price lists (E3.4) ----

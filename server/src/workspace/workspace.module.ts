@@ -8,11 +8,12 @@ import { ReceivablesService } from './receivables.service';
 import { SortingRecordsService } from './sorting-records.service';
 import { FinanceService } from './finance.service';
 import { PriceListsService } from './price-lists.service';
+import { AnalyticsService } from './analytics.service';
 import { SalesModule } from '../sales/sales.module';
 
 @Module({
   imports: [CommonModule, ListsModule, SalesModule],
   controllers: [WorkspaceController],
-  providers: [WorkspaceRecordsService, StockRecordsService, ReceivablesService, SortingRecordsService, FinanceService, PriceListsService],
+  providers: [WorkspaceRecordsService, StockRecordsService, ReceivablesService, SortingRecordsService, FinanceService, PriceListsService, AnalyticsService],
 })
 export class WorkspaceModule {}

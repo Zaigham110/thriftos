@@ -123,6 +123,7 @@ export const routes: Routes = [
           { path: 'ready', loadComponent: () => import('./features/receive/receive-ready.component').then((m) => m.ReceiveReadyComponent), title: 'ThriftOS' },
           { path: 'ready/open/:id', loadComponent: () => import('./features/receive/open-bale.component').then((m) => m.OpenBaleComponent), title: 'ThriftOS' },
           { path: 'records', loadChildren: () => import('./modules/procurement/procurement.routes').then((m) => m.PROCUREMENT_ROUTES) },
+          { path: 'scorecard', loadComponent: () => import('./features/workspace-lists/scorecard.component').then((m) => m.ScorecardComponent), title: 'ThriftOS' },
         ],
       },
       {
@@ -160,9 +161,12 @@ export const routes: Routes = [
           { path: '', loadComponent: () => import('./features/sell/sell-home.component').then((m) => m.SellHomeComponent), title: 'ThriftOS' },
           { path: 'new', loadComponent: () => import('./features/sell/sale.component').then((m) => m.SaleComponent), title: 'ThriftOS' },
           { path: 'records', loadChildren: () => import('./modules/sales/sales.routes').then((m) => m.SALES_ROUTES) },
+          { path: 'analytics', loadComponent: () => import('./features/workspace-lists/sales-analytics.component').then((m) => m.SalesAnalyticsComponent), title: 'ThriftOS' },
           { path: 'prices', loadComponent: () => import('./features/workspace-lists/price-lists.component').then((m) => m.PriceListsComponent), title: 'ThriftOS' },
         ],
       },
+      // Report centre on the laptop (E4.5): owner analytics, not tied to the older detailed-reports module.
+      { path: 'insights', loadComponent: () => import('./features/workspace-lists/report-centre.component').then((m) => m.ReportCentreComponent), title: 'ThriftOS' },
       {
         // Finance (E3.6): management accounts on the laptop; each call checks its own permission.
         path: 'finance',

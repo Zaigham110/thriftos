@@ -117,13 +117,14 @@ export class SortingRecordsService {
       },
     });
     const ragIds = sessions.map((s) => s.rag.id);
-    const [outputs, grades, topGrade] = await Promise.all([
+    const [outputs, grades, topGrade, wasteLines] = await Promise.all([
       this.prisma.categoryOutput.findMany({ where: { tenantId, ragId: { in: ragIds } }, select: { ragId: true, weightKg: true, category: { select: { name: true } } } }),
       this.prisma.gradeOutput.findMany({
         where: { tenantId, gradeBucket: { gradeSession: { categoryOutput: { ragId: { in: ragIds } } } } },
         select: { weightKg: true, count: true, grade: { select: { name: true, rank: true } }, gradeBucket: { select: { gradeSession: { select: { categoryOutput: { select: { ragId: true } } } } } } },
       }),
       this.prisma.grade.findFirst({ where: { tenantId, isActive: true }, orderBy: { rank: 'asc' }, select: { rank: true } }),
+      this.prisma.wasteLineItem.findMany({ where: { tenantId, ragId: { in: ragIds }, unitType: WasteUnitType.KG }, select: { stage: true, amount: true, estimatedValue: true, wasteCategory: { select: { name: true } } } }),
     ]);
     const keyOf = (s: (typeof sessions)[number]): string => {
       switch (by) {
@@ -170,6 +171,22 @@ export class SortingRecordsService {
       rows,
       categories: [...byCategory.entries()].map(([name, kg]) => ({ name, kg, sharePercent: percent(kg, outputKg) })).sort((a, b) => b.kg.comparedTo(a.kg)),
       grades: aggregateGrades(grades, false).map(({ cost: _c, ...g }) => g),
+      waste: [...wasteLines.reduce((m, w) => {
+        const k = `${w.stage}|${w.wasteCategory.name}`;
+        const cur = m.get(k) ?? { stage: w.stage, category: w.wasteCategory.name, kg: ZERO };
+        cur.kg = cur.kg.add(w.amount);
+        return m.set(k, cur);
+      }, new Map<string, { stage: WasteStage; category: string; kg: Prisma.Decimal }>()).values()].sort((a, b) => b.kg.comparedTo(a.kg)),
+      // Sorted % by month (when the sorting finished), oldest first.
+      trend: [...sessions.reduce((m, s) => {
+        const k = new Date(s.endTime!.getTime() + 5 * 3_600_000).toISOString().slice(0, 7);
+        const cur = m.get(k) ?? { month: k, inputKg: ZERO, outputKg: ZERO };
+        cur.inputKg = cur.inputKg.add(s.totalInputWeight);
+        cur.outputKg = cur.outputKg.add(s.totalOutputWeight);
+        return m.set(k, cur);
+      }, new Map<string, { month: string; inputKg: Prisma.Decimal; outputKg: Prisma.Decimal }>()).values()]
+        .sort((a, b) => a.month.localeCompare(b.month))
+        .map((t) => ({ ...t, yieldPercent: percent(t.outputKg, t.inputKg) })),
     };
   }
 }

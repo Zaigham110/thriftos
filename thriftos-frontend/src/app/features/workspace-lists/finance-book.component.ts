@@ -12,6 +12,7 @@ import {
   WsDateRangeComponent,
   WsKpiCardComponent,
   WsPageHeaderComponent,
+  WsReportActionsComponent,
   WsRow,
   WsStateComponent,
   rangeFor,
@@ -36,10 +37,12 @@ export function lineDetails(i18n: I18nService, l: BookLine): string {
 @Component({
   selector: 'app-finance-book',
   standalone: true,
-  imports: [TPipe, WsCommandBarComponent, WsDataGridComponent, WsDateRangeComponent, WsKpiCardComponent, WsPageHeaderComponent, WsStateComponent],
+  imports: [TPipe, WsCommandBarComponent, WsDataGridComponent, WsDateRangeComponent, WsKpiCardComponent, WsPageHeaderComponent, WsReportActionsComponent, WsStateComponent],
   template: `
     <div class="page">
-      <ws-page-header [heading]="'ws.book.title' | t" [subtitle]="'ws.book.subtitle' | t" />
+      <ws-page-header [heading]="'ws.book.title' | t" [subtitle]="'ws.book.subtitle' | t">
+        <ws-report-actions actions [columns]="columns()" [rows]="rows()" [filename]="'thriftos-book-' + method().toLowerCase()" />
+      </ws-page-header>
       <ws-command-bar>
         <div start class="methods" role="group" [attr.aria-label]="'ws.sale.method' | t">
           @for (m of methods; track m) {
