@@ -882,7 +882,7 @@
     "costPerKg": "Cost per kg",
     "date": "Received",
     "kg": "Net kg",
-    "landedCost": "Landed cost",
+    "landedCost": "Total cost",
     "number": "Container",
     "origin": "Origin",
     "profit": "Profit so far",
@@ -894,6 +894,14 @@
    "count": "{n} containers",
    "emptyHeading": "No containers match",
    "emptyMessage": "Try other words, a wider period, or clear the filters.",
+   "info": {
+    "costPerKg": "Total cost divided by the container's net kg. Use it to compare containers and suppliers.",
+    "landedCost": "What the container cost you in all: its price in rupees plus every charge added, such as freight, duty, clearing and transport.",
+    "profit": "Sales so far minus what the sold goods cost (their share of the container's total cost).",
+    "revenue": "Sales so far of everything that came out of this container.",
+    "topGrade": "Of the kg that was graded, the part that came out in your best grade (A).",
+    "yield": "Kg sorted into categories so far, as a part of the container's net kg. Kat and kg still to sort are not counted."
+   },
    "search": "Search container number, supplier or country",
    "title": "Containers"
   },
@@ -1133,6 +1141,7 @@
   "new": {
    "bale": "Make a bale",
    "container": "Receive a container",
+   "gaari": "Buy a gaari / lot",
    "lot": "Receive a loose lot",
    "ready": "Receive ready stock",
    "sale": "New sale"
@@ -1195,6 +1204,29 @@
    "DUE_TODAY": "Due today",
    "KEPT": "Kept",
    "OPEN": "Promised"
+  },
+  "purchaseLots": {
+   "col": {
+    "cost": "Price paid",
+    "costPerKg": "Price per kg",
+    "date": "Bought",
+    "maal": "Maal",
+    "sorted": "Sorted %"
+   },
+   "count": "{n} lots",
+   "emptyHeading": "No gaari or lot bought yet",
+   "emptyMessage": "When you buy a gaari or a loose lot, add it here with its weight and price.",
+   "info": {
+    "cost": "What you paid for the gaari or lot.",
+    "costPerKg": "Price paid divided by the kg bought. Use it to compare gaaris and suppliers.",
+    "sorted": "How much of the lot's kg is sorted so far. It shows 100% once sorting is finished."
+   },
+   "search": "Search lot, supplier or maal",
+   "title": "Gaari and lots"
+  },
+  "purchasing": {
+   "containers": "Containers",
+   "lots": "Gaari / lots"
   },
   "range": {
    "30d": "Last 30 days",
@@ -1522,6 +1554,7 @@
    "dark": "Dark mode",
    "light": "Light mode"
   },
+  "viewMenu": "View",
   "views": {
    "all": "All records",
    "default": "Open this view first",
@@ -1529,7 +1562,8 @@
    "name": "Name this view",
    "save": "Save view",
    "saved": "View \"{name}\" saved.",
-   "taken": "You already have a view with this name."
+   "taken": "You already have a view with this name.",
+   "title": "Saved views"
   },
   "vtype": {
    "CUSTOMER": "Customer",

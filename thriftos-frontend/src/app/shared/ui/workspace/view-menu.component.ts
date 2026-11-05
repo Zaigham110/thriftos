@@ -11,11 +11,13 @@ import { TPipe } from '../../../core/i18n/t.pipe';
   imports: [FormsModule, LucideAngularModule, TPipe],
   template: `
     <div class="wrap" (keydown.escape)="open.set(false)">
+      @if (!inline()) {
       <button type="button" class="ws-btn" (click)="open.set(!open())" [attr.aria-expanded]="open()" aria-haspopup="menu">
         <lucide-icon [img]="icons.Bookmark" [size]="16" aria-hidden="true" />{{ current()?.name || ('ws.views.all' | t) }}<lucide-icon [img]="icons.ChevronDown" [size]="14" aria-hidden="true" />
       </button>
-      @if (open()) {
-        <div class="menu" role="menu">
+      }
+      @if (open() || inline()) {
+        <div class="menu" [class.inline]="inline()" role="menu">
           <button type="button" role="menuitemradio" [attr.aria-checked]="!current()" (click)="choose.emit(null); open.set(false)">
             <span class="tick">@if (!current()) { <lucide-icon [img]="icons.Check" [size]="14" aria-hidden="true" /> }</span>{{ 'ws.views.all' | t }}
           </button>
@@ -42,6 +44,8 @@ import { TPipe } from '../../../core/i18n/t.pipe';
     .ws-btn { height:var(--ws-control-h); display:inline-flex; align-items:center; gap:6px; padding-inline:var(--ws-3); border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface); color:var(--ws-ink); font:inherit; font-weight:500; cursor:pointer; }
     .ws-btn:disabled { opacity:.55; }
     .menu { position:absolute; inset-block-start:calc(100% + 6px); inset-inline-start:0; z-index:30; width:280px; display:grid; gap:2px; padding:var(--ws-1); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); box-shadow:var(--ws-shadow-pop); }
+    .menu.inline { position:static; width:auto; padding:0; border:0; box-shadow:none; background:transparent; }
+    .menu.inline .save { padding-inline:0; }
     .row { display:flex; align-items:center; }
     [role='menuitemradio'] { flex:1; display:flex; align-items:center; gap:var(--ws-2); min-height:34px; padding-inline:var(--ws-2); border:0; border-radius:var(--ws-r-md); background:transparent; color:var(--ws-ink); font:inherit; text-align:start; cursor:pointer; }
     [role='menuitemradio']:hover, .icon:hover { background:var(--ws-surface-hover); }
@@ -53,6 +57,8 @@ import { TPipe } from '../../../core/i18n/t.pipe';
   `],
 })
 export class WsViewMenuComponent {
+  /** Inside another menu (the list's "View"): the list of views without its own button. */
+  readonly inline = input(false);
   readonly views = input<SavedView[]>([]);
   readonly current = input<SavedView | null>(null);
   readonly choose = output<SavedView | null>();

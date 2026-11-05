@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { InventoryStatus, MovementType, Prisma, RagStatus, SortStatus, StockSource, StockUnit, WasteStage } from '@prisma/client';
+import { ContainerStatus, InventoryStatus, MovementType, Prisma, RagStatus, SortStatus, StockSource, StockUnit, WasteStage } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { AuditService } from '../audit/audit.service';
 import { costPerKg, money, openLotCost } from '../costing/costing';
@@ -76,13 +76,14 @@ export class SortSessionService {
     const session = await this.prisma.$transaction(async (tx) => {
       const rag = await tx.rag.findFirst({
         where: { id: dto.ragId, tenantId },
-        select: { id: true, weightKg: true, status: true },
+        select: { id: true, weightKg: true, status: true, containerId: true },
       });
       if (!rag) throw new BadRequestException('Lot not found');
       if (rag.status !== RagStatus.NOT_STARTED) {
         throw new ConflictException(`This lot cannot be sorted again (status ${rag.status}).`);
       }
       await tx.rag.update({ where: { id: rag.id }, data: { status: RagStatus.IN_SORTING } });
+      if (rag.containerId) await this.containerInUse(tx, tenantId, rag.containerId, userId);
       return tx.sortSession.create({
         data: {
           tenantId,
@@ -106,6 +107,21 @@ export class SortSessionService {
       metadataJson: { ragId: session.ragId, workerId, supervisorId },
     });
     return this.summary(tenantId, session.id);
+  }
+
+  /**
+   * Sorting a container's lot means the goods are here and through customs: a container still "on the way" or
+   * "arrived" moves to "cleared" by itself (with the arrival and clearing dates if they were never entered).
+   * Closing stays the owner's step, because a late bill (transport, clearing) can still be added until then.
+   */
+  private async containerInUse(tx: Prisma.TransactionClient, tenantId: string, containerId: string, userId: string) {
+    const c = await tx.container.findFirst({ where: { id: containerId, tenantId }, select: { status: true, arrivedAt: true, clearedAt: true, containerNumber: true } });
+    if (!c || (c.status !== ContainerStatus.IN_TRANSIT && c.status !== ContainerStatus.ARRIVED)) return;
+    const now = new Date();
+    await tx.container.update({ where: { id: containerId }, data: { status: ContainerStatus.CLEARED, arrivedAt: c.arrivedAt ?? now, clearedAt: c.clearedAt ?? now } });
+    await tx.auditLog.create({
+      data: { tenantId, userId, action: 'CONTAINER_STATUS_CHANGED', entityType: 'Container', entityId: containerId, metadataJson: { containerNumber: c.containerNumber, previousStatus: c.status, newStatus: ContainerStatus.CLEARED, reason: 'SORTING_STARTED' } },
+    });
   }
 
   /** The open session for a lot, or an empty summary (used to resume). */

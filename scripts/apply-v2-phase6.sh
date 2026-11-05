@@ -9,6 +9,8 @@
 #   2. 20261106100000_v6_04_first_week  Tenant.firstWeekHiddenAt (the owner hid the first-week checklist on Home)
 #   3. 20261107100000_v6_06_sort_grade_bale  Category.baleWeightKg, CategoryOutput.gradeId + entryBales, stock source
 #                                        KAT; the "made-here stock has an origin" check also accepts kat from its lot
+#   4. 20261108100000_v6_07_container_status  data only: containers whose lots are being sorted move from
+#                                        "on the way"/"arrived" to "cleared" (dates filled in if empty)
 # Data step: base data (server/src/bootstrap): adds data.import and gives every Admin (owner) role all permissions.
 # Idempotent; nothing else changes.
 set -euo pipefail

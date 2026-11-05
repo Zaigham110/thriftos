@@ -2,6 +2,7 @@ import { Component, computed, inject, input, model, output } from '@angular/core
 import { ArrowDown, ArrowUp, ArrowUpDown, LucideAngularModule } from 'lucide-angular';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { TPipe } from '../../../core/i18n/t.pipe';
+import { WsInfoComponent } from './info-tip.component';
 import { WsStateComponent } from './state.component';
 
 export type WsCellFormat = 'text' | 'number' | 'money' | 'kg' | 'date' | 'percent';
@@ -15,6 +16,10 @@ export interface WsColumn {
   width?: string;
   /** Summed in the totals row (number, money, kg). */
   total?: boolean;
+  /** Money in whole rupees (lists); without it paisa show when there are any. */
+  round?: boolean;
+  /** What the column means, behind an "i" next to its name. */
+  info?: string;
 }
 
 export interface WsSort {
@@ -32,7 +37,7 @@ export type WsRow = Record<string, unknown> & { id: string };
 @Component({
   selector: 'ws-data-grid',
   standalone: true,
-  imports: [LucideAngularModule, TPipe, WsStateComponent],
+  imports: [LucideAngularModule, TPipe, WsInfoComponent, WsStateComponent],
   template: `
     <div class="wrap" [attr.aria-busy]="loading()">
       @if (selectable() && selected().length) {
@@ -51,9 +56,12 @@ export type WsRow = Record<string, unknown> & { id: string };
             }
             @for (c of columns(); track c.key) {
               <th scope="col" [class.end]="isNumeric(c)" [attr.aria-sort]="ariaSort(c)">
-                @if (c.sortable) {
-                  <button type="button" (click)="toggleSort(c)">{{ c.label }}<lucide-icon [img]="sortIcon(c)" [size]="14" aria-hidden="true" /></button>
-                } @else { {{ c.label }} }
+                <span class="th">
+                  @if (c.sortable) {
+                    <button type="button" (click)="toggleSort(c)">{{ c.label }}<lucide-icon [img]="sortIcon(c)" [size]="14" aria-hidden="true" /></button>
+                  } @else { {{ c.label }} }
+                  @if (c.info) { <ws-info [title]="c.label" [text]="c.info" /> }
+                </span>
               </th>
             }
           </tr>
@@ -65,7 +73,7 @@ export type WsRow = Record<string, unknown> & { id: string };
                 @if (selectable()) {
                   <td class="check" (click)="$event.stopPropagation()"><input type="checkbox" [checked]="isSelected(r)" (change)="toggle(r)" [attr.aria-label]="'ws.grid.selectRow' | t" /></td>
                 }
-                @for (c of columns(); track c.key) { <td [class.end]="isNumeric(c)" [class.ws-num]="isNumeric(c)">{{ cell(r[c.key], c.format) }}</td> }
+                @for (c of columns(); track c.key) { <td [class.end]="isNumeric(c)" [class.ws-num]="isNumeric(c)">{{ cell(r[c.key], c.format, c.round) }}</td> }
               </tr>
             }
           }
@@ -75,7 +83,7 @@ export type WsRow = Record<string, unknown> & { id: string };
             <tr>
               @if (selectable()) { <td></td> }
               @for (c of columns(); track c.key; let first = $first) {
-                <td [class.end]="isNumeric(c)" [class.ws-num]="isNumeric(c)">{{ c.total ? cell(totals()[c.key], c.format) : first ? ('ws.grid.total' | t) : '' }}</td>
+                <td [class.end]="isNumeric(c)" [class.ws-num]="isNumeric(c)">{{ c.total ? cell(totals()[c.key], c.format, c.round) : first ? ('ws.grid.total' | t) : '' }}</td>
               }
             </tr>
           </tfoot>
@@ -90,6 +98,7 @@ export type WsRow = Record<string, unknown> & { id: string };
     table { width:100%; border-collapse:separate; border-spacing:0; font-size:var(--ws-text-sm); }
     th, td { height:var(--ws-row-h); padding-inline:var(--ws-cell-px); border-block-end:1px solid var(--ws-line); text-align:start; white-space:nowrap; }
     thead th { position:sticky; top:0; z-index:1; background:var(--ws-surface-2); color:var(--ws-ink-2); font-size:var(--ws-text-xs); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+    .th { display:inline-flex; align-items:center; gap:6px; }
     th button { display:inline-flex; align-items:center; gap:var(--ws-1); padding:0; border:0; background:transparent; color:inherit; font:inherit; text-transform:inherit; letter-spacing:inherit; cursor:pointer; }
     th button lucide-icon { color:var(--ws-ink-3); }
     .end { text-align:end; }
@@ -144,10 +153,10 @@ export class WsDataGridComponent {
     return c.format === 'number' || c.format === 'money' || c.format === 'kg' || c.format === 'percent';
   }
 
-  protected cell(v: unknown, format: WsCellFormat = 'text'): string {
+  protected cell(v: unknown, format: WsCellFormat = 'text', round = false): string {
     if (v === null || v === undefined || v === '') return '—';
     switch (format) {
-      case 'money': return this.i18n.money(v as number | string);
+      case 'money': return this.i18n.money(round ? Math.round(Number(v)) : (v as number | string));
       case 'kg': return this.i18n.kg(v as number | string);
       case 'number': return this.i18n.num(v as number | string);
       case 'percent': return `${this.i18n.num(v as number | string, 0)}%`;

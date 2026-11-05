@@ -114,7 +114,7 @@ function typing(e: KeyboardEvent): boolean {
           @for (group of navGroups(); track group.label) {
             @if (group.label) { <div class="group-label">{{ group.label | t }}</div> }
             @for (item of group.items; track item.path) {
-              <a [routerLink]="item.path" routerLinkActive="active" class="nav-item" [title]="collapsed() ? (item.label | t) : ''">
+              <a [routerLink]="item.path" routerLinkActive="active" [class.also]="alsoHere(item)" class="nav-item" [title]="collapsed() ? (item.label | t) : ''">
                 <lucide-icon [img]="item.icon" [size]="18" aria-hidden="true" /><span>{{ item.label | t }}</span>
               </a>
             }
@@ -211,7 +211,7 @@ function typing(e: KeyboardEvent): boolean {
     .group-label { padding:var(--ws-4) var(--ws-3) var(--ws-1); color:var(--ws-ink-3); font-size:var(--ws-text-xs); font-weight:600; text-transform:uppercase; letter-spacing:.06em; }
     .nav-item { display:flex; align-items:center; gap:var(--ws-3); min-height:38px; padding-inline:var(--ws-3); border:0; border-radius:var(--ws-r-md); background:transparent; color:var(--ws-ink-2); font:inherit; font-weight:500; text-align:start; text-decoration:none; cursor:pointer; white-space:nowrap; }
     .nav-item:hover { background:var(--ws-surface-hover); color:var(--ws-ink); }
-    .nav-item.active { background:var(--ws-brand-soft); color:var(--ws-brand); font-weight:600; }
+    .nav-item.active, .nav-item.also { background:var(--ws-brand-soft); color:var(--ws-brand); font-weight:600; }
     .nav-foot { display:grid; gap:2px; padding-block-start:var(--ws-2); border-block-start:1px solid var(--ws-line); }
     .collapsed .nav-item span, .collapsed .group-label { display:none; }
     .collapsed .nav-item { justify-content:center; padding:0; }
@@ -256,6 +256,10 @@ export class WorkspaceShellComponent {
     { initialValue: this.router.url },
   );
   protected readonly crumbs = computed(() => crumbsFor(this.url()));
+  protected alsoHere(item: WsNavItem): boolean {
+    const u = this.url().split(/[?#]/)[0];
+    return !!item.also?.some((p) => u === p || u.startsWith(p + '/'));
+  }
   protected readonly tenantName = computed(() => this.tenantService.tenant()?.name || 'ThriftOS');
   protected readonly userName = computed(() => this.auth.user()?.name ?? '');
   protected readonly userContact = computed(() => this.auth.user()?.email ?? this.auth.user()?.phone ?? '');

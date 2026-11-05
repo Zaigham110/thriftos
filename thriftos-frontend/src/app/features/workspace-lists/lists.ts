@@ -40,6 +40,12 @@ export const SALES_LIST: ListConfig = {
 
 const CONTAINER_STATUSES = ['IN_TRANSIT', 'ARRIVED', 'CLEARED', 'CLOSED'] as const;
 
+/** Purchasing (v2 review): what was bought, containers and gaari / loose lots, as two tabs of one screen. */
+export const PURCHASING_TABS = [
+  { label: 'ws.purchasing.containers', link: '/receive/records/containers' },
+  { label: 'ws.purchasing.lots', link: '/receive/records/lots' },
+];
+
 export const CONTAINERS_LIST: ListConfig = {
   resource: 'containers',
   help: 'container',
@@ -56,12 +62,12 @@ export const CONTAINERS_LIST: ListConfig = {
     { key: 'origin', label: 'ws.containers.col.origin' },
     { key: 'status', label: 'ws.col.status', enumPrefix: 'ws.cstatus.' },
     { key: 'kg', label: 'ws.containers.col.kg', format: 'kg', total: true },
-    { key: 'landedCost', label: 'ws.containers.col.landedCost', format: 'money', total: true },
-    { key: 'costPerKg', label: 'ws.containers.col.costPerKg', format: 'money' },
-    { key: 'revenue', label: 'ws.containers.col.revenue', format: 'money', computed: true },
-    { key: 'profit', label: 'ws.containers.col.profit', format: 'money', computed: true },
-    { key: 'yield', label: 'ws.containers.col.yield', format: 'percent', computed: true },
-    { key: 'topGrade', label: 'ws.containers.col.topGrade', format: 'percent', computed: true },
+    { key: 'landedCost', label: 'ws.containers.col.landedCost', format: 'money', total: true, info: 'ws.containers.info.landedCost' },
+    { key: 'costPerKg', label: 'ws.containers.col.costPerKg', format: 'money', exact: true, info: 'ws.containers.info.costPerKg' },
+    { key: 'revenue', label: 'ws.containers.col.revenue', format: 'money', computed: true, info: 'ws.containers.info.revenue' },
+    { key: 'profit', label: 'ws.containers.col.profit', format: 'money', computed: true, info: 'ws.containers.info.profit' },
+    { key: 'yield', label: 'ws.containers.col.yield', format: 'percent', computed: true, info: 'ws.containers.info.yield' },
+    { key: 'topGrade', label: 'ws.containers.col.topGrade', format: 'percent', computed: true, info: 'ws.containers.info.topGrade' },
   ],
   defaultColumns: ['number', 'date', 'supplier', 'status', 'kg', 'landedCost', 'profit', 'yield', 'topGrade'],
   dateField: 'date',
@@ -74,6 +80,7 @@ export const CONTAINERS_LIST: ListConfig = {
   quickFilters: [{ field: 'status', label: 'ws.col.status', values: CONTAINER_STATUSES, prefix: 'ws.cstatus.' }],
   rowLink: (id) => ['/receive/records/containers', id],
   create: { label: 'ws.new.container', link: '/receive/container' },
+  tabs: PURCHASING_TABS,
   board: {
     field: 'status',
     values: CONTAINER_STATUSES,
@@ -82,6 +89,42 @@ export const CONTAINERS_LIST: ListConfig = {
     lines: ['supplier', 'kg', 'profit'],
     move: (id, value) => ({ url: `/api/procurement/containers/${id}/status`, body: { status: value } }),
   },
+};
+
+const LOT_STATUSES_BOUGHT = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
+
+/** Gaari and loose lots bought without a container: what was paid, price per kg, how far sorting has got. */
+export const PURCHASE_LOTS_LIST: ListConfig = {
+  resource: 'purchase-lots',
+  help: 'sorting',
+  title: 'ws.purchaseLots.title',
+  count: 'ws.purchaseLots.count',
+  searchPlaceholder: 'ws.purchaseLots.search',
+  emptyHeading: 'ws.purchaseLots.emptyHeading',
+  emptyMessage: 'ws.purchaseLots.emptyMessage',
+  columns: [
+    { key: 'code', label: 'ws.container.lot', width: '140px' },
+    { key: 'date', label: 'ws.purchaseLots.col.date', format: 'date' },
+    { key: 'supplier', label: 'ws.containers.col.supplier' },
+    { key: 'rawCategory', label: 'ws.purchaseLots.col.maal' },
+    { key: 'status', label: 'ws.col.status', enumPrefix: 'ws.lotStatus.' },
+    { key: 'kg', label: 'ws.containers.col.kg', format: 'kg', total: true },
+    { key: 'cost', label: 'ws.purchaseLots.col.cost', format: 'money', total: true, info: 'ws.purchaseLots.info.cost' },
+    { key: 'costPerKg', label: 'ws.purchaseLots.col.costPerKg', format: 'money', exact: true, computed: true, info: 'ws.purchaseLots.info.costPerKg' },
+    { key: 'sortedPercent', label: 'ws.purchaseLots.col.sorted', format: 'percent', computed: true, info: 'ws.purchaseLots.info.sorted' },
+  ],
+  defaultColumns: ['code', 'date', 'supplier', 'rawCategory', 'status', 'kg', 'cost', 'costPerKg', 'sortedPercent'],
+  dateField: 'date',
+  groupBy: [
+    { key: 'status', label: 'ws.col.status', enumPrefix: 'ws.lotStatus.' },
+    { key: 'supplierId', label: 'ws.containers.col.supplier' },
+    { key: 'rawCategoryId', label: 'ws.purchaseLots.col.maal' },
+    { key: 'date', label: 'ws.group.month', month: true },
+  ],
+  quickFilters: [{ field: 'status', label: 'ws.col.status', values: LOT_STATUSES_BOUGHT, prefix: 'ws.lotStatus.' }],
+  rowLink: (id) => ['/sort/records', id],
+  create: { label: 'ws.new.gaari', link: '/receive/lot' },
+  tabs: PURCHASING_TABS,
 };
 
 export const SUPPLIERS_LIST: ListConfig = {

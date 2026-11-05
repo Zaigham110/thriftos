@@ -26,6 +26,8 @@ export interface WsNavItem {
   /** Dictionary key of the label. */
   label: string;
   path: string;
+  /** Other pages that belong to this item (it stays highlighted there), e.g. Purchasing's second tab. */
+  also?: string[];
   icon: Icon;
   module?: TenantModule;
   /** Shown only to people with this permission. */
@@ -46,7 +48,7 @@ export const WS_NAV: WsNavGroup[] = [
   {
     label: 'ws.group.operations',
     items: [
-      { label: 'ws.nav.purchasing', path: '/receive/records/containers', icon: Truck, module: 'RECEIVE', keywords: 'receive maal aya container lot purchase' },
+      { label: 'ws.nav.purchasing', path: '/receive/records/containers', also: ['/receive/records/lots'], icon: Truck, module: 'RECEIVE', keywords: 'receive maal aya container lot gaari purchase kharidari' },
       { label: 'ws.nav.suppliers', path: '/receive/records/suppliers', icon: Factory, module: 'RECEIVE', keywords: 'supplier vendor scorecard' },
       { label: 'ws.nav.sorting', path: '/sort/records', icon: Layers3, module: 'SORT', keywords: 'chhantai sort grade lots' },
       { label: 'ws.nav.yield', path: '/sort/yield', icon: Gauge, module: 'SORT', keywords: 'yield waste chhantai percent supplier' },
@@ -125,6 +127,7 @@ export const WS_CRUMBS: Record<string, string> = {
   items: 'ws.crumb.items',
   grade: 'ws.crumb.grading',
   containers: 'ws.crumb.containers',
+  lots: 'ws.purchasing.lots',
   suppliers: 'ws.nav.suppliers',
   value: 'ws.nav.stockValue',
   yield: 'ws.nav.yield',

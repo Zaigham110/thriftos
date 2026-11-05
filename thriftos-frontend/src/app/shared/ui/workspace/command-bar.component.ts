@@ -9,6 +9,7 @@ import { Component } from '@angular/core';
   styles: [`
     :host { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:var(--ws-2); padding:var(--ws-2); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); }
     .start, .end { display:flex; flex-wrap:wrap; align-items:center; gap:var(--ws-2); }
+    .start { flex:1 1 auto; min-width:0; }
   `],
 })
 export class WsCommandBarComponent {}

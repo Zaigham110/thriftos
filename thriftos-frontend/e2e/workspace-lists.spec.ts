@@ -1,4 +1,4 @@
-import { APIRequestContext, expect, test } from '@playwright/test';
+import { APIRequestContext, Page, expect, test } from '@playwright/test';
 import { apiAs, signIn } from './helpers';
 
 // Enterprise plan E2 in the browser: the sales list (server paging, filters, group-by, saved views, export)
@@ -23,6 +23,18 @@ async function makeSale(request: APIRequestContext) {
   return { customer, sale, tag };
 }
 
+
+/** Layout, grouping, columns and saved views sit behind the list's "View" button (v2 review). */
+async function viewMenu(page: Page): Promise<void> {
+  const panel = page.locator('.menu.panel');
+  // A click elsewhere closes the panel a moment later: retry until it is open and stays open.
+  await expect(async () => {
+    if (!(await panel.isVisible())) await page.getByRole('button', { name: 'View', exact: true }).click();
+    await page.waitForTimeout(150);
+    await expect(panel).toBeVisible({ timeout: 500 });
+  }).toPass({ timeout: 8000 });
+}
+
 test('sales list: search, filter chip, group by status, saved view, Excel export', async ({ page, request }) => {
   const { sale, customer } = await makeSale(request);
   await signIn(page);
@@ -40,20 +52,22 @@ test('sales list: search, filter chip, group by status, saved view, Excel export
   await expect(page.locator('.chip')).toContainText('Status: Part paid');
   await expect(page.locator('ws-data-grid tbody tr').filter({ hasText: sale.saleNumber })).toBeVisible();
 
+  await viewMenu(page);
   await page.getByLabel('Group by').selectOption({ label: 'Status' });
   const group = page.locator('ws-data-grid tbody tr').filter({ hasText: 'Part paid' });
   await expect(group).toBeVisible();
   await group.click();
+  await viewMenu(page);
   await expect(page.getByLabel('Group by')).toHaveValue('');
 
   const viewName = `Part paid ${Date.now()}`;
-  await page.locator('ws-view-menu button').first().click();
   await page.getByPlaceholder('Name this view').fill(viewName);
   await page.getByRole('button', { name: 'Save view' }).click();
   await page.reload();
-  await page.locator('ws-view-menu button').first().click();
+  await viewMenu(page);
   await expect(page.getByRole('menuitemradio', { name: viewName })).toBeVisible();
   await page.keyboard.press('Escape');
+  await expect(page.locator('.menu.panel')).toBeHidden();
 
   // The list closes open menus whenever its state changes (e.g. the saved view applied after the reload), so wait for
   // the page to settle and retry the whole export step if a late change closed the menu.
@@ -115,6 +129,7 @@ test('containers: list, board move, traceability record; supplier scorecard', as
   await expect(row).toContainText('960,000');
 
   // Board: move it to Arrived with the card's picker (the keyboard way; dragging calls the same move).
+  await viewMenu(page);
   await page.getByRole('button', { name: 'Board' }).click();
   const card = page.locator('app-board article').filter({ hasText: `TGHU-${tag}` });
   await expect(card).toBeVisible();
@@ -212,12 +227,15 @@ test('sorting: lots list and board, a lot record, yield analysis', async ({ page
   await signIn(page);
   await page.goto('/sort/records');
   await expect(page.getByRole('heading', { name: 'Lots and sorting', exact: true })).toBeVisible();
+  await viewMenu(page);
   await page.getByRole('button', { name: 'Board' }).click();
   for (const column of ['Waiting', 'Sorting', 'Sorted']) await expect(page.locator(`app-board section[aria-label="${column}"]`)).toBeVisible();
   // The board only shows here: sorting moves a lot, so there is no "Move to" picker.
   await expect(page.locator('app-board').getByLabel('Move to')).toHaveCount(0);
 
+  await viewMenu(page);
   await page.getByRole('button', { name: 'Table' }).click();
+  await page.keyboard.press('Escape');
   const first = page.locator('ws-data-grid tbody tr').first();
   if (await first.isVisible() && !(await first.textContent())?.includes('No lots match')) {
     await first.click();
@@ -292,11 +310,14 @@ test('sales extras: price list for a group, keyboard sale entry suggests the lis
   await expect(page.locator('ws-smart-button').filter({ hasText: 'Due' })).toContainText('15,000');
 
   await page.goto('/sell/records');
+  await viewMenu(page);
   await page.getByLabel('Group by').selectOption({ label: 'Month' });
   const month = page.locator('ws-data-grid tbody tr').first();
   await expect(month).toContainText(new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }));
   await month.click();
+  await viewMenu(page);
   await expect(page.getByLabel('Group by')).toHaveValue('');
+  await page.keyboard.press('Escape');
   await expect(page.locator('ws-data-grid tbody tr').filter({ hasText: customer.name })).toBeVisible();
 
   await page.goto('/sell/prices');
@@ -340,4 +361,25 @@ test('dashboards: owner dashboard on Home, scorecard, sales analytics with CSV, 
   await expect(page.getByRole('heading', { name: 'Reports', exact: true })).toBeVisible();
   await page.getByRole('link', { name: /Supplier scorecard/ }).first().click();
   await expect(page).toHaveURL(/\/receive\/scorecard$/);
+});
+
+test('purchasing: containers and gaari / lots as two tabs, each with its own button, notes on the columns', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/receive/records/containers');
+  await expect(page.getByRole('link', { name: 'Receive a container' })).toBeVisible();
+  await page.getByRole('button', { name: 'About Total cost' }).click();
+  await expect(page.getByRole('tooltip')).toContainText('every charge added');
+  await page.keyboard.press('Escape');
+
+  await page.locator('nav.tabs').getByRole('link', { name: 'Gaari / lots' }).click();
+  await expect(page).toHaveURL(/\/receive\/records\/lots$/);
+  await expect(page.getByRole('heading', { name: 'Gaari and lots', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Buy a gaari / lot' })).toHaveAttribute('href', '/receive/lot');
+  await expect(page.locator('.nav-item.also')).toContainText('Purchasing');
+
+  // Purchasing opens on the tab used last; the old lots address opens this tab instead of a blank page.
+  await page.goto('/receive/records');
+  await expect(page).toHaveURL(/\/receive\/records\/lots$/);
+  await page.goto('/receive/records/rags');
+  await expect(page).toHaveURL(/\/receive\/records\/lots$/);
 });

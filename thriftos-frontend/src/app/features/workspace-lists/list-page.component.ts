@@ -1,9 +1,9 @@
 import { HelpLinkComponent } from '../help/help-link.component';
-import { Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { Component, DestroyRef, HostListener, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
-import { ChevronDown, Columns3, Download, LayoutGrid, LucideAngularModule, Plus, Rows3 } from 'lucide-angular';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { ChevronDown, Download, LayoutGrid, LucideAngularModule, Plus, Rows3, SlidersHorizontal } from 'lucide-angular';
 import { catchError, debounceTime, distinctUntilChanged, map, of, switchMap } from 'rxjs';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
@@ -42,6 +42,7 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
     HelpLinkComponent,
     FormsModule,
     RouterLink,
+    RouterLinkActive,
     LucideAngularModule,
     TPipe,
     BoardComponent,
@@ -57,62 +58,80 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
   template: `
     @let c = list();
     <div class="page">
+      @if (c.tabs?.length) {
+        <nav class="tabs" [attr.aria-label]="c.title | t">
+          @for (tab of c.tabs; track tab.link) {
+            <a [routerLink]="tab.link" routerLinkActive="on" ariaCurrentWhenActive="page" (click)="rememberTab(tab.link)">{{ tab.label | t }}</a>
+          }
+        </nav>
+      }
       <ws-page-header [heading]="c.title | t" [subtitle]="result() ? (c.count | t: { n: i18n.num(result()!.total) }) : ''">
         @if (c.create; as create) { <a actions class="ws-btn primary" [routerLink]="create.link"><lucide-icon [img]="icons.Plus" [size]="16" aria-hidden="true" />{{ create.label | t }}</a> }
       </ws-page-header>
 
+      <!-- One bar: search and the everyday filters in view; layout, grouping, columns and saved views behind "View". -->
       <ws-command-bar>
-        <div start class="row">
-          <ws-view-menu [views]="views()" [current]="view()" (choose)="applyView($event)" (save)="saveView($event)" (makeDefault)="makeDefault($event)" (remove)="removeView($event)" />
-          @if (c.board) {
-            <div class="switch" role="group" [attr.aria-label]="'ws.layout.label' | t">
-              <button type="button" class="ws-btn" [class.on]="layout() === 'table'" [attr.aria-pressed]="layout() === 'table'" (click)="patch({ layout: 'table' })"><lucide-icon [img]="icons.Rows3" [size]="16" aria-hidden="true" />{{ 'ws.layout.table' | t }}</button>
-              <button type="button" class="ws-btn" [class.on]="layout() === 'board'" [attr.aria-pressed]="layout() === 'board'" (click)="patch({ layout: 'board', groupBy: null })"><lucide-icon [img]="icons.LayoutGrid" [size]="16" aria-hidden="true" />{{ 'ws.layout.board' | t }}</button>
-            </div>
+        <ws-filter-bar start [query]="state().q" (queryChange)="query.set($event)" [placeholder]="c.searchPlaceholder | t" [chips]="chips()" (remove)="removeFilter($event)" (clearAll)="clearFilters()">
+          @for (qf of c.quickFilters; track qf.field) {
+            <select add class="quick" [ngModel]="''" (ngModelChange)="addFilter(qf.field, $event)" [attr.aria-label]="qf.label | t">
+              <option value="">{{ qf.label | t }}…</option>
+              @for (v of qf.values; track v) { <option [value]="v">{{ qf.prefix + v | t }}</option> }
+            </select>
           }
-          @if (layout() === 'table' && c.groupBy.length) {
-            <label class="select">{{ 'ws.groupBy' | t }}
-              <select [ngModel]="state().groupBy ?? ''" (ngModelChange)="patch({ groupBy: $event || null, page: 1 })">
-                <option value="">{{ 'ws.group.none' | t }}</option>
-                @for (g of c.groupBy; track g.key) { <option [value]="g.key">{{ g.label | t }}</option> }
-              </select>
-            </label>
-          }
-          @if (layout() === 'table') {
-            <div class="menu-wrap">
-              <button type="button" class="ws-btn" (click)="menu.set(menu() === 'columns' ? null : 'columns')" [attr.aria-expanded]="menu() === 'columns'"><lucide-icon [img]="icons.Columns3" [size]="16" aria-hidden="true" />{{ 'ws.columns' | t }}<lucide-icon [img]="icons.ChevronDown" [size]="14" aria-hidden="true" /></button>
-              @if (menu() === 'columns') {
-                <div class="menu" role="group" [attr.aria-label]="'ws.columns' | t">
-                  @for (col of availableColumns(); track col.key) {
-                    <label class="check"><input type="checkbox" [checked]="visible().includes(col.key)" (change)="toggleColumn(col.key)" />{{ col.label | t }}</label>
-                  }
+        </ws-filter-bar>
+        <div end class="row">
+          @if (c.dateField) { <ws-date-range [allowAll]="true" [value]="range()" (valueChange)="setRange($event)" /> }
+          <div class="menu-wrap" (keydown.escape)="menu.set(null)">
+            <button type="button" class="ws-btn" [class.on]="viewChanged()" (click)="menu.set(menu() === 'view' ? null : 'view')" [attr.aria-expanded]="menu() === 'view'">
+              <lucide-icon [img]="icons.SlidersHorizontal" [size]="16" aria-hidden="true" />{{ 'ws.viewMenu' | t }}<lucide-icon [img]="icons.ChevronDown" [size]="14" aria-hidden="true" />
+            </button>
+            @if (menu() === 'view') {
+              <div class="menu panel" role="group" [attr.aria-label]="'ws.viewMenu' | t">
+                @if (c.board) {
+                  <div class="sec">
+                    <span class="sec-h">{{ 'ws.layout.label' | t }}</span>
+                    <div class="switch" role="group" [attr.aria-label]="'ws.layout.label' | t">
+                      <button type="button" class="ws-btn" [class.on]="layout() === 'table'" [attr.aria-pressed]="layout() === 'table'" (click)="patch({ layout: 'table' })"><lucide-icon [img]="icons.Rows3" [size]="16" aria-hidden="true" />{{ 'ws.layout.table' | t }}</button>
+                      <button type="button" class="ws-btn" [class.on]="layout() === 'board'" [attr.aria-pressed]="layout() === 'board'" (click)="patch({ layout: 'board', groupBy: null })"><lucide-icon [img]="icons.LayoutGrid" [size]="16" aria-hidden="true" />{{ 'ws.layout.board' | t }}</button>
+                    </div>
+                  </div>
+                }
+                @if (layout() === 'table' && c.groupBy.length) {
+                  <label class="sec">{{ 'ws.groupBy' | t }}
+                    <select [ngModel]="state().groupBy ?? ''" (ngModelChange)="patch({ groupBy: $event || null, page: 1 })">
+                      <option value="">{{ 'ws.group.none' | t }}</option>
+                      @for (g of c.groupBy; track g.key) { <option [value]="g.key">{{ g.label | t }}</option> }
+                    </select>
+                  </label>
+                }
+                @if (layout() === 'table') {
+                  <div class="sec" role="group" [attr.aria-label]="'ws.columns' | t">
+                    <span class="sec-h">{{ 'ws.columns' | t }}</span>
+                    @for (col of availableColumns(); track col.key) {
+                      <label class="check"><input type="checkbox" [checked]="visible().includes(col.key)" (change)="toggleColumn(col.key)" />{{ col.label | t }}</label>
+                    }
+                  </div>
+                }
+                <div class="sec">
+                  <span class="sec-h">{{ 'ws.views.title' | t }}</span>
+                  <ws-view-menu [inline]="true" [views]="views()" [current]="view()" (choose)="applyView($event); menu.set(null)" (save)="saveView($event)" (makeDefault)="makeDefault($event)" (remove)="removeView($event)" />
                 </div>
-              }
-            </div>
-          }
+              </div>
+            }
+          </div>
           <div class="menu-wrap">
             <button type="button" class="ws-btn" (click)="menu.set(menu() === 'export' ? null : 'export')" [attr.aria-expanded]="menu() === 'export'" [disabled]="exporting()">
               <lucide-icon [img]="icons.Download" [size]="16" aria-hidden="true" />{{ (exporting() ? 'common.loading' : 'ws.export.label') | t }}
             </button>
             @if (menu() === 'export') {
-              <div class="menu" role="menu">
+              <div class="menu end" role="menu">
                 <button type="button" role="menuitem" (click)="export('xlsx')">{{ 'ws.export.xlsx' | t }}</button>
                 <button type="button" role="menuitem" (click)="export('csv')">{{ 'ws.export.csv' | t }}</button>
               </div>
             }
           </div>
         </div>
-        @if (c.dateField) { <ws-date-range end [allowAll]="true" [value]="range()" (valueChange)="setRange($event)" /> }
       </ws-command-bar>
-
-      <ws-filter-bar [query]="state().q" (queryChange)="query.set($event)" [placeholder]="c.searchPlaceholder | t" [chips]="chips()" (remove)="removeFilter($event)" (clearAll)="clearFilters()">
-        @for (qf of c.quickFilters; track qf.field) {
-          <select add class="quick" [ngModel]="''" (ngModelChange)="addFilter(qf.field, $event)" [attr.aria-label]="qf.label | t">
-            <option value="">{{ qf.label | t }}…</option>
-            @for (v of qf.values; track v) { <option [value]="v">{{ qf.prefix + v | t }}</option> }
-          </select>
-        }
-      </ws-filter-bar>
 
       @if (failed()) {
         <ws-state kind="error" (retry)="reload()" />
@@ -137,9 +156,19 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
     .switch .ws-btn:first-child { border-start-end-radius:0; border-end-end-radius:0; }
     .switch .ws-btn:last-child { border-start-start-radius:0; border-end-start-radius:0; margin-inline-start:-1px; }
     .switch .ws-btn.on { border-color:var(--ws-brand); background:var(--ws-brand-soft); color:var(--ws-brand); z-index:1; }
-    .select { display:inline-flex; align-items:center; gap:var(--ws-2); color:var(--ws-ink-2); font-size:var(--ws-text-sm); }
     select { height:var(--ws-control-h); padding-inline:var(--ws-2); border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface); color:var(--ws-ink); font:inherit; }
     .menu-wrap { position:relative; }
+    .ws-btn.on { border-color:var(--ws-brand); color:var(--ws-brand); }
+    ws-filter-bar { flex:1 1 420px; min-width:0; }
+    .tabs { display:flex; gap:var(--ws-1); padding:3px; width:max-content; max-width:100%; border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface-2); }
+    .tabs a { padding:6px var(--ws-4); border-radius:var(--ws-r-md); color:var(--ws-ink-2); font-size:var(--ws-text-sm); font-weight:500; text-decoration:none; }
+    .tabs a:hover { color:var(--ws-ink); }
+    .tabs a.on { background:var(--ws-surface); color:var(--ws-brand); box-shadow:var(--ws-shadow-1); font-weight:600; }
+    .menu.panel { inset-inline-start:auto; inset-inline-end:0; width:min(300px, 86vw); max-height:min(70vh, 560px); overflow:auto; gap:var(--ws-3); padding:var(--ws-3); }
+    .menu.end { inset-inline-start:auto; inset-inline-end:0; }
+    .sec { display:grid; gap:var(--ws-1); color:var(--ws-ink-2); font-size:var(--ws-text-sm); }
+    .sec + .sec { padding-block-start:var(--ws-3); border-block-start:1px solid var(--ws-line); }
+    .sec-h { color:var(--ws-ink-3); font-size:var(--ws-text-xs); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
     .menu { position:absolute; inset-block-start:calc(100% + 6px); inset-inline-start:0; z-index:30; min-width:200px; display:grid; padding:var(--ws-1); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); box-shadow:var(--ws-shadow-pop); }
     .menu button, .check { display:flex; align-items:center; gap:var(--ws-2); min-height:34px; padding-inline:var(--ws-2); border:0; border-radius:var(--ws-r-md); background:transparent; color:var(--ws-ink); font:inherit; text-align:start; cursor:pointer; }
     .menu button:hover, .check:hover { background:var(--ws-surface-hover); }
@@ -154,7 +183,7 @@ export class ListPageComponent {
   private readonly destroyRef = inject(DestroyRef);
   /** From route data. */
   readonly list = input.required<ListConfig>();
-  protected readonly icons = { ChevronDown, Columns3, Download, LayoutGrid, Plus, Rows3 };
+  protected readonly icons = { ChevronDown, Download, LayoutGrid, Plus, Rows3, SlidersHorizontal };
 
   protected readonly state = signal<ListState & Extra>({ ...DEFAULT_LIST_STATE });
   protected readonly query = signal('');
@@ -162,12 +191,24 @@ export class ListPageComponent {
   protected readonly loading = signal(true);
   protected readonly failed = signal(false);
   protected readonly exporting = signal(false);
-  protected readonly menu = signal<'columns' | 'export' | null>(null);
+  protected readonly menu = signal<'view' | 'export' | null>(null);
   protected readonly views = signal<SavedView[]>([]);
   protected readonly view = signal<SavedView | null>(null);
   private readonly reloads = signal(0);
 
   protected readonly layout = computed(() => (this.list().board ? this.state().layout ?? 'table' : 'table'));
+  /** "View" is highlighted when the list is not in its plain shape (board, grouped, own columns or a saved view). */
+  protected readonly viewChanged = computed(() => this.layout() === 'board' || !!this.state().groupBy || !!this.state().columns.length || !!this.view());
+
+  @HostListener('document:click', ['$event'])
+  protected outside(e: Event): void {
+    if (this.menu() && !(e.target as Element | null)?.closest?.('.menu-wrap')) this.menu.set(null);
+  }
+
+  /** Purchasing opens on the tab used last (containers, or gaari / lots). */
+  protected rememberTab(link: string): void {
+    try { localStorage.setItem(`thriftos.tab.${this.list().tabs![0].link}`, link); } catch { /* private window */ }
+  }
 
   /** Columns the server lets this person see (fields behind a permission are not sent). */
   protected readonly availableColumns = computed(() => {
@@ -184,7 +225,7 @@ export class ListPageComponent {
   protected readonly columns = computed<WsColumn[]>(() =>
     this.visible().map((key) => {
       const c = this.list().columns.find((x) => x.key === key)!;
-      return { key, label: this.i18n.t(c.label), sortable: !c.computed, format: c.format ?? 'text', total: c.total, width: c.width };
+      return { key, label: this.i18n.t(c.label), sortable: !c.computed, format: c.format ?? 'text', total: c.total, width: c.width, round: c.format === 'money' && !c.exact, info: c.info ? this.i18n.t(c.info) : undefined };
     }),
   );
   protected readonly rows = computed<WsRow[]>(() => {
@@ -207,7 +248,7 @@ export class ListPageComponent {
     return [
       { key: 'label', label: this.i18n.t(this.groupConfig()?.label ?? '') },
       { key: 'count', label: this.i18n.t('ws.col.records'), format: 'number', total: true },
-      ...sums.map((c) => ({ key: c.key, label: this.i18n.t(c.label), format: c.format ?? 'number', total: true })),
+      ...sums.map((c) => ({ key: c.key, label: this.i18n.t(c.label), format: c.format ?? 'number', total: true, round: c.format === 'money' && !c.exact })),
     ];
   });
   protected readonly groupRows = computed<WsRow[]>(() => {
@@ -287,9 +328,10 @@ export class ListPageComponent {
       });
     });
 
+    // A new page of results closes the export menu; "View" stays open while columns are ticked.
     effect(() => {
       this.state();
-      untracked(() => this.menu.set(null));
+      untracked(() => this.menu() === 'export' && this.menu.set(null));
     });
   }
 

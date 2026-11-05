@@ -9,15 +9,31 @@
  * /procurement/containers
  */
 
-import { Routes } from '@angular/router';
+import { Router, Routes } from '@angular/router';
+import { inject } from '@angular/core';
 import { permissionGuard } from '../../core/guards/permission-guard';
 import { moduleGuard } from '../../core/guards/module.guard';
-import { CONTAINERS_LIST, SUPPLIERS_LIST } from '../../features/workspace-lists/lists';
+import { CONTAINERS_LIST, PURCHASE_LOTS_LIST, PURCHASING_TABS, SUPPLIERS_LIST } from '../../features/workspace-lists/lists';
+
+/** Purchasing opens on the tab used last (containers by default). */
+function lastPurchasingTab() {
+  let last: string | null = null;
+  try { last = localStorage.getItem(`thriftos.tab.${PURCHASING_TABS[0].link}`); } catch { /* private window */ }
+  return inject(Router).parseUrl(PURCHASING_TABS.some((t) => t.link === last) ? last! : PURCHASING_TABS[0].link);
+}
 
 export const PROCUREMENT_ROUTES: Routes = [
   // The old procurement overview is replaced by the containers list and the scorecard (enterprise E3/E4).
-  { path: '', redirectTo: 'containers', pathMatch: 'full' },
+  { path: '', pathMatch: 'full', children: [], canActivate: [lastPurchasingTab] },
   { path: 'dashboard', redirectTo: 'containers', pathMatch: 'full' },
+  // Gaari and loose lots bought without a container (v2 review): the second Purchasing tab.
+  {
+    path: 'lots',
+    loadComponent: () => import('../../features/workspace-lists/list-page.component').then((m) => m.ListPageComponent),
+    title: 'Gaari and lots - ThriftOS',
+    canActivate: [permissionGuard],
+    data: { permissions: ['rag.read'], list: PURCHASE_LOTS_LIST },
+  },
 
 
   // Purchase Orders
@@ -136,6 +152,8 @@ export const PROCUREMENT_ROUTES: Routes = [
   {
     path: 'rags',
     children: [
+      // The old lots page is the Purchasing tab now (an old link never opens a blank page).
+      { path: '', pathMatch: 'full', redirectTo: '/receive/records/lots' },
       {
         path: ':ragId/edit',
         loadComponent: () => import('./rags/rag-edit-page').then((m) => m.RagEditPageComponent),

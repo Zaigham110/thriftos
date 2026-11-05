@@ -13,6 +13,10 @@ export interface ListColumnConfig {
   /** Dictionary prefix for enum values, e.g. "ws.status." → "ws.status.PAID". */
   enumPrefix?: string;
   width?: string;
+  /** Money with paisa (prices per kg); other money columns show whole rupees. */
+  exact?: boolean;
+  /** Dictionary key of a note on what the column means (an "i" next to its name). */
+  info?: string;
 }
 
 /** A quick filter shown as a picker next to search ("Status…", "Payment…"). */
@@ -61,5 +65,7 @@ export interface ListConfig {
   defaultFilters?: Array<{ field: string; op: 'eq' | 'ne' | 'isnull' | 'notnull'; value?: string }>;
   /** Primary action in the header. */
   create?: { label: string; link: string };
+  /** Sibling lists shown as tabs over the title (Purchasing: containers, gaari / lots). */
+  tabs?: Array<{ label: string; link: string }>;
   board?: BoardConfig;
 }

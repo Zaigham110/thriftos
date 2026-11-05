@@ -75,7 +75,7 @@ describe('Workspace purchasing: containers, traceability and supplier scorecard 
 
   it('containers and suppliers lists show profit, yield and A grade per row; cost needs cost.view', async () => {
     const list = (await api(app, a).get('/lists/containers').expect(200)).body;
-    expect(list.rows).toEqual([expect.objectContaining({ id: ids.container, number: 'MSKU-001', supplier: 'Global Textile Recyclers', origin: 'USA', status: 'IN_TRANSIT', landedCost: '1100000', revenue: '200000', profit: '77777.78', yield: 90 })]);
+    expect(list.rows).toEqual([expect.objectContaining({ id: ids.container, number: 'MSKU-001', supplier: 'Global Textile Recyclers', origin: 'USA', status: 'CLEARED', landedCost: '1100000', revenue: '200000', profit: '77777.78', yield: 90 })]);
     expect(list.totals).toEqual({ kg: '10000', landedCost: '1100000' });
     await api(app, a).get('/lists/containers?sort=profit:desc').expect(400);
     await api(app, a).get('/lists/containers?f=yield:gt:50').expect(400);
