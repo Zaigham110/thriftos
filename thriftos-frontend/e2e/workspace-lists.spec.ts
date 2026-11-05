@@ -313,7 +313,13 @@ test('dashboards: owner dashboard on Home, scorecard, sales analytics with CSV, 
   await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible();
   const sales = page.locator('ws-kpi-card').filter({ hasText: 'Sales' }).first();
   await expect(sales).toContainText('Rs');
-  await expect(page.getByRole('heading', { name: 'Latest activity' })).toBeVisible();
+  // Every card says what it shows; the "i" never opens the card's list.
+  await page.getByRole('button', { name: 'About Sales' }).first().click();
+  await expect(page.getByRole('tooltip')).toContainText('total of all sale bills');
+  await expect(page).toHaveURL(/\/home$/);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('tooltip')).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Latest activity' })).toHaveCount(0);
   await sales.click();
   await expect(page).toHaveURL(/\/sell\/records$/);
 

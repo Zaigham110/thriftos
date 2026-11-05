@@ -1,5 +1,6 @@
 export * from './activity-panel.component';
 export * from './area-chart.component';
+export * from './info-tip.component';
 export * from './bar-chart.component';
 export * from './command-bar.component';
 export * from './data-grid.component';

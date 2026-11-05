@@ -97,6 +97,11 @@
   - New `ws-area-chart` on Home ("Sales and gross profit by day"): smooth curves (monotone, never dip under zero between days) with a soft fill, the period total of each series in the legend, a hover guide line with dots and a dark tooltip, chart/table switch as two icons. Plum and gold brand colours (`--ws-chart-1/2`, light and dark).
   - Both charts are now drawn at the card's real width instead of a fixed 640 px scaled up, so labels stay 11 px and lines stay thin; height follows width (200–320 px). Axis ticks sit on even steps from zero, so a small loss no longer prints "−500" over "0". Chart values on Home are whole rupees, as on the cards (the table keeps paisa).
   - The bar chart (other reports) gets the same colours, scale and sizing, and bars rounded only at the value end. Karma 19/19 (area chart and small-loss axis tests), i18n 1232 keys, build without warnings.
+- 2026-11-05 — Review, Home (owner's changes):
+  - No gold: the second chart colour is a soft plum (`--ws-chart-2` #b48aa9, dark #8a6782). Old udhaar and old stock (over 60 days) show in red.
+  - "Latest activity" removed from Home (the activity stays on each record and in the audit log; the API still sends it).
+  - Every card on Home has an "i" in its top-right corner (`ws-info`): tap, click or hover opens a short note on what the card shows and how its numbers are worked out; Escape or a click elsewhere closes it, and it never opens the card's list. On the six number cards, the chart, udhaar by age, stock by age and containers in progress (which now has a visible heading). `ws-kpi-card` and both charts take an `info` text. English and Urdu (`ws.dash.info.*`, `ws.info.label`).
+  - Browser test: the dashboard checks the "i" note and that the card did not open. Karma 19/19, browser 40 passed + 4 skipped, i18n 1241 keys.
 
 ## Decisions
 - Sorting (6.6): bales made while a lot is open are costed at the lot's cost per kg and re-costed at close; sold ones keep their sale cost (logged adjustment). Kat goes to stock at zero cost, so a kat sale is pure extra profit and bale costs are right whether or not kat sells.

@@ -2,6 +2,7 @@ import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, i
 import { ChartColumn, LucideAngularModule, Table2 } from 'lucide-angular';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { TPipe } from '../../../core/i18n/t.pipe';
+import { WsInfoComponent } from './info-tip.component';
 import { WsSeries, niceMax } from './bar-chart.component';
 
 let uid = 0;
@@ -15,7 +16,7 @@ let uid = 0;
 @Component({
   selector: 'ws-area-chart',
   standalone: true,
-  imports: [LucideAngularModule, TPipe],
+  imports: [LucideAngularModule, TPipe, WsInfoComponent],
   template: `
     <figure>
       <figcaption>
@@ -27,6 +28,8 @@ let uid = 0;
             }
           </ul>
         </div>
+        <div class="tools">
+        @if (info()) { <ws-info [title]="heading()" [text]="info()" /> }
         <div class="seg" role="group">
           <button type="button" [class.on]="!asTable()" [attr.aria-pressed]="!asTable()" [attr.aria-label]="'ws.chart.showChart' | t" [title]="'ws.chart.showChart' | t" (click)="asTable.set(false)">
             <lucide-icon [img]="icons.ChartColumn" [size]="15" aria-hidden="true" />
@@ -34,6 +37,7 @@ let uid = 0;
           <button type="button" [class.on]="asTable()" [attr.aria-pressed]="asTable()" [attr.aria-label]="'ws.chart.showTable' | t" [title]="'ws.chart.showTable' | t" (click)="asTable.set(true)">
             <lucide-icon [img]="icons.Table2" [size]="15" aria-hidden="true" />
           </button>
+        </div>
         </div>
       </figcaption>
       @if (asTable()) {
@@ -107,6 +111,7 @@ let uid = 0;
     .legend li span { color:var(--ws-ink-3); font-size:var(--ws-text-xs); font-weight:500; }
     .legend li b { grid-column:2; color:var(--ws-ink); font-size:var(--ws-text-lg); font-weight:600; font-variant-numeric:tabular-nums; }
     .legend i, .tip i { width:7px; height:7px; border-radius:50%; flex:none; }
+    .tools { display:flex; align-items:center; gap:var(--ws-3); flex:none; }
     .seg { display:inline-flex; flex:none; padding:2px; border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface-2); }
     .seg button { display:grid; place-items:center; width:30px; height:26px; border:0; border-radius:calc(var(--ws-r-md) - 2px); background:transparent; color:var(--ws-ink-3); cursor:pointer; }
     .seg button:hover { color:var(--ws-ink); }
@@ -146,6 +151,8 @@ export class WsAreaChartComponent {
   readonly categories = input.required<string[]>();
   readonly series = input.required<WsSeries[]>();
   readonly format = input<'number' | 'money' | 'kg'>('number');
+  /** What the chart shows (the "i" next to the chart/table switch). */
+  readonly info = input('');
 
   protected readonly icons = { ChartColumn, Table2 };
   /** Drawn at the card's real width (not scaled), so labels stay 11 px and grid lines stay hairlines. */
