@@ -123,7 +123,6 @@ export const WS_CRUMBS: Record<string, string> = {
   bale: 'ws.new.bale',
   labels: 'ws.crumb.labels',
   label: 'ws.crumb.labels',
-  records: 'ws.crumb.records',
   items: 'ws.crumb.items',
   grade: 'ws.crumb.grading',
   containers: 'ws.crumb.containers',

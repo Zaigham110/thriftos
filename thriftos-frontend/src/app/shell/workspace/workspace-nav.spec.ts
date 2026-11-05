@@ -14,6 +14,14 @@ describe('workspace navigation', () => {
     expect(crumbsFor('/')).toEqual([]);
   });
 
+  it('skips the technical "records" segment (Purchasing › Containers, not Purchasing › Records › Containers)', () => {
+    expect(crumbsFor('/receive/records/containers')).toEqual([
+      { label: 'ws.nav.purchasing', path: '/receive' },
+      { label: 'ws.crumb.containers', path: '/receive/records/containers' },
+    ]);
+    expect(crumbsFor('/sell/records')).toEqual([{ label: 'ws.nav.sales', path: '/sell' }]);
+  });
+
   it('every menu and create item has a breadcrumb name for its first segment', () => {
     const paths = [...WS_NAV.flatMap((g) => g.items), ...WS_CREATE].map((i) => i.path.split('/')[1]);
     for (const p of paths) expect(WS_CRUMBS[p]).withContext(p).toBeTruthy();

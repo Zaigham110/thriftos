@@ -111,6 +111,7 @@
   6. `/receive/records/rags` (blank) now opens the Gaari / lots tab.
   - Tests: server e2e `purchasing-review` (gaari list only loose lots, price per kg and sorted % while sorting, search, other business sees none; container cleared when sorting starts, late charge still accepted); the purchasing e2e now expects Cleared after sorting. Browser: list tests use the View panel; new "purchasing" test (tabs, buttons, column note, remembered tab, old address). Server 295/295, Karma 19/19, browser 41 passed + 4 skipped, i18n 1265 keys.
   - Decided by the owner: amounts keep international grouping (2,309,688), not lakh grouping.
+  - Breadcrumbs no longer show the internal "Records" step: Purchasing › Containers, Sales, Sorting (was Purchasing › Records › Containers). Unit test added.
 
 ## Decisions
 - Sorting (6.6): bales made while a lot is open are costed at the lot's cost per kg and re-costed at close; sold ones keep their sale cost (logged adjustment). Kat goes to stock at zero cost, so a kat sale is pure extra profit and bale costs are right whether or not kat sells.
