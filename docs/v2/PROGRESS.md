@@ -114,7 +114,7 @@
   - Breadcrumbs no longer show the internal "Records" step: Purchasing › Containers, Sales, Sorting (was Purchasing › Records › Containers). Unit test added.
 - **Review: languages (owner request).** English is now plain English and the trade's own words moved to a new third language, **Roman Urdu** (`public/i18n/roman.json`, `lang="ur-Latn"`, left to right).
   - English renames: Maal aya → Receive, Chhantai → Sorting, Becho → Sell, Khata → Receivables, Udhaar → Credit / On credit / Owed, Kat → Leftovers, Maal → Raw type / goods, Opening udhaar → Opening balance (also in the import sheet and list exports on the server). "Gaari / lots" → **Loose lots** ("Buy a loose lot").
-  - Roman Urdu: the old wording (Maal aya, Chhantai, Becho, Khata, Udhaar, Kat, Gaari / lot) plus Roman Urdu for the menu, groups, Create items, common buttons, Home and the loose-lots list. Keys not yet written in Roman Urdu read in English.
+  - Roman Urdu: every one of the 1265 keys is written in Roman Urdu (trade words Maal aya, Chhantai, Becho, Khata, Udhaar, Kat, Gaari / lot; loan words people use as they are: stock, container, supplier, sale, grade, WhatsApp). English stays only as the fallback if a key is ever missing.
   - One language picker (English / اردو / Roman Urdu, a plain select) replaces the two-way toggle on the workspace bar, phone menu, settings, setup, login, legal and public bill pages; Ctrl+K cycles the three.
   - Server: tenant default language and setup accept `roman`; WhatsApp text, bills and exports go out in English for Roman Urdu (only `ur` gets Urdu script).
   - `npm run i18n:check` now checks roman.json has every key with the same placeholders and no Urdu script, and fails on Urdu words in en.json.
