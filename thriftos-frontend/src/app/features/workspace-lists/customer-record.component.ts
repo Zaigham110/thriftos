@@ -6,7 +6,7 @@ import { Router, RouterLink } from '@angular/router';
 import { BookOpen, CalendarCheck, Clock, Coins, FileText, Gauge, LucideAngularModule, MessageCircle, Receipt, Tags, Wallet } from 'lucide-angular';
 import { catchError, map, of, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth';
-import { I18nService } from '../../core/i18n/i18n.service';
+import { I18nService, serverLang } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
 import { KhataService, WhatsappMessage } from '../../modules/sales/khata.service';
 import type { PaymentMethod } from '../../modules/sales/sales.models';
@@ -324,7 +324,7 @@ export class CustomerRecordComponent {
   protected remind(): void {
     const d = this.data();
     if (!d) return;
-    this.khata.openWhatsapp(this.http.post<WhatsappMessage>(`/api/workspace/customers/${d.customer.id}/remind`, { lang: this.i18n.lang() }), () => this.toast.show(this.i18n.t('common.couldNotLoad')));
+    this.khata.openWhatsapp(this.http.post<WhatsappMessage>(`/api/workspace/customers/${d.customer.id}/remind`, { lang: serverLang(this.i18n.lang()) }), () => this.toast.show(this.i18n.t('common.couldNotLoad')));
     setTimeout(() => this.reload(), 1500);
   }
 

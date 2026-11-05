@@ -121,7 +121,7 @@ export const PURCHASE_LOT_LABELS: Record<string, { en: string; ur: string }> = {
   code: { en: 'Lot', ur: 'لاٹ' },
   date: { en: 'Bought', ur: 'خریداری' },
   supplier: { en: 'Supplier', ur: 'سپلائر' },
-  rawCategory: { en: 'Maal', ur: 'مال' },
+  rawCategory: { en: 'Raw type', ur: 'مال' },
   status: { en: 'Status', ur: 'حالت' },
   kg: { en: 'Kg', ur: 'کلو' },
   cost: { en: 'Price paid (Rs)', ur: 'ادا کی گئی قیمت (روپے)' },

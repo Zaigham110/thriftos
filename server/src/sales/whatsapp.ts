@@ -2,13 +2,14 @@ import { DecimalLike, dec } from '../costing/costing';
 
 /**
  * WhatsApp messages as plain wa.me links with prefilled text (no paid WhatsApp API).
- * Urdu or English, from the request or the tenant's default language.
+ * Urdu or English, from the request or the tenant's default language. Roman Urdu people get the English text
+ * (Urdu script is only for 'ur').
  */
 export type Language = 'ur' | 'en';
 
 export function language(value: string | undefined, fallback: string): Language {
   const lang = value ?? fallback;
-  return lang === 'en' ? 'en' : 'ur';
+  return lang === 'en' || lang === 'roman' ? 'en' : 'ur';
 }
 
 /** "Rs 12,345" / "Rs 12,345.50", the way traders write amounts on both languages' bills. */

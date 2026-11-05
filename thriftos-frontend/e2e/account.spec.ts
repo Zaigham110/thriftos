@@ -11,7 +11,7 @@ test('Terms and Privacy open from the sign-in page, in English and Urdu', async 
   await expect(page.getByRole('heading', { name: 'Privacy' })).toBeVisible();
   await page.getByRole('link', { name: 'Terms of use' }).click();
   await expect(page.getByRole('heading', { name: 'Terms of use' })).toBeVisible();
-  await page.getByRole('button', { name: 'اردو' }).click();
+  await page.getByRole('combobox', { name: 'Language' }).selectOption('ur');
   await expect(page.getByRole('heading', { name: 'استعمال کی شرائط' })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
 });

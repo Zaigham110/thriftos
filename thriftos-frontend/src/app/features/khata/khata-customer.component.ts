@@ -7,7 +7,7 @@ import { PrintDocsService, PrintJob } from '../../core/print/print-docs.service'
 import { PrintSheetComponent } from '../../shared/print/print-sheet.component';
 import { switchMap } from 'rxjs';
 
-import { I18nService, Lang } from '../../core/i18n/i18n.service';
+import { I18nService, serverLang, ServerLang } from '../../core/i18n/i18n.service';
 import { I18N } from '../../core/i18n/t.pipe';
 import { OfflineQueueService } from '../../core/offline/offline-queue.service';
 import { CustomersService } from '../../modules/sales/customers.service';
@@ -128,7 +128,7 @@ export class KhataCustomerComponent implements OnInit {
   protected readonly saving = signal(false);
   protected readonly method = signal<PaymentMethod>('CASH');
   protected readonly amount = signal<number | null>(null);
-  protected readonly remindLang = signal<Lang>(this.i18n.lang());
+  protected readonly remindLang = signal<ServerLang>(serverLang(this.i18n.lang()));
   protected readonly editOpening = signal<number | null>(null);
   protected photo: File | null = null;
   protected editName = '';

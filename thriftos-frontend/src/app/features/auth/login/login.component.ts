@@ -8,6 +8,7 @@ import { filter, take } from 'rxjs';
 import { AuthService } from '../../../core/auth';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { TPipe } from '../../../core/i18n/t.pipe';
+import { LangPickerComponent } from '../../../shared/ui/lang-picker.component';
 
 type Mode = 'owner' | 'munshi';
 
@@ -18,14 +19,14 @@ type Mode = 'owner' | 'munshi';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [FormsModule, RouterLink, LucideAngularModule, TPipe],
+  imports: [LangPickerComponent, FormsModule, RouterLink, LucideAngularModule, TPipe],
   template: `
     <main class="login">
       <header>
         <img src="os_sm.png" alt="" width="56" height="56" />
         <h1>ThriftOS</h1>
         <p>{{ 'auth.subtitle' | t }}</p>
-        <button type="button" class="link-btn lang" (click)="toggleLang()">{{ 'nav.language' | t }}</button>
+        <app-lang-picker class="lang" />
       </header>
 
       <div class="chips who" role="tablist">
@@ -120,9 +121,6 @@ export class LoginComponent implements OnInit {
     remember('thriftos.login-mode', mode);
   }
 
-  protected toggleLang(): void {
-    this.i18n.use(this.i18n.lang() === 'ur' ? 'en' : 'ur');
-  }
 
   protected press(k: string): void {
     this.error.set('');

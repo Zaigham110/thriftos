@@ -28,8 +28,8 @@ export const COLUMNS: Record<ImportKind, ColumnSpec[]> = {
     { key: 'name', en: 'Name', ur: 'نام', required: true, aliases: ['customer', 'customer name', 'party', 'party name', 'buyer', 'گاہک', 'پارٹی', 'naam'], example: 'Haji Rafiq', help: 'The name you know them by. Each name once.' },
     { key: 'phone', en: 'Phone', ur: 'فون', aliases: ['mobile', 'whatsapp', 'number', 'phone number', 'cell', 'موبائل', 'نمبر', 'واٹس ایپ'], example: '0300-1234567', help: 'Any local format: 0300-1234567, 92 300 1234567, 3001234567.' },
     { key: 'city', en: 'City', ur: 'شہر', aliases: ['area', 'town', 'علاقہ', 'shehar'], example: 'Lahore', help: 'Optional.' },
-    { key: 'openingBalance', en: 'Opening udhaar', ur: 'پرانا ادھار', aliases: ['udhaar', 'udhar', 'balance', 'opening balance', 'baqaya', 'baqi', 'due', 'ادھار', 'بقایا', 'باقی'], example: 'Rs 1,25,000', help: 'What they owe you today. "1,25,000", "Rs 125000/-" and "1.25 lakh" all work. An advance they paid you: write it with a minus, e.g. -5000.' },
-    { key: 'creditLimit', en: 'Credit limit', ur: 'ادھار کی حد', aliases: ['limit', 'حد'], example: '200000', help: 'Optional. Most udhaar you allow.' },
+    { key: 'openingBalance', en: 'Opening balance', ur: 'پرانا ادھار', aliases: ['udhaar', 'udhar', 'balance', 'opening balance', 'baqaya', 'baqi', 'due', 'ادھار', 'بقایا', 'باقی'], example: 'Rs 1,25,000', help: 'What they owe you today. "1,25,000", "Rs 125000/-" and "1.25 lakh" all work. An advance they paid you: write it with a minus, e.g. -5000.' },
+    { key: 'creditLimit', en: 'Credit limit', ur: 'ادھار کی حد', aliases: ['limit', 'حد'], example: '200000', help: 'Optional. Most credit you allow.' },
     { key: 'notes', en: 'Notes', ur: 'نوٹ', aliases: ['note', 'remarks', 'تفصیل', 'ریمارکس'], example: 'Pays on Fridays', help: 'Optional.' },
   ],
   SUPPLIERS: [

@@ -30,7 +30,7 @@ test('offline sale and payment sync once when the network returns', async ({ pag
   await pickTile(page, 'Search stock', item.name);
   await keypad(page, /^Quantity/, 10);
   await keypad(page, /^Price/, 450);
-  await page.getByRole('button', { name: 'Udhaar', exact: true }).click();
+  await page.getByRole('button', { name: 'Credit', exact: true }).click();
   await page.getByRole('button', { name: 'Save sale' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Sale saved on phone' })).toBeVisible();
 

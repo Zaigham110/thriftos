@@ -112,6 +112,13 @@
   - Tests: server e2e `purchasing-review` (gaari list only loose lots, price per kg and sorted % while sorting, search, other business sees none; container cleared when sorting starts, late charge still accepted); the purchasing e2e now expects Cleared after sorting. Browser: list tests use the View panel; new "purchasing" test (tabs, buttons, column note, remembered tab, old address). Server 295/295, Karma 19/19, browser 41 passed + 4 skipped, i18n 1265 keys.
   - Decided by the owner: amounts keep international grouping (2,309,688), not lakh grouping.
   - Breadcrumbs no longer show the internal "Records" step: Purchasing › Containers, Sales, Sorting (was Purchasing › Records › Containers). Unit test added.
+- **Review: languages (owner request).** English is now plain English and the trade's own words moved to a new third language, **Roman Urdu** (`public/i18n/roman.json`, `lang="ur-Latn"`, left to right).
+  - English renames: Maal aya → Receive, Chhantai → Sorting, Becho → Sell, Khata → Receivables, Udhaar → Credit / On credit / Owed, Kat → Leftovers, Maal → Raw type / goods, Opening udhaar → Opening balance (also in the import sheet and list exports on the server). "Gaari / lots" → **Loose lots** ("Buy a loose lot").
+  - Roman Urdu: the old wording (Maal aya, Chhantai, Becho, Khata, Udhaar, Kat, Gaari / lot) plus Roman Urdu for the menu, groups, Create items, common buttons, Home and the loose-lots list. Keys not yet written in Roman Urdu read in English.
+  - One language picker (English / اردو / Roman Urdu, a plain select) replaces the two-way toggle on the workspace bar, phone menu, settings, setup, login, legal and public bill pages; Ctrl+K cycles the three.
+  - Server: tenant default language and setup accept `roman`; WhatsApp text, bills and exports go out in English for Roman Urdu (only `ur` gets Urdu script).
+  - `npm run i18n:check` now checks roman.json has every key with the same placeholders and no Urdu script, and fails on Urdu words in en.json.
+  - Tests: server 295, Karma 20, browser 42 passed + 4 skipped (new Roman Urdu test). Initial bundle is 262 bytes over the 520 kB warning (error limit 600 kB).
 
 ## Decisions
 - Sorting (6.6): bales made while a lot is open are costed at the lot's cost per kg and re-costed at close; sold ones keep their sale cost (logged adjustment). Kat goes to stock at zero cost, so a kat sale is pure extra profit and bale costs are right whether or not kat sells.

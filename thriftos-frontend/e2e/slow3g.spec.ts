@@ -49,7 +49,7 @@ test('daily screens pass the 10-second test on Slow 3G', async ({ page, request 
 
   const results: Record<string, number> = {};
   results['receive lot'] = await timed('receive lot', async () => {
-    await page.getByRole('link', { name: 'Maal aya' }).click();
+    await page.getByRole('link', { name: 'Receive', exact: true }).click();
     await page.getByRole('link', { name: /Loose lot/ }).click();
     await keypad(page, /^Lot weight/, 250);
     await keypad(page, /^Purchase cost/, 50000);
@@ -65,7 +65,7 @@ test('daily screens pass the 10-second test on Slow 3G', async ({ page, request 
   });
 
   results['sale'] = await timed('sale', async () => {
-    await page.getByRole('link', { name: 'Becho' }).click();
+    await page.getByRole('link', { name: 'Sell', exact: true }).click();
     await page.getByRole('link', { name: 'New sale' }).click();
     await expect(page.locator('.tiles').getByRole('button').filter({ hasText: 'New customer' })).toBeVisible({ timeout: 20_000 });
     await pickTile(page, 'Search name or phone', customer.name);

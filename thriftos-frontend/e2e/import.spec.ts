@@ -21,7 +21,7 @@ test('the owner imports customers from a register file once, with problems shown
   await page.locator('input[type=file]').setInputFiles(file);
   await expect(page.getByText('2 ready to add')).toBeVisible();
   await expect(page.getByText('1 need fixing')).toBeVisible();
-  await expect(page.getByText(/Opening udhaar: ".abc." is not an amount/)).toBeVisible();
+  await expect(page.getByText(/Opening balance: ".abc." is not an amount/)).toBeVisible();
   await expect(page.getByRole('row', { name: new RegExp(`Rafiq ${tag}`) })).toContainText('125,000');
 
   await page.getByRole('button', { name: 'Add 2 rows' }).click();

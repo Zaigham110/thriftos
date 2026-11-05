@@ -369,7 +369,7 @@
  "nav": {
   "home": "ہوم",
   "khata": "کھاتہ",
-  "language": "English",
+  "languagePick": "زبان",
   "menu": "مینو",
   "more": "مزید",
   "receive": "مال آیا",
@@ -1549,7 +1549,7 @@
    "search": "سپلائر، ملک یا فون تلاش کریں",
    "title": "سپلائر"
   },
-  "switchLanguage": "اردو / انگریزی بدلیں",
+  "switchLanguage": "زبان بدلیں (انگریزی، اردو، رومن اردو)",
   "theme": {
    "dark": "گہرا رنگ",
    "light": "ہلکا رنگ"

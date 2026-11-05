@@ -26,13 +26,14 @@ import {
 } from 'lucide-angular';
 import { Observable, filter, interval, map, startWith, switchMap, catchError, of } from 'rxjs';
 import { AuthService } from '../../core/auth';
-import { I18nService } from '../../core/i18n/i18n.service';
+import { I18nService, LANGS } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
 import { OfflineQueueService } from '../../core/offline/offline-queue.service';
 import { TenantService } from '../../core/tenant/tenant.service';
 import { ThemeService } from '../../core/theme/theme.service';
 import { CommandPaletteComponent, PaletteCommand } from './command-palette.component';
 import { WS_CREATE, WS_NAV, WS_SETTINGS, WsNavItem, crumbsFor } from './workspace-nav';
+import { LangPickerComponent } from '../../shared/ui/lang-picker.component';
 
 const NAV_KEY = 'thriftos.navCollapsed';
 
@@ -50,7 +51,7 @@ function typing(e: KeyboardEvent): boolean {
 @Component({
   selector: 'ws-shell',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, LucideAngularModule, TPipe, CommandPaletteComponent],
+  imports: [LangPickerComponent, RouterLink, RouterLinkActive, LucideAngularModule, TPipe, CommandPaletteComponent],
   template: `
     <a class="skip" href="#ws-main">{{ 'ws.skip' | t }}</a>
     <div class="ws" [class.collapsed]="collapsed()">
@@ -77,7 +78,7 @@ function typing(e: KeyboardEvent): boolean {
           <button type="button" class="tool icon" (click)="theme.toggleTheme()" [attr.aria-label]="(theme.theme() === 'dark' ? 'ws.theme.light' : 'ws.theme.dark') | t" [title]="(theme.theme() === 'dark' ? 'ws.theme.light' : 'ws.theme.dark') | t">
             <lucide-icon [img]="theme.theme() === 'dark' ? icons.Sun : icons.Moon" [size]="17" aria-hidden="true" />
           </button>
-          <button type="button" class="tool" (click)="toggleLang()"><lucide-icon [img]="icons.Languages" [size]="16" aria-hidden="true" />{{ 'nav.language' | t }}</button>
+          <app-lang-picker class="tool" />
           <div class="menu-wrap">
             <button type="button" class="tool icon bell" (click)="toggleMenu('bell', $event)" [attr.aria-expanded]="menu() === 'bell'" aria-haspopup="menu" [attr.aria-label]="unreadLabel()">
               <lucide-icon [img]="icons.Bell" [size]="17" aria-hidden="true" />
@@ -277,7 +278,7 @@ export class WorkspaceShellComponent {
     ...this.createItems().map((i) => ({ id: 'new' + i.path.replace(/\//g, '-'), label: i.label, group: 'create' as const, icon: i.icon, keywords: i.keywords, path: i.path })),
     { id: 'theme', label: this.theme.theme() === 'dark' ? 'ws.theme.light' : 'ws.theme.dark', group: 'actions', icon: this.theme.theme() === 'dark' ? Sun : Moon, keywords: 'theme dark light', run: () => this.theme.toggleTheme() },
     { id: 'density', label: this.theme.density() === 'compact' ? 'ws.density.comfortable' : 'ws.density.compact', group: 'actions', icon: Rows3, keywords: 'density rows compact', run: () => this.toggleDensity() },
-    { id: 'lang', label: 'ws.switchLanguage', group: 'actions', icon: Languages, keywords: 'language urdu english', run: () => this.toggleLang() },
+    { id: 'lang', label: 'ws.switchLanguage', group: 'actions', icon: Languages, keywords: 'language urdu english roman', run: () => this.nextLang() },
     { id: 'password', label: 'settings.password', group: 'actions', icon: KeyRound, keywords: 'password', path: '/settings/password' },
     { id: 'shortcuts', label: 'ws.shortcuts', group: 'actions', icon: Keyboard, keywords: 'keyboard shortcuts help', run: () => this.shortcutsOpen.set(true) },
     { id: 'signout', label: 'nav.signOut', group: 'actions', icon: LogOut, keywords: 'logout sign out', run: () => this.signOut.emit() },
@@ -308,6 +309,12 @@ export class WorkspaceShellComponent {
   }
 
   /** Record search for the command palette (GET /api/search/global). */
+  /** Command palette: English → اردو → Roman Urdu → English. */
+  protected nextLang(): void {
+    const i = LANGS.findIndex((l) => l.id === this.i18n.lang());
+    this.i18n.use(LANGS[(i + 1) % LANGS.length].id);
+  }
+
   protected readonly searchRecords = (q: string): Observable<PaletteCommand[]> => {
     const icon: Record<string, typeof Truck> = { truck: Truck, boxes: Boxes, package: Package, book: BookOpen, cart: ShoppingCart, coins: Coins };
     return this.http.get<Array<{ id: string; title: string; subtitle: string; route: string; type: string; icon: string }>>('/api/search/global', { params: { q } }).pipe(
@@ -344,9 +351,6 @@ export class WorkspaceShellComponent {
     this.theme.setDensity(this.theme.density() === 'compact' ? 'comfortable' : 'compact');
   }
 
-  protected toggleLang(): void {
-    this.i18n.use(this.i18n.lang() === 'ur' ? 'en' : 'ur');
-  }
 }
 
 function readCollapsed(): boolean {

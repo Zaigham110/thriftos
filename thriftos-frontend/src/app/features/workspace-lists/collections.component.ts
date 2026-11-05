@@ -4,7 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { LucideAngularModule, MessageCircle } from 'lucide-angular';
-import { I18nService } from '../../core/i18n/i18n.service';
+import { I18nService, serverLang } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
 import { KhataService, WhatsappMessage } from '../../modules/sales/khata.service';
 import { ToastService } from '../../shared/floor/toast.service';
@@ -211,7 +211,7 @@ export class CollectionsComponent {
   }
 
   protected remind(c: WorklistRow): void {
-    this.khata.openWhatsapp(this.http.post<WhatsappMessage>(`/api/workspace/customers/${c.id}/remind`, { lang: this.i18n.lang() }), () =>
+    this.khata.openWhatsapp(this.http.post<WhatsappMessage>(`/api/workspace/customers/${c.id}/remind`, { lang: serverLang(this.i18n.lang()) }), () =>
       this.toast.show(this.i18n.t('common.couldNotLoad')),
     );
   }

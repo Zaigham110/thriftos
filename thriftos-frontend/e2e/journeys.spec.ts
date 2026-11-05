@@ -12,7 +12,7 @@ test('journeys 1–6 on a 360px phone', async ({ page, request }) => {
   await signIn(page);
 
   // Journey 1 — container arrives.
-  await page.getByRole('link', { name: 'Maal aya' }).click();
+  await page.getByRole('link', { name: 'Receive', exact: true }).click();
   await page.getByRole('link', { name: /Container/ }).click();
   await checkFloorScreen(page, 'receive container');
   await page.locator('.tiles').getByRole('button').filter({ hasText: 'New supplier' }).click();
@@ -33,7 +33,7 @@ test('journeys 1–6 on a 360px phone', async ({ page, request }) => {
   await expect(page.getByText(loose('Landed cost Rs 300 per kg'))).toBeVisible();
 
   // Journey 2 — sorting, grading and baling in one step (v2 6.6): tile → bales or loose kg; Undo; close books kat.
-  await page.locator('.done').getByRole('link', { name: 'Chhantai' }).click();
+  await page.locator('.done').getByRole('link', { name: 'Sorting', exact: true }).click();
   await expect(page).toHaveURL(/\/sort\/[a-z0-9]+$/);
   await checkFloorScreen(page, 'sort');
   // Tiles are categories; the grade is optional and picked in the sheet.
@@ -70,17 +70,17 @@ test('journeys 1–6 on a 360px phone', async ({ page, request }) => {
   await expect(ready.locator('li', { hasText: 'Jeans · Grade A' })).toContainText(loose('200.0 kg sorted, not baled yet'));
   await expect(page.locator('.today')).toContainText(loose('Today: 4 bales'));
   await page.getByRole('button', { name: 'Close lot' }).click();
-  await expect(page.getByText(loose('Is this gaari finished? The 100.0 kg left becomes kat and goes into stock.'))).toBeVisible();
+  await expect(page.getByText(loose('Is this lot finished? The 100.0 kg left becomes leftovers and goes into stock.'))).toBeVisible();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Close lot' }).click();
   await expect(page.getByText('Lot closed')).toBeVisible();
   // Rs 300,000 over 900 kg of outputs.
   await expect(page.locator('li', { hasText: 'Jeans · Grade A' })).toContainText('40%');
   await expect(page.locator('li', { hasText: 'Jeans · Grade A' })).toContainText(loose('Rs 333.33/kg'));
   await expect(page.locator('li', { hasText: 'Jeans · Grade B' })).toContainText('2 bales');
-  await expect(page.locator('li', { hasText: /^Kat/ })).toContainText('10%');
-  await expect(page.getByText(loose('Kat 100.0 kg is in stock'))).toBeVisible();
-  await page.getByRole('button', { name: 'Throw away kat' }).click();
-  await expect(page.getByText('Kat is sold or thrown away.')).toBeVisible();
+  await expect(page.locator('li', { hasText: /^Leftovers/ })).toContainText('10%');
+  await expect(page.getByText(loose('Leftovers 100.0 kg are in stock'))).toBeVisible();
+  await page.getByRole('button', { name: 'Throw away leftovers' }).click();
+  await expect(page.getByText('Leftovers are sold or thrown away.')).toBeVisible();
   await page.getByRole('link', { name: 'Done' }).click();
 
   // Journey 3 — make a bale from Jeans · A.
@@ -93,7 +93,7 @@ test('journeys 1–6 on a 360px phone', async ({ page, request }) => {
   const baleCode = (await page.locator('.done h2').innerText()).split(' ')[0];
 
   // Journey 4 — sell the bale on udhaar to a new customer.
-  await page.getByRole('link', { name: 'Becho' }).click();
+  await page.getByRole('link', { name: 'Sell', exact: true }).click();
   await checkFloorScreen(page, 'sell home');
   await page.getByRole('link', { name: 'New sale' }).click();
   await checkFloorScreen(page, 'new sale');
@@ -103,13 +103,13 @@ test('journeys 1–6 on a 360px phone', async ({ page, request }) => {
   await page.getByRole('button', { name: 'Add customer' }).click();
   await pickTile(page, 'Search stock', baleCode);
   await keypad(page, /^Price/, 36000);
-  await page.getByRole('button', { name: 'Udhaar', exact: true }).click();
+  await page.getByRole('button', { name: 'Credit', exact: true }).click();
   await expect(page.locator('.action-bar')).toContainText(loose('Rs 36,000'));
   await page.getByRole('button', { name: 'Save sale' }).click();
   await expect(page.getByRole('button', { name: 'Share bill on WhatsApp' })).toBeVisible();
 
   // Journey 6 — khata: the customer owes 36,000; JazzCash payment of 10,000.
-  await page.getByRole('link', { name: 'Khata' }).click();
+  await page.getByRole('link', { name: 'Receivables', exact: true }).click();
   await checkFloorScreen(page, 'khata');
   await page.getByRole('link', { name: new RegExp(`Haji Rafiq ${tag}`) }).click();
   await expect(page.locator('.balance')).toContainText(loose('Rs 36,000'));
@@ -163,7 +163,7 @@ test('journey 7: the owner home shows three numbers and today, and each taps thr
   const card = (name: string) => page.locator('a.stat').filter({ hasText: name });
   await expect(card('Profit per container')).toBeVisible();
   await expect(page.locator('a.stat')).toHaveCount(4);
-  await expect(card('Udhaar owed')).toContainText(loose(`Rs ${Number(numbers.udhaar.owed).toLocaleString('en-PK')}`));
+  await expect(card('Owed to you')).toContainText(loose(`Rs ${Number(numbers.udhaar.owed).toLocaleString('en-PK')}`));
   await expect(card("Today's sales")).toContainText(`${numbers.today.sales} sales`);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
 
@@ -171,7 +171,7 @@ test('journey 7: the owner home shows three numbers and today, and each taps thr
   await expect(page).toHaveURL(/\/home\/containers$/);
   await expect(page.getByText('By supplier')).toBeVisible();
   await page.goBack();
-  await card('Udhaar owed').click();
+  await card('Owed to you').click();
   await expect(page).toHaveURL(/\/khata$/);
   await page.goBack();
   await card('Stock ready').click();
@@ -197,14 +197,14 @@ test('a lot received a moment ago, missing from a stale sort queue and without i
   await keypad(page, /^Invoice weight/, 500);
   await keypad(page, /^Purchase cost/, 100000);
   await page.getByRole('button', { name: 'Save container' }).click();
-  await page.locator('.done').getByRole('link', { name: 'Chhantai' }).click();
+  await page.locator('.done').getByRole('link', { name: 'Sorting', exact: true }).click();
 
   // The lot's own weight is fetched, so the screen knows what is left.
   await expect(page.locator('.action-bar')).toContainText(loose('500.0 kg'));
   await sortLoose(page, 'Jeans', 400);
   await expect(page.locator('.totals')).toContainText(loose('100.0 kg'));
   await page.getByRole('button', { name: 'Close lot' }).click();
-  await expect(page.getByText(loose('Is this gaari finished? The 100.0 kg left becomes kat and goes into stock.'))).toBeVisible();
+  await expect(page.getByText(loose('Is this lot finished? The 100.0 kg left becomes leftovers and goes into stock.'))).toBeVisible();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Close lot' }).click();
   await expect(page.getByText('Lot closed')).toBeVisible();
   await expect(page.locator('li', { hasText: 'Jeans' })).toContainText('80%');

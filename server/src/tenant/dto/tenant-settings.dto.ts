@@ -32,7 +32,7 @@ export class UpdateTenantSettingsDto {
   @IsOptional()
   sortingStages?: number;
 
-  @IsIn(['ur', 'en'])
+  @IsIn(['ur', 'en', 'roman'])
   @IsOptional()
   defaultLanguage?: string;
 }

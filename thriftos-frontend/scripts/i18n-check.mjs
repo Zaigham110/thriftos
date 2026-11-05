@@ -1,5 +1,5 @@
 // CI check for the en/ur dictionaries and for text that skips them.  node scripts/i18n-check.mjs
-//  1. en.json and ur.json have the same keys, no empty values, the same {placeholders}, no Urdu digits.
+//  1. en.json, ur.json and roman.json (Roman Urdu) have the same keys, no empty values, the same {placeholders}, no Urdu digits.
 //  2. Every key the code uses ('x.y' | t, t('x.y'), label: 'nav.x') exists.
 //  3. Screens listed in TRANSLATED have no hard-coded visible text in their templates
 //     (text between tags, placeholder, aria-label, title). Brand names in ALLOWED are fine.
@@ -16,6 +16,7 @@ const flat = (o, prefix = '') =>
   Object.entries(o).flatMap(([k, v]) => (typeof v === 'object' ? flat(v, `${prefix}${k}.`) : [[`${prefix}${k}`, v]]));
 const en = Object.fromEntries(flat(JSON.parse(read(path.join(root, 'public/i18n/en.json')))));
 const ur = Object.fromEntries(flat(JSON.parse(read(path.join(root, 'public/i18n/ur.json')))));
+const roman = Object.fromEntries(flat(JSON.parse(read(path.join(root, 'public/i18n/roman.json')))));
 
 for (const k of new Set([...Object.keys(en), ...Object.keys(ur)])) {
   if (!(k in en)) errors.push(`en.json is missing ${k}`);
@@ -24,7 +25,15 @@ for (const k of new Set([...Object.keys(en), ...Object.keys(ur)])) {
   const ph = (s) => [...String(s ?? '').matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join(',');
   if (k in en && k in ur && ph(en[k]) !== ph(ur[k])) errors.push(`${k}: placeholders differ (en {${ph(en[k])}} / ur {${ph(ur[k])}})`);
   if (/[٠-٩۰-۹]/.test(ur[k] ?? '')) errors.push(`${k}: Urdu digits in ur.json (numbers stay Western)`);
+  if (!(k in roman)) errors.push(`roman.json is missing ${k}`);
+  else if (roman[k] === '') errors.push(`${k} is empty in roman.json`);
+  else if (k in en && ph(en[k]) !== ph(roman[k])) errors.push(`${k}: placeholders differ (en {${ph(en[k])}} / roman {${ph(roman[k])}})`);
+  if (/[؀-ۿ]/.test(roman[k] ?? '') && !/^nav\.|^ws\.lang/.test(k)) errors.push(`${k}: Urdu script in roman.json (Roman Urdu is Latin letters)`);
 }
+for (const k of Object.keys(roman)) if (!(k in en)) errors.push(`roman.json has ${k}, which en.json does not`);
+// English stays plain English: the trade's Urdu words belong in roman.json.
+const URDU_WORDS = /\b(maal|chhantai|chantai|becho|udhaar|udhar|gaari|gaaris|kat|khata|galla|kharcha|munafa|baqaya|aya)\b/i;
+for (const [k, v] of Object.entries(en)) if (URDU_WORDS.test(v)) errors.push(`${k}: Urdu word in en.json ("${v.slice(0, 50)}") — put it in roman.json`);
 
 const files = [];
 const walk = (d) => {
@@ -90,4 +99,4 @@ if (errors.length) {
   console.error(`\n${errors.length} i18n problem(s).`);
   process.exit(1);
 }
-console.log(`i18n ok: ${Object.keys(en).length} keys in en and ur, ${files.length} files checked.`);
+console.log(`i18n ok: ${Object.keys(en).length} keys in en, ur and roman, ${files.length} files checked.`);

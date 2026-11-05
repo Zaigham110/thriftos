@@ -30,7 +30,7 @@ export const PROCUREMENT_ROUTES: Routes = [
   {
     path: 'lots',
     loadComponent: () => import('../../features/workspace-lists/list-page.component').then((m) => m.ListPageComponent),
-    title: 'Gaari and lots - ThriftOS',
+    title: 'Loose lots - ThriftOS',
     canActivate: [permissionGuard],
     data: { permissions: ['rag.read'], list: PURCHASE_LOTS_LIST },
   },

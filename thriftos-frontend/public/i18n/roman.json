@@ -1,0 +1,1595 @@
+{
+ "attention": {
+  "dependsOnFailed": "An earlier entry it needs was not saved.",
+  "remove": "Remove",
+  "retry": "Try again",
+  "title": "Needs attention"
+ },
+ "auth": {
+  "backToSignIn": "Back to sign in",
+  "confirmPassword": "New password again",
+  "currentPassword": "Current password",
+  "currentWrong": "Current password is not right.",
+  "email": "Email",
+  "forgot": "Forgot password?",
+  "forgotHint": "Enter your email. We will send a link to set a new password.",
+  "forgotTitle": "Forgot password",
+  "linkExpired": "This link has expired. Ask for a new one.",
+  "linkSent": "If this email has an account, a link is on its way. It works for 30 minutes.",
+  "locked": "Too many wrong PINs. Try again in {n} minutes or ask the owner.",
+  "munshi": "Phone + PIN",
+  "newPassword": "New password",
+  "owner": "Email",
+  "password": "Password",
+  "passwordRule": "At least 10 characters.",
+  "passwordSaved": "Password changed. Your other devices are signed out.",
+  "passwordsDiffer": "The two new passwords are not the same.",
+  "pin": "PIN",
+  "pinHint": "4 to 6 digits",
+  "remember": "Keep me signed in",
+  "resetDone": "New password set. Sign in with it.",
+  "samePassword": "Choose a new password that is different from the old one.",
+  "savePassword": "Save password",
+  "sendLink": "Send link",
+  "signIn": "Sign in",
+  "signingIn": "Signing in…",
+  "subtitle": "Your business on your phone",
+  "title": "Sign in",
+  "tooMany": "Too many tries. Wait a minute and try again.",
+  "wrong": "Email or password is wrong.",
+  "wrongPin": "Phone or PIN is wrong. {n} tries left.",
+  "wrongPinPlain": "Phone or PIN is wrong."
+ },
+ "bill": {
+  "amount": "Amount",
+  "due": "Due",
+  "item": "Item",
+  "no": "Bill {no}",
+  "notFound": "This bill link is not valid.",
+  "paid": "Paid",
+  "print": "Print",
+  "qty": "Qty",
+  "rate": "Rate",
+  "status": {
+   "ISSUED": "Udhaar",
+   "PAID": "Paid",
+   "PARTIALLY_PAID": "Part paid"
+  },
+  "title": "Bill",
+  "to": "To",
+  "total": "Total"
+ },
+ "catalogue": {
+  "baleWeight": "Kg per bale",
+  "baleWeightHint": "The usual weight of one bale of this category. It is filled in when bales are entered while sorting, and can be changed each time."
+ },
+ "common": {
+  "all": "Sab",
+  "back": "Wapas",
+  "cancel": "Rehne dein",
+  "change": "Badlein",
+  "city": "Shehar",
+  "clear": "Saaf karein",
+  "cost": "Laagat",
+  "costPerKg": "Laagat fi kg",
+  "couldNotLoad": "Khul nahi saka. Internet check karein.",
+  "couldNotSave": "Save nahi hua. Dobara koshish karein.",
+  "country": "Mulk",
+  "date": "Tareekh",
+  "done": "Ho gaya",
+  "edit": "Badlein",
+  "empty": "Abhi yahan kuch nahi.",
+  "keypadDone": "OK",
+  "loading": "Load ho raha hai…",
+  "more": "Aur tafseel",
+  "name": "Naam",
+  "new": "Naya",
+  "newSupplier": "Naya supplier",
+  "next": "Aage",
+  "optional": "zaroori nahi",
+  "phone": "WhatsApp number",
+  "phonePlaceholder": "0300 1234567",
+  "price": "Qeemat",
+  "remove": "Hatayein",
+  "save": "Save karein",
+  "saving": "Save ho raha hai…",
+  "search": "Dhoondein",
+  "supplier": "Supplier",
+  "today": "Aaj",
+  "total": "Kul",
+  "undo": "Wapas karein",
+  "weight": "Wazan"
+ },
+ "fw": {
+  "container": {
+   "hint": "Weight and cost, about a minute",
+   "title": "Receive your first container"
+  },
+  "done": "Done",
+  "hide": "Hide",
+  "how": "How?",
+  "import": "Have a paper register? Bring it in from Excel",
+  "progress": "{done} of 4 done",
+  "sale": {
+   "hint": "The bill goes to the customer on WhatsApp",
+   "title": "Make your first sale"
+  },
+  "supplier": {
+   "hint": "Who sends you containers. Name and country only.",
+   "title": "Add your supplier"
+  },
+  "team": {
+   "hint": "Name, phone and a 4-digit PIN",
+   "title": "Add your munshi"
+  },
+  "title": "Your first week"
+ },
+ "help": {
+  "container": {
+   "go": "New container",
+   "s1": "Open Maal aya and start a new container.",
+   "s2": "Tap the supplier, write the invoice weight in kg and the purchase cost.",
+   "s3": "Tap the charges you paid (freight, clearing, labour) and write each amount. You can add them later too.",
+   "s4": "Save. The cost per kg is worked out, and Home shows the container's profit as you sell.",
+   "title": "Receive a container"
+  },
+  "how": "How does this work?",
+  "import": {
+   "go": "Open import",
+   "s1": "Open Settings, then Bring in your register.",
+   "s2": "Download the sheet and fill in customers with their udhaar, suppliers or stock.",
+   "s3": "Choose the file and check the rows. Fix any row marked red.",
+   "s4": "Tap Add. Adding the same file again does not add anything twice.",
+   "title": "Bring in your paper register"
+  },
+  "intro": "Short guides, one task each.",
+  "khata": {
+   "go": "Open Khata",
+   "s1": "Every udhaar sale is written in the customer's khata by itself.",
+   "s2": "Open Khata and tap the customer.",
+   "s3": "When money comes, tap Payment received, write the amount and save. You can print a receipt.",
+   "s4": "Tap Remind to send the balance on WhatsApp.",
+   "title": "Udhaar and payments"
+  },
+  "sale": {
+   "go": "New sale",
+   "s1": "Open Becho and tap New sale.",
+   "s2": "Pick the customer, or add one with name and phone.",
+   "s3": "Pick the stock, write how many and the price.",
+   "s4": "Choose cash or udhaar and save. Send the bill on WhatsApp or print it.",
+   "title": "Make a sale"
+  },
+  "sorting": {
+   "go": "Open Chhantai",
+   "s1": "Open Chhantai and tap the lot that is waiting.",
+   "s2": "Tap a category, write the kg, save. Do the same for each pile.",
+   "s3": "When the lot is finished, tap Close lot. What is left counts as waste.",
+   "s4": "Sorted kg go to Stock by themselves, with their cost per kg.",
+   "title": "Sort a lot"
+  },
+  "stock": {
+   "go": "Make bale",
+   "s1": "Open Stock and tap Make bale.",
+   "s2": "Tap the kind and write the bale weight in kg.",
+   "s3": "Save, then tap Print label for the QR sticker.",
+   "s4": "When you sell, scan the sticker and the bale is picked for you.",
+   "title": "Make a bale and its sticker"
+  },
+  "supplier": {
+   "go": "New container",
+   "s1": "Open Maal aya and start a new container.",
+   "s2": "Under Which supplier?, tap + New supplier.",
+   "s3": "Write the name and tap the country. That is all.",
+   "s4": "Next time your supplier is the first tile. Profit per supplier shows in reports.",
+   "title": "Add a supplier"
+  },
+  "team": {
+   "go": "Open Team",
+   "s1": "Open Settings, then Team.",
+   "s2": "Tap Add munshi and write the name and phone number.",
+   "s3": "Choose a 4-digit PIN and tell it to the munshi.",
+   "s4": "The munshi signs in with phone and PIN, and sees floor work, not your profit.",
+   "title": "Add your munshi"
+  },
+  "title": "Help"
+ },
+ "home": {
+  "basis": "Sold this month: price − cost",
+  "byOrigin": "Mulk ke hisaab se",
+  "bySupplier": "Supplier ke hisaab se",
+  "customersOwing": "{n} customer",
+  "lastContainers": "Last containers",
+  "lastN": "Average of the last {n} containers",
+  "listContainers": "Containers",
+  "listSales": "Aaj ki sale",
+  "listStock": "Tayyar stock",
+  "lotsToSort": "Chhantai ke lot",
+  "munshiTitle": "Aaj ka kaam",
+  "noContainers": "No containers sold from yet.",
+  "noSalesToday": "Aaj abhi koi sale nahi.",
+  "openSorting": "Chhantai chal rahi hai",
+  "perKg": "{rs} fi kg",
+  "profit": "Is mahine ka munafa",
+  "profitPerContainer": "Profit per container",
+  "profitSoFar": "Ab tak munafa",
+  "salesCount": "{n} sale",
+  "stockBasis": "{kg} · {bales} bales · {items} items",
+  "stockReady": "Tayyar stock",
+  "title": "Home",
+  "todaySales": "Aaj ki sale",
+  "topOwing": "Sab se zyada udhaar",
+  "udhaar": "Udhaar baqi",
+  "yield": "A-grade {n}%",
+  "yieldShort": "Yield {n}%"
+ },
+ "import": {
+  "add": "Add {n} rows",
+  "adding": "Adding…",
+  "another": "Upload another file",
+  "choose": "Choose file",
+  "col": {
+   "line": "Row",
+   "problem": "What to fix",
+   "status": "Status"
+  },
+  "count": {
+   "error": "{n} need fixing",
+   "exists": "{n} already in ThriftOS",
+   "imported": "{n} added before",
+   "new": "{n} ready to add"
+  },
+  "done": "Added {n}. Skipped {skipped}.",
+  "doneSuppliers": "{n} new suppliers added.",
+  "download": "Download sheet",
+  "err": {
+   "belowZero": "{field} cannot be below zero",
+   "categoryKept": "Category \"{value}\" is not in your list; kept in the item name.",
+   "costEmpty": "Total cost is empty (or fill \"Cost per unit\")",
+   "exists": "Already in ThriftOS; left as it is.",
+   "gradeKept": "Grade \"{value}\" is not in your list; kept in the item name.",
+   "nameEmpty": "Name is empty",
+   "nameLong": "Name is longer than 120 letters",
+   "newSupplier": "New supplier \"{value}\" will be added.",
+   "notAmount": "{field}: \"{value}\" is not an amount",
+   "phoneBad": "Phone \"{value}\" is not a mobile number (e.g. 0300-1234567)",
+   "qtyEmpty": "Quantity is empty or zero",
+   "qtyWhole": "Bales and pieces are counted in whole numbers",
+   "sameName": "Same name as row {row}. Give each one a different name (e.g. add the city).",
+   "tooLarge": "{field}: \"{value}\" is too large",
+   "unitBad": "\"{value}\" is not a unit: write bale, kg or piece",
+   "unitEmpty": "Unit is empty: write bale, kg or piece",
+   "whatIsIt": "Write what it is: an item name or a category"
+  },
+  "field": {
+   "category": "Category",
+   "city": "City",
+   "contactPerson": "Contact person",
+   "country": "Country",
+   "creditLimit": "Credit limit",
+   "grade": "Grade",
+   "item": "Item",
+   "name": "Name",
+   "notes": "Notes",
+   "openingBalance": "Opening udhaar",
+   "phone": "Phone",
+   "quantity": "Quantity",
+   "salePrice": "Sale price",
+   "supplier": "Supplier",
+   "totalCost": "Total cost",
+   "unit": "Unit",
+   "unitCost": "Cost per unit",
+   "weightKg": "Weight kg"
+  },
+  "fixHint": "Fix the red rows in your file and upload it again. Rows already added are never added twice.",
+  "missing": "Your sheet has no column for: {cols}. Use the downloaded sheet.",
+  "notAllowed": "Only the owner can bring in data.",
+  "nothing": "Nothing new to add.",
+  "onlyProblems": "Only rows to fix",
+  "open": "Open the list",
+  "reading": "Reading the file…",
+  "status": {
+   "error": "Fix",
+   "exists": "Already there",
+   "imported": "Added before",
+   "new": "Ready"
+  },
+  "step1": "1. Download the sheet",
+  "step1Hint": "Fill one row per line of your register. Urdu or English both work.",
+  "step2": "2. Choose your filled file",
+  "step2Hint": "Excel (.xlsx) or CSV, up to 5,000 rows. Your own sheet works too if its headers say what each column is.",
+  "step3": "3. Check and add",
+  "subtitle": "Customers with their udhaar, suppliers and opening stock, from Excel or CSV",
+  "tab": {
+   "customers": "Customers",
+   "stock": "Opening stock",
+   "suppliers": "Suppliers"
+  },
+  "title": "Bring in your register",
+  "unknown": "Columns not used: {cols}"
+ },
+ "khata": {
+  "addCustomer": "Customer",
+  "advance": "Paid in advance",
+  "amount": "Amount",
+  "balanceCol": "Balance",
+  "customerPage": "Customer",
+  "editSaved": "Customer saved.",
+  "kind": {
+   "OPENING": "Opening balance",
+   "PAYMENT": "Payment",
+   "SALE": "Sale"
+  },
+  "ledger": "Ledger",
+  "noCustomers": "No customers yet.",
+  "oldUdhaar": "Old udhaar from your register",
+  "oldest": "Oldest unpaid: {n} days",
+  "owed": "Udhaar owed: {rs}",
+  "owes": "Owes you",
+  "paymentReceived": "Payment received",
+  "photoFailed": "Payment saved, but the screenshot did not upload.",
+  "received": "{rs} received. Balance now {balance}.",
+  "receivedOffline": "{rs} saved on phone. It will sync when you are online.",
+  "remind": "Remind",
+  "reminderLang": "Reminder language",
+  "saveCustomer": "Save customer",
+  "savePayment": "Save payment",
+  "screenshot": "Add screenshot (optional)",
+  "search": "Search name, phone or city",
+  "title": "Khata"
+ },
+ "legal": {
+  "privacy": {
+   "p1": "What is kept: your business details; your users (name, email or phone); the customers and suppliers you add (name, WhatsApp number, city, balances); stock, sales and payments; and payment screenshots you upload.",
+   "p2": "Why: only to run ThriftOS for your business — showing your records, the bills and reminders you choose to send on WhatsApp, and keeping the app working and safe.",
+   "p3": "Who sees it: the people in your business you give access to, and the ThriftOS operator when you ask for help. Your data is not sold or shared. WhatsApp messages go from your own phone.",
+   "p4": "Where: on a server in Australia (Amazon Web Services, Sydney), delivered through Amazon CloudFront over HTTPS. Server logs and error reports hold no names, phone numbers or amounts.",
+   "p5": "How long: as long as your business uses ThriftOS. You can download everything at any time; ask the operator to delete your business when you leave.",
+   "p6": "Questions or a request to correct or delete something: ask the person who set up ThriftOS for you.",
+   "title": "Privacy"
+  },
+  "terms": {
+   "p1": "ThriftOS is software for running a used-clothing business: stock, sorting, sales, khata and reports. These terms apply when you or your staff use it.",
+   "p2": "Your data is yours. You can download all of it at any time from Settings → Download all my data, and you keep it if you stop using ThriftOS.",
+   "p3": "You are responsible for the people you give access to, for keeping passwords and PINs private, and for checking amounts and balances before you act on them.",
+   "p4": "We keep the service running as well as we can, but we cannot promise it will never be unavailable. Keep your own copy of important records.",
+   "p5": "Do not use ThriftOS for anything unlawful, or to keep other people's details without their permission.",
+   "p6": "We may change these terms; the date below changes when we do. Questions: ask the person who set up ThriftOS for you.",
+   "title": "Terms of use"
+  },
+  "updated": "Last updated: 3 November 2026"
+ },
+ "method": {
+  "BANK": "Bank",
+  "CASH": "Cash",
+  "EASYPAISA": "Easypaisa",
+  "JAZZCASH": "JazzCash",
+  "OTHER": "Other",
+  "RAAST": "Raast"
+ },
+ "nav": {
+  "home": "Home",
+  "khata": "Khata",
+  "languagePick": "Zabaan",
+  "menu": "Menu",
+  "more": "Aur",
+  "receive": "Maal aya",
+  "reports": "Report",
+  "sell": "Becho",
+  "settings": "Settings",
+  "signOut": "Sign out",
+  "sort": "Chhantai",
+  "stock": "Stock"
+ },
+ "print": {
+  "advance": "Advance with us",
+  "amount": "Amount",
+  "balanceNow": "Balance now",
+  "bluetooth": "Print on Bluetooth printer",
+  "bluetoothStickers": "Bluetooth printer",
+  "change": "Change printer",
+  "dialog": "Print or save PDF",
+  "error": {
+   "failed": "Could not print. Check that the printer is on, has paper and is near, then try again.",
+   "notAPrinter": "That device is not a printer ThriftOS can use. Pick your printer's name from the list.",
+   "share": "This phone cannot share pictures from here.",
+   "unsupported": "This phone or browser cannot reach a Bluetooth printer."
+  },
+  "forBill": "For bill",
+  "from": "From",
+  "method": "Paid by",
+  "noBluetooth": "This phone or browser cannot reach a Bluetooth printer (iPhones cannot). Use Print, or share the picture.",
+  "paper": "Paper",
+  "paymentSaved": "Payment saved",
+  "printBill": "Print bill",
+  "printOn": "Print on {name}",
+  "printReceipt": "Print receipt",
+  "receipt": "Payment receipt",
+  "receivedBy": "Received by {name}",
+  "reference": "Ref",
+  "scanBill": "Scan to see this bill online",
+  "sending": "Sending to the printer…",
+  "sent": "Sent to the printer.",
+  "share": "Share picture",
+  "thanks": "Thank you",
+  "title": {
+   "bill": "Print bill",
+   "labels": "Print stickers",
+   "receipt": "Print receipt"
+  }
+ },
+ "pwa": {
+  "install": "Add ThriftOS to your phone",
+  "installButton": "Install",
+  "notNow": "Not now",
+  "reload": "Reload",
+  "update": "New version ready"
+ },
+ "receive": {
+  "charge": {
+   "CIF": "CIF",
+   "CLEARING": "Clearing",
+   "DUTY": "Duty",
+   "FREIGHT": "Freight",
+   "LABOUR": "Labour",
+   "MISC": "Other",
+   "PORT_HANDLING": "Port handling",
+   "TAX": "Tax",
+   "TRANSPORT": "Transport"
+  },
+  "charges": "Charges",
+  "chargesLater": "You can add charges later.",
+  "container": "Container",
+  "containerHint": "Imported maal to sort",
+  "containerNo": "Container number",
+  "countedIn": "Counted in",
+  "currency": "Currency",
+  "fxRate": "Dollar rate (Rs per $1)",
+  "howMany": "How many",
+  "invoiceKg": "Invoice weight",
+  "itemName": "Name (e.g. Ladies jackets)",
+  "landedPerKg": "Landed cost {rs} per kg",
+  "lot": "Loose lot",
+  "lotHint": "Bales bought locally",
+  "lotSaved": "{code} saved. Ready to sort.",
+  "lotWeight": "Lot weight",
+  "newSupplierName": "Supplier name",
+  "openBale": "Open a bale into pieces",
+  "origin": "From country",
+  "purchaseCost": "Purchase cost",
+  "ready": "Ready stock",
+  "readyHint": "Ready to sell, no sorting",
+  "readyToSort": "Ready to sort",
+  "recent": "Received today",
+  "salePrice": "Sale price",
+  "saveContainer": "Save container",
+  "saveLot": "Save lot",
+  "saveStock": "Save stock",
+  "stockSaved": "Saved. Ready to sell.",
+  "title": "Maal aya",
+  "totalCost": "Total cost",
+  "weighbridgeKg": "Kanta weight",
+  "whatItem": "What is it?",
+  "whichSupplier": "Which supplier?"
+ },
+ "sell": {
+  "addCustomer": "Add customer",
+  "another": "New sale",
+  "customer": "Customer",
+  "items": "Items",
+  "left": "{n} left",
+  "mode": {
+   "CASH": "Cash now",
+   "CREDIT": "Udhaar",
+   "PARTIAL": "Part paid"
+  },
+  "new": "New sale",
+  "newCustomer": "New customer",
+  "noStock": "No stock to sell.",
+  "openBill": "Open bill",
+  "paidNow": "Paid now",
+  "payment": "Payment",
+  "perBale": "Per bale",
+  "perKg": "Per kg",
+  "quantity": "Quantity",
+  "recent": "Recent sales",
+  "rsPer": "Rs per {unit}",
+  "save": "Save sale",
+  "saved": "{no} · {rs}",
+  "savedLine": "{name} — paid {paid}, due {due}. Khata now {balance}.",
+  "savedOffline": "Sale saved on phone. It will sync when you are online.",
+  "scanBale": "Scan bale",
+  "searchCustomer": "Search name or phone",
+  "searchStock": "Search stock",
+  "share": "Share bill on WhatsApp",
+  "title": "Becho"
+ },
+ "settings": {
+  "addMunshi": "Add munshi",
+  "advanced": "Advanced",
+  "business": "Business setup",
+  "export": "Download all my data",
+  "exportHint": "Zip of CSV files",
+  "exportNotAllowed": "Only the owner can download all the data.",
+  "lockedUntil": "Locked",
+  "munshiAdded": "{name} can now sign in with phone and PIN.",
+  "password": "Change password",
+  "pinSaved": "New PIN saved.",
+  "resetPin": "Reset PIN",
+  "team": "Team",
+  "title": "Settings",
+  "unlock": "Unlock",
+  "unlocked": "{name} can sign in again."
+ },
+ "setup": {
+  "addCategory": "Add category",
+  "addGrade": "Add grade",
+  "businessName": "Business name",
+  "categories": "Your categories",
+  "categoriesHint": "Karachi list. Tap to remove, add your own.",
+  "currency": "Currency",
+  "doYouSort": "Do you sort maal?",
+  "done": "All set. Everything can be changed later in Settings.",
+  "finish": "Start using ThriftOS",
+  "grades": "Grade names",
+  "gradesHint": "Best first: number 1 is your top grade.",
+  "language": "Language",
+  "munshi": "Add a munshi (optional)",
+  "munshiName": "Munshi name",
+  "munshiPin": "PIN for the munshi",
+  "removed": "Removed — tap to add back",
+  "skip": "Skip",
+  "sort0": "No, I sell as bought",
+  "sort1": "Yes, into categories",
+  "sort2": "Yes, categories then grades",
+  "step": "Step {n} of {total}",
+  "title": "Set up your business"
+ },
+ "sort": {
+  "added": "{kg} {name} added",
+  "allBales": "{n} bales in all",
+  "balesMade": "Bales made:",
+  "balesSaved": "{what} of {name} in stock",
+  "balesTotal": "{n} bales = {kg}",
+  "closeConfirm": "{kg} not sorted goes to waste. Close the lot?",
+  "closeConfirmKat": "Is this gaari finished? The {kg} left becomes kat and goes into stock.",
+  "closeLot": "Close lot",
+  "closed": "Lot closed",
+  "costPerKg": "{rs}/kg",
+  "fewer": "One bale less",
+  "grade": "Grade",
+  "gradeIt": "Grade it",
+  "grading": "Grading",
+  "howEntered": "Bales or loose",
+  "howManyBales": "How many bales?",
+  "howManyKg": "How many kg of {name}?",
+  "inProgress": "Sorting now",
+  "kat": "Kat",
+  "katDone": "Kat is sold or thrown away.",
+  "katHint": "Sell it by kg in a sale, like any loose stock. If nobody will buy it, throw it away.",
+  "katInStock": "Kat {kg} is in stock",
+  "katThrowAway": "Throw away kat",
+  "kgPerBale": "Kg per bale",
+  "left": "{kg} left",
+  "leftLabel": "Left",
+  "looseKg": "Loose kg",
+  "makeBales": "Make bales",
+  "makeBalesOf": "Make bales of {name}",
+  "modeBales": "Bales",
+  "modeLoose": "Loose kg",
+  "more": "One bale more",
+  "noGrade": "No grade",
+  "noLots": "No lots waiting. Receive maal first.",
+  "nothingReady": "All sorted kg is in bales.",
+  "pickLot": "Pick a lot",
+  "pickOutput": "Pick what to grade",
+  "printStickers": "Print stickers for the {n} bales of {name}",
+  "readyKg": "{kg} sorted, not baled yet",
+  "readyTitle": "Sorted, ready to bale",
+  "saveBales": "Save bales",
+  "sorted": "{kg} sorted",
+  "sortedLabel": "Sorted",
+  "tapTile": "Tap what you sorted",
+  "title": "Chhantai",
+  "today": "Today: {bales} bales · {kg}",
+  "tooMuch": "Weight is more than the lot left ({kg}). Enter {kg} or less.",
+  "tooMuchReady": "Only {kg} is sorted and not baled. Make fewer or lighter bales.",
+  "waste": "Waste / Katran",
+  "yield": "Yield"
+ },
+ "stock": {
+  "advanced": "Pick stock by hand",
+  "available": "{kg} available",
+  "baleSaved": "{code} ready · {kg}",
+  "baleWeight": "Bale weight",
+  "cameraBlocked": "Camera is blocked. Type the bale code instead.",
+  "code": "Bale code",
+  "empty": "No stock yet.",
+  "left": "{n} left",
+  "makeBale": "Make bale",
+  "notFound": "This QR is not in your stock.",
+  "pickKind": "Which maal?",
+  "pieces": "Pieces",
+  "printLabel": "Print label",
+  "printLabels": "Print {n} stickers",
+  "printSheet": "A4 sheet (3×8)",
+  "printThermal": "Sticker 50×30 mm",
+  "ready": "Ready",
+  "saveBale": "Save bale",
+  "scan": "Scan QR",
+  "sold": "Sold",
+  "title": "Stock"
+ },
+ "support": {
+  "banner": "Support view · {name} · read-only",
+  "leave": "Leave",
+  "thisBusiness": "this business"
+ },
+ "sync": {
+  "attention": "{n} need attention",
+  "offline": "Offline — saved on phone ({n})",
+  "pending": "{n} not synced yet",
+  "savedOnPhone": "Saved on phone. It will sync when you are online.",
+  "synced": "Synced"
+ },
+ "unit": {
+  "bale": "bale",
+  "bales": "bales",
+  "days": "{n} days",
+  "kg": "{n} kg",
+  "kgShort": "kg",
+  "pcs": "pcs",
+  "percent": "{n}%",
+  "piece": "piece",
+  "pieces": "pieces",
+  "rs": "Rs {n}"
+ },
+ "ws": {
+  "account": "Your account",
+  "activity": {
+   "attach": "Attach file",
+   "badFile": "Attach a photo, PDF, spreadsheet or Word file up to 10 MB.",
+   "empty": "No activity yet.",
+   "mention": "People you can mention",
+   "placeholder": "Write a note for the team…",
+   "post": "Add note",
+   "title": "Activity"
+  },
+  "adminIdx": {
+   "area": {
+    "categories": {
+     "hint": "What you sort into, e.g. Jeans, Shirts",
+     "name": "Categories"
+    },
+    "godowns": {
+     "hint": "Where stock is kept; move stock between them",
+     "name": "Godowns"
+    },
+    "grades": {
+     "hint": "A, B, C… for graded stock",
+     "name": "Grades"
+    },
+    "import": {
+     "hint": "Customers, suppliers and opening stock from Excel",
+     "name": "Bring in your register"
+    },
+    "prices": {
+     "hint": "Agreed prices per customer group",
+     "name": "Price lists"
+    },
+    "rawCategories": {
+     "hint": "What arrives in containers and lots",
+     "name": "Raw types"
+    },
+    "roles": {
+     "hint": "What each role may see and do",
+     "name": "Roles"
+    },
+    "tenant": {
+     "hint": "Name, currency and how you work",
+     "name": "Business profile"
+    },
+    "users": {
+     "hint": "Logins, roles and blocked accounts",
+     "name": "Users"
+    },
+    "vendors": {
+     "hint": "Who you buy from and pay",
+     "name": "Suppliers and vendors"
+    },
+    "waste": {
+     "hint": "Katran and other waste, with resale value",
+     "name": "Waste types"
+    }
+   },
+   "group": {
+    "business": "Business and people",
+    "goods": "Goods",
+    "partners": "Suppliers, godowns and prices"
+   },
+   "subtitle": "The lists the rest of ThriftOS uses: people, goods, suppliers, godowns and prices",
+   "title": "Business setup"
+  },
+  "audit": {
+   "BALE_MADE": "made the bale",
+   "CONTAINER_CHARGE_ADDED": "added a charge",
+   "CONTAINER_CHARGE_DELETED": "removed a charge",
+   "CONTAINER_CREATED": "received the container",
+   "CONTAINER_STATUS_CHANGED": "changed the container's status",
+   "CONTAINER_UPDATED": "edited the container",
+   "CONTAINER_WEIGHTS_UPDATED": "changed the weights",
+   "COST_ADJUSTMENT": "costs were recalculated",
+   "CUSTOMER_CREATED": "added the customer",
+   "CUSTOMER_OPENING_BALANCE_CHANGED": "changed the old udhaar",
+   "GRADE_SESSION_CLOSED": "closed the grading",
+   "PAYMENT_PHOTO_ADDED": "added a payment screenshot",
+   "PAYMENT_RECEIVED": "recorded a payment",
+   "RAG_CREATED": "added the lot",
+   "RAG_DELETED": "removed the lot",
+   "RAG_UPDATED": "edited the lot",
+   "SALE_CREATED": "made the sale",
+   "SALE_FULFILLED": "handed over the goods",
+   "SORT_SESSION_CLOSED": "closed the sorting"
+  },
+  "board": {
+   "empty": "Nothing here",
+   "more": "{n} more — use the table to see all",
+   "moveTo": "Move to",
+   "moved": "Moved to {to}",
+   "notAllowed": "That move is not allowed from here"
+  },
+  "book": {
+   "closing": "Closing",
+   "empty": "Nothing in this period",
+   "in": "In",
+   "opening": "Opening",
+   "out": "Out",
+   "over": "Cash over at close",
+   "receipt": "From {party} {ref}",
+   "short": "Cash short at close",
+   "subtitle": "Money in and out for each way of paying",
+   "title": "Cash and bank book"
+  },
+  "breadcrumbs": "You are here",
+  "chart": {
+   "showChart": "Show as chart",
+   "showTable": "Show as table"
+  },
+  "close": {
+   "closeDay": "Close the day",
+   "closed": "Closed: {counted} counted by {by}.",
+   "counted": "Counted",
+   "difference": "Short / over",
+   "exact": "Exactly right.",
+   "expected": "Should be in the drawer",
+   "in": "Cash received",
+   "noneYet": "No days closed yet",
+   "nothing": "No cash in or out this day",
+   "out": "Cash paid out",
+   "overBy": "Over by {amount}.",
+   "recent": "Recent closes",
+   "saved": "Day closed",
+   "shortBy": "Short by {amount}.",
+   "subtitle": "Count the drawer at the end of the day",
+   "title": "Cash close",
+   "today": "This day"
+  },
+  "col": {
+   "city": "City",
+   "cost": "Cost",
+   "count": "Sales",
+   "createdBy": "Entered by",
+   "customer": "Customer",
+   "customerId": "Customer",
+   "date": "Date",
+   "number": "Sale",
+   "paymentMode": "Payment",
+   "profit": "Profit",
+   "records": "Records",
+   "status": "Status",
+   "total": "Total",
+   "type": "Type"
+  },
+  "collapse": "Collapse menu",
+  "collections": {
+   "ageing": "Udhaar by age",
+   "balance": "Balance",
+   "broken": "Broken promises",
+   "customers": "Customers",
+   "done": "Done",
+   "dueToday": "Promised for today",
+   "empty": "Nobody here — well done",
+   "lastPayment": "Last payment",
+   "lastReminder": "Last reminded {date}",
+   "next": "Next customer",
+   "noPhone": "no WhatsApp number",
+   "openWhatsapp": "Open WhatsApp",
+   "over90": "Older than 90 days",
+   "over90Hint": "Call these first",
+   "overLimitTag": "over limit",
+   "owed": "Owed to you",
+   "promise": "Promise",
+   "queueHint": "WhatsApp opens with the message ready; press send there, then come back for the next.",
+   "remind": "Send {n} reminders",
+   "reminded": "Last reminder",
+   "reminders": "WhatsApp reminders",
+   "search": "Search customer, city or phone",
+   "sent": "{n} reminders done",
+   "show": "Show",
+   "step": "{i} of {n}",
+   "subtitle": "{n} customers owe money",
+   "title": "Collections",
+   "view": {
+    "all": "All",
+    "broken": "Broken promises",
+    "notReminded": "Not reminded this week",
+    "old": "Over 60 days",
+    "overLimit": "Over credit limit",
+    "today": "Promised today"
+   }
+  },
+  "columns": "Columns",
+  "container": {
+   "addCharge": "Add charge",
+   "addLot": "Add lot",
+   "bale": "Bale",
+   "bales": "Bales made from this container",
+   "balesSold": "Bales sold",
+   "categories": "By category",
+   "category": "Category",
+   "charges": "Charges",
+   "costFromHere": "Cost from here",
+   "description": "Description",
+   "edit": "Edit",
+   "flow": {
+    "bales": "Bales",
+    "costPerKg": "{amount} per kg",
+    "graded": "Graded",
+    "landed": "Landed",
+    "lots": "Lots",
+    "perKg": "Profit {amount} per kg",
+    "revenue": "Sold",
+    "sold": "{n} sold",
+    "sorted": "Sorted",
+    "waste": "{kg} waste"
+   },
+   "grade": "Grade",
+   "grades": "By grade",
+   "inStock": "In stock",
+   "lot": "Lot",
+   "lots": "Lots",
+   "noBales": "No bales yet",
+   "noCharges": "No charges yet",
+   "noLots": "No lots yet",
+   "noSales": "Nothing sold yet",
+   "notFound": "This container could not be opened",
+   "notGraded": "Not graded yet",
+   "notSorted": "Not sorted yet",
+   "purchase": "Purchase",
+   "sales": "Sales of its stock",
+   "share": "Its share",
+   "sold": "Sold",
+   "tab": {
+    "bales": "Bales",
+    "cost": "Landed cost",
+    "sales": "Sales",
+    "sorting": "Lots and sorting"
+   },
+   "trace": "From landed cost to profit"
+  },
+  "containers": {
+   "col": {
+    "arrivedAt": "Arrived",
+    "costPerKg": "Cost per kg",
+    "date": "Received",
+    "kg": "Net kg",
+    "landedCost": "Total cost",
+    "number": "Container",
+    "origin": "Origin",
+    "profit": "Profit so far",
+    "revenue": "Sold so far",
+    "supplier": "Supplier",
+    "topGrade": "A grade %",
+    "yield": "Sorted %"
+   },
+   "count": "{n} containers",
+   "emptyHeading": "No containers match",
+   "emptyMessage": "Try other words, a wider period, or clear the filters.",
+   "info": {
+    "costPerKg": "Total cost divided by the container's net kg. Use it to compare containers and suppliers.",
+    "landedCost": "What the container cost you in all: its price in rupees plus every charge added, such as freight, duty, clearing and transport.",
+    "profit": "Sales so far minus what the sold goods cost (their share of the container's total cost).",
+    "revenue": "Sales so far of everything that came out of this container.",
+    "topGrade": "Of the kg that was graded, the part that came out in your best grade (A).",
+    "yield": "Kg sorted into categories so far, as a part of the container's net kg. Kat and kg still to sort are not counted."
+   },
+   "search": "Search container number, supplier or country",
+   "title": "Containers"
+  },
+  "counts": {
+   "col": {
+    "book": "Books said",
+    "costChange": "Cost change",
+    "counted": "Counted",
+    "date": "Entered",
+    "difference": "Difference",
+    "reason": "Reason"
+   },
+   "count": "{n} counts",
+   "emptyHeading": "No stock counts",
+   "emptyMessage": "Counts entered on a stock item show here until they are approved.",
+   "search": "Search item or reason",
+   "status": {
+    "APPROVED": "Approved",
+    "PENDING": "Waiting for approval",
+    "REJECTED": "Rejected"
+   },
+   "title": "Stock counts"
+  },
+  "create": "Create",
+  "crumb": {
+   "containers": "Containers",
+   "edit": "Edit",
+   "gallery": "Interface gallery",
+   "grading": "Grading",
+   "items": "Stock items",
+   "labels": "Labels",
+   "new": "New",
+   "records": "Records",
+   "today": "Today"
+  },
+  "cstatus": {
+   "ARRIVED": "Arrived",
+   "CLEARED": "Cleared",
+   "CLOSED": "Closed",
+   "IN_TRANSIT": "On the way"
+  },
+  "customer": {
+   "cancelPromise": "Cancel this promise",
+   "creditLimit": "Credit limit",
+   "days": "{n} days",
+   "limitHint": "0 means no limit. Customers over their limit are flagged on the collections list.",
+   "limitSaved": "Credit limit saved",
+   "months": "Last 12 months: sold and received",
+   "noLimit": "No limit",
+   "noPromises": "No promises yet",
+   "noReminders": "No reminders sent yet",
+   "notFound": "This customer could not be opened",
+   "note": "Note",
+   "overLimit": "Over the credit limit of {limit} ({used}% used) — collect before selling more on udhaar.",
+   "overdue": "Oldest due",
+   "paidSince": "Paid since",
+   "priceGroup": "Group",
+   "priceGroupSaved": "Price list saved",
+   "priceList": "Price list",
+   "priceListHint": "Customers in a group get its prices suggested on the sale screen. Leave empty for none.",
+   "promise": "Promise to pay",
+   "promiseCancelled": "Promise cancelled",
+   "promiseSaved": "Promise saved",
+   "promisedFor": "Pay by",
+   "promises": "Promises",
+   "receiptSaved": "Payment saved",
+   "receive": "Receive payment",
+   "receiveHint": "Balance now {balance}. The payment pays the oldest udhaar first.",
+   "received": "Received",
+   "remind": "Remind on WhatsApp",
+   "reminders": "Reminders",
+   "savePromise": "Save promise",
+   "saveReceipt": "Save payment",
+   "setLimit": "Credit limit",
+   "sold": "Sold",
+   "statement": "Statement"
+  },
+  "dash": {
+   "afterExpenses": "after {amount} expenses",
+   "collected": "Cash collected",
+   "containers": "Containers in progress ({n})",
+   "info": {
+    "collected": "Money you actually received in the period, from sales and from old udhaar: cash, bank and wallets. Below it: how much came in each way.",
+    "containers": "Lots (gaari or container) you are still selling: kg bought, sales and profit so far, and how much is sorted. Tap a row to open the lot.",
+    "gross": "Sales minus what the sold goods cost you: the maal's price, transport and sorting cost, shared over the kg that was sold. Margin is gross profit as a part of sales.",
+    "net": "Gross profit minus the expenses entered in the period, such as rent, wages and electricity. This is what the business earned.",
+    "owed": "Udhaar: what customers owe you today, from all sales not paid yet. A broken promise is a payment promised for a day that has passed.",
+    "sales": "The total of all sale bills in the period you picked, before any cost. The % compares it with the same number of days just before. The small line shows each day.",
+    "stock": "What the goods still in stock cost you: bales, items and loose sorted kg. Below it: the total kg and the number of items.",
+    "stockAge": "The cost of your stock, split by how long it has been lying in stock. Old stock holds your money: sell it first or lower its price.",
+    "trend": "Sales and gross profit for each day (or month) of the period. The totals on top match the cards. Point at a day to see its numbers; the table button lists them all.",
+    "udhaarAge": "What customers owe, split by how old the unpaid sale is. Debts older than 60 days are shown in red: ask for these first."
+   },
+   "noContainers": "No containers in progress",
+   "owing": "{n} customers owe · {broken} broken promises",
+   "period": "{from} – {to}",
+   "revenue": "Sales",
+   "stockHint": "{kg} in {n} items",
+   "title": "Dashboard",
+   "today": "Today: {sales} sales, {revenue} · {collected} received",
+   "trendDay": "Sales and gross profit by day",
+   "trendMonth": "Sales and gross profit by month"
+  },
+  "density": {
+   "comfortable": "Comfortable rows",
+   "compact": "Compact rows"
+  },
+  "expand": "Expand menu",
+  "expenseCategory": {
+   "ELECTRICITY": "Electricity",
+   "LABOUR": "Labour",
+   "OTHER": "Other",
+   "RENT": "Rent",
+   "TRANSPORT": "Transport"
+  },
+  "expenses": {
+   "attachHint": "You can attach the bill or receipt on the next page.",
+   "cancel": "Cancel expense",
+   "cancelled": "Expense cancelled",
+   "cancelledBy": "Cancelled by {name} — counts nowhere",
+   "col": {
+    "cancelled": "Cancelled on",
+    "paidTo": "Paid to"
+   },
+   "count": "{n} expenses",
+   "emptyHeading": "No expenses",
+   "emptyMessage": "Record rent, labour, transport and bills to see real profit.",
+   "new": "New expense",
+   "newHint": "Money paid out to run the business",
+   "notFound": "This expense could not be opened",
+   "save": "Save expense",
+   "saved": "Expense saved",
+   "search": "Search paid to or note",
+   "status": {
+    "CANCELLED": "Cancelled",
+    "RECORDED": "Recorded"
+   },
+   "title": "Expenses"
+  },
+  "export": {
+   "csv": "CSV (any spreadsheet)",
+   "label": "Export",
+   "xlsx": "Excel"
+  },
+  "filter": {
+   "any": "any",
+   "clear": "Clear filters",
+   "none": "none",
+   "not": "not {value}",
+   "remove": "Remove filter",
+   "search": "Search"
+  },
+  "grid": {
+   "clear": "Clear selection",
+   "selectAll": "Select all rows",
+   "selectRow": "Select row",
+   "selected": "{n} selected",
+   "total": "Total"
+  },
+  "group": {
+   "finance": "Paisa",
+   "insights": "Report",
+   "month": "Mahina",
+   "none": "Group nahi",
+   "operations": "Kaam",
+   "sales": "Bikri aur paisa"
+  },
+  "groupBy": "Group by",
+  "info": {
+   "label": "About {name}"
+  },
+  "kpi": {
+   "vsPrevious": "vs previous period"
+  },
+  "layout": {
+   "board": "Board",
+   "label": "Layout",
+   "table": "Table"
+  },
+  "lotStatus": {
+   "IN_SORTING": "Sorting",
+   "NOT_STARTED": "Waiting",
+   "SORTED": "Sorted"
+  },
+  "lots": {
+   "col": {
+    "raw": "Raw type",
+    "sorted": "Sorted kg",
+    "sortedAt": "Finished",
+    "waste": "Waste kg",
+    "worker": "Sorted by"
+   },
+   "count": "{n} lots",
+   "emptyHeading": "No lots match",
+   "emptyMessage": "Try other words, a wider period, or clear the filters.",
+   "search": "Search lot, container, origin or raw type",
+   "source": {
+    "CONTAINER": "Container",
+    "LOOSE_BALE": "Loose lot"
+   },
+   "title": "Lots and sorting"
+  },
+  "mode": {
+   "CASH": "Cash",
+   "CREDIT": "Udhaar",
+   "PARTIAL": "Part paid"
+  },
+  "movement": {
+   "ADJUSTMENT": "Count",
+   "EXPORT": "Export",
+   "INTAKE": "Received",
+   "RELEASE": "Released",
+   "RESERVATION": "Reserved",
+   "SALE": "Sold",
+   "TRANSFER": "Moved"
+  },
+  "nav": {
+   "book": "Cash aur bank",
+   "close": "Galla band",
+   "expenses": "Kharche",
+   "home": "Home",
+   "inventory": "Stock",
+   "pnl": "Munafa nuqsan",
+   "prices": "Rate list",
+   "purchasing": "Kharidari",
+   "receivables": "Khata / udhaar",
+   "reports": "Report",
+   "sales": "Bikri",
+   "salesAnalytics": "Bikri ka hisaab",
+   "scorecard": "Supplier report",
+   "settings": "Settings",
+   "sorting": "Chhantai",
+   "stockValue": "Stock ki qeemat",
+   "suppliers": "Supplier",
+   "yield": "Chhantai ka nateeja"
+  },
+  "new": {
+   "bale": "Gaanth banayein",
+   "container": "Container aya",
+   "gaari": "Gaari / lot kharidein",
+   "lot": "Khula lot aya",
+   "ready": "Tayyar maal aya",
+   "sale": "Nayi sale"
+  },
+  "notifications": {
+   "button": "Notifications: {n} unread",
+   "none": "Nothing new.",
+   "readAll": "Mark all read",
+   "title": "Notifications"
+  },
+  "pager": {
+   "label": "Pages",
+   "next": "Next page",
+   "perPage": "Rows per page",
+   "previous": "Previous page",
+   "range": "{from}–{to} of {total}"
+  },
+  "palette": {
+   "actions": "Actions",
+   "create": "Create",
+   "noResults": "Nothing matches.",
+   "pages": "Go to",
+   "records": "Records"
+  },
+  "pnl": {
+   "cashDifference": "Cash short / over",
+   "chart": "Gross profit, expenses and net profit",
+   "cost": "Cost of goods sold",
+   "expenses": "Expenses",
+   "gross": "Gross profit",
+   "lastMonths": "Last {n} months",
+   "line": "Line",
+   "margin": "{n}% margin",
+   "net": "Net profit",
+   "noAccess": "Profit and loss could not be loaded (it needs cost permission)",
+   "period": "Period",
+   "revenue": "Sales",
+   "subtitle": "Sales minus cost, write-offs and expenses, by month",
+   "title": "Profit and loss",
+   "writeOffs": "Stock written off"
+  },
+  "prices": {
+   "addGroup": "Add",
+   "anyGrade": "Any grade",
+   "empty": "No prices in this group yet",
+   "groupInfo": "{prices} prices · {customers} customers",
+   "groups": "Groups",
+   "newGroup": "New group",
+   "newGroupHint": "e.g. Wholesale",
+   "removed": "Price removed",
+   "saved": "Price saved",
+   "setPrice": "Set price",
+   "start": "Add a group to start, e.g. Wholesale or Retail",
+   "subtitle": "Agreed prices per customer group, suggested first when selling",
+   "title": "Price lists"
+  },
+  "promise": {
+   "BROKEN": "Broken",
+   "CANCELLED": "Cancelled",
+   "DUE_TODAY": "Due today",
+   "KEPT": "Kept",
+   "OPEN": "Promised"
+  },
+  "purchaseLots": {
+   "col": {
+    "cost": "Kitne ka liya",
+    "costPerKg": "Rate fi kg",
+    "date": "Kab liya",
+    "maal": "Maal",
+    "sorted": "Chhantai %"
+   },
+   "count": "{n} lot",
+   "emptyHeading": "Abhi koi gaari ya lot nahi liya",
+   "emptyMessage": "Jab gaari ya khula lot lein, yahan uska wazan aur qeemat likhein.",
+   "info": {
+    "cost": "Gaari ya lot ke kitne paise diye.",
+    "costPerKg": "Di gayi qeemat ko kg se taqseem kiya. Gaariyon aur supplier ka muqabla karein.",
+    "sorted": "Lot ka kitna kg chhant liya. Chhantai poori ho to 100%."
+   },
+   "search": "Lot, supplier ya maal dhoondein",
+   "title": "Gaari aur lot"
+  },
+  "purchasing": {
+   "containers": "Container",
+   "lots": "Gaari / lot"
+  },
+  "range": {
+   "30d": "Last 30 days",
+   "7d": "Last 7 days",
+   "90d": "Last 90 days",
+   "all": "All time",
+   "custom": "Custom dates",
+   "from": "From",
+   "label": "Period",
+   "lastMonth": "Last month",
+   "month": "This month",
+   "to": "To",
+   "today": "Today",
+   "year": "This year"
+  },
+  "report": {
+   "csv": "Export CSV",
+   "print": "Print"
+  },
+  "reports": {
+   "item": {
+    "book": {
+     "hint": "Money in and out per payment method",
+     "name": "Cash and bank book"
+    },
+    "collections": {
+     "hint": "Who owes what and for how long",
+     "name": "Udhaar ageing"
+    },
+    "dashboard": {
+     "hint": "Sales, profit, cash, udhaar and stock at a glance",
+     "name": "Dashboard"
+    },
+    "expenses": {
+     "hint": "By category, method and month",
+     "name": "Expenses"
+    },
+    "lots": {
+     "hint": "Waiting, sorting and sorted lots",
+     "name": "Lots and sorting"
+    },
+    "pnl": {
+     "hint": "By month, after cost, write-offs and expenses",
+     "name": "Profit and loss"
+    },
+    "salesAnalytics": {
+     "hint": "By customer, category, grade, city or month",
+     "name": "Sales analytics"
+    },
+    "scorecard": {
+     "hint": "Profit per kg, sorted % and A grade, ranked",
+     "name": "Supplier scorecard"
+    },
+    "stockList": {
+     "hint": "Every item with what is left and its value",
+     "name": "Stock list"
+    },
+    "stockValue": {
+     "hint": "What is left, how old, what it cost",
+     "name": "Stock value and ageing"
+    },
+    "yield": {
+     "hint": "Sorted % and waste by supplier, origin or month",
+     "name": "Sorting yield"
+    }
+   },
+   "section": {
+    "money": "Money",
+    "overview": "Overview",
+    "purchasing": "Buying and sorting",
+    "sales": "Sales and udhaar",
+    "stock": "Stock"
+   },
+   "subtitle": "Every report in one place: filters, chart and table, export and print",
+   "title": "Reports"
+  },
+  "sale": {
+   "amount": "Amount",
+   "balance": "Customer balance",
+   "bill": "Open bill",
+   "due": "Due",
+   "item": "Item",
+   "lines": "Items",
+   "method": "Method",
+   "noPayments": "No payments for this sale yet",
+   "notFound": "This sale could not be found.",
+   "paid": "Paid",
+   "payments": "Payments",
+   "print": "Print",
+   "quantity": "Quantity",
+   "reference": "Reference",
+   "share": "Share on WhatsApp",
+   "unit": "Unit",
+   "unitPrice": "Price"
+  },
+  "saleEntry": {
+   "addItem": "Add item",
+   "customerHint": "Type a customer name",
+   "from": {
+    "ANY_CUSTOMER": "last price",
+    "CUSTOMER": "their last price",
+    "ITEM": "item price",
+    "PRICE_LIST": "price list"
+   },
+   "itemHint": "Scan a bale code or type an item, then Enter",
+   "left": "{n} left",
+   "list": "Price list: {group}",
+   "noLines": "Add the first item above",
+   "noList": "No price list",
+   "notFound": "No stock item matches — pick one from the list",
+   "partialHint": "Enter what was paid now (less than the total)",
+   "pickCustomer": "Choose the customer first",
+   "remove": "Remove line",
+   "save": "Save sale",
+   "saved": "Sale {number} saved",
+   "shortcut": "Ctrl + Enter",
+   "subtitle": "Type the customer, scan or type items, Ctrl + Enter to save",
+   "title": "New sale"
+  },
+  "sales": {
+   "count": "{n} sales",
+   "emptyHeading": "No sales match",
+   "emptyMessage": "Try other words, a wider period, or clear the filters.",
+   "search": "Search sale number, customer or city",
+   "title": "Sales"
+  },
+  "salesAn": {
+   "avgPerKg": "average {amount} per kg",
+   "bills": "Bills",
+   "chart": "Sales and gross profit by {by}",
+   "empty": "No sales in this period",
+   "group": {
+    "category": "Category",
+    "city": "City",
+    "customer": "Customer",
+    "grade": "Grade",
+    "month": "Month"
+   },
+   "kgSold": "Kg sold",
+   "margin": "Margin",
+   "noTrend": "No graded sales by kg yet",
+   "perKg": "Per kg",
+   "priceTrend": "Price per kg by grade and month",
+   "salesCount": "{n} sales",
+   "subtitle": "What sold, to whom and where, and how prices moved",
+   "title": "Sales analytics",
+   "top": "Top customers"
+  },
+  "score": {
+   "chartProfit": "Profit per kg",
+   "chartYield": "Sorted % and A grade %",
+   "empty": "No containers in this period",
+   "profitSoFar": "{amount} profit so far",
+   "rank": "Rank",
+   "subtitle": "Who gives the most profit per kg bought, sorted % and A grade — ranked",
+   "title": "Supplier and origin scorecard"
+  },
+  "search": "Search or jump to…",
+  "sheet": {
+   "close": "Close"
+  },
+  "shortcut": {
+   "close": "Close a menu or window",
+   "help": "Show this list",
+   "nav": "Collapse or expand the menu",
+   "palette": "Search and commands"
+  },
+  "shortcuts": "Keyboard shortcuts",
+  "skip": "Skip to content",
+  "sortRecord": {
+   "amount": "Amount",
+   "by": "by {name}",
+   "continue": "Continue sorting",
+   "done": "done",
+   "graded": "Graded",
+   "input": "Kg in",
+   "minutes": "{n} min",
+   "noWaste": "No waste recorded",
+   "notFound": "This lot could not be opened",
+   "resale": "Resale value",
+   "share": "Share",
+   "stage": "Stage",
+   "stage1": "Sorting",
+   "stage2": "Grading",
+   "start": "Start sorting",
+   "time": "Time taken",
+   "waste": "Waste"
+  },
+  "state": {
+   "empty": "Nothing here yet",
+   "error": "This could not be loaded.",
+   "loading": "Loading…",
+   "retry": "Try again"
+  },
+  "statement": {
+   "allTime": "All time",
+   "broughtForward": "Balance brought forward",
+   "carriedForward": "Balance carried forward",
+   "credit": "Received (Rs)",
+   "debit": "Sale (Rs)",
+   "details": "Details",
+   "from": "From",
+   "generated": "Made on {date} with ThriftOS",
+   "nothing": "Nothing in this period",
+   "opening": "Opening balance",
+   "payment": "Payment ({method})",
+   "print": "Print or save PDF",
+   "sale": "Sale {ref}",
+   "title": "Statement of account",
+   "to": "To"
+  },
+  "status": {
+   "CANCELLED": "Cancelled",
+   "DRAFT": "Draft",
+   "ISSUED": "Udhaar",
+   "PAID": "Paid",
+   "PARTIALLY_PAID": "Part paid"
+  },
+  "stock": {
+   "col": {
+    "age": "Age (days)",
+    "code": "Code",
+    "godown": "Godown",
+    "left": "Left",
+    "name": "Item",
+    "price": "Price",
+    "quantity": "Received",
+    "source": "Source",
+    "unit": "Unit",
+    "value": "Value left"
+   },
+   "count": "{n} stock items",
+   "emptyHeading": "No stock matches",
+   "emptyMessage": "Try other words, a wider period, or clear the filters.",
+   "search": "Search bale code, item, category, grade or supplier",
+   "source": {
+    "KAT": "Kat",
+    "PROCESSED": "Made here",
+    "PURCHASED": "Bought ready"
+   },
+   "status": {
+    "AVAILABLE": "In stock",
+    "RESERVED": "Reserved",
+    "SOLD": "Sold"
+   },
+   "title": "Stock",
+   "unit": {
+    "BALE": "Bales",
+    "KG": "kg",
+    "PIECE": "Pieces"
+   }
+  },
+  "stockItem": {
+   "approve": "Approve",
+   "approved": "Count approved — the books are updated",
+   "change": "Change",
+   "count": "Count stock",
+   "countApproval": "Nothing changes until someone who may approve stock counts approves it.",
+   "countHint": "The books say {book} is left. Enter what you counted.",
+   "countSent": "Count sent for approval",
+   "kgLeft": "Kg left",
+   "label": "Print label",
+   "move": "Move to godown",
+   "moveHint": "Now in: {from}. Everything left of this item moves.",
+   "moveNow": "Move",
+   "moved": "Moved to {to}",
+   "noCounts": "No counts yet",
+   "noGodown": "no godown",
+   "noMovements": "No movements yet",
+   "notFound": "This stock item could not be opened",
+   "openedFrom": "Opened from",
+   "pending": "Count waiting for approval: {counted} counted, books say {book} (by {by})",
+   "people": "Entered → decided",
+   "reject": "Reject",
+   "rejected": "Count rejected",
+   "sendCount": "Send for approval",
+   "tab": {
+    "counts": "Counts",
+    "lineage": "Where it came from",
+    "movements": "Movements",
+    "pieces": "Opened pieces"
+   },
+   "used": "Used"
+  },
+  "stockValue": {
+   "age": {
+    "0-30": "0–30 days",
+    "31-60": "31–60 days",
+    "61-90": "61–90 days",
+    "90+": "Over 90 days"
+   },
+   "ageCol": "Age",
+   "ageing": "Stock by age",
+   "byCategory": "By category",
+   "byGodown": "By godown",
+   "items": "Items",
+   "matrix": "Stock by category and age",
+   "none": "Not set",
+   "old": "Older than 60 days",
+   "oldHint": "Sell these first",
+   "subtitle": "What is left, how old it is and what it cost",
+   "title": "Stock value and ageing",
+   "waiting": "{n} waiting"
+  },
+  "supplier": {
+   "noContainers": "No containers from this supplier yet",
+   "notFound": "This supplier could not be opened"
+  },
+  "suppliers": {
+   "col": {
+    "containers": "Containers",
+    "kg": "Kg bought",
+    "name": "Supplier",
+    "phone": "Phone",
+    "profitPerKg": "Profit per kg"
+   },
+   "count": "{n} suppliers",
+   "emptyHeading": "No suppliers match",
+   "emptyMessage": "Try other words or clear the filters.",
+   "search": "Search supplier, country or phone",
+   "title": "Suppliers"
+  },
+  "switchLanguage": "Zabaan badlein (English, Urdu, Roman Urdu)",
+  "theme": {
+   "dark": "Dark mode",
+   "light": "Light mode"
+  },
+  "viewMenu": "View",
+  "views": {
+   "all": "All records",
+   "default": "Open this view first",
+   "delete": "Delete view",
+   "name": "Name this view",
+   "save": "Save view",
+   "saved": "View \"{name}\" saved.",
+   "taken": "You already have a view with this name.",
+   "title": "Saved views"
+  },
+  "vtype": {
+   "CUSTOMER": "Customer",
+   "EQUIPMENT_VENDOR": "Equipment",
+   "FREIGHT_CARRIER": "Freight",
+   "PACKAGING_SUPPLIER": "Packaging",
+   "SERVICE_PROVIDER": "Services",
+   "SUPPLIER": "Supplier"
+  },
+  "yield": {
+   "by": "By",
+   "chart": "Sorted % and A grade % by {by}",
+   "empty": "No sorting finished in this period",
+   "group": {
+    "container": "Container",
+    "month": "Month",
+    "origin": "Origin",
+    "rawCategory": "Raw type",
+    "supplier": "Supplier"
+   },
+   "lots": "Lots sorted",
+   "subtitle": "How much of what you bought came out as sellable stock",
+   "title": "Yield analysis",
+   "trend": "Sorted % by month",
+   "waste": "Waste by type",
+   "wasteHint": "{kg} waste"
+  }
+ }
+}

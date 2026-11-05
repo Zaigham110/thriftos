@@ -103,7 +103,7 @@ test('sale record: amounts, tabs, note with @mention and an attached file; Ctrl+
   await box.fill('Spoke to the buyer, rest on Friday. ');
   await box.press('End');
   await box.pressSequentially('@');
-  await expect(page.getByRole('option').first()).toBeVisible();
+  await expect(page.locator('ws-activity-panel').getByRole('option').first()).toBeVisible();
   await page.keyboard.press('Enter');
   await page.getByRole('button', { name: 'Add note' }).click();
   await expect(page.locator('ws-activity-panel li.note')).toContainText('rest on Friday');
@@ -304,7 +304,7 @@ test('sales extras: price list for a group, keyboard sale entry suggests the lis
   await qty.fill('100');
   await page.getByLabel('Price', { exact: true }).fill('150');
   await expect(page.locator('tfoot')).toContainText('15,000');
-  await page.getByRole('button', { name: 'Udhaar' }).click();
+  await page.getByRole('button', { name: 'Credit' }).click();
   await qty.press('Control+Enter');
   await expect(page).toHaveURL(/\/sell\/records\/(?!new)[^/]+$/);
   await expect(page.locator('ws-smart-button').filter({ hasText: 'Due' })).toContainText('15,000');
@@ -363,7 +363,7 @@ test('dashboards: owner dashboard on Home, scorecard, sales analytics with CSV, 
   await expect(page).toHaveURL(/\/receive\/scorecard$/);
 });
 
-test('purchasing: containers and gaari / lots as two tabs, each with its own button, notes on the columns', async ({ page }) => {
+test('purchasing: containers and loose lots as two tabs, each with its own button, notes on the columns', async ({ page }) => {
   await signIn(page);
   await page.goto('/receive/records/containers');
   await expect(page.getByRole('link', { name: 'Receive a container' })).toBeVisible();
@@ -371,10 +371,10 @@ test('purchasing: containers and gaari / lots as two tabs, each with its own but
   await expect(page.getByRole('tooltip')).toContainText('every charge added');
   await page.keyboard.press('Escape');
 
-  await page.locator('nav.tabs').getByRole('link', { name: 'Gaari / lots' }).click();
+  await page.locator('nav.tabs').getByRole('link', { name: 'Loose lots' }).click();
   await expect(page).toHaveURL(/\/receive\/records\/lots$/);
-  await expect(page.getByRole('heading', { name: 'Gaari and lots', exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Buy a gaari / lot' })).toHaveAttribute('href', '/receive/lot');
+  await expect(page.getByRole('heading', { name: 'Loose lots', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Buy a loose lot' })).toHaveAttribute('href', '/receive/lot');
   await expect(page.locator('.nav-item.also')).toContainText('Purchasing');
 
   // Purchasing opens on the tab used last; the old lots address opens this tab instead of a blank page.

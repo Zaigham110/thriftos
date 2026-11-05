@@ -59,7 +59,7 @@ describe('Import from register / Excel (e2e)', () => {
     expect(byLine[6].issues).toEqual([{ level: 'error', code: 'phoneBad', params: { value: '021-111' } }]); // for the app's Urdu text
     expect(byLine[8].issues).toEqual([{ level: 'error', code: 'notAmount', params: { field: 'openingBalance', value: 'abc' } }]);
     expect(byLine[7].errors[0]).toMatch(/^Same name as row 2/);
-    expect(byLine[8].errors).toEqual(['Opening udhaar: "abc" is not an amount']);
+    expect(byLine[8].errors).toEqual(['Opening balance: "abc" is not an amount']);
     expect(byLine[9].errors).toEqual(['Name is empty']);
     expect(byLine[3]).toBeUndefined(); // blank row left out
     expect(await prisma.customer.count({ where: { tenantId: a.tenantId } })).toBe(0);
@@ -182,7 +182,7 @@ describe('Import from register / Excel (e2e)', () => {
     await wb.xlsx.load(res.body);
     const sheet = wb.worksheets[0];
     expect(sheet.getRow(1).getCell(1).value).toBe('Name * / نام');
-    expect(sheet.getRow(1).getCell(4).value).toBe('Opening udhaar / پرانا ادھار');
+    expect(sheet.getRow(1).getCell(4).value).toBe('Opening balance / پرانا ادھار');
     expect(wb.worksheets[1].name).toBe('Help - مدد');
     sheet.addRow(['Template Test', '0301-2223334', 'Multan', '2,000']);
     const filled = Buffer.from(await wb.xlsx.writeBuffer());

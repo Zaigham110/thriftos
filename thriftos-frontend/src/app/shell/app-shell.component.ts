@@ -24,6 +24,7 @@ import { ToastComponent } from '../shared/floor/toast.component';
 import { TenantModule, TenantService } from '../core/tenant/tenant.service';
 import { ThemeService } from '../core/theme/theme.service';
 import { WorkspaceShellComponent } from './workspace/workspace-shell.component';
+import { LangPickerComponent } from '../shared/ui/lang-picker.component';
 
 type LayoutMode = 'phone' | 'tablet' | 'desktop';
 
@@ -54,7 +55,7 @@ const NAV: NavItem[] = [
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [LucideAngularModule, RouterLink, RouterLinkActive, RouterOutlet, TPipe, ToastComponent, WorkspaceShellComponent],
+  imports: [LangPickerComponent, LucideAngularModule, RouterLink, RouterLinkActive, RouterOutlet, TPipe, ToastComponent, WorkspaceShellComponent],
   template: `
     <tos-toast />
     @if (layout() === 'desktop') {
@@ -91,7 +92,7 @@ const NAV: NavItem[] = [
               @for (item of phoneMore(); track item.path) {
                 <a [routerLink]="item.path" (click)="moreOpen.set(false)"><lucide-icon [img]="item.icon" [size]="22" />{{ item.label | t }}</a>
               }
-              <button type="button" (click)="toggleLang()"><lucide-icon [img]="icons.Languages" [size]="22" />{{ 'nav.language' | t }}</button>
+              <app-lang-picker class="lang-row" [iconSize]="22" />
               <button type="button" (click)="signOut()"><lucide-icon [img]="icons.LogOut" [size]="22" />{{ 'nav.signOut' | t }}</button>
             </section>
           </div>
@@ -134,7 +135,7 @@ const NAV: NavItem[] = [
     .pwa-bar button.ghost { background:transparent; color:#714b67; }
     .sheet-backdrop { position:fixed; inset:0; z-index:10; display:flex; align-items:flex-end; background:rgb(0 0 0 / .35); }
     .sheet { width:100%; display:grid; padding:8px 8px calc(8px + env(safe-area-inset-bottom)); border-radius:16px 16px 0 0; background:#fff; }
-    .sheet a, .sheet button { min-height:56px; display:flex; align-items:center; gap:14px; padding:0 16px; border:0; border-radius:10px; background:transparent; color:var(--flow-ink); font:inherit; font-size:16px; font-weight:650; text-decoration:none; text-align:start; }
+    .sheet a, .sheet button, .sheet .lang-row { min-height:56px; display:flex; align-items:center; gap:14px; padding:0 16px; border:0; border-radius:10px; background:transparent; color:var(--flow-ink); font:inherit; font-size:16px; font-weight:650; text-decoration:none; text-align:start; }
   `],
 })
 export class AppShellComponent {
@@ -173,9 +174,6 @@ export class AppShellComponent {
     this.layout.set(layoutFor(window.innerWidth));
   }
 
-  protected toggleLang(): void {
-    this.i18n.use(this.i18n.lang() === 'ur' ? 'en' : 'ur');
-  }
 
   protected async signOut(): Promise<void> {
     this.moreOpen.set(false);

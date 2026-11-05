@@ -51,7 +51,7 @@
   "qty": "Qty",
   "rate": "Rate",
   "status": {
-   "ISSUED": "Udhaar",
+   "ISSUED": "On credit",
    "PAID": "Paid",
    "PARTIALLY_PAID": "Part paid"
   },
@@ -127,7 +127,7 @@
  "help": {
   "container": {
    "go": "New container",
-   "s1": "Open Maal aya and start a new container.",
+   "s1": "Open Receive and start a new container.",
    "s2": "Tap the supplier, write the invoice weight in kg and the purchase cost.",
    "s3": "Tap the charges you paid (freight, clearing, labour) and write each amount. You can add them later too.",
    "s4": "Save. The cost per kg is worked out, and Home shows the container's profit as you sell.",
@@ -137,31 +137,31 @@
   "import": {
    "go": "Open import",
    "s1": "Open Settings, then Bring in your register.",
-   "s2": "Download the sheet and fill in customers with their udhaar, suppliers or stock.",
+   "s2": "Download the sheet and fill in customers with what they owe, suppliers or stock.",
    "s3": "Choose the file and check the rows. Fix any row marked red.",
    "s4": "Tap Add. Adding the same file again does not add anything twice.",
    "title": "Bring in your paper register"
   },
   "intro": "Short guides, one task each.",
   "khata": {
-   "go": "Open Khata",
-   "s1": "Every udhaar sale is written in the customer's khata by itself.",
-   "s2": "Open Khata and tap the customer.",
+   "go": "Open Receivables",
+   "s1": "Every credit sale is added to the customer's account by itself.",
+   "s2": "Open Receivables and tap the customer.",
    "s3": "When money comes, tap Payment received, write the amount and save. You can print a receipt.",
    "s4": "Tap Remind to send the balance on WhatsApp.",
-   "title": "Udhaar and payments"
+   "title": "Credit and payments"
   },
   "sale": {
    "go": "New sale",
-   "s1": "Open Becho and tap New sale.",
+   "s1": "Open Sell and tap New sale.",
    "s2": "Pick the customer, or add one with name and phone.",
    "s3": "Pick the stock, write how many and the price.",
-   "s4": "Choose cash or udhaar and save. Send the bill on WhatsApp or print it.",
+   "s4": "Choose cash or credit and save. Send the bill on WhatsApp or print it.",
    "title": "Make a sale"
   },
   "sorting": {
-   "go": "Open Chhantai",
-   "s1": "Open Chhantai and tap the lot that is waiting.",
+   "go": "Open Sorting",
+   "s1": "Open Sorting and tap the lot that is waiting.",
    "s2": "Tap a category, write the kg, save. Do the same for each pile.",
    "s3": "When the lot is finished, tap Close lot. What is left counts as waste.",
    "s4": "Sorted kg go to Stock by themselves, with their cost per kg.",
@@ -177,7 +177,7 @@
   },
   "supplier": {
    "go": "New container",
-   "s1": "Open Maal aya and start a new container.",
+   "s1": "Open Receive and start a new container.",
    "s2": "Under Which supplier?, tap + New supplier.",
    "s3": "Write the name and tap the country. That is all.",
    "s4": "Next time your supplier is the first tile. Profit per supplier shows in reports.",
@@ -217,8 +217,8 @@
   "stockReady": "Stock ready",
   "title": "Home",
   "todaySales": "Today's sales",
-  "topOwing": "Most udhaar",
-  "udhaar": "Udhaar owed",
+  "topOwing": "Owe you the most",
+  "udhaar": "Owed to you",
   "yield": "A-grade {n}%",
   "yieldShort": "Yield {n}%"
  },
@@ -270,7 +270,7 @@
    "item": "Item",
    "name": "Name",
    "notes": "Notes",
-   "openingBalance": "Opening udhaar",
+   "openingBalance": "Opening balance",
    "phone": "Phone",
    "quantity": "Quantity",
    "salePrice": "Sale price",
@@ -298,7 +298,7 @@
   "step2": "2. Choose your filled file",
   "step2Hint": "Excel (.xlsx) or CSV, up to 5,000 rows. Your own sheet works too if its headers say what each column is.",
   "step3": "3. Check and add",
-  "subtitle": "Customers with their udhaar, suppliers and opening stock, from Excel or CSV",
+  "subtitle": "Customers with what they owe, suppliers and opening stock, from Excel or CSV",
   "tab": {
    "customers": "Customers",
    "stock": "Opening stock",
@@ -321,9 +321,9 @@
   },
   "ledger": "Ledger",
   "noCustomers": "No customers yet.",
-  "oldUdhaar": "Old udhaar from your register",
+  "oldUdhaar": "Old balance from your register",
   "oldest": "Oldest unpaid: {n} days",
-  "owed": "Udhaar owed: {rs}",
+  "owed": "Owed: {rs}",
   "owes": "Owes you",
   "paymentReceived": "Payment received",
   "photoFailed": "Payment saved, but the screenshot did not upload.",
@@ -335,7 +335,7 @@
   "savePayment": "Save payment",
   "screenshot": "Add screenshot (optional)",
   "search": "Search name, phone or city",
-  "title": "Khata"
+  "title": "Receivables"
  },
  "legal": {
   "privacy": {
@@ -348,7 +348,7 @@
    "title": "Privacy"
   },
   "terms": {
-   "p1": "ThriftOS is software for running a used-clothing business: stock, sorting, sales, khata and reports. These terms apply when you or your staff use it.",
+   "p1": "ThriftOS is software for running a used-clothing business: stock, sorting, sales, receivables and reports. These terms apply when you or your staff use it.",
    "p2": "Your data is yours. You can download all of it at any time from Settings → Download all my data, and you keep it if you stop using ThriftOS.",
    "p3": "You are responsible for the people you give access to, for keeping passwords and PINs private, and for checking amounts and balances before you act on them.",
    "p4": "We keep the service running as well as we can, but we cannot promise it will never be unavailable. Keep your own copy of important records.",
@@ -368,16 +368,16 @@
  },
  "nav": {
   "home": "Home",
-  "khata": "Khata",
-  "language": "اردو",
+  "khata": "Receivables",
+  "languagePick": "Language",
   "menu": "Main menu",
   "more": "More",
-  "receive": "Maal aya",
+  "receive": "Receive",
   "reports": "Reports",
-  "sell": "Becho",
+  "sell": "Sell",
   "settings": "Settings",
   "signOut": "Sign out",
-  "sort": "Chhantai",
+  "sort": "Sorting",
   "stock": "Stock"
  },
  "print": {
@@ -439,7 +439,7 @@
   "charges": "Charges",
   "chargesLater": "You can add charges later.",
   "container": "Container",
-  "containerHint": "Imported maal to sort",
+  "containerHint": "Imported goods to sort",
   "containerNo": "Container number",
   "countedIn": "Counted in",
   "currency": "Currency",
@@ -465,7 +465,7 @@
   "saveLot": "Save lot",
   "saveStock": "Save stock",
   "stockSaved": "Saved. Ready to sell.",
-  "title": "Maal aya",
+  "title": "Receive goods",
   "totalCost": "Total cost",
   "weighbridgeKg": "Kanta weight",
   "whatItem": "What is it?",
@@ -479,7 +479,7 @@
   "left": "{n} left",
   "mode": {
    "CASH": "Cash now",
-   "CREDIT": "Udhaar",
+   "CREDIT": "Credit",
    "PARTIAL": "Part paid"
   },
   "new": "New sale",
@@ -495,13 +495,13 @@
   "rsPer": "Rs per {unit}",
   "save": "Save sale",
   "saved": "{no} · {rs}",
-  "savedLine": "{name} — paid {paid}, due {due}. Khata now {balance}.",
+  "savedLine": "{name} — paid {paid}, due {due}. Balance now {balance}.",
   "savedOffline": "Sale saved on phone. It will sync when you are online.",
   "scanBale": "Scan bale",
   "searchCustomer": "Search name or phone",
   "searchStock": "Search stock",
   "share": "Share bill on WhatsApp",
-  "title": "Becho"
+  "title": "Sell"
  },
  "settings": {
   "addMunshi": "Add munshi",
@@ -527,7 +527,7 @@
   "categories": "Your categories",
   "categoriesHint": "Karachi list. Tap to remove, add your own.",
   "currency": "Currency",
-  "doYouSort": "Do you sort maal?",
+  "doYouSort": "Do you sort the goods you buy?",
   "done": "All set. Everything can be changed later in Settings.",
   "finish": "Start using ThriftOS",
   "grades": "Grade names",
@@ -551,7 +551,7 @@
   "balesSaved": "{what} of {name} in stock",
   "balesTotal": "{n} bales = {kg}",
   "closeConfirm": "{kg} not sorted goes to waste. Close the lot?",
-  "closeConfirmKat": "Is this gaari finished? The {kg} left becomes kat and goes into stock.",
+  "closeConfirmKat": "Is this lot finished? The {kg} left becomes leftovers and goes into stock.",
   "closeLot": "Close lot",
   "closed": "Lot closed",
   "costPerKg": "{rs}/kg",
@@ -563,11 +563,11 @@
   "howManyBales": "How many bales?",
   "howManyKg": "How many kg of {name}?",
   "inProgress": "Sorting now",
-  "kat": "Kat",
-  "katDone": "Kat is sold or thrown away.",
+  "kat": "Leftovers",
+  "katDone": "Leftovers are sold or thrown away.",
   "katHint": "Sell it by kg in a sale, like any loose stock. If nobody will buy it, throw it away.",
-  "katInStock": "Kat {kg} is in stock",
-  "katThrowAway": "Throw away kat",
+  "katInStock": "Leftovers {kg} are in stock",
+  "katThrowAway": "Throw away leftovers",
   "kgPerBale": "Kg per bale",
   "left": "{kg} left",
   "leftLabel": "Left",
@@ -578,7 +578,7 @@
   "modeLoose": "Loose kg",
   "more": "One bale more",
   "noGrade": "No grade",
-  "noLots": "No lots waiting. Receive maal first.",
+  "noLots": "No lots waiting. Receive goods first.",
   "nothingReady": "All sorted kg is in bales.",
   "pickLot": "Pick a lot",
   "pickOutput": "Pick what to grade",
@@ -589,7 +589,7 @@
   "sorted": "{kg} sorted",
   "sortedLabel": "Sorted",
   "tapTile": "Tap what you sorted",
-  "title": "Chhantai",
+  "title": "Sorting",
   "today": "Today: {bales} bales · {kg}",
   "tooMuch": "Weight is more than the lot left ({kg}). Enter {kg} or less.",
   "tooMuchReady": "Only {kg} is sorted and not baled. Make fewer or lighter bales.",
@@ -607,7 +607,7 @@
   "left": "{n} left",
   "makeBale": "Make bale",
   "notFound": "This QR is not in your stock.",
-  "pickKind": "Which maal?",
+  "pickKind": "Which goods?",
   "pieces": "Pieces",
   "printLabel": "Print label",
   "printLabels": "Print {n} stickers",
@@ -719,7 +719,7 @@
    "CONTAINER_WEIGHTS_UPDATED": "changed the weights",
    "COST_ADJUSTMENT": "costs were recalculated",
    "CUSTOMER_CREATED": "added the customer",
-   "CUSTOMER_OPENING_BALANCE_CHANGED": "changed the old udhaar",
+   "CUSTOMER_OPENING_BALANCE_CHANGED": "changed the opening balance",
    "GRADE_SESSION_CLOSED": "closed the grading",
    "PAYMENT_PHOTO_ADDED": "added a payment screenshot",
    "PAYMENT_RECEIVED": "recorded a payment",
@@ -791,7 +791,7 @@
   },
   "collapse": "Collapse menu",
   "collections": {
-   "ageing": "Udhaar by age",
+   "ageing": "Owed by age",
    "balance": "Balance",
    "broken": "Broken promises",
    "customers": "Customers",
@@ -900,7 +900,7 @@
     "profit": "Sales so far minus what the sold goods cost (their share of the container's total cost).",
     "revenue": "Sales so far of everything that came out of this container.",
     "topGrade": "Of the kg that was graded, the part that came out in your best grade (A).",
-    "yield": "Kg sorted into categories so far, as a part of the container's net kg. Kat and kg still to sort are not counted."
+    "yield": "Kg sorted into categories so far, as a part of the container's net kg. Leftovers and kg still to sort are not counted."
    },
    "search": "Search container number, supplier or country",
    "title": "Containers"
@@ -955,7 +955,7 @@
    "noReminders": "No reminders sent yet",
    "notFound": "This customer could not be opened",
    "note": "Note",
-   "overLimit": "Over the credit limit of {limit} ({used}% used) — collect before selling more on udhaar.",
+   "overLimit": "Over the credit limit of {limit} ({used}% used) — collect before selling more on credit.",
    "overdue": "Oldest due",
    "paidSince": "Paid since",
    "priceGroup": "Group",
@@ -969,7 +969,7 @@
    "promises": "Promises",
    "receiptSaved": "Payment saved",
    "receive": "Receive payment",
-   "receiveHint": "Balance now {balance}. The payment pays the oldest udhaar first.",
+   "receiveHint": "Balance now {balance}. The payment clears the oldest amount owed first.",
    "received": "Received",
    "remind": "Remind on WhatsApp",
    "reminders": "Reminders",
@@ -984,11 +984,11 @@
    "collected": "Cash collected",
    "containers": "Containers in progress ({n})",
    "info": {
-    "collected": "Money you actually received in the period, from sales and from old udhaar: cash, bank and wallets. Below it: how much came in each way.",
-    "containers": "Lots (gaari or container) you are still selling: kg bought, sales and profit so far, and how much is sorted. Tap a row to open the lot.",
-    "gross": "Sales minus what the sold goods cost you: the maal's price, transport and sorting cost, shared over the kg that was sold. Margin is gross profit as a part of sales.",
+    "collected": "Money you actually received in the period, from sales and from old balances: cash, bank and wallets. Below it: how much came in each way.",
+    "containers": "Lots (loose lot or container) you are still selling: kg bought, sales and profit so far, and how much is sorted. Tap a row to open the lot.",
+    "gross": "Sales minus what the sold goods cost you: the purchase price, transport and sorting cost, shared over the kg that was sold. Margin is gross profit as a part of sales.",
     "net": "Gross profit minus the expenses entered in the period, such as rent, wages and electricity. This is what the business earned.",
-    "owed": "Udhaar: what customers owe you today, from all sales not paid yet. A broken promise is a payment promised for a day that has passed.",
+    "owed": "What customers owe you today, from all sales not paid yet. A broken promise is a payment promised for a day that has passed.",
     "sales": "The total of all sale bills in the period you picked, before any cost. The % compares it with the same number of days just before. The small line shows each day.",
     "stock": "What the goods still in stock cost you: bales, items and loose sorted kg. Below it: the total kg and the number of items.",
     "stockAge": "The cost of your stock, split by how long it has been lying in stock. Old stock holds your money: sell it first or lower its price.",
@@ -1106,7 +1106,7 @@
   },
   "mode": {
    "CASH": "Cash",
-   "CREDIT": "Udhaar",
+   "CREDIT": "Credit",
    "PARTIAL": "Part paid"
   },
   "movement": {
@@ -1141,7 +1141,7 @@
   "new": {
    "bale": "Make a bale",
    "container": "Receive a container",
-   "gaari": "Buy a gaari / lot",
+   "gaari": "Buy a loose lot",
    "lot": "Receive a loose lot",
    "ready": "Receive ready stock",
    "sale": "New sale"
@@ -1210,23 +1210,23 @@
     "cost": "Price paid",
     "costPerKg": "Price per kg",
     "date": "Bought",
-    "maal": "Maal",
+    "maal": "Raw type",
     "sorted": "Sorted %"
    },
    "count": "{n} lots",
-   "emptyHeading": "No gaari or lot bought yet",
-   "emptyMessage": "When you buy a gaari or a loose lot, add it here with its weight and price.",
+   "emptyHeading": "No loose lots bought yet",
+   "emptyMessage": "When you buy a loose lot, add it here with its weight and price.",
    "info": {
-    "cost": "What you paid for the gaari or lot.",
-    "costPerKg": "Price paid divided by the kg bought. Use it to compare gaaris and suppliers.",
+    "cost": "What you paid for the lot.",
+    "costPerKg": "Price paid divided by the kg bought. Use it to compare lots and suppliers.",
     "sorted": "How much of the lot's kg is sorted so far. It shows 100% once sorting is finished."
    },
-   "search": "Search lot, supplier or maal",
-   "title": "Gaari and lots"
+   "search": "Search lot, supplier or raw type",
+   "title": "Loose lots"
   },
   "purchasing": {
    "containers": "Containers",
-   "lots": "Gaari / lots"
+   "lots": "Loose lots"
   },
   "range": {
    "30d": "Last 30 days",
@@ -1254,10 +1254,10 @@
     },
     "collections": {
      "hint": "Who owes what and for how long",
-     "name": "Udhaar ageing"
+     "name": "Receivables ageing"
     },
     "dashboard": {
-     "hint": "Sales, profit, cash, udhaar and stock at a glance",
+     "hint": "Sales, profit, cash, receivables and stock at a glance",
      "name": "Dashboard"
     },
     "expenses": {
@@ -1297,7 +1297,7 @@
     "money": "Money",
     "overview": "Overview",
     "purchasing": "Buying and sorting",
-    "sales": "Sales and udhaar",
+    "sales": "Sales and receivables",
     "stock": "Stock"
    },
    "subtitle": "Every report in one place: filters, chart and table, export and print",
@@ -1441,7 +1441,7 @@
   "status": {
    "CANCELLED": "Cancelled",
    "DRAFT": "Draft",
-   "ISSUED": "Udhaar",
+   "ISSUED": "On credit",
    "PAID": "Paid",
    "PARTIALLY_PAID": "Part paid"
   },
@@ -1463,7 +1463,7 @@
    "emptyMessage": "Try other words, a wider period, or clear the filters.",
    "search": "Search bale code, item, category, grade or supplier",
    "source": {
-    "KAT": "Kat",
+    "KAT": "Leftovers",
     "PROCESSED": "Made here",
     "PURCHASED": "Bought ready"
    },
@@ -1549,7 +1549,7 @@
    "search": "Search supplier, country or phone",
    "title": "Suppliers"
   },
-  "switchLanguage": "Switch to Urdu / English",
+  "switchLanguage": "Switch language (English, Urdu, Roman Urdu)",
   "theme": {
    "dark": "Dark mode",
    "light": "Light mode"

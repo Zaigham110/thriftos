@@ -2,7 +2,20 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-export type Lang = 'en' | 'ur';
+/** English, Urdu (Urdu script, right to left) and Roman Urdu (Urdu words in Latin letters, left to right). */
+export type Lang = 'en' | 'ur' | 'roman';
+/** What the server understands (bills, WhatsApp text, exports): Roman Urdu people get the English text. */
+export type ServerLang = 'en' | 'ur';
+
+/** The language picker, each name in its own language. */
+export const LANGS: { id: Lang; name: string }[] = [
+  { id: 'en', name: 'English' },
+  { id: 'ur', name: 'اردو' },
+  { id: 'roman', name: 'Roman Urdu' },
+];
+
+export const isLang = (v: unknown): v is Lang => v === 'en' || v === 'ur' || v === 'roman';
+export const serverLang = (l: Lang): ServerLang => (l === 'ur' ? 'ur' : 'en');
 type Dict = { [key: string]: string | Dict };
 
 const LANG_KEY = 'thriftos.lang';
@@ -10,15 +23,15 @@ const LANG_KEY = 'thriftos.lang';
 function readLang(): Lang | null {
   try {
     const v = localStorage.getItem(LANG_KEY);
-    return v === 'ur' || v === 'en' ? v : null;
+    return isLang(v) ? v : null;
   } catch {
     return null;
   }
 }
 
 /**
- * Every visible word comes from `public/i18n/en.json` or `ur.json`. Urdu switches the page to RTL and
- * the Urdu fonts. Numbers always use Western digits (Intl with `-u-nu-latn`), in both languages.
+ * Every visible word comes from `public/i18n/en.json`, `ur.json` or `roman.json`. Urdu switches the page to RTL and
+ * the Urdu fonts; Roman Urdu stays left to right in Latin letters, and any key it lacks falls back to English. Numbers always use Western digits (Intl with `-u-nu-latn`), in both languages.
  * Language: the person's own choice on this phone, else the tenant default, else English.
  */
 @Injectable({ providedIn: 'root' })
@@ -62,7 +75,7 @@ export class I18nService {
 
   /** Tenant default language, used until the person picks one. */
   useDefault(lang: string | null | undefined): void {
-    if (this.chosen || (lang !== 'ur' && lang !== 'en')) return;
+    if (this.chosen || !isLang(lang)) return;
     void this.load(lang).then(() => {
       this.lang.set(lang);
       this.apply();
@@ -102,7 +115,7 @@ export class I18nService {
 
   private apply(): void {
     const root = document.documentElement;
-    root.lang = this.lang();
+    root.lang = this.lang() === 'roman' ? 'ur-Latn' : this.lang();
     root.dir = this.dir();
   }
 }

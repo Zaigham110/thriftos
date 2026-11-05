@@ -2,6 +2,7 @@ import { Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { I18N } from '../../core/i18n/t.pipe';
+import { LangPickerComponent } from '../../shared/ui/lang-picker.component';
 
 type Page = 'terms' | 'privacy';
 const PARAGRAPHS = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6'] as const;
@@ -10,10 +11,10 @@ const PARAGRAPHS = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6'] as const;
 @Component({
   selector: 'app-legal-page',
   standalone: true,
-  imports: [RouterLink, I18N],
+  imports: [LangPickerComponent, RouterLink, I18N],
   template: `
     <main class="legal">
-      <button type="button" class="link-btn lang" (click)="toggleLang()">{{ 'nav.language' | t }}</button>
+      <app-lang-picker class="lang" />
       <h1>{{ 'legal.' + page() + '.title' | t }}</h1>
       @for (p of paragraphs; track p) { <p>{{ 'legal.' + page() + '.' + p | t }}</p> }
       <p class="updated">{{ 'legal.updated' | t }}</p>
@@ -40,7 +41,4 @@ export class LegalPageComponent {
   protected readonly page = computed(() => this.kind());
   protected readonly paragraphs = PARAGRAPHS;
 
-  protected toggleLang(): void {
-    this.i18n.use(this.i18n.lang() === 'ur' ? 'en' : 'ur');
-  }
 }

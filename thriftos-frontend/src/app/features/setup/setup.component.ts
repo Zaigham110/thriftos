@@ -4,10 +4,11 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ArrowLeft, Check, LucideAngularModule, Plus, X } from 'lucide-angular';
 import { API_BASE_URL } from '../../core/config/api.config';
-import { I18nService, Lang } from '../../core/i18n/i18n.service';
+import { I18nService, LANGS, Lang } from '../../core/i18n/i18n.service';
 import { I18N } from '../../core/i18n/t.pipe';
 import { TenantService } from '../../core/tenant/tenant.service';
 import { ToastService } from '../../shared/floor/toast.service';
+import { LangPickerComponent } from '../../shared/ui/lang-picker.component';
 
 interface SetupDefaults { done: boolean; businessName: string; currency: string; language: Lang; sortingStages: number; categories: string[]; grades: string[] }
 type Step = 'business' | 'sort' | 'categories' | 'grades' | 'munshi';
@@ -20,13 +21,13 @@ type Step = 'business' | 'sort' | 'categories' | 'grades' | 'munshi';
 @Component({
   selector: 'app-setup',
   standalone: true,
-  imports: [FormsModule, LucideAngularModule, I18N],
+  imports: [LangPickerComponent, FormsModule, LucideAngularModule, I18N],
   template: `
     <main class="floor setup">
       <header class="floor-head">
         @if (index() > 0) { <button type="button" class="icon-btn back" [attr.aria-label]="'common.back' | t" (click)="back()"><lucide-icon [img]="icons.ArrowLeft" [size]="22" /></button> }
         <h1>{{ 'setup.title' | t }}<span class="sub">{{ 'setup.step' | t: { n: index() + 1, total: steps().length } }}</span></h1>
-        <button type="button" class="link-btn" (click)="toggleLang()">{{ 'nav.language' | t }}</button>
+        <app-lang-picker (changed)="language.set($event)" />
       </header>
       <div class="bar" aria-hidden="true"><i [style.width.%]="((index() + 1) / steps().length) * 100"></i></div>
 
@@ -37,7 +38,7 @@ type Step = 'business' | 'sort' | 'categories' | 'grades' | 'munshi';
             <span class="field">{{ 'setup.currency' | t }}</span>
             <div class="chips">@for (c of currencies; track c) { <button type="button" class="chip" [class.on]="currency() === c" (click)="currency.set(c)">{{ c }}</button> }</div>
             <span class="field">{{ 'setup.language' | t }}</span>
-            <div class="chips"><button type="button" class="chip" [class.on]="language() === 'ur'" (click)="setLanguage('ur')">اردو</button><button type="button" class="chip" [class.on]="language() === 'en'" (click)="setLanguage('en')">English</button></div>
+            <div class="chips">@for (l of langs; track l.id) { <button type="button" class="chip" [class.on]="language() === l.id" (click)="setLanguage(l.id)">{{ l.name }}</button> }</div>
           </section>
         }
         @case ('sort') {
@@ -119,6 +120,7 @@ export class SetupComponent implements OnInit {
     { value: 2, label: 'setup.sort2' },
   ];
   protected readonly currency = signal('PKR');
+  protected readonly langs = LANGS;
   protected readonly language = signal<Lang>(this.i18n.lang());
   protected readonly stages = signal(2);
   protected readonly categories = signal<string[]>([]);
@@ -183,9 +185,6 @@ export class SetupComponent implements OnInit {
     this.index.update((i) => Math.max(0, i - 1));
   }
 
-  protected toggleLang(): void {
-    this.setLanguage(this.i18n.lang() === 'ur' ? 'en' : 'ur');
-  }
 
   protected setLanguage(l: Lang): void {
     this.language.set(l);

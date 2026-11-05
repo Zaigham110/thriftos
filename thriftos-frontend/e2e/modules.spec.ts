@@ -8,7 +8,7 @@ import { signIn } from './helpers';
  */
 test('an owner with the v1 modules sees no reports or purchase orders (godowns are core)', async ({ page }) => {
   await signIn(page);
-  await expect(page.getByRole('link', { name: 'Khata', exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Receivables', exact: true }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Reports', exact: true })).toHaveCount(0);
 
   for (const url of ['/reports', '/reports/detail', '/home/overview', '/receive/records/pos', '/receive/records/pos/create']) {

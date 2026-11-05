@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { I18nService } from '../../../core/i18n/i18n.service';
+import { I18nService, serverLang } from '../../../core/i18n/i18n.service';
 import { I18N } from '../../../core/i18n/t.pipe';
 
 /** Forgot password: an email with a one-time link (the answer is the same whether or not the email has an account). */
@@ -44,7 +44,7 @@ export class ForgotPasswordComponent {
   protected send(): void {
     this.busy.set(true);
     this.error.set(null);
-    this.http.post('/api/auth/forgot-password', { email: this.email.trim(), lang: this.i18n.lang() }).subscribe({
+    this.http.post('/api/auth/forgot-password', { email: this.email.trim(), lang: serverLang(this.i18n.lang()) }).subscribe({
       next: () => { this.busy.set(false); this.sent.set(true); },
       error: (e: HttpErrorResponse) => { this.busy.set(false); this.error.set(e.status === 429 ? 'auth.tooMany' : 'common.couldNotSave'); },
     });

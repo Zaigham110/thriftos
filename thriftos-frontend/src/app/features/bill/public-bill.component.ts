@@ -5,6 +5,7 @@ import { Component, OnInit, inject, input, signal } from '@angular/core';
 import { API_BASE_URL } from '../../core/config/api.config';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { I18N } from '../../core/i18n/t.pipe';
+import { LangPickerComponent } from '../../shared/ui/lang-picker.component';
 
 interface PublicBill {
   business: string;
@@ -23,10 +24,10 @@ interface PublicBill {
 @Component({
   selector: 'app-public-bill',
   standalone: true,
-  imports: [CommonModule, DatePipe, I18N],
+  imports: [LangPickerComponent, CommonModule, DatePipe, I18N],
   template: `
     <main class="bill">
-      <button type="button" class="lang" (click)="toggleLang()">{{ 'nav.language' | t }}</button>
+      <app-lang-picker class="lang" />
       @if (bill(); as b) {
         <header>
           <h1>{{ b.business }}</h1>
@@ -101,9 +102,6 @@ export class PublicBillComponent implements OnInit {
     return { KG: 'unit.kgShort', BALE: 'unit.bale', PIECE: 'unit.pcs' }[unit] ?? '';
   }
 
-  protected toggleLang(): void {
-    this.i18n.use(this.i18n.lang() === 'ur' ? 'en' : 'ur');
-  }
 
   protected print(): void {
     window.print();

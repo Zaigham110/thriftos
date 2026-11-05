@@ -18,6 +18,7 @@ describe('whatsapp', () => {
     expect(language(undefined, 'en')).toBe('en');
     expect(language(undefined, 'ur')).toBe('ur');
     expect(language('fr', 'ur')).toBe('ur');
+    expect(language(undefined, 'roman')).toBe('en');
   });
 
   const bill = { business: 'Al-Madina Traders', customer: 'Ali', saleNumber: 'SAL-2026-0007', total: '60000', paid: '4000', due: '56000', url: 'https://app/bill/t' };

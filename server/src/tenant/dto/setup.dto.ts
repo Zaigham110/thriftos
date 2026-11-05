@@ -26,7 +26,7 @@ export class TenantSetupDto {
   @IsIn(['PKR', 'USD', 'AED'])
   currency: string;
 
-  @IsIn(['ur', 'en'])
+  @IsIn(['ur', 'en', 'roman'])
   language: string;
 
   /** 0 = sells as bought, 1 = sorts into categories, 2 = categories then grades. */

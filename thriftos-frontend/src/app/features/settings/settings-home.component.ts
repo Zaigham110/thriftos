@@ -5,12 +5,13 @@ import { Building2, ChevronRight, CircleHelp, Download, FileText, FileUp, KeyRou
 import { I18nService } from '../../core/i18n/i18n.service';
 import { I18N } from '../../core/i18n/t.pipe';
 import { ToastService } from '../../shared/floor/toast.service';
+import { LangPickerComponent } from '../../shared/ui/lang-picker.component';
 
 /** Settings: business setup (the wizard again), team, password, language, data export, terms, and the advanced admin screens. */
 @Component({
   selector: 'app-settings-home',
   standalone: true,
-  imports: [RouterLink, LucideAngularModule, I18N],
+  imports: [LangPickerComponent, RouterLink, LucideAngularModule, I18N],
   template: `
     <section class="floor">
       <header class="floor-head"><h1>{{ 'settings.title' | t }}</h1></header>
@@ -18,7 +19,7 @@ import { ToastService } from '../../shared/floor/toast.service';
         <li><a class="row" routerLink="/setup"><span class="item"><lucide-icon [img]="icons.Building2" [size]="22" /><strong>{{ 'settings.business' | t }}</strong></span><lucide-icon [img]="icons.ChevronRight" [size]="20" class="go" /></a></li>
         <li><a class="row" routerLink="/settings/team"><span class="item"><lucide-icon [img]="icons.Users" [size]="22" /><strong>{{ 'settings.team' | t }}</strong></span><lucide-icon [img]="icons.ChevronRight" [size]="20" class="go" /></a></li>
         <li><a class="row" routerLink="/settings/password"><span class="item"><lucide-icon [img]="icons.KeyRound" [size]="22" /><strong>{{ 'settings.password' | t }}</strong></span><lucide-icon [img]="icons.ChevronRight" [size]="20" class="go" /></a></li>
-        <li><button type="button" class="row" (click)="toggleLang()"><span class="item"><lucide-icon [img]="icons.Languages" [size]="22" /><strong>{{ 'setup.language' | t }}</strong></span><span class="amount">{{ 'nav.language' | t }}</span></button></li>
+        <li><div class="row"><span class="item"><lucide-icon [img]="icons.Languages" [size]="22" /><strong>{{ 'setup.language' | t }}</strong></span><app-lang-picker class="amount" [iconSize]="0" /></div></li>
         <li><a class="row" routerLink="/settings/admin/import"><span class="item"><lucide-icon [img]="icons.FileUp" [size]="22" /><strong>{{ 'import.title' | t }}</strong></span><lucide-icon [img]="icons.ChevronRight" [size]="20" class="go" /></a></li>
         <li><button type="button" class="row" (click)="exportData()" [disabled]="exporting()"><span class="item"><lucide-icon [img]="icons.Download" [size]="22" /><strong>{{ 'settings.export' | t }}</strong></span><span class="amount">{{ (exporting() ? 'common.loading' : 'settings.exportHint') | t }}</span></button></li>
         <li><a class="row" routerLink="/help"><span class="item"><lucide-icon [img]="icons.CircleHelp" [size]="22" /><strong>{{ 'help.title' | t }}</strong></span><lucide-icon [img]="icons.ChevronRight" [size]="20" class="go" /></a></li>
@@ -62,7 +63,4 @@ export class SettingsHomeComponent {
     });
   }
 
-  protected toggleLang(): void {
-    this.i18n.use(this.i18n.lang() === 'ur' ? 'en' : 'ur');
-  }
 }

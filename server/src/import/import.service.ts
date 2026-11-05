@@ -47,7 +47,7 @@ const MESSAGES: Record<string, string> = {
 };
 
 const FIELD_LABELS: Record<string, string> = {
-  openingBalance: 'Opening udhaar',
+  openingBalance: 'Opening balance',
   creditLimit: 'Credit limit',
   quantity: 'Quantity',
   weightKg: 'Weight',
