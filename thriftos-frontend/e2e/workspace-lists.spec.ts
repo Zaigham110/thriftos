@@ -145,10 +145,35 @@ test('containers: list, board move, traceability record; supplier scorecard', as
   await expect(page.getByRole('heading', { name: `TGHU-${tag} · Atlantic Rags ${tag}` })).toBeVisible();
   await expect(page.locator('ws-status-pipeline [aria-current="step"]')).toHaveText('Arrived');
   await expect(page.getByRole('list', { name: 'From landed cost to profit' })).toContainText('960,000');
-  await expect(page.getByRole('tab', { name: /Landed cost/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: /Total cost/ })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('ws-data-grid tbody tr')).toContainText('Clearing');
+
+  // Fix a charge typed wrong in its panel: the total follows.
+  await page.locator('ws-data-grid tbody tr').filter({ hasText: 'Clearing' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Change charge' });
+  await sheet.getByLabel('Amount').fill('70000');
+  await sheet.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByRole('list', { name: 'From landed cost to profit' })).toContainText('970,000');
+
+  // Add a lot in its panel: it offers the kg not in a lot yet (all 12,000 kg here) and opens from the Lots tab.
+  await page.getByRole('button', { name: 'Add lot' }).click();
+  const lotSheet = page.getByRole('dialog', { name: 'Add lot' });
+  await expect(lotSheet.getByLabel(/Lot weight/)).toHaveValue('12000');
+  await lotSheet.getByRole('button', { name: 'Save lot' }).click();
   await page.getByRole('tab', { name: /Lots and sorting/ }).click();
   await expect(page.getByText('Not sorted yet')).toBeVisible();
+  await expect(page.locator('ws-data-grid').filter({ hasText: 'Raw type' }).locator('tbody tr')).toHaveCount(1);
+
+  // Close it from the status bar: Arrived → Cleared → Closed, each confirmed; then nothing can be added.
+  await page.locator('ws-status-pipeline').getByRole('button', { name: /Cleared/ }).click();
+  await page.getByRole('dialog', { name: 'Move to Cleared' }).getByRole('button', { name: 'Move to Cleared' }).click();
+  await expect(page.locator('ws-status-pipeline [aria-current="step"]')).toHaveText('Cleared');
+  await page.locator('ws-status-pipeline').getByRole('button', { name: /Closed/ }).click();
+  await expect(page.getByRole('dialog', { name: 'Move to Closed' })).toContainText('no more charges');
+  await page.getByRole('dialog', { name: 'Move to Closed' }).getByRole('button', { name: 'Move to Closed' }).click();
+  await expect(page.locator('ws-status-pipeline [aria-current="step"]')).toHaveText('Closed');
+  await expect(page.getByRole('button', { name: 'Add charge' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Add lot' })).toHaveCount(0);
 
   await page.goto('/receive/records/suppliers');
   await page.getByPlaceholder('Search supplier, country or phone').fill(`Atlantic Rags ${tag}`);

@@ -6,7 +6,7 @@ import { CreateContainerDto } from './dto/create-container.dto';
 import { UpdateContainerDto } from './dto/update-container.dto';
 import { UpdateContainerWeightsDto } from './dto/update-container-weights.dto';
 import { UpdateContainerStatusDto } from './dto/update-container-status.dto';
-import { CreateContainerChargeDto } from './dto/create-container-charge.dto';
+import { CreateContainerChargeDto, UpdateContainerChargeDto } from './dto/create-container-charge.dto';
 import { ContainerStatus, PurchaseOrderType, PurchaseOrderStatus, RagBaleType, RagSourceType, SequenceScope, Prisma } from '@prisma/client';
 import { defaultRawCategoryId } from '../shared/default-raw-category';
 import { TenantSequenceService } from '../shared/tenant-sequence.service';
@@ -544,6 +544,43 @@ export class ContainerService {
       where: { containerId },
       orderBy: { createdAt: 'asc' },
     });
+  }
+
+  async updateCharge(tenantId: string, containerId: string, chargeId: string, dto: UpdateContainerChargeDto, userId: string) {
+    const container = await this.findOne(tenantId, containerId);
+    if (container.status === ContainerStatus.CLOSED) {
+      throw new ConflictException('Cannot change charges on a closed container');
+    }
+    const charge = await this.prisma.containerCharge.findFirst({ where: { id: chargeId, containerId } });
+    if (!charge) throw new NotFoundException('Charge not found');
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const type = dto.chargeType ?? charge.chargeType;
+      const row = await tx.containerCharge.update({
+        where: { id: chargeId },
+        data: {
+          ...(dto.chargeType !== undefined && { chargeType: dto.chargeType }),
+          ...(dto.amount !== undefined && { amount: new Prisma.Decimal(dto.amount) }),
+          ...(dto.description !== undefined || dto.chargeType !== undefined ? { description: dto.description?.trim() || (charge.description !== charge.chargeType ? charge.description : type) } : {}),
+        },
+      });
+      if (dto.amount !== undefined) await this.costing.recalculateContainerTx(tx, tenantId, containerId, userId);
+      return row;
+    });
+
+    await this.auditService.log({
+      userId,
+      tenantId,
+      action: 'CONTAINER_CHARGE_UPDATED',
+      entityType: 'ContainerCharge',
+      entityId: chargeId,
+      metadataJson: {
+        containerNumber: container.containerNumber,
+        before: { chargeType: charge.chargeType, amount: charge.amount.toString(), description: charge.description },
+        after: { chargeType: updated.chargeType, amount: updated.amount.toString(), description: updated.description },
+      },
+    });
+    return updated;
   }
 
   async deleteCharge(tenantId: string, containerId: string, chargeId: string, userId: string) {

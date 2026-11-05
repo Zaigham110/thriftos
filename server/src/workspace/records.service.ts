@@ -28,7 +28,7 @@ export class WorkspaceRecordsService {
 
     const [econ, lots, outputs, waste, grades, allocations] = await Promise.all([
       containerEconomics(this.prisma, tenantId, [id]),
-      this.prisma.rag.findMany({ where: { tenantId, containerId: id }, orderBy: { createdAt: 'asc' }, select: { id: true, ragCode: true, weightKg: true, allocatedCost: true, status: true } }),
+      this.prisma.rag.findMany({ where: { tenantId, containerId: id }, orderBy: { createdAt: 'asc' }, select: { id: true, ragCode: true, weightKg: true, allocatedCost: true, status: true, rawCategory: { select: { name: true } } } }),
       this.prisma.categoryOutput.groupBy({ by: ['categoryId'], where: { tenantId, containerId: id }, _sum: { weightKg: true, allocatedCost: true } }),
       this.prisma.wasteLineItem.aggregate({ where: { tenantId, containerId: id, unitType: 'KG' }, _sum: { amount: true } }),
       this.prisma.gradeOutput.findMany({
@@ -108,6 +108,11 @@ export class WorkspaceRecordsService {
         id: c.id, number: c.containerNumber, status: c.status, supplier: c.vendor, origin: c.originCountry, createdAt: c.createdAt,
         arrivedAt: c.arrivedAt, clearedAt: c.clearedAt, netWeight: c.netWeight, grossWeight: c.grossWeight, billOfLading: c.billOfLadingNumber,
         vessel: c.vesselName, notes: c.notes, purchaseCurrency: c.purchaseCurrency, fxRate: c.fxRate,
+        kantaKg: c.weighbridgeNetWeight,
+        shipping: {
+          referenceNumber: c.referenceNumber, containerType: c.containerType, billOfLading: c.billOfLadingNumber, shippingLine: c.shippingLine,
+          vessel: c.vesselName, forwarder: c.forwarder, portOfLoading: c.portOfLoading, portOfDischarge: c.portOfDischarge, etd: c.etd, eta: c.eta,
+        },
       },
       cost: canSeeCost
         ? {
@@ -116,7 +121,7 @@ export class WorkspaceRecordsService {
             chargesTotal: charges, landed: c.landedCostPKR, perKg: c.landedCostPerKg,
           }
         : null,
-      lots: lots.map((l) => ({ id: l.id, code: l.ragCode, kg: l.weightKg, status: l.status, cost: money(canSeeCost, l.allocatedCost) })),
+      lots: lots.map((l) => ({ id: l.id, code: l.ragCode, kg: l.weightKg, status: l.status, rawType: l.rawCategory?.name ?? null, cost: money(canSeeCost, l.allocatedCost) })),
       sorting: {
         categories: outputs
           .map((o) => ({ name: catName.get(o.categoryId) ?? '', kg: o._sum.weightKg ?? ZERO, cost: money(canSeeCost, o._sum.allocatedCost ?? ZERO) }))

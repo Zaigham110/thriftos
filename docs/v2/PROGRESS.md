@@ -112,6 +112,16 @@
   - Tests: server e2e `purchasing-review` (gaari list only loose lots, price per kg and sorted % while sorting, search, other business sees none; container cleared when sorting starts, late charge still accepted); the purchasing e2e now expects Cleared after sorting. Browser: list tests use the View panel; new "purchasing" test (tabs, buttons, column note, remembered tab, old address). Server 295/295, Karma 19/19, browser 41 passed + 4 skipped, i18n 1265 keys.
   - Decided by the owner: amounts keep international grouping (2,309,688), not lakh grouping.
   - Breadcrumbs no longer show the internal "Records" step: Purchasing › Containers, Sales, Sorting (was Purchasing › Records › Containers). Unit test added.
+- **Review: container page (Purchasing).** All eight findings fixed.
+  - One row that reads in order (Total cost → Net kg → Sorted % → Bales → Sold so far → Profit so far), each with an "i" note and a link to its tab; the 7 cards and the repeated "Landed" strip are gone. "Landed cost" tab is "Total cost".
+  - The status bar offers the allowed moves as buttons (On the way ↔ Arrived ↔ Cleared → Closed) with a confirm panel; closing warns that no more charges, lots or changes can be made. Edit, Add charge and Add lot hide once closed.
+  - Whole rupees for totals, categories, lots, bales and sales; per-kg prices keep paisa.
+  - Charges: tap one to change type, amount or note, or remove it (new `PATCH /procurement/containers/:id/charges/:chargeId`, audit CONTAINER_CHARGE_UPDATED); the Description column shows only when a note exists.
+  - Lots tab counts lots, shows each lot's raw type, and a lot opens its sorting page.
+  - Clearer names with notes: "Bale cost", "Sold from this container", profit "per kg bought".
+  - More details on the page: kanta weight, seal, size, B/L, line, ship, agent, ports, dates and notes.
+  - Add charge and Add lot are side panels on the page (lot offers the kg not yet in a lot); the old English-only pages are removed and their links open the container.
+  - Tests: `container-record.e2e-spec.ts` (charge edit/remove, other business refused, closing), browser test extended. Server 299, Karma 20, browser 43 passed + 4 skipped.
 - **Review: container form (Purchasing).** All eight findings fixed.
   - Laptop form at `/receive/records/containers/new` and `/:id/edit` (`container-form.component.ts`): two columns, plain number boxes, a cost summary on the side (price in Rs, charges, total, kg used, cost per kg) that lists what is still missing; saving opens the container. `/receive/container` on a laptop goes to it; the phone keeps its own screen. The old shipping-agent edit page is removed.
   - Status Arrived / On the way (Arrived by default; the phone saves Arrived). A date (default today, not in the future) sets the container's date (createdAt) and its arrival day; lists and reports use it.

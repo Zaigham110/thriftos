@@ -1,19 +1,23 @@
 import { HttpClient } from '@angular/common/http';
 import { Component, computed, inject, input, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { Boxes, Coins, Layers3, LucideAngularModule, Pencil, Percent, Plus, Receipt, Scale, Truck } from 'lucide-angular';
-import { catchError, map, of, switchMap } from 'rxjs';
+import { LucideAngularModule, Pencil, Plus } from 'lucide-angular';
+import { catchError, firstValueFrom, map, of, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
+import { ToastService } from '../../shared/floor/toast.service';
+import { CONTAINER_CHARGES } from './container-form.component';
 import {
   WsColumn,
   WsDataGridComponent,
   WsPageHeaderComponent,
   WsRecordActivityComponent,
+  WsInfoComponent,
   WsRow,
-  WsSmartButtonComponent,
+  WsSideSheetComponent,
   WsStateComponent,
   WsStatusPipelineComponent,
   WsTab,
@@ -26,10 +30,14 @@ export interface ContainerOverview {
   container: {
     id: string; number: string; status: string; supplier: { id: string; name: string } | null; origin: string | null; createdAt: string;
     arrivedAt: string | null; clearedAt: string | null; netWeight: string; billOfLading: string | null; vessel: string | null; notes: string | null;
-    purchaseCurrency: string; fxRate: string;
+    purchaseCurrency: string; fxRate: string; kantaKg: string | null;
+    shipping: {
+      referenceNumber: string | null; containerType: string | null; billOfLading: string | null; shippingLine: string | null; vessel: string | null;
+      forwarder: string | null; portOfLoading: string | null; portOfDischarge: string | null; etd: string | null; eta: string | null;
+    };
   };
   cost: { purchase: string; purchasePKR: string; charges: { id: string; type: string; description: string | null; amount: string }[]; chargesTotal: string; landed: string; perKg: string } | null;
-  lots: { id: string; code: string; kg: string; status: string; cost: Money }[];
+  lots: { id: string; code: string; kg: string; status: string; rawType: string | null; cost: Money }[];
   sorting: { categories: { name: string; kg: string; cost: Money }[]; sortedKg: string; wasteKg: string; yieldPercent: number | null };
   grades: { name: string; kg: string }[];
   topGradePercent: number | null;
@@ -39,6 +47,9 @@ export interface ContainerOverview {
 }
 
 const STEPS = ['IN_TRANSIT', 'ARRIVED', 'CLEARED', 'CLOSED'] as const;
+/** Moves the server allows from each status (closing is final). */
+const MOVES: Record<string, string[]> = { IN_TRANSIT: ['ARRIVED'], ARRIVED: ['CLEARED', 'IN_TRANSIT'], CLEARED: ['CLOSED', 'ARRIVED'], CLOSED: [] };
+interface RawType { id: string; name: string; rawType?: string }
 
 /**
  * A container's record page (enterprise plan E3.1): where its money went and came back — landed cost,
@@ -55,7 +66,9 @@ const STEPS = ['IN_TRANSIT', 'ARRIVED', 'CLEARED', 'CLOSED'] as const;
     WsDataGridComponent,
     WsPageHeaderComponent,
     WsRecordActivityComponent,
-    WsSmartButtonComponent,
+    WsInfoComponent,
+    WsSideSheetComponent,
+    FormsModule,
     WsStateComponent,
     WsStatusPipelineComponent,
     WsTabsComponent,
@@ -67,41 +80,57 @@ const STEPS = ['IN_TRANSIT', 'ARRIVED', 'CLEARED', 'CLOSED'] as const;
       <div class="record">
         <div class="main">
           <ws-page-header [heading]="d.container.number + (d.container.supplier ? ' · ' + d.container.supplier.name : '')" [subtitle]="subtitle()">
-            @if (can('container.update')) {
+            @if (can('container.update') && !closed()) {
               <ng-container actions>
               <a class="ws-btn" [routerLink]="['/receive/records/containers', d.container.id, 'edit']"><lucide-icon [img]="icons.Pencil" [size]="16" aria-hidden="true" />{{ 'ws.container.edit' | t }}</a>
-              <a class="ws-btn" [routerLink]="['/receive/records/containers', d.container.id, 'charges', 'create']"><lucide-icon [img]="icons.Plus" [size]="16" aria-hidden="true" />{{ 'ws.container.addCharge' | t }}</a>
+              @if (d.cost) { <button type="button" class="ws-btn" (click)="openCharge(null)"><lucide-icon [img]="icons.Plus" [size]="16" aria-hidden="true" />{{ 'ws.container.addCharge' | t }}</button> }
               </ng-container>
             }
-            @if (can('rag.create')) {
-              <a actions class="ws-btn" [routerLink]="['/receive/records/containers', d.container.id, 'rags', 'create']"><lucide-icon [img]="icons.Plus" [size]="16" aria-hidden="true" />{{ 'ws.container.addLot' | t }}</a>
+            @if (can('rag.create') && !closed()) {
+              <button actions type="button" class="ws-btn" (click)="openLot()"><lucide-icon [img]="icons.Plus" [size]="16" aria-hidden="true" />{{ 'ws.container.addLot' | t }}</button>
             }
           </ws-page-header>
 
-          <ws-status-pipeline [steps]="steps()" [current]="stepIndex()" [label]="'ws.col.status' | t" />
+          <ws-status-pipeline [steps]="steps()" [current]="stepIndex()" [label]="'ws.col.status' | t" [allowed]="moves()" [moveLabel]="'ws.cr.moveTo' | t" (pick)="askMove($event)" />
 
-          <section class="smart">
-            @if (d.cost) { <ws-smart-button [label]="'ws.containers.col.landedCost' | t" [value]="i18n.money(d.cost.landed)" [icon]="icons.Receipt" [link]="[]" [query]="{ tab: 'cost' }" /> }
-            <ws-smart-button [label]="'ws.containers.col.kg' | t" [value]="i18n.kg(d.container.netWeight)" [icon]="icons.Scale" [link]="[]" [query]="{ tab: 'sorting' }" />
-            <ws-smart-button [label]="'ws.containers.col.yield' | t" [value]="pct(d.sorting.yieldPercent)" [icon]="icons.Layers3" [link]="[]" [query]="{ tab: 'sorting' }" />
-            <ws-smart-button [label]="'ws.containers.col.topGrade' | t" [value]="pct(d.topGradePercent)" [icon]="icons.Percent" [link]="[]" [query]="{ tab: 'sorting' }" />
-            <ws-smart-button [label]="'ws.container.balesSold' | t" [value]="d.totals.balesSold + ' / ' + d.totals.bales" [icon]="icons.Boxes" [link]="[]" [query]="{ tab: 'bales' }" />
-            <ws-smart-button [label]="'ws.containers.col.revenue' | t" [value]="i18n.money(d.totals.revenue)" [icon]="icons.Truck" [link]="[]" [query]="{ tab: 'sales' }" />
-            @if (d.totals.profit !== null) {
-              <ws-smart-button [label]="'ws.containers.col.profit' | t" [value]="i18n.money(d.totals.profit)" [icon]="icons.Coins" [tone]="+d.totals.profit >= 0 ? 'good' : 'bad'" [link]="[]" [query]="{ tab: 'sales' }" />
+          <ol class="story" [attr.aria-label]="'ws.container.trace' | t">
+            @if (d.cost) {
+              <li>
+                <span class="lbl">{{ 'ws.containers.col.landedCost' | t }} <ws-info [title]="'ws.containers.col.landedCost' | t" [text]="'ws.containers.info.landedCost' | t" /></span>
+                <a [routerLink]="[]" [queryParams]="{ tab: 'cost' }"><strong>{{ rs(d.cost.landed) }}</strong><small>{{ 'ws.container.flow.costPerKg' | t: { amount: i18n.money(d.cost.perKg) } }}</small></a>
+              </li>
             }
-          </section>
-
-          <ol class="trace" [attr.aria-label]="'ws.container.trace' | t">
-            @if (d.cost) { <li><span>{{ 'ws.container.flow.landed' | t }}</span><strong>{{ i18n.money(d.cost.landed) }}</strong><small>{{ 'ws.container.flow.costPerKg' | t: { amount: i18n.money(d.cost.perKg) } }}</small></li> }
-            <li><span>{{ 'ws.container.flow.lots' | t }}</span><strong>{{ i18n.num(d.lots.length) }}</strong><small>{{ i18n.kg(d.totals.kg) }}</small></li>
-            <li><span>{{ 'ws.container.flow.sorted' | t }}</span><strong>{{ i18n.kg(d.sorting.sortedKg) }}</strong><small>{{ 'ws.container.flow.waste' | t: { kg: i18n.kg(d.sorting.wasteKg) } }}</small></li>
-            <li><span>{{ 'ws.container.flow.graded' | t }}</span><strong>{{ i18n.kg(gradedKg()) }}</strong><small>{{ 'ws.containers.col.topGrade' | t }} {{ pct(d.topGradePercent) }}</small></li>
-            <li><span>{{ 'ws.container.flow.bales' | t }}</span><strong>{{ i18n.num(d.totals.bales) }}</strong><small>{{ 'ws.container.flow.sold' | t: { n: i18n.num(d.totals.balesSold) } }}</small></li>
-            <li><span>{{ 'ws.container.flow.revenue' | t }}</span><strong>{{ i18n.money(d.totals.revenue) }}</strong>
-              @if (d.totals.profitPerKg !== null) { <small>{{ 'ws.container.flow.perKg' | t: { amount: i18n.money(d.totals.profitPerKg) } }}</small> }
+            <li>
+              <span class="lbl">{{ 'ws.containers.col.kg' | t }} <ws-info [title]="'ws.containers.col.kg' | t" [text]="'ws.cr.info.kg' | t" /></span>
+              <a [routerLink]="[]" [queryParams]="{ tab: 'sorting' }"><strong>{{ i18n.kg(d.container.netWeight) }}</strong><small>{{ 'ws.cr.lotsKg' | t: { n: i18n.num(d.lots.length), kg: i18n.kg(d.totals.kg) } }}</small></a>
             </li>
+            <li>
+              <span class="lbl">{{ 'ws.containers.col.yield' | t }} <ws-info [title]="'ws.containers.col.yield' | t" [text]="'ws.containers.info.yield' | t" /></span>
+              <a [routerLink]="[]" [queryParams]="{ tab: 'sorting' }"><strong>{{ pct(d.sorting.yieldPercent) }}</strong><small>{{ 'ws.cr.sortedLine' | t: { a: pct(d.topGradePercent), waste: i18n.kg(d.sorting.wasteKg) } }}</small></a>
+            </li>
+            <li>
+              <span class="lbl">{{ 'ws.container.flow.bales' | t }} <ws-info [title]="'ws.container.flow.bales' | t" [text]="'ws.cr.info.bales' | t" /></span>
+              <a [routerLink]="[]" [queryParams]="{ tab: 'bales' }"><strong>{{ i18n.num(d.totals.bales) }}</strong><small>{{ 'ws.container.flow.sold' | t: { n: i18n.num(d.totals.balesSold) } }}</small></a>
+            </li>
+            <li>
+              <span class="lbl">{{ 'ws.containers.col.revenue' | t }} <ws-info [title]="'ws.containers.col.revenue' | t" [text]="'ws.containers.info.revenue' | t" /></span>
+              <a [routerLink]="[]" [queryParams]="{ tab: 'sales' }"><strong>{{ rs(d.totals.revenue) }}</strong><small>{{ 'ws.cr.salesCount' | t: { n: i18n.num(d.sales.length) } }}</small></a>
+            </li>
+            @if (d.totals.profit !== null) {
+              <li>
+                <span class="lbl">{{ 'ws.containers.col.profit' | t }} <ws-info [title]="'ws.containers.col.profit' | t" [text]="'ws.cr.info.profit' | t" /></span>
+                <a [routerLink]="[]" [queryParams]="{ tab: 'sales' }"><strong [class]="profitTone()">{{ rs(d.totals.profit) }}</strong>
+                  @if (d.totals.profitPerKg !== null) { <small>{{ 'ws.cr.perKgBought' | t: { amount: i18n.money(d.totals.profitPerKg) } }}</small> }</a>
+              </li>
+            }
           </ol>
+
+          @if (shippingFacts().length) {
+            <details class="ship">
+              <summary>{{ 'common.more' | t }}</summary>
+              <dl class="facts">@for (f of shippingFacts(); track f.label) { <div><dt>{{ f.label | t }}</dt><dd>{{ f.value }}</dd></div> }</dl>
+            </details>
+          }
 
           <ws-tabs [tabs]="tabs()" [active]="tab()" (activeChange)="chosenTab.set($event)" [label]="d.container.number" />
           <div role="tabpanel" [id]="'ws-panel-' + tab()" [attr.aria-labelledby]="'ws-tab-' + tab()" class="panel">
@@ -113,14 +142,15 @@ const STEPS = ['IN_TRANSIT', 'ARRIVED', 'CLEARED', 'CLOSED'] as const;
                   <div><dt>{{ 'ws.containers.col.landedCost' | t }}</dt><dd><strong>{{ i18n.money(d.cost?.landed) }}</strong></dd></div>
                   <div><dt>{{ 'ws.containers.col.costPerKg' | t }}</dt><dd>{{ i18n.money(d.cost?.perKg) }}</dd></div>
                 </dl>
-                <ws-data-grid [caption]="'ws.container.charges' | t" [columns]="chargeColumns()" [rows]="chargeRows()" [emptyHeading]="'ws.container.noCharges' | t" />
+                <ws-data-grid [caption]="'ws.container.charges' | t" [columns]="chargeColumns()" [rows]="chargeRows()" [clickable]="canCharge()" (rowClick)="openCharge($event)" [emptyHeading]="'ws.container.noCharges' | t" />
+                @if (canCharge() && chargeRows().length) { <p class="hint">{{ 'ws.cr.chargeHint' | t }}</p> }
               }
               @case ('sorting') {
                 <div class="two">
                   <ws-data-grid [caption]="'ws.container.categories' | t" [columns]="categoryColumns()" [rows]="categoryRows()" [emptyHeading]="'ws.container.notSorted' | t" />
                   <ws-data-grid [caption]="'ws.container.grades' | t" [columns]="gradeColumns()" [rows]="gradeRows()" [emptyHeading]="'ws.container.notGraded' | t" />
                 </div>
-                <ws-data-grid [caption]="'ws.container.lots' | t" [columns]="lotColumns()" [rows]="lotRows()" [emptyHeading]="'ws.container.noLots' | t" />
+                <ws-data-grid [caption]="'ws.container.lots' | t" [columns]="lotColumns()" [rows]="lotRows()" [clickable]="true" (rowClick)="openLotRecord($event)" [emptyHeading]="'ws.container.noLots' | t" />
               }
               @case ('bales') {
                 <ws-data-grid [caption]="'ws.container.bales' | t" [columns]="baleColumns()" [rows]="baleRows()" [clickable]="true" (rowClick)="openBale($event)" [emptyHeading]="'ws.container.noBales' | t" />
@@ -133,6 +163,43 @@ const STEPS = ['IN_TRANSIT', 'ARRIVED', 'CLEARED', 'CLOSED'] as const;
         </div>
         <aside class="side"><ws-record-activity type="container" [recordId]="d.container.id" /></aside>
       </div>
+
+      <ws-side-sheet [open]="sheet() === 'charge'" [heading]="(chargeId ? 'ws.cr.editCharge' : 'ws.container.addCharge') | t" (close)="sheet.set(null)">
+        <form class="sheet-form" id="ws-charge-form" (ngSubmit)="saveCharge()">
+          <label>{{ 'ws.cf.chargeType' | t }}
+            <select name="ctype" [(ngModel)]="chargeType">@for (t of chargeTypes; track t) { <option [value]="t">{{ 'receive.charge.' + t | t }}</option> }</select>
+          </label>
+          <label>{{ 'ws.sale.amount' | t }}<input name="camount" type="number" min="0" step="0.01" required [(ngModel)]="chargeAmount" /></label>
+          <label>{{ 'ws.customer.note' | t }} · {{ 'common.optional' | t }}<input name="cnote" maxlength="200" [(ngModel)]="chargeNote" /></label>
+        </form>
+        <ng-container footer>
+          @if (chargeId) { <button type="button" class="ws-btn danger" [disabled]="busy()" (click)="removeCharge()">{{ 'common.remove' | t }}</button> }
+          <button type="button" class="ws-btn" (click)="sheet.set(null)">{{ 'common.cancel' | t }}</button>
+          <button type="submit" form="ws-charge-form" class="ws-btn primary" [disabled]="busy() || chargeAmount === null || chargeAmount < 0">{{ 'common.save' | t }}</button>
+        </ng-container>
+      </ws-side-sheet>
+
+      <ws-side-sheet [open]="sheet() === 'lot'" [heading]="'ws.container.addLot' | t" (close)="sheet.set(null)">
+        <form class="sheet-form" id="ws-lot-form" (ngSubmit)="saveLot()">
+          <p class="hint">{{ 'ws.cr.lotHint' | t: { kg: i18n.kg(roomKg()) } }}</p>
+          <label>{{ 'ws.cf.rawType' | t }}
+            <select name="lraw" [(ngModel)]="lotRaw">@for (r of rawTypes(); track r.id) { <option [value]="r.id">{{ r.name }}</option> }</select>
+          </label>
+          <label>{{ 'receive.lotWeight' | t }} ({{ 'unit.kgShort' | t }})<input name="lkg" type="number" min="0.01" step="0.01" required [(ngModel)]="lotKg" /></label>
+        </form>
+        <ng-container footer>
+          <button type="button" class="ws-btn" (click)="sheet.set(null)">{{ 'common.cancel' | t }}</button>
+          <button type="submit" form="ws-lot-form" class="ws-btn primary" [disabled]="busy() || !lotKg || lotKg <= 0">{{ 'receive.saveLot' | t }}</button>
+        </ng-container>
+      </ws-side-sheet>
+
+      <ws-side-sheet [open]="sheet() === 'status'" [heading]="'ws.cr.moveTitle' | t: { status: ('ws.cstatus.' + moveTarget() | t) }" (close)="sheet.set(null)">
+        <p class="sheet-text">{{ (moveTarget() === 'CLOSED' ? 'ws.cr.closeText' : 'ws.cr.moveText') | t: { no: d.container.number, status: ('ws.cstatus.' + moveTarget() | t) } }}</p>
+        <ng-container footer>
+          <button type="button" class="ws-btn" (click)="sheet.set(null)">{{ 'common.cancel' | t }}</button>
+          <button type="button" class="ws-btn primary" [disabled]="busy()" (click)="move()">{{ 'ws.cr.moveTitle' | t: { status: ('ws.cstatus.' + moveTarget() | t) } }}</button>
+        </ng-container>
+      </ws-side-sheet>
     } @else {
       <ws-state kind="loading" />
     }
@@ -141,21 +208,34 @@ const STEPS = ['IN_TRANSIT', 'ARRIVED', 'CLEARED', 'CLOSED'] as const;
     .record { display:grid; grid-template-columns:minmax(0, 1fr) 340px; gap:var(--ws-5); max-width:var(--ws-content-max); margin-inline:auto; align-items:start; font-family:var(--ws-font); color:var(--ws-ink); }
     .main { display:grid; grid-template-columns:minmax(0, 1fr); gap:var(--ws-4); }
     .side { position:sticky; top:calc(var(--ws-topbar-h) + var(--ws-4)); }
-    .smart { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:var(--ws-3); }
-    .trace { list-style:none; margin:0; padding:0; display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0, 1fr); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); overflow:hidden; }
-    .trace li { position:relative; display:grid; gap:2px; padding:var(--ws-3) var(--ws-4); }
-    .trace li + li { border-inline-start:1px solid var(--ws-line); }
-    .trace li + li::before { content:''; position:absolute; inset-inline-start:-7px; top:50%; width:12px; height:12px; margin-top:-6px; border-block-start:1px solid var(--ws-line); border-inline-end:1px solid var(--ws-line); background:var(--ws-surface); transform:rotate(45deg); }
-    :host-context([dir=rtl]) .trace li + li::before { transform:rotate(-135deg); }
-    .trace span { color:var(--ws-ink-2); font-size:var(--ws-text-xs); text-transform:uppercase; letter-spacing:.04em; }
-    .trace strong { font-size:var(--ws-text-md); white-space:nowrap; font-variant-numeric:tabular-nums; }
-    .trace small { color:var(--ws-ink-2); font-size:var(--ws-text-xs); }
+    .story { list-style:none; margin:0; padding:0; display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0, 1fr); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); }
+    .story li { position:relative; display:grid; align-content:start; gap:4px; padding:var(--ws-3) var(--ws-4); min-width:0; }
+    .story li + li { border-inline-start:1px solid var(--ws-line); }
+    .story li + li::before { content:''; position:absolute; inset-inline-start:-7px; top:50%; width:12px; height:12px; margin-top:-6px; border-block-start:1px solid var(--ws-line); border-inline-end:1px solid var(--ws-line); background:var(--ws-surface); transform:rotate(45deg); }
+    :host-context([dir=rtl]) .story li + li::before { transform:rotate(-135deg); }
+    .story .lbl { display:inline-flex; align-items:center; gap:4px; color:var(--ws-ink-2); font-size:var(--ws-text-xs); }
+    .story a { display:grid; gap:2px; color:inherit; text-decoration:none; border-radius:var(--ws-r-sm, 4px); }
+    .story a:hover strong { color:var(--ws-brand); }
+    .story a:focus-visible { outline:2px solid var(--ws-focus, var(--ws-brand)); outline-offset:2px; }
+    .story strong { font-size:var(--ws-text-lg); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-variant-numeric:tabular-nums; }
+    .story strong.good { color:var(--ws-good); }
+    .story strong.bad { color:var(--ws-bad); }
+    .story small { color:var(--ws-ink-2); font-size:var(--ws-text-xs); }
+    .ship { padding:var(--ws-3) var(--ws-4); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); }
+    .ship summary { cursor:pointer; font-weight:600; font-size:var(--ws-text-sm); }
+    .ship .facts { margin-block-start:var(--ws-3); padding:0; border:0; }
+    .hint { margin:0; color:var(--ws-ink-3); font-size:var(--ws-text-sm); }
+    .sheet-form { display:grid; gap:var(--ws-3); }
+    .sheet-form label { display:grid; gap:4px; color:var(--ws-ink-2); font-size:var(--ws-text-sm); }
+    .sheet-form input, .sheet-form select { box-sizing:border-box; width:100%; min-height:var(--ws-control-h); padding:var(--ws-2); border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface); color:var(--ws-ink); font:inherit; }
+    .sheet-text { margin:0; line-height:1.5; }
+    .ws-btn.danger { margin-inline-end:auto; border-color:var(--ws-bad); color:var(--ws-bad); }
     .panel { display:grid; grid-template-columns:minmax(0, 1fr); gap:var(--ws-4); }
     .two { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:var(--ws-4); }
     .facts { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:var(--ws-3); margin:0; padding:var(--ws-4); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); }
     .facts dt { color:var(--ws-ink-2); font-size:var(--ws-text-sm); }
     .facts dd { margin:2px 0 0; font-variant-numeric:tabular-nums; }
-    @media (max-width: 1199px) { .record { grid-template-columns:minmax(0, 1fr); } .side { position:static; } .trace { grid-auto-flow:row; } .trace li + li { border-inline-start:0; border-block-start:1px solid var(--ws-line); } .trace li + li::before { display:none; } }
+    @media (max-width: 1199px) { .record { grid-template-columns:minmax(0, 1fr); } .side { position:static; } .story { grid-auto-flow:row; } .story li + li { border-inline-start:0; border-block-start:1px solid var(--ws-line); } .story li + li::before { display:none; } }
   `],
 })
 export class ContainerRecordComponent {
@@ -163,12 +243,24 @@ export class ContainerRecordComponent {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
   /** Route parameter (component input binding). */
   readonly id = input.required<string>();
   /** ?tab= from a smart button. */
   readonly tabParam = input<string | undefined>(undefined, { alias: 'tab' });
 
-  protected readonly icons = { Boxes, Coins, Layers3, Pencil, Percent, Plus, Receipt, Scale, Truck };
+  protected readonly icons = { Pencil, Plus };
+  protected readonly chargeTypes = CONTAINER_CHARGES;
+  protected readonly sheet = signal<'charge' | 'lot' | 'status' | null>(null);
+  protected readonly busy = signal(false);
+  protected readonly moveTarget = signal('');
+  protected readonly rawTypes = signal<RawType[]>([]);
+  protected chargeId: string | null = null;
+  protected chargeType: string = 'DUTY';
+  protected chargeAmount: number | null = null;
+  protected chargeNote = '';
+  protected lotRaw = '';
+  protected lotKg: number | null = null;
   protected readonly data = signal<ContainerOverview | null>(null);
   protected readonly failed = signal(false);
   private readonly reloads = signal(0);
@@ -180,7 +272,7 @@ export class ContainerRecordComponent {
     if (!d) return [];
     return [
       ...(d.cost ? [{ id: 'cost', label: this.i18n.t('ws.container.tab.cost'), count: d.cost.charges.length }] : []),
-      { id: 'sorting', label: this.i18n.t('ws.container.tab.sorting'), count: d.sorting.categories.length },
+      { id: 'sorting', label: this.i18n.t('ws.container.tab.sorting'), count: d.lots.length },
       { id: 'bales', label: this.i18n.t('ws.container.tab.bales'), count: d.bales.length },
       { id: 'sales', label: this.i18n.t('ws.container.tab.sales'), count: d.sales.length },
     ];
@@ -196,7 +288,41 @@ export class ContainerRecordComponent {
   protected readonly subtitle = computed(() => {
     const c = this.data()?.container;
     if (!c) return '';
-    return [this.date(c.createdAt), c.origin, c.vessel, c.billOfLading ? `B/L ${c.billOfLading}` : null].filter(Boolean).join(' · ');
+    return [this.date(c.createdAt), c.origin].filter(Boolean).join(' · ');
+  });
+  protected readonly profitTone = computed(() => (Number(this.data()?.totals.profit ?? 0) < 0 ? 'bad' : 'good'));
+  protected readonly closed = computed(() => this.data()?.container.status === 'CLOSED');
+  protected readonly canCharge = computed(() => !!this.data()?.cost && !this.closed() && this.can('container.update'));
+  /** Status steps the owner can move to from here (a button each on the bar). */
+  protected readonly moves = computed(() => {
+    const s = this.data()?.container.status;
+    if (!s || !this.can('container.update')) return [];
+    return (MOVES[s] ?? []).map((m) => STEPS.indexOf(m as (typeof STEPS)[number]));
+  });
+  /** Kg of the container not yet in a lot (a new lot fits in this). */
+  protected readonly roomKg = computed(() => {
+    const d = this.data();
+    return d ? Math.max(0, Number(d.container.netWeight) - Number(d.totals.kg)) : 0;
+  });
+  protected readonly shippingFacts = computed(() => {
+    const c = this.data()?.container;
+    if (!c) return [];
+    const sh = c.shipping;
+    const f: { label: string; value: string }[] = [
+      { label: 'receive.weighbridgeKg', value: c.kantaKg ? this.i18n.kg(c.kantaKg) : '' },
+      { label: 'ws.cf.reference', value: sh.referenceNumber ?? '' },
+      { label: 'ws.cf.containerType', value: sh.containerType ?? '' },
+      { label: 'ws.cf.bl', value: sh.billOfLading ?? '' },
+      { label: 'ws.cf.shippingLine', value: sh.shippingLine ?? '' },
+      { label: 'ws.cf.vessel', value: sh.vessel ?? '' },
+      { label: 'ws.cf.forwarder', value: sh.forwarder ?? '' },
+      { label: 'ws.cf.portLoading', value: sh.portOfLoading ?? '' },
+      { label: 'ws.cf.portDischarge', value: sh.portOfDischarge ?? '' },
+      { label: 'ws.cf.etd', value: sh.etd ? this.date(sh.etd) : '' },
+      { label: 'ws.cf.eta', value: sh.eta ? this.date(sh.eta) : '' },
+      { label: 'ws.customer.note', value: c.notes ?? '' },
+    ];
+    return f.filter((x) => x.value);
   });
   protected readonly gradedKg = computed(() => (this.data()?.grades ?? []).reduce((s, g) => s + Number(g.kg), 0));
   protected readonly purchaseText = computed(() => {
@@ -206,13 +332,14 @@ export class ContainerRecordComponent {
     return `${c.container.purchaseCurrency} ${this.i18n.num(c.cost.purchase)} × ${this.i18n.num(c.container.fxRate)} = ${this.i18n.money(c.cost.purchasePKR)}`;
   });
 
-  private readonly money = (key: string, label: string, total = false): WsColumn => ({ key, label: this.i18n.t(label), format: 'money', total });
+  /** Money columns show whole rupees (per-kg prices keep paisa). */
+  private readonly money = (key: string, label: string, total = false, info?: string): WsColumn => ({ key, label: this.i18n.t(label), format: 'money', total, round: true, ...(info ? { info: this.i18n.t(info) } : {}) });
   protected readonly chargeColumns = computed<WsColumn[]>(() => [
     { key: 'type', label: this.i18n.t('ws.col.type') },
-    { key: 'description', label: this.i18n.t('ws.container.description') },
-    this.money('amount', 'ws.sale.amount', true),
+    ...(this.chargeRows().some((c) => c['description']) ? [{ key: 'description', label: this.i18n.t('ws.customer.note') }] : []),
+    { key: 'amount', label: this.i18n.t('ws.sale.amount'), format: 'money', total: true },
   ]);
-  protected readonly chargeRows = computed<WsRow[]>(() => (this.data()?.cost?.charges ?? []).map((c) => ({ ...c, type: this.i18n.t(`receive.charge.${c.type}`), description: c.description === c.type ? null : c.description })));
+  protected readonly chargeRows = computed<WsRow[]>(() => (this.data()?.cost?.charges ?? []).map((c) => ({ ...c, chargeType: c.type, type: this.i18n.t(`receive.charge.${c.type}`), description: c.description === c.type ? null : c.description })));
   protected readonly categoryColumns = computed<WsColumn[]>(() => [
     { key: 'name', label: this.i18n.t('ws.container.category') },
     { key: 'kg', label: this.i18n.t('ws.containers.col.kg'), format: 'kg', total: true },
@@ -226,6 +353,7 @@ export class ContainerRecordComponent {
   protected readonly gradeRows = computed<WsRow[]>(() => (this.data()?.grades ?? []).map((g) => ({ id: g.name, ...g })));
   protected readonly lotColumns = computed<WsColumn[]>(() => [
     { key: 'code', label: this.i18n.t('ws.container.lot') },
+    { key: 'rawType', label: this.i18n.t('ws.lots.col.raw') },
     { key: 'status', label: this.i18n.t('ws.col.status') },
     { key: 'kg', label: this.i18n.t('ws.containers.col.kg'), format: 'kg', total: true },
     ...(this.data()?.cost ? [this.money('cost', 'ws.col.cost', true)] : []),
@@ -237,7 +365,7 @@ export class ContainerRecordComponent {
     { key: 'grade', label: this.i18n.t('ws.container.grade') },
     { key: 'kg', label: this.i18n.t('ws.containers.col.kg'), format: 'kg', total: true },
     { key: 'state', label: this.i18n.t('ws.col.status') },
-    ...(this.data()?.cost ? [this.money('costFromHere', 'ws.container.costFromHere', true)] : []),
+    ...(this.data()?.cost ? [this.money('costFromHere', 'ws.cr.baleCost', true, 'ws.cr.info.baleCost')] : []),
   ]);
   protected readonly baleRows = computed<WsRow[]>(() =>
     (this.data()?.bales ?? []).map((b) => ({ ...b, state: this.i18n.t(b.sold ? 'ws.container.sold' : 'ws.container.inStock') })),
@@ -246,8 +374,8 @@ export class ContainerRecordComponent {
     { key: 'number', label: this.i18n.t('ws.col.number') },
     { key: 'date', label: this.i18n.t('ws.col.date'), format: 'date' },
     { key: 'customer', label: this.i18n.t('ws.col.customer') },
-    this.money('revenue', 'ws.container.share', true),
-    ...(this.data()?.cost ? [this.money('profit', 'ws.col.profit', true)] : []),
+    this.money('revenue', 'ws.cr.fromHere', true, 'ws.cr.info.fromHere'),
+    ...(this.data()?.cost ? [this.money('profit', 'ws.col.profit', true, 'ws.cr.info.saleProfit')] : []),
   ]);
   protected readonly saleRows = computed<WsRow[]>(() => (this.data()?.sales ?? []) as unknown as WsRow[]);
 
@@ -297,5 +425,87 @@ export class ContainerRecordComponent {
 
   protected openSale(row: WsRow): void {
     void this.router.navigate(['/sell/records', row.id]);
+  }
+
+  protected openLotRecord(row: WsRow): void {
+    void this.router.navigate(['/sort/records', row.id]);
+  }
+
+  /** Whole rupees for totals on the page (per-kg prices keep paisa through i18n.money). */
+  protected rs(v: string | number | null | undefined): string {
+    return v === null || v === undefined || v === '' ? '—' : this.i18n.money(Math.round(Number(v)));
+  }
+
+  protected openCharge(row: WsRow | null): void {
+    if (row && !this.canCharge()) return;
+    this.chargeId = row ? String(row.id) : null;
+    this.chargeType = row ? String(row['chargeType']) : 'DUTY';
+    this.chargeAmount = row ? Number(row['amount']) : null;
+    this.chargeNote = row ? String(row['description'] ?? '') : '';
+    this.sheet.set('charge');
+  }
+
+  protected async saveCharge(): Promise<void> {
+    const id = this.data()?.container.id;
+    if (!id || this.chargeAmount === null || this.chargeAmount < 0) return;
+    const body = { chargeType: this.chargeType, amount: Number(this.chargeAmount), description: this.chargeNote.trim() };
+    await this.run(
+      this.chargeId
+        ? this.http.patch(`/api/procurement/containers/${id}/charges/${this.chargeId}`, body)
+        : this.http.post(`/api/procurement/containers/${id}/charges`, { ...body, description: body.description || undefined }),
+      'ws.cr.chargeSaved',
+    );
+  }
+
+  protected async removeCharge(): Promise<void> {
+    const id = this.data()?.container.id;
+    if (!id || !this.chargeId) return;
+    await this.run(this.http.delete(`/api/procurement/containers/${id}/charges/${this.chargeId}`), 'ws.cr.chargeRemoved');
+  }
+
+  protected openLot(): void {
+    if (!this.rawTypes().length) {
+      this.http.get<RawType[]>('/api/tenant/raw-categories').subscribe((l) => {
+        this.rawTypes.set(l ?? []);
+        this.lotRaw ||= (l ?? []).find((r) => r.rawType === 'BALE')?.id ?? l?.[0]?.id ?? '';
+      });
+    }
+    this.lotKg = this.roomKg() > 0 ? Math.round(this.roomKg() * 100) / 100 : null;
+    this.sheet.set('lot');
+  }
+
+  protected async saveLot(): Promise<void> {
+    const id = this.data()?.container.id;
+    if (!id || !this.lotKg || this.lotKg <= 0) return;
+    await this.run(
+      this.http.post('/api/procurement/rags', { containerId: id, ragBaleType: 'BALE', weightKg: Number(this.lotKg), ...(this.lotRaw ? { rawCategoryId: this.lotRaw } : {}) }),
+      'ws.cr.lotSaved',
+    );
+  }
+
+  protected askMove(i: number): void {
+    this.moveTarget.set(STEPS[i]);
+    this.sheet.set('status');
+  }
+
+  protected async move(): Promise<void> {
+    const id = this.data()?.container.id;
+    if (!id || !this.moveTarget()) return;
+    await this.run(this.http.patch(`/api/procurement/containers/${id}/status`, { status: this.moveTarget() }), 'ws.cr.moved');
+  }
+
+  /** Send one change, then close the panel, say so and reload the page's numbers. */
+  private async run(request: import('rxjs').Observable<unknown>, done: string): Promise<void> {
+    this.busy.set(true);
+    try {
+      await firstValueFrom(request);
+      this.sheet.set(null);
+      this.toast.show(this.i18n.t(done));
+      this.reload();
+    } catch (e: any) {
+      this.toast.error(e?.error?.message || this.i18n.t('common.couldNotSave'));
+    } finally {
+      this.busy.set(false);
+    }
   }
 }

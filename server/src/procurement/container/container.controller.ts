@@ -19,7 +19,7 @@ import { CreateContainerDto } from './dto/create-container.dto';
 import { UpdateContainerDto } from './dto/update-container.dto';
 import { UpdateContainerWeightsDto } from './dto/update-container-weights.dto';
 import { UpdateContainerStatusDto } from './dto/update-container-status.dto';
-import { CreateContainerChargeDto } from './dto/create-container-charge.dto';
+import { CreateContainerChargeDto, UpdateContainerChargeDto } from './dto/create-container-charge.dto';
 import { TenantGuard } from '../../common/guards/tenant.guard';
 import { PermissionGuard } from '../../common/guards/permission.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -141,6 +141,19 @@ export class ContainerController {
   ) {
     const tenantId = (req as any).tenantId || user.tenantId;
     return this.containerService.getCharges(tenantId, id);
+  }
+
+  @Patch(':id/charges/:chargeId')
+  @RequirePermissions('container.update')
+  async updateCharge(
+    @Param('id') id: string,
+    @Param('chargeId') chargeId: string,
+    @Body() dto: UpdateContainerChargeDto,
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+  ) {
+    const tenantId = (req as any).tenantId || user.tenantId;
+    return this.containerService.updateCharge(tenantId, id, chargeId, dto, user.userId);
   }
 
   @Delete(':id/charges/:chargeId')

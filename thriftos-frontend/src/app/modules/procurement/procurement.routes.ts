@@ -113,24 +113,9 @@ export const PROCUREMENT_ROUTES: Routes = [
         canActivate: [permissionGuard],
         data: { permissions: ['container.update'] },
       },
-      {
-        path: ':id/charges/create',
-        loadComponent: () =>
-          import('./containers/container-charge-create/container-charge-create').then(
-            (m) => m.ContainerChargeCreateComponent
-          ),
-        title: 'Add Container Charge - ThriftOS',
-        canActivate: [permissionGuard],
-        data: { permissions: ['container.update'] },
-      },
-      {
-        path: ':id/rags/create',
-        loadComponent: () =>
-          import('./rags/rag-create-page').then((m) => m.RagCreatePageComponent),
-        title: 'Add Rag - ThriftOS',
-        canActivate: [permissionGuard],
-        data: { permissions: ['rag.create'] },
-      },
+      // Charges and lots are added in a panel on the container's page now (v2 review); old links land there.
+      { path: ':id/charges/create', redirectTo: '/receive/records/containers/:id' },
+      { path: ':id/rags/create', redirectTo: '/receive/records/containers/:id' },
       {
         path: ':id',
         // Traceability record page: landed cost → lots → sorting → bales → sales (E3.1).

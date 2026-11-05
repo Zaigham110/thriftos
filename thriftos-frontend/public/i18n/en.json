@@ -713,6 +713,7 @@
    "BALE_MADE": "made the bale",
    "CONTAINER_CHARGE_ADDED": "added a charge",
    "CONTAINER_CHARGE_DELETED": "removed a charge",
+   "CONTAINER_CHARGE_UPDATED": "changed a charge",
    "CONTAINER_CREATED": "received the container",
    "CONTAINER_STATUS_CHANGED": "changed the container's status",
    "CONTAINER_UPDATED": "edited the container",
@@ -919,7 +920,7 @@
    "sold": "Sold",
    "tab": {
     "bales": "Bales",
-    "cost": "Landed cost",
+    "cost": "Total cost",
     "sales": "Sales",
     "sorting": "Lots and sorting"
    },
@@ -973,6 +974,33 @@
     "REJECTED": "Rejected"
    },
    "title": "Stock counts"
+  },
+  "cr": {
+   "baleCost": "Bale cost",
+   "chargeHint": "Tap a charge to change or remove it.",
+   "chargeRemoved": "Charge removed. The cost per kg is updated.",
+   "chargeSaved": "Charge saved. The cost per kg is updated.",
+   "closeText": "Close {no}? A closed container takes no more charges, lots or changes, so close it when all its bills are in.",
+   "editCharge": "Change charge",
+   "fromHere": "Sold from this container",
+   "info": {
+    "baleCost": "This bale's share of the container's total cost: its kg at the cost per kg of what it is made of.",
+    "bales": "Bales made from this container's sorted kg, and how many are sold.",
+    "fromHere": "The part of the sale that came from this container's bales and stock.",
+    "kg": "The invoice (net) weight of the container. Below it: how many lots it is in and their kg (the kanta weight, if smaller).",
+    "profit": "Sold so far minus what those goods cost (their share of the total cost). Below it: profit for each kg bought.",
+    "saleProfit": "Sold from this container minus what those goods cost."
+   },
+   "lotHint": "{kg} of this container is not in a lot yet.",
+   "lotSaved": "Lot added. It is ready to sort.",
+   "lotsKg": "{n} lot · {kg}",
+   "moveText": "{no} will show as {status}.",
+   "moveTitle": "Move to {status}",
+   "moveTo": "Move to",
+   "moved": "Status changed",
+   "perKgBought": "{amount} per kg bought",
+   "salesCount": "{n} sales",
+   "sortedLine": "A grade {a} · waste {waste}"
   },
   "create": "Create",
   "crumb": {

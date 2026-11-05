@@ -713,6 +713,7 @@
    "BALE_MADE": "ne gaanth banayi",
    "CONTAINER_CHARGE_ADDED": "ne kharcha daala",
    "CONTAINER_CHARGE_DELETED": "ne kharcha hataya",
+   "CONTAINER_CHARGE_UPDATED": "ne kharcha badla",
    "CONTAINER_CREATED": "ne container darj kiya",
    "CONTAINER_STATUS_CHANGED": "ne container ki haalat badli",
    "CONTAINER_UPDATED": "ne container badla",
@@ -973,6 +974,33 @@
     "REJECTED": "Na manzoor"
    },
    "title": "Stock ki ginti"
+  },
+  "cr": {
+   "baleCost": "Gaanth ki laagat",
+   "chargeHint": "Kharcha badalne ya hatane ke liye us par tap karein.",
+   "chargeRemoved": "Kharcha hata diya. Fi kg laagat badal gayi.",
+   "chargeSaved": "Kharcha save. Fi kg laagat badal gayi.",
+   "closeText": "{no} band karein? Band container mein mazeed kharche, lot ya tabdeeli nahi ho sakti, is liye saare bill aane ke baad band karein.",
+   "editCharge": "Kharcha badlein",
+   "fromHere": "Is container se bika",
+   "info": {
+    "baleCost": "Container ki kul laagat mein is gaanth ka hissa: is ke kg, us maal ki fi kg laagat par.",
+    "bales": "Is container ke chhante maal se bani gaanthein, aur kitni bik gayin.",
+    "fromHere": "Sale ka woh hissa jo is container ki gaanthon aur maal se aaya.",
+    "kg": "Container ka invoice (saaf) wazan. Neeche: kitne lot hain aur un ke kg (kante ka wazan, agar kam ho).",
+    "profit": "Ab tak ki sale minus bike maal ki laagat (kul laagat mein us ka hissa). Neeche: khareede har kg par munafa.",
+    "saleProfit": "Is container se bika minus us maal ki laagat."
+   },
+   "lotHint": "Is container ka {kg} abhi kisi lot mein nahi.",
+   "lotSaved": "Lot shamil ho gaya. Chhantai ke liye tayyar.",
+   "lotsKg": "{n} lot · {kg}",
+   "moveText": "{no} ab {status} dikhayega.",
+   "moveTitle": "{status} par le jayein",
+   "moveTo": "Is par le jayein:",
+   "moved": "Haalat badal gayi",
+   "perKgBought": "{amount} fi khareeda kg",
+   "salesCount": "{n} sale",
+   "sortedLine": "A grade {a} · waste {waste}"
   },
   "create": "Banayein",
   "crumb": {
