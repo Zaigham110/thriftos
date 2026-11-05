@@ -5,7 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
 import {
-  WsBarChartComponent,
+  WsAreaChartComponent,
   WsColumn,
   WsCommandBarComponent,
   WsDataGridComponent,
@@ -49,7 +49,7 @@ const change = (now: string | number | null, before: string | number | null): nu
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [RouterLink, TPipe, FirstWeekComponent, WsBarChartComponent, WsCommandBarComponent, WsDataGridComponent, WsDateRangeComponent, WsKpiCardComponent, WsPageHeaderComponent, WsStateComponent],
+  imports: [RouterLink, TPipe, FirstWeekComponent, WsAreaChartComponent, WsCommandBarComponent, WsDataGridComponent, WsDateRangeComponent, WsKpiCardComponent, WsPageHeaderComponent, WsStateComponent],
   template: `
     <div class="page">
       <ws-page-header [heading]="'ws.dash.title' | t" [subtitle]="subtitle()" />
@@ -78,7 +78,7 @@ const change = (now: string | number | null, before: string | number | null): nu
           }
         </section>
 
-        <ws-bar-chart [heading]="(d.sales.trend.by === 'day' ? 'ws.dash.trendDay' : 'ws.dash.trendMonth') | t" [categories]="trendLabels()" [series]="trendSeries()" format="money" />
+        <ws-area-chart [heading]="(d.sales.trend.by === 'day' ? 'ws.dash.trendDay' : 'ws.dash.trendMonth') | t" [categories]="trendLabels()" [series]="trendSeries()" format="money" />
 
         <div class="three">
           <section class="panel">

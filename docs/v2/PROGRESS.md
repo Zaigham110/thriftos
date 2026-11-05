@@ -93,6 +93,10 @@
     - The gaari screen has **"Sorted, ready to bale"**: per kind, the kg sorted and not baled yet, with **Make bales** (how many × kg per bale, and a grade for kg sorted without one). The bales go into stock with stickers and can be sold at once; the gaari stays in sorting. "Bales made" lists them; Today counts every bale made from the gaari.
     - **Stock → Make bale** also takes how many bales and, for ungraded kg, a grade (`POST /api/stock/bales` with `count`, `fromUngraded`, `ragId`; answers with `baleIds`).
     - Tests: the e2e case "the vendor's week" (grade optional, 5 graded + 12 ungraded bales from an open gaari, not more than it sorted, sold while sorting, other business refused), browser journey with Make bales. Server 293/293, browser 40 passed + 4 skipped, Karma 17/17, i18n 1232 keys.
+- 2026-11-05 — Product review, screen 1 (Home). The owner asked for a premium chart instead of bars.
+  - New `ws-area-chart` on Home ("Sales and gross profit by day"): smooth curves (monotone, never dip under zero between days) with a soft fill, the period total of each series in the legend, a hover guide line with dots and a dark tooltip, chart/table switch as two icons. Plum and gold brand colours (`--ws-chart-1/2`, light and dark).
+  - Both charts are now drawn at the card's real width instead of a fixed 640 px scaled up, so labels stay 11 px and lines stay thin; height follows width (200–320 px). Axis ticks sit on even steps from zero, so a small loss no longer prints "−500" over "0". Chart values on Home are whole rupees, as on the cards (the table keeps paisa).
+  - The bar chart (other reports) gets the same colours, scale and sizing, and bars rounded only at the value end. Karma 19/19 (area chart and small-loss axis tests), i18n 1232 keys, build without warnings.
 
 ## Decisions
 - Sorting (6.6): bales made while a lot is open are costed at the lot's cost per kg and re-costed at close; sold ones keep their sale cost (logged adjustment). Kat goes to stock at zero cost, so a kat sale is pure extra profit and bale costs are right whether or not kat sells.
