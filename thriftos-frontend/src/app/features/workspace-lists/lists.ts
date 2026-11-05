@@ -79,7 +79,7 @@ export const CONTAINERS_LIST: ListConfig = {
   ],
   quickFilters: [{ field: 'status', label: 'ws.col.status', values: CONTAINER_STATUSES, prefix: 'ws.cstatus.' }],
   rowLink: (id) => ['/receive/records/containers', id],
-  create: { label: 'ws.new.container', link: '/receive/container' },
+  create: { label: 'ws.new.container', link: '/receive/records/containers/new' },
   tabs: PURCHASING_TABS,
   board: {
     field: 'status',

@@ -20,6 +20,15 @@ export class ContainerService {
     private tenantSequenceService: TenantSequenceService,
   ) {}
 
+  /** The container's own date: a day from the form, not later than tomorrow (clock differences). */
+  private receivedDate(value?: string): Date | null {
+    if (!value) return null;
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) throw new BadRequestException('The date is not valid');
+    if (d.getTime() > Date.now() + 36 * 3600 * 1000) throw new BadRequestException('The date cannot be in the future');
+    return d;
+  }
+
   private toDate(value?: string) {
     return value ? new Date(value) : null;
   }
@@ -125,6 +134,12 @@ export class ContainerService {
       throw new BadRequestException(`Kanta weight is more than the invoice weight (${net.toFixed(2)} kg). The lot uses the smaller of the two.`);
     }
     const lotCode = dto.withLot ? await this.nextLotCode(tenantId) : null;
+    const receivedAt = this.receivedDate(dto.receivedAt);
+    if (dto.rawCategoryId) {
+      const raw = await this.prisma.rawCategory.findFirst({ where: { id: dto.rawCategoryId, tenantId }, select: { id: true } });
+      if (!raw) throw new BadRequestException('Raw type not found');
+    }
+    const arrived = dto.status === 'ARRIVED';
 
     const container = await this.prisma.$transaction(async (tx) => {
       const created = await tx.container.create({
@@ -138,8 +153,9 @@ export class ContainerService {
           containerType: dto.containerType,
           eta: this.toDate(dto.eta),
           etd: this.toDate(dto.etd),
-          arrivedAt: this.toDate(dto.arrivedAt),
+          arrivedAt: this.toDate(dto.arrivedAt) ?? (arrived ? receivedAt ?? new Date() : null),
           clearedAt: this.toDate(dto.clearedAt),
+          ...(receivedAt && { createdAt: receivedAt }),
           releasedAt: this.toDate(dto.releasedAt),
           grossWeight: gross,
           tareWeight: tare,
@@ -155,7 +171,7 @@ export class ContainerService {
           portOfDischarge: dto.portOfDischarge,
           forwarder: dto.forwarder,
           notes: dto.notes,
-          status: ContainerStatus.IN_TRANSIT,
+          status: arrived ? ContainerStatus.ARRIVED : ContainerStatus.IN_TRANSIT,
           ...(dto.weighbridgeKg !== undefined && {
             weighbridgeNetWeight: new Prisma.Decimal(dto.weighbridgeKg),
             weightVarianceKg: new Prisma.Decimal(dto.weighbridgeKg).sub(net),
@@ -176,7 +192,8 @@ export class ContainerService {
             sourceType: RagSourceType.CONTAINER,
             ragCode: lotCode,
             ragBaleType: RagBaleType.BALE,
-            rawCategoryId: await defaultRawCategoryId(tx, tenantId),
+            rawCategoryId: dto.rawCategoryId ?? (await defaultRawCategoryId(tx, tenantId)),
+            ...(receivedAt && { createdAt: receivedAt }),
             vendorId: created.vendorId,
             originCountry: created.originCountry,
             weightKg: lotWeight,
@@ -314,7 +331,20 @@ export class ContainerService {
       }
     }
 
-    const costChanged = dto.purchaseCost !== undefined || dto.purchaseCurrency !== undefined || dto.fxRate !== undefined;
+    const receivedAt = this.receivedDate(dto.receivedAt);
+    const newNet = dto.netWeightKg !== undefined && !new Prisma.Decimal(dto.netWeightKg).equals(container.netWeight) ? new Prisma.Decimal(dto.netWeightKg) : null;
+    const lots = newNet
+      ? await this.prisma.rag.findMany({ where: { tenantId, containerId: id }, select: { id: true, weightKg: true, sortSession: { select: { id: true } } } })
+      : [];
+    if (newNet && lots.some((l) => l.sortSession)) {
+      throw new ConflictException('Sorting has started on this container, so its weight can no longer change.');
+    }
+    if (dto.rawCategoryId) {
+      const raw = await this.prisma.rawCategory.findFirst({ where: { id: dto.rawCategoryId, tenantId }, select: { id: true } });
+      if (!raw) throw new BadRequestException('Raw type not found');
+    }
+    const arrivedNow = dto.status === ContainerStatus.ARRIVED && !container.arrivedAt && dto.arrivedAt === undefined;
+    const costChanged = dto.purchaseCost !== undefined || dto.purchaseCurrency !== undefined || dto.fxRate !== undefined || !!newNet;
     if (dto.vendorId) {
       const vendor = await this.prisma.vendor.findFirst({ where: { id: dto.vendorId, tenantId }, select: { id: true } });
       if (!vendor) throw new BadRequestException('Supplier not found');
@@ -351,8 +381,21 @@ export class ContainerService {
         ...(dto.purchaseCurrency !== undefined && { purchaseCurrency: dto.purchaseCurrency.toUpperCase() }),
         ...(dto.vendorId !== undefined && { vendorId: dto.vendorId }),
         ...(dto.originCountry !== undefined && { originCountry: dto.originCountry }),
+        ...(receivedAt && { createdAt: receivedAt }),
+        ...(arrivedNow && { arrivedAt: receivedAt ?? container.createdAt }),
+        // The invoice kg: no tare is kept (gross = net), as the receive form saves it.
+        ...(newNet && { grossWeight: newNet, tareWeight: null, netWeight: newNet }),
       },
       });
+      if (dto.rawCategoryId) {
+        await tx.rag.updateMany({ where: { tenantId, containerId: id, sortSession: { is: null } }, data: { rawCategoryId: dto.rawCategoryId } });
+      }
+      // One lot for the whole container (the receive form): it follows the new kg (the kanta kg if smaller).
+      if (newNet && lots.length === 1) {
+        const kanta = container.weighbridgeNetWeight;
+        const weightKg = kanta && kanta.greaterThan(0) && kanta.lessThan(newNet) ? kanta : newNet;
+        await tx.rag.update({ where: { id: lots[0].id }, data: { weightKg } });
+      }
       if (costChanged) await this.costing.recalculateContainerTx(tx, tenantId, id, userId);
       return tx.container.findUniqueOrThrow({
         where: { id },

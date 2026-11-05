@@ -7,7 +7,7 @@ import { AuthService } from '../../core/auth';
 import { API_BASE_URL } from '../../core/config/api.config';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
-import { COUNTRIES } from '../receive/supplier-picker.component';
+import { COMMON_COUNTRIES, COUNTRIES } from '../../shared/countries';
 
 type StepKey = 'supplier' | 'container' | 'sale' | 'team';
 interface FirstWeek { show: boolean; done: number; steps: Record<StepKey, boolean> }
@@ -55,8 +55,10 @@ const STEPS: { key: StepKey; link: string | null; help: string }[] = [
                   <form class="add" (ngSubmit)="saveSupplier()">
                     <label>{{ 'receive.newSupplierName' | t }}<input [(ngModel)]="name" name="fwSupplier" maxlength="120" autocomplete="off" /></label>
                     <div class="countries" role="group" [attr.aria-label]="'common.country' | t">
-                      @for (c of countries; track c) { <button type="button" [class.on]="country === c" [attr.aria-pressed]="country === c" (click)="country = c">{{ c }}</button> }
+                      @for (c of commonCountries; track c) { <button type="button" [class.on]="country === c" [attr.aria-pressed]="country === c" (click)="country = c">{{ c }}</button> }
                     </div>
+                    <label>{{ 'ws.cf.otherCountry' | t }}<input [(ngModel)]="country" name="fwCountry" list="fw-countries" maxlength="60" autocomplete="off" /></label>
+                    <datalist id="fw-countries">@for (c of countries; track c) { <option [value]="c"></option> }</datalist>
                     @if (error()) { <p class="err" role="alert">{{ error() }}</p> }
                     <div class="row">
                       <button type="button" (click)="adding.set(false)">{{ 'common.cancel' | t }}</button>
@@ -119,6 +121,7 @@ export class FirstWeekComponent implements OnInit {
   protected readonly icons = { Check, CircleHelp };
   protected readonly steps = STEPS;
   protected readonly countries = COUNTRIES;
+  protected readonly commonCountries = COMMON_COUNTRIES;
   protected readonly state = signal<FirstWeek | null>(null);
   protected readonly adding = signal(false);
   protected readonly saving = signal(false);

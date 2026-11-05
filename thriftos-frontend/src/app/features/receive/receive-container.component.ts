@@ -1,4 +1,5 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowLeft, CheckCircle2, LucideAngularModule } from 'lucide-angular';
@@ -8,9 +9,11 @@ import { OfflineQueueService } from '../../core/offline/offline-queue.service';
 import { Supplier } from '../../shared/floor/floor-data.service';
 import { NumberFieldComponent } from '../../shared/floor/number-field.component';
 import { ToastService } from '../../shared/floor/toast.service';
-import { COUNTRIES, SupplierPickerComponent, supplierRef } from './supplier-picker.component';
+import { COMMON_COUNTRIES, COUNTRIES } from '../../shared/countries';
+import { SupplierPickerComponent, supplierRef } from './supplier-picker.component';
 
-const CHARGES = ['DUTY', 'CLEARING', 'FREIGHT', 'TRANSPORT', 'LABOUR', 'MISC'] as const;
+const CHARGES = ['DUTY', 'TAX', 'CLEARING', 'PORT_HANDLING', 'FREIGHT', 'TRANSPORT', 'LABOUR', 'MISC'] as const;
+const today = () => new Date(Date.now() + 5 * 3_600_000).toISOString().slice(0, 10);
 type ChargeType = (typeof CHARGES)[number];
 
 interface SavedContainer {
@@ -22,7 +25,8 @@ interface SavedContainer {
 
 /**
  * Journey 1 — a container arrives (< 60 s). Required: supplier, invoice kg, purchase cost (+ rate if not PKR).
- * Charges are quick chips; kanta weight, container number and country are under "More details".
+ * Charges are quick chips; kanta weight, container number, country, date and raw type are under "More details".
+ * It is saved as arrived, on today's date unless another day is picked.
  * Saved in one request (container + charges + one lot ready to sort); offline it is kept on the phone.
  */
 @Component({
@@ -75,10 +79,25 @@ interface SavedContainer {
           <summary>{{ 'common.more' | t }}</summary>
           <tos-number label="receive.weighbridgeKg" unit="unit.kgShort" [optional]="true" [(value)]="kantaKg" />
           <label class="field">{{ 'receive.containerNo' | t }}<input [(ngModel)]="containerNumber" name="containerNumber" maxlength="50" autocomplete="off" class="ltr" /></label>
+          <span class="field">{{ 'receive.origin' | t }}</span>
           <div class="chips" role="group" [attr.aria-label]="'receive.origin' | t">
-            @for (c of countries; track c) { <button type="button" class="chip" [class.on]="origin() === c" (click)="origin.set(c)">{{ c }}</button> }
+            @for (c of commonCountries; track c) { <button type="button" class="chip" [class.on]="origin() === c" (click)="origin.set(c)">{{ c }}</button> }
+            <button type="button" class="chip" [class.on]="otherCountry()" (click)="otherCountry.set(true)">{{ 'ws.cf.otherCountry' | t }}</button>
           </div>
+          @if (otherCountry()) {
+            <label class="field">{{ 'common.country' | t }}<input [ngModel]="origin()" (ngModelChange)="origin.set($event)" name="originOther" list="floor-countries" maxlength="60" autocomplete="off" /></label>
+            <datalist id="floor-countries">@for (c of countries; track c) { <option [value]="c"></option> }</datalist>
+          }
+          <label class="field">{{ 'ws.cf.date' | t }}<input type="date" [(ngModel)]="date" name="date" [max]="maxDay" /></label>
+          @if (rawTypes().length > 1) {
+            <span class="field">{{ 'ws.cf.rawType' | t }}</span>
+            <div class="chips" role="group" [attr.aria-label]="'ws.cf.rawType' | t">
+              @for (r of rawTypes(); track r.id) { <button type="button" class="chip" [class.on]="rawType() === r.id" (click)="rawType.set(r.id)">{{ r.name }}</button> }
+            </div>
+          }
         </details>
+
+        @if (missing().length) { <p class="hint missing" role="status">{{ 'ws.cf.missing' | t }} {{ missingText() }}</p> }
 
         <footer class="action-bar">
           <div class="summary"><small>{{ 'common.costPerKg' | t }}</small><strong>{{ perKg() === null ? '—' : (perKg() | rs) }}</strong></div>
@@ -87,9 +106,10 @@ interface SavedContainer {
       }
     </section>
   `,
-  styles: [`.done { justify-items:center; text-align:center; } .done h2 { font-size:20px; }`],
+  styles: [`.done { justify-items:center; text-align:center; } .done h2 { font-size:20px; } .missing { margin:0; padding-block-end:96px; }`],
 })
-export class ReceiveContainerComponent {
+export class ReceiveContainerComponent implements OnInit {
+  private readonly http = inject(HttpClient);
   private readonly queue = inject(OfflineQueueService);
   private readonly toast = inject(ToastService);
   private readonly i18n = inject(I18nService);
@@ -97,6 +117,12 @@ export class ReceiveContainerComponent {
   protected readonly currencies = ['PKR', 'USD'];
   protected readonly chargeTypes = CHARGES;
   protected readonly countries = COUNTRIES;
+  protected readonly commonCountries = COMMON_COUNTRIES;
+  protected readonly maxDay = today();
+  protected readonly otherCountry = signal(false);
+  protected readonly rawTypes = signal<{ id: string; name: string }[]>([]);
+  protected readonly rawType = signal<string | null>(null);
+  protected date = today();
 
   protected readonly supplier = signal<Supplier | null>(null);
   protected readonly invoiceKg = signal<number | null>(null);
@@ -121,9 +147,28 @@ export class ReceiveContainerComponent {
     return Math.round(((cost * rate + charges) / kg) * 100) / 100;
   });
 
-  protected readonly canSave = computed(
-    () => !!this.supplier() && !!this.invoiceKg() && this.purchaseCost() !== null && (this.currency() === 'PKR' || !!this.fxRate()) && (this.kantaKg() ?? 0) <= (this.invoiceKg() ?? 0),
-  );
+  /** What stops saving, said in words above the Save button. */
+  protected readonly missing = computed(() => {
+    const m: string[] = [];
+    if (!this.supplier()) m.push('ws.cf.need.supplier');
+    if (!this.invoiceKg()) m.push('ws.cf.need.kg');
+    if (this.purchaseCost() === null) m.push('ws.cf.need.cost');
+    if (this.currency() !== 'PKR' && !this.fxRate()) m.push('ws.cf.need.rate');
+    if ((this.kantaKg() ?? 0) > (this.invoiceKg() ?? 0) && this.invoiceKg()) m.push('ws.cf.need.kanta');
+    return m;
+  });
+  protected readonly canSave = computed(() => this.missing().length === 0);
+  protected readonly missingText = computed(() => this.missing().map((k) => this.i18n.t(k)).join(' · '));
+
+  ngOnInit(): void {
+    this.http.get<{ id: string; name: string; rawType?: string }[]>('/api/tenant/raw-categories').subscribe({
+      next: (l) => {
+        this.rawTypes.set(l ?? []);
+        this.rawType.set((l ?? []).find((r) => r.rawType === 'BALE')?.id ?? l?.[0]?.id ?? null);
+      },
+      error: () => this.rawTypes.set([]),
+    });
+  }
 
   protected pickSupplier(s: Supplier): void {
     this.supplier.set(s);
@@ -159,6 +204,9 @@ export class ReceiveContainerComponent {
         .filter(([, amount]) => (amount ?? 0) > 0)
         .map(([chargeType, amount]) => ({ chargeType, amount })),
       withLot: true,
+      status: 'ARRIVED',
+      ...(this.date && this.date !== today() ? { receivedAt: this.date } : {}),
+      ...(this.rawType() ? { rawCategoryId: this.rawType() } : {}),
     };
     this.saving.set(true);
     const perKg = this.perKg() ?? 0;
@@ -190,5 +238,6 @@ export class ReceiveContainerComponent {
     this.fxRate.set(null);
     this.charges.set({});
     this.containerNumber = '';
+    this.date = today();
   }
 }

@@ -383,3 +383,39 @@ test('purchasing: containers and loose lots as two tabs, each with its own butto
   await page.goto('/receive/records/rags');
   await expect(page).toHaveURL(/\/receive\/records\/lots$/);
 });
+
+test('container form: receive on a laptop with date, status and charges, then edit the kg', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/receive/records/containers');
+  await page.getByRole('link', { name: 'Receive a container' }).click();
+  await expect(page).toHaveURL(/\/receive\/records\/containers\/new$/);
+  // Save says what is missing until the form is complete.
+  await expect(page.getByRole('status').filter({ hasText: 'Still needed' })).toContainText('the supplier');
+  await expect(page.getByRole('button', { name: 'Save container' })).toBeDisabled();
+
+  await page.getByLabel('Supplier').selectOption({ index: 1 });
+  await page.locator('input[name=date]').fill('2026-11-02');
+  await page.getByLabel('Invoice weight (kg)').fill('20000');
+  await page.getByLabel('Currency').selectOption('USD');
+  await page.getByLabel('Purchase cost (USD)').fill('10000');
+  await page.getByLabel('Rate (Rs per 1 USD)').fill('280');
+  await page.getByRole('button', { name: '+ Add charge' }).click();
+  await page.getByLabel('Charge type').selectOption('PORT_HANDLING');
+  await page.getByLabel('Amount').fill('200000');
+  const side = page.locator('aside.side');
+  await expect(side).toContainText('Rs 3,000,000');
+  await expect(side).toContainText('Rs 150');
+
+  await page.getByRole('button', { name: 'Save container' }).click();
+  await expect(page).toHaveURL(/\/receive\/records\/containers\/(?!new)[^/]+$/);
+  await expect(page.locator('ws-page-header p').first()).toContainText('2 November 2026');
+  await expect(page.locator('.pipeline, ws-status-pipeline').first()).toBeVisible();
+
+  await page.getByRole('link', { name: 'Edit' }).click();
+  await expect(page.getByLabel('Invoice weight (kg)')).toHaveValue('20000');
+  await page.getByLabel('Invoice weight (kg)').fill('25000');
+  await expect(page.locator('aside.side')).toContainText('Rs 120');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page).toHaveURL(/\/receive\/records\/containers\/(?!new)[^/]+$/);
+  await expect(page.locator('main')).toContainText(/Rs 120\W*per kg/);
+});

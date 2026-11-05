@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsBoolean, IsEnum, IsString, IsOptional, IsNumber, IsDateString, Min, MaxLength, Length, IsPositive, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsEnum, IsIn, IsString, IsOptional, IsNumber, IsDateString, Min, MaxLength, Length, IsPositive, ValidateNested } from 'class-validator';
 import { ChargeType } from '@prisma/client';
 
 /** A charge saved with the container (Journey 1: duty, clearing, freight... in PKR). */
@@ -154,4 +154,19 @@ export class CreateContainerDto {
   @IsBoolean()
   @IsOptional()
   withLot?: boolean;
+
+  /** Arrived (the usual case when receiving) or still on the way. Without it a container starts on the way. */
+  @IsIn(['IN_TRANSIT', 'ARRIVED'])
+  @IsOptional()
+  status?: 'IN_TRANSIT' | 'ARRIVED';
+
+  /** The container's date (arrived, or bought if still on the way): lists and reports use it. Default: now. */
+  @IsDateString()
+  @IsOptional()
+  receivedAt?: string;
+
+  /** What is inside (raw type) for the lot made with `withLot`. Default: the business's default raw type. */
+  @IsString()
+  @IsOptional()
+  rawCategoryId?: string;
 }

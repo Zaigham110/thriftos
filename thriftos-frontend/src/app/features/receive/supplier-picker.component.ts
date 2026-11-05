@@ -6,8 +6,8 @@ import { OfflineQueueService } from '../../core/offline/offline-queue.service';
 import { FloorDataService, Supplier, countUse, usageOrder } from '../../shared/floor/floor-data.service';
 import { Tile, TilesComponent } from '../../shared/floor/tiles.component';
 import { ToastService } from '../../shared/floor/toast.service';
+import { COMMON_COUNTRIES, COUNTRIES } from '../../shared/countries';
 
-export const COUNTRIES = ['USA', 'UK', 'Korea', 'Canada', 'Germany', 'Japan', 'Australia', 'Pakistan'];
 
 /** Supplier tiles (most used first) and "+ new" with name and country only. A new supplier made offline gets a `local:` id. */
 @Component({
@@ -18,8 +18,13 @@ export const COUNTRIES = ['USA', 'UK', 'Korea', 'Canada', 'Germany', 'Japan', 'A
     @if (adding()) {
       <label class="field">{{ 'receive.newSupplierName' | t }}<input [(ngModel)]="name" name="supplierName" maxlength="120" autocomplete="off" /></label>
       <div class="chips" role="group" [attr.aria-label]="'common.country' | t">
-        @for (c of countries; track c) { <button type="button" class="chip" [class.on]="country === c" (click)="country = c">{{ c }}</button> }
+        @for (c of commonCountries; track c) { <button type="button" class="chip" [class.on]="country === c && !other" (click)="country = c; other = false">{{ c }}</button> }
+        <button type="button" class="chip" [class.on]="other" (click)="other = true; country = ''">{{ 'ws.cf.otherCountry' | t }}</button>
       </div>
+      @if (other) {
+        <label class="field">{{ 'common.country' | t }}<input [(ngModel)]="country" name="supplierCountry" list="supplier-countries" maxlength="60" autocomplete="off" /></label>
+        <datalist id="supplier-countries">@for (c of countries; track c) { <option [value]="c"></option> }</datalist>
+      }
       <div class="row2">
         <button type="button" class="btn" (click)="adding.set(false)">{{ 'common.cancel' | t }}</button>
         <button type="button" class="btn primary" [disabled]="!name.trim() || saving()" (click)="add()">{{ 'common.save' | t }}</button>
@@ -36,6 +41,8 @@ export class SupplierPickerComponent implements OnInit {
   private readonly i18n = inject(I18nService);
   readonly picked = output<Supplier>();
   protected readonly countries = COUNTRIES;
+  protected readonly commonCountries = COMMON_COUNTRIES;
+  protected other = false;
   protected readonly suppliers = signal<Supplier[]>([]);
   protected readonly tiles = signal<Tile[]>([]);
   protected readonly selectedId = signal<string | null>(null);
@@ -63,10 +70,11 @@ export class SupplierPickerComponent implements OnInit {
 
   protected async add(): Promise<void> {
     this.saving.set(true);
-    const body = { name: this.name.trim(), originCountry: this.country, country: this.country };
+    const country = this.country.trim();
+    const body = { name: this.name.trim(), ...(country ? { originCountry: country, country } : {}) };
     try {
       const r = await this.queue.send<Supplier>({ kind: 'receive', label: body.name, url: '/api/procurement/vendors', body });
-      const s: Supplier = r.saved ? r.response : { id: `local:${r.id}`, name: body.name, originCountry: body.originCountry };
+      const s: Supplier = r.saved ? r.response : { id: `local:${r.id}`, name: body.name, originCountry: country || null };
       this.setList([s, ...this.suppliers()]);
       this.adding.set(false);
       this.choose({ id: s.id, label: s.name });

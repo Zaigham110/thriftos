@@ -88,7 +88,7 @@ export const WS_SETTINGS: WsNavItem = { label: 'ws.nav.settings', path: '/settin
 /** Quick create (top bar "+" and the command palette). */
 export const WS_CREATE: WsNavItem[] = [
   { label: 'ws.new.sale', path: '/sell/records/new', icon: ShoppingCart, module: 'SELL', keywords: 'new sale becho' },
-  { label: 'ws.new.container', path: '/receive/container', icon: Truck, module: 'RECEIVE', keywords: 'new container' },
+  { label: 'ws.new.container', path: '/receive/records/containers/new', icon: Truck, module: 'RECEIVE', keywords: 'new container' },
   { label: 'ws.new.lot', path: '/receive/lot', icon: Boxes, module: 'RECEIVE', keywords: 'loose lot' },
   { label: 'ws.new.ready', path: '/receive/ready', icon: PackagePlus, module: 'RECEIVE', keywords: 'ready stock' },
   { label: 'ws.new.bale', path: '/stock/bale', icon: Boxes, module: 'STOCK', keywords: 'make bale' },

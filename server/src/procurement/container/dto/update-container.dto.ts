@@ -110,4 +110,20 @@ export class UpdateContainerDto {
   @Length(3, 3)
   @IsOptional()
   purchaseCurrency?: string;
+
+  /** Invoice (net) kg. Changes only while none of its lots has started sorting. */
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(1)
+  @IsOptional()
+  netWeightKg?: number;
+
+  /** The container's date (arrived, or bought if still on the way). */
+  @IsDateString()
+  @IsOptional()
+  receivedAt?: string;
+
+  /** What is inside: changes the raw type of its lots that have not started sorting. */
+  @IsString()
+  @IsOptional()
+  rawCategoryId?: string;
 }

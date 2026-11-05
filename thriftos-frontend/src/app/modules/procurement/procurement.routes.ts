@@ -98,11 +98,18 @@ export const PROCUREMENT_ROUTES: Routes = [
         canActivate: [permissionGuard],
         data: { permissions: ['container.read'], list: CONTAINERS_LIST },
       },
+      // One simple form to receive a container on a laptop and to edit it (v2 review); the phone keeps /receive/container.
+      {
+        path: 'new',
+        loadComponent: () => import('../../features/workspace-lists/container-form.component').then((m) => m.ContainerFormComponent),
+        title: 'Receive a container - ThriftOS',
+        canActivate: [permissionGuard],
+        data: { permissions: ['container.create'] },
+      },
       {
         path: ':id/edit',
-        loadComponent: () =>
-          import('./containers/container-edit/container-edit').then((m) => m.ContainerEditComponent),
-        title: 'Edit Container - ThriftOS',
+        loadComponent: () => import('../../features/workspace-lists/container-form.component').then((m) => m.ContainerFormComponent),
+        title: 'Edit container - ThriftOS',
         canActivate: [permissionGuard],
         data: { permissions: ['container.update'] },
       },
