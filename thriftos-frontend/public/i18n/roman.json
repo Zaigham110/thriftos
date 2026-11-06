@@ -693,8 +693,8 @@
      "name": "Users"
     },
     "vendors": {
-     "hint": "Jin se khareedte aur jinhein dete hain",
-     "name": "Supplier aur vendor"
+     "hint": "Jin se aap khareedte hain: daalein, badlein aur dekhein kis ne kya becha",
+     "name": "Supplier"
     },
     "waste": {
      "hint": "Katran aur doosra waste, dobara bechne ki qeemat ke saath",
@@ -729,7 +729,10 @@
    "RAG_UPDATED": "ne lot badla",
    "SALE_CREATED": "ne sale ki",
    "SALE_FULFILLED": "ne maal de diya",
-   "SORT_SESSION_CLOSED": "ne chhantai band ki"
+   "SORT_SESSION_CLOSED": "ne chhantai band ki",
+   "VENDOR_CREATED": "ne supplier daala",
+   "VENDOR_DELETED": "ne supplier hataya",
+   "VENDOR_UPDATED": "ne supplier badla"
   },
   "board": {
    "empty": "Yahan kuch nahi",
@@ -1534,6 +1537,25 @@
    "start": "Chhantai shuru karein",
    "time": "Kitna waqt laga",
    "waste": "Waste"
+  },
+  "sp": {
+   "active": "Ab bhi is supplier se kharid (maal aane par dikhayein)",
+   "allSuppliers": "Sab supplier",
+   "bought": "Container {c} · khule lot {l}",
+   "formHint": "Aap kis se khareedte hain aur un se raabta kaise karein. Sirf naam zaroori hai.",
+   "inactive": "Ab in se kharid nahi",
+   "info": {
+    "cost": "Is supplier ke maal ki kul adaigi: container (qeemat aur kharche) aur khule lot.",
+    "kg": "Is supplier se khareede kg: containers ke invoice kg aur khule lot ke kg.",
+    "profit": "Is supplier ke containers ki ab tak ki sale minus us maal ki laagat. Neeche: khareede har kg par munafa.",
+    "profitPerKg": "Ab tak ka munafa taqseem is supplier ke containers ke khareede kg. Suppliers ka muqabla karne ke liye.",
+    "sold": "Is supplier ke containers se nikle maal ki ab tak ki sale.",
+    "sorted": "Is supplier ke containers se chhante kg mein se bikne wali categories ka hissa."
+   },
+   "noLots": "Is supplier se abhi koi khula lot nahi",
+   "saved": "Supplier save ho gaya",
+   "scorecard": "Supplier report",
+   "story": "Kharid se munafe tak"
   },
   "state": {
    "empty": "Abhi yahan kuch nahi",

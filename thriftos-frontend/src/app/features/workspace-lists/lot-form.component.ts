@@ -3,7 +3,7 @@ import { Component, HostListener, computed, inject, input, OnInit, signal } from
 import { NavService } from '../../core/nav/nav.service';
 import { HasUnsavedChanges, warnBeforeUnload } from '../../core/nav/unsaved-changes.guard';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
@@ -151,6 +151,7 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
   protected readonly i18n = inject(I18nService);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(ToastService);
   /** Absent on "Buy a loose lot"; the lot's id on its edit page. */
   readonly id = input<string | undefined>();
@@ -189,7 +190,14 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
   });
 
   ngOnInit(): void {
-    this.http.get<Option[]>('/api/procurement/vendors').subscribe({ next: (l) => this.suppliers.set(l ?? []) });
+    // "Buy a loose lot" from a supplier's page arrives with ?supplier= already chosen.
+    const from = this.route.snapshot.queryParamMap.get('supplier');
+    this.http.get<Option[]>('/api/procurement/vendors').subscribe({
+      next: (l) => {
+        this.suppliers.set(l ?? []);
+        if (from && !this.id() && (l ?? []).some((s) => s.id === from)) this.vendorId = from;
+      },
+    });
     this.http.get<Option[]>('/api/tenant/raw-categories').subscribe({
       next: (l) => {
         this.rawTypes.set(l ?? []);

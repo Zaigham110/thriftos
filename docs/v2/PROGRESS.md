@@ -112,6 +112,14 @@
   - Tests: server e2e `purchasing-review` (gaari list only loose lots, price per kg and sorted % while sorting, search, other business sees none; container cleared when sorting starts, late charge still accepted); the purchasing e2e now expects Cleared after sorting. Browser: list tests use the View panel; new "purchasing" test (tabs, buttons, column note, remembered tab, old address). Server 295/295, Karma 19/19, browser 41 passed + 4 skipped, i18n 1265 keys.
   - Decided by the owner: amounts keep international grouping (2,309,688), not lakh grouping.
   - Breadcrumbs no longer show the internal "Records" step: Purchasing › Containers, Sales, Sorting (was Purchasing › Records › Containers). Unit test added.
+- **Review: Suppliers (Purchasing).** All eight findings fixed; breadcrumbs also line up with the page heading (`9f1c3ac`).
+  - New supplier and Edit live in Suppliers (`supplier-form.component.ts`, `/receive/records/suppliers/new` and `/:id/edit`): name, country (any), city, WhatsApp number, contact person, note, and "still buying from them". Uses `/api/admin/vendors` (vendor.create / vendor.update, per business). The old English-only "Vendor & Trade Partner Management" pages are removed; Settings › Advanced and their old links open Suppliers.
+  - One word, "supplier": Settings entry renamed, activity says "added / changed / removed the supplier" in all three languages.
+  - Supplier page: containers and loose lots as two tabs (`?tab=`), one row (Kg bought → Total cost → Sorted % → Sold so far → Profit so far, with notes), whole rupees, per-kg prices with paisa. Kg bought = containers' invoice kg + loose lots' kg, the same on the list, the page and the tables (was 42,945.8 vs 43,000).
+  - Subtitle shows country, city, WhatsApp, contact person (no "NET_30"). Buttons: Edit, Receive a container, Buy a loose lot (the supplier already chosen via `?supplier=`).
+  - List: New supplier button, a Loose lots column, notes on the harder columns, profit per kg with paisa, and a "Supplier scorecard" button (the scorecard, with periods, links back to All suppliers).
+  - Breadcrumbs follow the menu: "Suppliers › London Clothing Bank"; "Reports › Supplier scorecard".
+  - Tests: `supplier-review.e2e-spec.ts` (loose lots, kg on list and page, edit, other business refused), browser test "suppliers", container test updated. Server 301, Karma 21, browser 46 passed + 4 skipped.
 - **Review: navigation, before Suppliers (owner request).** Breadcrumbs, routes, Back and page state, app-wide.
   - Lists keep their state in the address (`?v=` with only what differs from the default: search, filters, sort, page, layout, group, columns, saved view), written with replaceUrl. Back from a record, a reload or a shared link opens the list exactly as it was.
   - Record tabs go into the address (`?tab=`): Back from a bale or sale opens the same tab.

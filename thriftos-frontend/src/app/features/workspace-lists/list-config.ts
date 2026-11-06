@@ -65,6 +65,8 @@ export interface ListConfig {
   defaultFilters?: Array<{ field: string; op: 'eq' | 'ne' | 'isnull' | 'notnull'; value?: string }>;
   /** Primary action in the header. */
   create?: { label: string; link: string };
+  /** A related page shown as a plain button before the primary action (Suppliers → Supplier scorecard). */
+  related?: { label: string; link: string };
   /** Sibling lists shown as tabs over the title (Purchasing: containers, gaari / lots). */
   tabs?: Array<{ label: string; link: string }>;
   board?: BoardConfig;

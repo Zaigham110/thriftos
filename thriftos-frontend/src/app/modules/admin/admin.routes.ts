@@ -11,7 +11,7 @@
  * /app/admin/raw-categories    - Raw category management (procurement input)
  * /app/admin/grades            - Grade management
  * /app/admin/warehouses        - Warehouse management
- * /app/admin/vendors           - Vendor management
+ * /app/admin/vendors           - goes to Suppliers (/receive/records/suppliers)
  * /app/admin/config            - Configuration settings
  */
 
@@ -214,36 +214,10 @@ export const ADMIN_ROUTES: Routes = [
     canActivate: [permissionGuard],
     data: { permissions: ['warehouse.update'] },
   },
-  {
-    path: 'vendors',
-    loadComponent: () =>
-      import('./vendors/vendor-management').then(
-        (m) => m.VendorManagementComponent
-      ),
-    title: 'Vendor Management - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['vendor.read'] },
-  },
-  {
-    path: 'vendors/new',
-    loadComponent: () =>
-      import('./vendors/vendor-form.component').then(
-        (m) => m.VendorFormComponent
-      ),
-    title: 'New Vendor - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['vendor.create'] },
-  },
-  {
-    path: 'vendors/:id/edit',
-    loadComponent: () =>
-      import('./vendors/vendor-form.component').then(
-        (m) => m.VendorFormComponent
-      ),
-    title: 'Edit Vendor - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['vendor.update'] },
-  },
+  // Suppliers are added and changed in Suppliers (v2 review); old Settings links land there.
+  { path: 'vendors', pathMatch: 'full', redirectTo: '/receive/records/suppliers' },
+  { path: 'vendors/new', redirectTo: '/receive/records/suppliers/new' },
+  { path: 'vendors/:id/edit', redirectTo: '/receive/records/suppliers/:id/edit' },
   {
     path: 'waste-categories',
     loadComponent: () =>

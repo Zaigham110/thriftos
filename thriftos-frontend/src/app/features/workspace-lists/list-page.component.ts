@@ -70,6 +70,7 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
         </nav>
       }
       <ws-page-header [crumbs]="!c.tabs?.length" [heading]="c.title | t" [subtitle]="result() ? (countKey() | t: { n: i18n.num(result()!.total) }) : ''">
+        @if (c.related; as rel) { <a actions class="ws-btn" [routerLink]="rel.link">{{ rel.label | t }}</a> }
         @if (c.create; as create) { <a actions class="ws-btn primary" [routerLink]="create.link"><lucide-icon [img]="icons.Plus" [size]="16" aria-hidden="true" />{{ create.label | t }}</a> }
       </ws-page-header>
 

@@ -28,6 +28,7 @@ export const SUPPLIER_LABELS: Record<string, { en: string; ur: string }> = {
   phone: { en: 'Phone', ur: 'فون' },
   type: { en: 'Type', ur: 'قسم' },
   containers: { en: 'Containers', ur: 'کنٹینر' },
+  lots: { en: 'Loose lots', ur: 'کھلے لاٹ' },
   kg: { en: 'Kg bought', ur: 'خریدا کلو' },
   profit: { en: 'Profit so far (Rs)', ur: 'اب تک منافع (روپے)' },
   profitPerKg: { en: 'Profit per kg (Rs)', ur: 'فی کلو منافع (روپے)' },
@@ -92,6 +93,7 @@ export const SUPPLIERS_LIST: ListResource = {
     { key: 'phone', type: 'string', path: ['contactPhone'], filterable: true, searchable: true },
     { key: 'type', type: 'enum', path: ['vendorType'], enumValues: Object.values(VendorType), filterable: true, groupable: true },
     { key: 'containers', type: 'number', path: ['_computed'], computed: true },
+    { key: 'lots', type: 'number', path: ['_computed'], computed: true },
     { key: 'kg', type: 'number', path: ['_computed'], computed: true },
     { key: 'profit', type: 'number', path: ['_computed'], computed: true, permission: 'cost.view' },
     { key: 'profitPerKg', type: 'number', path: ['_computed'], computed: true, permission: 'cost.view' },
@@ -107,12 +109,17 @@ export const SUPPLIERS_LIST: ListResource = {
   },
   enrich: async (prisma, tenantId, rows) => {
     const db = prisma as PrismaClient;
-    const containers = await db.container.findMany({ where: { tenantId, vendorId: { in: rows.map((r) => r.id) } }, select: { id: true, vendorId: true } });
+    const ids = rows.map((r) => r.id);
+    const containers = await db.container.findMany({ where: { tenantId, vendorId: { in: ids } }, select: { id: true, vendorId: true, netWeight: true } });
+    // Loose lots are bought from suppliers too (v2 review): kg bought = containers' invoice kg + loose lots' kg.
+    const lots = await db.rag.groupBy({ by: ['vendorId'], where: { tenantId, vendorId: { in: ids }, sourceType: 'LOOSE_BALE' }, _sum: { weightKg: true }, _count: { _all: true } });
     const econ = await containerEconomics(db, tenantId, containers.map((c) => c.id));
     return rows.map((r) => {
-      const mine = containers.filter((c) => c.vendorId === r.id).map((c) => econ.get(c.id)!);
-      const t = combine(mine);
-      return { ...r, containers: mine.length, kg: t.kg, profit: t.profit, profitPerKg: t.profitPerKg, yield: t.yieldPercent, topGrade: t.topGradePercent } as Row;
+      const own = containers.filter((c) => c.vendorId === r.id);
+      const t = combine(own.map((c) => econ.get(c.id)!));
+      const l = lots.find((x) => x.vendorId === r.id);
+      const kg = own.reduce((s, c) => s.add(c.netWeight), new Prisma.Decimal(0)).add(l?._sum.weightKg ?? 0);
+      return { ...r, containers: own.length, lots: l?._count._all ?? 0, kg, profit: t.profit, profitPerKg: t.profitPerKg, yield: t.yieldPercent, topGrade: t.topGradePercent } as Row;
     });
   },
 };

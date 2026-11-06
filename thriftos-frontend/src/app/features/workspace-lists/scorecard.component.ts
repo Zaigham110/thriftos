@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -34,10 +35,11 @@ export interface Scorecard { by: 'supplier' | 'origin'; totals: { containers: nu
 @Component({
   selector: 'app-scorecard',
   standalone: true,
-  imports: [FormsModule, TPipe, WsBarChartComponent, WsCommandBarComponent, WsDataGridComponent, WsDateRangeComponent, WsKpiCardComponent, WsPageHeaderComponent, WsReportActionsComponent, WsStateComponent],
+  imports: [FormsModule, RouterLink, TPipe, WsBarChartComponent, WsCommandBarComponent, WsDataGridComponent, WsDateRangeComponent, WsKpiCardComponent, WsPageHeaderComponent, WsReportActionsComponent, WsStateComponent],
   template: `
     <div class="page">
       <ws-page-header [heading]="'ws.score.title' | t" [subtitle]="'ws.score.subtitle' | t">
+        <a actions class="ws-btn" routerLink="/receive/records/suppliers">{{ 'ws.sp.allSuppliers' | t }}</a>
         <ws-report-actions actions [columns]="columns()" [rows]="rows()" [filename]="'thriftos-scorecard-' + by()" />
       </ws-page-header>
       <ws-command-bar>

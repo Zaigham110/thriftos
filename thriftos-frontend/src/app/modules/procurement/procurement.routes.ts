@@ -161,6 +161,9 @@ export const PROCUREMENT_ROUTES: Routes = [
     data: { permissions: ['vendor.read'] },
     children: [
       { path: '', loadComponent: () => import('../../features/workspace-lists/list-page.component').then((m) => m.ListPageComponent), title: 'Suppliers - ThriftOS', data: { list: SUPPLIERS_LIST } },
+      // Add and change a supplier here (v2 review), not in Settings › Advanced.
+      { path: 'new', loadComponent: () => import('../../features/workspace-lists/supplier-form.component').then((m) => m.SupplierFormComponent), canActivate: [permissionGuard], canDeactivate: [unsavedChangesGuard], data: { permissions: ['vendor.create'] }, title: 'ThriftOS' },
+      { path: ':id/edit', loadComponent: () => import('../../features/workspace-lists/supplier-form.component').then((m) => m.SupplierFormComponent), canActivate: [permissionGuard], canDeactivate: [unsavedChangesGuard], data: { permissions: ['vendor.update'] }, title: 'ThriftOS' },
       { path: ':id', loadComponent: () => import('../../features/workspace-lists/supplier-record.component').then((m) => m.SupplierRecordComponent), title: 'Supplier - ThriftOS' },
     ],
   },

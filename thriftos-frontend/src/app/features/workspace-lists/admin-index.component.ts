@@ -32,7 +32,7 @@ const GROUPS: Group[] = [
   {
     key: 'partners',
     areas: [
-      { key: 'vendors', path: 'vendors', icon: Factory, permission: 'vendor.read' },
+      { key: 'vendors', path: '/receive/records/suppliers', icon: Factory, permission: 'vendor.read' },
       { key: 'godowns', path: 'warehouses', icon: Warehouse, permission: 'warehouse.read' },
       { key: 'prices', path: '/sell/prices', icon: Tags, permission: 'price.manage' },
     ],

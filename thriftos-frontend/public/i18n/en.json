@@ -693,8 +693,8 @@
      "name": "Users"
     },
     "vendors": {
-     "hint": "Who you buy from and pay",
-     "name": "Suppliers and vendors"
+     "hint": "Who you buy from: add, change and see what each sold you",
+     "name": "Suppliers"
     },
     "waste": {
      "hint": "Katran and other waste, with resale value",
@@ -729,7 +729,10 @@
    "RAG_UPDATED": "edited the lot",
    "SALE_CREATED": "made the sale",
    "SALE_FULFILLED": "handed over the goods",
-   "SORT_SESSION_CLOSED": "closed the sorting"
+   "SORT_SESSION_CLOSED": "closed the sorting",
+   "VENDOR_CREATED": "added the supplier",
+   "VENDOR_DELETED": "removed the supplier",
+   "VENDOR_UPDATED": "changed the supplier"
   },
   "board": {
    "empty": "Nothing here",
@@ -1534,6 +1537,25 @@
    "start": "Start sorting",
    "time": "Time taken",
    "waste": "Waste"
+  },
+  "sp": {
+   "active": "Still buying from this supplier (shown when receiving)",
+   "allSuppliers": "All suppliers",
+   "bought": "Containers {c} · loose lots {l}",
+   "formHint": "Who you buy from and how to reach them. Only the name is needed.",
+   "inactive": "No longer buying from them",
+   "info": {
+    "cost": "Everything you paid for what came from this supplier: containers (price and charges) and loose lots.",
+    "kg": "Kg bought from this supplier: the containers' invoice kg plus the loose lots' kg.",
+    "profit": "Sold so far minus what those goods cost, for this supplier's containers. Below it: profit for each kg bought.",
+    "profitPerKg": "Profit so far divided by the kg bought in this supplier's containers. Use it to compare suppliers.",
+    "sold": "Sales so far of everything that came out of this supplier's containers.",
+    "sorted": "Of the kg sorted from this supplier's containers, the part that came out as sellable categories."
+   },
+   "noLots": "No loose lots from this supplier yet",
+   "saved": "Supplier saved",
+   "scorecard": "Supplier scorecard",
+   "story": "From buying to profit"
   },
   "state": {
    "empty": "Nothing here yet",

@@ -179,7 +179,8 @@ test('containers: list, board move, traceability record; supplier scorecard', as
   await page.getByPlaceholder('Search supplier, country or phone').fill(`Atlantic Rags ${tag}`);
   await page.locator('ws-data-grid tbody tr').filter({ hasText: `Atlantic Rags ${tag}` }).click();
   await expect(page.getByRole('heading', { name: `Atlantic Rags ${tag}` })).toBeVisible();
-  await expect(page.locator('ws-smart-button').filter({ hasText: 'Containers' })).toContainText('1');
+  await expect(page.getByRole('list', { name: 'From buying to profit' })).toContainText('Containers 1');
+  await expect(page.getByRole('tab', { name: /Containers/ })).toContainText('1');
   await expect(page.locator('ws-data-grid tbody tr')).toContainText(`TGHU-${tag}`);
 });
 
@@ -514,4 +515,29 @@ test('navigation: a list keeps its search through Back, records are named in the
   // An address that does not exist says so.
   await page.goto('/receive/records/no-such-page');
   await expect(page.getByText('This page does not exist')).toBeVisible();
+});
+
+test('suppliers: add one, change its phone, buy from it with the supplier already chosen', async ({ page }) => {
+  const tag = Date.now().toString().slice(-6);
+  await signIn(page);
+  await page.goto('/receive/records/suppliers');
+  await expect(page.locator('main ws-page-header').getByRole('link', { name: 'Supplier scorecard' })).toHaveAttribute('href', '/receive/scorecard');
+  await page.getByRole('link', { name: 'New supplier' }).click();
+  await expect(page).toHaveURL(/\/receive\/records\/suppliers\/new$/);
+  await page.getByLabel('Supplier name').fill(`Italia Stock ${tag}`);
+  await page.getByLabel('From country').fill('Italy');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('heading', { name: `Italia Stock ${tag}` })).toBeVisible();
+  await expect(page.locator('nav.crumbs')).toContainText('Suppliers');
+  await expect(page.locator('ws-page-header p').first()).toContainText('Italy');
+
+  await page.getByRole('link', { name: 'Edit' }).click();
+  await page.getByLabel(/^WhatsApp number/).fill('0300 1234567');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.locator('ws-page-header p').first()).toContainText('0300 1234567');
+
+  await page.getByRole('link', { name: 'Receive a container' }).click();
+  await expect(page).toHaveURL(/\/receive\/records\/containers\/new\?supplier=/);
+  await expect(page.locator('select[name=vendor]')).not.toHaveValue('');
+  await expect(page.getByLabel('From country')).toHaveValue('Italy');
 });

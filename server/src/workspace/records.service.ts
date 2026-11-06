@@ -150,9 +150,15 @@ export class WorkspaceRecordsService {
   async supplier(tenantId: string, id: string, canSeeCost: boolean) {
     const v = await this.prisma.vendor.findFirst({
       where: { id, tenantId },
-      select: { id: true, name: true, originCountry: true, country: true, contactPerson: true, contactPhone: true, contactEmail: true, paymentTerms: true, vendorType: true, createdAt: true },
+      select: { id: true, name: true, originCountry: true, country: true, contactPerson: true, contactPhone: true, contactEmail: true, physicalAddress: true, notes: true, isActive: true, createdAt: true },
     });
     if (!v) throw new NotFoundException('Supplier not found');
+    // Loose lots (a gaari or bales bought without a container) are bought from suppliers too (v2 review).
+    const lots = await this.prisma.rag.findMany({
+      where: { tenantId, vendorId: id, sourceType: 'LOOSE_BALE' },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, ragCode: true, createdAt: true, status: true, weightKg: true, allocatedCost: true, rawCategory: { select: { name: true } }, sortSession: { select: { totalOutputWeight: true } } },
+    });
     const containers = await this.prisma.container.findMany({
       where: { tenantId, vendorId: id },
       orderBy: { createdAt: 'desc' },
@@ -161,12 +167,17 @@ export class WorkspaceRecordsService {
     const econ = await containerEconomics(this.prisma, tenantId, containers.map((c) => c.id));
     const t = combine(containers.map((c) => econ.get(c.id)!));
     const landed = containers.reduce((s, c) => s.add(c.landedCostPKR), ZERO);
+    const containerKg = containers.reduce((s, c) => s.add(c.netWeight), ZERO);
+    const lotKg = lots.reduce((s, l) => s.add(l.weightKg), ZERO);
+    const lotCost = lots.reduce((s, l) => s.add(l.allocatedCost), ZERO);
     return {
       supplier: v,
       totals: {
         containers: containers.length,
-        kg: t.kg,
-        landed: money(canSeeCost, landed),
+        lots: lots.length,
+        // Kg bought: the containers' invoice kg plus the loose lots' kg (the same numbers as the two tables).
+        kg: containerKg.add(lotKg),
+        landed: money(canSeeCost, landed.add(lotCost)),
         revenue: t.revenue,
         profit: money(canSeeCost, t.profit),
         profitPerKg: money(canSeeCost, t.profitPerKg),
@@ -179,6 +190,14 @@ export class WorkspaceRecordsService {
           id: c.id, number: c.containerNumber, date: c.createdAt, status: c.status, origin: c.originCountry, kg: c.netWeight,
           landedCost: money(canSeeCost, c.landedCostPKR), costPerKg: money(canSeeCost, c.landedCostPerKg),
           revenue: e.revenue, profit: money(canSeeCost, e.profit), yield: yieldPercent(e), topGrade: topPercent(e),
+        };
+      }),
+      lots: lots.map((l) => {
+        const sorted = l.status === 'SORTED' ? 100 : l.weightKg.isZero() ? null : Math.min(100, Math.round(Number(l.sortSession?.totalOutputWeight ?? 0) / Number(l.weightKg) * 100));
+        return {
+          id: l.id, code: l.ragCode, date: l.createdAt, status: l.status, rawType: l.rawCategory?.name ?? null, kg: l.weightKg,
+          cost: money(canSeeCost, l.allocatedCost), costPerKg: money(canSeeCost, l.weightKg.isZero() ? ZERO : l.allocatedCost.div(l.weightKg).toDecimalPlaces(2)),
+          sortedPercent: sorted,
         };
       }),
     };

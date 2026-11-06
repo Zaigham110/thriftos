@@ -158,10 +158,24 @@ export interface Crumb {
  * Breadcrumbs for a URL: known segments, each linking to its own path, plus records whose name a page has
  * given (`names`: id → name). Unknown ids are left out.
  */
+/**
+ * Pages that sit elsewhere in the menu than their address says: their breadcrumb follows the menu (Suppliers is
+ * its own menu item; Supplier scorecard is a report under Insights).
+ */
+const MENU_CRUMBS: Array<{ prefix: string; crumbs: Crumb[] }> = [
+  { prefix: '/receive/records/suppliers', crumbs: [{ label: 'ws.nav.suppliers', path: '/receive/records/suppliers' }] },
+  { prefix: '/receive/scorecard', crumbs: [{ label: 'ws.nav.reports', path: '/insights' }, { label: 'ws.nav.scorecard', path: '/receive/scorecard' }] },
+  { prefix: '/sort/yield', crumbs: [{ label: 'ws.nav.sorting', path: '/sort/records' }, { label: 'ws.nav.yield', path: '/sort/yield' }] },
+];
+
 export function crumbsFor(url: string, names: Record<string, string> = {}): Crumb[] {
-  const segments = url.split(/[?#]/)[0].split('/').filter(Boolean);
-  const crumbs: Crumb[] = [];
+  const path = url.split(/[?#]/)[0];
+  const segments = path.split('/').filter(Boolean);
+  const menu = MENU_CRUMBS.find((m) => path === m.prefix || path.startsWith(m.prefix + '/'));
+  const crumbs: Crumb[] = menu ? [...menu.crumbs] : [];
+  const skip = menu ? menu.prefix.split('/').filter(Boolean).length : 0;
   segments.forEach((segment, i) => {
+    if (i < skip) return;
     const path = '/' + segments.slice(0, i + 1).join('/');
     const name = names[decodeURIComponent(segment)];
     if (name) crumbs.push({ label: name, path, raw: true });
