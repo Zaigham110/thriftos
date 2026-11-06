@@ -120,6 +120,8 @@
   - Forms (container, loose lot, expense, sale entry) ask before leaving with changes not saved (route guard + the browser's own prompt on reload/close). Cancel goes back to the page you came from. Saving a new record replaces the form in history, so Back never shows an empty form; saving an edit goes back to the record.
   - A new page opens at the top; Back returns to the same scroll position.
   - An unknown address shows "This page does not exist" with Back and Home (was: a silent jump to Home). A part the business has turned off shows "This part is turned off" and where to turn it on (the module guard did the same silent jump). Bales on a container do not link to Stock when Stock is off.
+  - The module guard asks the server again before saying a part is turned off (the business saved on the device can be old, e.g. right after the owner turned Stock on).
+  - Demo only (thriftos_demo, not the dev DB): Stock turned on for Al-Madina Traders, so Inventory and Stock value show and bales open.
   - Checked: every breadcrumb link of 25 pages opens a real page. Tests: crumb unit test, browser test "navigation", modules test updated. Server 300, Karma 21, browser 45 passed + 4 skipped.
 - **Review: loose lot form (Purchasing).** All eight findings fixed.
   - Laptop form at `/receive/records/lots/new` and `/:id/edit` (`lot-form.component.ts`): supplier (optional, shown first, + new supplier with any country), raw type, "Bought on" day, kg, price paid, note; the side shows the price per kg and what is still needed; saving opens the lot. `/receive/lot` on a laptop goes to it; the phone keeps its screen (supplier shown openly, raw type and day under More details, "Still needed" line).
