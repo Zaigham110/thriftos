@@ -10,7 +10,8 @@ export interface SuperAdminKpis {
   totalUsers: number;
   activeUsers: number;
   totalWeightKg: string;
-  totalSalesAmount: string;
+  totalSalesAmount: string | null;
+  salesByCurrency?: { currency: string; amount: string }[];
 }
 
 export interface SystemHealth {

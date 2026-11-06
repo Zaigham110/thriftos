@@ -1,148 +1,102 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+/**
+ * Everyone on ThriftOS (v2 review): name, phone, email, business, role and how they sign in. Search finds a person by
+ * name, phone, email or business; a row opens their business, where New PIN, New password and Edit are.
+ */
+import { HttpClient } from '@angular/common/http';
+import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, of } from 'rxjs';
-import {
-  LucideAngularModule,
-  Users,
-  Search,
-  RefreshCw,
-  Building2,
-  Shield,
-  CheckCircle2,
-  XCircle,
-  KeyRound,
-  Filter,
-} from 'lucide-angular';
+import { Router } from '@angular/router';
+import { API_ENDPOINTS } from '../../../../core/config/api.config';
+import { localPhone } from '../../../../shared/phone';
+import { AppPageBodyComponent, AppPageComponent, AppPageHeaderComponent } from '../../../../shared/ui';
 
-import { SuperAdminDataService, type GlobalUserRow } from '../super-admin-data.service';
-import { AdminService } from '../../admin.service';
-import {
-  AppPageComponent,
-  AppPageHeaderComponent,
-  AppPageBodyComponent,
-  AppSectionComponent,
-  AppLoadingComponent,
-  AppErrorStateComponent,
-  AppDialogComponent,
-} from '../../../../shared/ui';
+interface PersonRow {
+  id: string; name: string; email: string | null; phone: string | null; hasPin: boolean; pinLocked: boolean; isActive: boolean;
+  tenantId: string; tenantName: string; companyCode: string; roles: string[];
+}
 
 @Component({
   selector: 'app-global-users',
   standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    LucideAngularModule,
-    AppPageComponent,
-    AppPageHeaderComponent,
-    AppPageBodyComponent,
-    AppSectionComponent,
-    AppLoadingComponent,
-    AppErrorStateComponent,
-    AppDialogComponent,
-  ],
-  templateUrl: './global-users.component.html',
-  styleUrl: './global-users.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-})
-export class GlobalUsersComponent implements OnInit {
-  private readonly destroyRef = inject(DestroyRef);
-  private readonly data = inject(SuperAdminDataService);
-  private readonly adminService = inject(AdminService);
-
-  protected readonly loading = signal(false);
-  protected readonly error = signal<string | null>(null);
-  protected readonly users = signal<GlobalUserRow[]>([]);
-  protected readonly totalCount = signal(0);
-  protected readonly searchQuery = signal('');
-  protected readonly page = signal(1);
-
-  // Reset Password Dialog
-  protected readonly resetDialogOpen = signal(false);
-  protected readonly resetUser = signal<GlobalUserRow | null>(null);
-  protected readonly tempPassword = signal<string | null>(null);
-  protected readonly resetMessage = signal<string | null>(null);
-  protected readonly resetting = signal(false);
-
-  readonly icons = {
-    Users,
-    Search,
-    RefreshCw,
-    Building2,
-    Shield,
-    CheckCircle2,
-    XCircle,
-    KeyRound,
-    Filter,
-  };
-
-  ngOnInit(): void {
-    this.loadUsers();
-  }
-
-  loadUsers(): void {
-    this.loading.set(true);
-    this.error.set(null);
-
-    this.data
-      .getGlobalUsers(this.page(), 20, this.searchQuery())
-      .pipe(
-        takeUntilDestroyed(this.destroyRef),
-        catchError((err) => {
-          this.error.set(err?.error?.message || err?.message || 'Failed to load global users directory');
-          this.loading.set(false);
-          return of(null);
-        }),
-      )
-      .subscribe((res) => {
-        if (res) {
-          this.users.set(res.data || []);
-          this.totalCount.set(res.total || 0);
+  imports: [FormsModule, AppPageComponent, AppPageHeaderComponent, AppPageBodyComponent],
+  template: `
+    <app-page>
+      <app-page-header>
+        <div><h1 class="page-title">People</h1><p class="page-subtitle">Everyone who can sign in, in every business ({{ total() }})</p></div>
+      </app-page-header>
+      <app-page-body>
+        <form class="bar" (ngSubmit)="search()">
+          <input type="search" name="q" [(ngModel)]="query" placeholder="Name, phone, email or business" aria-label="Search people" />
+          <button type="submit" class="btn">Search</button>
+        </form>
+        @if (failed()) {
+          <p class="err" role="alert">Could not load people.</p>
+        } @else {
+          <table>
+            <thead><tr><th scope="col">Name</th><th scope="col">Phone</th><th scope="col">Email</th><th scope="col">Business</th><th scope="col">Role</th><th scope="col">Signs in with</th></tr></thead>
+            <tbody>
+              @for (p of rows(); track p.id) {
+                <tr (click)="open(p)" tabindex="0" (keydown.enter)="open(p)">
+                  <td><strong>{{ p.name }}</strong> @if (!p.isActive) { <span class="chip off">blocked</span> }</td>
+                  <td dir="ltr">{{ phone(p.phone) || '—' }}</td>
+                  <td>{{ p.email || '—' }}</td>
+                  <td>{{ p.companyCode === 'SYSTEM' ? 'Platform (super admin)' : p.tenantName }}</td>
+                  <td>{{ p.roles.join(', ') || (p.companyCode === 'SYSTEM' ? 'Super admin' : '—') }}</td>
+                  <td>{{ signIn(p) }} @if (p.pinLocked) { <span class="chip off">locked</span> }</td>
+                </tr>
+              } @empty { <tr><td colspan="6" class="muted">{{ loaded() ? 'Nobody matches.' : 'Loading…' }}</td></tr> }
+            </tbody>
+          </table>
+          @if (total() > rows().length) { <p class="muted">Showing {{ rows().length }} of {{ total() }}. Search to narrow it down.</p> }
         }
-        this.loading.set(false);
-      });
+      </app-page-body>
+    </app-page>
+  `,
+  styles: [`
+    .bar { display:flex; gap:8px; margin-bottom:12px; }
+    .bar input { min-height:38px; min-width:300px; padding:0 12px; border:1px solid var(--color-border, #d6cfd3); border-radius:8px; font:inherit; background:transparent; color:inherit; }
+    .btn { min-height:38px; padding:0 14px; border:1px solid var(--color-border, #d6cfd3); border-radius:8px; background:transparent; color:inherit; font:inherit; font-weight:600; cursor:pointer; }
+    table { width:100%; border-collapse:collapse; font-size:14px; background:var(--color-surface, #fff); border:1px solid var(--color-border, #e3dde0); }
+    th { color:var(--color-text-secondary, #6b6468); font-size:12px; font-weight:600; text-align:start; }
+    th, td { padding:10px 12px; border-bottom:1px solid var(--color-border, #eee8eb); text-align:start; }
+    tbody tr { cursor:pointer; }
+    tbody tr:hover { background:#faf7f9; }
+    .chip { padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; }
+    .chip.off { background:#fee2e2; color:#b91c1c; }
+    .muted { color:var(--color-text-secondary, #6b6468); }
+    .err { color:var(--color-danger, #b3261e); }
+  `],
+})
+export class GlobalUsersComponent {
+  private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
+  protected readonly rows = signal<PersonRow[]>([]);
+  protected readonly total = signal(0);
+  protected readonly loaded = signal(false);
+  protected readonly failed = signal(false);
+  protected readonly phone = localPhone;
+  protected query = '';
+
+  constructor() {
+    this.search();
   }
 
-  onSearch(query: string): void {
-    this.searchQuery.set(query);
-    this.page.set(1);
-    this.loadUsers();
+  protected search(): void {
+    this.failed.set(false);
+    const params: Record<string, string | number> = { page: 1, limit: 200 };
+    if (this.query.trim()) params['search'] = this.query.trim();
+    this.http.get<{ data: PersonRow[]; total: number }>(`${API_ENDPOINTS.superadmin}/users`, { params }).subscribe({
+      next: (r) => { this.rows.set(r.data); this.total.set(r.total); this.loaded.set(true); },
+      error: () => this.failed.set(true),
+    });
   }
 
-  promptResetPassword(user: GlobalUserRow): void {
-    this.resetUser.set(user);
-    this.tempPassword.set(null);
-    this.resetMessage.set(null);
-    this.resetDialogOpen.set(true);
+  protected signIn(p: PersonRow): string {
+    if (p.phone && p.hasPin) return p.email ? 'PIN or email' : 'Phone and PIN';
+    return p.email ? 'Email and password' : 'Not set';
   }
 
-  executeResetPassword(): void {
-    const user = this.resetUser();
-    if (!user) return;
-
-    this.resetting.set(true);
-    this.adminService
-      .resetUserPassword(user.id)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (res: any) => {
-          this.resetting.set(false);
-          this.tempPassword.set(res.temporaryPassword || 'Password reset successfully');
-          this.resetMessage.set(res.message);
-        },
-        error: (err) => {
-          this.resetting.set(false);
-          this.error.set(err?.message || 'Failed to reset password');
-        },
-      });
-  }
-
-  closeResetDialog(): void {
-    this.resetDialogOpen.set(false);
-    this.resetUser.set(null);
-    this.tempPassword.set(null);
-    this.resetMessage.set(null);
+  protected open(p: PersonRow): void {
+    if (p.companyCode !== 'SYSTEM') void this.router.navigate(['/admin/tenants', p.tenantId]);
   }
 }

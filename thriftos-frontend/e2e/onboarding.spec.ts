@@ -15,7 +15,7 @@ test('quick create, read-only support view, last activity, owner signs in with t
 
   await page.goto('/admin/tenants');
   await expect(page.getByRole('columnheader', { name: 'Last activity' })).toBeVisible();
-  await page.getByRole('button', { name: 'New business' }).click();
+  await page.getByRole('link', { name: 'New business' }).click();
   await expect(page).toHaveURL(/\/admin\/tenants\/quick$/);
   await page.getByLabel('Business name').fill(`Quick Bales ${tag}`);
   await page.getByLabel("Owner's name").fill('Haji Rafiq');
@@ -57,4 +57,73 @@ test('quick create, read-only support view, last activity, owner signs in with t
   await phone.locator('button[type=submit]').click();
   await phone.waitForURL(/\/(home|setup)/);
   await phone.close();
+});
+
+// v2 review: a test business from the console — made as a test, owner's phone fixed, a new PIN, sample data,
+// the audit trail for it, then deleted with everything in it.
+test('test business: new PIN, fix the phone, sample data, audit, delete', async ({ page }) => {
+  test.setTimeout(240_000);
+  const tag = Date.now().toString().slice(-7);
+  const name = `Try Bales ${tag}`;
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.goto('/auth/login');
+  await page.locator('.who .chip').nth(1).click();
+  await page.fill('input[type=email]', 'superadmin@thriftos.com');
+  await page.fill('input[type=password]', 'SuperAdmin@123');
+  await page.click('button[type=submit]');
+  await page.waitForURL('**/admin/**');
+
+  await page.goto('/admin/tenants/quick');
+  await expect(page.getByRole('link', { name: 'Full form' })).toHaveCount(0);
+  await page.getByLabel('Business name').fill(name);
+  await page.getByLabel("Owner's name").fill('Test Owner');
+  await page.getByLabel("Owner's phone").fill(`0305 ${tag}`);
+  await page.getByLabel(/Test business/).check();
+  await page.getByRole('button', { name: 'Create business' }).click();
+  await page.getByRole('link', { name: /Business page/ }).click();
+
+  await expect(page.getByRole('heading', { name, level: 1 })).toContainText('Test');
+  const owner = page.locator('tr').filter({ hasText: 'Test Owner' });
+  await expect(owner).toContainText(`0305 ${tag}`);
+  await expect(owner).toContainText('Phone and PIN');
+
+  // Fix the phone.
+  await owner.getByRole('button', { name: 'Edit' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel(/Phone/).fill(`0306 ${tag}`);
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(owner).toContainText(`0306 ${tag}`);
+
+  // A new PIN, with the message to send.
+  await owner.getByRole('button', { name: 'New PIN' }).click();
+  const pin = (await page.locator('.dialog .pin').textContent())!.trim();
+  expect(pin).toMatch(/^\d{6}$/);
+  await expect(page.getByRole('link', { name: 'Send on WhatsApp' })).toHaveAttribute('href', new RegExp(`^https://wa\\.me/92306${tag}\\?text=`));
+  await page.getByRole('button', { name: 'Done' }).click();
+
+  // Sample data, then the numbers show it.
+  await page.getByRole('button', { name: 'Fill with sample data' }).click();
+  await expect(page.getByText(/Sample data added: \d+ sales/)).toBeVisible({ timeout: 180_000 });
+  await expect(page.getByRole('button', { name: 'Fill with sample data' })).toHaveCount(0);
+
+  // The audit trail for this business, in plain words.
+  await page.getByRole('link', { name: 'All of it' }).click();
+  await expect(page).toHaveURL(/\/admin\/audit\?business=/);
+  const trail = page.locator('app-global-audit tbody');
+  await expect(trail).toContainText('Sample data added');
+  await page.getByLabel('Search').fill('pin');
+  await page.getByRole('button', { name: 'Search' }).click();
+  await expect(trail).toContainText('New PIN made');
+  await expect(trail).not.toContainText('Console change');
+  await page.goBack();
+
+  // Delete: only after typing the name.
+  await page.getByRole('button', { name: 'Delete business' }).click();
+  const del = page.getByRole('dialog');
+  await expect(del.getByRole('button', { name: 'Delete for good' })).toBeDisabled();
+  await del.getByRole('textbox').fill(name);
+  await del.getByRole('button', { name: 'Delete for good' }).click();
+  await page.waitForURL('**/admin/tenants');
+  await expect(page.getByText(name)).toHaveCount(0);
+  await expect(page.getByText('System Administration')).toHaveCount(0);
 });

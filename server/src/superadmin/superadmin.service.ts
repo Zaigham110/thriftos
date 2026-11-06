@@ -5,7 +5,8 @@ import { TenantBootstrapService, BootstrapResult } from './tenant-bootstrap.serv
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { TenantResponseDto, TenantListResponseDto } from './dto/tenant-response.dto';
-import { TenantStatus } from '@prisma/client';
+import { Prisma, TenantStatus } from '@prisma/client';
+import { SYSTEM_COMPANY_CODE } from '../common/guards/module.guard';
 import { getCurrencyMeta, isSupportedCurrencyCode } from '../common/currency/currency';
 import { Decimal } from '@prisma/client/runtime/library';
 
@@ -64,6 +65,9 @@ const PLANS_CATALOG = [
     status: 'ACTIVE',
   },
 ];
+
+/** Background events the audit trail hides unless asked: token refreshes and console page views. */
+const AUDIT_NOISE = ['AUTH_TOKEN_REFRESH', 'SUPER_ADMIN_ROUTE_ACCESS'];
 
 let SYSTEM_SETTINGS = {
   platformName: 'ThriftOS Enterprise Multi-Tenant Platform',
@@ -158,7 +162,8 @@ export class SuperAdminService {
   ): Promise<TenantListResponseDto> {
     const skip = (page - 1) * limit;
 
-    const where = status ? { status } : {};
+    // The platform's own account (SYSTEM) is not a business: it is not listed.
+    const where: Prisma.TenantWhereInput = { companyCode: { not: SYSTEM_COMPANY_CODE }, ...(status ? { status } : {}) };
 
     const [data, total] = await Promise.all([
       this.prisma.tenant.findMany({
@@ -220,6 +225,8 @@ export class SuperAdminService {
             grades: true,
             warehouses: true,
             containers: true,
+            sales: true,
+            customers: true,
           },
         },
       },
@@ -245,6 +252,9 @@ export class SuperAdminService {
       id: u.id,
       name: u.name,
       email: u.email,
+      phone: u.phone,
+      hasPin: !!u.pinHash,
+      pinLocked: !!u.pinLockedUntil && u.pinLockedUntil > new Date(),
       isActive: u.isActive,
       createdAt: u.createdAt,
       roles: u.userRoles.map((ur) => ur.role.name),
@@ -261,8 +271,10 @@ export class SuperAdminService {
     }));
 
     const currencyMeta = getCurrencyMeta(tenant.currency);
+    const { users: _users, ...rest } = tenant;
+    void _users;
     return {
-      ...tenant,
+      ...rest,
       currencyCode: tenant.currency,
       currency: currencyMeta,
       users: mappedUsers,
@@ -347,18 +359,18 @@ export class SuperAdminService {
       recentTenants,
       recentLogs,
     ] = await Promise.all([
-      this.prisma.tenant.count(),
-      this.prisma.tenant.count({ where: { status: 'ACTIVE' } }),
-      this.prisma.tenant.count({ where: { status: 'INACTIVE' } }),
+      this.prisma.tenant.count({ where: { companyCode: { not: SYSTEM_COMPANY_CODE } } }),
+      this.prisma.tenant.count({ where: { status: 'ACTIVE', companyCode: { not: SYSTEM_COMPANY_CODE } } }),
+      this.prisma.tenant.count({ where: { status: 'INACTIVE', companyCode: { not: SYSTEM_COMPANY_CODE } } }),
       this.prisma.user.count(),
       this.prisma.user.count({ where: { isActive: true } }),
       this.prisma.container.aggregate({
         _sum: { netWeight: true, weighbridgeNetWeight: true },
       }),
-      this.prisma.sale.aggregate({
-        _sum: { totalAmount: true },
-      }),
+      // Sales per business, added up per currency below (a total across currencies means nothing).
+      this.prisma.sale.groupBy({ by: ['tenantId'], _sum: { totalAmount: true } }),
       this.prisma.tenant.findMany({
+        where: { companyCode: { not: SYSTEM_COMPANY_CODE } },
         orderBy: { createdAt: 'desc' },
         take: 6,
         include: {
@@ -387,7 +399,14 @@ export class SuperAdminService {
     const tenantMap = new Map<string, string>(tenants.map((t) => [t.id, t.name] as const));
 
     const totalWeightKg = (containerWeightAgg._sum.weighbridgeNetWeight ?? containerWeightAgg._sum.netWeight ?? new Decimal(0)).toString();
-    const totalSalesAmount = (salesRevenueAgg._sum.totalAmount ?? new Decimal(0)).toString();
+    const currencyOf = new Map((await this.prisma.tenant.findMany({ select: { id: true, currency: true } })).map((t) => [t.id, t.currency] as const));
+    const byCurrency = new Map<string, Decimal>();
+    for (const row of salesRevenueAgg) {
+      const currency = currencyOf.get(row.tenantId) ?? 'PKR';
+      byCurrency.set(currency, (byCurrency.get(currency) ?? new Decimal(0)).add(row._sum.totalAmount ?? 0));
+    }
+    const salesByCurrency = [...byCurrency.entries()].map(([currency, amount]) => ({ currency, amount: amount.toString() })).sort((a, b) => Number(b.amount) - Number(a.amount));
+    const totalSalesAmount = salesByCurrency.length === 1 ? salesByCurrency[0].amount : null;
 
     return {
       kpis: {
@@ -398,6 +417,7 @@ export class SuperAdminService {
         activeUsers,
         totalWeightKg,
         totalSalesAmount,
+        salesByCurrency,
       },
       // Real values only: the database answered the queries above; how long this server has been running; the release.
       systemHealth: {
@@ -438,6 +458,7 @@ export class SuperAdminService {
       where.OR = [
         { name: { contains: q, mode: 'insensitive' } },
         { email: { contains: q, mode: 'insensitive' } },
+        { phone: { contains: q.replace(/\D/g, '').replace(/^0/, '') || q } },
         { tenant: { name: { contains: q, mode: 'insensitive' } } },
       ];
     }
@@ -465,6 +486,9 @@ export class SuperAdminService {
         id: u.id,
         name: u.name,
         email: u.email,
+        phone: u.phone,
+        hasPin: !!u.pinHash,
+        pinLocked: !!u.pinLockedUntil && u.pinLockedUntil > new Date(),
         isActive: u.isActive,
         createdAt: u.createdAt,
         tenantId: u.tenantId,
@@ -478,10 +502,23 @@ export class SuperAdminService {
     };
   }
 
-  async getGlobalAuditLogs(page: number = 1, limit: number = 20, action?: string) {
+  /**
+   * The audit trail, newest first. By default it leaves out the background noise (token refreshes, console page
+   * views); `all` shows everything. Filter by business, or search the action and the person's name.
+   */
+  async getGlobalAuditLogs(page: number = 1, limit: number = 20, action?: string, opts: { tenantId?: string; q?: string; all?: boolean } = {}) {
     const skip = (page - 1) * limit;
 
-    const where = action ? { action } : {};
+    const and: Prisma.AuditLogWhereInput[] = [];
+    if (action) and.push({ action });
+    if (!opts.all && !action) and.push({ action: { notIn: AUDIT_NOISE } });
+    if (opts.tenantId) and.push({ tenantId: opts.tenantId });
+    const q = opts.q?.trim();
+    if (q) {
+      const people = await this.prisma.user.findMany({ where: { name: { contains: q, mode: 'insensitive' } }, select: { id: true }, take: 50 });
+      and.push({ OR: [{ action: { contains: q.toUpperCase().replace(/\s+/g, '_') } }, { userId: { in: people.map((p) => p.id) } }] });
+    }
+    const where: Prisma.AuditLogWhereInput = and.length ? { AND: and } : {};
 
     const [logs, total] = await Promise.all([
       this.prisma.auditLog.findMany({

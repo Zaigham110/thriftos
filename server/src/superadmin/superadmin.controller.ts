@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Post,
   Patch,
@@ -26,7 +27,8 @@ import { RequireModule } from '../common/decorators/require-module.decorator';
 import { SYSTEM_COMPANY_CODE } from '../common/guards/module.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { OnboardingService } from './onboarding.service';
-import { QuickCreateTenantDto, SupportViewDto } from './dto/quick-create.dto';
+import { DeleteBusinessDto, MarkTestDto, QuickCreateTenantDto, SupportViewDto, UpdatePersonDto } from './dto/quick-create.dto';
+import { TestBusinessService } from './test-business.service';
 
 @Controller('superadmin')
 @UseGuards(TenantGuard)
@@ -37,6 +39,7 @@ export class SuperAdminController {
     private readonly authService: AuthService,
     private readonly prisma: PrismaService,
     private readonly onboarding: OnboardingService,
+    private readonly tests: TestBusinessService,
   ) {}
 
   /** Modules turned on for the platform itself (the SYSTEM business): what the super admin console shows. */
@@ -65,8 +68,11 @@ export class SuperAdminController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('action') action?: string,
+    @Query('tenantId') tenantId?: string,
+    @Query('q') q?: string,
+    @Query('all') all?: string,
   ) {
-    return this.superAdminService.getGlobalAuditLogs(page || 1, limit || 20, action);
+    return this.superAdminService.getGlobalAuditLogs(page || 1, limit || 20, action, { tenantId: tenantId || undefined, q, all: all === 'true' || all === '1' });
   }
 
   @Get('plans')
@@ -106,8 +112,47 @@ export class SuperAdminController {
   /** v2 6.5: business name, owner name and phone → ready to sign in, with the welcome message to send. */
   @Post('tenants/quick')
   @HttpCode(HttpStatus.CREATED)
-  quickCreate(@Body() dto: QuickCreateTenantDto, @CurrentUser() user: CurrentUserData) {
-    return this.onboarding.quickCreate(dto, user.userId);
+  async quickCreate(@Body() dto: QuickCreateTenantDto, @CurrentUser() user: CurrentUserData) {
+    const made = await this.onboarding.quickCreate(dto, user.userId);
+    if (dto.isTest) await this.tests.mark(made.tenant.id, true, user.userId);
+    return { ...made, isTest: !!dto.isTest };
+  }
+
+  /** A new PIN for someone who signs in with their phone; returned once with the message to send. */
+  @Post('tenants/:id/users/:userId/pin')
+  @HttpCode(HttpStatus.OK)
+  newPin(@Param('id') id: string, @Param('userId') userId: string, @CurrentUser() user: CurrentUserData) {
+    return this.onboarding.newPin(id, userId, user.userId);
+  }
+
+  @Post('tenants/:id/users/:userId/password')
+  @HttpCode(HttpStatus.OK)
+  newPassword(@Param('id') id: string, @Param('userId') userId: string, @CurrentUser() user: CurrentUserData) {
+    return this.onboarding.newPassword(id, userId, user.userId);
+  }
+
+    @Patch('tenants/:id/users/:userId')
+  updatePerson(@Param('id') id: string, @Param('userId') userId: string, @Body() dto: UpdatePersonDto, @CurrentUser() user: CurrentUserData) {
+    return this.onboarding.updatePerson(id, userId, dto, user.userId);
+  }
+
+  @Post('tenants/:id/test')
+  @HttpCode(HttpStatus.OK)
+  markTest(@Param('id') id: string, @Body() dto: MarkTestDto, @CurrentUser() user: CurrentUserData) {
+    return this.tests.mark(id, dto.isTest, user.userId);
+  }
+
+  /** Starts filling an empty test business with sample data; GET tenants/:id shows how it is going. */
+  @Post('tenants/:id/sample-data')
+  @HttpCode(HttpStatus.ACCEPTED)
+  fillSample(@Param('id') id: string, @CurrentUser() user: CurrentUserData) {
+    return this.tests.fillSample(id, user.userId);
+  }
+
+  /** Deletes a test business and everything in it (its name typed again). Real businesses cannot be deleted. */
+  @Delete('tenants/:id')
+  remove(@Param('id') id: string, @Body() dto: DeleteBusinessDto, @CurrentUser() user: CurrentUserData) {
+    return this.tests.remove(id, dto.confirmName, user.userId);
   }
 
   @Get('tenants')
@@ -117,15 +162,15 @@ export class SuperAdminController {
     @Query('status') status?: TenantStatus,
   ): Promise<TenantListResponseDto> {
     const list = await this.superAdminService.findAll(page || 1, limit || 20, status);
-    const last = await this.onboarding.lastActivity(list.data.map((t: any) => t.id));
-    return { ...list, data: list.data.map((t: any) => ({ ...t, lastActivity: last.get(t.id) ?? null })) };
+    const [last, tests] = await Promise.all([this.onboarding.lastActivity(list.data.map((t: any) => t.id)), this.tests.ids()]);
+    return { ...list, data: list.data.map((t: any) => ({ ...t, lastActivity: last.get(t.id) ?? null, isTest: tests.has(t.id) })) };
   }
 
   @Get('tenants/:id')
   async findOne(@Param('id') id: string): Promise<TenantResponseDto> {
     const tenant = await this.superAdminService.findOne(id);
-    const last = await this.onboarding.lastActivity([id]);
-    return { ...tenant, lastActivity: last.get(id) ?? null } as TenantResponseDto;
+    const [last, isTest, sample] = await Promise.all([this.onboarding.lastActivity([id]), this.tests.isTest(id), this.tests.sampleState(id)]);
+    return { ...tenant, lastActivity: last.get(id) ?? null, isTest, sample } as TenantResponseDto;
   }
 
   @Patch('tenants/:id')

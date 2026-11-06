@@ -12,6 +12,7 @@ interface QuickResult {
   pin: string;
   signInUrl: string;
   welcome: string;
+  isTest?: boolean;
 }
 
 /**
@@ -30,7 +31,6 @@ interface QuickResult {
           <h1 class="page-title">New business</h1>
           <p class="page-subtitle">Three fields. The owner signs in with their phone and a PIN.</p>
         </app-stack>
-        <div class="actions"><a class="link" routerLink="/admin/tenants/new">Full form</a></div>
       </app-page-header>
       <app-page-body>
         @if (result(); as r) {
@@ -47,6 +47,7 @@ interface QuickResult {
             <div class="row">
               <a class="btn primary" [href]="whatsapp(r)" target="_blank" rel="noopener">Send on WhatsApp</a>
               <button type="button" class="btn" (click)="copy(r.welcome)">{{ copied() ? 'Copied' : 'Copy message' }}</button>
+              <a class="btn" [routerLink]="['/admin/tenants', r.tenant.id]">{{ r.isTest ? 'Business page (sample data)' : 'Business page' }}</a>
               <button type="button" class="btn" (click)="open(r)">Open support view</button>
               <button type="button" class="btn" (click)="again()">Make another</button>
             </div>
@@ -56,6 +57,7 @@ interface QuickResult {
             <label>Business name<input name="businessName" [(ngModel)]="businessName" required minlength="2" maxlength="100" autocomplete="off" placeholder="Al-Madina Traders" /></label>
             <label>Owner's name<input name="ownerName" [(ngModel)]="ownerName" required maxlength="100" autocomplete="off" placeholder="Haji Rafiq" /></label>
             <label>Owner's phone<input name="ownerPhone" [(ngModel)]="ownerPhone" required maxlength="30" inputmode="tel" autocomplete="off" dir="ltr" placeholder="0300 1234567" /></label>
+            <label class="opt test"><input type="checkbox" name="isTest" [(ngModel)]="isTest" /> Test business: for trying ThriftOS out. It can get sample data and be deleted later.</label>
             <details>
               <summary>Email, language and sorting (optional)</summary>
               <label>Owner's email<input name="ownerEmail" type="email" [(ngModel)]="ownerEmail" maxlength="200" autocomplete="off" dir="ltr" /></label>
@@ -90,6 +92,7 @@ interface QuickResult {
     .qc fieldset { display:flex; flex-wrap:wrap; gap:8px 16px; margin:0; padding:0; border:0; }
     .qc legend { width:100%; margin-block-end:6px; font-weight:600; font-size:14px; }
     .qc .opt { display:flex; align-items:center; gap:6px; font-weight:400; }
+    .qc .opt.test { align-items:flex-start; padding:10px 12px; border:1px solid #f3d98b; border-radius:8px; background:#fffbeb; }
     .qc .row { display:flex; flex-wrap:wrap; gap:8px; }
     .btn { display:inline-flex; align-items:center; min-height:40px; padding:0 16px; border:1px solid var(--color-border, #d6cfd3); border-radius:8px; background:transparent; color:inherit; font:inherit; font-weight:600; text-decoration:none; cursor:pointer; }
     .btn.primary { border-color:var(--color-primary, #6f3f63); background:var(--color-primary, #6f3f63); color:#fff; }
@@ -113,6 +116,7 @@ export class TenantQuickComponent {
   protected ownerEmail = '';
   protected language: 'ur' | 'en' = 'ur';
   protected sortingStages = 2;
+  protected isTest = false;
   protected readonly saving = signal(false);
   protected readonly error = signal('');
   protected readonly copied = signal(false);
@@ -128,6 +132,7 @@ export class TenantQuickComponent {
       ...(this.ownerEmail.trim() ? { ownerEmail: this.ownerEmail.trim() } : {}),
       language: this.language,
       sortingStages: Number(this.sortingStages),
+      ...(this.isTest ? { isTest: true } : {}),
     };
     this.http.post<QuickResult>(`${API_ENDPOINTS.superadmin}/tenants/quick`, body).subscribe({
       next: (r) => {
@@ -160,6 +165,7 @@ export class TenantQuickComponent {
   protected again(): void {
     this.result.set(null);
     this.businessName = this.ownerName = this.ownerPhone = this.ownerEmail = '';
+    this.isTest = false;
     this.copied.set(false);
   }
 }

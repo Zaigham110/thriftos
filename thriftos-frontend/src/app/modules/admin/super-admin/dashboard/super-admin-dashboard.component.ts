@@ -1,3 +1,4 @@
+import { auditLabel } from '../audit-labels';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
@@ -27,7 +28,7 @@ import { SuperAdminDataService, type SuperAdminSummary } from '../super-admin-da
           <ws-kpi-card label="Businesses" [value]="num(s.kpis.activeTenants) + ' active'" [hint]="num(s.kpis.totalTenants) + ' in all · ' + num(s.kpis.inactiveTenants) + ' switched off'" link="/admin/tenants" />
           <ws-kpi-card label="People" [value]="num(s.kpis.activeUsers) + ' active'" [hint]="num(s.kpis.totalUsers) + ' accounts'" link="/admin/users" />
           <ws-kpi-card label="Kg received" [value]="num(s.kpis.totalWeightKg) + ' kg'" hint="All businesses" />
-          <ws-kpi-card label="Sales recorded" [value]="num(s.kpis.totalSalesAmount)" hint="All businesses, in their own currency" />
+          <ws-kpi-card label="Sales recorded" [value]="sales(s.kpis.salesByCurrency, 0)" [hint]="salesHint(s.kpis.salesByCurrency)" />
         </section>
         <section class="health" aria-label="Server status">
           <span><lucide-icon [img]="icons.CheckCircle2" [size]="16" aria-hidden="true" />Database connected</span>
@@ -107,7 +108,7 @@ export class SuperAdminDashboardComponent {
     { key: 'createdAt', label: 'When', format: 'date' },
   ];
   protected readonly auditRows = computed<WsRow[]>(() =>
-    (this.summary()?.recentLogs ?? []).map((l) => ({ ...l, action: l.action.toLowerCase().replace(/_/g, ' ') })) as unknown as WsRow[],
+    (this.summary()?.recentLogs ?? []).map((l) => ({ ...l, action: auditLabel(l.action) })) as unknown as WsRow[],
   );
 
   constructor() {
@@ -121,6 +122,16 @@ export class SuperAdminDashboardComponent {
       next: (s) => { this.summary.set(s); this.loading.set(false); },
       error: (e) => { this.error.set(e?.error?.message || 'The overview could not be loaded'); this.loading.set(false); },
     });
+  }
+
+  /** Sales in one currency: "Rs 3,091,600"; several: the biggest, with the others in the hint. */
+  protected sales(list: { currency: string; amount: string }[] | undefined, i: number): string {
+    const x = list?.[i];
+    return x ? `${x.currency === 'PKR' ? 'Rs' : x.currency} ${this.num(x.amount)}` : '0';
+  }
+  protected salesHint(list: { currency: string; amount: string }[] | undefined): string {
+    if (!list || list.length <= 1) return 'All businesses';
+    return 'Also ' + list.slice(1).map((_, i) => this.sales(list, i + 1)).join(', ');
   }
 
   protected num(v: string | number): string {

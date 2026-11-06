@@ -53,8 +53,9 @@ export class TenantGuard implements CanActivate {
         throw new ForbiddenException('Super Admin access required');
       }
       
-      // Log super admin access for audit trail
-      await this.logSecurityEvent(
+      // Log super admin changes for the audit trail. Reading console pages (GET) is not logged: it filled the trail
+      // with two rows per page view and hid what mattered (v2 review). Each change also writes its own entry.
+      if (request.method !== 'GET') await this.logSecurityEvent(
         user.userId,
         null,
         'SUPER_ADMIN_ROUTE_ACCESS',

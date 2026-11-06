@@ -187,10 +187,112 @@ export async function seedDemo(app: INestApplicationContext, opts: { today?: Dat
     owner.id,
   );
   const munshi = await prisma.user.findFirstOrThrow({ where: { tenantId: t, phone: { not: null } } });
+  const filled = await fillSortingStory(app, ctx, { tenantId: t, ownerId: owner.id, workerId: munshi.id, log, moveBusinessDate: true });
+  const saleCount = filled.sales;
+  const sinceMidnight = ctx.today.getTime() - startOfDayPKT(ctx.today).getTime();
+
+  // ── Lahore Bale House (Demo): a trader who buys ready stock and does not sort ────────────────────
+  log('Lahore Bale House (Demo)');
+  await superadmin.createTenant(
+    { name: 'Lahore Bale House (Demo)', companyCode: DEMO.traderCode, currency: 'PKR', locale: 'ur-PK', adminEmail: DEMO.trader.email, adminName: 'Malik Tariq', adminPassword: DEMO.trader.password } as never,
+    admin.id,
+  );
+  const trader = await prisma.tenant.findUniqueOrThrow({ where: { companyCode: DEMO.traderCode } });
+  const traderOwner = await prisma.user.findFirstOrThrow({ where: { tenantId: trader.id, email: DEMO.trader.email } });
+  await setup.save(trader.id, { businessName: 'Lahore Bale House (Demo)', currency: 'PKR', language: 'ur', sortingStages: 0, categories: [], grades: [] }, traderOwner.id);
+  const wholesaler = (await vendors.create(trader.id, { name: 'Sher Shah Wholesale', originCountry: 'Pakistan', country: 'Pakistan' } as never, traderOwner.id)) as { id: string };
+  const items: Record<string, string> = {};
+  for (const [name, unit, quantity, totalCost, weightKg, salePrice, daysAgo] of [
+    ['Ladies jackets (UK)', 'BALE', 8, 200000, 360, 33000, 28],
+    ['Gents sweaters', 'BALE', 6, 132000, 300, 27000, 21],
+    ['Kids mix', 'KG', 600, 96000, undefined, 230, 14],
+  ] as const) {
+    const item = (await directStock.receive(
+      trader.id,
+      { name, unit, quantity, totalCost, vendorId: wholesaler.id, ...(weightKg ? { weightKg } : {}), salePrice } as never,
+      traderOwner.id,
+    )) as { id: string };
+    items[name] = item.id;
+    await prisma.inventoryItem.update({ where: { id: item.id }, data: { createdAt: moment(ctx, daysAgo, 10) } });
+  }
+  await directStock.open(trader.id, items['Ladies jackets (UK)'], { bales: 1, tiers: [{ price: 300, pieces: 40 }, { price: 500, pieces: 25 }, { price: 800, pieces: 10 }] } as never, traderOwner.id);
+  const traderCustomers: string[] = [];
+  for (const [name, phone, opening] of [
+    ['Anarkali Bale Corner', '03004440041', 30000],
+    ['Ichhra Second Hand', '03214440042', 0],
+    ['Shadman Kapra', '03334440043', 0],
+    ['Township Traders', '03454440044', 12000],
+  ] as const) {
+    const c = (await customers.create(trader.id, { name, phone, city: 'Lahore', openingBalance: opening } as never, traderOwner.id)) as { id: string };
+    traderCustomers.push(c.id);
+    await prisma.customer.update({ where: { id: c.id }, data: { createdAt: moment(ctx, 40) } });
+  }
+  const jacketPieces = await prisma.inventoryItem.findMany({ where: { tenantId: trader.id, parentItemId: items['Ladies jackets (UK)'] }, orderBy: { salePrice: 'asc' } });
+  const traderSales: { daysAgo: number; customer: number; mode: string; lines: { inventoryItemId: string; unit: string; quantity: number; unitPrice: number }[] }[] = [
+    { daysAgo: 20, customer: 0, mode: 'CREDIT', lines: [{ inventoryItemId: items['Ladies jackets (UK)'], unit: 'BALE', quantity: 2, unitPrice: 33000 }] },
+    { daysAgo: 15, customer: 1, mode: 'CASH', lines: [{ inventoryItemId: items['Gents sweaters'], unit: 'BALE', quantity: 1, unitPrice: 27500 }] },
+    { daysAgo: 10, customer: 2, mode: 'CASH', lines: [{ inventoryItemId: items['Kids mix'], unit: 'KG', quantity: 120, unitPrice: 240 }] },
+    { daysAgo: 6, customer: 3, mode: 'CREDIT', lines: [{ inventoryItemId: items['Gents sweaters'], unit: 'BALE', quantity: 2, unitPrice: 27000 }] },
+    { daysAgo: 2, customer: 1, mode: 'CASH', lines: [{ inventoryItemId: jacketPieces[0].id, unit: 'PIECE', quantity: 12, unitPrice: 300 }, { inventoryItemId: jacketPieces[2].id, unit: 'PIECE', quantity: 4, unitPrice: 800 }] },
+    { daysAgo: 0, customer: 0, mode: 'CASH', lines: [{ inventoryItemId: items['Kids mix'], unit: 'KG', quantity: 80, unitPrice: 235 }] },
+  ];
+  for (const s of traderSales) {
+    const at = s.daysAgo === 0 ? new Date(startOfDayPKT(ctx.today).getTime() + sinceMidnight * 0.6) : moment(ctx, s.daysAgo, 13);
+    const sale = (await sales.create(trader.id, { customerId: traderCustomers[s.customer], paymentMode: s.mode, lines: s.lines, ...(s.mode !== 'CREDIT' ? { paymentMethod: 'CASH' } : {}) } as never, traderOwner.id)) as { id: string };
+    await prisma.sale.update({ where: { id: sale.id }, data: { issuedAt: at, createdAt: at } });
+    await prisma.payment.updateMany({ where: { tenantId: trader.id, saleId: sale.id }, data: { receivedAt: at, createdAt: at } });
+  }
+  const traderPayAt = moment(ctx, 8, 16);
+  const tp = (await khata.recordPayment(trader.id, { customerId: traderCustomers[0], amount: 40000, method: 'EASYPAISA', receivedAt: traderPayAt.toISOString() } as never, traderOwner.id)) as { payment: { id: string } };
+  await prisma.payment.update({ where: { id: tp.payment.id }, data: { receivedAt: traderPayAt, createdAt: traderPayAt } });
+
+  // Both data checks must find nothing: costs add up at every stage, khata agrees with sales and payments.
+  const checks = path.resolve(__dirname, '../../../prisma/checks');
+  const ours = new Set([t, trader.id]);
+  const run = async (file: string) =>
+    ((await prisma.$queryRawUnsafe(fs.readFileSync(path.join(checks, file), 'utf8').replace(/;\s*$/m, ''))) as { tenantId: string }[]).filter((r) => ours.has(r.tenantId)).length;
+  const checkRows = { costChain: await run('cost-chain-check.sql'), khata: await run('khata-check.sql') };
+  log(`  checks: cost chain ${checkRows.costChain} rows, khata ${checkRows.khata} rows`);
+
+  return {
+    tenantId: t,
+    traderTenantId: trader.id,
+    containers: CONTAINERS.length,
+    bales: filled.bales,
+    sales: saleCount,
+    customers: CUSTOMERS.length,
+    checkRows,
+  };
+}
+
+/**
+ * The Al-Madina story in any business that sorts by category and grade: suppliers, customers, containers sorted,
+ * graded and baled, three months of sales and udhaar paid back. Used by the demo and by "Fill with sample data" on a
+ * test business (super admin console). The business must have the sample's categories (Jeans…) and grades (A, B, C).
+ */
+export async function fillSortingStory(
+  app: Pick<INestApplicationContext, 'get'>,
+  ctx: Ctx,
+  opts: { tenantId: string; ownerId: string; workerId: string; log?: (s: string) => void; moveBusinessDate?: boolean },
+): Promise<{ bales: number; sales: number }> {
+  const log = opts.log ?? (() => undefined);
+  const prisma = ctx.prisma;
+  const get = <T>(cls: new (...args: never[]) => T) => app.get(cls as never, { strict: false }) as T;
+  const vendors = get(VendorService);
+  const containers = get(ContainerService);
+  const sorting = get(SortSessionService);
+  const grading = get(GradeSessionService);
+  const bales = get(BaleService);
+  const customers = get(CustomersService);
+  const sales = get(SalesService);
+  const khata = get(KhataService);
+  const t = opts.tenantId;
+  const owner = { id: opts.ownerId };
+  const workerId = opts.workerId;
   const categoryId = Object.fromEntries((await prisma.category.findMany({ where: { tenantId: t, isActive: true } })).map((c) => [c.name, c.id]));
   const gradeId = Object.fromEntries((await prisma.grade.findMany({ where: { tenantId: t, isActive: true } })).map((g) => [g.name, g.id]));
   const katran = await prisma.wasteCategory.findFirstOrThrow({ where: { tenantId: t, name: 'Waste/Katran' } });
-  await prisma.tenant.update({ where: { id: t }, data: { createdAt: moment(ctx, 100) } });
+  if (opts.moveBusinessDate) await prisma.tenant.update({ where: { id: t }, data: { createdAt: moment(ctx, 100) } });
 
   const supplierId: Record<Origin, string> = {} as never;
   for (const s of SUPPLIERS) {
@@ -239,26 +341,26 @@ export async function seedDemo(app: INestApplicationContext, opts: { today?: Dat
     const lotId = created.rags[0].id;
 
     // Chhantai (stage 1): categories by share, the rest is waste.
-    const s = (await sorting.start(t, { ragId: lotId } as never, munshi.id)) as { session: { id: string } };
+    const s = (await sorting.start(t, { ragId: lotId } as never, workerId)) as { session: { id: string } };
     const usable = kanta * (1 - o.waste);
     for (const cat of CATEGORIES) {
-      await sorting.addKg(t, { sessionId: s.session.id, categoryId: categoryId[cat.name], amountKg: kg2(usable * cat.share / CATEGORIES.reduce((x, k) => x + k.share, 0)) } as never, munshi.id);
+      await sorting.addKg(t, { sessionId: s.session.id, categoryId: categoryId[cat.name], amountKg: kg2(usable * cat.share / CATEGORIES.reduce((x, k) => x + k.share, 0)) } as never, workerId);
     }
-    await sorting.close(t, s.session.id, munshi.id, katran.id);
+    await sorting.close(t, s.session.id, workerId, katran.id);
     await prisma.sortSession.update({ where: { id: s.session.id }, data: { startTime: moment(ctx, day - 1, 9), endTime: moment(ctx, day - 1, 17) } });
 
     // Grading (stage 2): A / B / C by what this origin gives; the last grade takes the exact remainder.
     const outputs = await prisma.categoryOutput.findMany({ where: { tenantId: t, sortCategoryBucket: { sortSessionId: s.session.id } }, include: { category: true } });
     const gradeOutputs: Record<string, Record<string, string>> = {};
     for (const out of outputs) {
-      const g = (await grading.start(t, { categoryOutputId: out.id } as never, munshi.id)) as { session: { id: string } };
+      const g = (await grading.start(t, { categoryOutputId: out.id } as never, workerId)) as { session: { id: string } };
       const total = Number(out.weightKg);
       const a = kg2(total * o.a);
       const b = kg2(total * o.b);
       for (const [grade, kg] of [['A', a], ['B', b], ['C', kg2(total - a - b)]] as const) {
-        await grading.addKg(t, { sessionId: g.session.id, gradeId: gradeId[grade], amountKg: kg } as never, munshi.id);
+        await grading.addKg(t, { sessionId: g.session.id, gradeId: gradeId[grade], amountKg: kg } as never, workerId);
       }
-      await grading.close(t, g.session.id, munshi.id);
+      await grading.close(t, g.session.id, workerId);
       await prisma.gradeSession.update({ where: { id: g.session.id }, data: { startTime: moment(ctx, day - 2, 9), endTime: moment(ctx, day - 2, 16) } });
       const rows = await prisma.gradeOutput.findMany({ where: { tenantId: t, gradeBucket: { gradeSessionId: g.session.id } }, include: { grade: true } });
       gradeOutputs[out.category.name] = Object.fromEntries(rows.map((r) => [r.grade.name, r.id]));
@@ -273,7 +375,7 @@ export async function seedDemo(app: INestApplicationContext, opts: { today?: Dat
         const bale = (await bales.makeBale(
           t,
           { categoryId: categoryId[cat], gradeId: gradeId[grade], weightKg: weight, allocations: [{ gradingOutputId: gradeOutputs[cat][grade], amountKg: weight }] } as never,
-          munshi.id,
+          workerId,
         )) as { id: string };
         const made = moment(ctx, Math.max(day - 3, 0), 12, n);
         await prisma.repackUnit.update({ where: { id: bale.id }, data: { createdAt: made } });
@@ -361,77 +463,13 @@ export async function seedDemo(app: INestApplicationContext, opts: { today?: Dat
   for (const e of events) await e.run();
   const saleCount = await prisma.sale.count({ where: { tenantId: t } });
   log(`  ${saleCount} sales, ${sold.size} of ${stock.length} bales sold`);
-
-  // ── Lahore Bale House (Demo): a trader who buys ready stock and does not sort ────────────────────
-  log('Lahore Bale House (Demo)');
-  await superadmin.createTenant(
-    { name: 'Lahore Bale House (Demo)', companyCode: DEMO.traderCode, currency: 'PKR', locale: 'ur-PK', adminEmail: DEMO.trader.email, adminName: 'Malik Tariq', adminPassword: DEMO.trader.password } as never,
-    admin.id,
-  );
-  const trader = await prisma.tenant.findUniqueOrThrow({ where: { companyCode: DEMO.traderCode } });
-  const traderOwner = await prisma.user.findFirstOrThrow({ where: { tenantId: trader.id, email: DEMO.trader.email } });
-  await setup.save(trader.id, { businessName: 'Lahore Bale House (Demo)', currency: 'PKR', language: 'ur', sortingStages: 0, categories: [], grades: [] }, traderOwner.id);
-  const wholesaler = (await vendors.create(trader.id, { name: 'Sher Shah Wholesale', originCountry: 'Pakistan', country: 'Pakistan' } as never, traderOwner.id)) as { id: string };
-  const items: Record<string, string> = {};
-  for (const [name, unit, quantity, totalCost, weightKg, salePrice, daysAgo] of [
-    ['Ladies jackets (UK)', 'BALE', 8, 200000, 360, 33000, 28],
-    ['Gents sweaters', 'BALE', 6, 132000, 300, 27000, 21],
-    ['Kids mix', 'KG', 600, 96000, undefined, 230, 14],
-  ] as const) {
-    const item = (await directStock.receive(
-      trader.id,
-      { name, unit, quantity, totalCost, vendorId: wholesaler.id, ...(weightKg ? { weightKg } : {}), salePrice } as never,
-      traderOwner.id,
-    )) as { id: string };
-    items[name] = item.id;
-    await prisma.inventoryItem.update({ where: { id: item.id }, data: { createdAt: moment(ctx, daysAgo, 10) } });
-  }
-  await directStock.open(trader.id, items['Ladies jackets (UK)'], { bales: 1, tiers: [{ price: 300, pieces: 40 }, { price: 500, pieces: 25 }, { price: 800, pieces: 10 }] } as never, traderOwner.id);
-  const traderCustomers: string[] = [];
-  for (const [name, phone, opening] of [
-    ['Anarkali Bale Corner', '03004440041', 30000],
-    ['Ichhra Second Hand', '03214440042', 0],
-    ['Shadman Kapra', '03334440043', 0],
-    ['Township Traders', '03454440044', 12000],
-  ] as const) {
-    const c = (await customers.create(trader.id, { name, phone, city: 'Lahore', openingBalance: opening } as never, traderOwner.id)) as { id: string };
-    traderCustomers.push(c.id);
-    await prisma.customer.update({ where: { id: c.id }, data: { createdAt: moment(ctx, 40) } });
-  }
-  const jacketPieces = await prisma.inventoryItem.findMany({ where: { tenantId: trader.id, parentItemId: items['Ladies jackets (UK)'] }, orderBy: { salePrice: 'asc' } });
-  const traderSales: { daysAgo: number; customer: number; mode: string; lines: { inventoryItemId: string; unit: string; quantity: number; unitPrice: number }[] }[] = [
-    { daysAgo: 20, customer: 0, mode: 'CREDIT', lines: [{ inventoryItemId: items['Ladies jackets (UK)'], unit: 'BALE', quantity: 2, unitPrice: 33000 }] },
-    { daysAgo: 15, customer: 1, mode: 'CASH', lines: [{ inventoryItemId: items['Gents sweaters'], unit: 'BALE', quantity: 1, unitPrice: 27500 }] },
-    { daysAgo: 10, customer: 2, mode: 'CASH', lines: [{ inventoryItemId: items['Kids mix'], unit: 'KG', quantity: 120, unitPrice: 240 }] },
-    { daysAgo: 6, customer: 3, mode: 'CREDIT', lines: [{ inventoryItemId: items['Gents sweaters'], unit: 'BALE', quantity: 2, unitPrice: 27000 }] },
-    { daysAgo: 2, customer: 1, mode: 'CASH', lines: [{ inventoryItemId: jacketPieces[0].id, unit: 'PIECE', quantity: 12, unitPrice: 300 }, { inventoryItemId: jacketPieces[2].id, unit: 'PIECE', quantity: 4, unitPrice: 800 }] },
-    { daysAgo: 0, customer: 0, mode: 'CASH', lines: [{ inventoryItemId: items['Kids mix'], unit: 'KG', quantity: 80, unitPrice: 235 }] },
-  ];
-  for (const s of traderSales) {
-    const at = s.daysAgo === 0 ? new Date(startOfDayPKT(ctx.today).getTime() + sinceMidnight * 0.6) : moment(ctx, s.daysAgo, 13);
-    const sale = (await sales.create(trader.id, { customerId: traderCustomers[s.customer], paymentMode: s.mode, lines: s.lines, ...(s.mode !== 'CREDIT' ? { paymentMethod: 'CASH' } : {}) } as never, traderOwner.id)) as { id: string };
-    await prisma.sale.update({ where: { id: sale.id }, data: { issuedAt: at, createdAt: at } });
-    await prisma.payment.updateMany({ where: { tenantId: trader.id, saleId: sale.id }, data: { receivedAt: at, createdAt: at } });
-  }
-  const traderPayAt = moment(ctx, 8, 16);
-  const tp = (await khata.recordPayment(trader.id, { customerId: traderCustomers[0], amount: 40000, method: 'EASYPAISA', receivedAt: traderPayAt.toISOString() } as never, traderOwner.id)) as { payment: { id: string } };
-  await prisma.payment.update({ where: { id: tp.payment.id }, data: { receivedAt: traderPayAt, createdAt: traderPayAt } });
-
-  // Both data checks must find nothing: costs add up at every stage, khata agrees with sales and payments.
-  const checks = path.resolve(__dirname, '../../../prisma/checks');
-  const ours = new Set([t, trader.id]);
-  const run = async (file: string) =>
-    ((await prisma.$queryRawUnsafe(fs.readFileSync(path.join(checks, file), 'utf8').replace(/;\s*$/m, ''))) as { tenantId: string }[]).filter((r) => ours.has(r.tenantId)).length;
-  const checkRows = { costChain: await run('cost-chain-check.sql'), khata: await run('khata-check.sql') };
-  log(`  checks: cost chain ${checkRows.costChain} rows, khata ${checkRows.khata} rows`);
-
-  return {
-    tenantId: t,
-    traderTenantId: trader.id,
-    containers: CONTAINERS.length,
-    bales: stock.length,
-    sales: saleCount,
-    customers: CUSTOMERS.length,
-    checkRows,
-  };
+  return { bales: stock.length, sales: saleCount };
 }
+
+/** A fresh story context (fixed random seed, so the same sample every time). */
+export function storyContext(app: Pick<INestApplicationContext, 'get'>, today = new Date()): Ctx {
+  return { app: app as INestApplicationContext, prisma: app.get(PrismaService as never, { strict: false }) as PrismaService, today, random: rng(786) };
+}
+
+/** The sample's category and grade names (the setup a test business gets before "Fill with sample data"). */
+export const SAMPLE_SETUP = { categories: CATEGORIES.map((c) => c.name), grades: GRADES };

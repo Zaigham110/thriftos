@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomInt } from 'crypto';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -6,7 +6,7 @@ import { AuditService } from '../audit/audit.service';
 import { PasswordService } from '../auth/password.service';
 import { toE164 } from '../common/phone/phone';
 import { TenantBootstrapService } from './tenant-bootstrap.service';
-import { QuickCreateTenantDto } from './dto/quick-create.dto';
+import { QuickCreateTenantDto, UpdatePersonDto } from './dto/quick-create.dto';
 
 export type ActivityKind = 'sale' | 'payment' | 'container' | 'app';
 export interface LastActivity {
@@ -20,6 +20,13 @@ const NOT_THE_BUSINESS: Prisma.AuditLogWhereInput[] = [
   { action: { startsWith: 'SUPPORT_' } },
   { action: { in: ['TENANT_CREATED', 'AUTH_LOGIN_FAILED', 'AUTH_PIN_FAILED', 'AUTH_PIN_LOCKED', 'TENANT_CONTEXT_MISSING'] } },
 ];
+
+/** The message with a new PIN, in the owner's language. */
+export function newPinMessage(lang: 'ur' | 'en', p: { owner: string; business: string; url: string; phone: string; pin: string }): string {
+  return lang === 'ur'
+    ? `السلام علیکم ${p.owner}!\n${p.business} کے ThriftOS کے لیے آپ کا نیا PIN:\nPIN: ${p.pin}\nفون: ${p.phone}\nکھولیں: ${p.url}`
+    : `Assalam o Alaikum ${p.owner}!\nYour new PIN for ThriftOS (${p.business}):\nPIN: ${p.pin}\nPhone: ${p.phone}\nOpen: ${p.url}`;
+}
 
 /** Company code from the business name: letters and digits, up to 12, then -2, -3… if taken. */
 export function companyCodeFrom(name: string): string {
@@ -103,6 +110,54 @@ export class OnboardingService {
       signInUrl: url,
       welcome: welcomeMessage(language, { owner: owner.name, business: tenant.name, url, phone: localPhone(phone), pin }),
     };
+  }
+
+  /**
+   * A new 6-digit PIN for someone who signs in with their phone (the owner lost it, or is locked out after wrong
+   * tries). Unlocks them, signs them out everywhere, and returns the PIN once with the message to send. The PIN is
+   * not in the audit log.
+   */
+  async newPin(tenantId: string, userId: string, actorId: string) {
+    const user = await this.prisma.user.findFirst({ where: { id: userId, tenantId }, select: { id: true, name: true, phone: true, tenant: { select: { name: true, defaultLanguage: true } } } });
+    if (!user) throw new NotFoundException('Person not found in this business');
+    if (!user.phone) throw new BadRequestException('This person has no phone number. Add one first, then make a PIN.');
+    const pin = String(randomInt(0, 1_000_000)).padStart(6, '0');
+    await this.prisma.user.update({ where: { id: user.id }, data: { pinHash: await this.passwords.hash(pin), failedPinAttempts: 0, pinLockedUntil: null } });
+    await this.prisma.refreshToken.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } });
+    await this.audit.log({ userId: actorId, tenantId, action: 'USER_PIN_RESET', entityType: 'User', entityId: user.id, metadataJson: { userName: user.name, bySuperAdmin: true } });
+    const language = user.tenant.defaultLanguage === 'en' ? 'en' : 'ur';
+    const url = `${(process.env.PUBLIC_APP_URL || 'http://localhost:4200').replace(/\/$/, '')}/auth/login`;
+    return { pin, phone: user.phone, message: newPinMessage(language, { owner: user.name, business: user.tenant.name, url, phone: localPhone(user.phone), pin }) };
+  }
+
+  /** A temporary password for someone who signs in with email, in their own business (shown once). */
+  async newPassword(tenantId: string, userId: string, actorId: string) {
+    const user = await this.prisma.user.findFirst({ where: { id: userId, tenantId }, select: { id: true, name: true, email: true } });
+    if (!user) throw new NotFoundException('Person not found in this business');
+    if (!user.email) throw new BadRequestException('This person signs in with phone and PIN. Make a new PIN instead.');
+    const temporaryPassword = this.passwords.generateTemporaryPassword();
+    await this.prisma.user.update({ where: { id: user.id }, data: { passwordHash: await this.passwords.hash(temporaryPassword) } });
+    await this.prisma.refreshToken.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } });
+    await this.audit.log({ userId: actorId, tenantId, action: 'USER_PASSWORD_RESET', entityType: 'User', entityId: user.id, metadataJson: { userName: user.name, bySuperAdmin: true } });
+    return { email: user.email, temporaryPassword };
+  }
+
+  /** Fix a person's name or phone (a typo in the owner's number). The phone stays unique: it is their login. */
+  async updatePerson(tenantId: string, userId: string, dto: UpdatePersonDto, actorId: string) {
+    const user = await this.prisma.user.findFirst({ where: { id: userId, tenantId }, select: { id: true, name: true, phone: true } });
+    if (!user) throw new NotFoundException('Person not found in this business');
+    const data: { name?: string; phone?: string } = {};
+    if (dto.name !== undefined) data.name = dto.name.trim();
+    if (dto.phone !== undefined) {
+      const phone = toE164(dto.phone);
+      if (!phone) throw new BadRequestException('Enter a valid phone number, e.g. 0300 1234567');
+      const other = await this.prisma.user.findUnique({ where: { phone }, select: { id: true, tenant: { select: { name: true } } } });
+      if (other && other.id !== user.id) throw new ConflictException(`This phone already has a login (${other.tenant.name})`);
+      data.phone = phone;
+    }
+    const updated = await this.prisma.user.update({ where: { id: user.id }, data, select: { id: true, name: true, phone: true } });
+    await this.audit.log({ userId: actorId, tenantId, action: 'USER_UPDATED', entityType: 'User', entityId: user.id, metadataJson: { before: { name: user.name, phone: user.phone }, after: data, bySuperAdmin: true } });
+    return updated;
   }
 
   /** Latest sign-in or work of each business: app use (audit), a sale, a payment or a container — whichever is newest. */

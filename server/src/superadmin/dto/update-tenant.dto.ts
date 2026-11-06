@@ -29,5 +29,10 @@ export class UpdateTenantDto {
   @IsEnum(TenantStatus)
   @IsOptional()
   status?: TenantStatus;
+
+  /** The language the business opens in (Urdu or English). */
+  @IsIn(['ur', 'en'])
+  @IsOptional()
+  defaultLanguage?: 'ur' | 'en';
 }
 

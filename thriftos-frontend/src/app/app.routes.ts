@@ -11,6 +11,9 @@ import { setupGuard } from './core/guards/setup.guard';
 import { LoginComponent } from './features/auth/login/login.component';
 
 export const routes: Routes = [
+  // Typed or old addresses for signing in (v2 review): the sign-in page, not "page not found".
+  { path: 'login', redirectTo: '/auth/login', pathMatch: 'full' },
+  { path: 'signin', redirectTo: '/auth/login', pathMatch: 'full' },
   // Auth routes (public)
   {
     path: 'auth/login',
