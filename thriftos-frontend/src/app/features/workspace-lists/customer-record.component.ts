@@ -3,8 +3,8 @@ import { NavService } from '../../core/nav/nav.service';
 import { Component, computed, inject, input, signal, effect } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { BookOpen, CalendarCheck, Clock, Coins, FileText, Gauge, LucideAngularModule, MessageCircle, Receipt, Tags, Wallet } from 'lucide-angular';
+import { ActivatedRoute, Router } from '@angular/router';
+import { BookOpen, CalendarCheck, Clock, Coins, FileText, Gauge, LucideAngularModule, MessageCircle, Pencil, Receipt, Tags, Wallet } from 'lucide-angular';
 import { catchError, map, of, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth';
 import { I18nService, serverLang } from '../../core/i18n/i18n.service';
@@ -12,6 +12,7 @@ import { TPipe } from '../../core/i18n/t.pipe';
 import { KhataService, WhatsappMessage } from '../../modules/sales/khata.service';
 import type { PaymentMethod } from '../../modules/sales/sales.models';
 import { ToastService } from '../../shared/floor/toast.service';
+import { localPhone } from '../../shared/phone';
 import {
   WsBarChartComponent,
   WsColumn,
@@ -52,7 +53,6 @@ const METHODS: readonly PaymentMethod[] = ['CASH', 'JAZZCASH', 'EASYPAISA', 'RAA
   standalone: true,
   imports: [
     FormsModule,
-    RouterLink,
     LucideAngularModule,
     TPipe,
     WsBarChartComponent,
@@ -77,11 +77,11 @@ const METHODS: readonly PaymentMethod[] = ['CASH', 'JAZZCASH', 'EASYPAISA', 'RAA
                 <button type="button" class="ws-btn" (click)="remind()"><lucide-icon [img]="icons.MessageCircle" [size]="16" aria-hidden="true" />{{ 'ws.customer.remind' | t }}</button>
               }
               <button type="button" class="ws-btn" (click)="sheet.set('promise')"><lucide-icon [img]="icons.CalendarCheck" [size]="16" aria-hidden="true" />{{ 'ws.customer.promise' | t }}</button>
-              <button type="button" class="ws-btn" (click)="limit = d.customer.creditLimit ? +d.customer.creditLimit : 0; sheet.set('limit')"><lucide-icon [img]="icons.Gauge" [size]="16" aria-hidden="true" />{{ 'ws.customer.setLimit' | t }}</button>
               @if (can('price.manage')) {
                 <button type="button" class="ws-btn" (click)="openGroup()"><lucide-icon [img]="icons.Tags" [size]="16" aria-hidden="true" />{{ d.customer.priceGroup ?? ('ws.customer.priceList' | t) }}</button>
               }
-              <a class="ws-btn" [routerLink]="['/statement', d.customer.id]"><lucide-icon [img]="icons.FileText" [size]="16" aria-hidden="true" />{{ 'ws.customer.statement' | t }}</a>
+              <button type="button" class="ws-btn" (click)="go('statement')"><lucide-icon [img]="icons.FileText" [size]="16" aria-hidden="true" />{{ 'ws.customer.statement' | t }}</button>
+              <button type="button" class="ws-btn" (click)="go('edit')"><lucide-icon [img]="icons.Pencil" [size]="16" aria-hidden="true" />{{ 'ws.crumb.edit' | t }}</button>
             </ng-container>
           </ws-page-header>
 
@@ -91,11 +91,11 @@ const METHODS: readonly PaymentMethod[] = ['CASH', 'JAZZCASH', 'EASYPAISA', 'RAA
 
           <section class="smart">
             <ws-smart-button [label]="'ws.collections.balance' | t" [value]="i18n.money(d.account.balance)" [icon]="icons.BookOpen" [tone]="+d.account.balance > 0 ? 'bad' : 'good'" [link]="[]" [query]="{ tab: 'sales' }" />
-            <ws-smart-button [label]="'ws.customer.overdue' | t" [value]="'ws.customer.days' | t: { n: d.account.overdueDays }" [icon]="icons.Clock" [tone]="d.account.overdueDays > 60 ? 'bad' : 'plain'" [link]="[]" />
-            <ws-smart-button [label]="'ws.customer.creditLimit' | t" [value]="d.customer.creditLimit ? i18n.money(d.customer.creditLimit) + ' · ' + d.account.limitUsedPercent + '%' : ('ws.customer.noLimit' | t)" [icon]="icons.Gauge" [tone]="d.account.overLimit ? 'bad' : 'plain'" [link]="[]" />
+            <ws-smart-button [label]="'ws.customer.overdue' | t" [value]="'ws.customer.days' | t: { n: d.account.overdueDays }" [icon]="icons.Clock" [tone]="d.account.overdueDays > 60 ? 'bad' : 'plain'" [link]="[]" [query]="{ tab: 'sales' }" />
+            <ws-smart-button [label]="'ws.customer.creditLimit' | t" [value]="d.customer.creditLimit ? i18n.money(d.customer.creditLimit) + ' · ' + d.account.limitUsedPercent + '%' : ('ws.customer.noLimit' | t)" [icon]="icons.Gauge" [tone]="d.account.overLimit ? 'bad' : 'plain'" [link]="[]" (click)="openLimit()" />
             <ws-smart-button [label]="'ws.customer.sold' | t" [value]="i18n.money(d.totals.sold)" [icon]="icons.Receipt" [link]="[]" [query]="{ tab: 'sales' }" />
             <ws-smart-button [label]="'ws.customer.received' | t" [value]="i18n.money(d.totals.received)" [icon]="icons.Wallet" tone="good" [link]="[]" [query]="{ tab: 'payments' }" />
-            @if (d.totals.profit !== null) { <ws-smart-button [label]="'ws.col.profit' | t" [value]="i18n.money(d.totals.profit)" [icon]="icons.Coins" [link]="[]" /> }
+            @if (d.totals.profit !== null) { <ws-smart-button [label]="'ws.col.profit' | t" [value]="i18n.money(round(d.totals.profit))" [icon]="icons.Coins" [link]="[]" [query]="{ tab: 'sales' }" /> }
           </section>
 
           <ol class="ageing" [attr.aria-label]="'ws.collections.ageing' | t">
@@ -109,10 +109,15 @@ const METHODS: readonly PaymentMethod[] = ['CASH', 'JAZZCASH', 'EASYPAISA', 'RAA
           <ws-tabs [tabs]="tabs()" [active]="tab()" (activeChange)="pickTab($event)" [label]="d.customer.name" />
           <div role="tabpanel" [id]="'ws-panel-' + tab()" [attr.aria-labelledby]="'ws-tab-' + tab()">
             @switch (tab()) {
-              @case ('sales') { <ws-data-grid [caption]="'ws.container.tab.sales' | t" [columns]="saleColumns()" [rows]="saleRows()" [clickable]="true" (rowClick)="openSale($event)" [emptyHeading]="'ws.container.noSales' | t" /> }
+              @case ('sales') {
+                <ws-data-grid [caption]="'ws.container.tab.sales' | t" [columns]="saleColumns()" [rows]="saleRows()" [clickable]="true" (rowClick)="openSale($event)" [emptyHeading]="'ws.container.noSales' | t" />
+                <!-- The balance is the bills still due plus the opening balance, less any advance (v2 review). -->
+                <p class="hint">{{ balanceLine() }}</p>
+              }
               @case ('payments') { <ws-data-grid [caption]="'ws.sale.payments' | t" [columns]="paymentColumns()" [rows]="paymentRows()" [emptyHeading]="'ws.sale.noPayments' | t" /> }
               @case ('promises') {
                 <ws-data-grid [caption]="'ws.customer.promises' | t" [columns]="promiseColumns()" [rows]="promiseRows()" [emptyHeading]="'ws.customer.noPromises' | t" [clickable]="true" (rowClick)="askCancel($event)" />
+                @if (d.promises.length) { <p class="hint">{{ 'ws.rc.promiseHint' | t }}</p> }
               }
               @case ('reminders') { <ws-data-grid [caption]="'ws.customer.reminders' | t" [columns]="reminderColumns()" [rows]="reminderRows()" [emptyHeading]="'ws.customer.noReminders' | t" /> }
             }
@@ -122,50 +127,65 @@ const METHODS: readonly PaymentMethod[] = ['CASH', 'JAZZCASH', 'EASYPAISA', 'RAA
       </div>
 
       <ws-side-sheet [open]="sheet() === 'payment'" [heading]="'ws.customer.receive' | t" (close)="sheet.set(null)">
-        <form class="form" (ngSubmit)="receive()">
+        <form class="form" id="ws-cr-pay" (ngSubmit)="receive()">
           <p class="hint">{{ 'ws.customer.receiveHint' | t: { balance: i18n.money(d.account.balance) } }}</p>
           <label>{{ 'ws.sale.amount' | t }}<input name="amount" type="number" min="1" step="1" required [(ngModel)]="amount" /></label>
           <label>{{ 'ws.sale.method' | t }}
             <select name="method" [(ngModel)]="method">@for (m of methods; track m) { <option [value]="m">{{ 'method.' + m | t }}</option> }</select>
           </label>
           <label>{{ 'ws.sale.reference' | t }}<input name="reference" maxlength="80" [(ngModel)]="reference" /></label>
-          <button type="submit" class="ws-btn primary" [disabled]="busy() || !amount || amount < 1">{{ 'ws.customer.saveReceipt' | t }}</button>
         </form>
+        <ng-container footer>
+          <button type="button" class="ws-btn" (click)="sheet.set(null)">{{ 'common.cancel' | t }}</button>
+          <button type="submit" form="ws-cr-pay" class="ws-btn primary" [disabled]="busy() || !amount || amount < 1">{{ 'ws.customer.saveReceipt' | t }}</button>
+        </ng-container>
       </ws-side-sheet>
 
       <ws-side-sheet [open]="sheet() === 'promise'" [heading]="'ws.customer.promise' | t" (close)="sheet.set(null)">
-        <form class="form" (ngSubmit)="addPromise()">
+        <form class="form" id="ws-cr-promise" (ngSubmit)="addPromise()">
           <label>{{ 'ws.sale.amount' | t }}<input name="pamount" type="number" min="1" step="1" required [(ngModel)]="promiseAmount" /></label>
           <label>{{ 'ws.customer.promisedFor' | t }}<input name="pday" type="date" required [min]="today" [(ngModel)]="promiseDay" /></label>
           <label>{{ 'ws.customer.note' | t }}<input name="pnote" maxlength="300" [(ngModel)]="promiseNote" /></label>
-          <button type="submit" class="ws-btn primary" [disabled]="busy() || !promiseAmount || !promiseDay">{{ 'ws.customer.savePromise' | t }}</button>
         </form>
+        <ng-container footer>
+          <button type="button" class="ws-btn" (click)="sheet.set(null)">{{ 'common.cancel' | t }}</button>
+          <button type="submit" form="ws-cr-promise" class="ws-btn primary" [disabled]="busy() || !promiseAmount || !promiseDay">{{ 'ws.customer.savePromise' | t }}</button>
+        </ng-container>
       </ws-side-sheet>
 
       <ws-side-sheet [open]="sheet() === 'limit'" [heading]="'ws.customer.creditLimit' | t" (close)="sheet.set(null)">
-        <form class="form" (ngSubmit)="saveLimit()">
+        <form class="form" id="ws-cr-limit" (ngSubmit)="saveLimit()">
           <p class="hint">{{ 'ws.customer.limitHint' | t }}</p>
           <label>{{ 'ws.customer.creditLimit' | t }}<input name="limit" type="number" min="0" step="1000" required [(ngModel)]="limit" /></label>
-          <button type="submit" class="ws-btn primary" [disabled]="busy() || limit === null || limit < 0">{{ 'common.save' | t }}</button>
         </form>
+        <ng-container footer>
+          <button type="button" class="ws-btn" (click)="sheet.set(null)">{{ 'common.cancel' | t }}</button>
+          <button type="submit" form="ws-cr-limit" class="ws-btn primary" [disabled]="busy() || limit === null || limit < 0">{{ 'common.save' | t }}</button>
+        </ng-container>
       </ws-side-sheet>
 
       <ws-side-sheet [open]="sheet() === 'group'" [heading]="'ws.customer.priceList' | t" (close)="sheet.set(null)">
-        <form class="form" (ngSubmit)="saveGroup()">
+        <form class="form" id="ws-cr-group" (ngSubmit)="saveGroup()">
           <p class="hint">{{ 'ws.customer.priceListHint' | t }}</p>
           <label>{{ 'ws.customer.priceGroup' | t }}
             <input name="group" list="ws-price-groups" maxlength="40" [(ngModel)]="priceGroup" />
             <datalist id="ws-price-groups">@for (g of groups(); track g) { <option [value]="g"></option> }</datalist>
           </label>
-          <button type="submit" class="ws-btn primary" [disabled]="busy()">{{ 'common.save' | t }}</button>
         </form>
+        <ng-container footer>
+          <button type="button" class="ws-btn" (click)="sheet.set(null)">{{ 'common.cancel' | t }}</button>
+          <button type="submit" form="ws-cr-group" class="ws-btn primary" [disabled]="busy()">{{ 'common.save' | t }}</button>
+        </ng-container>
       </ws-side-sheet>
 
       <ws-side-sheet [open]="!!cancelling()" [heading]="'ws.customer.cancelPromise' | t" (close)="cancelling.set(null)">
         <div class="form">
           <p class="hint">{{ cancelling()?.['label'] }}</p>
-          <button type="button" class="ws-btn" [disabled]="busy()" (click)="cancelPromise()">{{ 'ws.customer.cancelPromise' | t }}</button>
         </div>
+        <ng-container footer>
+          <button type="button" class="ws-btn" (click)="cancelling.set(null)">{{ 'ws.rc.keepPromise' | t }}</button>
+          <button type="button" class="ws-btn danger" [disabled]="busy()" (click)="cancelPromise()">{{ 'ws.customer.cancelPromise' | t }}</button>
+        </ng-container>
       </ws-side-sheet>
     } @else {
       <ws-state kind="loading" />
@@ -187,6 +207,7 @@ const METHODS: readonly PaymentMethod[] = ['CASH', 'JAZZCASH', 'EASYPAISA', 'RAA
     .form label { display:grid; gap:4px; color:var(--ws-ink-2); font-size:var(--ws-text-sm); }
     .form input, .form select { padding:var(--ws-2); border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface); color:var(--ws-ink); font:inherit; }
     .hint { margin:0; color:var(--ws-ink-2); font-size:var(--ws-text-sm); }
+    .ws-btn.danger { border-color:var(--ws-bad); color:var(--ws-bad); }
     @media (max-width: 1199px) { .record { grid-template-columns:minmax(0, 1fr); } .side { position:static; } }
   `],
 })
@@ -212,7 +233,7 @@ export class CustomerRecordComponent {
   });
   readonly tabParam = input<string | undefined>(undefined, { alias: 'tab' });
 
-  protected readonly icons = { BookOpen, CalendarCheck, Clock, Coins, FileText, Gauge, MessageCircle, Receipt, Tags, Wallet };
+  protected readonly icons = { BookOpen, CalendarCheck, Clock, Coins, FileText, Gauge, MessageCircle, Pencil, Receipt, Tags, Wallet };
   protected readonly ageKeys = AGE_KEYS;
   protected readonly methods = METHODS;
   protected readonly data = signal<Customer360 | null>(null);
@@ -236,7 +257,7 @@ export class CustomerRecordComponent {
   protected readonly subtitle = computed(() => {
     const c = this.data()?.customer;
     if (!c) return '';
-    return [c.companyName, c.city, c.phone, c.address].filter(Boolean).join(' · ');
+    return [c.companyName, c.city, localPhone(c.phone), c.address].filter(Boolean).join(' · ');
   });
   protected readonly tabs = computed<WsTab[]>(() => {
     const d = this.data();
@@ -252,11 +273,17 @@ export class CustomerRecordComponent {
     const want = this.chosenTab() ?? this.tabParam();
     return want && this.tabs().some((t) => t.id === want) ? want : 'sales';
   });
+  /** Months from the first one with a sale or payment (at least the last three), not a year of empty bars. */
+  private readonly activeMonths = computed(() => {
+    const m = this.data()?.months ?? [];
+    const first = m.findIndex((x) => +x.sold > 0 || +x.received > 0);
+    return m.slice(Math.min(first < 0 ? m.length : first, Math.max(0, m.length - 3)));
+  });
   protected readonly monthLabels = computed(() =>
-    (this.data()?.months ?? []).map((m) => new Date(m.month + '-15T00:00:00Z').toLocaleDateString(this.i18n.lang() === 'ur' ? 'ur-PK' : 'en-GB', { month: 'short', numberingSystem: 'latn' })),
+    this.activeMonths().map((m) => new Date(m.month + '-15T00:00:00Z').toLocaleDateString(this.i18n.lang() === 'ur' ? 'ur-PK' : 'en-GB', { month: 'short', numberingSystem: 'latn' })),
   );
   protected readonly monthSeries = computed(() => {
-    const m = this.data()?.months ?? [];
+    const m = this.activeMonths();
     return [
       { label: this.i18n.t('ws.customer.sold'), values: m.map((x) => Number(x.sold)) },
       { label: this.i18n.t('ws.customer.received'), values: m.map((x) => Number(x.received)) },
@@ -270,7 +297,24 @@ export class CustomerRecordComponent {
     this.col('number', 'ws.col.number'), this.col('date', 'ws.col.date', 'date'), this.col('status', 'ws.col.status'),
     this.col('total', 'ws.col.total', 'money', true), this.col('paid', 'ws.sale.paid', 'money', true), this.col('due', 'ws.sale.due', 'money', true),
   ]);
-  protected readonly saleRows = computed<WsRow[]>(() => (this.data()?.sales ?? []).map((s) => ({ ...s, status: this.i18n.t(`ws.status.${s.status}`) })));
+  protected readonly saleRows = computed<WsRow[]>(() => {
+    const d = this.data();
+    if (!d) return [];
+    const rows: WsRow[] = d.sales.map((s) => ({ ...s, status: this.i18n.t(`ws.status.${s.status}`) }));
+    // What they owed before ThriftOS: its own row, so the bills add up to the balance.
+    const opening = Number(d.customer.openingBalance);
+    if (opening > 0) {
+      rows.push({ id: 'opening', number: this.i18n.t('ws.statement.opening'), date: d.customer.createdAt, status: '', total: d.customer.openingBalance, paid: String(opening - Number(d.account.openingDue)), due: d.account.openingDue });
+    }
+    return rows;
+  });
+  protected readonly balanceLine = computed(() => {
+    const d = this.data();
+    if (!d) return '';
+    const due = d.sales.reduce((t, s) => t + Number(s.due), 0) + Number(d.account.openingDue);
+    const advance = Number(d.account.advance);
+    return this.i18n.t(advance > 0 ? 'ws.rc.balanceAdvance' : 'ws.rc.balanceLine', { due: this.i18n.money(due), advance: this.i18n.money(advance), balance: this.i18n.money(d.account.balance) });
+  });
   protected readonly paymentColumns = computed(() => [
     this.col('date', 'ws.col.date', 'date'), this.col('method', 'ws.sale.method'), this.col('reference', 'ws.sale.reference'), this.col('sale', 'ws.col.number'),
     this.col('amount', 'ws.sale.amount', 'money', true),
@@ -393,7 +437,23 @@ export class CustomerRecordComponent {
   }
 
   protected openSale(row: WsRow): void {
+    if (row.id === 'opening') return;
     void this.nav.open(['/sell/records', row.id]);
+  }
+
+  protected round(v: string | number | null): number {
+    return Math.round(Number(v ?? 0));
+  }
+
+  protected openLimit(): void {
+    const c = this.data()?.customer;
+    this.limit = c?.creditLimit ? +c.creditLimit : 0;
+    this.sheet.set('limit');
+  }
+
+  /** The statement and the edit form sit under this customer, so Back and the breadcrumb lead here. */
+  protected go(page: 'statement' | 'edit'): void {
+    void this.nav.open(['/khata/records', this.id(), page]);
   }
 
   protected can(code: string): boolean {

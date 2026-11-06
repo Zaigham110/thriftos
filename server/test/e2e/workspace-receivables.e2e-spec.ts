@@ -54,6 +54,9 @@ describe('Workspace receivables: ageing, customer 360, statement, promises, remi
     expect(w.rows[0]).toMatchObject({ id: ids.customer, balance: '65000', buckets: { '0-30': '20000', '31-60': '45000', '61-90': '0', '90+': '0' }, overdueDays: 45 });
     expect(w.rows[0].lastPayment).toMatchObject({ amount: '15000' });
     expect(w.totals).toMatchObject({ owed: '65000', advance: '1000', customers: 1, buckets: { '0-30': '20000', '31-60': '45000' } });
+    // Customers who owe nothing are listed apart (the desktop shows every customer).
+    expect(w.settled).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'Advance Wala', advance: '1000', lastPayment: expect.objectContaining({ amount: '1000' }) })]));
+    expect(w.settled.map((x: { id: string }) => x.id)).not.toContain(ids.customer);
   });
 
   it('promises: open, kept when payments reach it, broken when the day passes; no past days', async () => {
@@ -123,6 +126,8 @@ describe('Workspace receivables: ageing, customer 360, statement, promises, remi
     await api(app, b).post(`/workspace/customers/${ids.customer}/promises`, { amount: 1, promisedFor: dayOffset(1) }).expect(404);
     await api(app, b).patch(`/workspace/customers/${ids.customer}/credit-limit`, { creditLimit: 1 }).expect(404);
     await api(app, b).post(`/workspace/customers/${ids.customer}/remind`, {}).expect(404);
-    expect((await api(app, b).get('/workspace/receivables').expect(200)).body.rows).toEqual([]);
+    const other = (await api(app, b).get('/workspace/receivables').expect(200)).body;
+    expect(other.rows).toEqual([]);
+    expect(other.settled.map((x: { name: string }) => x.name)).not.toContain('Advance Wala');
   });
 });

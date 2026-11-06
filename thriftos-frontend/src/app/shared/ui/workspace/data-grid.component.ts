@@ -22,6 +22,14 @@ export interface WsColumn {
   info?: string;
   /** 'sign': a value below zero shows red (a loss). */
   tone?: 'sign';
+  /** Show nothing instead of "Rs 0" in the rows (ageing tables), so the real amounts stand out. */
+  blankZero?: boolean;
+}
+
+/** A small button at the end of every row (e.g. "Receive", "Remind"); a row may list the ones it offers in `_actions`. */
+export interface WsRowAction {
+  id: string;
+  label: string;
 }
 
 export interface WsSort {
@@ -66,6 +74,7 @@ export type WsRow = Record<string, unknown> & { id: string };
                 </span>
               </th>
             }
+            @if (rowActions().length) { <th scope="col"><span class="sr-only">{{ 'ws.rc.actions' | t }}</span></th> }
           </tr>
         </thead>
         <tbody>
@@ -75,7 +84,14 @@ export type WsRow = Record<string, unknown> & { id: string };
                 @if (selectable()) {
                   <td class="check" (click)="$event.stopPropagation()"><input type="checkbox" [checked]="isSelected(r)" (change)="toggle(r)" [attr.aria-label]="'ws.grid.selectRow' | t" /></td>
                 }
-                @for (c of columns(); track c.key) { <td [class.end]="isNumeric(c)" [class.ws-num]="isNumeric(c)" [class.neg]="c.tone === 'sign' && isNeg(r[c.key])">{{ cell(r[c.key], c.format, c.round) }}</td> }
+                @for (c of columns(); track c.key) { <td [class.end]="isNumeric(c)" [class.ws-num]="isNumeric(c)" [class.neg]="c.tone === 'sign' && isNeg(r[c.key])">{{ c.blankZero && isZero(r[c.key]) ? '' : cell(r[c.key], c.format, c.round) }}</td> }
+                @if (rowActions().length) {
+                  <td class="acts" (click)="$event.stopPropagation()">
+                    @for (a of rowActions(); track a.id) {
+                      @if (offers(r, a.id)) { <button type="button" class="act" (click)="rowAction.emit({ action: a.id, row: r })">{{ a.label }}</button> }
+                    }
+                  </td>
+                }
               </tr>
             }
           }
@@ -87,6 +103,7 @@ export type WsRow = Record<string, unknown> & { id: string };
               @for (c of columns(); track c.key; let first = $first) {
                 <td [class.end]="isNumeric(c)" [class.ws-num]="isNumeric(c)">{{ c.total ? cell(totals()[c.key], c.format, c.round) : first ? ('ws.grid.total' | t) : '' }}</td>
               }
+              @if (rowActions().length) { <td></td> }
             </tr>
           </tfoot>
         }
@@ -97,6 +114,10 @@ export type WsRow = Record<string, unknown> & { id: string };
   `,
   styles: [`
     td.neg { color:var(--ws-bad); font-weight:600; }
+    .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+    td.acts { white-space:nowrap; text-align:end; }
+    .act { height:28px; margin-inline-start:4px; padding-inline:10px; border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface); color:var(--ws-ink); font:inherit; font-size:var(--ws-text-sm); cursor:pointer; }
+    .act:hover { border-color:var(--ws-brand); color:var(--ws-brand); }
     .wrap { overflow:auto; border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); }
     table { width:100%; border-collapse:separate; border-spacing:0; font-size:var(--ws-text-sm); }
     th, td { height:var(--ws-row-h); padding-inline:var(--ws-cell-px); border-block-end:1px solid var(--ws-line); text-align:start; white-space:nowrap; }
@@ -133,6 +154,8 @@ export class WsDataGridComponent {
   readonly sort = model<WsSort | null>(null);
   readonly selected = model<string[]>([]);
   readonly rowClick = output<WsRow>();
+  readonly rowActions = input<WsRowAction[]>([]);
+  readonly rowAction = output<{ action: string; row: WsRow }>();
 
   protected readonly sorted = computed(() => {
     const s = this.sort();
@@ -154,6 +177,15 @@ export class WsDataGridComponent {
 
   protected isNumeric(c: WsColumn): boolean {
     return c.format === 'number' || c.format === 'money' || c.format === 'kg' || c.format === 'percent';
+  }
+
+  protected isZero(v: unknown): boolean {
+    return v === null || v === undefined || v === '' || Number(v) === 0;
+  }
+
+  protected offers(r: WsRow, id: string): boolean {
+    const list = r['_actions'] as string[] | undefined;
+    return !list || list.includes(id);
   }
 
   protected isNeg(v: unknown): boolean {

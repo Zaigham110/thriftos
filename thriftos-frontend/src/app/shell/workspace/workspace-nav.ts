@@ -107,6 +107,7 @@ export const WS_CRUMBS: Record<string, string> = {
   new: 'ws.crumb.new',
   create: 'ws.crumb.new',
   edit: 'ws.crumb.edit',
+  statement: 'ws.customer.statement',
   tenant: 'ws.adminIdx.area.tenant.name',
   users: 'ws.adminIdx.area.users.name',
   roles: 'ws.adminIdx.area.roles.name',

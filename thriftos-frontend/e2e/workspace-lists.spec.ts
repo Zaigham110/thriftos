@@ -222,7 +222,7 @@ test('receivables: collections worklist, customer 360 with promise and payment, 
   const { customer } = await makeSale(request);
   await signIn(page);
   await page.goto('/khata/records');
-  await expect(page.getByRole('heading', { name: 'Collections', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Receivables', exact: true })).toBeVisible();
   await page.getByPlaceholder('Search customer, city or phone').fill(customer.name);
   const row = page.locator('ws-data-grid tbody tr').filter({ hasText: customer.name });
   await expect(row).toContainText('25,000');
@@ -246,7 +246,8 @@ test('receivables: collections worklist, customer 360 with promise and payment, 
   await expect(page.locator('ws-smart-button').filter({ hasText: 'Balance' })).toContainText('15,000');
   await expect(page.locator('ws-data-grid tbody tr').first()).toContainText('Kept');
 
-  await page.getByRole('link', { name: 'Statement' }).click();
+  await page.getByRole('button', { name: 'Statement' }).click();
+  await expect(page).toHaveURL(/\/khata\/records\/[^/]+\/statement$/);
   await expect(page.getByRole('heading', { name: 'Statement of account' }).or(page.getByText('Statement of account').first())).toBeVisible();
   await expect(page.locator('tfoot')).toContainText('15,000');
 });
@@ -696,4 +697,61 @@ test('sales review: Enter picks the customer, new customer, below cost, receive 
   const row = page.locator('ws-data-grid tbody tr').filter({ hasText: `Review Buyer ${tag}` });
   await expect(row).toContainText('5,000');
   await expect(row).toContainText('10,000');
+});
+
+test('receivables review: new customer with an opening balance, edit, bills add up, view kept on Back, receive from the row, statement', async ({ page }) => {
+  const tag = Date.now().toString().slice(-6);
+  const name = `Opening Buyer ${tag}`;
+  await signIn(page);
+  await page.goto('/khata/records');
+  await page.getByRole('button', { name: 'New customer' }).click();
+  await expect(page).toHaveURL(/\/khata\/records\/new$/);
+  await page.getByLabel('Name', { exact: true }).fill(name);
+  await page.getByLabel('WhatsApp number').fill(`0306${tag}1`);
+  await page.getByLabel('City · optional').fill('Quetta');
+  await page.getByLabel(/Already owed before ThriftOS/).fill('40000');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();
+  await expect(page.getByText(`0306 ${tag}1`)).toBeVisible();
+  // The opening balance is its own row, so the bills add up to the balance.
+  await expect(page.locator('ws-data-grid tbody tr').filter({ hasText: 'Opening balance' })).toContainText('40,000');
+  await expect(page.getByText(/= balance .*40,000/)).toBeVisible();
+
+  // Edit: the city changes, Back lands on the customer.
+  await page.getByRole('button', { name: 'Edit' }).click();
+  await page.getByLabel('City · optional').fill('Sukkur');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page).toHaveURL(/\/khata\/records\/[^/]+$/);
+  await expect(page.getByText(/Sukkur/).first()).toBeVisible();
+
+  // The list keeps its view and search in the address: Back from the customer returns to them.
+  await page.goto('/khata/records');
+  await page.getByRole('button', { name: /^Over 90 days/ }).click();
+  await page.getByRole('button', { name: /^Owe money/ }).click();
+  await page.getByPlaceholder('Search customer, city or phone').fill(name);
+  await expect(page).toHaveURL(/q=Opening/);
+  const row = page.locator('ws-data-grid tbody tr').filter({ hasText: name });
+  await row.locator('td').nth(1).click();
+  await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();
+  await page.goBack();
+  await expect(page.getByPlaceholder('Search customer, city or phone')).toHaveValue(name);
+
+  // Take money from the row.
+  await row.getByRole('button', { name: 'Receive' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Receive payment' });
+  await expect(sheet.getByLabel('Amount')).toHaveValue('40000');
+  await sheet.getByLabel('Amount').fill('15000');
+  await sheet.getByRole('button', { name: 'Save payment' }).click();
+  await expect(row).toContainText('25,000');
+
+  // Paid up customers show under All customers.
+  await page.getByRole('button', { name: /^All customers/ }).click();
+  await expect(page).toHaveURL(/view=everyone/);
+
+  // The statement sits under the customer, inside the app, and can go to WhatsApp.
+  await row.locator('td').nth(1).click();
+  await page.getByRole('button', { name: 'Statement' }).click();
+  await expect(page.locator('nav.crumbs')).toContainText(name);
+  await expect(page.getByRole('button', { name: 'Send on WhatsApp' })).toBeEnabled();
+  await expect(page.locator('tfoot')).toContainText('25,000');
 });

@@ -66,11 +66,9 @@ export const routes: Routes = [
   // the wildcard sends /admin to /app while tenantAreaGuard sends super admins
   // back to /admin, creating an infinite navigation loop.
   {
-    // Printable statement of account (E3.5), outside the shell so it prints as a clean A4 page.
+    // The statement now opens inside the app, under its customer (the shell hides itself when printing).
     path: 'statement/:id',
-    loadComponent: () => import('./features/workspace-lists/statement.component').then((m) => m.StatementComponent),
-    canActivate: [authGuard, tenantAreaGuard],
-    title: 'ThriftOS',
+    redirectTo: '/khata/records/:id/statement',
   },
   {
     path: 'admin',
@@ -195,7 +193,11 @@ export const routes: Routes = [
         children: [
           // Workspace receivables (E3.5): collections worklist and ageing, customer 360.
           { path: 'records', loadComponent: () => import('./features/workspace-lists/collections.component').then((m) => m.CollectionsComponent), title: 'ThriftOS' },
+          // Add and change customers on the laptop; the statement sits under its customer (v2 review).
+          { path: 'records/new', canDeactivate: [unsavedChangesGuard], loadComponent: () => import('./features/workspace-lists/customer-form.component').then((m) => m.CustomerFormComponent), title: 'ThriftOS' },
           { path: 'records/:id', loadComponent: () => import('./features/workspace-lists/customer-record.component').then((m) => m.CustomerRecordComponent), title: 'ThriftOS' },
+          { path: 'records/:id/edit', canDeactivate: [unsavedChangesGuard], loadComponent: () => import('./features/workspace-lists/customer-form.component').then((m) => m.CustomerFormComponent), title: 'ThriftOS' },
+          { path: 'records/:id/statement', loadComponent: () => import('./features/workspace-lists/statement.component').then((m) => m.StatementComponent), title: 'ThriftOS' },
           {
             path: '',
             canActivate: [desktopRedirect('/khata/records')],

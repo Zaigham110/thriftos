@@ -2,11 +2,13 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
-import { ArrowLeft, LucideAngularModule, Printer } from 'lucide-angular';
+import { Router } from '@angular/router';
+import { ArrowLeft, LucideAngularModule, MessageCircle, Printer } from 'lucide-angular';
 import { catchError, map, of, switchMap } from 'rxjs';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
+import { NavService } from '../../core/nav/nav.service';
+import { localPhone, whatsappUrl } from '../../shared/phone';
 
 /** GET /api/workspace/customers/:id/statement */
 export interface Statement {
@@ -29,13 +31,15 @@ export interface Statement {
 @Component({
   selector: 'app-statement',
   standalone: true,
-  imports: [FormsModule, RouterLink, LucideAngularModule, TPipe],
+  imports: [FormsModule, LucideAngularModule, TPipe],
   template: `
     <div class="bar">
-      <a class="ws-btn" [routerLink]="['/khata/records', id()]"><lucide-icon [img]="icons.ArrowLeft" [size]="16" aria-hidden="true" />{{ 'common.back' | t }}</a>
+      <button type="button" class="ws-btn" (click)="back()"><lucide-icon [img]="icons.ArrowLeft" [size]="16" aria-hidden="true" />{{ 'common.back' | t }}</button>
       <label>{{ 'ws.statement.from' | t }}<input type="date" [ngModel]="from() ?? ''" (ngModelChange)="go($event, to())" /></label>
       <label>{{ 'ws.statement.to' | t }}<input type="date" [ngModel]="to() ?? ''" (ngModelChange)="go(from(), $event)" /></label>
       <button type="button" class="ws-btn primary" (click)="print()" [disabled]="!data()"><lucide-icon [img]="icons.Printer" [size]="16" aria-hidden="true" />{{ 'ws.statement.print' | t }}</button>
+      <!-- Send it to the customer: the totals as a WhatsApp message (v2 review). -->
+      <button type="button" class="ws-btn" (click)="share()" [disabled]="!data()?.customer?.phone"><lucide-icon [img]="icons.MessageCircle" [size]="16" aria-hidden="true" />{{ 'ws.rc.sendStatement' | t }}</button>
     </div>
     @if (failed()) {
       <p class="sheet">{{ 'common.couldNotLoad' | t }}</p>
@@ -43,7 +47,7 @@ export interface Statement {
       <article class="sheet">
         <header>
           <div><h1>{{ s.business }}</h1><p>{{ 'ws.statement.title' | t }}</p></div>
-          <div class="right"><strong>{{ s.customer.name }}</strong><p>{{ [s.customer.city, s.customer.phone, s.customer.address].filter(isText).join(' · ') }}</p><p>{{ period() }}</p></div>
+          <div class="right"><strong>{{ s.customer.name }}</strong><p>{{ [s.customer.city, phone(s.customer.phone), s.customer.address].filter(isText).join(' · ') }}</p><p>{{ period() }}</p></div>
         </header>
         <table>
           <caption class="sr-only">{{ 'ws.statement.title' | t }}</caption>
@@ -74,9 +78,12 @@ export interface Statement {
     }
   `,
   styles: [`
-    :host { display:block; min-height:100vh; padding:var(--ws-4, 16px); background:var(--ws-bg, #f4f4f5); color:#111; font-family:var(--ws-font, system-ui); }
+    :host { display:block; color:#111; font-family:var(--ws-font, system-ui); }
     .bar { display:flex; flex-wrap:wrap; align-items:end; gap:12px; max-width:210mm; margin:0 auto 16px; }
     .bar label { display:grid; gap:4px; font-size:13px; color:#555; }
+    .bar .ws-btn { height:36px; display:inline-flex; align-items:center; gap:6px; padding-inline:12px; border:1px solid var(--ws-line, #d4d4d8); border-radius:8px; background:var(--ws-surface, #fff); color:var(--ws-ink, #111); font:inherit; cursor:pointer; }
+    .bar .ws-btn.primary { border-color:var(--ws-brand); background:var(--ws-brand); color:var(--ws-brand-ink, #fff); }
+    .bar .ws-btn:disabled { opacity:.5; cursor:default; }
     .bar input { height:36px; padding:0 8px; border:1px solid #d4d4d8; border-radius:8px; font:inherit; }
     .sheet { box-sizing:border-box; max-width:210mm; min-height:200px; margin:0 auto; padding:16mm; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.12); }
     header { display:flex; justify-content:space-between; gap:24px; margin-bottom:12mm; }
@@ -99,11 +106,13 @@ export class StatementComponent {
   protected readonly i18n = inject(I18nService);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  private readonly nav = inject(NavService);
   readonly id = input.required<string>();
   /** ?from=YYYY-MM-DD&to=YYYY-MM-DD */
   readonly from = input<string | undefined>();
   readonly to = input<string | undefined>();
-  protected readonly icons = { ArrowLeft, Printer };
+  protected readonly icons = { ArrowLeft, MessageCircle, Printer };
+  protected readonly phone = localPhone;
   protected readonly data = signal<Statement | null>(null);
   protected readonly failed = signal(false);
   protected readonly isText = (x: string | null): x is string => !!x;
@@ -129,7 +138,10 @@ export class StatementComponent {
       )
       .subscribe((x) => {
         this.failed.set(!x.ok);
-        if (x.ok) this.data.set(x.s);
+        if (x.ok) {
+          this.data.set(x.s);
+          this.nav.setName(x.s.customer.id, x.s.customer.name);
+        }
       });
   }
 
@@ -149,5 +161,20 @@ export class StatementComponent {
 
   protected print(): void {
     window.print();
+  }
+
+  protected back(): void {
+    this.nav.back(['/khata/records', this.id()]);
+  }
+
+  /** The statement's totals as a WhatsApp message to the customer (a PDF can follow from Print). */
+  protected share(): void {
+    const s = this.data();
+    if (!s?.customer.phone) return;
+    const text = this.i18n.t('ws.rc.statementText', {
+      business: s.business, name: s.customer.name, period: this.period(),
+      opening: this.i18n.money(s.opening), sold: this.i18n.money(s.debit), received: this.i18n.money(s.credit), balance: this.i18n.money(s.closing),
+    });
+    window.open(whatsappUrl(s.customer.phone, text), '_blank', 'noopener');
   }
 }

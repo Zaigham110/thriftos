@@ -114,11 +114,15 @@ export class ReceivablesService {
 
     const totals = { owed: ZERO, advance: ZERO, customers: 0, buckets: { '0-30': ZERO, '31-60': ZERO, '61-90': ZERO, '90+': ZERO } as Record<AgeKey, Prisma.Decimal> };
     const rows = [];
+    // Customers who owe nothing (paid up, or paid ahead): listed apart so the desktop can show every customer.
+    const settled: { id: string; name: string; phone: string | null; city: string | null; advance: Prisma.Decimal; lastPayment: { date: Date; amount: Prisma.Decimal } | null; isActive: boolean }[] = [];
     for (const c of customers) {
       const pays = paymentsOf.get(c.id) ?? [];
       const applied = applyFor(c.openingBalance, salesOf.get(c.id) ?? [], pays);
       if (applied.balance.lessThanOrEqualTo(0)) {
         totals.advance = totals.advance.add(applied.advance);
+        const lastPaid = pays[pays.length - 1];
+        settled.push({ id: c.id, name: c.name, phone: c.phone, city: c.city, advance: applied.advance, lastPayment: lastPaid ? { date: lastPaid.receivedAt, amount: lastPaid.amount } : null, isActive: c.isActive });
         continue;
       }
       const buckets = ageing(applied, c.createdAt, now);
@@ -142,7 +146,7 @@ export class ReceivablesService {
       });
     }
     rows.sort((a, b) => b.balance.comparedTo(a.balance) || a.name.localeCompare(b.name));
-    return { totals, rows };
+    return { totals, rows, settled };
   }
 
   async customer(tenantId: string, id: string, canSeeCost: boolean, now = new Date()) {
