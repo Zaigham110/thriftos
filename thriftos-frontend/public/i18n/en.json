@@ -1017,6 +1017,7 @@
    "labels": "Labels",
    "new": "New",
    "records": "Records",
+   "sortingNow": "Sorting now",
    "today": "Today"
   },
   "cstatus": {
@@ -1188,6 +1189,7 @@
   },
   "lots": {
    "col": {
+    "left": "Left to sort",
     "raw": "Raw type",
     "sorted": "Sorted kg",
     "sortedAt": "Finished",
@@ -1198,12 +1200,17 @@
    "countOne": "{n} lot",
    "emptyHeading": "No lots match",
    "emptyMessage": "Try other words, a wider period, or clear the filters.",
+   "info": {
+    "left": "Kg not sorted yet: the whole lot while it waits, what is left while it is being sorted.",
+    "waste": "Kg thrown away as waste (katran). Known once the lot is closed."
+   },
    "search": "Search lot, container, origin or raw type",
+   "sortNext": "Sort next lot",
    "source": {
     "CONTAINER": "Container",
     "LOOSE_BALE": "Loose lot"
    },
-   "title": "Lots and sorting"
+   "title": "Sorting"
   },
   "mode": {
    "CASH": "Cash",
@@ -1521,6 +1528,8 @@
   "skip": "Skip to content",
   "sortRecord": {
    "amount": "Amount",
+   "baleCostInfo": "The part of this lot's cost in the bale: its kg from this lot at the lot's cost per kg.",
+   "bales": "Bales made from this lot",
    "by": "by {name}",
    "continue": "Continue sorting",
    "done": "done",
@@ -1529,6 +1538,9 @@
    "minutes": "{n} min",
    "noWaste": "No waste recorded",
    "notFound": "This lot could not be opened",
+   "openLot": "Open lot page",
+   "progress": "Sorting progress",
+   "progressText": "{pct}% sorted · {sorted} sorted · {left} left",
    "resale": "Resale value",
    "share": "Share",
    "stage": "Stage",

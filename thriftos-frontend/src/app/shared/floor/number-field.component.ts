@@ -13,10 +13,19 @@ import { inject } from '@angular/core';
   standalone: true,
   imports: [LucideAngularModule, TPipe],
   template: `
+    @if (typing()) {
+      <!-- On a laptop (mouse and keyboard): a box to type the number into, no keypad (v2 review). -->
+      <label class="field-inline" [class.bad]="typedError()">
+        <span class="label">{{ label() | t }}@if (optional()) { <em> · {{ 'common.optional' | t }}</em> }</span>
+        <span class="box ltr"><input #box type="number" inputmode="decimal" min="0" [step]="decimals() ? '0.' + '0'.repeat(decimals() - 1) + '1' : '1'" [value]="value() ?? ''" (input)="typed($event)" [attr.aria-invalid]="!!typedError()" /><small>{{ unit() | t }}</small></span>
+        @if (typedError(); as e) { <span class="err" role="alert">{{ e }}</span> }
+      </label>
+    } @else {
     <button type="button" class="field-btn" [class.empty]="value() === null" [attr.aria-label]="(label() | t) + (value() !== null ? ': ' + shown() : '')" (click)="open()">
       <span class="label">{{ label() | t }}@if (optional()) { <em> · {{ 'common.optional' | t }}</em> }</span>
       <span class="value ltr"><b>{{ value() === null ? '0' : shown() }}</b> <small>{{ unit() | t }}</small></span>
     </button>
+    }
     @if (editing()) {
       <div class="backdrop" (click)="close()"></div>
       <section class="sheet" role="dialog" aria-modal="true" [attr.aria-label]="label() | t" #sheet>
@@ -53,6 +62,13 @@ import { inject } from '@angular/core';
     .keys button:active { background:var(--tos-primary-soft); }
     .ok { min-height:56px; border:0; border-radius:14px; background:var(--tos-primary); color:#fff; font:inherit; font-size:18px; font-weight:800; }
     .ok:disabled { opacity:.45; }
+    .field-inline { display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:center; gap:4px 12px; padding:8px 12px; border:1px solid var(--tos-line); border-radius:12px; background:var(--tos-card); color:var(--tos-ink); }
+    .field-inline.bad { border-color:var(--tos-warn); }
+    .field-inline .box { display:inline-flex; align-items:center; gap:6px; }
+    .field-inline input { width:9em; min-height:40px; padding:0 10px; border:1px solid var(--tos-line); border-radius:8px; background:var(--tos-card); color:var(--tos-ink); font:inherit; font-size:18px; font-weight:700; text-align:end; font-variant-numeric:tabular-nums; }
+    .field-inline input:focus-visible { outline:2px solid var(--tos-primary); outline-offset:1px; }
+    .field-inline small { color:var(--tos-ink-soft); font-weight:700; }
+    .field-inline .err { grid-column:1 / -1; }
   `],
 })
 export class NumberFieldComponent {
@@ -82,11 +98,46 @@ export class NumberFieldComponent {
   });
   protected readonly valid = computed(() => this.draft() !== '' && Number(this.draft()) > 0 && !this.error());
   private readonly sheet = viewChild<ElementRef<HTMLElement>>('sheet');
+  private readonly box = viewChild<ElementRef<HTMLInputElement>>('box');
+  /** A laptop (fine pointer, wide screen): type into a box; phones and tablets keep the big keypad. */
+  protected readonly desktop = typeof matchMedia === 'function' && matchMedia('(pointer: fine) and (min-width: 1024px)').matches;
+  protected readonly typedError = signal<string | null>(null);
+  /**
+   * Off for a field that saves the moment it has a value (the sorting screen's quick entry): it keeps the
+   * keypad sheet (typing works there too) so a half-typed "1" of "120" is never saved.
+   */
+  readonly inline = input(true);
+  protected readonly typing = computed(() => this.desktop && this.inline());
+
+  /** Typed on a laptop: a number above zero (and not above max) becomes the value; anything else clears it. */
+  protected typed(e: Event): void {
+    const raw = (e.target as HTMLInputElement).value.trim();
+    const n = Number(raw);
+    const max = this.max();
+    if (raw === '' || !Number.isFinite(n) || n <= 0) {
+      this.typedError.set(null);
+      this.value.set(null);
+      return;
+    }
+    if (max !== null && n > max) {
+      const m = this.i18n.num(max);
+      this.typedError.set(this.maxMessage() ? this.i18n.t(this.maxMessage()!, { kg: this.i18n.kg(max), max: m }) : `≤ ${m}`);
+      this.value.set(null);
+      return;
+    }
+    this.typedError.set(null);
+    this.value.set(Math.round(n * 10 ** this.decimals()) / 10 ** this.decimals());
+  }
 
   /** The first key after opening replaces the shown value (like selecting it); Backspace edits it instead. */
   private fresh = false;
 
   open(): void {
+    if (this.typing()) {
+      // A laptop: no keypad, the cursor goes to the box (selected, so typing replaces the number).
+      queueMicrotask(() => { const el = this.box()?.nativeElement; el?.focus(); el?.select(); });
+      return;
+    }
     const v = this.value();
     this.draft.set(v === null ? '' : String(v));
     this.fresh = v !== null;

@@ -67,8 +67,9 @@ export class RagService {
       }
     }
 
-    // Determine prefix based on type
-    const prefix = dto.ragBaleType === 'BALE' ? 'BALE' : 'RAG';
+    // A lot is numbered LOT-2026-011 (v2 review): "bale" is the pack you sell (B-0101), not what you sort.
+    // Older lots keep their BALE-/RAG- numbers, so papers already printed still match.
+    const prefix = 'LOT';
 
     const { code: ragCode } = await this.tenantSequenceService.generateCode(
       tenantId,

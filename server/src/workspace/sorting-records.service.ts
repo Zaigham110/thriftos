@@ -40,12 +40,12 @@ export class SortingRecordsService {
     });
     if (!r) throw new NotFoundException('Lot not found');
     const s = r.sortSession;
-    const [outputs, waste, grades] = await Promise.all([
+    const [outputs, waste, grades, allocations] = await Promise.all([
       this.prisma.categoryOutput.findMany({
         where: { tenantId, ragId },
         orderBy: { weightKg: 'desc' },
         select: {
-          id: true, weightKg: true, usedKg: true, count: true, allocatedCost: true, category: { select: { name: true } },
+          id: true, weightKg: true, usedKg: true, count: true, allocatedCost: true, category: { select: { name: true } }, grade: { select: { name: true } },
           gradeSessions: { select: { id: true, status: true, startTime: true, endTime: true, worker: { select: { name: true } } } },
         },
       }),
@@ -58,6 +58,20 @@ export class SortingRecordsService {
         select: {
           weightKg: true, count: true, allocatedCost: true, grade: { select: { name: true, rank: true } },
           gradeBucket: { select: { gradeSession: { select: { categoryOutputId: true } } } },
+        },
+      }),
+      // Bales made from this lot (v2 review): its kg in each bale and what the bale became.
+      this.prisma.repackInputAllocation.findMany({
+        where: { tenantId, ragBaleId: ragId },
+        select: {
+          amountUsed: true, allocatedCost: true,
+          repackUnit: {
+            select: {
+              id: true, unitCode: true, weightKg: true,
+              category: { select: { name: true } }, grade: { select: { name: true } },
+              inventoryItems: { select: { id: true, quantity: true, usedQuantity: true } },
+            },
+          },
         },
       }),
     ]);
@@ -75,23 +89,33 @@ export class SortingRecordsService {
       session: s
         ? { id: s.id, status: s.status, worker: s.worker.name, supervisor: s.supervisor.name, startTime: s.startTime, endTime: s.endTime, inputKg: s.totalInputWeight, outputKg: s.totalOutputWeight, wasteKg: s.wasteWeight }
         : null,
-      categories: outputs.map((o) => {
-        const mine = grades.filter((g) => g.gradeBucket.gradeSession.categoryOutputId === o.id);
-        const gs = o.gradeSessions[0];
+      // One row per category (and grade when it was graded while sorting): several entries of Jeans · A are one row.
+      categories: groupOutputs(outputs).map(({ list }) => {
+        const first = list[0];
+        const ids = new Set(list.map((o) => o.id));
+        const kg = list.reduce((t, o) => t.add(o.weightKg), ZERO);
+        const cost = list.reduce((t, o) => t.add(o.allocatedCost), ZERO);
+        const mine = grades.filter((g) => ids.has(g.gradeBucket.gradeSession.categoryOutputId));
+        const gs = list.flatMap((o) => o.gradeSessions).find((g) => g.status !== 'CLOSED') ?? list.flatMap((o) => o.gradeSessions)[0];
         return {
-          id: o.id, name: o.category.name, kg: o.weightKg, pieces: o.count, cost: money(canSeeCost, o.allocatedCost),
-          costPerKg: money(canSeeCost, o.weightKg.isZero() ? ZERO : o.allocatedCost.div(o.weightKg).toDecimalPlaces(2)),
-          sharePercent: percent(o.weightKg, sortedKg), usedKg: o.usedKg,
+          id: first.id, name: first.grade ? `${first.category.name} · ${first.grade.name}` : first.category.name,
+          kg, pieces: list.reduce((t, o) => t + o.count, 0), cost: money(canSeeCost, cost),
+          costPerKg: money(canSeeCost, kg.isZero() ? ZERO : cost.div(kg).toDecimalPlaces(2)),
+          sharePercent: percent(kg, sortedKg), usedKg: list.reduce((t, o) => t.add(o.usedKg), ZERO),
           grading: gs ? { id: gs.id, status: gs.status, startTime: gs.startTime, endTime: gs.endTime, worker: gs.worker.name } : null,
           gradedKg: mine.reduce((t, g) => t.add(g.weightKg), ZERO),
-          wasteKg: waste.filter((w) => w.stage === WasteStage.STAGE_2 && w.categoryOutputId === o.id && w.unitType === WasteUnitType.KG).reduce((t, w) => t.add(w.amount), ZERO),
+          wasteKg: waste.filter((w) => w.stage === WasteStage.STAGE_2 && w.categoryOutputId && ids.has(w.categoryOutputId) && w.unitType === WasteUnitType.KG).reduce((t, w) => t.add(w.amount), ZERO),
         };
       }),
+      bales: baleRows(allocations, canSeeCost),
       grades: aggregateGrades(grades, canSeeCost),
       waste: waste.map((w) => ({ stage: w.stage, category: w.wasteCategory.name, amount: w.amount, unit: w.unitType, value: money(canSeeCost, w.estimatedValue) })),
       totals: {
         sortedKg, stage1WasteKg: wasteKg(WasteStage.STAGE_1), stage2WasteKg: wasteKg(WasteStage.STAGE_2),
         yieldPercent: s?.status === SortStatus.CLOSED ? percent(sortedKg, r.weightKg) : null,
+        // While sorting: what is still to sort and how far it has got (v2 review).
+        leftKg: !s ? r.weightKg : s.status === SortStatus.OPEN ? s.wasteWeight : ZERO,
+        progressPercent: r.weightKg.isZero() ? null : Math.min(100, percent(sortedKg, r.weightKg) ?? 0),
         topGradePercent: topRank === null ? null : topGradePercent(grades.map((g) => ({ rank: g.grade.rank, kg: g.weightKg })), topRank),
         minutes: s?.endTime ? Math.round((s.endTime.getTime() - s.startTime.getTime()) / 60_000) : null,
       },
@@ -202,4 +226,40 @@ function aggregateGrades(list: { weightKg: Prisma.Decimal; count: number; alloca
   }
   const total = [...m.values()].reduce((t, g) => t.add(g.kg), ZERO);
   return [...m.values()].sort((a, b) => a.rank - b.rank).map((g) => ({ name: g.name, kg: g.kg, pieces: g.pieces, sharePercent: percent(g.kg, total), cost: money(canSeeCost, g.cost) }));
+}
+
+type Output = { id: string; weightKg: Prisma.Decimal; usedKg: Prisma.Decimal; count: number; allocatedCost: Prisma.Decimal; category: { name: string }; grade: { name: string } | null; gradeSessions: Array<{ id: string; status: string; startTime: Date; endTime: Date | null; worker: { name: string } }> };
+
+/** Entries of the same category and grade, largest first. */
+function groupOutputs(outputs: Output[]): Array<{ key: string; list: Output[] }> {
+  const by = new Map<string, Output[]>();
+  for (const o of outputs) {
+    const k = `${o.category.name}|${o.grade?.name ?? ''}`;
+    by.set(k, [...(by.get(k) ?? []), o]);
+  }
+  return [...by.values()]
+    .map((list) => ({ key: list[0].id, list }))
+    .sort((a, b) => b.list.reduce((t, o) => t.add(o.weightKg), ZERO).comparedTo(a.list.reduce((t, o) => t.add(o.weightKg), ZERO)));
+}
+
+type Allocation = {
+  amountUsed: Prisma.Decimal; allocatedCost: Prisma.Decimal;
+  repackUnit: { id: string; unitCode: string; weightKg: Prisma.Decimal; category: { name: string } | null; grade: { name: string } | null; inventoryItems: Array<{ id: string; quantity: Prisma.Decimal; usedQuantity: Prisma.Decimal }> };
+};
+
+/** Bales made from a lot: code, what it is, kg from this lot, sold or in stock, and its cost from this lot. */
+function baleRows(allocations: Allocation[], canSeeCost: boolean) {
+  const by = new Map<string, { id: string; itemId: string | null; code: string; category: string | null; grade: string | null; kg: Prisma.Decimal; sold: boolean; cost: Prisma.Decimal }>();
+  for (const a of allocations) {
+    const u = a.repackUnit;
+    const item = u.inventoryItems[0];
+    const cur = by.get(u.id) ?? {
+      id: u.id, itemId: item?.id ?? null, code: u.unitCode, category: u.category?.name ?? null, grade: u.grade?.name ?? null,
+      kg: ZERO, sold: !!item && new Prisma.Decimal(item.usedQuantity).greaterThanOrEqualTo(item.quantity), cost: ZERO,
+    };
+    cur.kg = cur.kg.add(a.amountUsed);
+    cur.cost = cur.cost.add(a.allocatedCost);
+    by.set(u.id, cur);
+  }
+  return [...by.values()].sort((a, b) => a.code.localeCompare(b.code)).map((b) => ({ ...b, cost: money(canSeeCost, b.cost) }));
 }

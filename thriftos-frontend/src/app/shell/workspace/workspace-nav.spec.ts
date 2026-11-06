@@ -31,6 +31,15 @@ describe('workspace navigation', () => {
     ]);
   });
 
+  it('puts a lot\'s sorting screen under the lot\'s page', () => {
+    expect(crumbsFor('/sort/lot1', { lot1: 'LOT-2026-011' })).toEqual([
+      { label: 'ws.nav.sorting', path: '/sort/records' },
+      { label: 'LOT-2026-011', path: '/sort/records/lot1', raw: true },
+      { label: 'ws.crumb.sortingNow', path: '/sort/lot1' },
+    ]);
+    expect(crumbsFor('/sort/records/lot1', { lot1: 'LOT-2026-011' }).map((c) => c.label)).toEqual(['ws.nav.sorting', 'LOT-2026-011']);
+  });
+
   it('every menu and create item has a breadcrumb name for its first segment', () => {
     const paths = [...WS_NAV.flatMap((g) => g.items), ...WS_CREATE].map((i) => i.path.split('/')[1]);
     for (const p of paths) expect(WS_CRUMBS[p]).withContext(p).toBeTruthy();

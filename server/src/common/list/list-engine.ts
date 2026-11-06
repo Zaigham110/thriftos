@@ -47,6 +47,8 @@ export interface ListResource {
   toRow(record: Record<string, unknown>): Record<string, unknown> & { id: string };
   /** Adds computed fields to a page of rows (one batch of queries for the whole page). */
   enrich?: (prisma: object, tenantId: string, rows: Array<Record<string, unknown> & { id: string }>) => Promise<Array<Record<string, unknown> & { id: string }>>;
+  /** Totals of worked-out fields over every matching row (not only this page), e.g. sorted kg of all lots. */
+  extraTotals?: (prisma: object, tenantId: string, where: object) => Promise<Record<string, string>>;
   /** Display names for group keys (e.g. customerId → customer name). */
   groupLabels?: (prisma: object, tenantId: string, field: string, keys: string[]) => Promise<Record<string, string>>;
 }
@@ -174,7 +176,10 @@ export async function runList(prisma: object, resource: ListResource, tenantId: 
     d.count({ where }),
     sums.length ? d.aggregate({ where, ...sumArg }) : Promise.resolve({ _sum: {} }),
   ]);
-  const totals = Object.fromEntries(sums.map((f) => [f.key, str(agg._sum?.[f.path[0]])]));
+  const totals: Record<string, string> = {
+    ...Object.fromEntries(sums.map((f) => [f.key, str(agg._sum?.[f.path[0]])])),
+    ...(resource.extraTotals ? await resource.extraTotals(prisma, tenantId, where) : {}),
+  };
   const allowed = new Set(fields.map((f) => f.key).concat('id'));
   let full = records.map((r) => resource.toRow(r));
   if (resource.enrich) full = await resource.enrich(prisma, tenantId, full);

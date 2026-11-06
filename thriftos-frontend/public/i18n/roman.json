@@ -1017,6 +1017,7 @@
    "labels": "Label",
    "new": "Naya",
    "records": "Record",
+   "sortingNow": "Chhantai jaari",
    "today": "Aaj"
   },
   "cstatus": {
@@ -1188,6 +1189,7 @@
   },
   "lots": {
    "col": {
+    "left": "Baqi chhantai",
     "raw": "Maal",
     "sorted": "Chhanta kg",
     "sortedAt": "Khatam hua",
@@ -1198,12 +1200,17 @@
    "countOne": "{n} lot",
    "emptyHeading": "Koi lot nahi mila",
    "emptyMessage": "Doosre lafz, lambi muddat aazmayein, ya filter saaf karein.",
+   "info": {
+    "left": "Abhi na chhante kg: intezar mein poora lot, chhantai ke dauran jo baqi hai.",
+    "waste": "Waste (katran) mein gaye kg. Lot band hone par pata chalta hai."
+   },
    "search": "Lot, container, mulk ya maal dhoondein",
+   "sortNext": "Agla lot chhantein",
    "source": {
     "CONTAINER": "Container",
     "LOOSE_BALE": "Khula lot"
    },
-   "title": "Lot aur chhantai"
+   "title": "Chhantai"
   },
   "mode": {
    "CASH": "Cash",
@@ -1521,6 +1528,8 @@
   "skip": "Asal hisse par jayein",
   "sortRecord": {
    "amount": "Raqam",
+   "baleCostInfo": "Gaanth mein is lot ki laagat ka hissa: is lot ke kg, lot ki fi kg laagat par.",
+   "bales": "Is lot se bani gaanthein",
    "by": "{name} ne",
    "continue": "Chhantai jaari rakhein",
    "done": "ho gaya",
@@ -1529,6 +1538,9 @@
    "minutes": "{n} minute",
    "noWaste": "Koi waste nahi likha",
    "notFound": "Yeh lot khul nahi saka",
+   "openLot": "Lot ka safha kholein",
+   "progress": "Chhantai ki pesh raft",
+   "progressText": "{pct}% chhantai · {sorted} chhanta · {left} baqi",
    "resale": "Dobara bechne ki qeemat",
    "share": "Hissa",
    "stage": "Marhala",

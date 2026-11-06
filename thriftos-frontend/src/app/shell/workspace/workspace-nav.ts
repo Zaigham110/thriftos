@@ -177,6 +177,16 @@ const MENU_CRUMBS: Array<{ prefix: string; crumbs: Crumb[] }> = [
 
 export function crumbsFor(url: string, names: Record<string, string> = {}): Crumb[] {
   const path = url.split(/[?#]/)[0];
+  // The sorting screen of a lot sits under the lot's page: Sorting › LOT-2026-011 › Sorting now.
+  const sorting = /^\/sort\/(?!records$|records\/|yield$|grade\/|next$)([^/]+)$/.exec(path);
+  if (sorting) {
+    const id = decodeURIComponent(sorting[1]);
+    return [
+      { label: 'ws.nav.sorting', path: '/sort/records' },
+      ...(names[id] ? [{ label: names[id], path: `/sort/records/${sorting[1]}`, raw: true }] : []),
+      { label: 'ws.crumb.sortingNow', path },
+    ];
+  }
   const segments = path.split('/').filter(Boolean);
   const menu = MENU_CRUMBS.find((m) => path === m.prefix || path.startsWith(m.prefix + '/'));
   const crumbs: Crumb[] = menu ? [...menu.crumbs] : [];

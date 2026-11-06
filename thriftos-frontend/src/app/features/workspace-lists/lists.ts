@@ -252,13 +252,14 @@ export const LOTS_LIST: ListConfig = {
     { key: 'status', label: 'ws.col.status', enumPrefix: 'ws.lotStatus.' },
     { key: 'kg', label: 'ws.containers.col.kg', format: 'kg', total: true },
     { key: 'cost', label: 'ws.col.cost', format: 'money', total: true },
-    { key: 'sortedKg', label: 'ws.lots.col.sorted', format: 'kg', computed: true },
-    { key: 'wasteKg', label: 'ws.lots.col.waste', format: 'kg', computed: true },
+    { key: 'sortedKg', label: 'ws.lots.col.sorted', format: 'kg', computed: true, total: true },
+    { key: 'leftKg', label: 'ws.lots.col.left', format: 'kg', computed: true, total: true, info: 'ws.lots.info.left' },
+    { key: 'wasteKg', label: 'ws.lots.col.waste', format: 'kg', computed: true, total: true, info: 'ws.lots.info.waste' },
     { key: 'yield', label: 'ws.containers.col.yield', format: 'percent', computed: true },
     { key: 'worker', label: 'ws.lots.col.worker', computed: true },
     { key: 'sortedAt', label: 'ws.lots.col.sortedAt', format: 'date', computed: true },
   ],
-  defaultColumns: ['code', 'date', 'container', 'supplier', 'status', 'kg', 'sortedKg', 'wasteKg', 'yield', 'worker'],
+  defaultColumns: ['code', 'date', 'container', 'supplier', 'status', 'kg', 'sortedKg', 'leftKg', 'wasteKg', 'yield', 'worker'],
   dateField: 'date',
   groupBy: [
     { key: 'status', label: 'ws.col.status', enumPrefix: 'ws.lotStatus.' },
@@ -268,7 +269,8 @@ export const LOTS_LIST: ListConfig = {
   ],
   quickFilters: [{ field: 'status', label: 'ws.col.status', values: LOT_STATUSES, prefix: 'ws.lotStatus.' }],
   rowLink: (id) => ['/sort/records', id],
-  create: { label: 'ws.new.lot', link: '/receive/records/lots/new' },
+  // Sorting's own job: open the lot being sorted, else the oldest waiting (buying a lot is Purchasing's).
+  create: { label: 'ws.lots.sortNext', link: '/sort/next' },
   board: { field: 'status', values: LOT_STATUSES, prefix: 'ws.lotStatus.', title: 'code', lines: ['container', 'kg', 'yield'] },
 };
 

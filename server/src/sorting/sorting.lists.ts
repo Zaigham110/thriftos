@@ -1,4 +1,4 @@
-import { Prisma, PrismaClient, RagSourceType, RagStatus } from '@prisma/client';
+import { Prisma, PrismaClient, RagSourceType, RagStatus, SortStatus } from '@prisma/client';
 import type { ListResource } from '../common/list/list-engine';
 import { percent } from '../home/home';
 
@@ -16,6 +16,7 @@ export const LOT_LABELS: Record<string, { en: string; ur: string }> = {
   cost: { en: 'Cost (Rs)', ur: 'لاگت (روپے)' },
   sortedKg: { en: 'Sorted kg', ur: 'چھانٹی کلو' },
   wasteKg: { en: 'Waste kg', ur: 'ضائع کلو' },
+  leftKg: { en: 'Left to sort kg', ur: 'باقی چھانٹی کلو' },
   yield: { en: 'Sorted %', ur: 'چھانٹی %' },
   worker: { en: 'Sorted by', ur: 'چھانٹی کرنے والا' },
   sortedAt: { en: 'Finished', ur: 'مکمل' },
@@ -49,6 +50,7 @@ export const LOTS_LIST: ListResource = {
     { key: 'cost', type: 'number', path: ['allocatedCost'], sortable: true, filterable: true, sum: true, permission: 'cost.view' },
     { key: 'sortedKg', type: 'number', path: ['_computed'], computed: true },
     { key: 'wasteKg', type: 'number', path: ['_computed'], computed: true },
+    { key: 'leftKg', type: 'number', path: ['_computed'], computed: true },
     { key: 'yield', type: 'number', path: ['_computed'], computed: true },
     { key: 'worker', type: 'string', path: ['_computed'], computed: true },
     { key: 'sortedAt', type: 'date', path: ['_computed'], computed: true },
@@ -70,9 +72,28 @@ export const LOTS_LIST: ListResource = {
       id: r.id, code: r.ragCode, date: r.createdAt, container: r.container?.containerNumber ?? null, containerId: r.containerId,
       supplier: r.container?.vendor?.name ?? r.vendor?.name ?? null, origin: r.originCountry, rawCategory: r.rawCategory?.name ?? null, rawCategoryId: r.rawCategoryId,
       source: r.sourceType, status: r.status, kg: r.weightKg, cost: r.allocatedCost,
-      sortedKg: sorted, wasteKg: s ? s.wasteWeight : null,
+      // While a lot is being sorted the session's waste field holds the kg still to sort (v2 review): that is
+      // "left to sort", and waste is known only once the lot is closed.
+      sortedKg: sorted,
+      wasteKg: s && s.status === SortStatus.CLOSED ? s.wasteWeight : null,
+      leftKg: r.status === RagStatus.NOT_STARTED ? r.weightKg : s && s.status === SortStatus.OPEN ? s.wasteWeight : null,
       yield: s && sorted && !r.weightKg.isZero() && r.status === RagStatus.SORTED ? percent(sorted, r.weightKg) : null,
       worker: s?.worker.name ?? null, sortedAt: s?.endTime ?? null,
+    };
+  },
+  extraTotals: async (prisma, tenantId, where) => {
+    const db = prisma as PrismaClient;
+    const rag = where as Prisma.RagWhereInput;
+    const [closed, open, waiting] = await Promise.all([
+      db.sortSession.aggregate({ where: { tenantId, status: SortStatus.CLOSED, rag }, _sum: { totalOutputWeight: true, wasteWeight: true } }),
+      db.sortSession.aggregate({ where: { tenantId, status: SortStatus.OPEN, rag }, _sum: { totalOutputWeight: true, wasteWeight: true } }),
+      db.rag.aggregate({ where: { AND: [rag, { status: RagStatus.NOT_STARTED }] }, _sum: { weightKg: true } }),
+    ]);
+    const d = (v: Prisma.Decimal | null | undefined) => v ?? new Prisma.Decimal(0);
+    return {
+      sortedKg: d(closed._sum.totalOutputWeight).add(d(open._sum.totalOutputWeight)).toString(),
+      wasteKg: d(closed._sum.wasteWeight).toString(),
+      leftKg: d(open._sum.wasteWeight).add(d(waiting._sum.weightKg)).toString(),
     };
   },
   groupLabels: async (prisma, tenantId, field, keys) => {

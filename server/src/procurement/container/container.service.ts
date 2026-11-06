@@ -221,7 +221,7 @@ export class ContainerService {
     const { code } = await this.tenantSequenceService.generateCode(
       tenantId,
       SequenceScope.RAG,
-      { prefix: 'BALE', padSize: 3 },
+      { prefix: 'LOT', padSize: 3 },
       async (candidate) => !(await this.prisma.rag.findFirst({ where: { tenantId, ragCode: candidate }, select: { id: true } })),
     );
     return code;

@@ -1,4 +1,5 @@
 import { EXPENSES_LIST, LOTS_LIST } from './features/workspace-lists/lists';
+import { nextLotGuard } from './features/sort/next-lot.guard';
 import { unsavedChangesGuard } from './core/nav/unsaved-changes.guard';
 import { desktopRedirect } from './core/guards/desktop-redirect.guard';
 import { Routes } from '@angular/router';
@@ -138,6 +139,7 @@ export const routes: Routes = [
           { path: 'records', loadComponent: () => import('./features/workspace-lists/list-page.component').then((m) => m.ListPageComponent), data: { list: LOTS_LIST }, title: 'ThriftOS' },
           { path: 'records/:id', loadComponent: () => import('./features/workspace-lists/sorting-record.component').then((m) => m.SortingRecordComponent), title: 'ThriftOS' },
           { path: 'yield', loadComponent: () => import('./features/workspace-lists/yield.component').then((m) => m.YieldComponent), title: 'ThriftOS' },
+          { path: 'next', canActivate: [nextLotGuard], children: [] },
           { path: 'grade/:id', loadComponent: () => import('./features/sort/sort-work.component').then((m) => m.SortWorkComponent), data: { stage: 2 }, title: 'ThriftOS' },
           { path: ':id', loadComponent: () => import('./features/sort/sort-work.component').then((m) => m.SortWorkComponent), data: { stage: 1 }, title: 'ThriftOS' },
         ],

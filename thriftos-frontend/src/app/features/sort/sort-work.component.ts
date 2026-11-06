@@ -1,4 +1,6 @@
 import { Component, DestroyRef, OnInit, computed, inject, input, signal, viewChild } from '@angular/core';
+import { NavService } from '../../core/nav/nav.service';
+import { WsPageHeaderComponent } from '../../shared/ui/workspace/page-header.component';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ArrowLeft, CheckCircle2, LucideAngularModule, Minus, Plus, Printer } from 'lucide-angular';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -55,13 +57,22 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
 @Component({
   selector: 'app-sort-work',
   standalone: true,
-  imports: [RouterLink, LucideAngularModule, I18N, NumberFieldComponent, TilesComponent],
+  imports: [RouterLink, LucideAngularModule, I18N, NumberFieldComponent, TilesComponent, WsPageHeaderComponent],
   template: `
-    <section class="floor">
-      <header class="floor-head">
-        <a class="icon-btn back" routerLink="/sort" [attr.aria-label]="'common.back' | t"><lucide-icon [img]="icons.ArrowLeft" [size]="22" /></a>
-        <h1>{{ title() }}<span class="sub">{{ (stage() === 1 ? 'sort.title' : 'sort.grading') | t }}</span></h1>
-      </header>
+    <section class="floor" [class.wide]="desktop">
+      @if (desktop) {
+        <!-- Laptop: the shared header (breadcrumb lined up with the heading) and the way to the lot's page. -->
+        <ws-page-header [heading]="title()" [subtitle]="(stage() === 1 ? 'sort.title' : 'sort.grading') | t">
+          @if (stage() === 1) {
+            <a actions class="ws-btn" [routerLink]="['/sort/records', id()]" [state]="nav.trailState()">{{ 'ws.sortRecord.openLot' | t }}</a>
+          }
+        </ws-page-header>
+      } @else {
+        <header class="floor-head">
+          <a class="icon-btn back" routerLink="/sort" [attr.aria-label]="'common.back' | t"><lucide-icon [img]="icons.ArrowLeft" [size]="22" /></a>
+          <h1>{{ title() }}<span class="sub">{{ (stage() === 1 ? 'sort.title' : 'sort.grading') | t }}</span></h1>
+        </header>
+      }
 
       @if (result(); as r) {
         <section class="card">
@@ -86,8 +97,10 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
             }
           </section>
         }
-        <a class="btn primary block" routerLink="/sort">{{ 'common.done' | t }}</a>
+        <a class="btn primary block" [routerLink]="desktop && stage() === 1 ? ['/sort/records', id()] : '/sort'">{{ (desktop && stage() === 1 ? 'ws.sortRecord.openLot' : 'common.done') | t }}</a>
       } @else {
+        <div class="work">
+        <div class="side">
         <div class="totals" aria-live="polite">
           <div><small>{{ 'sort.sortedLabel' | t }}</small><strong>{{ sortedKg() | kg }}</strong></div>
           <div [class.warn]="leftKg() < 0"><small>{{ 'sort.leftLabel' | t }}</small><strong>{{ leftKg() | kg }}</strong></div>
@@ -126,8 +139,26 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
           </section>
         }
 
+        @if (confirmClose()) {
+          <section class="card confirm" role="alertdialog" [attr.aria-label]="'sort.closeLot' | t">
+            <p><strong>{{ (stage() === 1 ? 'sort.closeConfirmKat' : 'sort.closeConfirm') | t: { kg: (leftKg() | kg) } }}</strong></p>
+            <div class="row2">
+              <button type="button" class="btn" (click)="confirmClose.set(false)">{{ 'common.cancel' | t }}</button>
+              <button type="button" class="btn primary" (click)="close()">{{ 'sort.closeLot' | t }}</button>
+            </div>
+          </section>
+        }
+
+        <footer class="action-bar">
+          <div class="summary"><small>{{ 'common.total' | t }}</small><strong>{{ inputKg() | kg }}</strong></div>
+          <button type="button" class="btn primary" [disabled]="sortedKg() <= 0 || inputKg() <= 0 || closing()" (click)="askClose()">{{ 'sort.closeLot' | t }}</button>
+        </footer>
+        </div>
+        <div class="main">
         <p class="hint">{{ 'sort.tapTile' | t }}</p>
-        <tos-tiles [items]="tiles()" [limit]="80" [columns]="2" (pick)="startLine($event)" />
+        <tos-tiles [items]="tiles()" [limit]="80" [columns]="desktop ? 'auto' : 2" (pick)="startLine($event)" />
+        </div>
+        </div>
 
         @if (entry(); as e) {
           <div class="entry-backdrop" (click)="entry.set(null)" aria-hidden="true"></div>
@@ -175,27 +206,21 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
         }
 
         @if (picking(); as p) {
-          <tos-number class="hidden-field" [label]="p.label" unit="unit.kgShort" [max]="leftKg()" maxMessage="sort.tooMuch" [value]="null" (valueChange)="saveLine(p, $event)" />
+          <tos-number class="hidden-field" [inline]="false" [label]="p.label" unit="unit.kgShort" [max]="leftKg()" maxMessage="sort.tooMuch" [value]="null" (valueChange)="saveLine(p, $event)" />
         }
 
-        @if (confirmClose()) {
-          <section class="card confirm" role="alertdialog" [attr.aria-label]="'sort.closeLot' | t">
-            <p><strong>{{ (stage() === 1 ? 'sort.closeConfirmKat' : 'sort.closeConfirm') | t: { kg: (leftKg() | kg) } }}</strong></p>
-            <div class="row2">
-              <button type="button" class="btn" (click)="confirmClose.set(false)">{{ 'common.cancel' | t }}</button>
-              <button type="button" class="btn primary" (click)="close()">{{ 'sort.closeLot' | t }}</button>
-            </div>
-          </section>
-        }
-
-        <footer class="action-bar">
-          <div class="summary"><small>{{ 'common.total' | t }}</small><strong>{{ inputKg() | kg }}</strong></div>
-          <button type="button" class="btn primary" [disabled]="sortedKg() <= 0 || inputKg() <= 0 || closing()" (click)="askClose()">{{ 'sort.closeLot' | t }}</button>
-        </footer>
       }
     </section>
   `,
   styles: [`
+    /* Laptop (v2 review): the page's full width, tiles on the left, totals and what to bale on the right. */
+    .floor.wide { max-width:var(--ws-content-max, 1200px); padding-block-end:16px; }
+    .work { display:grid; grid-template-columns:minmax(0, 1fr); gap:14px; }
+    .work .side, .work .main { display:grid; gap:14px; align-content:start; min-width:0; }
+    .wide .work { grid-template-columns:minmax(0, 1fr) 380px; align-items:start; }
+    .wide .work .main { order:1; }
+    .wide .work .side { order:2; position:sticky; top:calc(var(--ws-topbar-h, 56px) + 16px); }
+    .wide .action-bar { position:static; margin:0; }
     .totals { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
     .totals div { display:grid; padding:12px 14px; border:1px solid var(--tos-line); border-radius:var(--tos-radius); background:var(--tos-card); }
     .totals small { color:var(--tos-ink-soft); font-weight:700; }
@@ -239,6 +264,9 @@ export class SortWorkComponent implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly tenant = inject(TenantService);
   private readonly i18n = inject(I18nService);
+  protected readonly nav = inject(NavService);
+  /** A laptop: wide layout, the shared header and typed numbers (phones keep the floor screen). */
+  protected readonly desktop = typeof matchMedia === 'function' && matchMedia('(pointer: fine) and (min-width: 1024px)').matches;
   protected readonly icons = { ArrowLeft, CheckCircle2, Minus, Plus, Printer };
   protected readonly stage = signal<Stage>(1);
 
@@ -643,6 +671,7 @@ export class SortWorkComponent implements OnInit {
 
   private setLot(lot: { ragCode: string; weightKg: string }): void {
     this.title.set(lot.ragCode);
+    if (this.stage() === 1) this.nav.setName(this.id(), lot.ragCode);
     if (Number(lot.weightKg) > 0) this.inputKg.set(Number(lot.weightKg));
   }
 

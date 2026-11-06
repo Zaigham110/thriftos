@@ -1,4 +1,5 @@
 import { HttpClient } from '@angular/common/http';
+import { TenantService } from '../../core/tenant/tenant.service';
 import { NavService } from '../../core/nav/nav.service';
 import { Component, computed, inject, input, signal, effect } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
@@ -28,7 +29,8 @@ export interface SortingRecord {
   categories: { id: string; name: string; kg: string; pieces: number; cost: Money; costPerKg: Money; sharePercent: number | null; usedKg: string; grading: { id: string; status: string; worker: string } | null; gradedKg: string; wasteKg: string }[];
   grades: { name: string; kg: string; pieces: number; sharePercent: number | null; cost: Money }[];
   waste: { stage: string; category: string; amount: string; unit: string; value: Money }[];
-  totals: { sortedKg: string; stage1WasteKg: string; stage2WasteKg: string; yieldPercent: number | null; topGradePercent: number | null; minutes: number | null };
+  totals: { sortedKg: string; stage1WasteKg: string; stage2WasteKg: string; yieldPercent: number | null; topGradePercent: number | null; minutes: number | null; leftKg: string; progressPercent: number | null };
+  bales: { id: string; itemId: string | null; code: string; category: string | null; grade: string | null; kg: string; sold: boolean; cost: Money }[];
 }
 
 const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
@@ -52,7 +54,7 @@ const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
               <a actions class="ws-btn" [routerLink]="['/receive/records/lots', d.lot.id, 'edit']" [state]="nav.trailState()"><lucide-icon [img]="icons.Pencil" [size]="16" aria-hidden="true" />{{ 'ws.container.edit' | t }}</a>
             }
             @if (d.lot.status !== 'SORTED') {
-              <a actions class="ws-btn primary" [routerLink]="['/sort', d.lot.id]"><lucide-icon [img]="icons.Play" [size]="16" aria-hidden="true" />{{ (d.lot.status === 'NOT_STARTED' ? 'ws.sortRecord.start' : 'ws.sortRecord.continue') | t }}</a>
+              <a actions class="ws-btn primary" [routerLink]="['/sort', d.lot.id]" [state]="nav.trailState()"><lucide-icon [img]="icons.Play" [size]="16" aria-hidden="true" />{{ (d.lot.status === 'NOT_STARTED' ? 'ws.sortRecord.start' : 'ws.sortRecord.continue') | t }}</a>
             }
           </ws-page-header>
           <ws-status-pipeline [steps]="steps()" [current]="stepIndex()" [label]="'ws.col.status' | t" />
@@ -60,12 +62,22 @@ const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
           <section class="smart">
             <ws-smart-button [label]="'ws.sortRecord.input' | t" [value]="i18n.kg(d.lot.kg)" [icon]="icons.Scale" [link]="[]" />
             <ws-smart-button [label]="'ws.lots.col.sorted' | t" [value]="i18n.kg(d.totals.sortedKg)" [icon]="icons.Layers3" [link]="[]" />
-            <ws-smart-button [label]="'ws.lots.col.waste' | t" [value]="i18n.kg(wasteTotal())" [icon]="icons.Trash2" [link]="[]" />
+            @if (d.lot.status === 'SORTED') {
+              <ws-smart-button [label]="'ws.lots.col.waste' | t" [value]="i18n.kg(wasteTotal())" [icon]="icons.Trash2" [link]="[]" />
+            } @else {
+              <ws-smart-button [label]="'ws.lots.col.left' | t" [value]="i18n.kg(d.totals.leftKg)" [icon]="icons.Scale" [link]="[]" />
+            }
             <ws-smart-button [label]="'ws.containers.col.yield' | t" [value]="pct(d.totals.yieldPercent)" [icon]="icons.Percent" [tone]="(d.totals.yieldPercent ?? 100) < 80 ? 'bad' : 'plain'" [link]="[]" />
             <ws-smart-button [label]="'ws.containers.col.topGrade' | t" [value]="pct(d.totals.topGradePercent)" [icon]="icons.Percent" [link]="[]" />
             @if (d.lot.costPerKg !== null) { <ws-smart-button [label]="'ws.containers.col.costPerKg' | t" [value]="i18n.money(d.lot.costPerKg)" [icon]="icons.Coins" [link]="[]" /> }
             @if (d.totals.minutes !== null) { <ws-smart-button [label]="'ws.sortRecord.time' | t" [value]="'ws.sortRecord.minutes' | t: { n: d.totals.minutes }" [icon]="icons.Clock" [link]="[]" /> }
           </section>
+          @if (d.lot.status !== 'SORTED') {
+            <div class="progress" role="progressbar" [attr.aria-label]="'ws.sortRecord.progress' | t" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="d.totals.progressPercent ?? 0">
+              <i [style.width.%]="d.totals.progressPercent ?? 0"></i>
+              <span>{{ 'ws.sortRecord.progressText' | t: { pct: i18n.num(d.totals.progressPercent ?? 0, 0), sorted: i18n.kg(d.totals.sortedKg), left: i18n.kg(d.totals.leftKg) } }}</span>
+            </div>
+          }
 
           @if (d.categories.length) {
             <div class="two">
@@ -76,6 +88,7 @@ const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
               <ws-data-grid [caption]="'ws.container.grades' | t" [columns]="gradeColumns()" [rows]="gradeRows()" [emptyHeading]="'ws.container.notGraded' | t" />
               <ws-data-grid [caption]="'ws.sortRecord.waste' | t" [columns]="wasteColumns()" [rows]="wasteRows()" [emptyHeading]="'ws.sortRecord.noWaste' | t" />
             </div>
+            <ws-data-grid [caption]="'ws.sortRecord.bales' | t" [columns]="baleColumns()" [rows]="baleRows()" [clickable]="stockOn()" (rowClick)="openBale($event)" [emptyHeading]="'ws.container.noBales' | t" />
           } @else {
             <ws-state kind="empty" [heading]="'ws.container.notSorted' | t" />
           }
@@ -91,6 +104,9 @@ const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
     .main { display:grid; grid-template-columns:minmax(0, 1fr); gap:var(--ws-4); }
     .side { position:sticky; top:calc(var(--ws-topbar-h) + var(--ws-4)); }
     .smart { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:var(--ws-3); }
+    .progress { position:relative; height:28px; border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface); overflow:hidden; }
+    .progress i { position:absolute; inset-block:0; inset-inline-start:0; background:var(--ws-brand-soft); }
+    .progress span { position:relative; display:flex; align-items:center; height:100%; padding-inline:var(--ws-3); font-size:var(--ws-text-sm); color:var(--ws-ink); font-variant-numeric:tabular-nums; }
     .two { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:var(--ws-4); align-items:start; }
     @media (max-width: 1199px) { .record { grid-template-columns:minmax(0, 1fr); } .side { position:static; } }
   `],
@@ -135,6 +151,24 @@ export class SortingRecordComponent {
     return { key, label: this.i18n.t(label), format, total };
   }
   private readonly cost = computed(() => this.data()?.lot.cost !== null);
+  private readonly tenants = inject(TenantService);
+  /** Bales open their stock page only when this business uses Stock. */
+  protected readonly stockOn = computed(() => this.tenants.isModuleEnabled('STOCK', this.tenants.tenant()));
+  protected readonly baleColumns = computed<WsColumn[]>(() => [
+    { key: 'code', label: this.i18n.t('ws.container.bale') },
+    { key: 'category', label: this.i18n.t('ws.container.category') },
+    { key: 'grade', label: this.i18n.t('ws.container.grade') },
+    { key: 'kg', label: this.i18n.t('ws.containers.col.kg'), format: 'kg', total: true },
+    { key: 'state', label: this.i18n.t('ws.col.status') },
+    ...(this.data()?.lot.cost !== null ? [{ key: 'cost', label: this.i18n.t('ws.cr.baleCost'), format: 'money' as const, total: true, round: true, info: this.i18n.t('ws.sortRecord.baleCostInfo') }] : []),
+  ]);
+  protected readonly baleRows = computed<WsRow[]>(() =>
+    (this.data()?.bales ?? []).map((b) => ({ ...b, state: this.i18n.t(b.sold ? 'ws.container.sold' : 'ws.container.inStock') })) as unknown as WsRow[],
+  );
+  protected openBale(row: WsRow): void {
+    if (row['itemId']) void this.nav.open(['/stock/items', row['itemId']]);
+  }
+
   protected readonly categoryColumns = computed(() => [
     this.col('name', 'ws.container.category'), this.col('kg', 'ws.containers.col.kg', 'kg', true), this.col('sharePercent', 'ws.sortRecord.share', 'percent'),
     ...(this.cost() ? [this.col('costPerKg', 'ws.containers.col.costPerKg', 'money')] : []), this.col('graded', 'ws.sortRecord.graded'),

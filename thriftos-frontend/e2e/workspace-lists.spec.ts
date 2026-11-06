@@ -252,7 +252,7 @@ test('receivables: collections worklist, customer 360 with promise and payment, 
 test('sorting: lots list and board, a lot record, yield analysis', async ({ page }) => {
   await signIn(page);
   await page.goto('/sort/records');
-  await expect(page.getByRole('heading', { name: 'Lots and sorting', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Sorting', exact: true })).toBeVisible();
   await viewMenu(page);
   await page.getByRole('button', { name: 'Board' }).click();
   for (const column of ['Waiting', 'Sorting', 'Sorted']) await expect(page.locator(`app-board section[aria-label="${column}"]`)).toBeVisible();
@@ -569,4 +569,36 @@ test('breadcrumbs: none on menu pages; a record opened from another keeps the wa
   await crumbs.getByRole('link', { name: `Trail Rags ${tag}` }).click();
   await expect(page).toHaveURL(new RegExp(`/receive/records/suppliers/${supplier.id}`));
   await expect(page.getByRole('heading', { name: `Trail Rags ${tag}` })).toBeVisible();
+});
+
+test('sorting: a half-sorted lot shows what is left, one row per category, and the sorting screen leads back to it', async ({ page, request }) => {
+  const api = await apiAs(request);
+  const lot = await api.post('/procurement/rags', { ragBaleType: 'BALE', weightKg: 100, purchaseCost: 10000 });
+  expect(lot.ragCode).toMatch(/^LOT-/);
+  const cats = (await api.get('/tenant/categories')) as Array<{ id: string; name: string }>;
+  const s = (await api.post('/sorting/stage-1/start', { ragId: lot.id })).session.id;
+  await api.post('/sorting/stage-1/allocate', { sessionId: s, categoryId: cats[0].id, amountKg: 30 });
+  await api.post('/sorting/stage-1/allocate', { sessionId: s, categoryId: cats[0].id, amountKg: 10 });
+
+  await signIn(page);
+  await page.goto('/sort/records');
+  await expect(page.getByRole('heading', { name: 'Sorting', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Sort next lot' })).toHaveAttribute('href', '/sort/next');
+  await page.getByPlaceholder('Search lot, container, origin or raw type').fill(lot.ragCode);
+  const row = page.locator('ws-data-grid tbody tr').filter({ hasText: lot.ragCode });
+  await expect(row).toContainText('60.0 kg'); // left to sort, not "waste"
+  await row.click();
+
+  await expect(page.getByRole('progressbar')).toContainText('40% sorted');
+  await expect(page.locator('ws-data-grid').filter({ hasText: 'Category' }).locator('tbody tr')).toHaveCount(1);
+  await page.getByRole('link', { name: 'Continue sorting' }).click();
+  await expect(page).toHaveURL(new RegExp(`/sort/${lot.id}$`));
+  await expect(page.locator('nav.crumbs')).toContainText(lot.ragCode);
+  await expect(page.locator('nav.crumbs')).toContainText('Sorting now');
+  await page.getByRole('link', { name: 'Open lot page' }).click();
+  await expect(page).toHaveURL(new RegExp(`/sort/records/${lot.id}$`));
+
+  // "Sort next lot" opens a lot's sorting screen.
+  await page.goto('/sort/next');
+  await expect(page).toHaveURL(/\/sort\/(?!records|next)[^/?]+$/);
 });
