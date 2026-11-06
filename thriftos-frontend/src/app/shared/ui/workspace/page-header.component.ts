@@ -1,10 +1,14 @@
-import { Component, input } from '@angular/core';
+import { Component, DestroyRef, inject, input } from '@angular/core';
+import { NavService } from '../../../core/nav/nav.service';
+import { WsBreadcrumbsComponent } from './breadcrumbs.component';
 
-/** Page title with an optional line under it and actions at the end (project them with [actions]). */
+/** Breadcrumb, page title with an optional line under it, and actions at the end (project them with [actions]). */
 @Component({
   selector: 'ws-page-header',
   standalone: true,
+  imports: [WsBreadcrumbsComponent],
   template: `
+    @if (crumbs()) { <ws-breadcrumbs /> }
     <header class="head">
       <div class="titles">
         <h1>{{ heading() }}</h1>
@@ -26,4 +30,13 @@ import { Component, input } from '@angular/core';
 export class WsPageHeaderComponent {
   readonly heading = input.required<string>();
   readonly subtitle = input<string>('');
+  /** Off when the page shows the breadcrumb itself (above its tabs). */
+  readonly crumbs = input(true);
+
+  constructor() {
+    // While this header is on screen the shell leaves the breadcrumb to it (lined up with the heading).
+    const nav = inject(NavService);
+    nav.headers.update((n) => n + 1);
+    inject(DestroyRef).onDestroy(() => nav.headers.update((n) => n - 1));
+  }
 }

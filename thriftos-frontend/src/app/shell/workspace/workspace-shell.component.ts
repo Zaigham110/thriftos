@@ -134,7 +134,7 @@ function typing(e: KeyboardEvent): boolean {
       </aside>
 
       <main id="ws-main" class="content" tabindex="-1">
-        @if (crumbs().length > 1) {
+        @if (crumbs().length > 1 && !nav.headers()) {
           <nav class="crumbs" [attr.aria-label]="'ws.breadcrumbs' | t">
             <ol>
               @for (c of crumbs(); track c.path; let last = $last) {
@@ -258,9 +258,9 @@ export class WorkspaceShellComponent {
     this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd), map((e) => e.urlAfterRedirects)),
     { initialValue: this.router.url },
   );
-  private readonly nav = inject(NavService);
+  protected readonly nav = inject(NavService);
   private readonly title = inject(Title);
-  protected readonly crumbs = computed(() => crumbsFor(this.url(), this.nav.names()));
+  protected readonly crumbs = this.nav.crumbs;
   /** The browser tab says where you are, in your language: "CONT-2026-006 · Containers · ThriftOS". */
   private readonly tabTitle = effect(() => {
     const c = this.crumbs();

@@ -17,3 +17,4 @@ export * from './state.component';
 export * from './status-pipeline.component';
 export * from './tabs.component';
 export * from './view-menu.component';
+export * from './breadcrumbs.component';

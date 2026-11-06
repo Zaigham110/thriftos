@@ -18,6 +18,7 @@ import {
   WsFilterBarComponent,
   WsFilterChip,
   WsPageHeaderComponent,
+  WsBreadcrumbsComponent,
   WsPagerComponent,
   WsRow,
   WsSort,
@@ -51,6 +52,7 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
     WsDateRangeComponent,
     WsFilterBarComponent,
     WsPageHeaderComponent,
+    WsBreadcrumbsComponent,
     WsPagerComponent,
     WsStateComponent,
     WsViewMenuComponent,
@@ -59,13 +61,15 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
     @let c = list();
     <div class="page">
       @if (c.tabs?.length) {
+        <!-- The breadcrumb goes above the tabs (the header below leaves it out). -->
+        <ws-breadcrumbs />
         <nav class="tabs" [attr.aria-label]="c.title | t">
           @for (tab of c.tabs; track tab.link) {
             <a [routerLink]="tab.link" routerLinkActive="on" ariaCurrentWhenActive="page" (click)="rememberTab(tab.link)">{{ tab.label | t }}</a>
           }
         </nav>
       }
-      <ws-page-header [heading]="c.title | t" [subtitle]="result() ? (countKey() | t: { n: i18n.num(result()!.total) }) : ''">
+      <ws-page-header [crumbs]="!c.tabs?.length" [heading]="c.title | t" [subtitle]="result() ? (countKey() | t: { n: i18n.num(result()!.total) }) : ''">
         @if (c.create; as create) { <a actions class="ws-btn primary" [routerLink]="create.link"><lucide-icon [img]="icons.Plus" [size]="16" aria-hidden="true" />{{ create.label | t }}</a> }
       </ws-page-header>
 

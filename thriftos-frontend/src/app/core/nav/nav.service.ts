@@ -1,7 +1,9 @@
 import { Location } from '@angular/common';
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, UrlTree } from '@angular/router';
-import { filter } from 'rxjs';
+import { filter, map } from 'rxjs';
+import { Crumb, crumbsFor } from '../../shell/workspace/workspace-nav';
 
 /**
  * Navigation the way an ERP needs it (v2 review):
@@ -18,6 +20,18 @@ export class NavService {
   readonly names = signal<Record<string, string>>({});
   /** How many pages were opened inside the app in this tab (the first one is where the tab started). */
   private inApp = 0;
+  /** The current address (after redirects). */
+  readonly url = toSignal(
+    this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd), map((e) => e.urlAfterRedirects)),
+    { initialValue: this.router.url },
+  );
+  /** Where you are: "Purchasing › Containers › CONT-2026-006". */
+  readonly crumbs = computed<Crumb[]>(() => crumbsFor(this.url(), this.names()));
+  /**
+   * Page headers on screen. A page with a header shows the breadcrumb inside it, lined up with its heading;
+   * the shell shows it only for pages without one.
+   */
+  readonly headers = signal(0);
 
   constructor() {
     this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe(() => this.inApp++);
