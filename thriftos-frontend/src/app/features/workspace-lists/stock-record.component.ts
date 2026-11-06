@@ -115,7 +115,7 @@ const UNIT_KEYS: Record<string, string> = { KG: 'ws.stock.unit.KG', BALE: 'ws.st
                   <dl class="facts">
                     <div><dt>{{ 'ws.stock.col.source' | t }}</dt><dd>{{ 'ws.stock.source.' + d.item.source | t }}</dd></div>
                     <div><dt>{{ 'ws.containers.col.supplier' | t }}</dt><dd>{{ d.item.supplier?.name ?? '—' }}</dd></div>
-                    @if (d.item.parent) { <div><dt>{{ 'ws.stockItem.openedFrom' | t }}</dt><dd><a [routerLink]="['/stock/items', d.item.parent.id]">{{ d.item.parent.name ?? '—' }}</a></dd></div> }
+                    @if (d.item.parent) { <div><dt>{{ 'ws.stockItem.openedFrom' | t }}</dt><dd><a [routerLink]="['/stock/items', d.item.parent.id]" [state]="nav.trailState()">{{ d.item.parent.name ?? '—' }}</a></dd></div> }
                     @if (d.cost) { <div><dt>{{ 'ws.col.cost' | t }}</dt><dd>{{ i18n.money(d.cost.total) }}</dd></div> }
                   </dl>
                 }
@@ -200,7 +200,7 @@ export class StockRecordComponent {
   protected pickTab(tab: string): void {
     void this.router.navigate([], { relativeTo: this.tabRoute, queryParams: { tab }, queryParamsHandling: 'merge', replaceUrl: true });
   }
-  private readonly nav = inject(NavService);
+  protected readonly nav = inject(NavService);
   /** The breadcrumb and browser tab name this record once it has loaded. */
   private readonly crumbName = effect(() => {
     const d = this.data();
@@ -390,14 +390,14 @@ export class StockRecordComponent {
   }
 
   protected openContainer(row: WsRow): void {
-    if (row['containerId']) void this.router.navigate(['/receive/records/containers', row['containerId']]);
+    if (row['containerId']) void this.nav.open(['/receive/records/containers', row['containerId']]);
   }
 
   protected openSale(row: WsRow): void {
-    void this.router.navigate(['/sell/records', row.id]);
+    void this.nav.open(['/sell/records', row.id]);
   }
 
   protected openItem(row: WsRow): void {
-    void this.router.navigate(['/stock/items', row.id]);
+    void this.nav.open(['/stock/items', row.id]);
   }
 }

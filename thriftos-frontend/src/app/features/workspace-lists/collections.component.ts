@@ -1,4 +1,5 @@
 import { HttpClient } from '@angular/common/http';
+import { NavService } from '../../core/nav/nav.service';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -115,6 +116,7 @@ export class CollectionsComponent {
   private readonly http = inject(HttpClient);
   private readonly khata = inject(KhataService);
   private readonly router = inject(Router);
+  protected readonly nav = inject(NavService);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly icons = { MessageCircle };
@@ -201,7 +203,7 @@ export class CollectionsComponent {
   }
 
   protected open(row: WsRow): void {
-    void this.router.navigate(['/khata/records', row.id]);
+    void this.nav.open(['/khata/records', row.id]);
   }
 
   protected startReminders(): void {

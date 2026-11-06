@@ -120,7 +120,7 @@ export class SaleRecordComponent {
   protected pickTab(tab: string): void {
     void this.router.navigate([], { relativeTo: this.tabRoute, queryParams: { tab }, queryParamsHandling: 'merge', replaceUrl: true });
   }
-  private readonly nav = inject(NavService);
+  protected readonly nav = inject(NavService);
   /** The breadcrumb and browser tab name this record once it has loaded. */
   private readonly crumbName = effect(() => {
     const d = this.sale();

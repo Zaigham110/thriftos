@@ -1,4 +1,5 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
+import { NavService } from '../../core/nav/nav.service';
 import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
@@ -77,6 +78,7 @@ export class FinanceBookComponent {
   protected readonly i18n = inject(I18nService);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  protected readonly nav = inject(NavService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly methods = PAYMENT_METHODS;
   protected readonly method = signal<string>('CASH');
@@ -114,7 +116,7 @@ export class FinanceBookComponent {
 
   protected open(row: WsRow): void {
     const [kind, id] = row.id.split(':');
-    if (kind === 'EXPENSE') void this.router.navigate(['/finance/expenses', id]);
-    if (kind === 'CLOSE') void this.router.navigate(['/finance/close']);
+    if (kind === 'EXPENSE') void this.nav.open(['/finance/expenses', id]);
+    if (kind === 'CLOSE') void this.nav.open(['/finance/close']);
   }
 }

@@ -158,6 +158,13 @@ export interface Crumb {
  * Breadcrumbs for a URL: known segments, each linking to its own path, plus records whose name a page has
  * given (`names`: id → name). Unknown ids are left out.
  */
+/** A page you open from the menu (or a tab of one): the top of its trail, so it shows no breadcrumb. */
+export function isMenuPage(url: string): boolean {
+  const path = url.split(/[?#]/)[0];
+  const items = [...WS_NAV.flatMap((g) => g.items), WS_SETTINGS];
+  return items.some((i) => i.path === path || (i.also ?? []).includes(path));
+}
+
 /**
  * Pages that sit elsewhere in the menu than their address says: their breadcrumb follows the menu (Suppliers is
  * its own menu item; Supplier scorecard is a report under Insights).

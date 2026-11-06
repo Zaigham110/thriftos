@@ -203,7 +203,7 @@ export class CustomerRecordComponent {
   protected pickTab(tab: string): void {
     void this.router.navigate([], { relativeTo: this.tabRoute, queryParams: { tab }, queryParamsHandling: 'merge', replaceUrl: true });
   }
-  private readonly nav = inject(NavService);
+  protected readonly nav = inject(NavService);
   /** The breadcrumb and browser tab name this record once it has loaded. */
   private readonly crumbName = effect(() => {
     const d = this.data();
@@ -393,7 +393,7 @@ export class CustomerRecordComponent {
   }
 
   protected openSale(row: WsRow): void {
-    void this.router.navigate(['/sell/records', row.id]);
+    void this.nav.open(['/sell/records', row.id]);
   }
 
   protected can(code: string): boolean {

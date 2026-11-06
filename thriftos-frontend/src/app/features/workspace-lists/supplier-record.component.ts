@@ -48,13 +48,13 @@ export interface SupplierScorecard {
         <div class="main">
           <ws-page-header [heading]="d.supplier.name" [subtitle]="subtitle()">
             @if (can('vendor.update')) {
-              <a actions class="ws-btn" [routerLink]="['/receive/records/suppliers', d.supplier.id, 'edit']"><lucide-icon [img]="icons.Pencil" [size]="16" aria-hidden="true" />{{ 'ws.container.edit' | t }}</a>
+              <a actions class="ws-btn" [routerLink]="['/receive/records/suppliers', d.supplier.id, 'edit']" [state]="nav.trailState()"><lucide-icon [img]="icons.Pencil" [size]="16" aria-hidden="true" />{{ 'ws.container.edit' | t }}</a>
             }
             @if (can('container.create')) {
-              <a actions class="ws-btn" [routerLink]="['/receive/records/containers/new']" [queryParams]="{ supplier: d.supplier.id }"><lucide-icon [img]="icons.Plus" [size]="16" aria-hidden="true" />{{ 'ws.new.container' | t }}</a>
+              <a actions class="ws-btn" [routerLink]="['/receive/records/containers/new']" [queryParams]="{ supplier: d.supplier.id }" [state]="nav.trailState()"><lucide-icon [img]="icons.Plus" [size]="16" aria-hidden="true" />{{ 'ws.new.container' | t }}</a>
             }
             @if (can('rag.create')) {
-              <a actions class="ws-btn" [routerLink]="['/receive/records/lots/new']" [queryParams]="{ supplier: d.supplier.id }"><lucide-icon [img]="icons.Plus" [size]="16" aria-hidden="true" />{{ 'ws.new.gaari' | t }}</a>
+              <a actions class="ws-btn" [routerLink]="['/receive/records/lots/new']" [queryParams]="{ supplier: d.supplier.id }" [state]="nav.trailState()"><lucide-icon [img]="icons.Plus" [size]="16" aria-hidden="true" />{{ 'ws.new.gaari' | t }}</a>
             }
           </ws-page-header>
           @if (d.supplier.notes) { <p class="note">{{ d.supplier.notes }}</p> }
@@ -124,7 +124,7 @@ export class SupplierRecordComponent {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly auth = inject(AuthService);
-  private readonly nav = inject(NavService);
+  protected readonly nav = inject(NavService);
   /** Route parameter (component input binding). */
   readonly id = input.required<string>();
   /** ?tab= (containers or lots), kept in the address so Back opens the same tab. */
@@ -242,10 +242,10 @@ export class SupplierRecordComponent {
   }
 
   protected open(row: WsRow): void {
-    void this.router.navigate(['/receive/records/containers', row.id]);
+    void this.nav.open(['/receive/records/containers', row.id]);
   }
 
   protected openLot(row: WsRow): void {
-    void this.router.navigate(['/sort/records', row.id]);
+    void this.nav.open(['/sort/records', row.id]);
   }
 }

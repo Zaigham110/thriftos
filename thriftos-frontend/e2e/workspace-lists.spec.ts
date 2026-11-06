@@ -541,3 +541,32 @@ test('suppliers: add one, change its phone, buy from it with the supplier alread
   await expect(page.locator('select[name=vendor]')).not.toHaveValue('');
   await expect(page.getByLabel('From country')).toHaveValue('Italy');
 });
+
+test('breadcrumbs: none on menu pages; a record opened from another keeps the way back', async ({ page, request }) => {
+  const api = await apiAs(request);
+  const tag = Date.now().toString().slice(-6);
+  const supplier = await api.post('/procurement/vendors', { name: `Trail Rags ${tag}` });
+  const lot = await api.post('/procurement/rags', { ragBaleType: 'BALE', weightKg: 300, purchaseCost: 30000, vendorId: supplier.id });
+
+  await signIn(page);
+  for (const url of ['/home', '/receive/records/containers', '/receive/records/lots', '/receive/records/suppliers', '/sell/records', '/finance/expenses']) {
+    await page.goto(url);
+    await expect(page.locator('ws-page-header').first()).toBeVisible();
+    await expect(page.locator('nav.crumbs')).toHaveCount(0);
+  }
+
+  // Suppliers → the supplier → its loose lot: the lot's breadcrumb leads back to the supplier.
+  await page.goto('/receive/records/suppliers');
+  await page.getByPlaceholder('Search supplier, country or phone').fill(`Trail Rags ${tag}`);
+  await page.locator('ws-data-grid tbody tr').filter({ hasText: `Trail Rags ${tag}` }).click();
+  await expect(page.locator('nav.crumbs')).toContainText(`Trail Rags ${tag}`);
+  await page.locator('ws-data-grid tbody tr').filter({ hasText: lot.ragCode }).click();
+  await expect(page).toHaveURL(new RegExp(`/sort/records/${lot.id}`));
+  const crumbs = page.locator('nav.crumbs');
+  await expect(crumbs).toContainText('Suppliers');
+  await expect(crumbs).toContainText(`Trail Rags ${tag}`);
+  await expect(crumbs).toContainText(lot.ragCode);
+  await crumbs.getByRole('link', { name: `Trail Rags ${tag}` }).click();
+  await expect(page).toHaveURL(new RegExp(`/receive/records/suppliers/${supplier.id}`));
+  await expect(page.getByRole('heading', { name: `Trail Rags ${tag}` })).toBeVisible();
+});

@@ -1,4 +1,5 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
+import { NavService } from '../../core/nav/nav.service';
 import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -88,6 +89,7 @@ export class SalesAnalyticsComponent {
   protected readonly i18n = inject(I18nService);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  protected readonly nav = inject(NavService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly groups = GROUPS;
   protected readonly by = signal<Group>('customer');
@@ -164,6 +166,6 @@ export class SalesAnalyticsComponent {
 
   protected open(row: WsRow): void {
     const id = String(row.id);
-    if (!id.includes(':') && (this.by() === 'customer' || (this.data()?.topCustomers ?? []).some((c) => c.id === id))) void this.router.navigate(['/khata/records', id]);
+    if (!id.includes(':') && (this.by() === 'customer' || (this.data()?.topCustomers ?? []).some((c) => c.id === id))) void this.nav.open(['/khata/records', id]);
   }
 }

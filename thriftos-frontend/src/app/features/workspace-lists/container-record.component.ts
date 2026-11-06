@@ -84,7 +84,7 @@ interface RawType { id: string; name: string; rawType?: string }
           <ws-page-header [heading]="d.container.number + (d.container.supplier ? ' · ' + d.container.supplier.name : '')" [subtitle]="subtitle()">
             @if (can('container.update') && !closed()) {
               <ng-container actions>
-              <a class="ws-btn" [routerLink]="['/receive/records/containers', d.container.id, 'edit']"><lucide-icon [img]="icons.Pencil" [size]="16" aria-hidden="true" />{{ 'ws.container.edit' | t }}</a>
+              <a class="ws-btn" [routerLink]="['/receive/records/containers', d.container.id, 'edit']" [state]="nav.trailState()"><lucide-icon [img]="icons.Pencil" [size]="16" aria-hidden="true" />{{ 'ws.container.edit' | t }}</a>
               @if (d.cost) { <button type="button" class="ws-btn" (click)="openCharge(null)"><lucide-icon [img]="icons.Plus" [size]="16" aria-hidden="true" />{{ 'ws.container.addCharge' | t }}</button> }
               </ng-container>
             }
@@ -253,7 +253,7 @@ export class ContainerRecordComponent {
   protected pickTab(tab: string): void {
     void this.router.navigate([], { relativeTo: this.tabRoute, queryParams: { tab }, queryParamsHandling: 'merge', replaceUrl: true });
   }
-  private readonly nav = inject(NavService);
+  protected readonly nav = inject(NavService);
   /** The breadcrumb and browser tab name this record once it has loaded. */
   private readonly crumbName = effect(() => {
     const d = this.data();
@@ -437,15 +437,15 @@ export class ContainerRecordComponent {
 
   protected openBale(row: WsRow): void {
     const itemId = row['itemId'];
-    if (itemId) void this.router.navigate(['/stock/items', itemId]);
+    if (itemId) void this.nav.open(['/stock/items', itemId]);
   }
 
   protected openSale(row: WsRow): void {
-    void this.router.navigate(['/sell/records', row.id]);
+    void this.nav.open(['/sell/records', row.id]);
   }
 
   protected openLotRecord(row: WsRow): void {
-    void this.router.navigate(['/sort/records', row.id]);
+    void this.nav.open(['/sort/records', row.id]);
   }
 
   /** Whole rupees for totals on the page (per-kg prices keep paisa through i18n.money). */

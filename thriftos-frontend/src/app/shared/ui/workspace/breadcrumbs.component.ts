@@ -1,22 +1,25 @@
 import { Component, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { ChevronRight, LucideAngularModule } from 'lucide-angular';
 import { TPipe } from '../../../core/i18n/t.pipe';
 import { NavService } from '../../../core/nav/nav.service';
 
-/** Where you are, each step a link ("Purchasing › Containers › CONT-2026-006"); the last step is this page. */
+/**
+ * Where you are, each step a link ("Suppliers › London Clothing Bank › BALE-2026-007"): the way you came when
+ * known, else the page's place in the menu. Pages straight from the menu show none.
+ */
 @Component({
   selector: 'ws-breadcrumbs',
   standalone: true,
-  imports: [RouterLink, LucideAngularModule, TPipe],
+  imports: [LucideAngularModule, TPipe],
   template: `
-    @if (nav.crumbs().length > 1) {
+    @if (nav.crumbs().length > 1 && !nav.onMenuPage()) {
       <nav class="crumbs" [attr.aria-label]="'ws.breadcrumbs' | t">
         <ol>
-          @for (c of nav.crumbs(); track c.path; let last = $last) {
+          @for (c of nav.crumbs(); track $index; let last = $last; let i = $index) {
             <li>
               @if (last) { <span aria-current="page">{{ c.raw ? c.label : (c.label | t) }}</span> }
-              @else { <a [routerLink]="c.path">{{ c.raw ? c.label : (c.label | t) }}</a><lucide-icon [img]="icons.ChevronRight" [size]="14" class="flip" aria-hidden="true" /> }
+              @else { <a [href]="c.path" (click)="go($event, i)">{{ c.raw ? c.label : (c.label | t) }}</a><lucide-icon [img]="icons.ChevronRight" [size]="14" class="flip" aria-hidden="true" /> }
             </li>
           }
         </ol>
@@ -37,5 +40,14 @@ import { NavService } from '../../../core/nav/nav.service';
 })
 export class WsBreadcrumbsComponent {
   protected readonly nav = inject(NavService);
+  private readonly router = inject(Router);
+
+  /** A step opens that page as it was (its search, filters and tab are in the path), with the steps before it as its own trail. */
+  protected go(e: MouseEvent, i: number): void {
+    if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return; // a new tab: the browser opens the link
+    e.preventDefault();
+    const crumbs = this.nav.crumbs();
+    void this.router.navigateByUrl(crumbs[i].path, { state: { trail: crumbs.slice(0, i) } });
+  }
   protected readonly icons = { ChevronRight };
 }

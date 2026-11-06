@@ -1,4 +1,5 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
+import { NavService } from '../../core/nav/nav.service';
 import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
@@ -130,6 +131,7 @@ export class DashboardComponent {
   protected readonly i18n = inject(I18nService);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  protected readonly nav = inject(NavService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly ages = AGES;
   protected readonly range = signal<WsDateRange>(rangeFor('month'));
@@ -197,6 +199,6 @@ export class DashboardComponent {
   }
 
   protected openContainer(row: WsRow): void {
-    void this.router.navigate(['/receive/records/containers', row.id]);
+    void this.nav.open(['/receive/records/containers', row.id]);
   }
 }

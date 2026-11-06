@@ -1,4 +1,5 @@
 import { RouterLink } from '@angular/router';
+import { NavService } from '../../core/nav/nav.service';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -77,6 +78,7 @@ export class ScorecardComponent {
   protected readonly i18n = inject(I18nService);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  protected readonly nav = inject(NavService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly groups = ['supplier', 'origin'] as const;
   protected readonly by = signal<'supplier' | 'origin'>('supplier');
@@ -137,6 +139,6 @@ export class ScorecardComponent {
 
   protected open(row: WsRow): void {
     const r = (this.data()?.rows ?? []).find((x) => (x.id ?? x.key) === row.id);
-    if (r?.id) void this.router.navigate(['/receive/records/suppliers', r.id]);
+    if (r?.id) void this.nav.open(['/receive/records/suppliers', r.id]);
   }
 }

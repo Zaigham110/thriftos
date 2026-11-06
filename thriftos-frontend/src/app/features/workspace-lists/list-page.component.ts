@@ -1,4 +1,5 @@
 import { HelpLinkComponent } from '../help/help-link.component';
+import { NavService } from '../../core/nav/nav.service';
 import { Component, DestroyRef, HostListener, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -184,6 +185,7 @@ export class ListPageComponent {
   protected readonly i18n = inject(I18nService);
   private readonly lists = inject(ListClient);
   private readonly router = inject(Router);
+  protected readonly nav = inject(NavService);
   private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
@@ -448,11 +450,11 @@ export class ListPageComponent {
   }
 
   protected open(row: WsRow): void {
-    void this.router.navigate(this.list().rowLink(row.id, row as Record<string, unknown>));
+    void this.nav.open(this.list().rowLink(row.id, row as Record<string, unknown>));
   }
 
   protected openId(id: string): void {
-    void this.router.navigate(this.list().rowLink(id));
+    void this.nav.open(this.list().rowLink(id));
   }
 
   protected export(format: 'csv' | 'xlsx'): void {

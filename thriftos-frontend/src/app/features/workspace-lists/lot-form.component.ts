@@ -37,7 +37,7 @@ const day = (v: string) => new Date(new Date(v).getTime() + 5 * 3_600_000).toISO
       <ws-state kind="loading" />
     } @else if (containerId()) {
       <ws-state kind="empty" [heading]="'ws.lf.containerLot' | t">
-        <a class="ws-btn" [routerLink]="['/receive/records/containers', containerId()]">{{ 'ws.lf.openContainer' | t }}</a>
+        <a class="ws-btn" [routerLink]="['/receive/records/containers', containerId()]" [state]="nav.trailState()">{{ 'ws.lf.openContainer' | t }}</a>
       </ws-state>
     } @else {
       <form class="page" (ngSubmit)="save()" (input)="touched = true" (change)="touched = true">
@@ -145,7 +145,7 @@ const day = (v: string) => new Date(new Date(v).getTime() + 5 * 3_600_000).toISO
   `],
 })
 export class LotFormComponent implements OnInit, HasUnsavedChanges {
-  private readonly nav = inject(NavService);
+  protected readonly nav = inject(NavService);
   /** Something was typed or picked and not saved yet (leaving asks first). */
   protected touched = false;
   protected readonly i18n = inject(I18nService);

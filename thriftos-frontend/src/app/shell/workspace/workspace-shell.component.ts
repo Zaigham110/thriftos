@@ -1,4 +1,5 @@
 import { HttpClient } from '@angular/common/http';
+import { WsBreadcrumbsComponent } from '../../shared/ui/workspace/breadcrumbs.component';
 import { Component, DestroyRef, HostListener, computed, inject, output, signal, effect } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
@@ -53,7 +54,7 @@ function typing(e: KeyboardEvent): boolean {
 @Component({
   selector: 'ws-shell',
   standalone: true,
-  imports: [LangPickerComponent, RouterLink, RouterLinkActive, LucideAngularModule, TPipe, CommandPaletteComponent],
+  imports: [WsBreadcrumbsComponent, LangPickerComponent, RouterLink, RouterLinkActive, LucideAngularModule, TPipe, CommandPaletteComponent],
   template: `
     <a class="skip" href="#ws-main">{{ 'ws.skip' | t }}</a>
     <div class="ws" [class.collapsed]="collapsed()">
@@ -134,18 +135,8 @@ function typing(e: KeyboardEvent): boolean {
       </aside>
 
       <main id="ws-main" class="content" tabindex="-1">
-        @if (crumbs().length > 1 && !nav.headers()) {
-          <nav class="crumbs" [attr.aria-label]="'ws.breadcrumbs' | t">
-            <ol>
-              @for (c of crumbs(); track c.path; let last = $last) {
-                <li>
-                  @if (last) { <span aria-current="page">{{ c.raw ? c.label : (c.label | t) }}</span> }
-                  @else { <a [routerLink]="c.path">{{ c.raw ? c.label : (c.label | t) }}</a><lucide-icon [img]="icons.ChevronRight" [size]="14" class="flip" aria-hidden="true" /> }
-                </li>
-              }
-            </ol>
-          </nav>
-        }
+        <!-- Pages with the shared header show the breadcrumb in it (lined up with the heading); others here. -->
+        @if (!nav.headers()) { <ws-breadcrumbs /> }
         <ng-content />
       </main>
     </div>

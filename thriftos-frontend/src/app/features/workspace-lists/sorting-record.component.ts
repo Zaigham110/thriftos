@@ -49,7 +49,7 @@ const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
         <div class="main">
           <ws-page-header [heading]="d.lot.code + (d.lot.supplier ? ' · ' + d.lot.supplier.name : '')" [subtitle]="subtitle()">
             @if (d.lot.source === 'LOOSE_BALE' && can('rag.create')) {
-              <a actions class="ws-btn" [routerLink]="['/receive/records/lots', d.lot.id, 'edit']"><lucide-icon [img]="icons.Pencil" [size]="16" aria-hidden="true" />{{ 'ws.container.edit' | t }}</a>
+              <a actions class="ws-btn" [routerLink]="['/receive/records/lots', d.lot.id, 'edit']" [state]="nav.trailState()"><lucide-icon [img]="icons.Pencil" [size]="16" aria-hidden="true" />{{ 'ws.container.edit' | t }}</a>
             }
             @if (d.lot.status !== 'SORTED') {
               <a actions class="ws-btn primary" [routerLink]="['/sort', d.lot.id]"><lucide-icon [img]="icons.Play" [size]="16" aria-hidden="true" />{{ (d.lot.status === 'NOT_STARTED' ? 'ws.sortRecord.start' : 'ws.sortRecord.continue') | t }}</a>
@@ -100,7 +100,7 @@ export class SortingRecordComponent {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   readonly id = input.required<string>();
-  private readonly nav = inject(NavService);
+  protected readonly nav = inject(NavService);
   /** The breadcrumb and browser tab name this record once it has loaded. */
   private readonly crumbName = effect(() => {
     const d = this.data();
