@@ -73,6 +73,14 @@ export const STOCK_LIST: ListResource = {
     repackUnit: { select: { unitCode: true } }, category: { select: { name: true } }, grade: { select: { name: true } },
     warehouse: { select: { name: true } }, vendor: { select: { name: true } },
   },
+  // The value left of every matching item, not only this page (the totals row).
+  extraTotals: async (prisma, tenantId, where) => {
+    const items = await (prisma as PrismaClient).inventoryItem.findMany({
+      where: where as Prisma.InventoryItemWhereInput,
+      select: { quantity: true, usedQuantity: true, totalCost: true, unit: true, weightKg: true },
+    });
+    return { value: items.reduce((t, i) => t.add(stockLeft(i).value), ZERO).toString() };
+  },
   toRow: (x) => {
     const i = x as unknown as Item;
     const { left, value } = stockLeft(i);

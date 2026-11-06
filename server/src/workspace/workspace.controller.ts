@@ -11,7 +11,7 @@ import { SortingRecordsService, YieldQueryDto } from './sorting-records.service'
 import { AnalyticsService, PeriodDto, SalesAnalyticsQueryDto, ScorecardQueryDto } from './analytics.service';
 import { PriceEntryDto, PriceGroupDto, PriceListsService } from './price-lists.service';
 import { BookQueryDto, CloseDto, CloseQueryDto, ExpenseDto, FinanceService, PnlQueryDto } from './finance.service';
-import { StockCountDto, StockDecisionDto, StockRecordsService, StockTransferDto } from './stock-records.service';
+import { StockCountDto, StockDecisionDto, StockRecordsService, StockTransferDto, StockPriceDto, StockKindPriceDto } from './stock-records.service';
 
 /** Workspace record pages (enterprise plan E3): one call per page; cost and profit need cost.view. */
 @Controller('workspace')
@@ -49,6 +49,27 @@ export class WorkspaceController {
   @RequirePermissions('INVENTORY_VIEW')
   async stockSummary(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData) {
     return this.stock.summary(tenantId, await this.canSeeCost(user));
+  }
+
+  /** One price for every item of a kind in stock. */
+  @Patch('stock/price')
+  @RequirePermissions('price.manage')
+  async stockKindPrice(@TenantId() tenantId: string, @Body() dto: StockKindPriceDto, @CurrentUser() user: CurrentUserData) {
+    return this.stock.setKindPrice(tenantId, dto, user.userId);
+  }
+
+  /** The sale price of one stock item. */
+  @Patch('stock/items/:id/price')
+  @RequirePermissions('price.manage')
+  async stockItemPrice(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: StockPriceDto, @CurrentUser() user: CurrentUserData) {
+    return this.stock.setPrice(tenantId, id, dto, user.userId);
+  }
+
+  /** Inventory by what it is: bales or items in stock and sorted kg not baled, per category and grade. */
+  @Get('stock/by-item')
+  @RequirePermissions('INVENTORY_VIEW')
+  async stockByItem(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData) {
+    return this.stock.byItem(tenantId, await this.canSeeCost(user));
   }
 
   @Get('stock/:id')

@@ -78,6 +78,13 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
       <!-- One bar: search and the everyday filters in view; layout, grouping, columns and saved views behind "View". -->
       <ws-command-bar>
         <ws-filter-bar start [query]="state().q" (queryChange)="query.set($event)" [placeholder]="c.searchPlaceholder | t" [chips]="chips()" (remove)="removeFilter($event)" (clearAll)="clearFilters()">
+          @if (c.switch; as sw) {
+            <span add class="switch" role="radiogroup" [attr.aria-label]="sw.label | t">
+              @for (o of sw.options; track $index; let i = $index) {
+                <button type="button" role="radio" [attr.aria-checked]="switchIndex() === i" [class.on]="switchIndex() === i" (click)="pickSwitch(i)">{{ o.label | t }}</button>
+              }
+            </span>
+          }
           @for (qf of c.quickFilters; track qf.field) {
             <select add class="quick" [ngModel]="''" (ngModelChange)="addFilter(qf.field, $event)" [attr.aria-label]="qf.label | t">
               <option value="">{{ qf.label | t }}…</option>
@@ -156,6 +163,10 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
     </div>
   `,
   styles: [`
+    .switch { display:inline-flex; gap:2px; padding:2px; border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface-2); }
+    .switch button { padding:4px var(--ws-3); border:0; border-radius:calc(var(--ws-r-md) - 2px); background:transparent; color:var(--ws-ink-2); font:inherit; font-size:var(--ws-text-sm); cursor:pointer; }
+    .switch button.on { background:var(--ws-surface); color:var(--ws-ink); font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+    .switch button:focus-visible { outline:2px solid var(--ws-focus, var(--ws-brand)); outline-offset:1px; }
     .page { display:grid; grid-template-columns:minmax(0, 1fr); gap:var(--ws-4); max-width:var(--ws-content-max); margin-inline:auto; font-family:var(--ws-font); color:var(--ws-ink); }
     .row { display:flex; flex-wrap:wrap; align-items:center; gap:var(--ws-2); }
     .switch { display:inline-flex; }
@@ -236,8 +247,27 @@ export class ListPageComponent {
     const chosen = this.state().columns.length ? this.state().columns : this.list().defaultColumns;
     return chosen.filter((c) => allowed.has(c));
   });
+  /** Which switch option the filters match (the one without a filter is "All"). */
+  protected readonly switchIndex = computed(() => {
+    const sw = this.list().switch;
+    if (!sw) return -1;
+    const f = this.state().filters.find((x) => x.field === sw.field);
+    const i = sw.options.findIndex((o) => (f ? o.op === f.op && o.value === f.value : !o.op));
+    return i;
+  });
+  protected pickSwitch(i: number): void {
+    const sw = this.list().switch!;
+    const o = sw.options[i];
+    const rest = this.state().filters.filter((f) => f.field !== sw.field);
+    this.patch({ filters: o.op ? [...rest, { field: sw.field, op: o.op, value: o.value }] : rest, page: 1 });
+  }
+  /** Columns left out while every row on this page is empty (hideIfEmpty). */
+  private readonly emptyColumns = computed(() => {
+    const rows = this.result()?.rows ?? [];
+    return new Set(this.list().columns.filter((c) => c.hideIfEmpty && rows.every((r) => r[c.key] === null || r[c.key] === undefined || r[c.key] === '')).map((c) => c.key));
+  });
   protected readonly columns = computed<WsColumn[]>(() =>
-    this.visible().map((key) => {
+    this.visible().filter((key) => !this.emptyColumns().has(key)).map((key) => {
       const c = this.list().columns.find((x) => x.key === key)!;
       return { key, label: this.i18n.t(c.label), sortable: !c.computed, format: c.format ?? 'text', total: c.total, width: c.width, round: c.format === 'money' && !c.exact, info: c.info ? this.i18n.t(c.info) : undefined };
     }),
@@ -290,7 +320,7 @@ export class ListPageComponent {
   protected readonly chips = computed<WsFilterChip[]>(() =>
     this.state().filters
       .map((f, i) => ({ f, i }))
-      .filter(({ f }) => f.field !== this.list().dateField)
+      .filter(({ f }) => f.field !== this.list().dateField && f.field !== this.list().switch?.field)
       .map(({ f, i }) => {
         const col = this.list().columns.find((c) => c.key === f.field);
         const quick = this.list().quickFilters.find((q) => q.field === f.field);
@@ -420,7 +450,7 @@ export class ListPageComponent {
   }
 
   protected clearFilters(): void {
-    this.patch({ filters: this.state().filters.filter((f) => f.field === this.list().dateField), page: 1 });
+    this.patch({ filters: this.state().filters.filter((f) => f.field === this.list().dateField || f.field === this.list().switch?.field), page: 1 });
   }
 
   protected toggleColumn(key: string): void {

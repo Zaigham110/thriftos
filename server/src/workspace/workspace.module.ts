@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { StockModule } from '../stock/stock.module';
 import { CommonModule } from '../common/common.module';
 import { ListsModule } from '../lists/lists.module';
 import { WorkspaceController } from './workspace.controller';
@@ -12,7 +13,7 @@ import { AnalyticsService } from './analytics.service';
 import { SalesModule } from '../sales/sales.module';
 
 @Module({
-  imports: [CommonModule, ListsModule, SalesModule],
+  imports: [CommonModule, ListsModule, SalesModule, StockModule],
   controllers: [WorkspaceController],
   providers: [WorkspaceRecordsService, StockRecordsService, ReceivablesService, SortingRecordsService, FinanceService, PriceListsService, AnalyticsService],
 })

@@ -112,6 +112,16 @@
   - Tests: server e2e `purchasing-review` (gaari list only loose lots, price per kg and sorted % while sorting, search, other business sees none; container cleared when sorting starts, late charge still accepted); the purchasing e2e now expects Cleared after sorting. Browser: list tests use the View panel; new "purchasing" test (tabs, buttons, column note, remembered tab, old address). Server 295/295, Karma 19/19, browser 41 passed + 4 skipped, i18n 1265 keys.
   - Decided by the owner: amounts keep international grouping (2,309,688), not lakh grouping.
   - Breadcrumbs no longer show the internal "Records" step: Purchasing › Containers, Sales, Sorting (was Purchasing › Records › Containers). Unit test added.
+- **Review: Stock.** All eight findings fixed.
+  - Sorted kg not in bales yet is stock (`BaleService.sortedStock`, the same sources Make a bale offers): Stock value, Home's "Value left" and Inventory count it with its cost and age. Demo: 54,144 kg / Rs 12,323,621 (was 1,320 kg / Rs 254,422). "Older than 60 days" counts kg, so old sorted stock shows.
+  - Inventory opens "By item" (`/stock/by-item`, `GET /workspace/stock/by-item`): per category and grade the bales, kg in bales, sorted not baled, total kg and value; a row opens its bales (filters by name, readable chips). Tabs: By item / Each bale or item.
+  - One name, "Inventory"; the list's totals include Value left (list-engine `extraTotals`, shown only with cost.view); Item replaces Category + Grade in the default columns; Godown hides while empty (`hideIfEmpty`).
+  - Prices: Set price for every bale of a kind (`PATCH /workspace/stock/price`) or one item (`PATCH /workspace/stock/items/:id/price`), price.manage, per business, audited STOCK_PRICE_SET.
+  - Status is an In stock / Sold / All switch (list `switch`), not a "not Sold" chip.
+  - A sold item offers no Count or Move; "Used" is in kg; costs whole rupees; a source row opens its lot (then its container).
+  - Stock value in whole rupees, with "of which … sorted, not baled" under kg and value.
+  - Make a bale on a laptop: wide (kinds left, details and Save right), shared header.
+  - Tests: `stock-review.e2e-spec.ts` (sorted stock in value and by item, prices, other business refused), inventory test updated, browser test "inventory by item". Server 303, Karma 22, browser 49 passed + 4 skipped.
 - **Review: Sorting.** All eight findings fixed.
   - The list's "Waste kg" showed the kg still to sort for a lot being sorted (the open session keeps the remaining kg in its waste field). Now: a "Left to sort" column (whole lot while waiting, the rest while sorting) and waste only once closed; totals for sorted, left and waste (new list-engine hook `extraTotals`).
   - A lot's page shows one row per category and grade ("Jeans · A", was two Jeans rows), what is left to sort with a progress bar, and the bales made from the lot (with their cost from the lot; they open in Stock when Stock is on).

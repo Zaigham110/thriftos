@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { WsPageHeaderComponent } from '../../shared/ui/workspace/page-header.component';
 import { RouterLink } from '@angular/router';
 import { ArrowLeft, CheckCircle2, LucideAngularModule, Minus, Plus, Printer } from 'lucide-angular';
 import { TenantService } from '../../core/tenant/tenant.service';
@@ -22,13 +23,18 @@ const kindId = (k: { categoryId: string; gradeId: string | null }) => `${k.categ
 @Component({
   selector: 'app-make-bale',
   standalone: true,
-  imports: [RouterLink, LucideAngularModule, I18N, NumberFieldComponent, TilesComponent],
+  imports: [RouterLink, LucideAngularModule, I18N, NumberFieldComponent, TilesComponent, WsPageHeaderComponent],
   template: `
-    <section class="floor">
-      <header class="floor-head">
-        <a class="icon-btn back" routerLink="/stock" [attr.aria-label]="'common.back' | t"><lucide-icon [img]="icons.ArrowLeft" [size]="22" /></a>
-        <h1>{{ 'stock.makeBale' | t }}</h1>
-      </header>
+    <section class="floor" [class.wide]="desktop">
+      @if (desktop) {
+        <!-- Laptop (v2 review): the shared header, breadcrumb lined up with the heading. -->
+        <ws-page-header [heading]="'stock.makeBale' | t" [subtitle]="'ws.mb.hint' | t" />
+      } @else {
+        <header class="floor-head">
+          <a class="icon-btn back" routerLink="/stock" [attr.aria-label]="'common.back' | t"><lucide-icon [img]="icons.ArrowLeft" [size]="22" /></a>
+          <h1>{{ 'stock.makeBale' | t }}</h1>
+        </header>
+      }
 
       @if (made(); as m) {
         <section class="card done">
@@ -42,10 +48,13 @@ const kindId = (k: { categoryId: string; gradeId: string | null }) => `${k.categ
           <button type="button" class="btn block" (click)="made.set(null)">{{ 'stock.makeBale' | t }}</button>
         </section>
       } @else {
-        <section class="card">
+        <div class="work">
+        <section class="card pick">
           <h2>{{ 'stock.pickKind' | t }}</h2>
-          <tos-tiles [items]="tiles()" [selected]="kind() ? id(kind()!) : null" [limit]="40" [columns]="2" emptyText="stock.empty" (pick)="pick($event)" />
+          <tos-tiles [items]="tiles()" [selected]="kind() ? id(kind()!) : null" [limit]="40" [columns]="desktop ? 'auto' : 2" emptyText="stock.empty" (pick)="pick($event)" />
         </section>
+        <div class="side">
+        @if (!kind() && desktop) { <section class="card"><p class="sum">{{ 'ws.mb.pickFirst' | t }}</p></section> }
         @if (kind(); as k) {
           <section class="card">
             @if (!k.gradeId && gradeOptions().length) {
@@ -75,10 +84,17 @@ const kindId = (k: { categoryId: string; gradeId: string | null }) => `${k.categ
         <footer class="action-bar">
           <button type="button" class="btn primary" [disabled]="!kind() || !weightKg() || saving()" (click)="save()">{{ (saving() ? 'common.saving' : 'stock.saveBale') | t }}</button>
         </footer>
+        </div>
+        </div>
       }
     </section>
   `,
   styles: [`
+    .work, .side { display:grid; gap:14px; align-content:start; min-width:0; }
+    .wide { max-width:var(--ws-content-max, 1200px); padding-block-end:16px; }
+    .wide .work { grid-template-columns:minmax(0, 1fr) 380px; align-items:start; }
+    .wide .side { position:sticky; top:calc(var(--ws-topbar-h, 56px) + 16px); }
+    .wide .action-bar { position:static; margin:0; }
     .done { justify-items:center; text-align:center; }
     .grades { display:flex; flex-wrap:wrap; gap:8px; }
     .grades .chip { min-height:44px; }
@@ -95,6 +111,8 @@ export class MakeBaleComponent implements OnInit {
   private readonly queue = inject(OfflineQueueService);
   private readonly toast = inject(ToastService);
   private readonly i18n = inject(I18nService);
+  /** A laptop: wide layout and the shared header (phones keep the floor screen). */
+  protected readonly desktop = typeof matchMedia === 'function' && matchMedia('(pointer: fine) and (min-width: 1024px)').matches;
   protected readonly icons = { ArrowLeft, CheckCircle2, Minus, Plus, Printer };
   private readonly tenant = inject(TenantService);
   private readonly grades = signal<Named[]>([]);

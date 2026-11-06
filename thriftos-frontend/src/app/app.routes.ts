@@ -149,11 +149,13 @@ export const routes: Routes = [
         canActivate: [moduleGuard],
         data: { module: 'STOCK' },
         children: [
-          { path: '', canActivate: [desktopRedirect('/stock/items')], loadComponent: () => import('./features/stock/stock-home.component').then((m) => m.StockHomeComponent), title: 'ThriftOS' },
+          { path: '', canActivate: [desktopRedirect('/stock/by-item')], loadComponent: () => import('./features/stock/stock-home.component').then((m) => m.StockHomeComponent), title: 'ThriftOS' },
           { path: 'bale', loadComponent: () => import('./features/stock/make-bale.component').then((m) => m.MakeBaleComponent), title: 'ThriftOS' },
           { path: 'label/:id', loadComponent: () => import('./features/stock/labels.component').then((m) => m.LabelsComponent), title: 'ThriftOS' },
           { path: 'labels', loadComponent: () => import('./features/stock/labels.component').then((m) => m.LabelsComponent), title: 'ThriftOS' },
           { path: 'items', loadChildren: () => import('./modules/inventory/inventory.routes').then((m) => m.INVENTORY_ROUTES) },
+          // Inventory by item (v2 review): bales and sorted kg per category and grade; its second tab is each item.
+          { path: 'by-item', loadComponent: () => import('./features/workspace-lists/stock-by-item.component').then((m) => m.StockByItemComponent), title: 'ThriftOS' },
           { path: 'value', loadComponent: () => import('./features/workspace-lists/stock-summary.component').then((m) => m.StockSummaryComponent), title: 'ThriftOS' },
         ],
       },

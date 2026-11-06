@@ -75,7 +75,11 @@ const UNIT_KEYS: Record<string, string> = { KG: 'ws.stock.unit.KG', BALE: 'ws.st
               @if (d.item.repackUnitId) {
                 <a class="ws-btn" [routerLink]="['/stock/label', d.item.repackUnitId]"><lucide-icon [img]="icons.QrCode" [size]="16" aria-hidden="true" />{{ 'ws.stockItem.label' | t }}</a>
               }
-              @if (can('INVENTORY_ADJUST')) {
+              @if (can('price.manage') && +d.item.left > 0) {
+                <button type="button" class="ws-btn" (click)="openPrice()">{{ 'ws.si.setPrice' | t }}</button>
+              }
+              <!-- Counting and moving are for stock that is still here, not for sold bales (v2 review). -->
+              @if (can('INVENTORY_ADJUST') && +d.item.left > 0) {
                 <button type="button" class="ws-btn" (click)="sheet.set('count')"><lucide-icon [img]="icons.ClipboardCheck" [size]="16" aria-hidden="true" />{{ 'ws.stockItem.count' | t }}</button>
                 @if (d.godowns.length) {
                   <button type="button" class="ws-btn" (click)="sheet.set('move')"><lucide-icon [img]="icons.ArrowLeftRight" [size]="16" aria-hidden="true" />{{ 'ws.stockItem.move' | t }}</button>
@@ -99,7 +103,7 @@ const UNIT_KEYS: Record<string, string> = { KG: 'ws.stock.unit.KG', BALE: 'ws.st
           <section class="smart">
             <ws-smart-button [label]="'ws.stock.col.left' | t" [value]="qty(d.item.left) + ' / ' + qty(d.item.quantity)" [icon]="icons.Package" [link]="[]" />
             @if (d.item.leftKg !== null) { <ws-smart-button [label]="'ws.stockItem.kgLeft' | t" [value]="i18n.kg(d.item.leftKg)" [icon]="icons.Scale" [link]="[]" /> }
-            @if (d.cost) { <ws-smart-button [label]="'ws.stock.col.value' | t" [value]="i18n.money(d.cost.valueLeft)" [icon]="icons.Coins" [link]="[]" /> }
+            @if (d.cost) { <ws-smart-button [label]="'ws.stock.col.value' | t" [value]="i18n.money(round(d.cost.valueLeft))" [icon]="icons.Coins" [link]="[]" /> }
             @if (d.item.salePrice) { <ws-smart-button [label]="'ws.stock.col.price' | t" [value]="i18n.money(d.item.salePrice)" [icon]="icons.Tag" [link]="[]" /> }
             <ws-smart-button [label]="'ws.stock.col.age' | t" [value]="i18n.num(d.item.ageDays)" [icon]="icons.Clock" [tone]="d.item.ageDays > 90 ? 'bad' : 'plain'" [link]="[]" />
             <ws-smart-button [label]="'ws.container.tab.sales' | t" [value]="i18n.num(d.sales.length)" [icon]="icons.Coins" [link]="[]" [query]="{ tab: 'sales' }" />
@@ -110,13 +114,13 @@ const UNIT_KEYS: Record<string, string> = { KG: 'ws.stock.unit.KG', BALE: 'ws.st
             @switch (tab()) {
               @case ('lineage') {
                 @if (d.lineage.length) {
-                  <ws-data-grid [caption]="'ws.stockItem.tab.lineage' | t" [columns]="lineageColumns()" [rows]="lineageRows()" [clickable]="true" (rowClick)="openContainer($event)" />
+                  <ws-data-grid [caption]="'ws.stockItem.tab.lineage' | t" [columns]="lineageColumns()" [rows]="lineageRows()" [clickable]="true" (rowClick)="openSource($event)" />
                 } @else {
                   <dl class="facts">
                     <div><dt>{{ 'ws.stock.col.source' | t }}</dt><dd>{{ 'ws.stock.source.' + d.item.source | t }}</dd></div>
                     <div><dt>{{ 'ws.containers.col.supplier' | t }}</dt><dd>{{ d.item.supplier?.name ?? '—' }}</dd></div>
                     @if (d.item.parent) { <div><dt>{{ 'ws.stockItem.openedFrom' | t }}</dt><dd><a [routerLink]="['/stock/items', d.item.parent.id]" [state]="nav.trailState()">{{ d.item.parent.name ?? '—' }}</a></dd></div> }
-                    @if (d.cost) { <div><dt>{{ 'ws.col.cost' | t }}</dt><dd>{{ i18n.money(d.cost.total) }}</dd></div> }
+                    @if (d.cost) { <div><dt>{{ 'ws.col.cost' | t }}</dt><dd>{{ i18n.money(round(d.cost.total)) }}</dd></div> }
                   </dl>
                 }
               }
@@ -137,6 +141,17 @@ const UNIT_KEYS: Record<string, string> = { KG: 'ws.stock.unit.KG', BALE: 'ws.st
         </div>
         <aside class="side"><ws-record-activity type="stockItem" [recordId]="d.item.id" /></aside>
       </div>
+
+      <ws-side-sheet [open]="sheet() === 'price'" [heading]="'ws.si.setPrice' | t" (close)="sheet.set(null)">
+        <form class="form" id="ws-item-price" (ngSubmit)="submitPrice()">
+          <label>{{ 'ws.si.pricePer' | t: { unit: ('ws.stock.unit.' + d.item.unit | t) } }}<input name="price" type="number" min="0" step="1" [(ngModel)]="price" /></label>
+          <p class="hint">{{ 'ws.si.priceOneHint' | t }}</p>
+        </form>
+        <ng-container footer>
+          <button type="button" class="ws-btn" (click)="sheet.set(null)">{{ 'common.cancel' | t }}</button>
+          <button type="submit" form="ws-item-price" class="ws-btn primary" [disabled]="busy()">{{ 'common.save' | t }}</button>
+        </ng-container>
+      </ws-side-sheet>
 
       <ws-side-sheet [open]="sheet() === 'count'" [heading]="'ws.stockItem.count' | t" (close)="sheet.set(null)">
         <form class="form" (ngSubmit)="submitCount()">
@@ -213,7 +228,8 @@ export class StockRecordComponent {
   protected readonly data = signal<StockOverview | null>(null);
   protected readonly failed = signal(false);
   protected readonly busy = signal(false);
-  protected readonly sheet = signal<'count' | 'move' | null>(null);
+  protected readonly sheet = signal<'count' | 'move' | 'price' | null>(null);
+  protected price: number | null = null;
   protected readonly chosenTab = signal<string | null>(null);
   private readonly reloads = signal(0);
   protected counted: number | null = null;
@@ -260,13 +276,14 @@ export class StockRecordComponent {
     this.col('lot', 'ws.container.lot'),
     this.col('category', 'ws.container.category'),
     this.col('grade', 'ws.container.grade'),
-    this.col('amount', 'ws.stockItem.used', 'number', true),
-    ...(this.data()?.cost ? [this.col('cost', 'ws.col.cost', 'money', true)] : []),
+    // "Used 57" said nothing: the kg (or pieces) this item took from each source, and its cost in whole rupees.
+    { ...this.col(this.data()?.lineage.every((l) => l.measure === 'WEIGHT') ? 'kg' : 'amount', 'ws.stockItem.used', this.data()?.lineage.every((l) => l.measure === 'WEIGHT') ? 'kg' : 'number', true) },
+    ...(this.data()?.cost ? [{ ...this.col('cost', 'ws.col.cost', 'money', true), round: true }] : []),
   ]);
   protected readonly lineageRows = computed<WsRow[]>(() =>
     (this.data()?.lineage ?? []).map((l, i) => ({
-      id: String(i), containerId: l.container?.id ?? null, container: l.container?.number ?? null, supplier: l.supplier?.name ?? null, lot: l.lot?.code ?? null,
-      category: l.category, grade: l.grade, amount: l.amount, cost: l.cost,
+      id: String(i), containerId: l.container?.id ?? null, lotId: l.lot?.id ?? null, container: l.container?.number ?? null, supplier: l.supplier?.name ?? null, lot: l.lot?.code ?? null,
+      category: l.category, grade: l.grade, amount: l.amount, kg: l.amount, cost: l.cost,
     })),
   );
   protected readonly saleColumns = computed<WsColumn[]>(() => [
@@ -360,6 +377,23 @@ export class StockRecordComponent {
     this.toast.show(e.status === 409 || e.status === 400 ? (e.error?.message ?? this.i18n.t('common.couldNotSave')) : this.i18n.t('common.couldNotSave'));
   }
 
+  protected openPrice(): void {
+    const p = this.data()?.item.salePrice;
+    this.price = p ? Number(p) : null;
+    this.sheet.set('price');
+  }
+
+  /** One item's price (empty clears it). */
+  protected submitPrice(): void {
+    const d = this.data();
+    if (!d) return;
+    this.busy.set(true);
+    this.http.patch(`/api/workspace/stock/items/${d.item.id}/price`, { salePrice: this.price || this.price === 0 ? Number(this.price) : null }).subscribe({
+      next: () => this.done(this.i18n.t('ws.si.priceSavedOne')),
+      error: (e) => this.failedWith(e),
+    });
+  }
+
   protected submitCount(): void {
     const d = this.data();
     if (!d || this.counted === null) return;
@@ -389,8 +423,15 @@ export class StockRecordComponent {
     });
   }
 
-  protected openContainer(row: WsRow): void {
-    if (row['containerId']) void this.nav.open(['/receive/records/containers', row['containerId']]);
+  /** Whole rupees for totals (per-kg prices keep paisa). */
+  protected round(v: string | number | null | undefined): number | null {
+    return v === null || v === undefined || v === '' ? null : Math.round(Number(v));
+  }
+
+  /** A source row opens the lot it was sorted from (its page leads on to the container), else the container. */
+  protected openSource(row: WsRow): void {
+    if (row['lotId']) void this.nav.open(['/sort/records', row['lotId']]);
+    else if (row['containerId']) void this.nav.open(['/receive/records/containers', row['containerId']]);
   }
 
   protected openSale(row: WsRow): void {

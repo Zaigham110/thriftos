@@ -730,6 +730,7 @@
    "SALE_CREATED": "made the sale",
    "SALE_FULFILLED": "handed over the goods",
    "SORT_SESSION_CLOSED": "closed the sorting",
+   "STOCK_PRICE_SET": "set the price",
    "VENDOR_CREATED": "added the supplier",
    "VENDOR_DELETED": "removed the supplier",
    "VENDOR_UPDATED": "changed the supplier"
@@ -1212,6 +1213,10 @@
    },
    "title": "Sorting"
   },
+  "mb": {
+   "hint": "Pick what to bale, how many and the kg per bale. Each bale gets its sticker.",
+   "pickFirst": "Pick what to bale on the left."
+  },
   "mode": {
    "CASH": "Cash",
    "CREDIT": "Credit",
@@ -1525,6 +1530,31 @@
    "palette": "Search and commands"
   },
   "shortcuts": "Keyboard shortcuts",
+  "si": {
+   "caption": "Stock by item",
+   "hint": "Click a row to see its bales. Sorted kg is sorted but not in bales yet: Make a bale turns it into bales.",
+   "inBales": "Kg in bales",
+   "info": {
+    "inBales": "Kg in bales and items still in stock (not sold).",
+    "price": "The price you sell this item for. Set it on the item, or for every bale of a kind in Inventory › By item.",
+    "sorted": "Kg sorted into this category and grade that is not in a bale yet. It is stock and keeps its cost; Make a bale turns it into bales."
+   },
+   "priceHint": "Every bale of this kind still in stock gets this price. Sales suggest it; you can still change it on each bill.",
+   "priceOneHint": "Only this item. Leave it empty to clear the price.",
+   "pricePer": "Price per {unit} (Rs)",
+   "pricePerBale": "Price per bale (Rs)",
+   "priceSaved": "Price set on {n} bales of {name}",
+   "priceSavedOne": "Price saved",
+   "setPrice": "Set price",
+   "sorted": "Sorted, not baled",
+   "sortedHint": "Of which {kg} sorted, not baled",
+   "sortedValueHint": "Of which {value} sorted, not baled",
+   "subtitle": "{kg} in stock, worth {value}",
+   "subtitleKg": "{kg} in stock",
+   "tab": "By item",
+   "tabEach": "Each bale or item",
+   "totalKg": "Total kg"
+  },
   "skip": "Skip to content",
   "sortRecord": {
    "amount": "Amount",
@@ -1627,7 +1657,7 @@
     "RESERVED": "Reserved",
     "SOLD": "Sold"
    },
-   "title": "Stock",
+   "title": "Inventory",
    "unit": {
     "BALE": "Bales",
     "KG": "kg",

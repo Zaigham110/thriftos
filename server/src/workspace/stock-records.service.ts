@@ -1,13 +1,26 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InventoryStatus, MovementType, Prisma, StockAdjustmentStatus, StockUnit } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsNumber, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
+import { IsIn, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 import { takeCost } from '../costing/costing';
 import { PrismaService } from '../prisma/prisma.service';
 import { KHATA_SALE_STATUSES } from '../sales/khata.service';
 import { ageDays, stockLeft } from '../stock/stock.lists';
+import { BaleService } from '../stock/bale.service';
 
 const ZERO = new Prisma.Decimal(0);
+
+export class StockPriceDto {
+  /** Rs per unit (per bale, per kg or per piece); null clears it. */
+  @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) salePrice!: number | null;
+}
+
+export class StockKindPriceDto {
+  @IsString() categoryId!: string;
+  @IsOptional() @IsString() gradeId?: string | null;
+  @IsOptional() @IsIn([StockUnit.BALE, StockUnit.KG, StockUnit.PIECE]) unit?: StockUnit;
+  @IsNumber({ maxDecimalPlaces: 2 }) @Min(1) salePrice!: number;
+}
 
 export class StockCountDto {
   /** What was counted, in the item's unit (kg, bales or pieces). */
@@ -50,7 +63,10 @@ const money = <T>(allowed: boolean, v: T): T | null => (allowed ? v : null);
  */
 @Injectable()
 export class StockRecordsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly bales: BaleService,
+  ) {}
 
   async item(tenantId: string, id: string, canSeeCost: boolean) {
     const i = await this.prisma.inventoryItem.findFirst({
@@ -175,10 +191,34 @@ export class StockRecordsService {
       add(byGodown.get(gd)!, kg, value);
       total = { items: total.items + 1, kg: total.kg.add(kg), value: total.value.add(value) };
     }
+    // Sorted kg not in bales yet is stock too (v2 review): it was missing from every stock screen.
+    let sorted = { kg: ZERO, value: ZERO };
+    for (const r of await this.bales.sortedStock(tenantId)) {
+      const age = ageDays(r.since, now);
+      const bucket = AGE_BUCKETS.findIndex((b) => age <= b.max);
+      ageing[bucket].kg = ageing[bucket].kg.add(r.kg);
+      ageing[bucket].value = ageing[bucket].value.add(r.value);
+      const cat = r.categoryName;
+      const row = ageByCategory.get(cat) ?? Object.fromEntries(AGE_BUCKETS.map((b) => [b.key, { kg: ZERO, value: ZERO }]));
+      row[AGE_BUCKETS[bucket].key] = { kg: row[AGE_BUCKETS[bucket].key].kg.add(r.kg), value: row[AGE_BUCKETS[bucket].key].value.add(r.value) };
+      ageByCategory.set(cat, row);
+      if (!byCategory.has(cat)) byCategory.set(cat, { name: cat, items: 0, kg: ZERO, value: ZERO });
+      const c = byCategory.get(cat)!;
+      c.kg = c.kg.add(r.kg);
+      c.value = c.value.add(r.value);
+      if (!byGodown.has('')) byGodown.set('', { name: '', items: 0, kg: ZERO, value: ZERO });
+      const g = byGodown.get('')!;
+      g.kg = g.kg.add(r.kg);
+      g.value = g.value.add(r.value);
+      sorted = { kg: sorted.kg.add(r.kg), value: sorted.value.add(r.value) };
+      total = { ...total, kg: total.kg.add(r.kg), value: total.value.add(r.value) };
+    }
     const hide = <T extends { value: Prisma.Decimal }>(r: T) => ({ ...r, value: money(canSeeCost, r.value) });
     const pendingCounts = await this.prisma.stockAdjustment.count({ where: { tenantId, status: StockAdjustmentStatus.PENDING } });
     return {
       total: hide(total),
+      /** Of the total: sorted kg not in bales yet. */
+      sorted: hide(sorted),
       ageing: ageing.map(hide),
       byCategory: [...byCategory.values()].sort((a, b) => b.value.comparedTo(a.value) || b.kg.comparedTo(a.kg)).map(hide),
       byGodown: [...byGodown.values()].sort((a, b) => b.value.comparedTo(a.value) || b.kg.comparedTo(a.kg)).map(hide),
@@ -188,6 +228,71 @@ export class StockRecordsService {
         buckets: Object.fromEntries(Object.entries(b).map(([k, v]) => [k, { kg: v.kg, value: money(canSeeCost, v.value) }])),
       })),
     };
+  }
+
+  /**
+   * Inventory by what it is (v2 review): per category and grade (or item name for stock bought ready), the
+   * bales or items in stock and the sorted kg not baled yet, with kg and value — "how many Jeans A do I have?".
+   */
+  async byItem(tenantId: string, canSeeCost: boolean) {
+    const items = await this.prisma.inventoryItem.findMany({
+      where: { tenantId, status: { not: InventoryStatus.SOLD } },
+      select: {
+        quantity: true, usedQuantity: true, totalCost: true, unit: true, weightKg: true, name: true, categoryId: true, gradeId: true,
+        category: { select: { name: true } }, grade: { select: { name: true } },
+      },
+    });
+    type Row = { key: string; name: string; categoryName: string | null; gradeName: string | null; categoryId: string | null; gradeId: string | null; bales: Prisma.Decimal; pieces: Prisma.Decimal; looseKg: Prisma.Decimal; stockKg: Prisma.Decimal; stockValue: Prisma.Decimal; sortedKg: Prisma.Decimal; sortedValue: Prisma.Decimal };
+    const rows = new Map<string, Row>();
+    const row = (key: string, name: string, categoryId: string | null, gradeId: string | null, categoryName: string | null = null, gradeName: string | null = null) =>
+      rows.get(key) ?? rows.set(key, { key, name, categoryName, gradeName, categoryId, gradeId, bales: ZERO, pieces: ZERO, looseKg: ZERO, stockKg: ZERO, stockValue: ZERO, sortedKg: ZERO, sortedValue: ZERO }).get(key)!;
+    for (const i of items) {
+      const { left, value, leftKg } = stockLeft(i);
+      if (left.lessThanOrEqualTo(0)) continue;
+      const name = i.category ? [i.category.name, i.grade?.name].filter(Boolean).join(' · ') : i.name ?? '';
+      const r = row(i.categoryId ? `${i.categoryId}:${i.gradeId ?? ''}` : `name:${name}`, name, i.categoryId, i.gradeId, i.category?.name ?? null, i.grade?.name ?? null);
+      if (i.unit === StockUnit.BALE) r.bales = r.bales.add(left);
+      else if (i.unit === StockUnit.PIECE) r.pieces = r.pieces.add(left);
+      else r.looseKg = r.looseKg.add(left);
+      r.stockKg = r.stockKg.add(leftKg ?? ZERO);
+      r.stockValue = r.stockValue.add(value);
+    }
+    for (const s of await this.bales.sortedStock(tenantId)) {
+      const r = row(`${s.categoryId}:${s.gradeId ?? ''}`, [s.categoryName, s.gradeName].filter(Boolean).join(' · '), s.categoryId, s.gradeId, s.categoryName, s.gradeName);
+      r.sortedKg = r.sortedKg.add(s.kg);
+      r.sortedValue = r.sortedValue.add(s.value);
+    }
+    const list = [...rows.values()].sort((a, b) => b.stockValue.add(b.sortedValue).comparedTo(a.stockValue.add(a.sortedValue)) || a.name.localeCompare(b.name));
+    return list.map((r) => ({
+      ...r, kg: r.stockKg.add(r.sortedKg),
+      stockValue: money(canSeeCost, r.stockValue), sortedValue: money(canSeeCost, r.sortedValue), value: money(canSeeCost, r.stockValue.add(r.sortedValue)),
+    }));
+  }
+
+  /** The sale price of one stock item (v2 review: bales from sorting had none and it could not be set). */
+  async setPrice(tenantId: string, id: string, dto: StockPriceDto, userId: string) {
+    const i = await this.prisma.inventoryItem.findFirst({ where: { id, tenantId }, select: { id: true, salePrice: true } });
+    if (!i) throw new NotFoundException('Stock item not found');
+    const price = dto.salePrice === null ? null : new Prisma.Decimal(dto.salePrice);
+    await this.prisma.$transaction([
+      this.prisma.inventoryItem.update({ where: { id }, data: { salePrice: price } }),
+      this.prisma.auditLog.create({ data: { tenantId, userId, action: 'STOCK_PRICE_SET', entityType: 'InventoryItem', entityId: id, metadataJson: { before: i.salePrice?.toString() ?? null, after: price?.toString() ?? null } } }),
+    ]);
+    return { id, salePrice: price };
+  }
+
+  /** One price for every item of a kind still in stock (all Jeans · A bales), from the Inventory summary. */
+  async setKindPrice(tenantId: string, dto: StockKindPriceDto, userId: string) {
+    const category = await this.prisma.category.findFirst({ where: { id: dto.categoryId, tenantId }, select: { id: true } });
+    if (!category) throw new NotFoundException('Category not found');
+    const where = { tenantId, categoryId: dto.categoryId, gradeId: dto.gradeId ?? null, status: { not: InventoryStatus.SOLD }, unit: dto.unit ?? StockUnit.BALE };
+    const price = new Prisma.Decimal(dto.salePrice);
+    const ids = (await this.prisma.inventoryItem.findMany({ where, select: { id: true } })).map((x) => x.id);
+    await this.prisma.$transaction([
+      this.prisma.inventoryItem.updateMany({ where: { id: { in: ids } }, data: { salePrice: price } }),
+      ...ids.map((id) => this.prisma.auditLog.create({ data: { tenantId, userId, action: 'STOCK_PRICE_SET', entityType: 'InventoryItem', entityId: id, metadataJson: { after: price.toString(), forKind: true } } })),
+    ]);
+    return { updated: ids.length };
   }
 
   /** A count that differs from the books; nothing changes until it is approved. */

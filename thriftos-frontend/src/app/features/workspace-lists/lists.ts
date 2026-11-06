@@ -160,6 +160,12 @@ export const SUPPLIERS_LIST: ListConfig = {
   rowLink: (id) => ['/receive/records/suppliers', id],
 };
 
+/** Inventory (v2 review): what you have by item first, then each bale or item. */
+export const STOCK_TABS = [
+  { label: 'ws.si.tab', link: '/stock/by-item' },
+  { label: 'ws.si.tabEach', link: '/stock/items' },
+];
+
 export const STOCK_LIST: ListConfig = {
   resource: 'stock',
   help: 'stock',
@@ -180,14 +186,21 @@ export const STOCK_LIST: ListConfig = {
     { key: 'left', label: 'ws.stock.col.left', format: 'number', computed: true },
     { key: 'kg', label: 'ws.containers.col.kg', format: 'kg', total: true },
     { key: 'cost', label: 'ws.col.cost', format: 'money', total: true },
-    { key: 'value', label: 'ws.stock.col.value', format: 'money', computed: true },
-    { key: 'salePrice', label: 'ws.stock.col.price', format: 'money' },
+    { key: 'value', label: 'ws.stock.col.value', format: 'money', computed: true, total: true },
+    { key: 'salePrice', label: 'ws.stock.col.price', format: 'money', info: 'ws.si.info.price' },
     { key: 'date', label: 'ws.containers.col.date', format: 'date' },
     { key: 'age', label: 'ws.stock.col.age', format: 'number', computed: true },
-    { key: 'godown', label: 'ws.stock.col.godown' },
+    { key: 'godown', label: 'ws.stock.col.godown', hideIfEmpty: true },
     { key: 'supplier', label: 'ws.containers.col.supplier' },
   ],
-  defaultColumns: ['code', 'name', 'category', 'grade', 'status', 'left', 'kg', 'value', 'salePrice', 'age', 'godown'],
+  // "Item" already says "Jeans A": category and grade are in the View menu for whoever wants them.
+  defaultColumns: ['code', 'name', 'status', 'left', 'kg', 'value', 'salePrice', 'age', 'godown'],
+  tabs: STOCK_TABS,
+  switch: {
+    field: 'status',
+    label: 'ws.col.status',
+    options: [{ label: 'ws.stock.status.AVAILABLE', op: 'ne', value: 'SOLD' }, { label: 'ws.stock.status.SOLD', op: 'eq', value: 'SOLD' }, { label: 'common.all' }],
+  },
   dateField: 'date',
   defaultFilters: [{ field: 'status', op: 'ne', value: 'SOLD' }],
   groupBy: [
@@ -198,7 +211,6 @@ export const STOCK_LIST: ListConfig = {
     { key: 'source', label: 'ws.stock.col.source', enumPrefix: 'ws.stock.source.' },
   ],
   quickFilters: [
-    { field: 'status', label: 'ws.col.status', values: ['AVAILABLE', 'RESERVED', 'SOLD'], prefix: 'ws.stock.status.' },
     { field: 'source', label: 'ws.stock.col.source', values: ['PROCESSED', 'PURCHASED', 'KAT'], prefix: 'ws.stock.source.' },
     { field: 'unit', label: 'ws.stock.col.unit', values: ['BALE', 'KG', 'PIECE'], prefix: 'ws.stock.unit.' },
   ],

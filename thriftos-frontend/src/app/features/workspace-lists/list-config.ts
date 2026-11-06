@@ -17,6 +17,8 @@ export interface ListColumnConfig {
   exact?: boolean;
   /** Dictionary key of a note on what the column means (an "i" next to its name). */
   info?: string;
+  /** Left out while every row on the page is empty (Godown before any godown exists). */
+  hideIfEmpty?: boolean;
 }
 
 /** A quick filter shown as a picker next to search ("Status…", "Payment…"). */
@@ -65,6 +67,11 @@ export interface ListConfig {
   defaultFilters?: Array<{ field: string; op: 'eq' | 'ne' | 'isnull' | 'notnull'; value?: string }>;
   /** Primary action in the header. */
   create?: { label: string; link: string };
+  /**
+   * A one-of choice shown as a switch (Stock: In stock / Sold / All) instead of a filter chip: picks the
+   * filter on `field`; the first option is the screen's default.
+   */
+  switch?: { field: string; label: string; options: Array<{ label: string; op?: 'eq' | 'ne'; value?: string }> };
   /** A related page shown as a plain button before the primary action (Suppliers → Supplier scorecard). */
   related?: { label: string; link: string };
   /** Sibling lists shown as tabs over the title (Purchasing: containers, gaari / lots). */

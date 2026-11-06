@@ -730,6 +730,7 @@
    "SALE_CREATED": "ne sale ki",
    "SALE_FULFILLED": "ne maal de diya",
    "SORT_SESSION_CLOSED": "ne chhantai band ki",
+   "STOCK_PRICE_SET": "ne qeemat lagayi",
    "VENDOR_CREATED": "ne supplier daala",
    "VENDOR_DELETED": "ne supplier hataya",
    "VENDOR_UPDATED": "ne supplier badla"
@@ -1212,6 +1213,10 @@
    },
    "title": "Chhantai"
   },
+  "mb": {
+   "hint": "Kya gaanth banani hai, kitni aur fi gaanth kg chunein. Har gaanth ka sticker banta hai.",
+   "pickFirst": "Baayein taraf se chunein kya gaanth banani hai."
+  },
   "mode": {
    "CASH": "Cash",
    "CREDIT": "Udhaar",
@@ -1525,6 +1530,31 @@
    "palette": "Talaash aur commands"
   },
   "shortcuts": "Keyboard shortcuts",
+  "si": {
+   "caption": "Qism ke hisaab se stock",
+   "hint": "Gaanthein dekhne ke liye line par click karein. Chhanta hua kg abhi gaanth mein nahi: Gaanth banayein se banti hain.",
+   "inBales": "Gaanthon mein kg",
+   "info": {
+    "inBales": "Gaanthon aur items mein kg jo abhi stock mein hain (bike nahi).",
+    "price": "Jis qeemat par yeh item bechte hain. Item par lagayein, ya Stock › Qism ke hisaab se mein ek qism ki sab gaanthon ke liye.",
+    "sorted": "Is qism aur grade mein chhanta kg jo abhi gaanth mein nahi. Yeh stock hai aur apni laagat rakhta hai; Gaanth banayein se gaanthein banti hain."
+   },
+   "priceHint": "Is qism ki har gaanth jo stock mein hai is qeemat par ho jayegi. Sale mein yeh tajweez hogi; har bill par badal sakte hain.",
+   "priceOneHint": "Sirf yeh item. Qeemat hatane ke liye khaali chhorein.",
+   "pricePer": "Fi {unit} qeemat (Rs)",
+   "pricePerBale": "Fi gaanth qeemat (Rs)",
+   "priceSaved": "{name} ki {n} gaanthon par qeemat lag gayi",
+   "priceSavedOne": "Qeemat save",
+   "setPrice": "Qeemat lagayein",
+   "sorted": "Chhanta, gaanth nahi",
+   "sortedHint": "Jis mein {kg} chhanta, gaanth nahi",
+   "sortedValueHint": "Jis mein {value} chhanta, gaanth nahi",
+   "subtitle": "{kg} stock mein, maaliyat {value}",
+   "subtitleKg": "{kg} stock mein",
+   "tab": "Qism ke hisaab se",
+   "tabEach": "Har gaanth ya item",
+   "totalKg": "Kul kg"
+  },
   "skip": "Asal hisse par jayein",
   "sortRecord": {
    "amount": "Raqam",

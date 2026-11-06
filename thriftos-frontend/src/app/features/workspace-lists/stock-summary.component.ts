@@ -20,6 +20,8 @@ interface Bucket { items: number; kg: string; value: string | null }
 /** GET /api/workspace/stock/summary (value is null without cost.view). */
 export interface StockSummary {
   total: Bucket;
+  /** Of the total: sorted kg not in bales yet. */
+  sorted?: { kg: string; value: string | null };
   ageing: (Bucket & { bucket: string })[];
   byCategory: (Bucket & { name: string })[];
   byGodown: (Bucket & { name: string })[];
@@ -42,10 +44,11 @@ export interface StockSummary {
           <a actions class="ws-btn" routerLink="/stock/items/counts"><lucide-icon [img]="icons.ClipboardCheck" [size]="16" aria-hidden="true" />{{ 'ws.counts.title' | t }}@if (d.pendingCounts) { · {{ 'ws.stockValue.waiting' | t: { n: d.pendingCounts } }} }</a>
         </ws-page-header>
         <section class="kpis">
-          <ws-kpi-card [label]="'ws.stockValue.items' | t" [value]="i18n.num(d.total.items)" [link]="'/stock/items'" />
-          <ws-kpi-card [label]="'ws.stockItem.kgLeft' | t" [value]="i18n.kg(d.total.kg)" />
-          @if (d.total.value !== null) { <ws-kpi-card [label]="'ws.stock.col.value' | t" [value]="i18n.money(d.total.value)" /> }
-          <ws-kpi-card [label]="'ws.stockValue.old' | t" [value]="i18n.num(old())" [hint]="'ws.stockValue.oldHint' | t" />
+          <ws-kpi-card [label]="'ws.stockValue.items' | t" [value]="i18n.num(d.total.items)" [link]="'/stock/by-item'" />
+          <!-- Sorted kg not in bales yet is stock too (v2 review); the line under says how much of it there is. -->
+          <ws-kpi-card [label]="'ws.stockItem.kgLeft' | t" [value]="i18n.kg(d.total.kg)" [hint]="d.sorted ? ('ws.si.sortedHint' | t: { kg: i18n.kg(d.sorted.kg) }) : ''" />
+          @if (d.total.value !== null) { <ws-kpi-card [label]="'ws.stock.col.value' | t" [value]="i18n.money(round(d.total.value))" [hint]="d.sorted?.value ? ('ws.si.sortedValueHint' | t: { value: i18n.money(round(d.sorted!.value)) }) : ''" /> }
+          <ws-kpi-card [label]="'ws.stockValue.old' | t" [value]="i18n.kg(old())" [hint]="'ws.stockValue.oldHint' | t" />
         </section>
         <div class="two">
           <ws-bar-chart [heading]="'ws.stockValue.ageing' | t" [categories]="ageLabels()" [series]="ageSeries()" [format]="d.total.value !== null ? 'money' : 'kg'" />
@@ -75,6 +78,9 @@ export class StockSummaryComponent {
   protected readonly data = signal<StockSummary | null>(null);
   protected readonly failed = signal(false);
 
+  protected round(v: string | number | null | undefined): number | null {
+    return v === null || v === undefined || v === '' ? null : Math.round(Number(v));
+  }
   protected readonly ageLabels = computed(() => (this.data()?.ageing ?? []).map((a) => this.i18n.t(`ws.stockValue.age.${a.bucket}`)));
   protected readonly ageSeries = computed(() => {
     const d = this.data();
@@ -82,7 +88,8 @@ export class StockSummaryComponent {
     const byValue = d.total.value !== null;
     return [{ label: this.i18n.t(byValue ? 'ws.stock.col.value' : 'ws.containers.col.kg'), values: d.ageing.map((a) => Number(byValue ? a.value : a.kg)) }];
   });
-  protected readonly old = computed(() => (this.data()?.ageing ?? []).filter((a) => a.bucket === '61-90' || a.bucket === '90+').reduce((s, a) => s + a.items, 0));
+  /** Kg older than 60 days, bales and sorted kg alike (items alone missed old sorted stock). */
+  protected readonly old = computed(() => (this.data()?.ageing ?? []).filter((a) => a.bucket === '61-90' || a.bucket === '90+').reduce((s, a) => s + Number(a.kg), 0));
   protected readonly ageColumns = computed<WsColumn[]>(() => this.groupColumns('ws.stockValue.ageCol'));
   protected readonly ageRows = computed<WsRow[]>(() => (this.data()?.ageing ?? []).map((a) => ({ id: a.bucket, name: this.i18n.t(`ws.stockValue.age.${a.bucket}`), items: a.items, kg: a.kg, value: a.value })));
 
@@ -91,7 +98,7 @@ export class StockSummaryComponent {
     const money = this.data()?.total.value !== null;
     return [
       { key: 'name', label: this.i18n.t('ws.container.category') },
-      ...['0-30', '31-60', '61-90', '90+'].map((k) => ({ key: k, label: this.i18n.t(`ws.stockValue.age.${k}`), format: (money ? 'money' : 'kg') as 'money' | 'kg', total: true })),
+      ...['0-30', '31-60', '61-90', '90+'].map((k) => ({ key: k, label: this.i18n.t(`ws.stockValue.age.${k}`), format: (money ? 'money' : 'kg') as 'money' | 'kg', total: true, round: true })),
     ];
   });
   protected readonly matrixRows = computed<WsRow[]>(() => {
@@ -115,7 +122,7 @@ export class StockSummaryComponent {
       { key: 'name', label: this.i18n.t(label) },
       { key: 'items', label: this.i18n.t('ws.stockValue.items'), format: 'number', total: true },
       { key: 'kg', label: this.i18n.t('ws.stockItem.kgLeft'), format: 'kg', total: true },
-      ...(this.data()?.total.value !== null ? [{ key: 'value', label: this.i18n.t('ws.stock.col.value'), format: 'money' as const, total: true }] : []),
+      ...(this.data()?.total.value !== null ? [{ key: 'value', label: this.i18n.t('ws.stock.col.value'), format: 'money' as const, total: true, round: true }] : []),
     ];
   }
 

@@ -111,6 +111,25 @@ export class BaleService {
       .map((k) => ({ ...k, availableKg: k.availableKg.toString() }));
   }
 
+  /**
+   * Sorted kg not in bales yet — exactly what Make a bale offers — with the cost still in it and the day it
+   * was sorted (v2 review: stock value, Home and Inventory count it, not only finished bales).
+   */
+  async sortedStock(tenantId: string): Promise<Array<{ categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; kg: Decimal; value: Decimal; since: Date }>> {
+    const grades = await this.prisma.grade.findMany({ where: { tenantId, isActive: true }, select: { id: true }, orderBy: { rank: 'asc' } });
+    const sources = [
+      ...(await this.loadSources(this.prisma, tenantId)),
+      ...(await Promise.all(grades.map((g) => this.loadSources(this.prisma, tenantId, undefined, g.id)))).flat(),
+    ];
+    return sources
+      .map((s) => {
+        const kg = s.kg.sub(s.usedKg);
+        const value = s.kg.isZero() ? ZERO : s.cost.mul(kg).div(s.kg).toDecimalPlaces(2);
+        return { categoryId: s.categoryId, categoryName: s.categoryName, gradeId: s.gradeId ?? null, gradeName: s.gradeName ?? null, kg, value, since: s.readyAt ?? s.createdAt };
+      })
+      .filter((r) => r.kg.greaterThan(0));
+  }
+
   /** Makes a ready bale: takes kg from sorted stock, costs it, creates stock + QR. */
   /** One bale, or `count` bales of the same weight (all or none). Answers with the first bale and every bale id. */
   async makeBale(tenantId: string, dto: MakeBaleDto, userId: string) {

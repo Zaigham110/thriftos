@@ -178,7 +178,10 @@ export async function runList(prisma: object, resource: ListResource, tenantId: 
   ]);
   const totals: Record<string, string> = {
     ...Object.fromEntries(sums.map((f) => [f.key, str(agg._sum?.[f.path[0]])])),
-    ...(resource.extraTotals ? await resource.extraTotals(prisma, tenantId, where) : {}),
+    // Only fields this person may see (a value total stays hidden without cost.view).
+    ...Object.fromEntries(
+      Object.entries(resource.extraTotals ? await resource.extraTotals(prisma, tenantId, where) : {}).filter(([k]) => fields.some((f) => f.key === k)),
+    ),
   };
   const allowed = new Set(fields.map((f) => f.key).concat('id'));
   let full = records.map((r) => resource.toRow(r));

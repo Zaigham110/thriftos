@@ -191,8 +191,10 @@ test('inventory: stock list, item record, a count approved, stock value page', a
 
   await signIn(page);
   await page.goto('/stock/items');
-  await expect(page.getByRole('heading', { name: 'Stock', exact: true })).toBeVisible();
-  await expect(page.locator('.chip').filter({ hasText: 'not Sold' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible();
+  // In stock is a switch, not a filter chip the owner did not set.
+  await expect(page.getByRole('radio', { name: 'In stock' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('.chip').filter({ hasText: 'not Sold' })).toHaveCount(0);
   await page.getByPlaceholder('Search bale code, item, category, grade or supplier').fill(`Ladies tops ${tag}`);
   const row = page.locator('ws-data-grid tbody tr').filter({ hasText: `Ladies tops ${tag}` });
   await expect(row).toContainText('1,000');
@@ -601,4 +603,37 @@ test('sorting: a half-sorted lot shows what is left, one row per category, and t
   // "Sort next lot" opens a lot's sorting screen.
   await page.goto('/sort/next');
   await expect(page).toHaveURL(/\/sort\/(?!records|next)[^/?]+$/);
+});
+
+test('inventory by item: bales and sorted kg per item, open its bales, price every bale of a kind', async ({ page, request }) => {
+  const api = await apiAs(request);
+  const tag = Date.now().toString().slice(-6);
+  const cats = (await api.get('/tenant/categories')) as Array<{ id: string; name: string }>;
+  const lot = await api.post('/procurement/rags', { ragBaleType: 'BALE', weightKg: 100, purchaseCost: 20000 });
+  const s = (await api.post('/sorting/stage-1/start', { ragId: lot.id })).session.id;
+  await api.post('/sorting/stage-1/allocate', { sessionId: s, categoryId: cats[0].id, amountKg: 90 });
+  await api.post('/stock/bales', { categoryId: cats[0].id, weightKg: 45 });
+
+  await signIn(page);
+  await page.goto('/stock');
+  await expect(page).toHaveURL(/\/stock\/by-item$/);
+  await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible();
+  // Sorted kg not baled is stock too.
+  await expect(page.locator('ws-data-grid thead')).toContainText('Sorted, not baled');
+  const row = page.locator('ws-data-grid tbody tr').filter({ hasText: new RegExp(`^${cats[0].name}`) }).first();
+  await expect(row).toBeVisible();
+
+  const name = (await row.locator('td').first().innerText()).trim();
+  const price = 20000 + Number(tag.slice(-3));
+  await page.getByRole('button', { name: 'Set price' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Set price' });
+  await sheet.getByLabel('Category').selectOption({ label: name });
+  await sheet.getByLabel('Price per bale (Rs)').fill(String(price));
+  await sheet.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText(/Price set on \d+ bales/)).toBeVisible();
+
+  await row.click();
+  await expect(page).toHaveURL(/\/stock\/items\?/);
+  await expect(page.locator('.chip').filter({ hasText: cats[0].name })).toBeVisible();
+  await expect(page.locator('ws-data-grid tbody tr').first()).toContainText(price.toLocaleString('en-US'));
 });

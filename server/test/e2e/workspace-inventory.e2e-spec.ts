@@ -94,10 +94,12 @@ describe('Workspace inventory: stock list, lineage, ageing, counts with approval
     expect(tops.sales).toEqual([expect.objectContaining({ customer: 'Shabbir Cloth House', quantity: '3', total: '600', cost: '300', profit: '300' })]);
 
     const s = (await api(app, a).get('/workspace/stock/summary').expect(200)).body;
-    expect(s.total).toMatchObject({ items: 2, value: '50700' });
-    expect(s.ageing[0]).toMatchObject({ bucket: '0-30', items: 2, value: '50700' });
+    // The other 500 kg of graded Jeans A is sorted but not in a bale yet: stock too (v2 review), worth Rs 50,000.
+    expect(s.sorted).toMatchObject({ kg: '500', value: '50000' });
+    expect(s.total).toMatchObject({ items: 2, value: '100700' });
+    expect(s.ageing[0]).toMatchObject({ bucket: '0-30', items: 2, value: '100700' });
     expect(s.ageing.slice(1).every((x: { items: number }) => x.items === 0)).toBe(true);
-    expect(s.byCategory).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'Jeans', items: 1, kg: '500', value: '50000' })]));
+    expect(s.byCategory).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'Jeans', items: 1, kg: '1000', value: '100000' })]));
   });
 
   it('a count changes nothing until approved; approval writes off cost by position and keeps the cost chain whole', async () => {
