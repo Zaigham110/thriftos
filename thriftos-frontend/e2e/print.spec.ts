@@ -15,7 +15,7 @@ test('a sale bill and a payment receipt open in the print sheet at the paper wid
   await signIn(page);
   await page.evaluate(() => localStorage.setItem('thriftos.paper', '58'));
   await page.goto(`/sell/records/${sale.id}`);
-  await page.getByRole('button', { name: 'Print bill' }).click();
+  await page.getByRole('button', { name: 'Print', exact: true }).click();
   const sheet = page.getByRole('dialog', { name: 'Print bill' });
   await expect(sheet).toBeVisible();
   const preview = sheet.locator('.previews img');

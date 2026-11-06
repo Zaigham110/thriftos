@@ -11,11 +11,11 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
 import { ListResult } from '../../core/list/list-client';
 import { ToastService } from '../../shared/floor/toast.service';
-import { WsPageHeaderComponent } from '../../shared/ui/workspace';
+import { WsPageHeaderComponent, WsSideSheetComponent } from '../../shared/ui/workspace';
 import { PAYMENT_METHODS } from './lists';
 
 interface CustomerOption { id: string; name: string; city: string | null; phone: string | null; priceGroup?: string | null }
-interface StockOption { id: string; code: string | null; name: string | null; unit: 'KG' | 'BALE' | 'PIECE'; left: string; salePrice: string | null }
+interface StockOption { id: string; code: string | null; name: string | null; unit: 'KG' | 'BALE' | 'PIECE'; left: string; salePrice: string | null; value?: string | null; kg?: string | null }
 interface Line { item: StockOption; unit: 'KG' | 'BALE' | 'PIECE'; quantity: number; unitPrice: number | null; from: string | null }
 type Mode = 'CASH' | 'CREDIT' | 'PARTIAL';
 
@@ -29,18 +29,28 @@ const optionLabel = (s: StockOption) => [s.code, s.name].filter(Boolean).join(' 
 @Component({
   selector: 'app-sale-entry',
   standalone: true,
-  imports: [FormsModule, LucideAngularModule, TPipe, WsPageHeaderComponent],
+  imports: [WsSideSheetComponent, FormsModule, LucideAngularModule, TPipe, WsPageHeaderComponent],
   template: `
     <div class="page">
       <ws-page-header [heading]="'ws.saleEntry.title' | t" [subtitle]="'ws.saleEntry.subtitle' | t" />
       <form class="sheet" (ngSubmit)="save()" (keydown)="keys($event)">
         <div class="row">
           <label class="grow">{{ 'ws.col.customer' | t }}
-            <input #customerInput name="customer" list="ws-customers" autocomplete="off" [ngModel]="customerText()" (ngModelChange)="pickCustomer($event)" [placeholder]="'ws.saleEntry.customerHint' | t" autofocus />
+            <input #customerInput name="customer" list="ws-customers" autocomplete="off" [ngModel]="customerText()" (ngModelChange)="pickCustomer($event)" (keydown.enter)="$event.preventDefault(); pickFirst()" [placeholder]="'ws.saleEntry.customerHint' | t" autofocus />
             <datalist id="ws-customers">@for (c of customers(); track c.id) { <option [value]="c.name">{{ [c.city, c.phone].filter(isText).join(' · ') }}</option> }</datalist>
           </label>
-          @if (customer(); as c) { <p class="chip">{{ c.priceGroup ? ('ws.saleEntry.list' | t: { group: c.priceGroup }) : ('ws.saleEntry.noList' | t) }}</p> }
+          @if (customer(); as c) {
+            <p class="chip">{{ c.priceGroup ? ('ws.saleEntry.list' | t: { group: c.priceGroup }) : ('ws.saleEntry.noList' | t) }}</p>
+            @if (account(); as a) {
+              <!-- What they owe and their limit, before selling more on credit (v2 review). -->
+              <p class="chip" [class.warn]="overLimit()">{{ 'ws.sp2.owes' | t: { balance: i18n.money(round(a.balance)) } }}@if (a.creditLimit && +a.creditLimit > 0) { · {{ 'ws.sp2.limit' | t: { limit: i18n.money(round(a.creditLimit)) } }} }</p>
+            }
+          } @else {
+            <button type="button" class="ws-btn" (click)="openNewCustomer()">+ {{ 'sell.newCustomer' | t }}</button>
+          }
         </div>
+        @if (customerMiss()) { <p class="warn-line" role="status">{{ 'ws.sp2.noMatch' | t: { text: customerText() } }}</p> }
+        @if (overLimit()) { <p class="warn-line" role="alert">{{ 'ws.sp2.overLimit' | t }}</p> }
 
         <label>{{ 'ws.saleEntry.addItem' | t }}
           <input #itemInput name="item" list="ws-stock" autocomplete="off" [ngModel]="itemText()" (ngModelChange)="itemText.set($event)" (keydown.enter)="$event.preventDefault(); addItem()" [placeholder]="'ws.saleEntry.itemHint' | t" [disabled]="!customer()" />
@@ -64,6 +74,7 @@ const optionLabel = (s: StockOption) => [s.code, s.name].filter(Boolean).join(' 
                 <td class="num">
                   <input [name]="'price' + i" type="number" min="0" step="1" [ngModel]="l.unitPrice" (ngModelChange)="patch(i, { unitPrice: $event === null || $event === '' ? null : +$event })" [attr.aria-label]="'ws.sale.unitPrice' | t" />
                   @if (l.from) { <small>{{ 'ws.saleEntry.from.' + l.from | t }}</small> }
+                  @if (belowCost(l); as cost) { <small class="bad" role="alert">{{ 'ws.sp2.belowCost' | t: { cost: i18n.money(cost) } }}</small> }
                 </td>
                 <td class="num">{{ i18n.money(l.quantity * (l.unitPrice ?? 0)) }}</td>
                 <td><button type="button" class="icon" (click)="remove(i)" [attr.aria-label]="'ws.saleEntry.remove' | t"><lucide-icon [img]="icons.Trash2" [size]="16" aria-hidden="true" /></button></td>
@@ -94,6 +105,18 @@ const optionLabel = (s: StockOption) => [s.code, s.name].filter(Boolean).join(' 
         </div>
       </form>
     </div>
+
+    <ws-side-sheet [open]="newCustomer()" [heading]="'sell.newCustomer' | t" (close)="newCustomer.set(false)">
+      <form class="nc" id="ws-new-customer" (ngSubmit)="addCustomer()">
+        <label>{{ 'common.name' | t }}<input name="ncName" required maxlength="120" [(ngModel)]="ncName" /></label>
+        <label>{{ 'common.phone' | t }}<input name="ncPhone" type="tel" required maxlength="30" [(ngModel)]="ncPhone" [placeholder]="'common.phonePlaceholder' | t" /></label>
+        <label>{{ 'common.city' | t }}<input name="ncCity" maxlength="80" [(ngModel)]="ncCity" /></label>
+      </form>
+      <ng-container footer>
+        <button type="button" class="ws-btn" (click)="newCustomer.set(false)">{{ 'common.cancel' | t }}</button>
+        <button type="submit" form="ws-new-customer" class="ws-btn primary" [disabled]="busy() || !ncName.trim() || !ncPhone.trim()">{{ 'common.save' | t }}</button>
+      </ng-container>
+    </ws-side-sheet>
   `,
   styles: [`
     .page { display:grid; gap:var(--ws-4); max-width:var(--ws-content-max); margin-inline:auto; font-family:var(--ws-font); color:var(--ws-ink); }
@@ -108,6 +131,10 @@ const optionLabel = (s: StockOption) => [s.code, s.name].filter(Boolean).join(' 
     th { color:var(--ws-ink-2); font-size:var(--ws-text-xs); font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
     td small { display:block; color:var(--ws-ink-2); font-size:var(--ws-text-xs); }
     .num { text-align:end; }
+    .chip.warn, .warn-line { background:var(--ws-bad-soft); color:var(--ws-bad); }
+    .warn-line { margin:0; padding:var(--ws-2) var(--ws-3); border-radius:var(--ws-r-md); font-size:var(--ws-text-sm); }
+    td small.bad { color:var(--ws-bad); font-weight:600; }
+    .nc { display:grid; gap:var(--ws-3); }
     td.num input { width:120px; text-align:end; }
     tfoot td { font-weight:700; }
     .empty { color:var(--ws-ink-2); text-align:center; }
@@ -190,11 +217,86 @@ export class SaleEntryComponent implements HasUnsavedChanges {
     return unit === 'KG' ? this.i18n.kg(v) : this.i18n.num(v);
   }
 
+  /** What the picked customer owes and their credit limit (GET /api/khata/customers/:id). */
+  protected readonly account = signal<{ balance: string; creditLimit: string | null } | null>(null);
+  protected readonly newCustomer = signal(false);
+  protected ncName = '';
+  protected ncPhone = '';
+  protected ncCity = '';
+  /** Typed a name that matches nobody: say so (Enter picked nothing before, silently). */
+  protected readonly customerMiss = signal(false);
+  protected readonly overLimit = computed(() => {
+    const a = this.account();
+    if (!a?.creditLimit || Number(a.creditLimit) <= 0) return false;
+    const credit = this.mode() === 'CREDIT' ? this.total() : this.mode() === 'PARTIAL' ? Math.max(0, this.total() - Number(this.paid ?? 0)) : 0;
+    return Number(a.balance) + credit > Number(a.creditLimit);
+  });
+
+  protected round(v: string | number | null | undefined): number {
+    return Math.round(Number(v ?? 0));
+  }
+
+  /** Enter in the customer box: the exact name, else the first match; nobody: say so and offer New customer. */
+  protected pickFirst(): void {
+    const text = this.customerText().trim();
+    if (!text) return;
+    const c = this.customers().find((x) => x.name.toLowerCase() === text.toLowerCase()) ?? this.customers().find((x) => x.name.toLowerCase().includes(text.toLowerCase()));
+    if (c) {
+      this.pickCustomer(c.name);
+      setTimeout(() => (document.querySelector('input[name=item]') as HTMLInputElement | null)?.focus());
+    } else {
+      this.customerMiss.set(true);
+    }
+  }
+
+  protected openNewCustomer(): void {
+    this.ncName = this.customerText().trim();
+    this.ncPhone = '';
+    this.ncCity = '';
+    this.newCustomer.set(true);
+  }
+
+  protected addCustomer(): void {
+    if (!this.ncName.trim() || !this.ncPhone.trim()) return;
+    this.busy.set(true);
+    this.http.post<CustomerOption>('/api/customers', { name: this.ncName.trim(), phone: this.ncPhone.trim(), ...(this.ncCity.trim() ? { city: this.ncCity.trim() } : {}) }).subscribe({
+      next: (c) => {
+        this.busy.set(false);
+        this.newCustomer.set(false);
+        this.customers.set([c, ...this.customers()]);
+        this.pickCustomer(c.name);
+      },
+      error: (e: { error?: { message?: string } }) => {
+        this.busy.set(false);
+        this.toast.show(e.error?.message ?? this.i18n.t('common.couldNotSave'));
+      },
+    });
+  }
+
+  /** A price below what the item cost (cost per unit from its value left), for the warning under the price. */
+  protected belowCost(l: Line): number | null {
+    const left = Number(l.item.left);
+    if (!l.item.value || !left || l.unitPrice === null) return null;
+    let perUnit = Number(l.item.value) / left;
+    if (l.unit === 'KG' && l.item.unit === 'BALE') {
+      const kgPerBale = Number(l.item.kg ?? 0) / left;
+      if (!kgPerBale) return null;
+      perUnit = perUnit / kgPerBale;
+    }
+    return l.unitPrice < perUnit ? Math.round(perUnit) : null;
+  }
+
   protected pickCustomer(text: string): void {
+    this.customerMiss.set(false);
     this.customerText.set(text);
     const c = this.customers().find((x) => x.name === text) ?? null;
     if (c?.id !== this.customer()?.id) {
       this.customer.set(c);
+      this.account.set(null);
+      if (c) this.http.get<{ balance: string; creditLimit: string | null; customer?: { creditLimit: string | null } }>(`/api/khata/customers/${c.id}`).subscribe({
+        next: (a) => this.account.set({ balance: a.balance, creditLimit: a.creditLimit ?? a.customer?.creditLimit ?? null }),
+        error: () => this.account.set(null),
+      });
       // Prices depend on the customer: suggest again.
       this.lines().forEach((_, i) => this.suggest(i));
     }
@@ -203,11 +305,23 @@ export class SaleEntryComponent implements HasUnsavedChanges {
   protected addItem(): void {
     const text = this.itemText().trim();
     if (!text) return;
-    const s = this.stock().find((x) => optionLabel(x) === text) ?? this.stock().find((x) => x.code === text);
-    if (!s) {
-      this.toast.show(this.i18n.t('ws.saleEntry.notFound'));
-      return;
-    }
+    const s = this.stock().find((x) => optionLabel(x) === text) ?? this.stock().find((x) => x.code?.toLowerCase() === text.toLowerCase());
+    if (s) return this.addStock(s);
+    // A scanner (or fast typing) presses Enter before the search answers: look the code up now.
+    this.http
+      .get<ListResult>('/api/lists/stock', { params: new HttpParams().set('q', text).set('pageSize', '50').append('f', 'status:ne:SOLD') })
+      .subscribe({
+        next: (r) => {
+          const rows = r.rows as unknown as StockOption[];
+          const hit = rows.find((x) => x.code?.toLowerCase() === text.toLowerCase() || optionLabel(x) === text) ?? (rows.length === 1 ? rows[0] : undefined);
+          if (hit) this.addStock(hit);
+          else this.toast.show(this.i18n.t('ws.saleEntry.notFound'));
+        },
+        error: () => this.toast.show(this.i18n.t('ws.saleEntry.notFound')),
+      });
+  }
+
+  private addStock(s: StockOption): void {
     const existing = this.lines().findIndex((l) => l.item.id === s.id);
     if (existing >= 0) this.patch(existing, { quantity: this.lines()[existing].quantity + 1 });
     else {

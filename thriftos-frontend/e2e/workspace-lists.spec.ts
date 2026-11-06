@@ -637,3 +637,63 @@ test('inventory by item: bales and sorted kg per item, open its bales, price eve
   await expect(page.locator('.chip').filter({ hasText: cats[0].name })).toBeVisible();
   await expect(page.locator('ws-data-grid tbody tr').first()).toContainText(price.toLocaleString('en-US'));
 });
+
+test('sales review: Enter picks the customer, new customer, below cost, receive payment on the bill, paid and due', async ({ page, request }) => {
+  const api = await apiAs(request);
+  const tag = Date.now().toString().slice(-6);
+  await api.post('/customers', { name: `Review Buyer ${tag}`, phone: `0304${tag}1`, city: 'Multan' });
+  await api.post('/stock/items', { name: `Review jeans ${tag}`, unit: 'KG', quantity: 300, totalCost: 30000 });
+
+  await signIn(page);
+  await page.goto('/sell/records/new');
+  const customerBox = page.getByLabel('Customer');
+  // A name nobody has: say so, and New customer adds them with what was typed.
+  await customerBox.fill(`Walk-in ${tag}`);
+  await customerBox.press('Enter');
+  await expect(page.getByText(`No customer called “Walk-in ${tag}”`)).toBeVisible();
+  await page.getByRole('button', { name: '+ New customer' }).click();
+  const sheet = page.getByRole('dialog', { name: 'New customer' });
+  await expect(sheet.getByLabel('Name')).toHaveValue(`Walk-in ${tag}`);
+  await sheet.getByLabel('WhatsApp number').fill(`0305${tag}1`);
+  await sheet.getByRole('button', { name: 'Save' }).click();
+  await expect(sheet).toBeHidden();
+  await expect(customerBox).toHaveValue(`Walk-in ${tag}`);
+
+  // Part of a name and Enter picks the match, shows what they owe and moves on to the items.
+  await customerBox.fill(`review buyer ${tag}`);
+  await customerBox.press('Enter');
+  await expect(customerBox).toHaveValue(`Review Buyer ${tag}`);
+  await expect(page.getByText(/^Owes .*Rs 0/)).toBeVisible();
+  const itemInput = page.getByLabel('Add item');
+  await expect(itemInput).toBeFocused();
+  await itemInput.fill(`Review jeans ${tag}`);
+  await expect(page.locator(`#ws-stock option[value="Review jeans ${tag}"]`)).toHaveCount(1);
+  await itemInput.press('Enter');
+  const qty = page.getByLabel('Quantity');
+  await qty.fill('100');
+  const price = page.getByLabel('Price', { exact: true });
+  await price.fill('60');
+  await expect(page.getByText(/Below cost \(.*Rs 100.*\)/)).toBeVisible();
+  await price.fill('150');
+  await expect(page.getByText(/Below cost/)).toHaveCount(0);
+  await page.getByRole('button', { name: 'Credit' }).click();
+  await qty.press('Control+Enter');
+  await expect(page).toHaveURL(/\/sell\/records\/(?!new)[^/]+$/);
+
+  // Take payment from the bill: it shows under Payments as paid with the sale, and the due goes down.
+  await page.getByRole('button', { name: 'Receive payment' }).click();
+  const pay = page.getByRole('dialog', { name: 'Receive payment' });
+  await pay.getByLabel('Amount').fill('5000');
+  await pay.getByRole('button', { name: 'Save payment' }).click();
+  await expect(pay).toBeHidden();
+  await expect(page.locator('ws-smart-button').filter({ hasText: 'Due' })).toContainText('10,000');
+  await page.getByRole('tab', { name: /Payments/ }).click();
+  await expect(page.locator('ws-data-grid tbody')).toContainText('With the sale');
+  await expect(page.getByRole('button', { name: 'Print', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Bill page' })).toBeVisible();
+
+  await page.goto('/sell/records');
+  const row = page.locator('ws-data-grid tbody tr').filter({ hasText: `Review Buyer ${tag}` });
+  await expect(row).toContainText('5,000');
+  await expect(row).toContainText('10,000');
+});

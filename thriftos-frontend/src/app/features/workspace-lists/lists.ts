@@ -18,11 +18,14 @@ export const SALES_LIST: ListConfig = {
     { key: 'status', label: 'ws.col.status', enumPrefix: 'ws.status.' },
     { key: 'paymentMode', label: 'ws.col.paymentMode', enumPrefix: 'ws.mode.' },
     { key: 'total', label: 'ws.col.total', format: 'money', total: true },
+    { key: 'paid', label: 'ws.sale.paid', format: 'money', total: true, computed: true },
+    { key: 'due', label: 'ws.sale.due', format: 'money', total: true, computed: true, info: 'ws.sp2.dueInfo' },
     { key: 'cost', label: 'ws.col.cost', format: 'money', total: true },
-    { key: 'profit', label: 'ws.col.profit', format: 'money', total: true },
+    { key: 'profit', label: 'ws.col.profit', format: 'money', total: true, tone: 'sign' },
     { key: 'createdBy', label: 'ws.col.createdBy', computed: true },
   ],
-  defaultColumns: ['number', 'date', 'customer', 'city', 'status', 'paymentMode', 'total', 'profit'],
+  // One status (Paid / Part paid / On credit) and the money behind it; how it was sold is in the View menu.
+  defaultColumns: ['number', 'date', 'customer', 'city', 'status', 'total', 'paid', 'due', 'profit'],
   dateField: 'date',
   groupBy: [
     { key: 'status', label: 'ws.col.status', enumPrefix: 'ws.status.' },

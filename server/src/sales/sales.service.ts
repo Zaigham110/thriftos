@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { tracePayments } from './khata';
 import { InventoryStatus, MovementType, PaymentMode, Prisma, SaleStatus, SaleType, SequenceScope } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { IdempotencyService } from '../common/idempotency/idempotency.service';
@@ -331,11 +332,18 @@ export class SalesService {
       },
     });
     if (!sale) throw new NotFoundException('Sale not found');
-    const { applied } = await this.khata.accountTx(db, tenantId, sale.customerId);
+    const { applied, customer, sales, payments } = await this.khata.accountTx(db, tenantId, sale.customerId);
     const own = applied.sales.find((s) => s.key.id === sale.id);
+    // Every payment that paid this bill: made with it, or a later payment on the khata that cleared it (v2 review).
+    const traced = tracePayments({
+      openingBalance: customer.openingBalance,
+      sales: sales.map((x) => ({ id: x.id, total: x.totalAmount })),
+      payments: payments.map((p) => ({ ...p, at: p.receivedAt })),
+    }).get(sale.id) ?? [];
     return {
       ...sale,
       payments: sale.payments.map((p) => this.khata.publicPayment(p)),
+      paidBy: traced.map((t) => ({ ...this.khata.publicPayment(t.payment), applied: t.amount, withSale: t.withSale })),
       lines: sale.lines.map((l) => ({ ...l, description: describeItem(l.inventoryItem) })),
       paid: own?.paid ?? new Prisma.Decimal(0),
       due: own?.due ?? new Prisma.Decimal(0),

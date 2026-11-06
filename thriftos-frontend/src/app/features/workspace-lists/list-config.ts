@@ -19,6 +19,8 @@ export interface ListColumnConfig {
   info?: string;
   /** Left out while every row on the page is empty (Godown before any godown exists). */
   hideIfEmpty?: boolean;
+  /** 'sign': below zero shows red (a loss). */
+  tone?: 'sign';
 }
 
 /** A quick filter shown as a picker next to search ("Status…", "Payment…"). */

@@ -33,11 +33,17 @@ const UNITS = ['BALE', 'KG', 'PIECE'] as const;
       @if (failed()) {
         <ws-state kind="error" (retry)="load()" />
       } @else if (data(); as d) {
+        <!-- Which price the sale screen uses, so two places for prices make sense (v2 review). -->
+        <aside class="order" aria-labelledby="ws-price-order">
+          <strong id="ws-price-order">{{ 'ws.sp2.orderTitle' | t }}</strong>
+          <ol><li>{{ 'ws.sp2.order1' | t }}</li><li>{{ 'ws.sp2.order2' | t }}</li><li>{{ 'ws.sp2.order3' | t }}</li></ol>
+        </aside>
         <div class="layout">
           <nav class="groups" [attr.aria-label]="'ws.prices.groups' | t">
             @for (g of groupNames(); track g) {
               <button type="button" class="group" [class.on]="group() === g" [attr.aria-pressed]="group() === g" (click)="group.set(g)">
                 <strong>{{ g }}</strong><small>{{ 'ws.prices.groupInfo' | t: { prices: count(g, 'prices'), customers: count(g, 'customers') } }}</small>
+                @if (!count(g, 'customers')) { <small class="warn">{{ 'ws.sp2.noCustomers' | t }}</small> }
               </button>
             }
             <form class="newgroup" (ngSubmit)="addGroup()">
@@ -65,7 +71,7 @@ const UNITS = ['BALE', 'KG', 'PIECE'] as const;
               </table>
               <form class="add" (ngSubmit)="add(g)">
                 <label>{{ 'ws.container.category' | t }}
-                  <select name="cat" required [(ngModel)]="categoryId"><option value="">…</option>@for (c of d.categories; track c.id) { <option [value]="c.id">{{ c.name }}</option> }</select>
+                  <select name="cat" required [(ngModel)]="categoryId"><option value="" disabled>{{ 'ws.sp2.pickCategory' | t }}</option>@for (c of d.categories; track c.id) { <option [value]="c.id">{{ c.name }}</option> }</select>
                 </label>
                 <label>{{ 'ws.container.grade' | t }}
                   <select name="grade" [(ngModel)]="gradeId"><option value="">{{ 'ws.prices.anyGrade' | t }}</option>@for (x of d.grades; track x.id) { <option [value]="x.id">{{ x.name }}</option> }</select>
@@ -102,6 +108,9 @@ const UNITS = ['BALE', 'KG', 'PIECE'] as const;
     th, td { padding:var(--ws-2); border-bottom:1px solid var(--ws-line); text-align:start; }
     th { color:var(--ws-ink-2); font-size:var(--ws-text-xs); font-weight:600; text-transform:uppercase; }
     .num { text-align:end; }
+    .order { padding:var(--ws-3) var(--ws-4); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); font-size:var(--ws-text-sm); }
+    .order ol { margin:var(--ws-1, 4px) 0 0; padding-inline-start:1.25rem; color:var(--ws-ink-2); }
+    .group small.warn { color:var(--ws-warn, var(--ws-bad)); font-weight:600; }
     td.num input { width:120px; text-align:end; }
     .empty { color:var(--ws-ink-2); text-align:center; }
     .icon { display:inline-grid; place-items:center; width:32px; height:32px; border:0; border-radius:var(--ws-r-md); background:transparent; color:var(--ws-ink-2); cursor:pointer; }

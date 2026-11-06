@@ -1,5 +1,5 @@
 import { sum } from '../costing/costing';
-import { applyPayments, overdueDays } from './khata';
+import { applyPayments, overdueDays, tracePayments } from './khata';
 
 const day = (d: number) => new Date(Date.UTC(2026, 9, d));
 const sale = (key: string, d: number, total: string, paidWithSale = '0') => ({ key, at: day(d), total, paidWithSale });
@@ -100,5 +100,35 @@ describe('overdueDays', () => {
   it('is zero when nothing is owed', () => {
     const applied = applyPayments({ openingBalance: 0, sales: [sale('a', 1, '100', '100')], onAccount: 0 });
     expect(overdueDays(applied, day(1), now)).toBe(0);
+  });
+});
+
+
+describe('tracePayments', () => {
+  const d = (n: number) => new Date(2026, 9, n);
+  it('names the payments that paid each sale, adding up to what applyPayments says was paid', () => {
+    const sales = [
+      { id: 's1', total: 50000 },
+      { id: 's2', total: 77300 },
+      { id: 's3', total: 20000 },
+    ];
+    const payments = [
+      { id: 'p1', at: d(1), amount: 20000, saleId: 's2' }, // paid with sale 2
+      { id: 'p2', at: d(2), amount: 40000, saleId: null }, // on account: opening 10,000, then sale 1
+      { id: 'p3', at: d(3), amount: 30000, saleId: null }, // rest of sale 1, then sale 2
+    ];
+    const traced = tracePayments({ openingBalance: 10000, sales, payments });
+    const applied = applyPayments({
+      openingBalance: 10000,
+      onAccount: 70000,
+      sales: sales.map((s) => ({ key: s.id, at: d(1), total: s.total, paidWithSale: s.id === 's2' ? 20000 : 0 })),
+    });
+    for (const a of applied.sales) {
+      const sum = (traced.get(a.key) ?? []).reduce((t, x) => t + Number(x.amount), 0);
+      expect(sum).toBe(Number(a.paid));
+    }
+    expect(traced.get('s1')!.map((x) => [x.payment.id, Number(x.amount)])).toEqual([['p2', 30000], ['p3', 20000]]);
+    expect(traced.get('s2')!.map((x) => [x.payment.id, Number(x.amount), x.withSale])).toEqual([['p1', 20000, true], ['p3', 10000, false]]);
+    expect(traced.get('s3')).toBeUndefined();
   });
 });

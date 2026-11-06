@@ -1599,6 +1599,28 @@
    "scorecard": "Supplier scorecard",
    "story": "From buying to profit"
   },
+  "sp2": {
+   "applied": "Paid off this bill",
+   "belowCost": "Below cost ({cost})",
+   "billPage": "Bill page",
+   "dueInfo": "What is still owed on this bill. Money received without a bill pays the oldest bill first.",
+   "how": "How",
+   "limit": "limit {limit}",
+   "noCustomers": "No customers in this group yet",
+   "noMatch": "No customer called “{text}”. Add them as a new customer.",
+   "onAccount": "Paid on account",
+   "order1": "The customer's group price from this page, if they are in a group.",
+   "order2": "Otherwise the item's own sale price, set in Inventory.",
+   "order3": "Otherwise the last price this customer paid. You can always change it on the bill.",
+   "orderTitle": "Which price the sale screen suggests",
+   "overLimit": "This sale takes the customer over their credit limit.",
+   "owes": "Owes {balance}",
+   "payment": "Payment",
+   "paymentsHint": "Money received for this bill: paid with the sale, or paid later and put against the oldest bill first.",
+   "pickCategory": "Choose a category",
+   "receiveHint": "{due} is still due on {no}.",
+   "withSale": "With the sale"
+  },
   "state": {
    "empty": "Nothing here yet",
    "error": "This could not be loaded.",

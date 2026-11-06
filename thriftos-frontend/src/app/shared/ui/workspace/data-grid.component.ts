@@ -20,6 +20,8 @@ export interface WsColumn {
   round?: boolean;
   /** What the column means, behind an "i" next to its name. */
   info?: string;
+  /** 'sign': a value below zero shows red (a loss). */
+  tone?: 'sign';
 }
 
 export interface WsSort {
@@ -73,7 +75,7 @@ export type WsRow = Record<string, unknown> & { id: string };
                 @if (selectable()) {
                   <td class="check" (click)="$event.stopPropagation()"><input type="checkbox" [checked]="isSelected(r)" (change)="toggle(r)" [attr.aria-label]="'ws.grid.selectRow' | t" /></td>
                 }
-                @for (c of columns(); track c.key) { <td [class.end]="isNumeric(c)" [class.ws-num]="isNumeric(c)">{{ cell(r[c.key], c.format, c.round) }}</td> }
+                @for (c of columns(); track c.key) { <td [class.end]="isNumeric(c)" [class.ws-num]="isNumeric(c)" [class.neg]="c.tone === 'sign' && isNeg(r[c.key])">{{ cell(r[c.key], c.format, c.round) }}</td> }
               </tr>
             }
           }
@@ -94,6 +96,7 @@ export type WsRow = Record<string, unknown> & { id: string };
     </div>
   `,
   styles: [`
+    td.neg { color:var(--ws-bad); font-weight:600; }
     .wrap { overflow:auto; border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); }
     table { width:100%; border-collapse:separate; border-spacing:0; font-size:var(--ws-text-sm); }
     th, td { height:var(--ws-row-h); padding-inline:var(--ws-cell-px); border-block-end:1px solid var(--ws-line); text-align:start; white-space:nowrap; }
@@ -151,6 +154,10 @@ export class WsDataGridComponent {
 
   protected isNumeric(c: WsColumn): boolean {
     return c.format === 'number' || c.format === 'money' || c.format === 'kg' || c.format === 'percent';
+  }
+
+  protected isNeg(v: unknown): boolean {
+    return v !== null && v !== undefined && v !== '' && Number(v) < 0;
   }
 
   protected cell(v: unknown, format: WsCellFormat = 'text', round = false): string {

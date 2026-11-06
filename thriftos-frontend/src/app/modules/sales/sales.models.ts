@@ -99,6 +99,8 @@ export interface SaleDetail extends SaleListItem {
   payments: Payment[];
   /** The customer's whole khata balance after this sale. */
   customerBalance: string;
+  /** Payments that paid this bill, with the part of each applied to it (v2 review). */
+  paidBy?: Array<Payment & { applied: string; withSale: boolean }>;
 }
 
 export interface SaleLineInput {

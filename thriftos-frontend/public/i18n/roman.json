@@ -1599,6 +1599,28 @@
    "scorecard": "Supplier report",
    "story": "Kharid se munafe tak"
   },
+  "sp2": {
+   "applied": "Is bill mein laga",
+   "belowCost": "Lagat se kam ({cost})",
+   "billPage": "Bill ka safha",
+   "dueInfo": "Is bill par abhi kitna baqi hai. Baghair bill ke mili raqam pehle sab se purane bill mein jati hai.",
+   "how": "Kaise",
+   "limit": "Had {limit}",
+   "noCustomers": "Is group mein abhi koi gahak nahi",
+   "noMatch": "“{text}” naam ka koi gahak nahi. Naya gahak banayein.",
+   "onAccount": "Khatay mein mili",
+   "order1": "Agar gahak kisi group mein hai to is safhay se group ki qeemat.",
+   "order2": "Warna maal ki apni qeemat, jo Inventory mein lagi hai.",
+   "order3": "Warna is gahak ki pichli qeemat. Bill par qeemat hamesha badal sakte hain.",
+   "orderTitle": "Sale screen kaun si qeemat dikhati hai",
+   "overLimit": "Ye sale gahak ko udhaar ki had se upar le jati hai.",
+   "owes": "Baqaya {balance}",
+   "payment": "Adaigi",
+   "paymentsHint": "Is bill ki raqam: sale ke sath mili, ya baad mein mili aur pehle purane bill mein lagi.",
+   "pickCategory": "Category chunein",
+   "receiveHint": "{no} par {due} abhi baqi hain.",
+   "withSale": "Sale ke sath"
+  },
   "state": {
    "empty": "Abhi yahan kuch nahi",
    "error": "Yeh load nahi ho saka.",

@@ -53,7 +53,7 @@ describe('Workspace lists, views, activity and search (e2e)', () => {
     const res = await list(a, 'pageSize=2').expect(200);
     expect(res.body.total).toBe(4);
     expect(res.body.rows.map((r: { number: string }) => r.number)).toEqual(['S-002', 'S-001']);
-    expect(res.body.totals).toEqual({ total: '176100.5', cost: '119100', profit: '57000.5' });
+    expect(res.body.totals).toEqual({ total: '176100.5', cost: '119100', profit: '57000.5', paid: '0', due: '176100.5' }); // sales made without payment rows
     const p2 = await list(a, 'pageSize=2&page=2').expect(200);
     expect(p2.body.rows.map((r: { number: string }) => r.number)).toEqual(['S-003', 'S-004']);
     const byCustomer = await list(a, 'sort=customer:asc,total:desc').expect(200);
@@ -95,7 +95,7 @@ describe('Workspace lists, views, activity and search (e2e)', () => {
     const res = await list(plain, '').expect(200);
     expect(res.body.rows[0]).not.toHaveProperty('cost');
     expect(res.body.rows[0]).not.toHaveProperty('profit');
-    expect(res.body.totals).toEqual({ total: '176100.5' });
+    expect(res.body.totals).toEqual({ total: '176100.5', paid: '0', due: '176100.5' });
     expect(res.body.fields.map((f: { key: string }) => f.key)).not.toContain('profit');
     await list(plain, 'sort=profit:desc').expect(400);
     await list(plain, 'f=cost:gt:0').expect(400);
@@ -106,7 +106,7 @@ describe('Workspace lists, views, activity and search (e2e)', () => {
     expect(csv.headers['content-type']).toMatch(/text\/csv/);
     expect(csv.headers['content-disposition']).toMatch(/attachment; filename="thriftos-sales-\d{4}-\d{2}-\d{2}\.csv"/);
     const lines = csv.text.replace(/^﻿/, '').trim().split('\r\n');
-    expect(lines[0]).toBe('Sale,Date,Customer,City,Status,Payment,Type,Total (Rs),Cost (Rs),Profit (Rs),Entered by');
+    expect(lines[0]).toBe('Sale,Date,Customer,City,Status,Payment,Type,Total (Rs),Paid (Rs),Due (Rs),Cost (Rs),Profit (Rs),Entered by');
     expect(lines.slice(1).map((l) => l.split(',')[0])).toEqual(['S-001', 'S-002']);
     expect(lines[1]).toContain(',2026-11-03 01:00,');
     expect(lines[2]).toContain(',41500.5,');

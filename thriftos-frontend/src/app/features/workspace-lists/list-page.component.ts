@@ -269,7 +269,7 @@ export class ListPageComponent {
   protected readonly columns = computed<WsColumn[]>(() =>
     this.visible().filter((key) => !this.emptyColumns().has(key)).map((key) => {
       const c = this.list().columns.find((x) => x.key === key)!;
-      return { key, label: this.i18n.t(c.label), sortable: !c.computed, format: c.format ?? 'text', total: c.total, width: c.width, round: c.format === 'money' && !c.exact, info: c.info ? this.i18n.t(c.info) : undefined };
+      return { key, label: this.i18n.t(c.label), sortable: !c.computed, format: c.format ?? 'text', total: c.total, width: c.width, round: c.format === 'money' && !c.exact, info: c.info ? this.i18n.t(c.info) : undefined, tone: c.tone };
     }),
   );
   protected readonly rows = computed<WsRow[]>(() => {
