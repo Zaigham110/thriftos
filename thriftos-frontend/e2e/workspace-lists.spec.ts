@@ -473,3 +473,45 @@ test('loose lot form: buy one on a laptop with supplier and day, open it, then f
   const row = page.locator('ws-data-grid tbody tr').filter({ hasText: '1 Nov 2026' });
   await expect(row.first()).toContainText('120,000');
 });
+
+test('navigation: a list keeps its search through Back, records are named in the breadcrumb and tab, forms ask before losing changes', async ({ page, request }) => {
+  const api = await apiAs(request);
+  const tag = Date.now().toString().slice(-6);
+  const supplier = await api.post('/procurement/vendors', { name: `Nav Rags ${tag}` });
+  const container = await api.post('/procurement/containers', { vendorId: supplier.id, containerNumber: `NAV-${tag}`, netWeightKg: 1000, purchaseCost: 100000 });
+
+  await signIn(page);
+  await page.goto('/receive/records/containers');
+  await page.getByPlaceholder('Search container number, supplier or country').fill(`NAV-${tag}`);
+  await expect(page).toHaveURL(/[?&]v=/);
+  await page.locator('ws-data-grid tbody tr').filter({ hasText: `NAV-${tag}` }).click();
+  await expect(page).toHaveURL(new RegExp(`/receive/records/containers/${container.id}`));
+  await expect(page.locator('nav.crumbs')).toContainText(`Purchasing›Containers›NAV-${tag}`.replace(/›/g, ''));
+  await expect(page).toHaveTitle(`NAV-${tag} · Containers · ThriftOS`);
+
+  // A tab is kept in the address too.
+  await page.getByRole('tab', { name: /Sales/ }).click();
+  await expect(page).toHaveURL(/tab=sales/);
+
+  // Back: the list opens with the same search.
+  await page.goBack();
+  await expect(page).toHaveURL(/\/receive\/records\/containers\?/);
+  await expect(page.getByPlaceholder('Search container number, supplier or country')).toHaveValue(`NAV-${tag}`);
+  await expect(page.locator('ws-data-grid tbody tr')).toHaveCount(1);
+
+  // A form with changes asks before leaving; Cancel goes back to where you came from.
+  await page.getByRole('link', { name: 'Receive a container' }).click();
+  await page.getByLabel('Invoice weight (kg)').fill('500');
+  let asked = '';
+  page.once('dialog', (d) => { asked = d.message(); void d.dismiss(); });
+  await page.locator('nav a[href="/home"]').first().click();
+  await expect(page).toHaveURL(/\/receive\/records\/containers\/new$/);
+  expect(asked).toContain('not saved');
+  page.once('dialog', (d) => void d.accept());
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page).toHaveURL(/\/receive\/records\/containers\?/);
+
+  // An address that does not exist says so.
+  await page.goto('/receive/records/no-such-page');
+  await expect(page.getByText('This page does not exist')).toBeVisible();
+});

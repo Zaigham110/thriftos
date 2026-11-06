@@ -1,8 +1,9 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { NavService } from '../../core/nav/nav.service';
+import { Component, computed, inject, input, signal, effect } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ArrowLeftRight, Clock, ClipboardCheck, Coins, LucideAngularModule, Package, QrCode, Scale, Tag } from 'lucide-angular';
 import { catchError, map, of, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth';
@@ -104,7 +105,7 @@ const UNIT_KEYS: Record<string, string> = { KG: 'ws.stock.unit.KG', BALE: 'ws.st
             <ws-smart-button [label]="'ws.container.tab.sales' | t" [value]="i18n.num(d.sales.length)" [icon]="icons.Coins" [link]="[]" [query]="{ tab: 'sales' }" />
           </section>
 
-          <ws-tabs [tabs]="tabs()" [active]="tab()" (activeChange)="chosenTab.set($event)" [label]="title()" />
+          <ws-tabs [tabs]="tabs()" [active]="tab()" (activeChange)="pickTab($event)" [label]="title()" />
           <div role="tabpanel" [id]="'ws-panel-' + tab()" [attr.aria-labelledby]="'ws-tab-' + tab()" class="panel">
             @switch (tab()) {
               @case ('lineage') {
@@ -194,6 +195,18 @@ export class StockRecordComponent {
   private readonly toast = inject(ToastService);
   /** Route parameter (component input binding). */
   readonly id = input.required<string>();
+  private readonly tabRoute = inject(ActivatedRoute);
+  /** The tab goes into the address (?tab=), so Back from a row opens this tab again. */
+  protected pickTab(tab: string): void {
+    void this.router.navigate([], { relativeTo: this.tabRoute, queryParams: { tab }, queryParamsHandling: 'merge', replaceUrl: true });
+  }
+  private readonly nav = inject(NavService);
+  /** The breadcrumb and browser tab name this record once it has loaded. */
+  private readonly crumbName = effect(() => {
+    const d = this.data();
+    const id = this.id();
+    if (d && id) this.nav.setName(id, this.title());
+  });
   readonly tabParam = input<string | undefined>(undefined, { alias: 'tab' });
 
   protected readonly icons = { ArrowLeftRight, ClipboardCheck, Clock, Coins, Package, QrCode, Scale, Tag };

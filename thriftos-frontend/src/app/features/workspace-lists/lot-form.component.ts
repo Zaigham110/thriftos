@@ -1,5 +1,7 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
+import { Component, HostListener, computed, inject, input, OnInit, signal } from '@angular/core';
+import { NavService } from '../../core/nav/nav.service';
+import { HasUnsavedChanges, warnBeforeUnload } from '../../core/nav/unsaved-changes.guard';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -38,7 +40,7 @@ const day = (v: string) => new Date(new Date(v).getTime() + 5 * 3_600_000).toISO
         <a class="ws-btn" [routerLink]="['/receive/records/containers', containerId()]">{{ 'ws.lf.openContainer' | t }}</a>
       </ws-state>
     } @else {
-      <form class="page" (ngSubmit)="save()">
+      <form class="page" (ngSubmit)="save()" (input)="touched = true" (change)="touched = true">
         <ws-page-header [heading]="id() ? ('ws.lf.editTitle' | t: { code: code }) : ('ws.new.gaari' | t)" [subtitle]="(id() ? 'ws.lf.editHint' : 'ws.lf.newHint') | t" />
         <div class="cols">
           <div class="main">
@@ -103,7 +105,7 @@ const day = (v: string) => new Date(new Date(v).getTime() + 5 * 3_600_000).toISO
               <div class="missing" role="status"><strong>{{ 'ws.cf.missing' | t }}</strong><ul>@for (m of missing(); track m) { <li>{{ m | t }}</li> }</ul></div>
             }
             <button type="submit" class="ws-btn primary block" [disabled]="missing().length > 0 || busy()">{{ (busy() ? 'common.saving' : (id() ? 'common.save' : 'receive.saveLot')) | t }}</button>
-            <a class="ws-btn block" [routerLink]="id() ? ['/sort/records', id()] : '/receive/records/lots'">{{ 'common.cancel' | t }}</a>
+            <button type="button" class="ws-btn block" (click)="cancel()">{{ 'common.cancel' | t }}</button>
           </aside>
         </div>
         <datalist id="ws-lf-countries">@for (c of countries; track c) { <option [value]="c"></option> }</datalist>
@@ -142,7 +144,10 @@ const day = (v: string) => new Date(new Date(v).getTime() + 5 * 3_600_000).toISO
     @media (max-width: 640px) { .grid, .new-supplier { grid-template-columns:minmax(0, 1fr); } }
   `],
 })
-export class LotFormComponent implements OnInit {
+export class LotFormComponent implements OnInit, HasUnsavedChanges {
+  private readonly nav = inject(NavService);
+  /** Something was typed or picked and not saved yet (leaving asks first). */
+  protected touched = false;
   protected readonly i18n = inject(I18nService);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
@@ -200,6 +205,7 @@ export class LotFormComponent implements OnInit {
     this.http.get<LotRow>(`/api/procurement/rags/${this.id()}`).subscribe({
       next: (r) => {
         this.code = r.ragCode;
+        this.nav.setName(r.id, r.ragCode);
         this.containerId.set(r.containerId);
         this.vendorId = r.vendorId ?? '';
         this.rawCategoryId = r.rawCategoryId ?? '';
@@ -212,6 +218,18 @@ export class LotFormComponent implements OnInit {
       },
       error: () => { this.loading.set(false); this.loadFailed.set(true); },
     });
+  }
+
+  hasUnsavedChanges(): boolean {
+    return this.touched;
+  }
+  @HostListener('window:beforeunload', ['$event'])
+  protected beforeUnload(e: BeforeUnloadEvent): void {
+    warnBeforeUnload(e, this.touched);
+  }
+  protected cancel(): void {
+    this.touched = false;
+    this.nav.back(this.id() ? ['/sort/records', this.id()] : ['/receive/records/lots']);
   }
 
   protected async addSupplier(): Promise<void> {
@@ -246,12 +264,16 @@ export class LotFormComponent implements OnInit {
       if (id) {
         await firstValueFrom(this.http.patch(`/api/procurement/rags/${id}`, body));
         this.toast.show(this.i18n.t('ws.lf.saved'));
+        this.touched = false;
+        this.nav.back(['/sort/records', id]);
+        return;
       } else {
         const r = await firstValueFrom(this.http.post<{ id: string; ragCode: string }>('/api/procurement/rags', { ragBaleType: 'BALE', ...body, notes: body.notes || undefined }));
         id = r.id;
         this.toast.show(this.i18n.t('receive.lotSaved', { code: r.ragCode }));
       }
-      void this.router.navigate(['/sort/records', id]);
+      this.touched = false;
+      void this.nav.replace(['/sort/records', id]);
     } catch (e: any) {
       this.toast.error(e?.error?.message || this.i18n.t('common.couldNotSave'));
     } finally {

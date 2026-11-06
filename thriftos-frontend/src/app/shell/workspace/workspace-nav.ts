@@ -148,17 +148,24 @@ export const WS_CRUMBS: Record<string, string> = {
 };
 
 export interface Crumb {
+  /** A dictionary key, or (raw) a record's own name such as "CONT-2026-006". */
   label: string;
   path: string;
+  raw?: boolean;
 }
 
-/** Breadcrumbs for a URL: known segments only, each linking to its own path. */
-export function crumbsFor(url: string): Crumb[] {
+/**
+ * Breadcrumbs for a URL: known segments, each linking to its own path, plus records whose name a page has
+ * given (`names`: id → name). Unknown ids are left out.
+ */
+export function crumbsFor(url: string, names: Record<string, string> = {}): Crumb[] {
   const segments = url.split(/[?#]/)[0].split('/').filter(Boolean);
   const crumbs: Crumb[] = [];
   segments.forEach((segment, i) => {
-    const label = WS_CRUMBS[segment];
-    if (label) crumbs.push({ label, path: '/' + segments.slice(0, i + 1).join('/') });
+    const path = '/' + segments.slice(0, i + 1).join('/');
+    const name = names[decodeURIComponent(segment)];
+    if (name) crumbs.push({ label: name, path, raw: true });
+    else if (WS_CRUMBS[segment]) crumbs.push({ label: WS_CRUMBS[segment], path });
   });
   return crumbs;
 }

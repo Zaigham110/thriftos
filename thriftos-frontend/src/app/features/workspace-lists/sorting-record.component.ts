@@ -1,5 +1,6 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { NavService } from '../../core/nav/nav.service';
+import { Component, computed, inject, input, signal, effect } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { Clock, Coins, Layers3, LucideAngularModule, Percent, Play, Scale, Trash2, Pencil } from 'lucide-angular';
@@ -99,6 +100,13 @@ export class SortingRecordComponent {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   readonly id = input.required<string>();
+  private readonly nav = inject(NavService);
+  /** The breadcrumb and browser tab name this record once it has loaded. */
+  private readonly crumbName = effect(() => {
+    const d = this.data();
+    const id = this.id();
+    if (d && id) this.nav.setName(id, d.lot.code);
+  });
   private readonly auth = inject(AuthService);
   protected can(code: string): boolean {
     return this.auth.isSuperAdmin() || this.auth.permissions().includes(code);

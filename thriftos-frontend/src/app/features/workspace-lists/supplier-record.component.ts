@@ -1,5 +1,6 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { NavService } from '../../core/nav/nav.service';
+import { Component, computed, inject, input, signal, effect } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { Coins, Layers3, Percent, Receipt, Scale, Truck } from 'lucide-angular';
@@ -73,6 +74,13 @@ export class SupplierRecordComponent {
   private readonly router = inject(Router);
   /** Route parameter (component input binding). */
   readonly id = input.required<string>();
+  private readonly nav = inject(NavService);
+  /** The breadcrumb and browser tab name this record once it has loaded. */
+  private readonly crumbName = effect(() => {
+    const d = this.data();
+    const id = this.id();
+    if (d && id) this.nav.setName(id, d.supplier.name);
+  });
 
   protected readonly icons = { Coins, Layers3, Percent, Receipt, Scale, Truck };
   protected readonly data = signal<SupplierScorecard | null>(null);

@@ -1,5 +1,7 @@
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Component, ElementRef, HostListener, computed, inject, signal, viewChildren } from '@angular/core';
+import { NavService } from '../../core/nav/nav.service';
+import { HasUnsavedChanges, warnBeforeUnload } from '../../core/nav/unsaved-changes.guard';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -117,7 +119,17 @@ const optionLabel = (s: StockOption) => [s.code, s.name].filter(Boolean).join(' 
     .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
   `],
 })
-export class SaleEntryComponent {
+export class SaleEntryComponent implements HasUnsavedChanges {
+  private readonly nav = inject(NavService);
+  private saved = false;
+  /** A customer or a line was entered and the sale is not saved yet (leaving asks first). */
+  hasUnsavedChanges(): boolean {
+    return !this.saved && (this.lines().length > 0 || !!this.customer());
+  }
+  @HostListener('window:beforeunload', ['$event'])
+  protected beforeUnload(e: BeforeUnloadEvent): void {
+    warnBeforeUnload(e, this.hasUnsavedChanges());
+  }
   protected readonly i18n = inject(I18nService);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
@@ -266,7 +278,9 @@ export class SaleEntryComponent {
         this.busy.set(false);
         this.idempotencyKey = crypto.randomUUID();
         this.toast.show(this.i18n.t('ws.saleEntry.saved', { number: s.saleNumber }));
-        void this.router.navigate(['/sell/records', s.id]);
+        this.saved = true;
+        // The sale replaces the entry form in history: Back goes to the sales list, not to an empty form.
+        void this.nav.replace(['/sell/records', s.id]);
       },
       error: (e: { status?: number; error?: { message?: string | string[] } }) => {
         this.busy.set(false);

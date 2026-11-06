@@ -112,6 +112,15 @@
   - Tests: server e2e `purchasing-review` (gaari list only loose lots, price per kg and sorted % while sorting, search, other business sees none; container cleared when sorting starts, late charge still accepted); the purchasing e2e now expects Cleared after sorting. Browser: list tests use the View panel; new "purchasing" test (tabs, buttons, column note, remembered tab, old address). Server 295/295, Karma 19/19, browser 41 passed + 4 skipped, i18n 1265 keys.
   - Decided by the owner: amounts keep international grouping (2,309,688), not lakh grouping.
   - Breadcrumbs no longer show the internal "Records" step: Purchasing › Containers, Sales, Sorting (was Purchasing › Records › Containers). Unit test added.
+- **Review: navigation, before Suppliers (owner request).** Breadcrumbs, routes, Back and page state, app-wide.
+  - Lists keep their state in the address (`?v=` with only what differs from the default: search, filters, sort, page, layout, group, columns, saved view), written with replaceUrl. Back from a record, a reload or a shared link opens the list exactly as it was.
+  - Record tabs go into the address (`?tab=`): Back from a bale or sale opens the same tab.
+  - Breadcrumbs name the record ("Purchasing › Containers › CONT-2026-006 › Edit"): record pages give their name to `NavService`; a loose lot's crumb links to its page (`/receive/records/lots/:id` → `/sort/records/:id`).
+  - The browser tab says where you are in your language ("CONT-2026-006 · Containers · ThriftOS").
+  - Forms (container, loose lot, expense, sale entry) ask before leaving with changes not saved (route guard + the browser's own prompt on reload/close). Cancel goes back to the page you came from. Saving a new record replaces the form in history, so Back never shows an empty form; saving an edit goes back to the record.
+  - A new page opens at the top; Back returns to the same scroll position.
+  - An unknown address shows "This page does not exist" with Back and Home (was: a silent jump to Home). A part the business has turned off shows "This part is turned off" and where to turn it on (the module guard did the same silent jump). Bales on a container do not link to Stock when Stock is off.
+  - Checked: every breadcrumb link of 25 pages opens a real page. Tests: crumb unit test, browser test "navigation", modules test updated. Server 300, Karma 21, browser 45 passed + 4 skipped.
 - **Review: loose lot form (Purchasing).** All eight findings fixed.
   - Laptop form at `/receive/records/lots/new` and `/:id/edit` (`lot-form.component.ts`): supplier (optional, shown first, + new supplier with any country), raw type, "Bought on" day, kg, price paid, note; the side shows the price per kg and what is still needed; saving opens the lot. `/receive/lot` on a laptop goes to it; the phone keeps its screen (supplier shown openly, raw type and day under More details, "Still needed" line).
   - Edit button on a loose lot's page: supplier, day, price and note any time; kg and raw type until sorting starts. A container lot points to its container instead.

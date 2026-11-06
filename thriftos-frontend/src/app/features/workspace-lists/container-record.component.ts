@@ -1,11 +1,13 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { NavService } from '../../core/nav/nav.service';
+import { Component, computed, inject, input, signal, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { LucideAngularModule, Pencil, Plus } from 'lucide-angular';
 import { catchError, firstValueFrom, map, of, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth';
+import { TenantService } from '../../core/tenant/tenant.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
 import { ToastService } from '../../shared/floor/toast.service';
@@ -132,7 +134,7 @@ interface RawType { id: string; name: string; rawType?: string }
             </details>
           }
 
-          <ws-tabs [tabs]="tabs()" [active]="tab()" (activeChange)="chosenTab.set($event)" [label]="d.container.number" />
+          <ws-tabs [tabs]="tabs()" [active]="tab()" (activeChange)="pickTab($event)" [label]="d.container.number" />
           <div role="tabpanel" [id]="'ws-panel-' + tab()" [attr.aria-labelledby]="'ws-tab-' + tab()" class="panel">
             @switch (tab()) {
               @case ('cost') {
@@ -153,7 +155,7 @@ interface RawType { id: string; name: string; rawType?: string }
                 <ws-data-grid [caption]="'ws.container.lots' | t" [columns]="lotColumns()" [rows]="lotRows()" [clickable]="true" (rowClick)="openLotRecord($event)" [emptyHeading]="'ws.container.noLots' | t" />
               }
               @case ('bales') {
-                <ws-data-grid [caption]="'ws.container.bales' | t" [columns]="baleColumns()" [rows]="baleRows()" [clickable]="true" (rowClick)="openBale($event)" [emptyHeading]="'ws.container.noBales' | t" />
+                <ws-data-grid [caption]="'ws.container.bales' | t" [columns]="baleColumns()" [rows]="baleRows()" [clickable]="stockOn()" (rowClick)="openBale($event)" [emptyHeading]="'ws.container.noBales' | t" />
               }
               @case ('sales') {
                 <ws-data-grid [caption]="'ws.container.sales' | t" [columns]="saleColumns()" [rows]="saleRows()" [clickable]="true" (rowClick)="openSale($event)" [emptyHeading]="'ws.container.noSales' | t" />
@@ -246,6 +248,18 @@ export class ContainerRecordComponent {
   private readonly toast = inject(ToastService);
   /** Route parameter (component input binding). */
   readonly id = input.required<string>();
+  private readonly tabRoute = inject(ActivatedRoute);
+  /** The tab goes into the address (?tab=), so Back from a row opens this tab again. */
+  protected pickTab(tab: string): void {
+    void this.router.navigate([], { relativeTo: this.tabRoute, queryParams: { tab }, queryParamsHandling: 'merge', replaceUrl: true });
+  }
+  private readonly nav = inject(NavService);
+  /** The breadcrumb and browser tab name this record once it has loaded. */
+  private readonly crumbName = effect(() => {
+    const d = this.data();
+    const id = this.id();
+    if (d && id) this.nav.setName(id, d.container.number);
+  });
   /** ?tab= from a smart button. */
   readonly tabParam = input<string | undefined>(undefined, { alias: 'tab' });
 
@@ -291,6 +305,9 @@ export class ContainerRecordComponent {
     return [this.date(c.createdAt), c.origin].filter(Boolean).join(' · ');
   });
   protected readonly profitTone = computed(() => (Number(this.data()?.totals.profit ?? 0) < 0 ? 'bad' : 'good'));
+  private readonly tenants = inject(TenantService);
+  /** Bales open their stock page only when this business uses Stock. */
+  protected readonly stockOn = computed(() => this.tenants.isModuleEnabled('STOCK', this.tenants.tenant()));
   protected readonly closed = computed(() => this.data()?.container.status === 'CLOSED');
   protected readonly canCharge = computed(() => !!this.data()?.cost && !this.closed() && this.can('container.update'));
   /** Status steps the owner can move to from here (a button each on the bar). */

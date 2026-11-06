@@ -1161,6 +1161,9 @@
    "label": "Tarteeb",
    "table": "Table"
   },
+  "leave": {
+   "unsaved": "Aap ki tabdeeliyan save nahi huin. Yeh safha chhor kar unhein khatam kar dein?"
+  },
   "lf": {
    "containerLot": "Yeh lot container mein aaya. Isay container se badlein.",
    "date": "Kharid ka din",
@@ -1204,6 +1207,19 @@
    "CREDIT": "Udhaar",
    "PARTIAL": "Kuch ada"
   },
+  "module": {
+   "BILLING": "Billing",
+   "EXPORT": "Export",
+   "KHATA": "Khata",
+   "PAYROLL": "Tankhwah",
+   "PURCHASE_ORDERS": "Purchase order",
+   "RECEIVE": "Kharidari",
+   "REPORTS": "Report",
+   "SELL": "Bikri",
+   "SORT": "Chhantai",
+   "STOCK": "Stock",
+   "WAREHOUSES": "Godown"
+  },
   "movement": {
    "ADJUSTMENT": "Ginti",
    "EXPORT": "Export",
@@ -1240,6 +1256,13 @@
    "lot": "Gaari / lot kharidein",
    "ready": "Tayyar maal aya",
    "sale": "Nayi sale"
+  },
+  "notFound": {
+   "home": "Home par jayein",
+   "offText": "Is karobar ke liye {module} band hai. Owner isay Settings → Karobar ki setting mein chalu kar sakta hai.",
+   "offTitle": "Yeh hissa band hai",
+   "text": "{url} par kuch nahi. Link purana ya ghalat ho sakta hai.",
+   "title": "Yeh safha maujood nahi"
   },
   "notifications": {
    "button": "Notifications: {n} naye",

@@ -1161,6 +1161,9 @@
    "label": "Layout",
    "table": "Table"
   },
+  "leave": {
+   "unsaved": "You have changes that are not saved. Leave this page and lose them?"
+  },
   "lf": {
    "containerLot": "This lot came in a container. Change it from its container.",
    "date": "Bought on",
@@ -1204,6 +1207,19 @@
    "CREDIT": "Credit",
    "PARTIAL": "Part paid"
   },
+  "module": {
+   "BILLING": "Billing",
+   "EXPORT": "Export",
+   "KHATA": "Receivables",
+   "PAYROLL": "Payroll",
+   "PURCHASE_ORDERS": "Purchase orders",
+   "RECEIVE": "Purchasing",
+   "REPORTS": "Reports",
+   "SELL": "Sales",
+   "SORT": "Sorting",
+   "STOCK": "Stock",
+   "WAREHOUSES": "Godowns"
+  },
   "movement": {
    "ADJUSTMENT": "Count",
    "EXPORT": "Export",
@@ -1240,6 +1256,13 @@
    "lot": "Buy a loose lot",
    "ready": "Receive ready stock",
    "sale": "New sale"
+  },
+  "notFound": {
+   "home": "Go to Home",
+   "offText": "{module} is turned off for this business. The owner can turn it on in Settings → Business setup.",
+   "offTitle": "This part is turned off",
+   "text": "Nothing is at {url}. The link may be old or mistyped.",
+   "title": "This page does not exist"
   },
   "notifications": {
    "button": "Notifications: {n} unread",

@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, DestroyRef, HostListener, computed, inject, output, signal } from '@angular/core';
+import { Component, DestroyRef, HostListener, computed, inject, output, signal, effect } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import {
@@ -33,6 +33,8 @@ import { TenantService } from '../../core/tenant/tenant.service';
 import { ThemeService } from '../../core/theme/theme.service';
 import { CommandPaletteComponent, PaletteCommand } from './command-palette.component';
 import { WS_CREATE, WS_NAV, WS_SETTINGS, WsNavItem, crumbsFor } from './workspace-nav';
+import { NavService } from '../../core/nav/nav.service';
+import { Title } from '@angular/platform-browser';
 import { LangPickerComponent } from '../../shared/ui/lang-picker.component';
 
 const NAV_KEY = 'thriftos.navCollapsed';
@@ -137,8 +139,8 @@ function typing(e: KeyboardEvent): boolean {
             <ol>
               @for (c of crumbs(); track c.path; let last = $last) {
                 <li>
-                  @if (last) { <span aria-current="page">{{ c.label | t }}</span> }
-                  @else { <a [routerLink]="c.path">{{ c.label | t }}</a><lucide-icon [img]="icons.ChevronRight" [size]="14" class="flip" aria-hidden="true" /> }
+                  @if (last) { <span aria-current="page">{{ c.raw ? c.label : (c.label | t) }}</span> }
+                  @else { <a [routerLink]="c.path">{{ c.raw ? c.label : (c.label | t) }}</a><lucide-icon [img]="icons.ChevronRight" [size]="14" class="flip" aria-hidden="true" /> }
                 </li>
               }
             </ol>
@@ -256,7 +258,16 @@ export class WorkspaceShellComponent {
     this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd), map((e) => e.urlAfterRedirects)),
     { initialValue: this.router.url },
   );
-  protected readonly crumbs = computed(() => crumbsFor(this.url()));
+  private readonly nav = inject(NavService);
+  private readonly title = inject(Title);
+  protected readonly crumbs = computed(() => crumbsFor(this.url(), this.nav.names()));
+  /** The browser tab says where you are, in your language: "CONT-2026-006 · Containers · ThriftOS". */
+  private readonly tabTitle = effect(() => {
+    const c = this.crumbs();
+    this.i18n.lang();
+    const words = c.slice(-2).reverse().map((x) => (x.raw ? x.label : this.i18n.t(x.label)));
+    if (words.length) this.title.setTitle([...words, 'ThriftOS'].join(' · '));
+  });
   protected alsoHere(item: WsNavItem): boolean {
     const u = this.url().split(/[?#]/)[0];
     return !!item.also?.some((p) => u === p || u.startsWith(p + '/'));

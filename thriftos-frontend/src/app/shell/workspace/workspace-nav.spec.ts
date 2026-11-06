@@ -22,6 +22,15 @@ describe('workspace navigation', () => {
     expect(crumbsFor('/sell/records')).toEqual([{ label: 'ws.nav.sales', path: '/sell' }]);
   });
 
+  it('names a record whose page gave its name, linking to it', () => {
+    expect(crumbsFor('/receive/records/containers/ck1/edit', { ck1: 'CONT-2026-006' })).toEqual([
+      { label: 'ws.nav.purchasing', path: '/receive' },
+      { label: 'ws.crumb.containers', path: '/receive/records/containers' },
+      { label: 'CONT-2026-006', path: '/receive/records/containers/ck1', raw: true },
+      { label: 'ws.crumb.edit', path: '/receive/records/containers/ck1/edit' },
+    ]);
+  });
+
   it('every menu and create item has a breadcrumb name for its first segment', () => {
     const paths = [...WS_NAV.flatMap((g) => g.items), ...WS_CREATE].map((i) => i.path.split('/')[1]);
     for (const p of paths) expect(WS_CRUMBS[p]).withContext(p).toBeTruthy();

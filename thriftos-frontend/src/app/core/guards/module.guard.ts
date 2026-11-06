@@ -12,7 +12,8 @@ export const moduleGuard: CanActivateFn = (route): Observable<boolean | UrlTree>
   if (!requiredModule) return of(true);
 
   return tenantService.loadTenant().pipe(
-    map((tenant) => (tenantService.isModuleEnabled(requiredModule, tenant) ? true : router.createUrlTree(['/home']))),
+    // Turned off: a page that says so (and how to turn it on), not a silent jump to Home.
+    map((tenant) => (tenantService.isModuleEnabled(requiredModule, tenant) ? true : router.createUrlTree(['/unavailable'], { queryParams: { module: requiredModule } }))),
     catchError(() => of(router.createUrlTree(['/home']))),
   );
 };

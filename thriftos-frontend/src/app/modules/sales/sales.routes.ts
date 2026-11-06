@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { unsavedChangesGuard } from '../../core/nav/unsaved-changes.guard';
 import { SALES_LIST } from '../../features/workspace-lists/lists';
 
 export const SALES_ROUTES: Routes = [
@@ -12,6 +13,7 @@ export const SALES_ROUTES: Routes = [
     // Desktop sale entry, keyboard first (E3.4); the phone keeps /sell/new.
     path: 'new',
     loadComponent: () => import('../../features/workspace-lists/sale-entry.component').then((m) => m.SaleEntryComponent),
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: ':id',

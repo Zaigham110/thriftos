@@ -1,6 +1,7 @@
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { NavService } from '../../core/nav/nav.service';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
+import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { BookOpen, Coins, FileText, LucideAngularModule, MessageCircle, Printer, Receipt, Wallet } from 'lucide-angular';
 import { catchError, map, of, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth';
@@ -76,7 +77,7 @@ const UNIT_KEYS: Record<string, string> = { KG: 'unit.kgShort', BALE: 'unit.bale
             <ws-smart-button [label]="'ws.sale.balance' | t" [value]="i18n.money(s.customerBalance)" [icon]="icons.BookOpen" [link]="['/khata', s.customerId]" />
           </section>
 
-          <ws-tabs [tabs]="tabs()" [active]="tab()" (activeChange)="chosenTab.set($event)" [label]="s.saleNumber" />
+          <ws-tabs [tabs]="tabs()" [active]="tab()" (activeChange)="pickTab($event)" [label]="s.saleNumber" />
           <div role="tabpanel" [id]="'ws-panel-' + tab()" [attr.aria-labelledby]="'ws-tab-' + tab()">
             @if (tab() === 'lines') {
               <ws-data-grid [caption]="'ws.sale.lines' | t" [columns]="lineColumns()" [rows]="lineRows()" />
@@ -113,6 +114,19 @@ export class SaleRecordComponent {
   private readonly toast = inject(ToastService);
   /** Route parameter (component input binding). */
   readonly id = input.required<string>();
+  private readonly tabRoute = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  /** The tab goes into the address (?tab=), so Back from a row opens this tab again. */
+  protected pickTab(tab: string): void {
+    void this.router.navigate([], { relativeTo: this.tabRoute, queryParams: { tab }, queryParamsHandling: 'merge', replaceUrl: true });
+  }
+  private readonly nav = inject(NavService);
+  /** The breadcrumb and browser tab name this record once it has loaded. */
+  private readonly crumbName = effect(() => {
+    const d = this.sale();
+    const id = this.id();
+    if (d && id) this.nav.setName(id, d.saleNumber);
+  });
   /** ?tab=payments from a smart button. */
   readonly tabParam = input<string | undefined>(undefined, { alias: 'tab' });
 

@@ -1,5 +1,7 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
+import { Component, HostListener, computed, inject, input, OnInit, signal } from '@angular/core';
+import { NavService } from '../../core/nav/nav.service';
+import { HasUnsavedChanges, warnBeforeUnload } from '../../core/nav/unsaved-changes.guard';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -45,7 +47,7 @@ const num = (v: string | null | undefined) => (v === null || v === undefined || 
     } @else if (loading()) {
       <ws-state kind="loading" />
     } @else {
-      <form class="page" (ngSubmit)="save()">
+      <form class="page" (ngSubmit)="save()" (input)="touched = true" (change)="touched = true">
         <ws-page-header [heading]="id() ? ('ws.cf.editTitle' | t: { no: number }) : ('ws.new.container' | t)" [subtitle]="(id() ? 'ws.cf.editHint' : 'ws.cf.newHint') | t" />
         @if (closed()) { <p class="banner" role="status">{{ 'ws.cf.closed' | t }}</p> }
 
@@ -189,7 +191,7 @@ const num = (v: string | null | undefined) => (v === null || v === undefined || 
               </div>
             }
             <button type="submit" class="ws-btn primary block" [disabled]="missing().length > 0 || busy() || closed()">{{ (busy() ? 'common.saving' : (id() ? 'common.save' : 'receive.saveContainer')) | t }}</button>
-            <a class="ws-btn block" [routerLink]="id() ? ['/receive/records/containers', id()] : '/receive/records/containers'">{{ 'common.cancel' | t }}</a>
+            <button type="button" class="ws-btn block" (click)="cancel()">{{ 'common.cancel' | t }}</button>
           </aside>
         </div>
         <datalist id="ws-cf-countries">@for (c of countries; track c) { <option [value]="c"></option> }</datalist>
@@ -241,7 +243,10 @@ const num = (v: string | null | undefined) => (v === null || v === undefined || 
     @media (max-width: 640px) { .grid, .new-supplier { grid-template-columns:minmax(0, 1fr); } }
   `],
 })
-export class ContainerFormComponent implements OnInit {
+export class ContainerFormComponent implements OnInit, HasUnsavedChanges {
+  private readonly nav = inject(NavService);
+  /** Something was typed or picked and not saved yet (leaving asks first). */
+  protected touched = false;
   protected readonly i18n = inject(I18nService);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
@@ -353,6 +358,7 @@ export class ContainerFormComponent implements OnInit {
     this.http.get<ContainerRow>(`/api/procurement/containers/${this.id()}`).subscribe({
       next: (c) => {
         this.number = c.containerNumber;
+        this.nav.setName(c.id, c.containerNumber);
         this.vendorId = c.vendorId ?? '';
         this.origin = c.originCountry ?? '';
         this.status = c.status;
@@ -405,7 +411,20 @@ export class ContainerFormComponent implements OnInit {
     }
   }
 
+  hasUnsavedChanges(): boolean {
+    return this.touched;
+  }
+  @HostListener('window:beforeunload', ['$event'])
+  protected beforeUnload(e: BeforeUnloadEvent): void {
+    warnBeforeUnload(e, this.touched);
+  }
+  protected cancel(): void {
+    this.touched = false;
+    this.nav.back(this.id() ? ['/receive/records/containers', this.id()] : ['/receive/records/containers']);
+  }
+
   protected addCharge(): void {
+    this.touched = true;
     const used = new Set(this._charges.map((c) => c.type));
     const line: ChargeLine = { type: CONTAINER_CHARGES.find((t) => !used.has(t)) ?? 'MISC', amount: null };
     // Each line tells the summary when its amount changes.
@@ -417,6 +436,7 @@ export class ContainerFormComponent implements OnInit {
   }
 
   protected removeCharge(i: number): void {
+    this.touched = true;
     this._charges.splice(i, 1);
     this.tick.update((n) => n + 1);
   }
@@ -447,6 +467,10 @@ export class ContainerFormComponent implements OnInit {
       if (id) {
         await firstValueFrom(this.http.patch(`/api/procurement/containers/${id}`, { ...common, ...(this.kgLocked() ? {} : { netWeightKg: Number(this._kg) }) }));
         this.toast.show(this.i18n.t('ws.cf.saved'));
+        this.touched = false;
+        // Back to the container (the page you came from), which loads again with the changes.
+        this.nav.back(['/receive/records/containers', id]);
+        return;
       } else {
         const r = await firstValueFrom(
           this.http.post<{ id: string; containerNumber: string }>('/api/procurement/containers', {
@@ -461,7 +485,9 @@ export class ContainerFormComponent implements OnInit {
         id = r.id;
         this.toast.show(this.i18n.t('ws.cf.received', { no: r.containerNumber }));
       }
-      void this.router.navigate(['/receive/records/containers', id]);
+      this.touched = false;
+      // The new container replaces the form in history: Back goes to the list, not to an empty form.
+      void this.nav.replace(['/receive/records/containers', id]);
     } catch (e: any) {
       this.toast.error(e?.error?.message || this.i18n.t('common.couldNotSave'));
     } finally {

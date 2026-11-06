@@ -2,7 +2,7 @@ import { HelpLinkComponent } from '../help/help-link.component';
 import { Component, DestroyRef, HostListener, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { ChevronDown, Download, LayoutGrid, LucideAngularModule, Plus, Rows3, SlidersHorizontal } from 'lucide-angular';
 import { catchError, debounceTime, distinctUntilChanged, map, of, switchMap } from 'rxjs';
 import { I18nService, serverLang } from '../../core/i18n/i18n.service';
@@ -179,6 +179,7 @@ export class ListPageComponent {
   protected readonly i18n = inject(I18nService);
   private readonly lists = inject(ListClient);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
   /** From route data. */
@@ -295,7 +296,7 @@ export class ListPageComponent {
   constructor() {
     toObservable(this.query)
       .pipe(debounceTime(250), distinctUntilChanged(), takeUntilDestroyed())
-      .subscribe((q) => this.patch({ q, page: 1 }));
+      .subscribe((q) => q !== this.state().q && this.patch({ q, page: 1 }));
 
     const request = computed(() => ({ state: this.state(), n: this.reloads(), resource: this.list().resource, board: this.layout() === 'board' }));
     toObservable(request)
@@ -317,20 +318,37 @@ export class ListPageComponent {
         else this.failed.set(true);
       });
 
-    // A new list (another route) starts from its own default view.
+    // A list opens as its address says (Back from a record, a shared link): search, filters, sort, page, layout
+    // and saved view come back. Without that it starts from its own default view.
     effect(() => {
       const resource = this.list().resource;
       untracked(() => {
-        this.state.set(this.fresh());
+        const fromUrl = this.readUrl();
+        this.state.set(fromUrl ? { ...this.fresh(), ...fromUrl.state } : this.fresh());
+        this.query.set(this.state().q);
         this.view.set(null);
         this.lists.views(resource).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
           next: (views) => {
             this.views.set(views);
-            const dflt = views.find((v) => v.isDefault);
-            if (dflt) this.applyView(dflt);
+            if (fromUrl) this.view.set(views.find((v) => v.id === fromUrl.view) ?? null);
+            else {
+              const dflt = views.find((v) => v.isDefault);
+              if (dflt) this.applyView(dflt);
+            }
           },
           error: () => undefined,
         });
+      });
+    });
+
+    // Every change is written to the address (replacing it, so Back still goes to the page before).
+    effect(() => {
+      const state = this.state();
+      const view = this.view();
+      untracked(() => {
+        const v = this.encode(state, view);
+        if (v === (this.route.snapshot.queryParamMap.get('v') ?? null)) return;
+        void this.router.navigate([], { relativeTo: this.route, queryParams: { v }, queryParamsHandling: 'merge', replaceUrl: true });
       });
     });
 
@@ -339,6 +357,26 @@ export class ListPageComponent {
       this.state();
       untracked(() => this.menu() === 'export' && this.menu.set(null));
     });
+  }
+
+  /** The list in the address: only what differs from the screen's default, plus the saved view in use. */
+  private encode(state: ListState & Extra, view: SavedView | null): string | null {
+    const base = this.fresh() as unknown as Record<string, unknown>;
+    const diff: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(state)) if (JSON.stringify(v) !== JSON.stringify(base[k])) diff[k] = v;
+    if (view) diff['view'] = view.id;
+    return Object.keys(diff).length ? JSON.stringify(diff) : null;
+  }
+
+  private readUrl(): { state: Partial<ListState & Extra>; view: string | null } | null {
+    const raw = this.route.snapshot.queryParamMap.get('v');
+    if (!raw) return null;
+    try {
+      const { view, ...state } = JSON.parse(raw) as Partial<ListState & Extra> & { view?: string };
+      return { state, view: view ?? null };
+    } catch {
+      return null; // an edited or broken address: just the default view
+    }
   }
 
   private fresh(): ListState & Extra {

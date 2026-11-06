@@ -1,4 +1,5 @@
 import { EXPENSES_LIST, LOTS_LIST } from './features/workspace-lists/lists';
+import { unsavedChangesGuard } from './core/nav/unsaved-changes.guard';
 import { desktopRedirect } from './core/guards/desktop-redirect.guard';
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth-guard';
@@ -176,7 +177,7 @@ export const routes: Routes = [
         children: [
           { path: '', redirectTo: 'expenses', pathMatch: 'full' },
           { path: 'expenses', loadComponent: () => import('./features/workspace-lists/list-page.component').then((m) => m.ListPageComponent), data: { list: EXPENSES_LIST }, title: 'ThriftOS' },
-          { path: 'expenses/new', loadComponent: () => import('./features/workspace-lists/expense.component').then((m) => m.ExpenseComponent), title: 'ThriftOS' },
+          { path: 'expenses/new', canDeactivate: [unsavedChangesGuard], loadComponent: () => import('./features/workspace-lists/expense.component').then((m) => m.ExpenseComponent), title: 'ThriftOS' },
           { path: 'expenses/:id', loadComponent: () => import('./features/workspace-lists/expense.component').then((m) => m.ExpenseComponent), title: 'ThriftOS' },
           { path: 'book', loadComponent: () => import('./features/workspace-lists/finance-book.component').then((m) => m.FinanceBookComponent), title: 'ThriftOS' },
           { path: 'close', loadComponent: () => import('./features/workspace-lists/cash-close.component').then((m) => m.CashCloseComponent), title: 'ThriftOS' },
@@ -239,6 +240,9 @@ export const routes: Routes = [
           },
         ],
       },
+      { path: 'unavailable', loadComponent: () => import('./features/error/not-found.component').then((m) => m.NotFoundComponent), title: 'ThriftOS' },
+      // An address that does not exist says so (with a way back) instead of jumping to Home without a word.
+      { path: '**', loadComponent: () => import('./features/error/not-found.component').then((m) => m.NotFoundComponent), title: 'ThriftOS' },
     ],
   },
 

@@ -1,8 +1,9 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { NavService } from '../../core/nav/nav.service';
+import { Component, computed, inject, input, signal, effect } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { BookOpen, CalendarCheck, Clock, Coins, FileText, Gauge, LucideAngularModule, MessageCircle, Receipt, Tags, Wallet } from 'lucide-angular';
 import { catchError, map, of, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth';
@@ -105,7 +106,7 @@ const METHODS: readonly PaymentMethod[] = ['CASH', 'JAZZCASH', 'EASYPAISA', 'RAA
 
           <ws-bar-chart [heading]="'ws.customer.months' | t" [categories]="monthLabels()" [series]="monthSeries()" format="money" />
 
-          <ws-tabs [tabs]="tabs()" [active]="tab()" (activeChange)="chosenTab.set($event)" [label]="d.customer.name" />
+          <ws-tabs [tabs]="tabs()" [active]="tab()" (activeChange)="pickTab($event)" [label]="d.customer.name" />
           <div role="tabpanel" [id]="'ws-panel-' + tab()" [attr.aria-labelledby]="'ws-tab-' + tab()">
             @switch (tab()) {
               @case ('sales') { <ws-data-grid [caption]="'ws.container.tab.sales' | t" [columns]="saleColumns()" [rows]="saleRows()" [clickable]="true" (rowClick)="openSale($event)" [emptyHeading]="'ws.container.noSales' | t" /> }
@@ -197,6 +198,18 @@ export class CustomerRecordComponent {
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
   readonly id = input.required<string>();
+  private readonly tabRoute = inject(ActivatedRoute);
+  /** The tab goes into the address (?tab=), so Back from a row opens this tab again. */
+  protected pickTab(tab: string): void {
+    void this.router.navigate([], { relativeTo: this.tabRoute, queryParams: { tab }, queryParamsHandling: 'merge', replaceUrl: true });
+  }
+  private readonly nav = inject(NavService);
+  /** The breadcrumb and browser tab name this record once it has loaded. */
+  private readonly crumbName = effect(() => {
+    const d = this.data();
+    const id = this.id();
+    if (d && id) this.nav.setName(id, d.customer.name);
+  });
   readonly tabParam = input<string | undefined>(undefined, { alias: 'tab' });
 
   protected readonly icons = { BookOpen, CalendarCheck, Clock, Coins, FileText, Gauge, MessageCircle, Receipt, Tags, Wallet };

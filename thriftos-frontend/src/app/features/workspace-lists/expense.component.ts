@@ -1,5 +1,7 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { NavService } from '../../core/nav/nav.service';
+import { HasUnsavedChanges, warnBeforeUnload } from '../../core/nav/unsaved-changes.guard';
+import { Component, computed, inject, input, signal, effect, HostListener } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -31,7 +33,7 @@ const today = () => new Date(Date.now() + 5 * 3_600_000).toISOString().slice(0, 
     @if (!id()) {
       <div class="page narrow">
         <ws-page-header [heading]="'ws.expenses.new' | t" [subtitle]="'ws.expenses.newHint' | t" />
-        <form class="form card-like" (ngSubmit)="save()">
+        <form class="form card-like" (ngSubmit)="save()" (input)="touched = true" (change)="touched = true">
           <label>{{ 'ws.container.category' | t }}
             <select name="category" required [(ngModel)]="category">
               @for (c of categories; track c) { <option [value]="c">{{ 'ws.expenseCategory.' + c | t }}</option> }
@@ -93,7 +95,16 @@ const today = () => new Date(Date.now() + 5 * 3_600_000).toISOString().slice(0, 
     @media (max-width: 1199px) { .record { grid-template-columns:minmax(0, 1fr); } .side { position:static; } }
   `],
 })
-export class ExpenseComponent {
+export class ExpenseComponent implements HasUnsavedChanges {
+  /** Something was typed in the new expense and not saved yet (leaving asks first). */
+  protected touched = false;
+  hasUnsavedChanges(): boolean {
+    return !this.id() && this.touched;
+  }
+  @HostListener('window:beforeunload', ['$event'])
+  protected beforeUnload(e: BeforeUnloadEvent): void {
+    warnBeforeUnload(e, this.hasUnsavedChanges());
+  }
   protected readonly i18n = inject(I18nService);
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
@@ -101,6 +112,13 @@ export class ExpenseComponent {
   private readonly toast = inject(ToastService);
   /** Absent on /finance/expenses/new. */
   readonly id = input<string | undefined>();
+  private readonly nav = inject(NavService);
+  /** The breadcrumb and browser tab name this record once it has loaded. */
+  private readonly crumbName = effect(() => {
+    const d = this.data();
+    const id = this.id();
+    if (d && id) this.nav.setName(id, this.i18n.t('ws.expenseCategory.' + d.category) + ' · ' + this.i18n.money(d.amount));
+  });
   protected readonly categories = EXPENSE_CATEGORIES;
   protected readonly methods = PAYMENT_METHODS;
   protected readonly maxDay = today();
@@ -155,7 +173,7 @@ export class ExpenseComponent {
     this.http
       .post<{ id: string }>('/api/workspace/expenses', { category: this.category, amount: this.amount, day: this.day, method: this.method, paidTo: this.paidTo.trim() || undefined, note: this.note.trim() || undefined })
       .subscribe({
-        next: (e) => { this.busy.set(false); this.toast.show(this.i18n.t('ws.expenses.saved')); void this.router.navigate(['/finance/expenses', e.id]); },
+        next: (e) => { this.busy.set(false); this.touched = false; this.toast.show(this.i18n.t('ws.expenses.saved')); void this.nav.replace(['/finance/expenses', e.id]); },
         error: (e) => this.failedWith(e),
       });
   }

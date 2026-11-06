@@ -12,6 +12,7 @@
 import { Router, Routes } from '@angular/router';
 import { inject } from '@angular/core';
 import { permissionGuard } from '../../core/guards/permission-guard';
+import { unsavedChangesGuard } from '../../core/nav/unsaved-changes.guard';
 import { moduleGuard } from '../../core/guards/module.guard';
 import { CONTAINERS_LIST, PURCHASE_LOTS_LIST, PURCHASING_TABS, SUPPLIERS_LIST } from '../../features/workspace-lists/lists';
 
@@ -43,6 +44,7 @@ export const PROCUREMENT_ROUTES: Routes = [
         loadComponent: () => import('../../features/workspace-lists/lot-form.component').then((m) => m.LotFormComponent),
         title: 'Buy a loose lot - ThriftOS',
         canActivate: [permissionGuard],
+        canDeactivate: [unsavedChangesGuard],
         data: { permissions: ['rag.create'] },
       },
       {
@@ -50,8 +52,11 @@ export const PROCUREMENT_ROUTES: Routes = [
         loadComponent: () => import('../../features/workspace-lists/lot-form.component').then((m) => m.LotFormComponent),
         title: 'Edit loose lot - ThriftOS',
         canActivate: [permissionGuard],
+        canDeactivate: [unsavedChangesGuard],
         data: { permissions: ['rag.create'] },
       },
+      // A lot's own page is its sorting record (the breadcrumb Purchasing › Loose lots › BALE-… links here).
+      { path: ':id', redirectTo: '/sort/records/:id' },
     ],
   },
 
@@ -124,6 +129,7 @@ export const PROCUREMENT_ROUTES: Routes = [
         loadComponent: () => import('../../features/workspace-lists/container-form.component').then((m) => m.ContainerFormComponent),
         title: 'Receive a container - ThriftOS',
         canActivate: [permissionGuard],
+        canDeactivate: [unsavedChangesGuard],
         data: { permissions: ['container.create'] },
       },
       {
@@ -131,6 +137,7 @@ export const PROCUREMENT_ROUTES: Routes = [
         loadComponent: () => import('../../features/workspace-lists/container-form.component').then((m) => m.ContainerFormComponent),
         title: 'Edit container - ThriftOS',
         canActivate: [permissionGuard],
+        canDeactivate: [unsavedChangesGuard],
         data: { permissions: ['container.update'] },
       },
       // Charges and lots are added in a panel on the container's page now (v2 review); old links land there.
