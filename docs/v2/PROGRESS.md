@@ -112,6 +112,12 @@
   - Tests: server e2e `purchasing-review` (gaari list only loose lots, price per kg and sorted % while sorting, search, other business sees none; container cleared when sorting starts, late charge still accepted); the purchasing e2e now expects Cleared after sorting. Browser: list tests use the View panel; new "purchasing" test (tabs, buttons, column note, remembered tab, old address). Server 295/295, Karma 19/19, browser 41 passed + 4 skipped, i18n 1265 keys.
   - Decided by the owner: amounts keep international grouping (2,309,688), not lakh grouping.
   - Breadcrumbs no longer show the internal "Records" step: Purchasing › Containers, Sales, Sorting (was Purchasing › Records › Containers). Unit test added.
+- **Review: loose lot form (Purchasing).** All eight findings fixed.
+  - Laptop form at `/receive/records/lots/new` and `/:id/edit` (`lot-form.component.ts`): supplier (optional, shown first, + new supplier with any country), raw type, "Bought on" day, kg, price paid, note; the side shows the price per kg and what is still needed; saving opens the lot. `/receive/lot` on a laptop goes to it; the phone keeps its screen (supplier shown openly, raw type and day under More details, "Still needed" line).
+  - Edit button on a loose lot's page: supplier, day, price and note any time; kg and raw type until sorting starts. A container lot points to its container instead.
+  - Server: `receivedAt` on create (sets the lot's date); `vendorId` and `receivedAt` on update, loose lots only, supplier checked per business.
+  - One name, "Buy a loose lot" (button, page, breadcrumb, Create menu). Lists say "1 lot", "1 container"… (`countOne` keys).
+  - Tests: `loose-lot-form.e2e-spec.ts` (date, raw type, supplier, edit, other business refused, container lot refused), browser test "loose lot form". Server 300, Karma 20, browser 44 passed + 4 skipped.
 - **Review: container page (Purchasing).** All eight findings fixed.
   - One row that reads in order (Total cost → Net kg → Sorted % → Bales → Sold so far → Profit so far), each with an "i" note and a link to its tab; the 7 cards and the repeated "Landed" strip are gone. "Landed cost" tab is "Total cost".
   - The status bar offers the allowed moves as buttons (On the way ↔ Arrived ↔ Cleared → Closed) with a confirm panel; closing warns that no more charges, lots or changes can be made. Edit, Add charge and Add lot hide once closed.

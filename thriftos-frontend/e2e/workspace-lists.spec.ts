@@ -399,7 +399,7 @@ test('purchasing: containers and loose lots as two tabs, each with its own butto
   await page.locator('nav.tabs').getByRole('link', { name: 'Loose lots' }).click();
   await expect(page).toHaveURL(/\/receive\/records\/lots$/);
   await expect(page.getByRole('heading', { name: 'Loose lots', exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Buy a loose lot' })).toHaveAttribute('href', '/receive/lot');
+  await expect(page.getByRole('link', { name: 'Buy a loose lot' })).toHaveAttribute('href', '/receive/records/lots/new');
   await expect(page.locator('.nav-item.also')).toContainText('Purchasing');
 
   // Purchasing opens on the tab used last; the old lots address opens this tab instead of a blank page.
@@ -443,4 +443,33 @@ test('container form: receive on a laptop with date, status and charges, then ed
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page).toHaveURL(/\/receive\/records\/containers\/(?!new)[^/]+$/);
   await expect(page.locator('main')).toContainText(/Rs 120\W*per kg/);
+});
+
+test('loose lot form: buy one on a laptop with supplier and day, open it, then fix its price', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/receive/records/lots');
+  await page.getByRole('link', { name: 'Buy a loose lot' }).click();
+  await expect(page).toHaveURL(/\/receive\/records\/lots\/new$/);
+  await expect(page.getByRole('heading', { name: 'Buy a loose lot' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Still needed' })).toContainText('the price paid');
+
+  await page.getByLabel(/^Supplier/).selectOption({ index: 1 });
+  await page.locator('input[name=date]').fill('2026-11-01');
+  await page.getByLabel(/^Lot weight/).fill('800');
+  await page.getByLabel(/^Price paid/).fill('160000');
+  await expect(page.locator('aside.side')).toContainText('Rs 200');
+  await page.getByRole('button', { name: 'Save lot' }).click();
+  await expect(page).toHaveURL(/\/sort\/records\/(?!new)[^/]+$/);
+
+  await page.getByRole('link', { name: 'Edit' }).click();
+  await expect(page).toHaveURL(/\/receive\/records\/lots\/[^/]+\/edit$/);
+  await expect(page.getByLabel(/^Lot weight/)).toHaveValue('800');
+  await page.getByLabel(/^Price paid/).fill('120000');
+  await expect(page.locator('aside.side')).toContainText('Rs 150');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page).toHaveURL(/\/sort\/records\/[^/]+$/);
+
+  await page.goto('/receive/records/lots');
+  const row = page.locator('ws-data-grid tbody tr').filter({ hasText: '1 Nov 2026' });
+  await expect(row.first()).toContainText('120,000');
 });

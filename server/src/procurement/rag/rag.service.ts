@@ -93,6 +93,7 @@ export class RagService {
       ?? (vendorId ? (await this.prisma.vendor.findUnique({ where: { id: vendorId }, select: { originCountry: true } }))?.originCountry : null)
       ?? null;
     const purchaseCost = container ? null : new Prisma.Decimal(dto.purchaseCost ?? 0);
+    const boughtAt = container ? null : lotDate(dto.receivedAt);
 
     const rag = await this.prisma.$transaction(async (tx) => {
       const created = await tx.rag.create({
@@ -109,6 +110,7 @@ export class RagService {
           purchaseCost,
           allocatedCost: purchaseCost ?? 0,
           notes: dto.notes,
+          ...(boughtAt && { createdAt: boughtAt }),
         },
       });
       // A container lot takes its share of the landed cost; the other lots are re-split too.
@@ -243,6 +245,15 @@ export class RagService {
       const raw = await this.prisma.rawCategory.findFirst({ where: { id: dto.rawCategoryId, tenantId, isActive: true } });
       if (!raw) throw new BadRequestException('Raw category not found or inactive');
     }
+    if ((dto.vendorId !== undefined || dto.receivedAt !== undefined) && rag.containerId) {
+      throw new BadRequestException('A container lot takes its supplier and date from the container. Edit the container.');
+    }
+    let vendor: { id: string; originCountry: string | null } | null = null;
+    if (dto.vendorId) {
+      vendor = await this.prisma.vendor.findFirst({ where: { id: dto.vendorId, tenantId }, select: { id: true, originCountry: true } });
+      if (!vendor) throw new BadRequestException('Supplier not found');
+    }
+    const boughtAt = lotDate(dto.receivedAt);
     if (dto.weightKg !== undefined && rag.containerId) {
       const others = await this.prisma.rag.aggregate({
         where: { containerId: rag.containerId, NOT: { id: rag.id } },
@@ -265,6 +276,8 @@ export class RagService {
           ...(dto.weightKg !== undefined && { weightKg: new Prisma.Decimal(dto.weightKg) }),
           ...(dto.purchaseCost !== undefined && { purchaseCost: new Prisma.Decimal(dto.purchaseCost) }),
           ...(dto.notes !== undefined && { notes: dto.notes }),
+          ...(vendor && { vendorId: vendor.id, ...(vendor.originCountry ? { originCountry: vendor.originCountry } : {}) }),
+          ...(boughtAt && { createdAt: boughtAt }),
         },
       });
       if (dto.weightKg !== undefined || dto.purchaseCost !== undefined) {
@@ -325,4 +338,13 @@ export class RagService {
 
     return { success: true };
   }
+}
+
+/** A loose lot's own day from the form: valid and not later than tomorrow (clock differences). */
+function lotDate(value?: string): Date | null {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) throw new BadRequestException('The date is not valid');
+  if (d.getTime() > Date.now() + 36 * 3600 * 1000) throw new BadRequestException('The date cannot be in the future');
+  return d;
 }

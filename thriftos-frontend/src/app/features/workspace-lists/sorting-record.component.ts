@@ -2,8 +2,9 @@ import { HttpClient } from '@angular/common/http';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { Clock, Coins, Layers3, LucideAngularModule, Percent, Play, Scale, Trash2 } from 'lucide-angular';
+import { Clock, Coins, Layers3, LucideAngularModule, Percent, Play, Scale, Trash2, Pencil } from 'lucide-angular';
 import { catchError, map, of, switchMap } from 'rxjs';
+import { AuthService } from '../../core/auth';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
 import {
@@ -46,6 +47,9 @@ const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
       <div class="record">
         <div class="main">
           <ws-page-header [heading]="d.lot.code + (d.lot.supplier ? ' · ' + d.lot.supplier.name : '')" [subtitle]="subtitle()">
+            @if (d.lot.source === 'LOOSE_BALE' && can('rag.create')) {
+              <a actions class="ws-btn" [routerLink]="['/receive/records/lots', d.lot.id, 'edit']"><lucide-icon [img]="icons.Pencil" [size]="16" aria-hidden="true" />{{ 'ws.container.edit' | t }}</a>
+            }
             @if (d.lot.status !== 'SORTED') {
               <a actions class="ws-btn primary" [routerLink]="['/sort', d.lot.id]"><lucide-icon [img]="icons.Play" [size]="16" aria-hidden="true" />{{ (d.lot.status === 'NOT_STARTED' ? 'ws.sortRecord.start' : 'ws.sortRecord.continue') | t }}</a>
             }
@@ -95,7 +99,11 @@ export class SortingRecordComponent {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   readonly id = input.required<string>();
-  protected readonly icons = { Clock, Coins, Layers3, Percent, Play, Scale, Trash2 };
+  private readonly auth = inject(AuthService);
+  protected can(code: string): boolean {
+    return this.auth.isSuperAdmin() || this.auth.permissions().includes(code);
+  }
+  protected readonly icons = { Clock, Coins, Layers3, Pencil, Percent, Play, Scale, Trash2 };
   protected readonly data = signal<SortingRecord | null>(null);
   protected readonly failed = signal(false);
   private readonly reloads = signal(0);

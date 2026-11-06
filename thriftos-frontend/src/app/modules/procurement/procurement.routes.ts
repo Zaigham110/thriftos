@@ -29,10 +29,30 @@ export const PROCUREMENT_ROUTES: Routes = [
   // Gaari and loose lots bought without a container (v2 review): the second Purchasing tab.
   {
     path: 'lots',
-    loadComponent: () => import('../../features/workspace-lists/list-page.component').then((m) => m.ListPageComponent),
-    title: 'Loose lots - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['rag.read'], list: PURCHASE_LOTS_LIST },
+    children: [
+      {
+        path: '',
+        loadComponent: () => import('../../features/workspace-lists/list-page.component').then((m) => m.ListPageComponent),
+        title: 'Loose lots - ThriftOS',
+        canActivate: [permissionGuard],
+        data: { permissions: ['rag.read'], list: PURCHASE_LOTS_LIST },
+      },
+      // Buy a loose lot on a laptop, and fix one later (v2 review); the phone keeps /receive/lot.
+      {
+        path: 'new',
+        loadComponent: () => import('../../features/workspace-lists/lot-form.component').then((m) => m.LotFormComponent),
+        title: 'Buy a loose lot - ThriftOS',
+        canActivate: [permissionGuard],
+        data: { permissions: ['rag.create'] },
+      },
+      {
+        path: ':id/edit',
+        loadComponent: () => import('../../features/workspace-lists/lot-form.component').then((m) => m.LotFormComponent),
+        title: 'Edit loose lot - ThriftOS',
+        canActivate: [permissionGuard],
+        data: { permissions: ['rag.create'] },
+      },
+    ],
   },
 
 

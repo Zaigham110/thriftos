@@ -1,6 +1,6 @@
-import { IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { IsDateString, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
-/** Corrections to a lot. Weight and raw category only before sorting; price only for loose lots. */
+/** Corrections to a lot. Weight and raw category only before sorting; price, supplier and date only for loose lots. */
 export class UpdateRagDto {
   @IsString()
   @IsOptional()
@@ -20,4 +20,12 @@ export class UpdateRagDto {
   @IsOptional()
   @MaxLength(500)
   notes?: string;
+
+  @IsString()
+  @IsOptional()
+  vendorId?: string;
+
+  @IsDateString()
+  @IsOptional()
+  receivedAt?: string;
 }

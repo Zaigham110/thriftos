@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsNumber, Min, MaxLength, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, Min, MaxLength, IsOptional, IsEnum, IsDateString } from 'class-validator';
 import { RagBaleType } from '@prisma/client';
 
 export class CreateRagDto {
@@ -33,5 +33,9 @@ export class CreateRagDto {
   @IsOptional()
   @MaxLength(500)
   notes?: string;
-}
 
+  /** The day a loose lot was bought (lists and reports use it). Default: now. Not used for container lots. */
+  @IsDateString()
+  @IsOptional()
+  receivedAt?: string;
+}

@@ -120,7 +120,7 @@ export const routes: Routes = [
         children: [
           { path: '', canActivate: [desktopRedirect('/receive/records/containers')], loadComponent: () => import('./features/receive/receive-home.component').then((m) => m.ReceiveHomeComponent), title: 'ThriftOS' },
           { path: 'container', canActivate: [desktopRedirect('/receive/records/containers/new')], loadComponent: () => import('./features/receive/receive-container.component').then((m) => m.ReceiveContainerComponent), title: 'ThriftOS' },
-          { path: 'lot', loadComponent: () => import('./features/receive/receive-lot.component').then((m) => m.ReceiveLotComponent), title: 'ThriftOS' },
+          { path: 'lot', canActivate: [desktopRedirect('/receive/records/lots/new')], loadComponent: () => import('./features/receive/receive-lot.component').then((m) => m.ReceiveLotComponent), title: 'ThriftOS' },
           { path: 'ready', loadComponent: () => import('./features/receive/receive-ready.component').then((m) => m.ReceiveReadyComponent), title: 'ThriftOS' },
           { path: 'ready/open/:id', loadComponent: () => import('./features/receive/open-bale.component').then((m) => m.OpenBaleComponent), title: 'ThriftOS' },
           { path: 'records', loadChildren: () => import('./modules/procurement/procurement.routes').then((m) => m.PROCUREMENT_ROUTES) },

@@ -65,7 +65,7 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
           }
         </nav>
       }
-      <ws-page-header [heading]="c.title | t" [subtitle]="result() ? (c.count | t: { n: i18n.num(result()!.total) }) : ''">
+      <ws-page-header [heading]="c.title | t" [subtitle]="result() ? (countKey() | t: { n: i18n.num(result()!.total) }) : ''">
         @if (c.create; as create) { <a actions class="ws-btn primary" [routerLink]="create.link"><lucide-icon [img]="icons.Plus" [size]="16" aria-hidden="true" />{{ create.label | t }}</a> }
       </ws-page-header>
 
@@ -187,6 +187,12 @@ export class ListPageComponent {
 
   protected readonly state = signal<ListState & Extra>({ ...DEFAULT_LIST_STATE });
   protected readonly query = signal('');
+  /** "1 lot", not "1 lots": a list can give a countOne next to its count. */
+  protected readonly countKey = computed(() => {
+    const key = this.list().count;
+    const one = key.replace(/\.count$/, '.countOne');
+    return this.result()?.total === 1 && one !== key && this.i18n.t(one) !== one ? one : key;
+  });
   protected readonly result = signal<ListResult | null>(null);
   protected readonly loading = signal(true);
   protected readonly failed = signal(false);

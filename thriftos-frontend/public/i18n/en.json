@@ -942,6 +942,7 @@
     "yield": "Sorted %"
    },
    "count": "{n} containers",
+   "countOne": "{n} container",
    "emptyHeading": "No containers match",
    "emptyMessage": "Try other words, a wider period, or clear the filters.",
    "info": {
@@ -965,6 +966,7 @@
     "reason": "Reason"
    },
    "count": "{n} counts",
+   "countOne": "{n} count",
    "emptyHeading": "No stock counts",
    "emptyMessage": "Counts entered on a stock item show here until they are approved.",
    "search": "Search item or reason",
@@ -1104,6 +1106,7 @@
     "paidTo": "Paid to"
    },
    "count": "{n} expenses",
+   "countOne": "{n} expense",
    "emptyHeading": "No expenses",
    "emptyMessage": "Record rent, labour, transport and bills to see real profit.",
    "new": "New expense",
@@ -1158,6 +1161,20 @@
    "label": "Layout",
    "table": "Table"
   },
+  "lf": {
+   "containerLot": "This lot came in a container. Change it from its container.",
+   "date": "Bought on",
+   "dateInfo": "The day you bought the lot. Lists and reports use this day.",
+   "editHint": "Change the supplier, raw type, day, kg and price. Kg and raw type are fixed once sorting starts.",
+   "editTitle": "Edit {code}",
+   "needKg": "the lot weight",
+   "needPrice": "the price paid",
+   "newHint": "A truckload or bales bought locally, without a container. It is ready to sort as soon as you save.",
+   "noSupplier": "No supplier",
+   "noteHint": "e.g. truck number, market",
+   "openContainer": "Open the container",
+   "saved": "Lot saved"
+  },
   "lotStatus": {
    "IN_SORTING": "Sorting",
    "NOT_STARTED": "Waiting",
@@ -1172,6 +1189,7 @@
     "worker": "Sorted by"
    },
    "count": "{n} lots",
+   "countOne": "{n} lot",
    "emptyHeading": "No lots match",
    "emptyMessage": "Try other words, a wider period, or clear the filters.",
    "search": "Search lot, container, origin or raw type",
@@ -1219,7 +1237,7 @@
    "bale": "Make a bale",
    "container": "Receive a container",
    "gaari": "Buy a loose lot",
-   "lot": "Receive a loose lot",
+   "lot": "Buy a loose lot",
    "ready": "Receive ready stock",
    "sale": "New sale"
   },
@@ -1291,6 +1309,7 @@
     "sorted": "Sorted %"
    },
    "count": "{n} lots",
+   "countOne": "{n} lot",
    "emptyHeading": "No loose lots bought yet",
    "emptyMessage": "When you buy a loose lot, add it here with its weight and price.",
    "info": {
@@ -1425,6 +1444,7 @@
   },
   "sales": {
    "count": "{n} sales",
+   "countOne": "{n} sale",
    "emptyHeading": "No sales match",
    "emptyMessage": "Try other words, a wider period, or clear the filters.",
    "search": "Search sale number, customer or city",
@@ -1536,6 +1556,7 @@
     "value": "Value left"
    },
    "count": "{n} stock items",
+   "countOne": "{n} stock item",
    "emptyHeading": "No stock matches",
    "emptyMessage": "Try other words, a wider period, or clear the filters.",
    "search": "Search bale code, item, category, grade or supplier",
@@ -1621,6 +1642,7 @@
     "profitPerKg": "Profit per kg"
    },
    "count": "{n} suppliers",
+   "countOne": "{n} supplier",
    "emptyHeading": "No suppliers match",
    "emptyMessage": "Try other words or clear the filters.",
    "search": "Search supplier, country or phone",

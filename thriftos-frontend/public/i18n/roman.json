@@ -942,6 +942,7 @@
     "yield": "Chhantai %"
    },
    "count": "{n} container",
+   "countOne": "{n} container",
    "emptyHeading": "Koi container nahi mila",
    "emptyMessage": "Doosre lafz, lambi muddat aazmayein, ya filter saaf karein.",
    "info": {
@@ -965,6 +966,7 @@
     "reason": "Wajah"
    },
    "count": "{n} ginti",
+   "countOne": "{n} ginti",
    "emptyHeading": "Stock ki koi ginti nahi",
    "emptyMessage": "Stock item par likhi ginti manzoori tak yahan dikhti hai.",
    "search": "Maal ya wajah dhoondein",
@@ -1104,6 +1106,7 @@
     "paidTo": "Kis ko diya"
    },
    "count": "{n} kharche",
+   "countOne": "{n} kharcha",
    "emptyHeading": "Koi kharcha nahi",
    "emptyMessage": "Asal munafa dekhne ke liye kiraya, mazdoori, transport aur bills likhein.",
    "new": "Naya kharcha",
@@ -1158,6 +1161,20 @@
    "label": "Tarteeb",
    "table": "Table"
   },
+  "lf": {
+   "containerLot": "Yeh lot container mein aaya. Isay container se badlein.",
+   "date": "Kharid ka din",
+   "dateInfo": "Jis din lot khareeda. Listein aur report yehi din leti hain.",
+   "editHint": "Supplier, maal ki qism, din, kg aur qeemat badlein. Chhantai shuru hone ke baad kg aur qism nahi badalte.",
+   "editTitle": "{code} badlein",
+   "needKg": "lot ka wazan",
+   "needPrice": "kitne ka liya",
+   "newHint": "Bina container ke maqami tor par khareedi gaari ya gaanthein. Save karte hi chhantai ke liye tayyar.",
+   "noSupplier": "Koi supplier nahi",
+   "noteHint": "jaise gaari number, mandi",
+   "openContainer": "Container kholein",
+   "saved": "Lot save ho gaya"
+  },
   "lotStatus": {
    "IN_SORTING": "Chhantai",
    "NOT_STARTED": "Intezar",
@@ -1172,6 +1189,7 @@
     "worker": "Kis ne chhanta"
    },
    "count": "{n} lot",
+   "countOne": "{n} lot",
    "emptyHeading": "Koi lot nahi mila",
    "emptyMessage": "Doosre lafz, lambi muddat aazmayein, ya filter saaf karein.",
    "search": "Lot, container, mulk ya maal dhoondein",
@@ -1219,7 +1237,7 @@
    "bale": "Gaanth banayein",
    "container": "Container aya",
    "gaari": "Gaari / lot kharidein",
-   "lot": "Khula lot aya",
+   "lot": "Gaari / lot kharidein",
    "ready": "Tayyar maal aya",
    "sale": "Nayi sale"
   },
@@ -1291,6 +1309,7 @@
     "sorted": "Chhantai %"
    },
    "count": "{n} lot",
+   "countOne": "{n} lot",
    "emptyHeading": "Abhi koi gaari ya lot nahi liya",
    "emptyMessage": "Jab gaari ya khula lot lein, yahan uska wazan aur qeemat likhein.",
    "info": {
@@ -1425,6 +1444,7 @@
   },
   "sales": {
    "count": "{n} sale",
+   "countOne": "{n} sale",
    "emptyHeading": "Koi sale nahi mili",
    "emptyMessage": "Doosre lafz, lambi muddat aazmayein, ya filter saaf karein.",
    "search": "Sale number, customer ya shehar dhoondein",
@@ -1536,6 +1556,7 @@
     "value": "Baqi ki qeemat"
    },
    "count": "{n} stock item",
+   "countOne": "{n} stock item",
    "emptyHeading": "Koi stock nahi mila",
    "emptyMessage": "Doosre lafz, lambi muddat aazmayein, ya filter saaf karein.",
    "search": "Gaanth code, maal, category, grade ya supplier dhoondein",
@@ -1621,6 +1642,7 @@
     "profitPerKg": "Fi kg munafa"
    },
    "count": "{n} supplier",
+   "countOne": "{n} supplier",
    "emptyHeading": "Koi supplier nahi mila",
    "emptyMessage": "Doosre lafz aazmayein ya filter saaf karein.",
    "search": "Supplier, mulk ya phone dhoondein",

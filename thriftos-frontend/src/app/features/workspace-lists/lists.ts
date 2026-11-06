@@ -123,7 +123,7 @@ export const PURCHASE_LOTS_LIST: ListConfig = {
   ],
   quickFilters: [{ field: 'status', label: 'ws.col.status', values: LOT_STATUSES_BOUGHT, prefix: 'ws.lotStatus.' }],
   rowLink: (id) => ['/sort/records', id],
-  create: { label: 'ws.new.gaari', link: '/receive/lot' },
+  create: { label: 'ws.new.gaari', link: '/receive/records/lots/new' },
   tabs: PURCHASING_TABS,
 };
 
@@ -264,7 +264,7 @@ export const LOTS_LIST: ListConfig = {
   ],
   quickFilters: [{ field: 'status', label: 'ws.col.status', values: LOT_STATUSES, prefix: 'ws.lotStatus.' }],
   rowLink: (id) => ['/sort/records', id],
-  create: { label: 'ws.new.lot', link: '/receive/lot' },
+  create: { label: 'ws.new.lot', link: '/receive/records/lots/new' },
   board: { field: 'status', values: LOT_STATUSES, prefix: 'ws.lotStatus.', title: 'code', lines: ['container', 'kg', 'yield'] },
 };
 

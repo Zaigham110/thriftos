@@ -1,0 +1,55 @@
+import { INestApplication } from '@nestjs/common';
+import { PrismaService } from '../../src/prisma/prisma.service';
+import { api, createTenantWithOwner, createTestApp, TestTenant } from './fixtures';
+
+/** v2 review, loose lot form: bought on its own day, with what is inside and from whom; fixed later while not sorted. */
+describe('Loose lot form: date, raw type, supplier and editing (e2e)', () => {
+  let app: INestApplication;
+  let prisma: PrismaService;
+  let a: TestTenant;
+  let b: TestTenant;
+
+  beforeAll(async () => {
+    app = await createTestApp();
+    prisma = app.get(PrismaService);
+    a = await createTenantWithOwner(app);
+    b = await createTenantWithOwner(app);
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  const rawType = async (t: TestTenant, name: string) =>
+    (await api(app, t).post('/tenant/raw-categories', { name: `${name} ${Date.now()}`, rawType: 'BOTH' }).expect(201)).body.id as string;
+
+  it('saves a loose lot on an earlier day with its raw type and supplier; edits them; another business cannot', async () => {
+    const shershah = await api(app, a).post('/procurement/vendors', { name: 'Shershah Gaari Wala', originCountry: 'Pakistan' }).expect(201);
+    const jeans = await rawType(a, 'Jeans mix');
+    const r = await api(app, a)
+      .post('/procurement/rags', { ragBaleType: 'BALE', weightKg: 800, purchaseCost: 160000, vendorId: shershah.body.id, rawCategoryId: jeans, receivedAt: '2026-11-01' })
+      .expect(201);
+    let lot = await prisma.rag.findUniqueOrThrow({ where: { id: r.body.id } });
+    expect(lot).toMatchObject({ sourceType: 'LOOSE_BALE', vendorId: shershah.body.id, rawCategoryId: jeans, originCountry: 'Pakistan' });
+    expect(lot.createdAt.toISOString().slice(0, 10)).toBe('2026-11-01');
+    await api(app, a).post('/procurement/rags', { ragBaleType: 'BALE', weightKg: 10, purchaseCost: 1, receivedAt: '2099-01-01' }).expect(400);
+
+    // Fix it: other supplier, other day, kg and price.
+    const other = await api(app, a).post('/procurement/vendors', { name: 'Lahore Mix Traders' }).expect(201);
+    await api(app, a).patch(`/procurement/rags/${lot.id}`, { vendorId: other.body.id, receivedAt: '2026-11-02', weightKg: 1000, purchaseCost: 150000 }).expect(200);
+    lot = await prisma.rag.findUniqueOrThrow({ where: { id: lot.id } });
+    expect(lot.vendorId).toBe(other.body.id);
+    expect(lot.createdAt.toISOString().slice(0, 10)).toBe('2026-11-02');
+    expect(Number(lot.weightKg)).toBe(1000);
+    expect(Number(lot.allocatedCost)).toBe(150000);
+
+    // Another business: not its lot, not its supplier.
+    await api(app, b).patch(`/procurement/rags/${lot.id}`, { weightKg: 1 }).expect(404);
+    const theirs = await api(app, b).post('/procurement/vendors', { name: 'Theirs' }).expect(201);
+    await api(app, a).patch(`/procurement/rags/${lot.id}`, { vendorId: theirs.body.id }).expect(400);
+
+    // A container lot keeps the container's supplier and date.
+    const c = await api(app, a).post('/procurement/containers', { vendorId: shershah.body.id, netWeightKg: 500, purchaseCost: 5000, withLot: true }).expect(201);
+    await api(app, a).patch(`/procurement/rags/${c.body.rags[0].id}`, { vendorId: other.body.id }).expect(400);
+  });
+});
