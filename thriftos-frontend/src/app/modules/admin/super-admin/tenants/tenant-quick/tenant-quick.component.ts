@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { API_ENDPOINTS } from '../../../../../core/config/api.config';
 import { AuthService } from '../../../../../core/auth';
+import { Lang, LANGS } from '../../../../../core/i18n/i18n.service';
 import { AppPageBodyComponent, AppPageComponent, AppPageHeaderComponent, AppStackComponent } from '../../../../../shared/ui';
 
 interface QuickResult {
@@ -62,8 +63,7 @@ interface QuickResult {
               <summary>Email, language and sorting (optional)</summary>
               <label>Owner's email<input name="ownerEmail" type="email" [(ngModel)]="ownerEmail" maxlength="200" autocomplete="off" dir="ltr" /></label>
               <fieldset><legend>Language</legend>
-                <label class="opt"><input type="radio" name="language" value="ur" [(ngModel)]="language" /> Urdu</label>
-                <label class="opt"><input type="radio" name="language" value="en" [(ngModel)]="language" /> English</label>
+                @for (l of langs; track l.id) { <label class="opt"><input type="radio" name="language" [value]="l.id" [(ngModel)]="language" /> {{ l.name }}</label> }
               </fieldset>
               <fieldset><legend>Sorting</legend>
                 <label class="opt"><input type="radio" name="sorting" [value]="2" [(ngModel)]="sortingStages" /> Category and grade</label>
@@ -114,7 +114,8 @@ export class TenantQuickComponent {
   protected ownerName = '';
   protected ownerPhone = '';
   protected ownerEmail = '';
-  protected language: 'ur' | 'en' = 'ur';
+  protected readonly langs = LANGS;
+  protected language: Lang = 'ur';
   protected sortingStages = 2;
   protected isTest = false;
   protected readonly saving = signal(false);

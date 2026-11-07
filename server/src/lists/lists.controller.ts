@@ -10,6 +10,7 @@ import { TenantGuard } from '../common/guards/tenant.guard';
 import { parseListQuery } from '../common/list/list-query';
 import { toCsv } from '../tenant/data-export';
 import { ListsService } from './lists.service';
+import { isRtl, toLanguage } from '../common/language/language';
 
 /**
  * Workspace lists (enterprise plan E2.1 / E2.3): GET /lists/:name pages, sorts, filters, searches and groups;
@@ -32,7 +33,7 @@ export class ListsController {
   async export(@Param('name') name: string, @TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Query() raw: Record<string, unknown>, @Res() res: Response) {
     const format = String(raw['format'] ?? 'csv');
     if (format !== 'csv' && format !== 'xlsx') throw new BadRequestException('format is csv or xlsx');
-    const lang = raw['lang'] === 'ur' ? 'ur' : 'en';
+    const lang = toLanguage(raw['lang']);
     const columns = String(raw['columns'] ?? '').split(',').map((c) => c.trim()).filter(Boolean);
     const { header, rows, fields, truncated } = await this.lists.exportRows(name, tenantId, user, parseListQuery(raw), lang, columns);
     const day = new Date().toISOString().slice(0, 10);
@@ -51,7 +52,7 @@ export class ListsController {
 
     const wb = new Workbook();
     wb.creator = 'ThriftOS';
-    const ws = wb.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 1, rightToLeft: lang === 'ur' }] });
+    const ws = wb.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 1, rightToLeft: isRtl(lang) }] });
     ws.columns = fields.map((f, i) => ({ header: header[i], key: f.key, width: Math.max(12, header[i].length + 2), style: f.type === 'number' ? { numFmt: '#,##0.00' } : {} }));
     ws.getRow(1).font = { bold: true };
     for (const r of rows) ws.addRow(r);

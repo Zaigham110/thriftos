@@ -7,6 +7,7 @@ import { Injectable, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, catchError, of, tap, throwError } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
+import type { Lang } from '../i18n/i18n.service';
 import { SIGNED_OUT_EVENT, sessionCache } from '../auth/session-cache';
 
 export type CategoryType = 'RAG' | 'BALE' | 'GENERAL';
@@ -28,7 +29,7 @@ export interface TenantProfile {
   enabledModules?: TenantModule[];
   /** 0 = trading only, 1 = category only, 2 = category + grade. */
   sortingStages?: number;
-  defaultLanguage?: 'ur' | 'en';
+  defaultLanguage?: Lang;
   /** Null until the owner finished the setup wizard. */
   setupCompletedAt?: string | null;
 }

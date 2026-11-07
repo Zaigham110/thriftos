@@ -7,7 +7,7 @@ import { PrintSheetComponent } from '../../shared/print/print-sheet.component';
 import { HttpClient } from '@angular/common/http';
 import { API_BASE_URL } from '../../core/config/api.config';
 import { ScanSheetComponent } from '../../shared/floor/scan-sheet.component';
-import { I18nService, serverLang } from '../../core/i18n/i18n.service';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { I18N } from '../../core/i18n/t.pipe';
 import { OfflineQueueService } from '../../core/offline/offline-queue.service';
 import { InventoryItem } from '../../modules/inventory/inventory.models';
@@ -273,7 +273,7 @@ export class SaleComponent implements OnInit {
   }
 
   protected share(sale: SaleDetail): void {
-    this.khata.openWhatsapp(this.khata.billMessage(sale.id, serverLang(this.i18n.lang())), (e: any) => this.toast.error(e?.error?.message || this.i18n.t('common.couldNotLoad')));
+    this.khata.openWhatsapp(this.khata.billMessage(sale.id, this.i18n.lang()), (e: any) => this.toast.error(e?.error?.message || this.i18n.t('common.couldNotLoad')));
   }
 
   protected reset(): void {

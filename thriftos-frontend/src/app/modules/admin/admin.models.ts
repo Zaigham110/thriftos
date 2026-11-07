@@ -1,4 +1,5 @@
 import type { TenantModule } from '../../core/tenant/tenant.service';
+import type { Lang } from '../../core/i18n/i18n.service';
 
 /**
  * Admin Module Models
@@ -268,7 +269,7 @@ export interface Tenant {
   enabledModules?: TenantModule[];
   /** 0 = trading only, 1 = category only, 2 = category + grade. */
   sortingStages?: number;
-  defaultLanguage?: 'ur' | 'en';
+  defaultLanguage?: Lang;
   createdAt: string;
   updatedAt: string;
   _count?: {
@@ -295,7 +296,7 @@ export interface UpdateTenantRequest {
   enabledModules?: TenantModule[];
   /** 0 = trading only, 1 = category only, 2 = category + grade. */
   sortingStages?: number;
-  defaultLanguage?: 'ur' | 'en';
+  defaultLanguage?: Lang;
 }
 
 export type { TenantModule };

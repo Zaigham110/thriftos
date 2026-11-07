@@ -5,7 +5,7 @@ import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { BookOpen, Coins, FileText, LucideAngularModule, MessageCircle, Printer, Receipt, Wallet } from 'lucide-angular';
 import { catchError, map, of, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth';
-import { I18nService, serverLang } from '../../core/i18n/i18n.service';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
 import { KhataService } from '../../modules/sales/khata.service';
 import type { SaleDetail } from '../../modules/sales/sales.models';
@@ -237,7 +237,7 @@ export class SaleRecordComponent {
   protected share(): void {
     const s = this.sale();
     if (!s) return;
-    this.khata.billMessage(s.id, serverLang(this.i18n.lang())).subscribe({
+    this.khata.billMessage(s.id, this.i18n.lang()).subscribe({
       next: (m) => window.open(m.url, '_blank', 'noopener'),
       error: () => this.toast.show(this.i18n.t('common.couldNotLoad')),
     });

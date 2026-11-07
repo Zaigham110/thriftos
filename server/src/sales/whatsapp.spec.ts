@@ -13,12 +13,13 @@ describe('whatsapp', () => {
     expect(whatsappLink(null, 'Hi')).toBe('https://wa.me/?text=Hi');
   });
 
-  it('picks the language from the request, else the tenant default (Urdu unless English)', () => {
+  it('picks the language from the request, else the tenant default, else English', () => {
     expect(language('en', 'ur')).toBe('en');
     expect(language(undefined, 'en')).toBe('en');
     expect(language(undefined, 'ur')).toBe('ur');
     expect(language('fr', 'ur')).toBe('ur');
-    expect(language(undefined, 'roman')).toBe('en');
+    expect(language(undefined, 'roman')).toBe('roman');
+    expect(language('fr', 'xx')).toBe('en');
   });
 
   const bill = { business: 'Al-Madina Traders', customer: 'Ali', saleNumber: 'SAL-2026-0007', total: '60000', paid: '4000', due: '56000', url: 'https://app/bill/t' };
@@ -30,10 +31,12 @@ describe('whatsapp', () => {
     expect(ur).toContain('بل نمبر SAL-2026-0007');
     expect(ur).toContain('باقی: Rs 56,000');
     expect(billMessage('ur', { ...bill, due: 0 })).not.toContain('باقی');
+    expect(billMessage('roman', bill)).toBe('Al-Madina Traders\nAli sahib, bill number SAL-2026-0007\nKul raqam: Rs 60,000\nAda shuda: Rs 4,000\nBaqi: Rs 56,000\nBill dekhein: https://app/bill/t');
   });
 
   it('writes the payment reminder in English and Urdu', () => {
     expect(reminderMessage('en', { business: 'Al-Madina Traders', customer: 'Ali', balance: '18000' })).toContain('your balance with Al-Madina Traders is Rs 18,000');
     expect(reminderMessage('ur', { business: 'Al-Madina Traders', customer: 'Ali', balance: '18000' })).toContain('باقی رقم Rs 18,000');
+    expect(reminderMessage('roman', { business: 'Al-Madina Traders', customer: 'Ali', balance: '18000' })).toContain('aap ki baqi raqam Rs 18,000');
   });
 });

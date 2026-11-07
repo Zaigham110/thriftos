@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import { ArrayMaxSize, IsArray, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
+import { LANGUAGES, Language } from '../../common/language/language';
 
 export class SetupMunshiDto {
   @IsString()
@@ -26,8 +27,8 @@ export class TenantSetupDto {
   @IsIn(['PKR', 'USD', 'AED'])
   currency: string;
 
-  @IsIn(['ur', 'en', 'roman'])
-  language: string;
+  @IsIn(LANGUAGES)
+  language: Language;
 
   /** 0 = sells as bought, 1 = sorts into categories, 2 = categories then grades. */
   @IsInt()

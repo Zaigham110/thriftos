@@ -1,6 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { Lang } from '../i18n/i18n.service';
 
 /** The server's list contract (GET /api/lists/:name), enterprise plan E2.1. */
 export interface ListFieldMeta {
@@ -84,7 +85,7 @@ export class ListClient {
   }
 
   /** Downloads the whole filtered list as CSV or Excel (the browser saves it). */
-  export(name: string, state: ListState, format: 'csv' | 'xlsx', lang: 'en' | 'ur', columns: string[]): Observable<void> {
+  export(name: string, state: ListState, format: 'csv' | 'xlsx', lang: Lang, columns: string[]): Observable<void> {
     let params = listParams(state, { paging: false, groups: false }).set('format', format).set('lang', lang);
     if (columns.length) params = params.set('columns', columns.join(','));
     return new Observable<void>((sub) => {

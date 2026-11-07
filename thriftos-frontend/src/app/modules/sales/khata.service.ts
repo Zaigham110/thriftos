@@ -3,8 +3,9 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../../core/config/api.config';
 import type { Customer, Payment, PaymentMethod, PaymentResult, SaleStatus } from './sales.models';
+import { Lang } from '../../core/i18n/i18n.service';
 
-export type Language = 'ur' | 'en';
+export type Language = Lang;
 
 export interface KhataRow {
   id: string;

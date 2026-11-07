@@ -6,6 +6,7 @@ import { ListQuery } from '../common/list/list-query';
 import { CurrentUserData } from '../common/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { LISTS, RegisteredList } from './list-registry';
+import { Language } from '../common/language/language';
 
 export const EXPORT_MAX_ROWS = 50_000;
 const BATCH = 1000;
@@ -52,7 +53,7 @@ export class ListsService {
   }
 
   /** All matching rows (up to EXPORT_MAX_ROWS) in the list's order, as header + rows, for CSV/Excel. */
-  async exportRows(name: string, tenantId: string, user: CurrentUserData, query: ListQuery, lang: 'en' | 'ur', columns: string[]) {
+  async exportRows(name: string, tenantId: string, user: CurrentUserData, query: ListQuery, lang: Language, columns: string[]) {
     const { list, permissions } = await this.resolve(name, user);
     const fields = visibleFields(list.resource, permissions).filter((f) => !f.hidden);
     const chosen = columns.length ? columns.map((c) => fields.find((f) => f.key === c)).filter((f): f is ListField => !!f) : fields;
@@ -70,7 +71,7 @@ export class ListsService {
     await this.audit.log({ tenantId, userId: user.userId, action: 'LIST_EXPORTED', entityType: 'List', entityId: name, metadataJson: { rows: rows.length, filters: query.filters.length } as never });
     return {
       fields: chosen,
-      header: chosen.map((f) => list.labels[f.key]?.[lang] ?? f.key),
+      header: chosen.map((f) => list.labels[f.key]?.[lang] ?? list.labels[f.key]?.en ?? f.key),
       rows,
       truncated: rows.length >= EXPORT_MAX_ROWS,
     };

@@ -6,7 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { ChevronDown, Download, LayoutGrid, LucideAngularModule, Plus, Rows3, SlidersHorizontal } from 'lucide-angular';
 import { catchError, debounceTime, distinctUntilChanged, map, of, switchMap } from 'rxjs';
-import { I18nService, serverLang } from '../../core/i18n/i18n.service';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
 import { DEFAULT_LIST_STATE, ListClient, ListFilterState, ListResult, ListState, SavedView } from '../../core/list/list-client';
 import { ToastService } from '../../shared/floor/toast.service';
@@ -490,7 +490,7 @@ export class ListPageComponent {
   protected export(format: 'csv' | 'xlsx'): void {
     this.menu.set(null);
     this.exporting.set(true);
-    this.lists.export(this.list().resource, this.state(), format, serverLang(this.i18n.lang()), this.visible()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.lists.export(this.list().resource, this.state(), format, this.i18n.lang(), this.visible()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => this.exporting.set(false),
       error: () => { this.exporting.set(false); this.toast.show(this.i18n.t('common.couldNotLoad')); },
     });

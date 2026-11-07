@@ -4,20 +4,27 @@ import { AuditService } from '../audit/audit.service';
 import { MailService } from '../common/mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PasswordService } from './password.service';
+import { Language, Texts } from '../common/language/language';
 
 const RESET_MINUTES = 30;
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
 
-export function resetEmail(lang: 'en' | 'ur', link: string): { subject: string; text: string } {
-  return lang === 'ur'
-    ? {
-        subject: 'ThriftOS — نیا پاس ورڈ',
-        text: `نیا پاس ورڈ بنانے کے لیے یہ لنک کھولیں (${RESET_MINUTES} منٹ تک چلے گا):\n${link}\n\nاگر آپ نے یہ نہیں مانگا تو اس ای میل کو نظر انداز کریں۔`,
-      }
-    : {
-        subject: 'ThriftOS — set a new password',
-        text: `Open this link to set a new password (it works for ${RESET_MINUTES} minutes):\n${link}\n\nIf you did not ask for this, ignore this email.`,
-      };
+export function resetEmail(lang: Language, link: string): { subject: string; text: string } {
+  const t: Texts<{ subject: string; text: string }> = {
+    en: {
+      subject: 'ThriftOS — set a new password',
+      text: `Open this link to set a new password (it works for ${RESET_MINUTES} minutes):\n${link}\n\nIf you did not ask for this, ignore this email.`,
+    },
+    ur: {
+      subject: 'ThriftOS — نیا پاس ورڈ',
+      text: `نیا پاس ورڈ بنانے کے لیے یہ لنک کھولیں (${RESET_MINUTES} منٹ تک چلے گا):\n${link}\n\nاگر آپ نے یہ نہیں مانگا تو اس ای میل کو نظر انداز کریں۔`,
+    },
+    roman: {
+      subject: 'ThriftOS — naya password',
+      text: `Naya password banane ke liye yeh link kholein (${RESET_MINUTES} minute tak chalega):\n${link}\n\nAgar aap ne yeh nahin manga to is email ko nazar andaaz karein.`,
+    },
+  };
+  return t[lang];
 }
 
 /** Change password (signed in), and forgot/reset by a one-time emailed link. */
@@ -41,7 +48,7 @@ export class PasswordResetService {
   }
 
   /** Always succeeds from the outside, so nobody can test which emails have accounts. */
-  async requestReset(email: string, lang: 'en' | 'ur' = 'en', ipAddress?: string): Promise<void> {
+  async requestReset(email: string, lang: Language = 'en', ipAddress?: string): Promise<void> {
     if (!this.mail.configured) return;
     const user = await this.prisma.user.findFirst({ where: { email: email.trim().toLowerCase(), isActive: true, passwordHash: { not: null } } });
     if (!user?.email) return;

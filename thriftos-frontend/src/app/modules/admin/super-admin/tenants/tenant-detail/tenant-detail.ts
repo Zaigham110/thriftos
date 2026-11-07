@@ -15,12 +15,13 @@ import { AppPageBodyComponent, AppPageComponent, AppPageHeaderComponent } from '
 import { auditLabel } from '../../audit-labels';
 import { activityLabel } from '../tenants-list/tenants-list';
 import { Tenant } from '../tenant.models';
+import { isLang, Lang, langName, LANGS } from '../../../../../core/i18n/i18n.service';
 
 interface Person {
   id: string; name: string; email: string | null; phone: string | null; hasPin: boolean; pinLocked: boolean; isActive: boolean; roles: string[];
 }
 type Business = Tenant & {
-  defaultLanguage?: 'ur' | 'en';
+  defaultLanguage?: Lang;
   isTest?: boolean;
   sample?: { state: 'running' | 'done' | 'failed'; sales?: number; bales?: number; message?: string } | null;
   users?: Person[];
@@ -42,7 +43,7 @@ type Sheet = 'edit' | 'person' | 'switch' | 'support' | 'delete' | 'secret' | nu
               @if (t.isTest) { <span class="chip test">Test</span> }
               @if (t.status !== 'ACTIVE') { <span class="chip off">Switched off</span> }
             </h1>
-            <p class="page-subtitle">{{ t.defaultLanguage === 'en' ? 'English' : 'Urdu' }} · {{ t.currencyCode }} · made {{ t.createdAt | date: 'd MMM y' }} · code <span dir="ltr">{{ t.companyCode }}</span></p>
+            <p class="page-subtitle">{{ langName(t.defaultLanguage) }} · {{ t.currencyCode }} · made {{ t.createdAt | date: 'd MMM y' }} · code <span dir="ltr">{{ t.companyCode }}</span></p>
           }
         </div>
         @if (b(); as t) {
@@ -136,8 +137,7 @@ type Sheet = 'edit' | 'person' | 'switch' | 'support' | 'delete' | 'secret' | nu
             <form id="d-form" class="form" (ngSubmit)="saveEdit()">
               <label>Business name<input name="name" required maxlength="100" [(ngModel)]="editName" /></label>
               <fieldset><legend>Opens in</legend>
-                <label class="opt"><input type="radio" name="lang" value="ur" [(ngModel)]="editLang" /> Urdu</label>
-                <label class="opt"><input type="radio" name="lang" value="en" [(ngModel)]="editLang" /> English</label>
+                @for (l of langs; track l.id) { <label class="opt"><input type="radio" name="lang" [value]="l.id" [(ngModel)]="editLang" /> {{ l.name }}</label> }
               </fieldset>
             </form>
           }
@@ -267,7 +267,9 @@ export class TenantDetailComponent implements OnInit {
     return !c?.containers && !c?.sales && !c?.customers;
   });
   protected editName = '';
-  protected editLang: 'ur' | 'en' = 'ur';
+  protected readonly langs = LANGS;
+  protected readonly langName = langName;
+  protected editLang: Lang = 'ur';
   protected personId = '';
   protected personName = '';
   protected personPhone = '';
@@ -329,7 +331,7 @@ export class TenantDetailComponent implements OnInit {
     const t = this.b();
     if (!t) return;
     this.editName = t.name;
-    this.editLang = t.defaultLanguage === 'en' ? 'en' : 'ur';
+    this.editLang = isLang(t.defaultLanguage) ? t.defaultLanguage : 'ur';
     this.open('edit');
   }
 

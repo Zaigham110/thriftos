@@ -7,7 +7,7 @@ import { PrintDocsService, PrintJob } from '../../core/print/print-docs.service'
 import { PrintSheetComponent } from '../../shared/print/print-sheet.component';
 import { switchMap } from 'rxjs';
 
-import { I18nService, serverLang, ServerLang } from '../../core/i18n/i18n.service';
+import { I18nService, Lang, LANGS } from '../../core/i18n/i18n.service';
 import { I18N } from '../../core/i18n/t.pipe';
 import { OfflineQueueService } from '../../core/offline/offline-queue.service';
 import { CustomersService } from '../../modules/sales/customers.service';
@@ -41,8 +41,7 @@ import { METHODS } from '../sell/sale.component';
           <div class="row2 actions">
             <button type="button" class="btn" [disabled]="+l.balance <= 0" (click)="remind()"><lucide-icon [img]="icons.MessageCircle" [size]="18" /> {{ 'khata.remind' | t }}</button>
             <div class="chips lang" role="group" [attr.aria-label]="'khata.reminderLang' | t">
-              <button type="button" class="chip" [class.on]="remindLang() === 'ur'" (click)="remindLang.set('ur')">اردو</button>
-              <button type="button" class="chip" [class.on]="remindLang() === 'en'" (click)="remindLang.set('en')">English</button>
+              @for (l of langs; track l.id) { <button type="button" class="chip" [class.on]="remindLang() === l.id" (click)="remindLang.set(l.id)">{{ l.name }}</button> }
             </div>
           </div>
         </section>
@@ -128,7 +127,8 @@ export class KhataCustomerComponent implements OnInit {
   protected readonly saving = signal(false);
   protected readonly method = signal<PaymentMethod>('CASH');
   protected readonly amount = signal<number | null>(null);
-  protected readonly remindLang = signal<ServerLang>(serverLang(this.i18n.lang()));
+  protected readonly langs = LANGS;
+  protected readonly remindLang = signal<Lang>(this.i18n.lang());
   protected readonly editOpening = signal<number | null>(null);
   protected photo: File | null = null;
   protected editName = '';

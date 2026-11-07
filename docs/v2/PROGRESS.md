@@ -187,6 +187,11 @@
   - Server: tenant default language and setup accept `roman`; WhatsApp text, bills and exports go out in English for Roman Urdu (only `ur` gets Urdu script).
   - `npm run i18n:check` now checks roman.json has every key with the same placeholders and no Urdu script, and fails on Urdu words in en.json.
   - Tests: server 295, Karma 20, browser 42 passed + 4 skipped (new Roman Urdu test). Initial bundle is 262 bytes over the 520 kB warning (error limit 600 kB).
+- **Languages in one list (owner question: why only Urdu and English in the console?).** The languages were typed out by hand in about a dozen places, and the super admin console, WhatsApp texts and the reset email only knew Urdu and English.
+  - Server: `common/language/language.ts` holds `LANGUAGES` (en, ur, roman), names, `toLanguage`, `localeOf`, `isRtl`. Every check uses it: new business, edit business, setup, settings, bill/reminder/export language, forgot password. Messages are `Texts<…>` with one entry per language, so a new language makes the compiler list each message that still needs its translation.
+  - Roman Urdu texts for the bill, the payment reminder, the welcome message, the new PIN message and the reset email (before, Roman Urdu people got English). Export headers fall back to English.
+  - App: `LANGS` in `i18n.service.ts` is the one list; `ServerLang`/`serverLang` removed (the app sends the language in use). The New business and Edit business choices, the business page, Settings → Default language and the reminder language chips all come from `LANGS`.
+  - A test keeps the app's and the server's lists equal and checks each language has its dictionary. Tests: server 315 (new `language.spec.ts`, Roman Urdu cases in `whatsapp.spec.ts` and `onboarding.e2e-spec.ts`), Karma 25, browser 51 + 4 skipped in the full run (one sales test timed out there and passed alone), i18n ok.
 
 ## Decisions
 - Sorting (6.6): bales made while a lot is open are costed at the lot's cost per kg and re-costed at close; sold ones keep their sale cost (logged adjustment). Kat goes to stock at zero cost, so a kat sale is pure extra profit and bale costs are right whether or not kat sells.

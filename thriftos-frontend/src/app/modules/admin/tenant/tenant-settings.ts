@@ -28,6 +28,7 @@ import {
 } from 'lucide-angular';
 
 import { AdminService } from '../admin.service';
+import { Lang, LANGS } from '../../../core/i18n/i18n.service';
 import { TenantModule } from '../admin.models';
 import {
   AppPageComponent,
@@ -65,7 +66,8 @@ export class TenantSettingsComponent implements OnInit {
   readonly saving = signal(false);
   readonly currencyCodeControl = new FormControl<string>('USD', { nonNullable: true });
   readonly sortingStagesControl = new FormControl<number>(2, { nonNullable: true });
-  readonly defaultLanguageControl = new FormControl<'ur' | 'en'>('ur', { nonNullable: true });
+  readonly langs = LANGS;
+  readonly defaultLanguageControl = new FormControl<Lang>('ur', { nonNullable: true });
   readonly modulesControl = new FormControl<TenantModule[]>(DEFAULT_MODULES, { nonNullable: true });
 
   readonly currencyOptions = [
@@ -203,7 +205,7 @@ export class TenantSettingsComponent implements OnInit {
     });
   }
 
-  private syncWorkSettings(tenant: { sortingStages?: number; defaultLanguage?: 'ur' | 'en'; enabledModules?: TenantModule[] }): void {
+  private syncWorkSettings(tenant: { sortingStages?: number; defaultLanguage?: Lang; enabledModules?: TenantModule[] }): void {
     this.sortingStagesControl.setValue(tenant.sortingStages ?? 2, { emitEvent: false });
     this.defaultLanguageControl.setValue(tenant.defaultLanguage ?? 'ur', { emitEvent: false });
     this.modulesControl.setValue(tenant.enabledModules ?? DEFAULT_MODULES, { emitEvent: false });

@@ -1,5 +1,6 @@
 import { ArrayUnique, IsArray, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { SUPPORTED_CURRENCY_CODES } from '../../common/currency/currency';
+import { LANGUAGES, Language } from '../../common/language/language';
 
 /** Modules a tenant can turn on. The first five are on by default; the rest are advanced. */
 export const TENANT_MODULES = ['RECEIVE', 'SORT', 'STOCK', 'SELL', 'KHATA', 'REPORTS', 'EXPORT', 'WAREHOUSES', 'PURCHASE_ORDERS', 'PAYROLL', 'BILLING'] as const;
@@ -32,7 +33,7 @@ export class UpdateTenantSettingsDto {
   @IsOptional()
   sortingStages?: number;
 
-  @IsIn(['ur', 'en', 'roman'])
+  @IsIn(LANGUAGES)
   @IsOptional()
-  defaultLanguage?: string;
+  defaultLanguage?: Language;
 }

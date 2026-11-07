@@ -1,4 +1,5 @@
 import { IsBoolean, IsEmail, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { LANGUAGES, Language } from '../../common/language/language';
 
 /** v2 6.5: a business for a customer in under 2 minutes: business name, owner's name and phone. */
 export class QuickCreateTenantDto {
@@ -23,9 +24,9 @@ export class QuickCreateTenantDto {
   @IsOptional()
   ownerEmail?: string;
 
-  @IsIn(['ur', 'en'])
+  @IsIn(LANGUAGES)
   @IsOptional()
-  language?: 'ur' | 'en';
+  language?: Language;
 
   /** 0 = trading only, 1 = category, 2 = category + grade. */
   @IsInt()

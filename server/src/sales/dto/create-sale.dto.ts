@@ -1,6 +1,7 @@
 import { PaymentMethod, PaymentMode, SaleType, StockUnit } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { ArrayMaxSize, IsIn, ArrayMinSize, IsArray, IsEnum, IsNumber, IsOptional, IsPositive, IsString, MaxLength, Min, ValidateNested } from 'class-validator';
+import { LANGUAGES, Language } from '../../common/language/language';
 
 export class SaleLineDto {
   @IsString()
@@ -75,7 +76,7 @@ export class FulfillSaleDto {
 }
 
 export class LanguageQueryDto {
-  @IsIn(['ur', 'en'])
+  @IsIn(LANGUAGES)
   @IsOptional()
-  lang?: 'ur' | 'en';
+  lang?: Language;
 }

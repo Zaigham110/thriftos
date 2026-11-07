@@ -185,8 +185,7 @@
                 <label class="currency-title-group" style="gap: .35rem; min-width: 11rem;">
                   <span class="currency-subtitle">Default language</span>
                   <select [formControl]="defaultLanguageControl" class="currency-select">
-                    <option value="ur">اردو (Urdu)</option>
-                    <option value="en">English</option>
+                    @for (l of langs; track l.id) { <option [value]="l.id">{{ l.name }}</option> }
                   </select>
                 </label>
                 <button class="btn btn-primary" (click)="saveWorkSettings()" [disabled]="saving() || !workSettingsChanged()">

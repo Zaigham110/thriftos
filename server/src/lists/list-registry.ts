@@ -8,7 +8,7 @@ import { CONTAINER_LABELS, CONTAINERS_LIST, PURCHASE_LOT_LABELS, PURCHASE_LOTS_L
 export interface RegisteredList {
   resource: ListResource;
   /** Column names for exports, per language. */
-  labels: Record<string, { en: string; ur: string }>;
+  labels: Record<string, { en: string; ur: string; roman?: string }>;
   /** Permission needed to open the list at all (none = any signed-in user of the business). */
   permission?: string;
   /** Module the business must have on (informational for now; the screens hide lists of modules that are off). */

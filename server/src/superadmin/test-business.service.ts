@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { SYSTEM_COMPANY_CODE } from '../common/guards/module.guard';
 import { SetupService } from '../tenant/setup.service';
+import { toLanguage } from '../common/language/language';
 import { fillSortingStory, SAMPLE_SETUP, storyContext } from '../demo/demo-seed';
 
 /** GlobalConfig key holding the ids of test businesses (no schema change needed). */
@@ -85,7 +86,7 @@ export class TestBusinessService {
       const setup = this.moduleRef.get(SetupService, { strict: false });
       await setup.save(
         id,
-        { businessName: tenant.name, currency: tenant.currency, language: tenant.defaultLanguage === 'en' ? 'en' : 'ur', sortingStages: 2, categories: SAMPLE_SETUP.categories, grades: SAMPLE_SETUP.grades } as never,
+        { businessName: tenant.name, currency: tenant.currency, language: toLanguage(tenant.defaultLanguage, 'ur'), sortingStages: 2, categories: SAMPLE_SETUP.categories, grades: SAMPLE_SETUP.grades } as never,
         ownerId,
       );
       const filled = await fillSortingStory(this.moduleRef, storyContext(this.moduleRef), { tenantId: id, ownerId, workerId: ownerId });

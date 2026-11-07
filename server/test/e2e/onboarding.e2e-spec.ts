@@ -55,6 +55,21 @@ describe('Super Admin onboarding tools (e2e)', () => {
     expect(again.body.welcome).toContain('Assalam o Alaikum Other!');
   });
 
+  it('every language works for a new business: Roman Urdu welcome, PIN message, edit, and an unknown language refused', async () => {
+    const made = (
+      await api(app, superAdmin).post('/superadmin/tenants/quick', { businessName: `Roman Bales ${tag}`, ownerName: 'Bilal', ownerPhone: `0305 ${tag}`, language: 'roman' }).expect(201)
+    ).body;
+    expect(made.welcome).toContain('aap ka ThriftOS tayyar hai');
+    const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: made.tenant.id } });
+    expect(tenant).toMatchObject({ defaultLanguage: 'roman', locale: 'en-PK' });
+    const pin = (await api(app, superAdmin).post(`/superadmin/tenants/${made.tenant.id}/users/${made.owner.id}/pin`, {}).expect(200)).body;
+    expect(pin.message).toContain('aap ka naya PIN');
+    await api(app, superAdmin).patch(`/superadmin/tenants/${made.tenant.id}`, { defaultLanguage: 'en' }).expect(200);
+    await api(app, superAdmin).patch(`/superadmin/tenants/${made.tenant.id}`, { defaultLanguage: 'roman' }).expect(200);
+    await api(app, superAdmin).patch(`/superadmin/tenants/${made.tenant.id}`, { defaultLanguage: 'fr' }).expect(400);
+    await api(app, superAdmin).post('/superadmin/tenants/quick', { businessName: 'French', ownerName: 'X', ownerPhone: `0306 ${tag}`, language: 'fr' }).expect(400);
+  });
+
   it('refuses a phone that already has a login, a bad phone, and anyone but the super admin', async () => {
     await api(app, superAdmin).post('/superadmin/tenants/quick', { businessName: 'Dup Phone', ownerName: 'X', ownerPhone: `0301 ${tag}` }).expect(409);
     await api(app, superAdmin).post('/superadmin/tenants/quick', { businessName: 'Bad Phone', ownerName: 'X', ownerPhone: '12' }).expect(400);

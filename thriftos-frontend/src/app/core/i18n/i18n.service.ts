@@ -4,18 +4,19 @@ import { firstValueFrom } from 'rxjs';
 
 /** English, Urdu (Urdu script, right to left) and Roman Urdu (Urdu words in Latin letters, left to right). */
 export type Lang = 'en' | 'ur' | 'roman';
-/** What the server understands (bills, WhatsApp text, exports): Roman Urdu people get the English text. */
-export type ServerLang = 'en' | 'ur';
-
-/** The language picker, each name in its own language. */
+/**
+ * The language picker, each name in its own language. The one list of languages in the app; the server has the same
+ * list in `server/src/common/language/language.ts` and a test keeps them equal.
+ */
 export const LANGS: { id: Lang; name: string }[] = [
   { id: 'en', name: 'English' },
   { id: 'ur', name: 'اردو' },
   { id: 'roman', name: 'Roman Urdu' },
 ];
 
-export const isLang = (v: unknown): v is Lang => v === 'en' || v === 'ur' || v === 'roman';
-export const serverLang = (l: Lang): ServerLang => (l === 'ur' ? 'ur' : 'en');
+export const isLang = (v: unknown): v is Lang => LANGS.some((l) => l.id === v);
+/** The language's name in its own language. */
+export const langName = (v: unknown): string => LANGS.find((l) => l.id === v)?.name ?? String(v ?? '');
 type Dict = { [key: string]: string | Dict };
 
 const LANG_KEY = 'thriftos.lang';

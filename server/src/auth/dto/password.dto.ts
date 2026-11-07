@@ -1,4 +1,5 @@
 import { IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { LANGUAGES, Language } from '../../common/language/language';
 
 const MIN = 10;
 
@@ -10,7 +11,7 @@ export class ChangePasswordDto {
 export class ForgotPasswordDto {
   @IsEmail() @MaxLength(200) email!: string;
   /** Language of the email; the app sends the one in use. */
-  @IsIn(['en', 'ur']) @IsOptional() lang?: 'en' | 'ur';
+  @IsIn(LANGUAGES) @IsOptional() lang?: Language;
 }
 
 export class ResetPasswordDto {

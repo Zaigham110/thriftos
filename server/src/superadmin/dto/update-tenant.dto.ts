@@ -1,6 +1,7 @@
 import { IsString, IsOptional, IsEnum, MinLength, MaxLength, IsIn } from 'class-validator';
 import { TenantStatus } from '@prisma/client';
 import { SUPPORTED_CURRENCY_CODES } from '../../common/currency/currency';
+import { LANGUAGES, Language } from '../../common/language/language';
 
 export class UpdateTenantDto {
   @IsString()
@@ -30,9 +31,9 @@ export class UpdateTenantDto {
   @IsOptional()
   status?: TenantStatus;
 
-  /** The language the business opens in (Urdu or English). */
-  @IsIn(['ur', 'en'])
+  /** The language the business opens in (any of LANGUAGES). */
+  @IsIn(LANGUAGES)
   @IsOptional()
-  defaultLanguage?: 'ur' | 'en';
+  defaultLanguage?: Language;
 }
 

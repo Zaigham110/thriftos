@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { PasswordService } from '../auth/password.service';
 import { toE164 } from '../common/phone/phone';
+import { Language, localeOf, Texts, toLanguage } from '../common/language/language';
 import { TenantBootstrapService } from './tenant-bootstrap.service';
 import { QuickCreateTenantDto, UpdatePersonDto } from './dto/quick-create.dto';
 
@@ -22,10 +23,13 @@ const NOT_THE_BUSINESS: Prisma.AuditLogWhereInput[] = [
 ];
 
 /** The message with a new PIN, in the owner's language. */
-export function newPinMessage(lang: 'ur' | 'en', p: { owner: string; business: string; url: string; phone: string; pin: string }): string {
-  return lang === 'ur'
-    ? `السلام علیکم ${p.owner}!\n${p.business} کے ThriftOS کے لیے آپ کا نیا PIN:\nPIN: ${p.pin}\nفون: ${p.phone}\nکھولیں: ${p.url}`
-    : `Assalam o Alaikum ${p.owner}!\nYour new PIN for ThriftOS (${p.business}):\nPIN: ${p.pin}\nPhone: ${p.phone}\nOpen: ${p.url}`;
+export function newPinMessage(lang: Language, p: { owner: string; business: string; url: string; phone: string; pin: string }): string {
+  const t: Texts<string> = {
+    en: `Assalam o Alaikum ${p.owner}!\nYour new PIN for ThriftOS (${p.business}):\nPIN: ${p.pin}\nPhone: ${p.phone}\nOpen: ${p.url}`,
+    ur: `السلام علیکم ${p.owner}!\n${p.business} کے ThriftOS کے لیے آپ کا نیا PIN:\nPIN: ${p.pin}\nفون: ${p.phone}\nکھولیں: ${p.url}`,
+    roman: `Assalam o Alaikum ${p.owner}!\n${p.business} ke ThriftOS ke liye aap ka naya PIN:\nPIN: ${p.pin}\nPhone: ${p.phone}\nKholein: ${p.url}`,
+  };
+  return t[lang];
 }
 
 /** Company code from the business name: letters and digits, up to 12, then -2, -3… if taken. */
@@ -35,10 +39,13 @@ export function companyCodeFrom(name: string): string {
 }
 
 /** The message the super admin sends the owner on WhatsApp, in the owner's language. */
-export function welcomeMessage(lang: 'ur' | 'en', p: { owner: string; business: string; url: string; phone: string; pin: string }): string {
-  return lang === 'ur'
-    ? `السلام علیکم ${p.owner}!\n${p.business} کے لیے آپ کا ThriftOS تیار ہے۔\nکھولیں: ${p.url}\nفون: ${p.phone}\nPIN: ${p.pin}\nپہلی بار کھولنے پر چند سوال پوچھے جائیں گے، پھر کام شروع کریں۔`
-    : `Assalam o Alaikum ${p.owner}!\nThriftOS for ${p.business} is ready.\nOpen: ${p.url}\nPhone: ${p.phone}\nPIN: ${p.pin}\nThe first time, it asks a few questions; then you can start.`;
+export function welcomeMessage(lang: Language, p: { owner: string; business: string; url: string; phone: string; pin: string }): string {
+  const t: Texts<string> = {
+    en: `Assalam o Alaikum ${p.owner}!\nThriftOS for ${p.business} is ready.\nOpen: ${p.url}\nPhone: ${p.phone}\nPIN: ${p.pin}\nThe first time, it asks a few questions; then you can start.`,
+    ur: `السلام علیکم ${p.owner}!\n${p.business} کے لیے آپ کا ThriftOS تیار ہے۔\nکھولیں: ${p.url}\nفون: ${p.phone}\nPIN: ${p.pin}\nپہلی بار کھولنے پر چند سوال پوچھے جائیں گے، پھر کام شروع کریں۔`,
+    roman: `Assalam o Alaikum ${p.owner}!\n${p.business} ke liye aap ka ThriftOS tayyar hai.\nKholein: ${p.url}\nPhone: ${p.phone}\nPIN: ${p.pin}\nPehli baar kholne par chand sawal poochay jayenge, phir kaam shuru karein.`,
+  };
+  return t[lang];
 }
 
 /** v2 6.5: Super Admin onboarding tools — quick create and last activity per business. */
@@ -72,7 +79,7 @@ export class OnboardingService {
         name: dto.businessName.trim(),
         companyCode,
         defaultLanguage: language,
-        locale: language === 'ur' ? 'ur-PK' : 'en-PK',
+        locale: localeOf(language),
         sortingStages: dto.sortingStages ?? 2,
       },
     });
@@ -125,7 +132,7 @@ export class OnboardingService {
     await this.prisma.user.update({ where: { id: user.id }, data: { pinHash: await this.passwords.hash(pin), failedPinAttempts: 0, pinLockedUntil: null } });
     await this.prisma.refreshToken.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } });
     await this.audit.log({ userId: actorId, tenantId, action: 'USER_PIN_RESET', entityType: 'User', entityId: user.id, metadataJson: { userName: user.name, bySuperAdmin: true } });
-    const language = user.tenant.defaultLanguage === 'en' ? 'en' : 'ur';
+    const language = toLanguage(user.tenant.defaultLanguage, 'ur');
     const url = `${(process.env.PUBLIC_APP_URL || 'http://localhost:4200').replace(/\/$/, '')}/auth/login`;
     return { pin, phone: user.phone, message: newPinMessage(language, { owner: user.name, business: user.tenant.name, url, phone: localPhone(user.phone), pin }) };
   }
