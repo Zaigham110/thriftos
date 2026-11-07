@@ -35,7 +35,7 @@ test('the super admin console hides plans and billing unless the platform turned
   await page.click('button[type=submit]');
   await page.waitForURL('**/admin/**');
   await expect(page.getByRole('link', { name: 'Businesses' })).toBeVisible();
-  // The "Commercial" group (Plans, Billing) is not in the menu.
+  // Plans and Billing are gone (they showed sample numbers); old links go to the overview.
   await expect(page.getByText('Commercial', { exact: true })).toHaveCount(0);
 
   for (const url of ['/admin/billing', '/admin/plans']) {

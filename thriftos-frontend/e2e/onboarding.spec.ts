@@ -101,6 +101,19 @@ test('test business: new PIN, fix the phone, sample data, audit, delete', async 
   await expect(page.getByRole('link', { name: 'Send on WhatsApp' })).toHaveAttribute('href', new RegExp(`^https://wa\\.me/92306${tag}\\?text=`));
   await page.getByRole('button', { name: 'Done' }).click();
 
+  // How the business works: made as "sorts by category and grade"; switch to trading only with Export sales.
+  const works = page.locator('section').filter({ has: page.getByRole('heading', { name: 'How this business works' }) });
+  await expect(works).toContainText('Sorts by category and grade');
+  await works.getByRole('button', { name: 'Change' }).click();
+  await dialog.getByLabel(/Trading only/).check();
+  await dialog.getByLabel(/Export sales/).check();
+  await expect(dialog).toContainText('The Sorting tab goes away');
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(works).toContainText('Trading only');
+  await expect(works).toContainText('Export sales');
+  await expect(page.locator('.page-subtitle')).toContainText('Trading only');
+
   // Sample data, then the numbers show it.
   await page.getByRole('button', { name: 'Fill with sample data' }).click();
   await expect(page.getByText(/Sample data added: \d+ sales/)).toBeVisible({ timeout: 180_000 });

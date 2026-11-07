@@ -1,11 +1,11 @@
 /**
  * A business in the super admin console (v2 review), in plain words: who the owner is and their phone, the people
  * and how they sign in (with New PIN / New password / Edit), what the business has done, and its recent activity.
- * A test business can be filled with sample data and deleted. Support view opens it read-only.
+ * How it works (its type and modules) is set here too. A test business can be filled with sample data and deleted.
+ * Support view opens it read-only.
  */
 import { HttpClient } from '@angular/common/http';
 import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { API_ENDPOINTS } from '../../../../../core/config/api.config';
@@ -14,6 +14,8 @@ import { localPhone } from '../../../../../shared/phone';
 import { AppPageBodyComponent, AppPageComponent, AppPageHeaderComponent } from '../../../../../shared/ui';
 import { auditLabel } from '../../audit-labels';
 import { activityLabel } from '../tenants-list/tenants-list';
+import { day, moment } from '../../console-format';
+import { ALWAYS_ON, BUSINESS_TYPES, SWITCHABLE, typeLabel } from '../../business-type';
 import { Tenant } from '../tenant.models';
 import { isLang, Lang, langName, LANGS } from '../../../../../core/i18n/i18n.service';
 
@@ -22,17 +24,19 @@ interface Person {
 }
 type Business = Tenant & {
   defaultLanguage?: Lang;
+  sortingStages?: number;
+  enabledModules?: string[];
   isTest?: boolean;
   sample?: { state: 'running' | 'done' | 'failed'; sales?: number; bales?: number; message?: string } | null;
   users?: Person[];
   _count?: Tenant['_count'] & { sales?: number; customers?: number };
 };
-type Sheet = 'edit' | 'person' | 'switch' | 'support' | 'delete' | 'secret' | null;
+type Sheet = 'edit' | 'person' | 'switch' | 'support' | 'delete' | 'secret' | 'workings' | null;
 
 @Component({
   selector: 'app-tenant-detail',
   standalone: true,
-  imports: [FormsModule, RouterLink, DatePipe, AppPageComponent, AppPageHeaderComponent, AppPageBodyComponent],
+  imports: [FormsModule, RouterLink, AppPageComponent, AppPageHeaderComponent, AppPageBodyComponent],
   template: `
     <app-page>
       <app-page-header>
@@ -40,14 +44,14 @@ type Sheet = 'edit' | 'person' | 'switch' | 'support' | 'delete' | 'secret' | nu
           <a class="back" routerLink="/admin/tenants">← Businesses</a>
           @if (b(); as t) {
             <h1 class="page-title">{{ t.name }}
-              @if (t.isTest) { <span class="chip test">Test</span> }
-              @if (t.status !== 'ACTIVE') { <span class="chip off">Switched off</span> }
+              @if (t.isTest) { <span class="tag test">Test</span> }
+              @if (t.status !== 'ACTIVE') { <span class="tag off">Switched off</span> }
             </h1>
-            <p class="page-subtitle">{{ langName(t.defaultLanguage) }} · {{ t.currencyCode }} · made {{ t.createdAt | date: 'd MMM y' }} · code <span dir="ltr">{{ t.companyCode }}</span></p>
+            <p class="page-subtitle">{{ typeLabel(t.sortingStages) }} · {{ langName(t.defaultLanguage) }} · {{ t.currencyCode }} · made {{ day(t.createdAt) }} · code <span dir="ltr">{{ t.companyCode }}</span></p>
           }
         </div>
         @if (b(); as t) {
-          <div class="row">
+          <div class="btns">
             @if (t.status === 'ACTIVE') { <button type="button" class="btn primary" (click)="open('support')">Open support view</button> }
             <button type="button" class="btn" (click)="openEdit()">Edit</button>
             <button type="button" class="btn" (click)="open('switch')">{{ t.status === 'ACTIVE' ? 'Switch off' : 'Switch on' }}</button>
@@ -69,7 +73,7 @@ type Sheet = 'edit' | 'person' | 'switch' | 'support' | 'delete' | 'secret' | nu
                   @if (t.sample?.state === 'done') { <p class="note ok" role="status">Sample data added: {{ t.sample?.sales }} sales, {{ t.sample?.bales }} bales.</p> }
                   @if (t.sample?.state === 'failed') { <p class="note bad" role="alert">Sample data failed: {{ t.sample?.message }}</p> }
                 </div>
-                <div class="row">
+                <div class="btns">
                   @if (empty() && t.sample?.state !== 'running') { <button type="button" class="btn primary" [disabled]="busy()" (click)="fillSample()">Fill with sample data</button> }
                   <button type="button" class="btn" [disabled]="busy()" (click)="markTest(false)">Mark as real</button>
                   <button type="button" class="btn danger" [disabled]="t.sample?.state === 'running'" (click)="open('delete')">Delete business</button>
@@ -88,38 +92,51 @@ type Sheet = 'edit' | 'person' | 'switch' | 'support' | 'delete' | 'secret' | nu
               <div><dt>Last activity</dt><dd class="small">{{ activityLabel(t.lastActivity) }}</dd></div>
             </dl>
 
+            <section class="card" aria-labelledby="works-h">
+              <div class="card-head"><h2 id="works-h">How this business works</h2><button type="button" class="btn sm" (click)="openWorkings()">Change</button></div>
+              <div class="works">
+                <div><span class="muted">Type</span><strong>{{ typeLabel(t.sortingStages) }}</strong><small class="muted">{{ typeHint(t.sortingStages) }}</small></div>
+                <div><span class="muted">Always on</span><strong>{{ alwaysOn(t.sortingStages).join(', ') }}</strong></div>
+                <div><span class="muted">Switched on</span>
+                  @if (switchedOn(t).length) { <strong>{{ switchedOn(t).join(', ') }}</strong> } @else { <strong>Nothing extra</strong> }
+                  @if (switchedOff(t).length) { <small class="muted">Off: {{ switchedOff(t).join(', ') }}</small> }
+                </div>
+              </div>
+            </section>
+
             <section class="card">
               <h2>People</h2>
-              <table>
+              <div class="table-wrap"><table class="plain">
                 <thead><tr><th scope="col">Name</th><th scope="col">Phone</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col">Signs in with</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
                 <tbody>
                   @for (p of t.users ?? []; track p.id) {
                     <tr>
-                      <td>{{ p.name }} @if (!p.isActive) { <span class="chip off">blocked</span> }</td>
+                      <td>{{ p.name }}@if (!p.isActive) { <span class="tag off">Blocked</span> }</td>
                       <td dir="ltr">{{ phone(p.phone) || '—' }}</td>
                       <td>{{ p.email || '—' }}</td>
                       <td>{{ p.roles.join(', ') || '—' }}</td>
-                      <td>{{ signIn(p) }} @if (p.pinLocked) { <span class="chip bad">locked</span> }</td>
-                      <td class="acts">
+                      <td>{{ signIn(p) }}@if (p.pinLocked) { <span class="tag bad">Locked</span> }</td>
+                      <td class="end"><span class="btns">
                         @if (p.phone) { <button type="button" class="btn sm" [disabled]="busy()" (click)="newPin(p)">New PIN</button> }
                         @if (p.email) { <button type="button" class="btn sm" [disabled]="busy()" (click)="newPassword(p)">New password</button> }
                         <button type="button" class="btn sm" (click)="editPerson(p)">Edit</button>
-                      </td>
+                      </span></td>
                     </tr>
                   }
                 </tbody>
-              </table>
+              </table></div>
             </section>
 
             <section class="card">
-              <div class="row between"><h2>Recent activity</h2><a class="link" routerLink="/admin/audit" [queryParams]="{ business: t.id }">All of it</a></div>
-              <table>
+              <div class="card-head"><h2>Recent activity</h2><a class="link" routerLink="/admin/audit" [queryParams]="{ business: t.id }">All of it</a></div>
+              <div class="table-wrap"><table class="plain">
+                <thead><tr><th scope="col">What</th><th scope="col">Who</th><th scope="col">When</th></tr></thead>
                 <tbody>
                   @for (l of t.auditLogs ?? []; track l.id) {
-                    <tr><td>{{ label(l.action) }}</td><td>{{ l.userName }}</td><td class="end">{{ l.createdAt | date: 'd MMM, h:mm a' }}</td></tr>
-                  } @empty { <tr><td class="muted">Nothing yet.</td></tr> }
+                    <tr><td>{{ label(l.action) }}</td><td>{{ l.userName }}</td><td class="when">{{ moment(l.createdAt) }}</td></tr>
+                  } @empty { <tr><td colspan="3" class="muted">Nothing yet.</td></tr> }
                 </tbody>
-              </table>
+              </table></div>
             </section>
           </div>
         } @else {
@@ -147,6 +164,22 @@ type Sheet = 'edit' | 'person' | 'switch' | 'support' | 'delete' | 'secret' | nu
               <label>Phone (their login with the PIN)<input name="pphone" maxlength="30" inputmode="tel" dir="ltr" [(ngModel)]="personPhone" placeholder="0300 1234567" /></label>
             </form>
           }
+          @case ('workings') {
+            <form id="d-form" class="form" (ngSubmit)="saveWorkings()">
+              <fieldset class="col"><legend>Type</legend>
+                @for (ty of types; track ty.stages) {
+                  <label class="choice"><input type="radio" name="stages" [value]="ty.stages" [(ngModel)]="wStages" /><span><strong>{{ ty.label }}</strong><small class="muted">{{ ty.hint }}</small></span></label>
+                }
+              </fieldset>
+              <fieldset class="col"><legend>Modules</legend>
+                <p class="muted small">Always on: {{ alwaysOn(wStages).join(', ') }}.</p>
+                @for (m of switchable; track m.id) {
+                  <label class="choice"><input type="checkbox" [name]="'m-' + m.id" [ngModel]="wModules.has(m.id)" (ngModelChange)="toggleModule(m.id, $event)" /><span><strong>{{ m.label }}</strong><small class="muted">{{ m.hint }}</small></span></label>
+                }
+              </fieldset>
+              @if (wStages === 0 && (b()?.sortingStages ?? 2) > 0) { <p class="note">The Sorting tab goes away for everyone. Sorting already recorded stays.</p> }
+            </form>
+          }
           @case ('switch') {
             <p>{{ b()?.status === 'ACTIVE' ? 'Nobody in ' + b()?.name + ' can sign in until you switch it on again. Nothing is deleted.' : b()?.name + ' can sign in and work again.' }}</p>
           }
@@ -172,7 +205,7 @@ type Sheet = 'edit' | 'person' | 'switch' | 'support' | 'delete' | 'secret' | nu
           }
         }
         @if (error()) { <p class="err" role="alert">{{ error() }}</p> }
-        <div class="row end">
+        <div class="foot">
           @switch (s) {
             @case ('secret') {
               @if (secret()?.pin) {
@@ -183,7 +216,7 @@ type Sheet = 'edit' | 'person' | 'switch' | 'support' | 'delete' | 'secret' | nu
             }
             @default {
               <button type="button" class="btn" (click)="close()">Cancel</button>
-              @if (s === 'edit' || s === 'person') { <button type="submit" form="d-form" class="btn primary" [disabled]="busy()">Save</button> }
+              @if (s === 'edit' || s === 'person' || s === 'workings') { <button type="submit" form="d-form" class="btn primary" [disabled]="busy()">Save</button> }
               @if (s === 'switch') { <button type="button" class="btn" [class.danger]="b()?.status === 'ACTIVE'" [class.primary]="b()?.status !== 'ACTIVE'" [disabled]="busy()" (click)="toggle()">{{ b()?.status === 'ACTIVE' ? 'Switch off' : 'Switch on' }}</button> }
               @if (s === 'support') { <button type="button" class="btn primary" [disabled]="busy()" (click)="support()">Open read-only</button> }
               @if (s === 'delete') { <button type="button" class="btn danger" [disabled]="busy() || confirmName.trim().toLowerCase() !== (b()?.name ?? '').trim().toLowerCase()" (click)="remove()">Delete for good</button> }
@@ -193,55 +226,46 @@ type Sheet = 'edit' | 'person' | 'switch' | 'support' | 'delete' | 'secret' | nu
       </div>
     }
   `,
+  styleUrls: ['../../console.css'],
   styles: [`
     .head { display:grid; gap:4px; }
     .back { color:var(--color-primary, #6f3f63); font-weight:600; font-size:13px; text-decoration:none; }
-    .page-title { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0; }
-    .page { display:grid; gap:16px; }
-    .card { display:grid; gap:12px; padding:16px 20px; border:1px solid var(--color-border, #e3dde0); border-radius:12px; background:var(--color-surface, #fff); }
+    .page-title { display:flex; align-items:center; gap:2px; flex-wrap:wrap; margin:0; }
+    .page { display:grid; gap:16px; min-width:0; }
     .card.test { grid-template-columns:minmax(0, 1fr) auto; align-items:center; }
     .card.test.on { border-color:#d9b44a; background:#fffbeb; }
-    .card h2 { margin:0; font-size:16px; }
+    .card.test h2 { margin:0; font-size:16px; }
     .stats { display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:12px; margin:0; }
     .stats div { padding:12px 16px; border:1px solid var(--color-border, #e3dde0); border-radius:12px; background:var(--color-surface, #fff); }
     .stats dt { color:var(--color-text-secondary, #6b6468); font-size:13px; }
     .stats dd { margin:4px 0 0; font-size:22px; font-weight:700; }
     .stats dd.small { font-size:14px; font-weight:600; }
-    table { width:100%; border-collapse:collapse; font-size:14px; }
-    th { color:var(--color-text-secondary, #6b6468); font-size:12px; font-weight:600; text-align:start; }
-    th, td { padding:8px; border-bottom:1px solid var(--color-border, #eee8eb); text-align:start; }
-    td.end { text-align:end; color:var(--color-text-secondary, #6b6468); white-space:nowrap; }
-    td.acts { text-align:end; white-space:nowrap; }
-    .row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
-    .row.between { justify-content:space-between; }
-    .row.end { justify-content:flex-end; }
-    .btn { display:inline-flex; align-items:center; min-height:38px; padding:0 14px; border:1px solid var(--color-border, #d6cfd3); border-radius:8px; background:transparent; color:inherit; font:inherit; font-weight:600; text-decoration:none; cursor:pointer; }
-    .btn.sm { min-height:30px; padding:0 10px; font-size:13px; }
-    .btn.primary { border-color:var(--color-primary, #6f3f63); background:var(--color-primary, #6f3f63); color:#fff; }
-    .btn.danger { border-color:var(--color-danger, #b3261e); color:var(--color-danger, #b3261e); }
-    .btn:disabled { opacity:.5; cursor:default; }
-    .link { border:0; background:none; padding:0; color:var(--color-primary, #6f3f63); font:inherit; font-weight:600; text-decoration:none; cursor:pointer; }
-    .chip { padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; background:#eee; }
-    .chip.test { background:#fef3c7; color:#92400e; }
-    .chip.off, .chip.bad { background:#fee2e2; color:#b91c1c; }
-    .muted { margin:0; color:var(--color-text-secondary, #6b6468); }
+    .works { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px; }
+    .works > div { display:grid; gap:2px; align-content:start; }
+    .works span.muted { font-size:12px; }
+    .works small { font-size:12px; }
     .note { margin:6px 0 0; font-weight:600; }
     .note.ok { color:#047857; }
-    .note.bad, .err { color:var(--color-danger, #b3261e); }
-    .err { margin:0; }
+    .note.bad { color:var(--color-danger, #b3261e); }
+    .small { font-size:13px; }
     .backdrop { position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:50; }
-    .dialog { position:fixed; z-index:51; inset-inline:0; top:12vh; margin-inline:auto; width:min(480px, calc(100vw - 32px)); display:grid; gap:12px; padding:20px; border-radius:12px; background:var(--color-surface, #fff); color:inherit; box-shadow:0 10px 40px rgba(0,0,0,.2); }
+    .dialog { position:fixed; z-index:51; inset-inline:0; top:8vh; margin-inline:auto; width:min(520px, calc(100vw - 32px)); max-height:84vh; overflow:auto; display:grid; gap:12px; padding:20px; border-radius:12px; background:var(--color-surface, #fff); color:inherit; box-shadow:0 10px 40px rgba(0,0,0,.2); }
     .dialog h2 { margin:0; font-size:18px; }
     .dialog p { margin:0; }
-    .form { display:grid; gap:10px; }
+    .foot { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
+    .form { display:grid; gap:12px; }
     .form label, label.form { display:grid; gap:6px; font-weight:600; font-size:14px; }
-    .form input:not([type=radio]), label.form input, label.form textarea, .form textarea { min-height:40px; padding:8px 12px; border:1px solid var(--color-border, #d6cfd3); border-radius:8px; font:inherit; font-weight:400; background:transparent; color:inherit; }
-    fieldset { display:flex; gap:16px; margin:0; padding:0; border:0; }
+    .form input:not([type=radio]):not([type=checkbox]), label.form input, label.form textarea, .form textarea { min-height:40px; padding:8px 12px; border:1px solid var(--color-border, #d6cfd3); border-radius:8px; font:inherit; font-weight:400; background:transparent; color:inherit; }
+    fieldset { display:flex; flex-wrap:wrap; gap:16px; margin:0; padding:0; border:0; }
+    fieldset.col { display:grid; gap:8px; }
     legend { margin-block-end:6px; font-weight:600; font-size:14px; }
     .opt { display:flex; align-items:center; gap:6px; font-weight:400; }
+    .form label.choice { display:flex; align-items:flex-start; gap:10px; padding:8px 10px; border:1px solid var(--color-border, #e3dde0); border-radius:8px; font-weight:400; cursor:pointer; }
+    .choice input { margin-top:3px; }
+    .choice span { display:grid; gap:2px; }
+    .choice small { font-size:12px; }
     .pin { font-size:26px; font-weight:700; letter-spacing:.15em; }
-    .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
-    @media (max-width: 900px) { .stats { grid-template-columns:repeat(2, minmax(0, 1fr)); } .card.test { grid-template-columns:1fr; } table { display:block; overflow-x:auto; } }
+    @media (max-width: 900px) { .stats { grid-template-columns:repeat(2, minmax(0, 1fr)); } .card.test { grid-template-columns:1fr; } }
   `],
 })
 export class TenantDetailComponent implements OnInit {
@@ -270,6 +294,13 @@ export class TenantDetailComponent implements OnInit {
   protected readonly langs = LANGS;
   protected readonly langName = langName;
   protected editLang: Lang = 'ur';
+  protected readonly day = day;
+  protected readonly moment = moment;
+  protected readonly typeLabel = typeLabel;
+  protected readonly types = BUSINESS_TYPES;
+  protected readonly switchable = SWITCHABLE;
+  protected wStages = 2;
+  protected wModules = new Set<string>();
   protected personId = '';
   protected personName = '';
   protected personPhone = '';
@@ -301,6 +332,7 @@ export class TenantDetailComponent implements OnInit {
     return {
       edit: 'Edit business',
       person: 'Edit person',
+      workings: 'How this business works',
       switch: t?.status === 'ACTIVE' ? 'Switch off this business?' : 'Switch this business on?',
       support: 'Open support view',
       delete: 'Delete this test business?',
@@ -337,6 +369,41 @@ export class TenantDetailComponent implements OnInit {
 
   protected saveEdit(): void {
     this.run(this.http.patch(`${this.api}/${this.b()!.id}`, { name: this.editName.trim(), defaultLanguage: this.editLang }), () => this.close());
+  }
+
+  protected typeHint(stages: number | undefined): string {
+    return BUSINESS_TYPES.find((t) => t.stages === (stages ?? 2))?.hint ?? '';
+  }
+
+  protected alwaysOn(stages: number | undefined): string[] {
+    return (stages ?? 2) > 0 ? [...ALWAYS_ON.slice(0, 1), 'Sorting', ...ALWAYS_ON.slice(1)] : ALWAYS_ON;
+  }
+
+  protected switchedOn(t: Business): string[] {
+    return SWITCHABLE.filter((m) => t.enabledModules?.includes(m.id)).map((m) => m.label);
+  }
+
+  protected switchedOff(t: Business): string[] {
+    return SWITCHABLE.filter((m) => !t.enabledModules?.includes(m.id)).map((m) => m.label);
+  }
+
+  protected openWorkings(): void {
+    const t = this.b();
+    if (!t) return;
+    this.wStages = t.sortingStages ?? 2;
+    this.wModules = new Set(SWITCHABLE.map((m) => m.id).filter((id) => t.enabledModules?.includes(id)));
+    this.open('workings');
+  }
+
+  protected toggleModule(id: string, on: boolean): void {
+    const next = new Set(this.wModules);
+    if (on) next.add(id);
+    else next.delete(id);
+    this.wModules = next;
+  }
+
+  protected saveWorkings(): void {
+    this.run(this.http.patch(`${this.api}/${this.b()!.id}/workings`, { sortingStages: Number(this.wStages), modules: [...this.wModules] }), () => this.close());
   }
 
   protected editPerson(p: Person): void {

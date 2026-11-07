@@ -23,12 +23,12 @@ import { TenantGuard } from '../common/guards/tenant.guard';
 import { SuperAdminOnly } from '../common/decorators/super-admin.decorator';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 import { BootstrapResult } from './tenant-bootstrap.service';
-import { RequireModule } from '../common/decorators/require-module.decorator';
 import { SYSTEM_COMPANY_CODE } from '../common/guards/module.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { OnboardingService } from './onboarding.service';
-import { DeleteBusinessDto, MarkTestDto, QuickCreateTenantDto, SupportViewDto, UpdatePersonDto } from './dto/quick-create.dto';
+import { DeleteBusinessDto, MarkTestDto, QuickCreateTenantDto, SupportViewDto, UpdatePersonDto, WorkingsDto } from './dto/quick-create.dto';
 import { TestBusinessService } from './test-business.service';
+import { PlatformSettingsDto } from './dto/platform-settings.dto';
 
 @Controller('superadmin')
 @UseGuards(TenantGuard)
@@ -75,18 +75,6 @@ export class SuperAdminController {
     return this.superAdminService.getGlobalAuditLogs(page || 1, limit || 20, action, { tenantId: tenantId || undefined, q, all: all === 'true' || all === '1' });
   }
 
-  @Get('plans')
-  @RequireModule('BILLING')
-  async getPlans() {
-    return this.superAdminService.getPlansCatalog();
-  }
-
-  @Get('billing')
-  @RequireModule('BILLING')
-  async getBilling() {
-    return this.superAdminService.getBillingSummary();
-  }
-
   @Get('settings')
   async getSettings() {
     return this.superAdminService.getSystemSettings();
@@ -94,7 +82,7 @@ export class SuperAdminController {
 
   @Patch('settings')
   async updateSettings(
-    @Body() dto: any,
+    @Body() dto: PlatformSettingsDto,
     @CurrentUser() user: CurrentUserData,
   ) {
     return this.superAdminService.updateSystemSettings(dto, user.userId);
@@ -134,6 +122,12 @@ export class SuperAdminController {
     @Patch('tenants/:id/users/:userId')
   updatePerson(@Param('id') id: string, @Param('userId') userId: string, @Body() dto: UpdatePersonDto, @CurrentUser() user: CurrentUserData) {
     return this.onboarding.updatePerson(id, userId, dto, user.userId);
+  }
+
+  /** Business type and modules (v2 review). */
+  @Patch('tenants/:id/workings')
+  setWorkings(@Param('id') id: string, @Body() dto: WorkingsDto, @CurrentUser() user: CurrentUserData) {
+    return this.onboarding.setWorkings(id, dto, user.userId);
   }
 
   @Post('tenants/:id/test')

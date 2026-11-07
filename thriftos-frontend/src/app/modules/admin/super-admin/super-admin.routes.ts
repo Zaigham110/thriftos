@@ -4,7 +4,6 @@
  */
 
 import { Routes } from '@angular/router';
-import { systemModuleGuard } from '../../../core/guards/system-module.guard';
 
 export const SUPER_ADMIN_ROUTES: Routes = [
   {
@@ -28,22 +27,9 @@ export const SUPER_ADMIN_ROUTES: Routes = [
       import('./users/global-users.component').then((m) => m.GlobalUsersComponent),
     title: 'People - ThriftOS Admin',
   },
-  {
-    path: 'plans',
-    canActivate: [systemModuleGuard],
-    data: { module: 'BILLING' },
-    loadComponent: () =>
-      import('./plans/plans-management.component').then((m) => m.PlansManagementComponent),
-    title: 'Subscription Tiers & Plans - ThriftOS Admin',
-  },
-  {
-    path: 'billing',
-    canActivate: [systemModuleGuard],
-    data: { module: 'BILLING' },
-    loadComponent: () =>
-      import('./billing/global-billing.component').then((m) => m.GlobalBillingComponent),
-    title: 'Global SaaS Billing - ThriftOS Admin',
-  },
+  // Plans and billing showed sample numbers and were never part of ThriftOS (v2 review): old links go to the overview.
+  { path: 'plans', redirectTo: 'dashboard' },
+  { path: 'billing', redirectTo: 'dashboard' },
   {
     path: 'audit',
     loadComponent: () =>

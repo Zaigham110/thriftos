@@ -104,7 +104,9 @@ describe('Super Admin onboarding tools (e2e)', () => {
     await support.post('/auth/exit-impersonation').expect(204);
 
     const actions = (await prisma.auditLog.findMany({ where: { tenantId: owner.tenantId, userId: superAdmin.userId }, select: { action: true, metadataJson: true } })).map((a) => a.action);
-    expect(actions).toEqual(expect.arrayContaining(['SUPERADMIN_IMPERSONATE', 'SUPER_ADMIN_IMPERSONATED_ACCESS', 'SUPPORT_VIEW_WRITE_BLOCKED']));
+    expect(actions).toEqual(expect.arrayContaining(['SUPERADMIN_IMPERSONATE', 'SUPPORT_VIEW_WRITE_BLOCKED']));
+    // Screens loaded in support view are not logged one by one (v2 review): opening and closing it are.
+    expect(actions).not.toContain('SUPER_ADMIN_IMPERSONATED_ACCESS');
     const start = await prisma.auditLog.findFirstOrThrow({ where: { tenantId: owner.tenantId, action: 'SUPERADMIN_IMPERSONATE' } });
     expect(start.metadataJson).toMatchObject({ readOnly: true, reason: 'Owner says udhaar total looks wrong' });
 

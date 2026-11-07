@@ -7,7 +7,9 @@ import { PasswordService } from '../auth/password.service';
 import { toE164 } from '../common/phone/phone';
 import { Language, localeOf, Texts, toLanguage } from '../common/language/language';
 import { TenantBootstrapService } from './tenant-bootstrap.service';
-import { QuickCreateTenantDto, UpdatePersonDto } from './dto/quick-create.dto';
+import { QuickCreateTenantDto, UpdatePersonDto, WorkingsDto } from './dto/quick-create.dto';
+import { workingModules } from './business-workings';
+import { SYSTEM_COMPANY_CODE } from '../common/guards/module.guard';
 
 export type ActivityKind = 'sale' | 'payment' | 'container' | 'app';
 export interface LastActivity {
@@ -81,6 +83,7 @@ export class OnboardingService {
         defaultLanguage: language,
         locale: localeOf(language),
         sortingStages: dto.sortingStages ?? 2,
+        enabledModules: workingModules(dto.sortingStages ?? 2, dto.modules ?? ['KHATA'], []),
       },
     });
     const boot = await this.bootstrap.bootstrapTenant(tenant.id);
@@ -164,6 +167,28 @@ export class OnboardingService {
     }
     const updated = await this.prisma.user.update({ where: { id: user.id }, data, select: { id: true, name: true, phone: true } });
     await this.audit.log({ userId: actorId, tenantId, action: 'USER_UPDATED', entityType: 'User', entityId: user.id, metadataJson: { before: { name: user.name, phone: user.phone }, after: data, bySuperAdmin: true } });
+    return updated;
+  }
+
+  /**
+   * The business type and modules, set by the super admin (the owner can also change them in Settings). Switching
+   * to trading only hides the Sorting tab; nothing already recorded is removed.
+   */
+  async setWorkings(tenantId: string, dto: WorkingsDto, actorId: string) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { sortingStages: true, enabledModules: true, companyCode: true } });
+    if (!tenant || tenant.companyCode === SYSTEM_COMPANY_CODE) throw new NotFoundException('Business not found');
+    const sortingStages = dto.sortingStages ?? tenant.sortingStages;
+    const chosen = dto.modules ?? tenant.enabledModules;
+    const enabledModules = workingModules(sortingStages, chosen, tenant.enabledModules);
+    const updated = await this.prisma.tenant.update({ where: { id: tenantId }, data: { sortingStages, enabledModules }, select: { sortingStages: true, enabledModules: true } });
+    await this.audit.log({
+      userId: actorId,
+      tenantId,
+      action: 'TENANT_WORKINGS_CHANGED',
+      entityType: 'Tenant',
+      entityId: tenantId,
+      metadataJson: { before: { sortingStages: tenant.sortingStages, enabledModules: tenant.enabledModules }, after: updated, bySuperAdmin: true },
+    });
     return updated;
   }
 

@@ -1,115 +1,112 @@
-import { auditLabel } from '../audit-labels';
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+/**
+ * Platform overview for the super admin (v2 review, plain like the other console pages): how many businesses and
+ * people, what they have recorded, server status, the newest businesses and the latest activity. Background noise
+ * (session renewals, page views) is left out by the server.
+ */
+import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
-import { CheckCircle2, LogIn, LucideAngularModule, RefreshCw } from 'lucide-angular';
-import { AuthService } from '../../../../core/auth';
-import { WsColumn, WsDataGridComponent, WsKpiCardComponent, WsPageHeaderComponent, WsRow, WsStateComponent } from '../../../../shared/ui/workspace';
+import { RouterLink } from '@angular/router';
+import { AppPageBodyComponent, AppPageComponent, AppPageHeaderComponent } from '../../../../shared/ui';
+import { auditLabel } from '../audit-labels';
+import { day, moment } from '../console-format';
+import { typeLabel } from '../business-type';
 import { SuperAdminDataService, type SuperAdminSummary } from '../super-admin-data.service';
 
-/**
- * Platform overview for the super admin (enterprise UI pass): how many businesses and people, what they have
- * recorded, real server status (database, uptime, release), the newest businesses (open one as its owner to
- * help) and the latest audit events.
- */
 @Component({
   selector: 'app-super-admin-dashboard',
   standalone: true,
-  imports: [RouterLink, LucideAngularModule, WsDataGridComponent, WsKpiCardComponent, WsPageHeaderComponent, WsStateComponent],
+  imports: [RouterLink, AppPageComponent, AppPageHeaderComponent, AppPageBodyComponent],
   template: `
-    <div class="page">
-      <ws-page-header heading="Platform overview" subtitle="Businesses, people and activity across ThriftOS">
-        <button actions type="button" class="ws-btn" (click)="load()" [disabled]="loading()"><lucide-icon [img]="icons.RefreshCw" [size]="16" aria-hidden="true" />Refresh</button>
-      </ws-page-header>
-      @if (error(); as e) {
-        <ws-state kind="error" [heading]="e" (retry)="load()" />
-      } @else if (summary(); as s) {
-        <section class="kpis">
-          <ws-kpi-card label="Businesses" [value]="num(s.kpis.activeTenants) + ' active'" [hint]="num(s.kpis.totalTenants) + ' in all · ' + num(s.kpis.inactiveTenants) + ' switched off'" link="/admin/tenants" />
-          <ws-kpi-card label="People" [value]="num(s.kpis.activeUsers) + ' active'" [hint]="num(s.kpis.totalUsers) + ' accounts'" link="/admin/users" />
-          <ws-kpi-card label="Kg received" [value]="num(s.kpis.totalWeightKg) + ' kg'" hint="All businesses" />
-          <ws-kpi-card label="Sales recorded" [value]="sales(s.kpis.salesByCurrency, 0)" [hint]="salesHint(s.kpis.salesByCurrency)" />
-        </section>
-        <section class="health" aria-label="Server status">
-          <span><lucide-icon [img]="icons.CheckCircle2" [size]="16" aria-hidden="true" />Database connected</span>
-          <span>Server running for {{ uptime(s.systemHealth.uptimeHours) }}</span>
-          <span>Release {{ s.systemHealth.version ?? 'not set' }}</span>
-          @if (s.systemHealth.lastAuditAt) { <span>Last activity {{ time(s.systemHealth.lastAuditAt) }}</span> }
-        </section>
-        <div class="two">
-          <section class="panel">
-            <header><h2>Newest businesses</h2><a routerLink="/admin/tenants">All businesses</a></header>
-            <table>
-              <caption class="sr-only">Newest businesses</caption>
-              <thead><tr><th scope="col">Business</th><th scope="col">Code</th><th scope="col" class="num">People</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Open</span></th></tr></thead>
-              <tbody>
-                @for (t of s.recentTenants; track t.id) {
-                  <tr>
-                    <td><a [routerLink]="['/admin/tenants', t.id]">{{ t.name }}</a></td>
-                    <td class="code">{{ t.companyCode }}</td>
-                    <td class="num">{{ t.userCount }}</td>
-                    <td><span class="pill" [class.off]="t.status !== 'ACTIVE'">{{ t.status === 'ACTIVE' ? 'Active' : 'Off' }}</span></td>
-                    <td class="end">
-                      @if (t.companyCode !== 'SYSTEM') {
-                        <button type="button" class="ws-btn small" (click)="impersonate(t.id)" [disabled]="!!impersonatingId()" title="Open this business as its owner, to help them"><lucide-icon [img]="icons.LogIn" [size]="14" aria-hidden="true" />{{ impersonatingId() === t.id ? 'Opening…' : 'Open' }}</button>
-                      }
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </section>
-          <section class="panel">
-            <header><h2>Latest activity</h2><a routerLink="/admin/audit">Audit trail</a></header>
-            <ws-data-grid caption="Latest activity" [columns]="auditColumns" [rows]="auditRows()" emptyHeading="Nothing yet" />
-          </section>
+    <app-page>
+      <app-page-header>
+        <div><h1 class="page-title">Overview</h1><p class="page-subtitle">Businesses, people and activity across ThriftOS</p></div>
+        <div class="btns">
+          <button type="button" class="btn" (click)="load()" [disabled]="loading()">{{ loading() ? 'Loading…' : 'Refresh' }}</button>
+          <a class="btn primary" routerLink="/admin/tenants/quick">New business</a>
         </div>
-      } @else {
-        <ws-state kind="loading" />
-      }
-    </div>
+      </app-page-header>
+      <app-page-body>
+        @if (error(); as e) {
+          <p class="err" role="alert">{{ e }} <button type="button" class="link" (click)="load()">Try again</button></p>
+        } @else if (summary(); as s) {
+          <div class="page">
+            <dl class="stats">
+              <a routerLink="/admin/tenants"><dt>Businesses</dt><dd>{{ num(s.kpis.activeTenants) }} working</dd><small>{{ num(s.kpis.totalTenants) }} in all · {{ num(s.kpis.inactiveTenants) }} switched off</small></a>
+              <a routerLink="/admin/users"><dt>People</dt><dd>{{ num(s.kpis.activeUsers) }} can sign in</dd><small>{{ num(s.kpis.totalUsers) }} in all</small></a>
+              <div><dt>Kg received</dt><dd>{{ num(s.kpis.totalWeightKg) }} kg</dd><small>All businesses</small></div>
+              <div><dt>Sales recorded</dt><dd>{{ sales(s.kpis.salesByCurrency, 0) }}</dd><small>{{ salesHint(s.kpis.salesByCurrency) }}</small></div>
+            </dl>
+            <p class="health" aria-label="Server status">
+              <span class="dot" aria-hidden="true"></span><span>Database connected</span>
+              <span>Server running for {{ uptime(s.systemHealth.uptimeHours) }}</span>
+              <span>Release {{ s.systemHealth.version ?? 'not set' }}</span>
+              @if (s.systemHealth.lastAuditAt) { <span>Last activity {{ moment(s.systemHealth.lastAuditAt) }}</span> }
+            </p>
+            <div class="two">
+              <section class="card">
+                <div class="card-head"><h2>Newest businesses</h2><a class="link" routerLink="/admin/tenants">All businesses</a></div>
+                <div class="table-wrap">
+                  <table class="plain">
+                    <thead><tr><th scope="col">Business</th><th scope="col">Works as</th><th scope="col">People</th><th scope="col">Made</th></tr></thead>
+                    <tbody>
+                      @for (t of s.recentTenants; track t.id) {
+                        <tr>
+                          <td><a [routerLink]="['/admin/tenants', t.id]">{{ t.name }}</a>@if (t.status !== 'ACTIVE') { <span class="tag off">Switched off</span> }</td>
+                          <td>{{ typeLabel(t.sortingStages) }}</td>
+                          <td>{{ t.userCount }}</td>
+                          <td class="when">{{ day(t.createdAt) }}</td>
+                        </tr>
+                      } @empty { <tr><td colspan="4" class="muted">No businesses yet.</td></tr> }
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+              <section class="card">
+                <div class="card-head"><h2>Latest activity</h2><a class="link" routerLink="/admin/audit">Audit trail</a></div>
+                <div class="table-wrap">
+                  <table class="plain">
+                    <thead><tr><th scope="col">What</th><th scope="col">Who</th><th scope="col">Business</th><th scope="col">When</th></tr></thead>
+                    <tbody>
+                      @for (l of s.recentLogs; track l.id) {
+                        <tr><td>{{ label(l.action) }}</td><td>{{ l.userName }}</td><td>{{ l.tenantName }}</td><td class="when">{{ moment(l.createdAt) }}</td></tr>
+                      } @empty { <tr><td colspan="4" class="muted">Nothing yet.</td></tr> }
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+          </div>
+        } @else {
+          <p class="muted">Loading…</p>
+        }
+      </app-page-body>
+    </app-page>
   `,
+  styleUrls: ['../console.css'],
   styles: [`
-    .page { display:grid; grid-template-columns:minmax(0, 1fr); gap:var(--ws-4); max-width:var(--ws-content-max); margin-inline:auto; font-family:var(--ws-font); color:var(--ws-ink); }
-    .kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:var(--ws-3); }
-    .health { display:flex; flex-wrap:wrap; gap:var(--ws-2) var(--ws-5); padding:var(--ws-3) var(--ws-4); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); color:var(--ws-ink-2); font-size:var(--ws-text-sm); }
-    .health span { display:inline-flex; align-items:center; gap:6px; }
-    .health lucide-icon { color:var(--ws-good); }
-    .two { display:grid; grid-template-columns:repeat(auto-fit, minmax(420px, 1fr)); gap:var(--ws-4); align-items:start; }
-    .panel { display:grid; gap:var(--ws-3); padding:var(--ws-4); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); }
-    .panel header { display:flex; align-items:center; justify-content:space-between; }
-    h2 { margin:0; font-size:var(--ws-text-md); font-weight:600; }
-    .panel header a, td a { color:var(--ws-brand); text-decoration:none; } .panel header a:hover, td a:hover { text-decoration:underline; }
-    table { width:100%; border-collapse:collapse; font-size:var(--ws-text-sm); }
-    th, td { padding:var(--ws-2); border-bottom:1px solid var(--ws-line); text-align:start; }
-    th { color:var(--ws-ink-2); font-size:var(--ws-text-xs); font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
-    .num { text-align:end; } .end { text-align:end; }
-    .code { font-family:ui-monospace, monospace; color:var(--ws-ink-2); }
-    .pill { padding:2px 8px; border-radius:999px; background:var(--ws-good-soft, #dcfce7); color:var(--ws-good); font-size:var(--ws-text-xs); font-weight:600; }
-    .pill.off { background:var(--ws-bad-soft); color:var(--ws-bad); }
-    .ws-btn.small { height:30px; padding-inline:var(--ws-2); font-size:var(--ws-text-sm); }
-    .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+    .page { display:grid; gap:16px; min-width:0; }
+    .stats { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin:0; }
+    .stats > * { display:grid; gap:2px; padding:14px 16px; border:1px solid var(--color-border, #e3dde0); border-radius:12px; background:var(--color-surface, #fff); color:inherit; text-decoration:none; }
+    .stats > a:hover { border-color:var(--color-primary, #6f3f63); }
+    .stats dt { color:var(--color-text-secondary, #6b6468); font-size:13px; }
+    .stats dd { margin:0; font-size:22px; font-weight:700; }
+    .stats small { color:var(--color-text-secondary, #6b6468); font-size:12px; }
+    .health { display:flex; flex-wrap:wrap; align-items:center; gap:6px 20px; margin:0; padding:10px 16px; border:1px solid var(--color-border, #e3dde0); border-radius:12px; background:var(--color-surface, #fff); color:var(--color-text-secondary, #6b6468); font-size:13px; }
+    .dot { width:8px; height:8px; margin-inline-end:-14px; border-radius:50%; background:#16a34a; }
+    .stats dd { overflow-wrap:anywhere; }
+    .two { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap:16px; align-items:start; min-width:0; }
   `],
 })
 export class SuperAdminDashboardComponent {
   private readonly data = inject(SuperAdminDataService);
-  private readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
-  protected readonly icons = { CheckCircle2, LogIn, RefreshCw };
   protected readonly summary = signal<SuperAdminSummary | null>(null);
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
-  protected readonly impersonatingId = signal<string | null>(null);
-  protected readonly auditColumns: WsColumn[] = [
-    { key: 'action', label: 'What' },
-    { key: 'userName', label: 'Who' },
-    { key: 'tenantName', label: 'Business' },
-    { key: 'createdAt', label: 'When', format: 'date' },
-  ];
-  protected readonly auditRows = computed<WsRow[]>(() =>
-    (this.summary()?.recentLogs ?? []).map((l) => ({ ...l, action: auditLabel(l.action) })) as unknown as WsRow[],
-  );
+  protected readonly label = auditLabel;
+  protected readonly day = day;
+  protected readonly moment = moment;
+  protected readonly typeLabel = typeLabel;
 
   constructor() {
     this.load();
@@ -120,14 +117,14 @@ export class SuperAdminDashboardComponent {
     this.error.set(null);
     this.data.getSummary().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (s) => { this.summary.set(s); this.loading.set(false); },
-      error: (e) => { this.error.set(e?.error?.message || 'The overview could not be loaded'); this.loading.set(false); },
+      error: (e) => { this.error.set(e?.error?.message || 'The overview could not be loaded.'); this.loading.set(false); },
     });
   }
 
   /** Sales in one currency: "Rs 3,091,600"; several: the biggest, with the others in the hint. */
   protected sales(list: { currency: string; amount: string }[] | undefined, i: number): string {
     const x = list?.[i];
-    return x ? `${x.currency === 'PKR' ? 'Rs' : x.currency} ${this.num(x.amount)}` : '0';
+    return x ? `${x.currency === 'PKR' ? 'Rs' : x.currency} ${this.num(x.amount)}` : 'Rs 0';
   }
   protected salesHint(list: { currency: string; amount: string }[] | undefined): string {
     if (!list || list.length <= 1) return 'All businesses';
@@ -139,23 +136,8 @@ export class SuperAdminDashboardComponent {
   }
 
   protected uptime(hours: number): string {
-    return hours >= 48 ? `${Math.floor(hours / 24)} days` : hours >= 1 ? `${hours} hours` : `${Math.max(1, Math.round(hours * 60))} minutes`;
-  }
-
-  protected time(v: string): string {
-    return new Date(v).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  }
-
-  /** Opens the business as its owner (audited on the server) to help them. */
-  protected impersonate(tenantId: string): void {
-    if (this.impersonatingId()) return;
-    this.impersonatingId.set(tenantId);
-    this.auth.impersonateTenant(tenantId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => {
-        this.impersonatingId.set(null);
-        void this.router.navigate(['/home']);
-      },
-      error: () => this.impersonatingId.set(null),
-    });
+    const n = hours >= 48 ? Math.floor(hours / 24) : hours >= 1 ? Math.round(hours) : Math.max(1, Math.round(hours * 60));
+    const unit = hours >= 48 ? 'day' : hours >= 1 ? 'hour' : 'minute';
+    return `${n} ${unit}${n === 1 ? '' : 's'}`;
   }
 }

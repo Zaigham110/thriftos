@@ -1,0 +1,34 @@
+/*
+ * The super admin console's own look (v2 review), shared by every console page so buttons, tags, cards and tables
+ * are the same size and style everywhere. Page-specific styles stay in each component.
+ */
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:38px; padding:0 14px; border:1px solid var(--color-border, #d6cfd3); border-radius:8px; background:var(--color-surface, #fff); color:inherit; font:inherit; font-size:14px; font-weight:600; text-decoration:none; white-space:nowrap; cursor:pointer; }
+.btn:hover:not(:disabled) { border-color:var(--color-primary, #6f3f63); }
+.btn.sm { min-height:32px; padding:0 10px; font-size:13px; }
+.btn.primary { border-color:var(--color-primary, #6f3f63); background:var(--color-primary, #6f3f63); color:#fff; }
+.btn.danger { border-color:var(--color-danger, #b3261e); color:var(--color-danger, #b3261e); }
+.btn:disabled { opacity:.5; cursor:default; }
+.btns { display:inline-flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.link { border:0; background:none; padding:0; color:var(--color-primary, #6f3f63); font:inherit; font-weight:600; text-decoration:none; cursor:pointer; }
+.link:hover { text-decoration:underline; }
+/* A small label next to a name ("Test", "Switched off"). Not .chip: that is the floor app's 48px tap target. */
+.tag { display:inline-block; margin-inline-start:6px; padding:1px 8px; border-radius:999px; background:#eee8eb; color:#4b4448; font-size:12px; font-weight:600; line-height:20px; vertical-align:middle; white-space:nowrap; }
+.tag.test { background:#fef3c7; color:#92400e; }
+.tag.off, .tag.bad { background:#fee2e2; color:#b91c1c; }
+.tag.ok { background:#dcfce7; color:#166534; }
+.card { display:grid; gap:12px; min-width:0; padding:16px 20px; border:1px solid var(--color-border, #e3dde0); border-radius:12px; background:var(--color-surface, #fff); }
+.card > h2, .card-head h2 { margin:0; font-size:16px; font-weight:600; }
+.card-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; }
+.table-wrap { min-width:0; overflow-x:auto; }
+table.plain { width:100%; border-collapse:collapse; font-size:14px; }
+table.plain th { color:var(--color-text-secondary, #6b6468); font-size:12px; font-weight:600; text-align:start; white-space:nowrap; }
+table.plain th, table.plain td { padding:9px 8px; border-bottom:1px solid var(--color-border, #eee8eb); text-align:start; vertical-align:middle; }
+table.plain tr:last-child td { border-bottom:0; }
+table.plain .end { text-align:end; white-space:nowrap; }
+table.plain .when { color:var(--color-text-secondary, #6b6468); white-space:nowrap; }
+table.plain td a { color:inherit; font-weight:600; text-decoration:none; }
+table.plain td a:hover { color:var(--color-primary, #6f3f63); }
+.code { margin-inline-start:8px; color:var(--color-text-secondary, #6b6468); font-size:12px; }
+.muted { margin:0; color:var(--color-text-secondary, #6b6468); }
+.err { margin:0; color:var(--color-danger, #b3261e); }
+.sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }

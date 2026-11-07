@@ -91,8 +91,9 @@ export class TenantGuard implements CanActivate {
       // Use the impersonated tenant context
       request.tenantId = user.impersonatedTenantId;
       
-      // Log impersonated access
-      await this.logSecurityEvent(
+      // Support view: opening and closing are logged by the auth service; only changes are logged here, not every
+      // screen loaded (v2 review: page loads flooded the business's activity).
+      if (request.method !== 'GET') await this.logSecurityEvent(
         user.userId,
         user.impersonatedTenantId,
         'SUPER_ADMIN_IMPERSONATED_ACCESS',

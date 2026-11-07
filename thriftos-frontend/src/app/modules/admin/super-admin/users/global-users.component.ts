@@ -32,39 +32,34 @@ interface PersonRow {
         @if (failed()) {
           <p class="err" role="alert">Could not load people.</p>
         } @else {
-          <table>
+          <div class="card flush table-wrap"><table class="plain">
             <thead><tr><th scope="col">Name</th><th scope="col">Phone</th><th scope="col">Email</th><th scope="col">Business</th><th scope="col">Role</th><th scope="col">Signs in with</th></tr></thead>
             <tbody>
               @for (p of rows(); track p.id) {
                 <tr (click)="open(p)" tabindex="0" (keydown.enter)="open(p)">
-                  <td><strong>{{ p.name }}</strong> @if (!p.isActive) { <span class="chip off">blocked</span> }</td>
+                  <td><strong>{{ p.name }}</strong>@if (!p.isActive) { <span class="tag off">Blocked</span> }</td>
                   <td dir="ltr">{{ phone(p.phone) || '—' }}</td>
                   <td>{{ p.email || '—' }}</td>
-                  <td>{{ p.companyCode === 'SYSTEM' ? 'Platform (super admin)' : p.tenantName }}</td>
+                  <td>{{ p.tenantName }}</td>
                   <td>{{ p.roles.join(', ') || (p.companyCode === 'SYSTEM' ? 'Super admin' : '—') }}</td>
-                  <td>{{ signIn(p) }} @if (p.pinLocked) { <span class="chip off">locked</span> }</td>
+                  <td>{{ signIn(p) }}@if (p.pinLocked) { <span class="tag bad">Locked</span> }</td>
                 </tr>
               } @empty { <tr><td colspan="6" class="muted">{{ loaded() ? 'Nobody matches.' : 'Loading…' }}</td></tr> }
             </tbody>
-          </table>
+          </table></div>
           @if (total() > rows().length) { <p class="muted">Showing {{ rows().length }} of {{ total() }}. Search to narrow it down.</p> }
         }
       </app-page-body>
     </app-page>
   `,
+  styleUrls: ['../console.css'],
   styles: [`
-    .bar { display:flex; gap:8px; margin-bottom:12px; }
-    .bar input { min-height:38px; min-width:300px; padding:0 12px; border:1px solid var(--color-border, #d6cfd3); border-radius:8px; font:inherit; background:transparent; color:inherit; }
-    .btn { min-height:38px; padding:0 14px; border:1px solid var(--color-border, #d6cfd3); border-radius:8px; background:transparent; color:inherit; font:inherit; font-weight:600; cursor:pointer; }
-    table { width:100%; border-collapse:collapse; font-size:14px; background:var(--color-surface, #fff); border:1px solid var(--color-border, #e3dde0); }
-    th { color:var(--color-text-secondary, #6b6468); font-size:12px; font-weight:600; text-align:start; }
-    th, td { padding:10px 12px; border-bottom:1px solid var(--color-border, #eee8eb); text-align:start; }
+    .bar { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+    .bar input { min-height:38px; min-width:min(300px, 100%); padding:0 12px; border:1px solid var(--color-border, #d6cfd3); border-radius:8px; font:inherit; background:var(--color-surface, #fff); color:inherit; }
+    .card.flush { padding:4px 12px; }
     tbody tr { cursor:pointer; }
     tbody tr:hover { background:#faf7f9; }
-    .chip { padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; }
-    .chip.off { background:#fee2e2; color:#b91c1c; }
-    .muted { color:var(--color-text-secondary, #6b6468); }
-    .err { color:var(--color-danger, #b3261e); }
+    p.muted { margin-top:8px; }
   `],
 })
 export class GlobalUsersComponent {

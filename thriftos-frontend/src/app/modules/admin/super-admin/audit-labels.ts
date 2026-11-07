@@ -5,6 +5,7 @@
 const LABELS: Record<string, string> = {
   TENANT_CREATED: 'Business created',
   TENANT_UPDATED: 'Business changed',
+  TENANT_WORKINGS_CHANGED: 'How the business works changed',
   TENANT_DEACTIVATED: 'Business switched off',
   TENANT_ACTIVATED: 'Business switched on',
   TENANT_SETUP_DONE: 'Owner finished setup',

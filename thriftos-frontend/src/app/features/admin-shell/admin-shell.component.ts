@@ -6,13 +6,12 @@
 
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { Building2, ChevronDown, CreditCard, LayoutDashboard, LogOut, LucideAngularModule, Moon, ScrollText, Settings2, ShieldCheck, Sun, Tag, Users } from 'lucide-angular';
+import { Building2, ChevronDown, LayoutDashboard, LogOut, LucideAngularModule, Moon, ScrollText, Settings2, ShieldCheck, Sun, Users } from 'lucide-angular';
 import { AuthService } from '../../core/auth';
-import { SystemModulesService } from '../../core/guards/system-module.guard';
 import { ThemeService } from '../../core/theme/theme.service';
 
 type Icon = typeof LayoutDashboard;
-interface Item { label: string; path: string; icon: Icon; billing?: boolean }
+interface Item { label: string; path: string; icon: Icon }
 interface Group { label: string; items: Item[] }
 
 const NAV: Group[] = [
@@ -22,13 +21,6 @@ const NAV: Group[] = [
     items: [
       { label: 'Businesses', path: '/admin/tenants', icon: Building2 },
       { label: 'People', path: '/admin/users', icon: Users },
-    ],
-  },
-  {
-    label: 'Commercial',
-    items: [
-      { label: 'Plans', path: '/admin/plans', icon: Tag, billing: true },
-      { label: 'Billing', path: '/admin/billing', icon: CreditCard, billing: true },
     ],
   },
   {
@@ -49,7 +41,7 @@ const NAV: Group[] = [
     <div class="ws">
       <header class="topbar">
         <a routerLink="/admin/dashboard" class="brand"><img src="os_sm.png" alt="" width="28" height="28" /><span>ThriftOS</span></a>
-        <span class="badge"><lucide-icon [img]="icons.ShieldCheck" [size]="14" aria-hidden="true" />Platform admin</span>
+        <span class="badge" title="Platform admin"><lucide-icon [img]="icons.ShieldCheck" [size]="14" aria-hidden="true" /><span>Platform admin</span></span>
         <span class="grow"></span>
         <button type="button" class="tool" (click)="theme.toggleTheme()" [attr.aria-label]="theme.theme() === 'dark' ? 'Light theme' : 'Dark theme'">
           <lucide-icon [img]="theme.theme() === 'dark' ? icons.Sun : icons.Moon" [size]="18" aria-hidden="true" />
@@ -105,13 +97,24 @@ const NAV: Group[] = [
     .nav-item.active { background:var(--ws-brand-soft); color:var(--ws-brand); font-weight:600; }
     .content { padding:var(--ws-5); min-width:0; }
     .content:focus { outline:none; }
+    /* Phone (v2 review): the menu becomes a scrolling row of links under the top bar, and the pages get the full width. */
+    @media (max-width: 760px) {
+      .ws { grid-template-columns:minmax(0,1fr); grid-template-rows:var(--ws-topbar-h) auto minmax(0,1fr); }
+      .topbar { gap:var(--ws-2); padding-inline:var(--ws-3); }
+      .badge span, .name { display:none; }
+      .badge { padding:4px 6px; }
+      .nav { border-inline-end:0; border-bottom:1px solid var(--ws-line); padding:var(--ws-1) var(--ws-2); overflow-x:auto; }
+      .nav nav { position:static; display:flex; gap:4px; }
+      .group-label { display:none; }
+      .nav-item { flex:none; min-height:36px; padding-inline:var(--ws-2); font-size:var(--ws-text-sm); white-space:nowrap; }
+      .content { padding:var(--ws-3); }
+    }
     @media print { .topbar, .nav, .skip { display:none !important; } .ws { display:block; } }
   `],
 })
 export class AdminShellComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
-  private readonly systemModules = inject(SystemModulesService);
   protected readonly theme = inject(ThemeService);
   protected readonly icons = { ChevronDown, LogOut, Moon, ShieldCheck, Sun };
   protected readonly menu = signal(false);
@@ -119,15 +122,7 @@ export class AdminShellComponent {
   protected readonly email = computed(() => this.auth.user()?.email ?? '');
   protected readonly initials = computed(() => this.userName().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join(''));
 
-  /** Plans and billing are not part of v1: shown only when the SYSTEM business has BILLING turned on. */
-  protected readonly groups = computed(() => {
-    const billing = this.systemModules.modules().includes('BILLING');
-    return NAV.map((g) => ({ ...g, items: g.items.filter((i) => !i.billing || billing) })).filter((g) => g.items.length);
-  });
-
-  constructor() {
-    this.systemModules.load().subscribe();
-  }
+  protected readonly groups = signal(NAV);
 
   protected signOut(): void {
     this.menu.set(false);

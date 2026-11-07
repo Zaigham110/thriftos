@@ -10,76 +10,16 @@ import { SYSTEM_COMPANY_CODE } from '../common/guards/module.guard';
 import { getCurrencyMeta, isSupportedCurrencyCode } from '../common/currency/currency';
 import { Decimal } from '@prisma/client/runtime/library';
 
-// In-Memory SuperAdmin Settings & Plans State (Persistent across sessions)
-const PLANS_CATALOG = [
-  {
-    id: 'plan_enterprise',
-    name: 'Enterprise ERP Suite',
-    code: 'ENTERPRISE_FULL',
-    monthlyPrice: 499,
-    annualPrice: 4990,
-    maxUsers: 50,
-    maxWarehouses: 10,
-    maxContainersPerMonth: 500,
-    features: ['Full Landed Cost Engine', 'Mixed-Source Repack v2', 'Touch Mobile Mode', 'API Webhooks & Export'],
-    activeTenantsCount: 4,
-    status: 'ACTIVE',
-  },
-  {
-    id: 'plan_pro',
-    name: 'Sorting & Repack Pro',
-    code: 'STANDALONE_SORTING',
-    monthlyPrice: 299,
-    annualPrice: 2990,
-    maxUsers: 15,
-    maxWarehouses: 3,
-    maxContainersPerMonth: 150,
-    features: ['Stage 1 & 2 Sorting', 'Scanner Workstation', 'Touch Mobile Mode', 'Valuation Reports'],
-    activeTenantsCount: 2,
-    status: 'ACTIVE',
-  },
-  {
-    id: 'plan_standard',
-    name: 'Standard Inventory',
-    code: 'LIGHT_COMMERCE',
-    monthlyPrice: 149,
-    annualPrice: 1490,
-    maxUsers: 5,
-    maxWarehouses: 1,
-    maxContainersPerMonth: 50,
-    features: ['Basic Inventory', 'Stock Movements', 'Sales Orders'],
-    activeTenantsCount: 1,
-    status: 'ACTIVE',
-  },
-  {
-    id: 'plan_trial',
-    name: 'Starter Free Trial',
-    code: 'STARTER',
-    monthlyPrice: 0,
-    annualPrice: 0,
-    maxUsers: 2,
-    maxWarehouses: 1,
-    maxContainersPerMonth: 10,
-    features: ['14-Day Full Access', 'Standard Categories'],
-    activeTenantsCount: 1,
-    status: 'ACTIVE',
-  },
-];
+/** Background events the audit trail hides unless asked: token refreshes, console page views, support-view page loads. */
+export const AUDIT_NOISE = ['AUTH_TOKEN_REFRESH', 'SUPER_ADMIN_ROUTE_ACCESS', 'SUPER_ADMIN_IMPERSONATED_ACCESS'];
 
-/** Background events the audit trail hides unless asked: token refreshes and console page views. */
-const AUDIT_NOISE = ['AUTH_TOKEN_REFRESH', 'SUPER_ADMIN_ROUTE_ACCESS'];
+/** The platform's own account is called "Platform" everywhere in the console (v2 review). */
+const PLATFORM = 'Platform';
 
-let SYSTEM_SETTINGS = {
-  platformName: 'ThriftOS Enterprise Multi-Tenant Platform',
-  supportEmail: 'support@thriftos.com',
-  companyLegalName: 'ThriftOS Recycling Technologies LLC',
-  sessionTimeoutMinutes: 60,
-  require2FAForAdmins: true,
-  auditLogRetentionDays: 365,
-  databaseBackupFrequency: 'DAILY_AUTOMATED',
-  maintenanceMode: false,
-  allowedCurrencies: ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'AED', 'PKR'],
-};
+/** Platform settings (v2 review): kept in GlobalConfig so they survive a restart. */
+const PLATFORM_KEY = 'platform.settings';
+export type PlatformSettings = { platformName: string; supportPhone: string; supportEmail: string; companyLegalName: string };
+const PLATFORM_DEFAULTS: PlatformSettings = { platformName: 'ThriftOS', supportPhone: '', supportEmail: '', companyLegalName: '' };
 
 @Injectable()
 export class SuperAdminService {
@@ -237,7 +177,7 @@ export class SuperAdminService {
     }
 
     const auditLogs = await this.prisma.auditLog.findMany({
-      where: { tenantId: id },
+      where: { tenantId: id, action: { notIn: AUDIT_NOISE } },
       orderBy: { createdAt: 'desc' },
       take: 10,
     });
@@ -381,7 +321,7 @@ export class SuperAdminService {
       }),
       // The overview shows what people did; the super admin's own page visits stay in the full audit trail.
       this.prisma.auditLog.findMany({
-        where: { action: { not: 'SUPER_ADMIN_ROUTE_ACCESS' } },
+        where: { action: { notIn: AUDIT_NOISE } },
         orderBy: { createdAt: 'desc' },
         take: 8,
       }),
@@ -396,7 +336,7 @@ export class SuperAdminService {
     ]);
 
     const userMap = new Map<string, string>(users.map((u) => [u.id, u.name || u.email] as const));
-    const tenantMap = new Map<string, string>(tenants.map((t) => [t.id, t.name] as const));
+    const tenantMap = new Map<string, string>(tenants.map((t) => [t.id, t.companyCode === SYSTEM_COMPANY_CODE ? PLATFORM : t.name] as const));
 
     const totalWeightKg = (containerWeightAgg._sum.weighbridgeNetWeight ?? containerWeightAgg._sum.netWeight ?? new Decimal(0)).toString();
     const currencyOf = new Map((await this.prisma.tenant.findMany({ select: { id: true, currency: true } })).map((t) => [t.id, t.currency] as const));
@@ -435,6 +375,7 @@ export class SuperAdminService {
         createdAt: t.createdAt,
         userCount: t._count.users,
         warehouseCount: t._count.warehouses,
+        sortingStages: t.sortingStages,
       })),
       recentLogs: recentLogs.map((l) => ({
         id: l.id,
@@ -442,7 +383,7 @@ export class SuperAdminService {
         entityType: l.entityType,
         entityId: l.entityId,
         userName: l.userId ? (userMap.get(l.userId) || 'User ' + l.userId.slice(0, 8)) : 'System',
-        tenantName: l.tenantId ? (tenantMap.get(l.tenantId) || 'Tenant ' + l.tenantId.slice(0, 8)) : 'Global System',
+        tenantName: l.tenantId ? (tenantMap.get(l.tenantId) || 'Tenant ' + l.tenantId.slice(0, 8)) : PLATFORM,
         createdAt: l.createdAt,
         ipAddress: l.ipAddress,
       })),
@@ -492,7 +433,7 @@ export class SuperAdminService {
         isActive: u.isActive,
         createdAt: u.createdAt,
         tenantId: u.tenantId,
-        tenantName: u.tenant?.name || 'Global System',
+        tenantName: !u.tenant || u.tenant.companyCode === SYSTEM_COMPANY_CODE ? PLATFORM : u.tenant.name,
         companyCode: u.tenant?.companyCode || 'SYS',
         roles: u.userRoles.map((ur) => ur.role.name),
       })),
@@ -556,7 +497,7 @@ export class SuperAdminService {
           userAgent: l.userAgent,
           createdAt: l.createdAt,
           userName: l.userId ? (userMap.get(l.userId) || 'User ' + l.userId.slice(0, 8)) : 'System',
-          tenantName: tenantInfo ? tenantInfo.name : (l.tenantId ? 'Tenant ' + l.tenantId.slice(0, 8) : 'Global System'),
+          tenantName: !tenantInfo ? (l.tenantId ? 'Tenant ' + l.tenantId.slice(0, 8) : PLATFORM) : tenantInfo.companyCode === SYSTEM_COMPANY_CODE ? PLATFORM : tenantInfo.name,
           companyCode: tenantInfo ? tenantInfo.companyCode : 'SYS',
         };
       }),
@@ -566,60 +507,18 @@ export class SuperAdminService {
     };
   }
 
-  async getPlansCatalog() {
-    return { data: PLANS_CATALOG };
+  async getSystemSettings(): Promise<PlatformSettings> {
+    const row = await this.prisma.globalConfig.findUnique({ where: { key: PLATFORM_KEY } });
+    return { ...PLATFORM_DEFAULTS, ...((row?.valueJson as Partial<PlatformSettings> | null) ?? {}) };
   }
 
-  async getBillingSummary() {
-    const tenants = await this.prisma.tenant.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: { _count: { select: { users: true } } },
-    });
-
-    const mrr = tenants.length * 499;
-    const arr = mrr * 12;
-
-    const subscriptions = tenants.map((t, idx) => ({
-      id: `sub_${t.id.slice(0, 8)}`,
-      tenantId: t.id,
-      tenantName: t.name,
-      companyCode: t.companyCode,
-      planName: idx % 2 === 0 ? 'Enterprise ERP Suite' : 'Sorting & Repack Pro',
-      planCode: idx % 2 === 0 ? 'ENTERPRISE_FULL' : 'STANDALONE_SORTING',
-      billingCycle: 'MONTHLY',
-      monthlyAmount: idx % 2 === 0 ? 499 : 299,
-      status: t.status === 'ACTIVE' ? 'PAID' : 'OVERDUE',
-      nextBillingDate: new Date(Date.now() + 15 * 24 * 3600 * 1000).toISOString(),
-    }));
-
-    return {
-      kpis: {
-        mrr,
-        arr,
-        activeSubscriptions: tenants.filter((t) => t.status === 'ACTIVE').length,
-        overdueCount: tenants.filter((t) => t.status !== 'ACTIVE').length,
-        outstandingAmount: tenants.filter((t) => t.status !== 'ACTIVE').length * 499,
-      },
-      subscriptions,
-    };
-  }
-
-  async getSystemSettings() {
-    return SYSTEM_SETTINGS;
-  }
-
-  async updateSystemSettings(updates: Partial<typeof SYSTEM_SETTINGS>, userId: string) {
-    SYSTEM_SETTINGS = { ...SYSTEM_SETTINGS, ...updates };
-
-    try {
-      await this.auditService.log({
-        userId,
-        action: 'SUPERADMIN_SYSTEM_SETTINGS_UPDATED',
-        entityType: 'SystemSettings',
-        metadataJson: updates,
-      });
-    } catch { }
-
-    return SYSTEM_SETTINGS;
+  async updateSystemSettings(updates: Partial<PlatformSettings>, userId: string): Promise<PlatformSettings> {
+    const before = await this.getSystemSettings();
+    const clean = Object.fromEntries(Object.entries(updates).filter(([k, v]) => k in PLATFORM_DEFAULTS && typeof v === 'string').map(([k, v]) => [k, (v as string).trim()]));
+    const next = { ...before, ...clean, platformName: (clean.platformName as string | undefined) || before.platformName };
+    const valueJson = next as unknown as Prisma.InputJsonValue;
+    await this.prisma.globalConfig.upsert({ where: { key: PLATFORM_KEY }, update: { valueJson }, create: { key: PLATFORM_KEY, valueJson } });
+    await this.auditService.log({ userId, action: 'SUPERADMIN_SYSTEM_SETTINGS_UPDATED', entityType: 'SystemSettings', metadataJson: { before, after: next } });
+    return next;
   }
 }

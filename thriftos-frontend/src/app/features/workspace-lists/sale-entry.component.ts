@@ -236,17 +236,31 @@ export class SaleEntryComponent implements HasUnsavedChanges {
     return Math.round(Number(v ?? 0));
   }
 
-  /** Enter in the customer box: the exact name, else the first match; nobody: say so and offer New customer. */
+  /**
+   * Enter in the customer box: the exact name, else the first match; nobody: say so and offer New customer. A fast
+   * Enter can come before the search has answered, so a miss asks the server once before saying "no customer".
+   */
   protected pickFirst(): void {
     const text = this.customerText().trim();
     if (!text) return;
-    const c = this.customers().find((x) => x.name.toLowerCase() === text.toLowerCase()) ?? this.customers().find((x) => x.name.toLowerCase().includes(text.toLowerCase()));
-    if (c) {
+    const match = (list: CustomerOption[]) =>
+      list.find((x) => x.name.toLowerCase() === text.toLowerCase()) ?? list.find((x) => x.name.toLowerCase().includes(text.toLowerCase()));
+    const take = (c: CustomerOption) => {
       this.pickCustomer(c.name);
       setTimeout(() => (document.querySelector('input[name=item]') as HTMLInputElement | null)?.focus());
-    } else {
-      this.customerMiss.set(true);
-    }
+    };
+    const c = match(this.customers());
+    if (c) return take(c);
+    this.http.get<CustomerOption[]>('/api/customers', { params: new HttpParams().set('search', text) }).pipe(catchError(() => of([]))).subscribe((list) => {
+      if (this.customerText().trim() !== text) return;
+      const found = match(list);
+      if (found) {
+        this.customers.set([found, ...this.customers().filter((x) => x.id !== found.id)]);
+        take(found);
+      } else {
+        this.customerMiss.set(true);
+      }
+    });
   }
 
   protected openNewCustomer(): void {

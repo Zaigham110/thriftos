@@ -32,6 +32,7 @@ export interface RecentTenantRow {
   createdAt: string;
   userCount: number;
   warehouseCount: number;
+  sortingStages?: number;
 }
 
 export interface RecentAuditRow {
@@ -78,52 +79,12 @@ export interface GlobalAuditRow {
   companyCode: string;
 }
 
-export interface PlanItem {
-  id: string;
-  name: string;
-  code: string;
-  monthlyPrice: number;
-  annualPrice: number;
-  maxUsers: number;
-  maxWarehouses: number;
-  maxContainersPerMonth: number;
-  features: string[];
-  activeTenantsCount: number;
-  status: string;
-}
-
-export interface BillingSummary {
-  kpis: {
-    mrr: number;
-    arr: number;
-    activeSubscriptions: number;
-    overdueCount: number;
-    outstandingAmount: number;
-  };
-  subscriptions: Array<{
-    id: string;
-    tenantId: string;
-    tenantName: string;
-    companyCode: string;
-    planName: string;
-    planCode: string;
-    billingCycle: string;
-    monthlyAmount: number;
-    status: string;
-    nextBillingDate: string;
-  }>;
-}
-
+/** Platform name and support contact (kept on the server, v2 review). */
 export interface SystemSettings {
   platformName: string;
+  supportPhone: string;
   supportEmail: string;
   companyLegalName: string;
-  sessionTimeoutMinutes: number;
-  require2FAForAdmins: boolean;
-  auditLogRetentionDays: number;
-  databaseBackupFrequency: string;
-  maintenanceMode: boolean;
-  allowedCurrencies: string[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -144,14 +105,6 @@ export class SuperAdminDataService {
     let params = new HttpParams().set('page', String(page)).set('limit', String(limit));
     if (action) params = params.set('action', action);
     return this.http.get<{ data: GlobalAuditRow[]; total: number }>(`${API_BASE_URL}/superadmin/audit-logs`, { params });
-  }
-
-  getPlans(): Observable<{ data: PlanItem[] }> {
-    return this.http.get<{ data: PlanItem[] }>(`${API_BASE_URL}/superadmin/plans`);
-  }
-
-  getBilling(): Observable<BillingSummary> {
-    return this.http.get<BillingSummary>(`${API_BASE_URL}/superadmin/billing`);
   }
 
   getSettings(): Observable<SystemSettings> {

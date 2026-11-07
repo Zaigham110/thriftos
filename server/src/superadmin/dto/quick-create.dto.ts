@@ -1,5 +1,6 @@
-import { IsBoolean, IsEmail, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { ArrayUnique, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { LANGUAGES, Language } from '../../common/language/language';
+import { BUSINESS_MODULES, BusinessModule } from '../business-workings';
 
 /** v2 6.5: a business for a customer in under 2 minutes: business name, owner's name and phone. */
 export class QuickCreateTenantDto {
@@ -34,6 +35,13 @@ export class QuickCreateTenantDto {
   @Max(2)
   @IsOptional()
   sortingStages?: number;
+
+  /** Switchable modules to start with (Receivables if not given); the type decides Sorting. */
+  @IsArray()
+  @ArrayUnique()
+  @IsIn(BUSINESS_MODULES, { each: true })
+  @IsOptional()
+  modules?: BusinessModule[];
 
   /** A business for trying ThriftOS out: it can get sample data and be deleted later (v2 review). */
   @IsBoolean()
@@ -75,4 +83,20 @@ export class SupportViewDto {
   @IsOptional()
   @MaxLength(300)
   reason?: string;
+}
+
+/** How a business works (v2 review): its type (how it sorts) and the modules it has on. */
+export class WorkingsDto {
+  /** 0 = trading only, 1 = sorts into categories, 2 = categories then grades. */
+  @IsInt()
+  @Min(0)
+  @Max(2)
+  @IsOptional()
+  sortingStages?: number;
+
+  @IsArray()
+  @ArrayUnique()
+  @IsIn(BUSINESS_MODULES, { each: true })
+  @IsOptional()
+  modules?: BusinessModule[];
 }

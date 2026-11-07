@@ -75,25 +75,8 @@ describe('Modules that are off are refused by the server (e2e)', () => {
     await api(app, owner).get('/procurement/purchase-orders').expect(403);
   });
 
-  it('super admin billing and plans follow the SYSTEM business; tenants are unaffected', async () => {
-    const system = await prisma.tenant.findUniqueOrThrow({ where: { companyCode: 'SYSTEM' } });
-    const original = system.enabledModules;
-    try {
-      await prisma.tenant.update({ where: { id: system.id }, data: { enabledModules: original.filter((m) => m !== 'BILLING') } });
-      for (const url of ['/superadmin/billing', '/superadmin/plans']) {
-        const res = await api(app, superAdmin).get(url).expect(403);
-        expect(res.body).toMatchObject({ code: 'MODULE_DISABLED', module: 'BILLING' });
-      }
-      expect((await api(app, superAdmin).get('/superadmin/modules').expect(200)).body.enabledModules).not.toContain('BILLING');
-      await api(app, superAdmin).get('/superadmin/summary').expect(200);
-
-      await prisma.tenant.update({ where: { id: system.id }, data: { enabledModules: [...original.filter((m) => m !== 'BILLING'), 'BILLING'] } });
-      await api(app, superAdmin).get('/superadmin/billing').expect(200);
-      await api(app, superAdmin).get('/superadmin/plans').expect(200);
-      expect((await api(app, superAdmin).get('/superadmin/modules').expect(200)).body.enabledModules).toContain('BILLING');
-    } finally {
-      await prisma.tenant.update({ where: { id: system.id }, data: { enabledModules: original } });
-    }
+  it('plans and billing (sample numbers, not part of ThriftOS) are gone; owners never reach super admin routes', async () => {
+    for (const url of ['/superadmin/billing', '/superadmin/plans']) await api(app, superAdmin).get(url).expect(404);
     // A business owner can never reach super admin routes, module or not.
     await api(app, owner).get('/superadmin/modules').expect(403);
   });

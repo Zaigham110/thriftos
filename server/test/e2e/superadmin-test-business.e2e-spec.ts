@@ -62,6 +62,45 @@ describe('Super admin: owners, test businesses, audit (e2e)', () => {
     await api(app, superAdmin).patch(`/superadmin/tenants/${testId}/users/${ownerId}`, { phone: '12' }).expect(400);
   });
 
+  it('sets how a business works: type decides Sorting, modules switch on and off, always-on stay, audited', async () => {
+    const made = (await api(app, superAdmin).get(`/superadmin/tenants/${testId}`).expect(200)).body;
+    expect(made.enabledModules).toEqual(expect.arrayContaining(['RECEIVE', 'SORT', 'STOCK', 'SELL', 'KHATA']));
+    let res = (await api(app, superAdmin).patch(`/superadmin/tenants/${testId}/workings`, { sortingStages: 0, modules: ['KHATA', 'EXPORT'] }).expect(200)).body;
+    expect(res.sortingStages).toBe(0);
+    expect(res.enabledModules.sort()).toEqual(['EXPORT', 'KHATA', 'RECEIVE', 'SELL', 'STOCK']);
+    res = (await api(app, superAdmin).patch(`/superadmin/tenants/${testId}/workings`, { sortingStages: 1, modules: [] }).expect(200)).body;
+    expect(res.enabledModules.sort()).toEqual(['RECEIVE', 'SELL', 'SORT', 'STOCK']);
+    await api(app, superAdmin).patch(`/superadmin/tenants/${testId}/workings`, { modules: ['BILLING'] }).expect(400);
+    await api(app, superAdmin).patch(`/superadmin/tenants/${testId}/workings`, { sortingStages: 5 }).expect(400);
+    await api(app, owner).patch(`/superadmin/tenants/${testId}/workings`, { sortingStages: 0 }).expect(403);
+    const log = await prisma.auditLog.findFirstOrThrow({ where: { tenantId: testId, action: 'TENANT_WORKINGS_CHANGED' }, orderBy: { createdAt: 'desc' } });
+    expect(log.metadataJson).toMatchObject({ after: { sortingStages: 1 } });
+    // Back to the sorting story's type for the sample-data test below.
+    await api(app, superAdmin).patch(`/superadmin/tenants/${testId}/workings`, { sortingStages: 2, modules: ['KHATA'] }).expect(200);
+    // A new trading-only business starts without the Sorting tab.
+    const trader = (
+      await api(app, superAdmin).post('/superadmin/tenants/quick', { businessName: `Trader ${tag}`, ownerName: 'T', ownerPhone: `0307 ${tag}`, sortingStages: 0, isTest: true }).expect(201)
+    ).body;
+    const t = await prisma.tenant.findUniqueOrThrow({ where: { id: trader.tenant.id } });
+    expect(t.enabledModules).not.toContain('SORT');
+    await api(app, superAdmin).delete(`/superadmin/tenants/${trader.tenant.id}`, { confirmName: `Trader ${tag}` }).expect(200);
+  });
+
+  it('platform settings are kept (not lost on restart), checked, and audited', async () => {
+    const before = (await api(app, superAdmin).get('/superadmin/settings').expect(200)).body;
+    try {
+      const saved = (await api(app, superAdmin).patch('/superadmin/settings', { platformName: 'ThriftOS', supportPhone: '0300 1112223', supportEmail: '' }).expect(200)).body;
+      expect(saved).toMatchObject({ platformName: 'ThriftOS', supportPhone: '0300 1112223', supportEmail: '' });
+      const row = await prisma.globalConfig.findUniqueOrThrow({ where: { key: 'platform.settings' } });
+      expect(row.valueJson).toMatchObject({ supportPhone: '0300 1112223' });
+      await api(app, superAdmin).patch('/superadmin/settings', { supportEmail: 'not an email' }).expect(400);
+      await api(app, superAdmin).patch('/superadmin/settings', { maintenanceMode: true }).expect(400);
+      await api(app, owner).patch('/superadmin/settings', { platformName: 'x' }).expect(403);
+    } finally {
+      await api(app, superAdmin).patch('/superadmin/settings', { platformName: before.platformName, supportPhone: before.supportPhone ?? '', supportEmail: before.supportEmail ?? '', companyLegalName: before.companyLegalName ?? '' });
+    }
+  });
+
   it('lists businesses without the platform account; sales per currency on the overview', async () => {
     const list = (await api(app, superAdmin).get('/superadmin/tenants?limit=100').expect(200)).body;
     expect(list.data.map((t: { companyCode: string }) => t.companyCode)).not.toContain('SYSTEM');
