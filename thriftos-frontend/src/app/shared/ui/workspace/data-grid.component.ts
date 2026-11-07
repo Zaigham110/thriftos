@@ -126,7 +126,6 @@ export type WsRow = Record<string, unknown> & { id: string };
     th button { display:inline-flex; align-items:center; gap:var(--ws-1); padding:0; border:0; background:transparent; color:inherit; font:inherit; text-transform:inherit; letter-spacing:inherit; cursor:pointer; }
     th button lucide-icon { color:var(--ws-ink-3); }
     .end { text-align:end; }
-    .end button { flex-direction:row-reverse; }
     tbody tr:hover { background:var(--ws-surface-hover); }
     tr.clickable { cursor:pointer; }
     tr.selected { background:var(--ws-brand-soft); }

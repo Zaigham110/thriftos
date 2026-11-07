@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 
-/** What a munshi does on the floor: receive, sort, grade, bale, stock. Sales, payments and khata need no permission. */
+/** What a munshi does on the floor: receive, sort, grade, bale, stock, and record expenses. Sales, payments and khata need no permission. */
 export const MUNSHI_PERMISSIONS = [
   'po.read',
   'po.create',
@@ -22,6 +22,8 @@ export const MUNSHI_PERMISSIONS = [
   'INVENTORY_VIEW',
   'INVENTORY_INTAKE',
   'INVENTORY_ADJUST',
+  // v2 review (Expenses): cash paid at the godown (chai, loading, rickshaw) is recorded on the phone.
+  'expense.create',
 ];
 
 /** The tenant's "Munshi" role with exactly the floor permissions (created on first use). */

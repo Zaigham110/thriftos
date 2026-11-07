@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { AuthService } from '../../core/auth';
 import { RouterLink } from '@angular/router';
 import { ChevronRight, LucideAngularModule } from 'lucide-angular';
 import { I18N } from '../../core/i18n/t.pipe';
@@ -17,6 +18,7 @@ import { FirstWeekComponent } from './first-week.component';
       <header class="floor-head"><h1>{{ 'home.title' | t }}</h1></header>
       <app-needs-attention />
       <app-first-week />
+      @if (canSpend()) { <a class="card spend" routerLink="/finance/expenses/new">{{ 'home.recordExpense' | t }}</a> }
       @if (s(); as s) {
         <a class="card stat" routerLink="/home/containers">
           <small>{{ 'home.profitPerContainer' | t }}</small>
@@ -52,10 +54,14 @@ import { FirstWeekComponent } from './first-week.component';
     .stat small { color:var(--tos-ink-soft); font-size:14px; font-weight:700; }
     .stat .go { position:absolute; inset-inline-end:14px; inset-block-start:50%; transform:translateY(-50%); color:var(--tos-ink-soft); }
     html[dir='rtl'] .stat .go { transform:translateY(-50%) scaleX(-1); }
+    .spend { display:flex; align-items:center; justify-content:center; min-height:52px; color:var(--tos-primary, #6f3f63); font-size:16px; font-weight:700; text-decoration:none; }
   `],
 })
 export class OwnerHomeComponent implements OnInit {
   private readonly data = inject(HomeDataService);
+  private readonly auth = inject(AuthService);
+  /** Record an expense straight from Home (v2 review). */
+  protected readonly canSpend = computed(() => this.auth.isSuperAdmin() || this.auth.permissions().includes('expense.create'));
   protected readonly icons = { ChevronRight };
   /** Last numbers on this phone, shown at once (Slow 3G: the fresh ones take a few seconds), then replaced. */
   protected readonly s = signal<HomeSummary | null>(sessionCache.screen<HomeSummary>('home'));

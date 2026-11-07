@@ -74,6 +74,9 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
         @if (c.related; as rel) { <a actions class="ws-btn" [routerLink]="rel.link">{{ rel.label | t }}</a> }
         @if (c.create; as create) { <a actions class="ws-btn primary" [routerLink]="create.link"><lucide-icon [img]="icons.Plus" [size]="16" aria-hidden="true" />{{ create.label | t }}</a> }
       </ws-page-header>
+      @if (c.headline && headline() !== null) {
+        <p class="headline"><span>{{ c.headline.label | t }}</span><strong>{{ headline() }}</strong></p>
+      }
 
       <!-- One bar: search and the everyday filters in view; layout, grouping, columns and saved views behind "View". -->
       <ws-command-bar>
@@ -85,7 +88,7 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
               }
             </span>
           }
-          @for (qf of c.quickFilters; track qf.field) {
+          @for (qf of (cardMode() ? [] : c.quickFilters); track qf.field) {
             <select add class="quick" [ngModel]="''" (ngModelChange)="addFilter(qf.field, $event)" [attr.aria-label]="qf.label | t">
               <option value="">{{ qf.label | t }}…</option>
               @for (v of qf.values; track v) { <option [value]="v">{{ qf.prefix + v | t }}</option> }
@@ -94,6 +97,7 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
         </ws-filter-bar>
         <div end class="row">
           @if (c.dateField) { <ws-date-range [allowAll]="true" [value]="range()" (valueChange)="setRange($event)" /> }
+          @if (!cardMode()) {
           <div class="menu-wrap" (keydown.escape)="menu.set(null)">
             <button type="button" class="ws-btn" [class.on]="viewChanged()" (click)="menu.set(menu() === 'view' ? null : 'view')" [attr.aria-expanded]="menu() === 'view'">
               <lucide-icon [img]="icons.SlidersHorizontal" [size]="16" aria-hidden="true" />{{ 'ws.viewMenu' | t }}<lucide-icon [img]="icons.ChevronDown" [size]="14" aria-hidden="true" />
@@ -143,6 +147,7 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
               </div>
             }
           </div>
+          }
         </div>
       </ws-command-bar>
 
@@ -152,6 +157,22 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
         <app-board [config]="c" [state]="state()" (open)="openId($event)" (moved)="reload()" />
       } @else if (state().groupBy) {
         <ws-data-grid [caption]="c.title | t" [columns]="groupColumns()" [rows]="groupRows()" [loading]="loading()" [clickable]="true" [serverTotals]="groupTotals()" (rowClick)="openGroup($event)" />
+      } @else if (cardMode() && c.cards; as cards) {
+        <!-- Phone (v2 review): one card per row, the amount on the right; tap opens the record. -->
+        @if (loading() && !rows().length) { <ws-state kind="loading" /> }
+        @else if (!rows().length) { <ws-state kind="empty" [heading]="c.emptyHeading | t" [message]="c.emptyMessage | t" /> }
+        @else {
+          <ul class="cards" [attr.aria-label]="c.title | t">
+            @for (r of rows(); track r.id) {
+              <li><button type="button" (click)="open(r)">
+                <span class="ct">{{ r[cards.title] }}</span>
+                <span class="ca ws-num">{{ cardValue(r, cards.amount) }}</span>
+                <span class="cs">{{ cardSub(r, cards.sub) }}</span>
+              </button></li>
+            }
+          </ul>
+        }
+        <ws-pager [page]="state().page" (pageChange)="patch({ page: $event })" [pageSize]="state().pageSize" (pageSizeChange)="patch({ pageSize: $event, page: 1 })" [total]="result()?.total ?? 0" />
       } @else {
         <ws-data-grid [caption]="c.title | t" [columns]="columns()" [rows]="rows()" [loading]="loading()" [clickable]="true" [serverSort]="true"
           [sort]="gridSort()" (sortChange)="setSort($event)" [serverTotals]="totals()" (rowClick)="open($event)"
@@ -190,6 +211,13 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
     .menu button, .check { display:flex; align-items:center; gap:var(--ws-2); min-height:34px; padding-inline:var(--ws-2); border:0; border-radius:var(--ws-r-md); background:transparent; color:var(--ws-ink); font:inherit; text-align:start; cursor:pointer; }
     .menu button:hover, .check:hover { background:var(--ws-surface-hover); }
     .check input { accent-color:var(--ws-brand); }
+    .headline { display:flex; align-items:baseline; gap:var(--ws-2); margin:calc(var(--ws-2) * -1) 0 0; color:var(--ws-ink-2); font-size:var(--ws-text-sm); }
+    .headline strong { color:var(--ws-ink); font-size:20px; font-variant-numeric:tabular-nums; }
+    .cards { display:grid; gap:var(--ws-2); margin:0; padding:0; list-style:none; }
+    .cards button { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:2px var(--ws-3); width:100%; padding:var(--ws-3); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); color:var(--ws-ink); font:inherit; text-align:start; cursor:pointer; }
+    .cards .ct { font-weight:600; }
+    .cards .ca { font-weight:600; text-align:end; }
+    .cards .cs { grid-column:1 / -1; color:var(--ws-ink-2); font-size:var(--ws-text-sm); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   `],
 })
 export class ListPageComponent {
@@ -224,6 +252,28 @@ export class ListPageComponent {
   protected readonly layout = computed(() => (this.list().board ? this.state().layout ?? 'table' : 'table'));
   /** "View" is highlighted when the list is not in its plain shape (board, grouped, own columns or a saved view). */
   protected readonly viewChanged = computed(() => this.layout() === 'board' || !!this.state().groupBy || !!this.state().columns.length || !!this.view());
+
+  /** Phones get cards where the list has them (v2 review). */
+  protected readonly phone = signal(typeof window !== 'undefined' && window.innerWidth < 640);
+  protected readonly cardMode = computed(() => this.phone() && !!this.list().cards && this.layout() === 'table' && !this.state().groupBy);
+  @HostListener('window:resize')
+  protected resized(): void {
+    this.phone.set(window.innerWidth < 640);
+  }
+  /** The headline figure (e.g. spent this month), in whole rupees; null while loading or when the list has none. */
+  protected readonly headline = signal<string | null>(null);
+
+  protected cardValue(r: WsRow, key: string): string {
+    const c = this.list().columns.find((x) => x.key === key);
+    const v = r[key] as string | number | null | undefined;
+    if (v === null || v === undefined || v === '') return '';
+    if (c?.format === 'money') return this.i18n.money(Math.round(Number(v)));
+    if (c?.format === 'date') return new Date(String(v).slice(0, 10) + 'T12:00:00Z').toLocaleDateString(this.i18n.lang() === 'ur' ? 'ur-PK' : 'en-GB', { day: 'numeric', month: 'short', numberingSystem: 'latn' });
+    return String(v);
+  }
+  protected cardSub(r: WsRow, keys: string[]): string {
+    return keys.map((k) => this.cardValue(r, k)).filter(Boolean).join(' · ');
+  }
 
   @HostListener('document:click', ['$event'])
   protected outside(e: Event): void {
@@ -386,6 +436,22 @@ export class ListPageComponent {
         const v = this.encode(state, view);
         if (v === (this.route.snapshot.queryParamMap.get('v') ?? null)) return;
         void this.router.navigate([], { relativeTo: this.route, queryParams: { v }, queryParamsHandling: 'merge', replaceUrl: true });
+      });
+    });
+
+    // The headline figure: this month so far, with the list's default filters (cancelled ones never count).
+    effect(() => {
+      const c = this.list();
+      this.reloads();
+      untracked(() => {
+        const h = c.headline;
+        if (!h || !c.dateField) return this.headline.set(null);
+        const today = new Date(Date.now() + 5 * 3_600_000).toISOString().slice(0, 10);
+        const filters = [...(c.defaultFilters ?? []).filter((f) => f.field !== c.dateField), { field: c.dateField, op: 'between' as const, value: `${today.slice(0, 8)}01..${today}` }];
+        this.lists.page(c.resource, { ...DEFAULT_LIST_STATE, filters, pageSize: 1 }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+          next: (r) => this.headline.set(this.i18n.money(Math.round(Number(r.totals?.[h.field] ?? 0)))),
+          error: () => this.headline.set(null),
+        });
       });
     });
 

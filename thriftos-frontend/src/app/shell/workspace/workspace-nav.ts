@@ -92,6 +92,7 @@ export const WS_CREATE: WsNavItem[] = [
   { label: 'ws.new.lot', path: '/receive/records/lots/new', icon: Boxes, module: 'RECEIVE', keywords: 'loose lot' },
   { label: 'ws.new.ready', path: '/receive/ready', icon: PackagePlus, module: 'RECEIVE', keywords: 'ready stock' },
   { label: 'ws.new.bale', path: '/stock/bale', icon: Boxes, module: 'STOCK', keywords: 'make bale' },
+  { label: 'ws.expenses.new', path: '/finance/expenses/new', icon: Receipt, permission: 'expense.create', keywords: 'kharcha' },
 ];
 
 /** Breadcrumb names for path segments; ids and unknown segments are not shown. */

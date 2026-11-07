@@ -1548,6 +1548,15 @@ enum ExpenseCategory {
   TRANSPORT
   ELECTRICITY
   OTHER
+  // v2 review (Expenses): the costs a bale business pays most.
+  TEA_FOOD
+  FUEL
+  LOADING
+  PACKING
+  SALARY
+  PHONE
+  REPAIRS
+  CUSTOMS
 }
 
 /// Money paid out for running the business. Cancelled expenses stay for the record and count nowhere.
@@ -1564,6 +1573,8 @@ model Expense {
   createdBy   String
   cancelledAt DateTime?
   cancelledBy String?
+  /// Why it was cancelled (asked when cancelling).
+  cancelReason String?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 

@@ -16,7 +16,7 @@ export const EXPENSES_LIST: ListResource = {
   name: 'expenses',
   defaultSort: [{ field: 'date', dir: 'desc' }],
   fields: [
-    { key: 'date', type: 'date', path: ['day'], sortable: true, filterable: true, groupByMonth: true },
+    { key: 'date', type: 'date', path: ['day'], dateOnly: true, sortable: true, filterable: true, groupByMonth: true },
     { key: 'category', type: 'enum', path: ['category'], enumValues: Object.values(ExpenseCategory), sortable: true, filterable: true, groupable: true },
     { key: 'paidTo', type: 'string', path: ['paidTo'], sortable: true, filterable: true, searchable: true, groupable: true },
     { key: 'method', type: 'enum', path: ['method'], enumValues: Object.values(PaymentMethod), sortable: true, filterable: true, groupable: true },

@@ -73,7 +73,14 @@ export interface ListConfig {
    * A one-of choice shown as a switch (Stock: In stock / Sold / All) instead of a filter chip: picks the
    * filter on `field`; the first option is the screen's default.
    */
-  switch?: { field: string; label: string; options: Array<{ label: string; op?: 'eq' | 'ne'; value?: string }> };
+  switch?: { field: string; label: string; options: Array<{ label: string; op?: 'eq' | 'ne' | 'isnull' | 'notnull'; value?: string }> };
+  /**
+   * One figure over the list (v2 review), e.g. Expenses: "Spent this month Rs …" — the sum of `field` for this
+   * month, with the switch's first option (so cancelled ones never count).
+   */
+  headline?: { field: string; label: string };
+  /** On a phone the rows show as cards (v2 review): a title, a line under it, and the amount on the right. */
+  cards?: { title: string; sub: string[]; amount: string };
   /** A related page shown as a plain button before the primary action (Suppliers → Supplier scorecard). */
   related?: { label: string; link: string };
   /** Sibling lists shown as tabs over the title (Purchasing: containers, gaari / lots). */

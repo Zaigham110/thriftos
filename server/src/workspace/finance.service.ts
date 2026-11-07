@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ExpenseCategory, PaymentMethod, Prisma, StockAdjustmentStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { localDayStart } from '../common/list/list-engine';
 import { PrismaService } from '../prisma/prisma.service';
 import { KHATA_SALE_STATUSES } from '../sales/khata.service';
@@ -19,6 +19,29 @@ export class ExpenseDto {
   @IsOptional() @IsString() @MaxLength(120) paidTo?: string;
   @IsOptional() @IsString() @MaxLength(300) note?: string;
 }
+
+/** Changing an expense (v2 review): any of its fields; a cancelled expense cannot be changed. */
+export class ExpenseUpdateDto {
+  @IsOptional() @IsDateString() day?: string;
+  @IsOptional() @IsEnum(ExpenseCategory) category?: ExpenseCategory;
+  @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(1) amount?: number;
+  @IsOptional() @IsEnum(PaymentMethod) method?: PaymentMethod;
+  @IsOptional() @IsString() @MaxLength(120) paidTo?: string;
+  @IsOptional() @IsString() @MaxLength(300) note?: string;
+}
+
+/** Cancelling asks why (v2 review). */
+export class CancelExpenseDto {
+  @IsString() @MinLength(2) @MaxLength(200) reason!: string;
+}
+
+/**
+ * Errors the app shows in the person's own language: the code picks the words, the message is the English
+ * fallback (v2 review).
+ */
+const CASH_CLOSED = { code: 'CASH_CLOSED', message: "That day's cash is already closed. Pick another day, or a method other than cash." };
+const FUTURE_DAY = { code: 'FUTURE_DAY', message: 'An expense cannot be in the future' };
+const ALREADY_CANCELLED = { code: 'ALREADY_CANCELLED', message: 'This expense is cancelled' };
 
 export class BookQueryDto {
   @IsOptional() @IsEnum(PaymentMethod) method?: PaymentMethod;
@@ -58,8 +81,8 @@ export class FinanceService {
 
   async addExpense(tenantId: string, dto: ExpenseDto, userId: string, now = new Date()) {
     const day = dto.day ? ymd(dto.day) : businessDay(now);
-    if (day > businessDay(now)) throw new BadRequestException('An expense cannot be in the future');
-    if (await this.closed(tenantId, day, dto.method ?? PaymentMethod.CASH)) throw new ConflictException('That day\'s cash is already closed');
+    if (day > businessDay(now)) throw new BadRequestException(FUTURE_DAY);
+    if (await this.closed(tenantId, day, dto.method ?? PaymentMethod.CASH)) throw new ConflictException(CASH_CLOSED);
     return this.prisma.$transaction(async (tx) => {
       const e = await tx.expense.create({
         data: {
@@ -80,14 +103,52 @@ export class FinanceService {
     return { ...e, day: dayOf(e.day), createdByName: name.get(e.createdBy) ?? null, cancelledByName: e.cancelledBy ? name.get(e.cancelledBy) ?? null : null };
   }
 
-  async cancelExpense(tenantId: string, id: string, userId: string) {
+  /**
+   * Fix a mistake in an expense (v2 review): the amount, category, day, method, paid to or note. A cash expense
+   * on a closed day cannot be moved, and none can be moved onto one. Logged with what it was and what it became.
+   */
+  async updateExpense(tenantId: string, id: string, dto: ExpenseUpdateDto, userId: string, now = new Date()) {
     const e = await this.prisma.expense.findFirst({ where: { id, tenantId } });
     if (!e) throw new NotFoundException('Expense not found');
-    if (e.cancelledAt) throw new ConflictException('Already cancelled');
-    if (await this.closed(tenantId, dayOf(e.day), e.method)) throw new ConflictException('That day\'s cash is already closed');
+    if (e.cancelledAt) throw new ConflictException(ALREADY_CANCELLED);
+    const day = dto.day ? ymd(dto.day) : dayOf(e.day);
+    if (day > businessDay(now)) throw new BadRequestException(FUTURE_DAY);
+    const method = dto.method ?? e.method;
+    if (await this.closed(tenantId, dayOf(e.day), e.method)) throw new ConflictException(CASH_CLOSED);
+    if ((day !== dayOf(e.day) || method !== e.method) && (await this.closed(tenantId, day, method))) throw new ConflictException(CASH_CLOSED);
+    const data = {
+      day: dayDate(day),
+      category: dto.category ?? e.category,
+      amount: dto.amount !== undefined ? new Prisma.Decimal(dto.amount) : e.amount,
+      method,
+      paidTo: dto.paidTo !== undefined ? dto.paidTo.trim() || null : e.paidTo,
+      note: dto.note !== undefined ? dto.note.trim() || null : e.note,
+    };
+    const view = (x: { day: Date; category: string; amount: Prisma.Decimal; method: string; paidTo: string | null; note: string | null }) => ({
+      day: dayOf(x.day), category: x.category, amount: x.amount.toString(), method: x.method, paidTo: x.paidTo, note: x.note,
+    });
+    const before = view(e);
+    const after = view(data);
+    const changed = Object.keys(after).filter((k) => after[k as keyof typeof after] !== before[k as keyof typeof before]);
+    if (!changed.length) return this.expense(tenantId, id);
     await this.prisma.$transaction([
-      this.prisma.expense.update({ where: { id }, data: { cancelledAt: new Date(), cancelledBy: userId } }),
-      this.prisma.auditLog.create({ data: { tenantId, userId, action: 'EXPENSE_CANCELLED', entityType: 'Expense', entityId: id, metadataJson: { amount: e.amount.toString() } } }),
+      this.prisma.expense.update({ where: { id }, data }),
+      this.prisma.auditLog.create({
+        data: { tenantId, userId, action: 'EXPENSE_CHANGED', entityType: 'Expense', entityId: id, metadataJson: { before: Object.fromEntries(changed.map((k) => [k, before[k as keyof typeof before]])), after: Object.fromEntries(changed.map((k) => [k, after[k as keyof typeof after]])) } },
+      }),
+    ]);
+    return this.expense(tenantId, id);
+  }
+
+  async cancelExpense(tenantId: string, id: string, userId: string, reason: string) {
+    const e = await this.prisma.expense.findFirst({ where: { id, tenantId } });
+    if (!e) throw new NotFoundException('Expense not found');
+    if (e.cancelledAt) throw new ConflictException(ALREADY_CANCELLED);
+    if (await this.closed(tenantId, dayOf(e.day), e.method)) throw new ConflictException(CASH_CLOSED);
+    const why = reason.trim();
+    await this.prisma.$transaction([
+      this.prisma.expense.update({ where: { id }, data: { cancelledAt: new Date(), cancelledBy: userId, cancelReason: why } }),
+      this.prisma.auditLog.create({ data: { tenantId, userId, action: 'EXPENSE_CANCELLED', entityType: 'Expense', entityId: id, metadataJson: { amount: e.amount.toString(), reason: why } } }),
     ]);
     return { id, cancelled: true };
   }

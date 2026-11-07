@@ -77,9 +77,9 @@ describe('Workspace finance: expenses, books, cash close, profit and loss (e2e)'
     await api(app, a).post('/workspace/finance/close', { day: today(), counted: 6000 }).expect(409);
     // Cash on a closed day is locked; bank is not.
     await api(app, a).post('/workspace/expenses', { category: 'OTHER', amount: 50 }).expect(409);
-    await api(app, a).post(`/workspace/expenses/${ids.transport}/cancel`, {}).expect(409);
-    await api(app, a).post(`/workspace/expenses/${ids.labour}/cancel`, {}).expect(200);
-    await api(app, a).post(`/workspace/expenses/${ids.labour}/cancel`, {}).expect(409);
+    await api(app, a).post(`/workspace/expenses/${ids.transport}/cancel`, { reason: 'Wrong day' }).expect(409);
+    await api(app, a).post(`/workspace/expenses/${ids.labour}/cancel`, { reason: 'Paid twice' }).expect(200);
+    await api(app, a).post(`/workspace/expenses/${ids.labour}/cancel`, { reason: 'Again' }).expect(409);
     const cash = (await api(app, a).get('/workspace/finance/book?method=CASH').expect(200)).body;
     expect(cash.lines[cash.lines.length - 1]).toMatchObject({ kind: 'CLOSE', out: '200', balance: '5800' });
     expect(cash.closing).toBe('5800');
@@ -114,7 +114,8 @@ describe('Workspace finance: expenses, books, cash close, profit and loss (e2e)'
 
   it('another business sees and changes nothing', async () => {
     await api(app, b).get(`/workspace/expenses/${ids.rent}`).expect(404);
-    await api(app, b).post(`/workspace/expenses/${ids.rent}/cancel`, {}).expect(404);
+    await api(app, b).post(`/workspace/expenses/${ids.rent}/cancel`, { reason: 'Not ours' }).expect(404);
+    await api(app, b).patch(`/workspace/expenses/${ids.rent}`, { amount: 1 }).expect(404);
     expect((await api(app, b).get('/lists/expenses').expect(200)).body.rows).toEqual([]);
     expect((await api(app, b).get('/workspace/finance/book').expect(200)).body).toMatchObject({ lines: [], closing: '0' });
     expect((await api(app, b).get(`/workspace/finance/close?day=${today()}`).expect(200)).body).toMatchObject({ expected: '0', close: null });

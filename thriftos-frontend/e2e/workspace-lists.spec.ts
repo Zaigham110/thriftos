@@ -282,16 +282,53 @@ test('finance: record an expense, close the day, cash book and profit and loss',
   await signIn(page);
   await page.goto('/finance/expenses');
   await expect(page.getByRole('heading', { name: 'Expenses', exact: true })).toBeVisible();
+  await expect(page.locator('.headline')).toContainText('Spent this month');
   await page.getByRole('link', { name: 'New expense' }).click();
-  await page.locator('form').getByLabel('Category').selectOption({ label: 'Transport' });
+  // Amount first and focused; nothing saves until a category is tapped.
+  await expect(page.getByLabel('Amount')).toBeFocused();
   await page.getByLabel('Amount').fill('1500');
+  await expect(page.getByText('Enter the amount and choose a category.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
+  await page.locator('label.chip', { hasText: /^Transport$/ }).click();
   await page.getByLabel('Paid to').fill('Loader rickshaw');
   // Paid by bank: a cash expense on a day whose cash is already closed is refused (re-runs on the same database).
-  await page.locator('form').getByLabel('Method').selectOption({ label: 'Bank' });
-  await page.getByRole('button', { name: 'Save expense' }).click();
+  await page.locator('label.chip', { hasText: /^Bank$/ }).click();
+  await page.locator('label.chip', { hasText: /^Yesterday$/ }).click();
+  await page.locator('label.chip', { hasText: /^Today$/ }).click();
+  // Save and add another: the form empties for the next one.
+  await page.getByRole('button', { name: 'Save and add another' }).click();
   await expect(page.getByText('Expense saved')).toBeVisible();
-  await expect(page.getByRole('heading', { name: /^Transport · / })).toContainText('1,500');
+  await expect(page.getByLabel('Amount')).toHaveValue('');
+  await page.getByLabel('Amount').fill('300');
+  await page.locator('label.chip', { hasText: /^Tea and food$/ }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('heading', { name: /^Tea and food · / })).toContainText('300');
   await expect(page.locator('ws-record-activity')).toBeVisible();
+  // Fix a mistake, then cancel with a reason.
+  await page.getByRole('button', { name: 'Change' }).click();
+  await page.getByLabel('Amount').fill('350');
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(page.getByText('Expense changed')).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^Tea and food · / })).toContainText('350');
+  await page.getByRole('button', { name: 'Cancel expense' }).click();
+  const sheet = page.getByRole('dialog');
+  await expect(sheet.getByRole('button', { name: 'Cancel expense' })).toBeDisabled();
+  await sheet.getByLabel('Why?').fill('Typed twice');
+  await sheet.getByRole('button', { name: 'Cancel expense' }).click();
+  await expect(page.getByText('Reason: Typed twice')).toBeVisible();
+  // The list: cancelled ones behind the switch, no filter chip.
+  await page.goto('/finance/expenses');
+  await expect(page.getByText('Cancelled on:')).toHaveCount(0);
+  await page.getByRole('radio', { name: 'Cancelled' }).click();
+  await expect(page.locator('ws-data-grid tbody')).toContainText('Tea and food');
+  await page.getByRole('radio', { name: 'Recorded' }).click();
+  await expect(page.locator('ws-data-grid tbody')).toContainText('Loader rickshaw');
+  // On a phone the rows are cards.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  await expect(page.locator('ul.cards li').first()).toBeVisible();
+  await expect(page.locator('ws-data-grid')).toHaveCount(0);
+  await page.setViewportSize({ width: 1280, height: 860 });
 
   await page.goto('/finance/close');
   await expect(page.getByRole('heading', { name: 'Cash close' })).toBeVisible();

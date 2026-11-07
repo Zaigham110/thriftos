@@ -11,6 +11,8 @@
 #                                        KAT; the "made-here stock has an origin" check also accepts kat from its lot
 #   4. 20261108100000_v6_07_container_status  data only: containers whose lots are being sorted move from
 #                                        "on the way"/"arrived" to "cleared" (dates filled in if empty)
+#   5. 20261109100000_v6_08_expenses  eight more expense categories, Expense.cancelReason, and every "Munshi"
+#                                        role may record expenses
 # Data step: base data (server/src/bootstrap): adds data.import and gives every Admin (owner) role all permissions.
 # Idempotent; nothing else changes.
 set -euo pipefail

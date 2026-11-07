@@ -289,7 +289,8 @@ export const LOTS_LIST: ListConfig = {
   board: { field: 'status', values: LOT_STATUSES, prefix: 'ws.lotStatus.', title: 'code', lines: ['container', 'kg', 'yield'] },
 };
 
-export const EXPENSE_CATEGORIES = ['RENT', 'LABOUR', 'TRANSPORT', 'ELECTRICITY', 'OTHER'] as const;
+/** Most used first (v2 review): the small daily cash costs, then the monthly bills; Other last. */
+export const EXPENSE_CATEGORIES = ['TEA_FOOD', 'LABOUR', 'LOADING', 'TRANSPORT', 'FUEL', 'PACKING', 'RENT', 'ELECTRICITY', 'SALARY', 'PHONE', 'REPAIRS', 'CUSTOMS', 'OTHER'] as const;
 export const PAYMENT_METHODS = ['CASH', 'JAZZCASH', 'EASYPAISA', 'RAAST', 'BANK', 'OTHER'] as const;
 
 /** Expenses (E3.6); a fresh list hides cancelled ones. */
@@ -312,7 +313,15 @@ export const EXPENSES_LIST: ListConfig = {
   ],
   defaultColumns: ['date', 'category', 'paidTo', 'method', 'amount', 'note'],
   dateField: 'date',
+  // Cancelled expenses are a switch, not a filter chip that "Clear filters" would quietly drop (v2 review).
+  switch: {
+    field: 'cancelled',
+    label: 'ws.col.status',
+    options: [{ label: 'ws.expenses.status.RECORDED', op: 'isnull' }, { label: 'ws.expenses.status.CANCELLED', op: 'notnull' }, { label: 'common.all' }],
+  },
   defaultFilters: [{ field: 'cancelled', op: 'isnull' }],
+  headline: { field: 'amount', label: 'ws.expenses.thisMonth' },
+  cards: { title: 'category', sub: ['date', 'paidTo', 'method'], amount: 'amount' },
   groupBy: [
     { key: 'category', label: 'ws.container.category', enumPrefix: 'ws.expenseCategory.' },
     { key: 'method', label: 'ws.sale.method', enumPrefix: 'method.' },

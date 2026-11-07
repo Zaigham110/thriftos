@@ -1,6 +1,6 @@
 import { SYSTEM_COMPANY_CODE } from '../bootstrap/base-data';
 import { INestApplicationContext } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { ExpenseCategory, PaymentMethod, Prisma } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 import { PrismaService } from '../prisma/prisma.service';
@@ -245,6 +245,7 @@ export async function seedDemo(app: INestApplicationContext, opts: { today?: Dat
   const traderPayAt = moment(ctx, 8, 16);
   const tp = (await khata.recordPayment(trader.id, { customerId: traderCustomers[0], amount: 40000, method: 'EASYPAISA', receivedAt: traderPayAt.toISOString() } as never, traderOwner.id)) as { payment: { id: string } };
   await prisma.payment.update({ where: { id: tp.payment.id }, data: { receivedAt: traderPayAt, createdAt: traderPayAt } });
+  await fillExpenses(ctx, { tenantId: trader.id, ownerId: traderOwner.id, days: 45, scale: 0.35 });
 
   // Both data checks must find nothing: costs add up at every stage, khata agrees with sales and payments.
   const checks = path.resolve(__dirname, '../../../prisma/checks');
@@ -463,7 +464,49 @@ export async function fillSortingStory(
   for (const e of events) await e.run();
   const saleCount = await prisma.sale.count({ where: { tenantId: t } });
   log(`  ${saleCount} sales, ${sold.size} of ${stock.length} bales sold`);
+  const spent = await fillExpenses(ctx, { tenantId: t, ownerId: owner.id, workerId, days: 95, scale: 1 });
+  log(`  ${spent} expenses`);
   return { bales: stock.length, sales: saleCount };
+}
+
+/**
+ * Running costs, so Expenses, Cash close and Profit and loss look like a real business (v2 review): rent,
+ * electricity and salaries each month, loading and transport most weeks, chai and fuel most days, now and then
+ * packing, phone and a repair. The munshi records the small cash ones. One mistake is cancelled with a reason.
+ */
+export async function fillExpenses(ctx: Ctx, opts: { tenantId: string; ownerId: string; workerId?: string; days: number; scale: number }): Promise<number> {
+  const t = opts.tenantId;
+  const rows: Prisma.ExpenseCreateManyInput[] = [];
+  const pktDay = (daysAgo: number) => new Date(new Date(moment(ctx, daysAgo, 12).getTime() + 5 * 3_600_000).toISOString().slice(0, 10) + 'T00:00:00Z');
+  const add = (daysAgo: number, category: ExpenseCategory, amount: number, method: PaymentMethod, paidTo: string | null, by = opts.ownerId, note: string | null = null) => {
+    const at = moment(ctx, daysAgo, 17);
+    rows.push({ tenantId: t, day: pktDay(daysAgo), category, amount: new Prisma.Decimal(Math.max(10, Math.round((amount * opts.scale) / 10) * 10)), method, paidTo, note, createdBy: by, createdAt: at, updatedAt: at });
+  };
+  const floor = opts.workerId ?? opts.ownerId;
+  for (let d = opts.days; d >= 1; d--) {
+    const dom = pktDay(d).getUTCDate();
+    if (dom === 1) {
+      add(d, 'RENT', 85000, 'BANK', 'Haji Saleem (godown owner)');
+      add(d, 'SALARY', 120000, 'CASH', 'Staff salaries (4)', opts.ownerId, 'Akram, Bashir, Javed, Nadeem');
+    }
+    if (dom === 10) add(d, 'ELECTRICITY', 18000 + ctx.random() * 9000, 'EASYPAISA', 'K-Electric');
+    if (dom === 15) add(d, 'PHONE', 3500, 'JAZZCASH', 'Jazz');
+    if (d % 7 === 3) add(d, 'LOADING', 6000 + ctx.random() * 4000, 'CASH', 'Loading labour', floor);
+    if (d % 7 === 5) add(d, 'TRANSPORT', 4000 + ctx.random() * 6000, 'CASH', 'Mazda / Shehzore', floor);
+    if (d % 2 === 0) add(d, 'TEA_FOOD', 400 + ctx.random() * 500, 'CASH', 'Chai dhaba', floor);
+    if (d % 4 === 1) add(d, 'FUEL', 2000 + ctx.random() * 1500, 'CASH', 'PSO', floor);
+    if (d % 18 === 7) add(d, 'PACKING', 7000 + ctx.random() * 5000, 'CASH', 'Bags and straps', floor);
+    if (d === 40) add(d, 'REPAIRS', 12500, 'CASH', 'Bale press repair', opts.ownerId, 'New spring');
+  }
+  add(2, 'OTHER', 3000, 'CASH', null, floor, 'Committee');
+  if (!rows.length) return 0;
+  await ctx.prisma.expense.createMany({ data: rows });
+  // One mistake, cancelled with the reason (it counts nowhere).
+  const wrong = await ctx.prisma.expense.create({
+    data: { tenantId: t, day: pktDay(6), category: 'TRANSPORT', amount: new Prisma.Decimal(Math.round(45000 * opts.scale)), method: 'CASH', paidTo: 'Mazda / Shehzore', createdBy: floor, createdAt: moment(ctx, 6, 18) },
+  });
+  await ctx.prisma.expense.update({ where: { id: wrong.id }, data: { cancelledAt: moment(ctx, 6, 19), cancelledBy: opts.ownerId, cancelReason: 'Typed 45,000 instead of 4,500' } });
+  return rows.length + 1;
 }
 
 /** A fresh story context (fixed random seed, so the same sample every time). */

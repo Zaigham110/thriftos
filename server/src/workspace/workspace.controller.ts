@@ -10,7 +10,7 @@ import { CreditLimitDto, PromiseDto, ReceivablesService, ReminderDto, StatementQ
 import { SortingRecordsService, YieldQueryDto } from './sorting-records.service';
 import { AnalyticsService, PeriodDto, SalesAnalyticsQueryDto, ScorecardQueryDto } from './analytics.service';
 import { PriceEntryDto, PriceGroupDto, PriceListsService } from './price-lists.service';
-import { BookQueryDto, CloseDto, CloseQueryDto, ExpenseDto, FinanceService, PnlQueryDto } from './finance.service';
+import { BookQueryDto, CancelExpenseDto, CloseDto, CloseQueryDto, ExpenseDto, ExpenseUpdateDto, FinanceService, PnlQueryDto } from './finance.service';
 import { StockCountDto, StockDecisionDto, StockRecordsService, StockTransferDto, StockPriceDto, StockKindPriceDto } from './stock-records.service';
 
 /** Workspace record pages (enterprise plan E3): one call per page; cost and profit need cost.view. */
@@ -180,11 +180,18 @@ export class WorkspaceController {
     return this.finance.expense(tenantId, id);
   }
 
+  /** Fix a mistake (v2 review). Changing or cancelling needs Finance as well: a munshi only records. */
+  @Patch('expenses/:id')
+  @RequirePermissions('expense.create', 'finance.view')
+  updateExpense(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string, @Body() dto: ExpenseUpdateDto) {
+    return this.finance.updateExpense(tenantId, id, dto, user.userId);
+  }
+
   @Post('expenses/:id/cancel')
   @HttpCode(200)
-  @RequirePermissions('expense.create')
-  cancelExpense(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string) {
-    return this.finance.cancelExpense(tenantId, id, user.userId);
+  @RequirePermissions('expense.create', 'finance.view')
+  cancelExpense(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string, @Body() dto: CancelExpenseDto) {
+    return this.finance.cancelExpense(tenantId, id, user.userId, dto.reason);
   }
 
   /** Cash or bank book by payment method. */

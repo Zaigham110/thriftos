@@ -18,6 +18,11 @@ export interface ListField {
   groupable?: boolean;
   /** A top-level date field grouped by Pakistan month ("2026-11"); group keys open as a between filter. */
   groupByMonth?: boolean;
+  /**
+   * A calendar day column (@db.Date, e.g. an expense's day). Its filters compare whole days at UTC midnight: the
+   * Pakistan-time bounds used for timestamps would be cut to a date by the database and lose the last day.
+   */
+  dateOnly?: boolean;
   searchable?: boolean;
   /** Summed for the totals row and group subtotals (top-level numeric fields). */
   sum?: boolean;
@@ -117,8 +122,8 @@ export function condition(f: ListField, filter: ListFilter): unknown {
   if (filter.op === 'isnull') return null;
   if (filter.op === 'notnull') return { not: null };
   if (f.type === 'date') {
-    const start = (d: string) => localDayStart(d);
-    const end = (d: string) => new Date(localDayStart(d).getTime() + DAY);
+    const start = (d: string) => (f.dateOnly ? new Date(`${d.slice(0, 10)}T00:00:00Z`) : localDayStart(d));
+    const end = (d: string) => new Date(start(d).getTime() + DAY);
     switch (filter.op) {
       case 'eq': return { gte: start(a), lt: end(a) };
       case 'gt': return { gte: end(a) };
