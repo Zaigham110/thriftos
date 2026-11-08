@@ -330,15 +330,45 @@ test('finance: record an expense, close the day, cash book and profit and loss',
   await expect(page.locator('ws-data-grid')).toHaveCount(0);
   await page.setViewportSize({ width: 1280, height: 860 });
 
+  // Cash close (v2 review): cash put in by the owner, count by notes, a reason when short or over, reopen.
   await page.goto('/finance/close');
   await expect(page.getByRole('heading', { name: 'Cash close' })).toBeVisible();
   const done = page.getByRole('status').filter({ hasText: 'Closed:' });
-  if (!(await done.isVisible())) {
-    await page.getByLabel('Counted').fill('0');
-    await page.getByRole('button', { name: 'Close the day' }).click();
-    await expect(page.getByText('Day closed')).toBeVisible();
+  if (await done.isVisible()) {
+    await page.getByRole('button', { name: 'Reopen' }).click();
+    await page.getByRole('dialog').getByLabel('Why?').fill('Recount');
+    await page.getByRole('dialog').getByRole('button', { name: 'Reopen' }).click();
+    await expect(page.getByText('Day reopened')).toBeVisible();
   }
-  await expect(page.getByRole('status').filter({ hasText: 'Closed:' })).toBeVisible();
+  await page.getByRole('button', { name: 'Cash out / in' }).click();
+  const moveSheet = page.getByRole('dialog');
+  await moveSheet.locator('label.chip', { hasText: 'Put in' }).click();
+  await moveSheet.locator('label.chip', { hasText: 'Brought by the owner' }).click();
+  await moveSheet.getByLabel('Amount').fill('5000');
+  await moveSheet.getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('.moves')).toContainText('Brought by the owner');
+  await expect(page.locator('.sum')).toContainText('Put in');
+
+  await page.getByRole('button', { name: 'Count notes' }).click();
+  await page.getByRole('group', { name: 'Count notes' }).getByRole('spinbutton').first().fill('1');
+  await expect(page.getByLabel('Counted')).toHaveValue('5000');
+  await page.getByLabel('Counted').fill('1');
+  await expect(page.getByRole('button', { name: 'Close the day' })).toBeDisabled();
+  await page.getByLabel('Why short / over?').fill('Test count');
+  await page.getByRole('button', { name: 'Close the day' }).click();
+  await expect(page.getByText('Day closed')).toBeVisible();
+  await expect(done).toContainText('Test count');
+  // Undo a wrong count, then the day can be counted again.
+  await page.getByRole('button', { name: 'Reopen' }).click();
+  await expect(page.getByRole('dialog').getByRole('button', { name: 'Reopen' })).toBeDisabled();
+  await page.getByRole('dialog').getByLabel('Why?').fill('Typed the count wrong');
+  await page.getByRole('dialog').getByRole('button', { name: 'Reopen' }).click();
+  await expect(page.getByLabel('Counted')).toHaveValue('');
+  await page.getByLabel('Counted').fill('2');
+  await page.getByLabel('Why short / over?').fill('Test count again');
+  await page.getByRole('button', { name: 'Close the day' }).click();
+  await expect(done).toContainText('Test count again');
+  await expect(page.locator('ws-data-grid').nth(1).locator('tbody')).toContainText('Closed');
 
   await page.goto('/finance/book');
   await expect(page.getByRole('heading', { name: 'Cash and bank book' })).toBeVisible();

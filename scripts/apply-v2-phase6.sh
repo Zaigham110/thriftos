@@ -13,6 +13,8 @@
 #                                        "on the way"/"arrived" to "cleared" (dates filled in if empty)
 #   5. 20261109100000_v6_08_expenses  eight more expense categories, Expense.cancelReason, and every "Munshi"
 #                                        role may record expenses
+#   6. 20261110100000_v6_09_cash_close  CashMove table (cash taken out of the drawer or put in: bank, owner,
+#                                        other), not part of profit and loss
 # Data step: base data (server/src/bootstrap): adds data.import and gives every Admin (owner) role all permissions.
 # Idempotent; nothing else changes.
 set -euo pipefail

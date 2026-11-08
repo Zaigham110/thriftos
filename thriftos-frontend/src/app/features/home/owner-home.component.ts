@@ -7,18 +7,20 @@ import { NeedsAttentionComponent } from '../../shared/offline/needs-attention.co
 import { sessionCache } from '../../core/auth/session-cache';
 import { HomeDataService, HomeSummary } from './home-data';
 import { FirstWeekComponent } from './first-week.component';
+import { CashTodayComponent } from './cash-today.component';
 
 /** Journey 7 — owner home: profit per container, udhaar owed, stock ready, and today's sales. Each taps to its list. */
 @Component({
   selector: 'app-owner-home',
   standalone: true,
-  imports: [RouterLink, LucideAngularModule, I18N, NeedsAttentionComponent, FirstWeekComponent],
+  imports: [RouterLink, LucideAngularModule, I18N, NeedsAttentionComponent, FirstWeekComponent, CashTodayComponent],
   template: `
     <section class="floor home">
       <header class="floor-head"><h1>{{ 'home.title' | t }}</h1></header>
       <app-needs-attention />
       <app-first-week />
       @if (canSpend()) { <a class="card spend" routerLink="/finance/expenses/new">{{ 'home.recordExpense' | t }}</a> }
+      <app-cash-today />
       @if (s(); as s) {
         <a class="card stat" routerLink="/home/containers">
           <small>{{ 'home.profitPerContainer' | t }}</small>

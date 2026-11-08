@@ -20,6 +20,7 @@ import {
   rangeFor,
 } from '../../shared/ui/workspace';
 import { FirstWeekComponent } from '../home/first-week.component';
+import { CashTodayComponent } from '../home/cash-today.component';
 
 type Money = string | null;
 const AGES = ['0-30', '31-60', '61-90', '90+'] as const;
@@ -49,11 +50,12 @@ const change = (now: string | number | null, before: string | number | null): nu
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [RouterLink, TPipe, FirstWeekComponent, WsAreaChartComponent, WsCommandBarComponent, WsDataGridComponent, WsDateRangeComponent, WsInfoComponent, WsKpiCardComponent, WsPageHeaderComponent, WsStateComponent],
+  imports: [RouterLink, TPipe, CashTodayComponent, FirstWeekComponent, WsAreaChartComponent, WsCommandBarComponent, WsDataGridComponent, WsDateRangeComponent, WsInfoComponent, WsKpiCardComponent, WsPageHeaderComponent, WsStateComponent],
   template: `
     <div class="page">
       <ws-page-header [heading]="'ws.dash.title' | t" [subtitle]="subtitle()" />
       <app-first-week class="first-week" />
+      <app-cash-today />
       <ws-command-bar>
         <p start class="today">
           @if (data(); as d) { {{ 'ws.dash.today' | t: { sales: i18n.num(d.today.sales), revenue: i18n.money(d.today.revenue), collected: i18n.money(d.today.collected) } }} }

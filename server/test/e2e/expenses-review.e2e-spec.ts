@@ -81,7 +81,7 @@ describe('Expenses review (e2e)', () => {
   it("a closed day's cash cannot be changed, and nothing can be moved onto it", async () => {
     const cash = (await api(app, a).post('/workspace/expenses', { category: 'TEA_FOOD', amount: 300 }).expect(201)).body;
     const bank = (await api(app, a).post('/workspace/expenses', { category: 'PHONE', amount: 1000, method: 'BANK', day: dayOffset(-1) }).expect(201)).body;
-    await api(app, a).post('/workspace/finance/close', { day: today(), counted: 0 }).expect(201);
+    await api(app, a).post('/workspace/finance/close', { day: today(), counted: 0, note: 'Test close' }).expect(201);
     const closed = await api(app, a).post('/workspace/expenses', { category: 'OTHER', amount: 50 }).expect(409);
     expect(closed.body).toMatchObject({ code: 'CASH_CLOSED' });
     expect((await api(app, a).patch(`/workspace/expenses/${cash.id}`, { amount: 350 }).expect(409)).body.code).toBe('CASH_CLOSED');

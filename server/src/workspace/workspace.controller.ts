@@ -10,7 +10,7 @@ import { CreditLimitDto, PromiseDto, ReceivablesService, ReminderDto, StatementQ
 import { SortingRecordsService, YieldQueryDto } from './sorting-records.service';
 import { AnalyticsService, PeriodDto, SalesAnalyticsQueryDto, ScorecardQueryDto } from './analytics.service';
 import { PriceEntryDto, PriceGroupDto, PriceListsService } from './price-lists.service';
-import { BookQueryDto, CancelExpenseDto, CloseDto, CloseQueryDto, ExpenseDto, ExpenseUpdateDto, FinanceService, PnlQueryDto } from './finance.service';
+import { BookQueryDto, CancelExpenseDto, CashMoveDto, CloseDto, CloseQueryDto, ExpenseDto, ExpenseUpdateDto, FinanceService, PnlQueryDto, ReopenDto } from './finance.service';
 import { StockCountDto, StockDecisionDto, StockRecordsService, StockTransferDto, StockPriceDto, StockKindPriceDto } from './stock-records.service';
 
 /** Workspace record pages (enterprise plan E3): one call per page; cost and profit need cost.view. */
@@ -211,6 +211,28 @@ export class WorkspaceController {
   @RequirePermissions('cash.close')
   closeDay(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Body() dto: CloseDto) {
     return this.finance.closeDay(tenantId, dto, user.userId);
+  }
+
+  /** Undo a wrong count: the latest closed day only, with a reason (v2 review). */
+  @Post('finance/close/:day/reopen')
+  @HttpCode(200)
+  @RequirePermissions('cash.close')
+  reopenDay(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('day') day: string, @Body() dto: ReopenDto) {
+    return this.finance.reopenDay(tenantId, day, dto.reason, user.userId);
+  }
+
+  /** Cash out of the drawer or into it: bank, owner or other (v2 review). */
+  @Post('finance/cash-moves')
+  @RequirePermissions('cash.close')
+  addCashMove(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Body() dto: CashMoveDto) {
+    return this.finance.addCashMove(tenantId, dto, user.userId);
+  }
+
+  @Post('finance/cash-moves/:id/cancel')
+  @HttpCode(200)
+  @RequirePermissions('cash.close')
+  cancelCashMove(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string) {
+    return this.finance.cancelCashMove(tenantId, id, user.userId);
   }
 
   /** Profit and loss by month; cost of goods needs cost.view too. */

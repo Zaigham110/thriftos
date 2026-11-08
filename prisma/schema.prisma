@@ -1599,6 +1599,41 @@ model CashClose {
   @@unique([tenantId, day])
 }
 
+/// Cash taken out of the drawer or put into it that is not a sale or an expense (v2 review: Cash close):
+/// paid into the bank, taken by the owner, or other. It moves cash in the cash book (and the bank book for
+/// BANK) and never touches profit and loss.
+model CashMove {
+  id          String            @id @default(cuid())
+  tenantId    String
+  /// The business day (Pakistan).
+  day         DateTime          @db.Date
+  direction   CashMoveDirection
+  kind        CashMoveKind
+  amount      Decimal           @db.Decimal(14, 2)
+  note        String?
+  createdBy   String
+  cancelledAt DateTime?
+  cancelledBy String?
+  createdAt   DateTime          @default(now())
+
+  @@index([tenantId, day])
+}
+
+enum CashMoveDirection {
+  /// Taken out of the drawer.
+  OUT
+  /// Put into the drawer.
+  IN
+}
+
+enum CashMoveKind {
+  /// Paid into the bank (OUT) or drawn from it (IN).
+  BANK
+  /// Taken by the owner (OUT) or brought by the owner (IN).
+  OWNER
+  OTHER
+}
+
 /// A price agreed for a customer group (enterprise E3.4): per category (and grade, when given) and unit.
 /// The sale screen suggests it before the customer's last price.
 model PriceListEntry {

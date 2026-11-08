@@ -15,6 +15,7 @@ import { DirectStockService } from '../stock/direct-stock.service';
 import { CustomersService } from '../sales/customers.service';
 import { SalesService } from '../sales/sales.service';
 import { KhataService } from '../sales/khata.service';
+import { FinanceService } from '../workspace/finance.service';
 import { startOfDayPKT } from '../home/home';
 
 /**
@@ -246,6 +247,7 @@ export async function seedDemo(app: INestApplicationContext, opts: { today?: Dat
   const tp = (await khata.recordPayment(trader.id, { customerId: traderCustomers[0], amount: 40000, method: 'EASYPAISA', receivedAt: traderPayAt.toISOString() } as never, traderOwner.id)) as { payment: { id: string } };
   await prisma.payment.update({ where: { id: tp.payment.id }, data: { receivedAt: traderPayAt, createdAt: traderPayAt } });
   await fillExpenses(ctx, { tenantId: trader.id, ownerId: traderOwner.id, days: 45, scale: 0.35 });
+  await fillCashCloses(ctx, { tenantId: trader.id, ownerId: traderOwner.id, days: 14, keep: 15000 });
 
   // Both data checks must find nothing: costs add up at every stage, khata agrees with sales and payments.
   const checks = path.resolve(__dirname, '../../../prisma/checks');
@@ -466,6 +468,8 @@ export async function fillSortingStory(
   log(`  ${saleCount} sales, ${sold.size} of ${stock.length} bales sold`);
   const spent = await fillExpenses(ctx, { tenantId: t, ownerId: owner.id, workerId, days: 95, scale: 1 });
   log(`  ${spent} expenses`);
+  const closed = await fillCashCloses(ctx, { tenantId: t, ownerId: owner.id, days: 21, keep: 25000 });
+  log(`  ${closed} days closed`);
   return { bales: stock.length, sales: saleCount };
 }
 
@@ -507,6 +511,40 @@ export async function fillExpenses(ctx: Ctx, opts: { tenantId: string; ownerId: 
   });
   await ctx.prisma.expense.update({ where: { id: wrong.id }, data: { cancelledAt: moment(ctx, 6, 19), cancelledBy: opts.ownerId, cancelReason: 'Typed 45,000 instead of 4,500' } });
   return rows.length + 1;
+}
+
+/**
+ * Cash close (v2 review): the last few weeks counted every evening up to yesterday, cash paid into the bank each
+ * week (and once taken home), most days exact, one short and one over with the reason. Today stays open.
+ */
+export async function fillCashCloses(ctx: Ctx, opts: { tenantId: string; ownerId: string; days: number; keep: number }): Promise<number> {
+  const finance = ctx.app.get(FinanceService as never, { strict: false }) as FinanceService;
+  const t = opts.tenantId;
+  const dayStr = (daysAgo: number) => new Date(moment(ctx, daysAgo, 12).getTime() + 5 * 3_600_000).toISOString().slice(0, 10);
+  let closed = 0;
+  for (let d = opts.days; d >= 1; d--) {
+    const day = dayStr(d);
+    const now = moment(ctx, d, 21);
+    const move = async (direction: 'OUT' | 'IN', kind: 'BANK' | 'OWNER', amount: number, note: string) => {
+      if (amount < 1000 || (direction === 'OUT' && amount > Number((await finance.closeView(t, { day }, now)).expected))) return;
+      const m = await finance.addCashMove(t, { day, direction, kind, amount, note } as never, opts.ownerId, now);
+      await ctx.prisma.cashMove.update({ where: { id: m.id }, data: { createdAt: moment(ctx, d, 19) } });
+    };
+    let v = await finance.closeView(t, { day }, now);
+    if (d === opts.days || d % 7 === 0) await move('OUT', 'BANK', Math.floor((Number(v.expected) - opts.keep) / 1000) * 1000, 'Meezan Bank');
+    if (d === 12) await move('OUT', 'OWNER', 15000, 'Ghar ka kharcha');
+    // Salaries and big cash costs are paid with cash drawn from the bank, so the drawer never goes below zero.
+    v = await finance.closeView(t, { day }, now);
+    if (Number(v.expected) < opts.keep / 2) await move('IN', 'BANK', Math.ceil((opts.keep - Number(v.expected)) / 1000) * 1000, 'Drawn for salaries and costs');
+    v = await finance.closeView(t, { day }, now);
+    const diff = d === 9 ? -500 : d === 4 ? 200 : 0;
+    const counted = Number(v.expected) + diff;
+    const note = diff > 0 ? 'Old note found in the drawer' : diff < 0 ? 'Change given wrong to a customer' : undefined;
+    const c = await finance.closeDay(t, { day, counted, note } as never, opts.ownerId, now);
+    await ctx.prisma.cashClose.update({ where: { id: c.id }, data: { createdAt: now } });
+    closed++;
+  }
+  return closed;
 }
 
 /** A fresh story context (fixed random seed, so the same sample every time). */

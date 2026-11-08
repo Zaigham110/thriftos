@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { ExpenseCategory, PaymentMethod, Prisma, StockAdjustmentStatus } from '@prisma/client';
+import { CashMoveDirection, CashMoveKind, ExpenseCategory, PaymentMethod, Prisma, StockAdjustmentStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { localDayStart } from '../common/list/list-engine';
@@ -42,6 +42,15 @@ export class CancelExpenseDto {
 const CASH_CLOSED = { code: 'CASH_CLOSED', message: "That day's cash is already closed. Pick another day, or a method other than cash." };
 const FUTURE_DAY = { code: 'FUTURE_DAY', message: 'An expense cannot be in the future' };
 const ALREADY_CANCELLED = { code: 'ALREADY_CANCELLED', message: 'This expense is cancelled' };
+// Cash close (v2 review).
+const CLOSED_ALREADY = { code: 'CLOSED_ALREADY', message: 'This day is already closed' };
+const NOT_STARTED = { code: 'NOT_STARTED', message: 'A day cannot be closed before it starts' };
+const LATER_CLOSED = { code: 'LATER_CLOSED', message: 'A later day is already closed. Close days in order, or reopen the later one first.' };
+const REASON_NEEDED = { code: 'REASON_NEEDED', message: 'The drawer is short or over: say why in the note' };
+const NOT_CLOSED = { code: 'NOT_CLOSED', message: 'This day is not closed' };
+const NOT_LATEST = { code: 'NOT_LATEST', message: 'Only the latest closed day can be reopened' };
+const NOT_ENOUGH_CASH = { code: 'NOT_ENOUGH_CASH', message: 'That is more than should be in the drawer' };
+const MOVE_CANCELLED = { code: 'ALREADY_CANCELLED', message: 'This is already cancelled' };
 
 export class BookQueryDto {
   @IsOptional() @IsEnum(PaymentMethod) method?: PaymentMethod;
@@ -56,7 +65,23 @@ export class CloseQueryDto {
 export class CloseDto {
   @IsDateString() day!: string;
   @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) counted!: number;
+  /** Required when the drawer is short or over (v2 review). */
   @IsOptional() @IsString() @MaxLength(300) note?: string;
+}
+
+/** Reopening the latest close asks why (v2 review). */
+export class ReopenDto {
+  @IsString() @MinLength(2) @MaxLength(200) reason!: string;
+}
+
+/** Cash taken out of the drawer or put in (v2 review): bank, owner or other. Not part of profit and loss. */
+export class CashMoveDto {
+  /** YYYY-MM-DD business day; today when absent. */
+  @IsOptional() @IsDateString() day?: string;
+  @IsEnum(CashMoveDirection) direction!: CashMoveDirection;
+  @IsEnum(CashMoveKind) kind!: CashMoveKind;
+  @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(1) amount!: number;
+  @IsOptional() @IsString() @MaxLength(200) note?: string;
 }
 
 export class PnlQueryDto {
@@ -64,7 +89,8 @@ export class PnlQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(24) months?: number;
 }
 
-type BookLine = { at: Date; day: string; kind: 'RECEIPT' | 'EXPENSE' | 'CLOSE'; id: string; ref: string | null; party: string | null; in: Prisma.Decimal; out: Prisma.Decimal };
+/** One book line. MOVE: cash out of / into the drawer (ref = OUT:BANK, IN:OWNER, …; party = the note). */
+type BookLine = { at: Date; day: string; kind: 'RECEIPT' | 'EXPENSE' | 'MOVE' | 'CLOSE'; id: string; ref: string | null; party: string | null; in: Prisma.Decimal; out: Prisma.Decimal; createdAt?: Date };
 
 const ymd = (s: string) => s.slice(0, 10);
 const dayDate = (s: string) => new Date(ymd(s) + 'T00:00:00Z');
@@ -160,18 +186,27 @@ export class FinanceService {
   }
 
   private async lines(tenantId: string, method: PaymentMethod, until?: Date): Promise<BookLine[]> {
-    const [payments, expenses, closes] = await Promise.all([
+    const [payments, expenses, closes, moves] = await Promise.all([
       this.prisma.payment.findMany({
         where: { tenantId, method, ...(until ? { receivedAt: { lt: until } } : {}) },
-        select: { id: true, amount: true, receivedAt: true, reference: true, customer: { select: { name: true } }, sale: { select: { saleNumber: true } } },
+        select: { id: true, amount: true, receivedAt: true, createdAt: true, reference: true, customer: { select: { name: true } }, sale: { select: { saleNumber: true } } },
       }),
       this.prisma.expense.findMany({ where: { tenantId, method, cancelledAt: null } }),
       method === PaymentMethod.CASH ? this.prisma.cashClose.findMany({ where: { tenantId } }) : Promise.resolve([]),
+      // Cash moves: all of them in the cash book; bank ones also in the bank book, the other way round.
+      method === PaymentMethod.CASH || method === PaymentMethod.BANK
+        ? this.prisma.cashMove.findMany({ where: { tenantId, cancelledAt: null, ...(method === PaymentMethod.BANK ? { kind: CashMoveKind.BANK } : {}) } })
+        : Promise.resolve([]),
     ]);
     // An expense day / close day sits at the end of that business day for ordering (after the day's receipts).
     const endOf = (d: Date) => new Date(localDayStart(dayOf(d)).getTime() + DAY - 1);
     const out: BookLine[] = [
-      ...payments.map((p) => ({ at: p.receivedAt, day: businessDay(p.receivedAt), kind: 'RECEIPT' as const, id: p.id, ref: p.sale?.saleNumber ?? p.reference, party: p.customer.name, in: p.amount, out: ZERO })),
+      ...payments.map((p) => ({ at: p.receivedAt, day: businessDay(p.receivedAt), kind: 'RECEIPT' as const, id: p.id, ref: p.sale?.saleNumber ?? p.reference, party: p.customer.name, in: p.amount, out: ZERO, createdAt: p.createdAt })),
+      ...moves.map((m) => {
+        const intoDrawer = m.direction === CashMoveDirection.IN;
+        const intoBook = method === PaymentMethod.CASH ? intoDrawer : !intoDrawer;
+        return { at: new Date(endOf(m.day).getTime() - 1), day: dayOf(m.day), kind: 'MOVE' as const, id: m.id, ref: `${m.direction}:${m.kind}`, party: m.note, in: intoBook ? m.amount : ZERO, out: intoBook ? ZERO : m.amount };
+      }),
       ...expenses.map((e) => ({ at: new Date(endOf(e.day).getTime() - 1), day: dayOf(e.day), kind: 'EXPENSE' as const, id: e.id, ref: e.category, party: e.paidTo, in: ZERO, out: e.amount })),
       ...closes.map((c) => ({ at: endOf(c.day), day: dayOf(c.day), kind: 'CLOSE' as const, id: c.id, ref: null, party: null, in: c.difference.isPositive() ? c.difference : ZERO, out: c.difference.isNegative() ? c.difference.neg() : ZERO })),
     ];
@@ -198,51 +233,128 @@ export class FinanceService {
     return { method, from: q.from ?? null, to: q.to ?? null, opening, in: totalIn, out: totalOut, closing: opening.add(totalIn).sub(totalOut), lines };
   }
 
-  /** The day's cash: opening, in, out, what should be in the drawer, and the close if it was done. */
+  /**
+   * The day's cash: opening, received, paid out, cash moved out/in, what should be in the drawer, and the close if
+   * it was done (v2 review: cash received today after the close is listed apart: it counts in tomorrow's drawer).
+   * Also the last 14 days, closed or not (days with no cash and no close are left out).
+   */
   async closeView(tenantId: string, q: CloseQueryDto, now = new Date()) {
-    const day = q.day ? ymd(q.day) : businessDay(now);
+    const today = businessDay(now);
+    const day = q.day ? ymd(q.day) : today;
     const start = localDayStart(day);
     const end = new Date(start.getTime() + DAY);
-    const close = await this.prisma.cashClose.findFirst({ where: { tenantId, day: dayDate(day) } });
-    const lines = (await this.lines(tenantId, PaymentMethod.CASH, end)).filter((l) => !(l.kind === 'CLOSE' && l.day === day));
+    const [all, closes] = await Promise.all([this.lines(tenantId, PaymentMethod.CASH), this.prisma.cashClose.findMany({ where: { tenantId }, orderBy: { day: 'desc' } })]);
+    const close = closes.find((c) => dayOf(c.day) === day) ?? null;
     let opening = ZERO;
-    let cashIn = ZERO;
-    let cashOut = ZERO;
-    for (const l of lines) {
+    const dayLines: BookLine[] = [];
+    const afterClose: BookLine[] = [];
+    for (const l of all) {
       if (l.at < start) opening = opening.add(l.in).sub(l.out);
-      else {
-        cashIn = cashIn.add(l.in);
-        cashOut = cashOut.add(l.out);
+      else if (l.at < end && !(l.kind === 'CLOSE' && l.day === day)) {
+        if (close && l.kind === 'RECEIPT' && l.createdAt && l.createdAt > close.createdAt) afterClose.push(l);
+        else dayLines.push(l);
       }
     }
-    const expected = opening.add(cashIn).sub(cashOut);
+    const sum = (ls: BookLine[], k: 'in' | 'out') => ls.reduce((t, l) => t.add(l[k]), ZERO);
+    const trade = dayLines.filter((l) => l.kind !== 'MOVE');
+    const moved = dayLines.filter((l) => l.kind === 'MOVE');
+    const cashIn = sum(trade, 'in');
+    const cashOut = sum(trade, 'out');
+    const movedIn = sum(moved, 'in');
+    const movedOut = sum(moved, 'out');
+    const expected = opening.add(cashIn).sub(cashOut).add(movedIn).sub(movedOut);
     const people = close ? await this.prisma.user.findFirst({ where: { id: close.closedBy, tenantId }, select: { name: true } }) : null;
-    const recent = await this.prisma.cashClose.findMany({ where: { tenantId }, orderBy: { day: 'desc' }, take: 14 });
+    // The last 14 days up to today: closed ones with their figures, open ones that had cash.
+    const byDay = new Map(closes.map((c) => [dayOf(c.day), c]));
+    const busy = new Set(all.filter((l) => l.kind !== 'CLOSE').map((l) => l.day));
+    const recent = [];
+    for (let i = 0; i < 14; i++) {
+      const d = new Date(localDayStart(today).getTime() - i * DAY + 12 * 3_600_000).toISOString().slice(0, 10);
+      const c = byDay.get(d);
+      if (c) recent.push({ id: c.id, day: d, closed: true, expected: c.expected, counted: c.counted, difference: c.difference });
+      else if (busy.has(d)) recent.push({ id: d, day: d, closed: false, expected: null, counted: null, difference: null });
+    }
+    const latest = closes[0] ? dayOf(closes[0].day) : null;
     return {
-      day, opening, in: cashIn, out: cashOut, expected,
-      lines: lines.filter((l) => l.at >= start),
+      day, opening, in: cashIn, out: cashOut, movedIn, movedOut, expected,
+      lines: dayLines,
+      afterClose, afterCloseTotal: sum(afterClose, 'in'),
       close: close ? { ...close, day: dayOf(close.day), closedByName: people?.name ?? null } : null,
-      recent: recent.map((c) => ({ id: c.id, day: dayOf(c.day), expected: c.expected, counted: c.counted, difference: c.difference })),
+      /** Days before today that had cash and were never closed (for the Home reminder). */
+      openDays: recent.filter((r) => !r.closed && r.day < today).length,
+      laterClosed: !!latest && latest > day,
+      canReopen: !!close && latest === day,
+      recent,
     };
   }
 
   async closeDay(tenantId: string, dto: CloseDto, userId: string, now = new Date()) {
     const day = ymd(dto.day);
-    if (day > businessDay(now)) throw new BadRequestException('A day cannot be closed before it starts');
+    if (day > businessDay(now)) throw new BadRequestException(NOT_STARTED);
     const view = await this.closeView(tenantId, { day }, now);
-    if (view.close) throw new ConflictException('This day is already closed');
+    if (view.close) throw new ConflictException(CLOSED_ALREADY);
+    // Closing an earlier day after a later one would change the later day's opening after it was counted.
+    if (view.laterClosed) throw new ConflictException(LATER_CLOSED);
     const counted = new Prisma.Decimal(dto.counted);
     const difference = counted.sub(view.expected);
+    const note = dto.note?.trim() || null;
+    if (!difference.isZero() && (!note || note.length < 2)) throw new BadRequestException(REASON_NEEDED);
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const c = await tx.cashClose.create({ data: { tenantId, day: dayDate(day), expected: view.expected, counted, difference, note: dto.note?.trim() || null, closedBy: userId } });
+        const c = await tx.cashClose.create({ data: { tenantId, day: dayDate(day), expected: view.expected, counted, difference, note, closedBy: userId } });
         await tx.auditLog.create({ data: { tenantId, userId, action: 'CASH_CLOSED', entityType: 'CashClose', entityId: c.id, metadataJson: { day, expected: view.expected.toString(), counted: counted.toString(), difference: difference.toString() } } });
         return { ...c, day };
       });
     } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException('This day is already closed');
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException(CLOSED_ALREADY);
       throw e;
     }
+  }
+
+  /** Undo a wrong count (v2 review): only the latest closed day, with a reason; the history keeps what it was. */
+  async reopenDay(tenantId: string, day: string, reason: string, userId: string) {
+    const d = ymd(day);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || Number.isNaN(dayDate(d).getTime())) throw new NotFoundException(NOT_CLOSED);
+    const close = await this.prisma.cashClose.findFirst({ where: { tenantId, day: dayDate(d) } });
+    if (!close) throw new NotFoundException(NOT_CLOSED);
+    const later = await this.prisma.cashClose.findFirst({ where: { tenantId, day: { gt: close.day } }, select: { id: true } });
+    if (later) throw new ConflictException(NOT_LATEST);
+    const why = reason.trim();
+    await this.prisma.$transaction([
+      this.prisma.cashClose.delete({ where: { id: close.id } }),
+      this.prisma.auditLog.create({
+        data: { tenantId, userId, action: 'CASH_REOPENED', entityType: 'CashClose', entityId: close.id, metadataJson: { day: d, expected: close.expected.toString(), counted: close.counted.toString(), difference: close.difference.toString(), note: close.note, reason: why } },
+      }),
+    ]);
+    return { day: d, reopened: true };
+  }
+
+  /** Cash out of the drawer or into it (v2 review): to/from the bank, the owner, or other. */
+  async addCashMove(tenantId: string, dto: CashMoveDto, userId: string, now = new Date()) {
+    const day = dto.day ? ymd(dto.day) : businessDay(now);
+    if (day > businessDay(now)) throw new BadRequestException(FUTURE_DAY);
+    if (await this.closed(tenantId, day, PaymentMethod.CASH)) throw new ConflictException(CASH_CLOSED);
+    // Taking out more than the drawer should hold is a typing mistake (an extra zero), not a deposit.
+    if (dto.direction === CashMoveDirection.OUT && new Prisma.Decimal(dto.amount).greaterThan((await this.closeView(tenantId, { day }, now)).expected)) {
+      throw new BadRequestException(NOT_ENOUGH_CASH);
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const m = await tx.cashMove.create({ data: { tenantId, day: dayDate(day), direction: dto.direction, kind: dto.kind, amount: new Prisma.Decimal(dto.amount), note: dto.note?.trim() || null, createdBy: userId } });
+      await tx.auditLog.create({ data: { tenantId, userId, action: 'CASH_MOVED', entityType: 'CashMove', entityId: m.id, metadataJson: { day, direction: m.direction, kind: m.kind, amount: m.amount.toString() } } });
+      return { ...m, day };
+    });
+  }
+
+  async cancelCashMove(tenantId: string, id: string, userId: string) {
+    const m = await this.prisma.cashMove.findFirst({ where: { id, tenantId } });
+    if (!m) throw new NotFoundException('Not found');
+    if (m.cancelledAt) throw new ConflictException(MOVE_CANCELLED);
+    if (await this.closed(tenantId, dayOf(m.day), PaymentMethod.CASH)) throw new ConflictException(CASH_CLOSED);
+    await this.prisma.$transaction([
+      this.prisma.cashMove.update({ where: { id }, data: { cancelledAt: new Date(), cancelledBy: userId } }),
+      this.prisma.auditLog.create({ data: { tenantId, userId, action: 'CASH_MOVE_CANCELLED', entityType: 'CashMove', entityId: id, metadataJson: { day: dayOf(m.day), direction: m.direction, kind: m.kind, amount: m.amount.toString() } } }),
+    ]);
+    return { id, cancelled: true };
   }
 
   /** Profit and loss by month (Pakistan months), the latest last. */

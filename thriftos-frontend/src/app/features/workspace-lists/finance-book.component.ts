@@ -20,7 +20,7 @@ import {
 } from '../../shared/ui/workspace';
 import { PAYMENT_METHODS } from './lists';
 
-export interface BookLine { at: string; day: string; kind: 'RECEIPT' | 'EXPENSE' | 'CLOSE'; id: string; ref: string | null; party: string | null; in: string; out: string; balance?: string }
+export interface BookLine { at: string; day: string; kind: 'RECEIPT' | 'EXPENSE' | 'MOVE' | 'CLOSE'; id: string; ref: string | null; party: string | null; in: string; out: string; balance?: string }
 /** GET /api/workspace/finance/book */
 export interface Book { method: string; opening: string; in: string; out: string; closing: string; lines: BookLine[] }
 
@@ -28,6 +28,8 @@ export interface Book { method: string; opening: string; in: string; out: string
 export function lineDetails(i18n: I18nService, l: BookLine): string {
   if (l.kind === 'RECEIPT') return i18n.t('ws.book.receipt', { party: l.party ?? '—', ref: l.ref ?? '' }).trim();
   if (l.kind === 'EXPENSE') return [i18n.t(`ws.expenseCategory.${l.ref}`), l.party].filter(Boolean).join(' · ');
+  // Cash out of the drawer or into it (v2 review): "Paid into the bank · Meezan Bank".
+  if (l.kind === 'MOVE') return [i18n.t(`ws.close.move.${(l.ref ?? '').replace(':', '.')}`), l.party].filter(Boolean).join(' · ');
   return i18n.t(+l.in > 0 ? 'ws.book.over' : 'ws.book.short');
 }
 
@@ -117,6 +119,6 @@ export class FinanceBookComponent {
   protected open(row: WsRow): void {
     const [kind, id] = row.id.split(':');
     if (kind === 'EXPENSE') void this.nav.open(['/finance/expenses', id]);
-    if (kind === 'CLOSE') void this.nav.open(['/finance/close']);
+    if (kind === 'CLOSE' || kind === 'MOVE') void this.nav.open(['/finance/close']);
   }
 }

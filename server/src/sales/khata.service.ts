@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, SaleStatus } from '@prisma/client';
+import { PaymentMethod, Prisma, SaleStatus } from '@prisma/client';
+import { BUSINESS_UTC_OFFSET_MINUTES } from '../common/list/list-engine';
 import { IdempotencyService } from '../common/idempotency/idempotency.service';
 import { FileStorageService } from '../common/storage/file-storage.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -196,6 +197,15 @@ export class KhataService {
         const sale = await tx.sale.findFirst({ where: { id: dto.saleId, tenantId, customerId: dto.customerId }, select: { status: true } });
         if (!sale) throw new BadRequestException('Sale not found for this customer');
         if (!KHATA_SALE_STATUSES.includes(sale.status)) throw new ConflictException('This sale cannot take payments');
+      }
+      // v2 review (Cash close): cash dated onto an earlier day that is already closed would change a counted drawer.
+      // Cash received today after the close is fine: it counts in tomorrow's drawer.
+      if ((dto.method ?? PaymentMethod.CASH) === PaymentMethod.CASH && dto.receivedAt) {
+        const day = new Date(new Date(dto.receivedAt).getTime() + BUSINESS_UTC_OFFSET_MINUTES * 60_000).toISOString().slice(0, 10);
+        const today = new Date(Date.now() + BUSINESS_UTC_OFFSET_MINUTES * 60_000).toISOString().slice(0, 10);
+        if (day < today && (await tx.cashClose.findFirst({ where: { tenantId, day: new Date(day + 'T00:00:00Z') }, select: { id: true } }))) {
+          throw new ConflictException({ code: 'CASH_CLOSED', message: "That day's cash is already closed. Pick another day, or a method other than cash." });
+        }
       }
       const payment = await tx.payment.create({
         data: {
