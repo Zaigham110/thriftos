@@ -1,3 +1,4 @@
+import { businessContact } from '../tenant/business';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Type } from 'class-transformer';
@@ -211,7 +212,7 @@ export class ReceivablesService {
   /** Statement of account for a period: balance brought forward, every sale and payment, balance carried. */
   async statement(tenantId: string, id: string, q: StatementQueryDto) {
     const ledger = await this.khata.ledger(tenantId, id);
-    const tenant = await this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { name: true } });
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { name: true, phone: true, address: true, city: true } });
     const from = q.from ? localDayStart(q.from) : null;
     const to = q.to ? new Date(localDayStart(q.to).getTime() + DAY) : null;
     if (from && to && from >= to) throw new BadRequestException('"from" must be before "to"');
@@ -225,6 +226,7 @@ export class ReceivablesService {
     const credit = lines.reduce((s, l) => s.add(l.credit), ZERO);
     return {
       business: tenant.name,
+      businessContact: businessContact(tenant),
       customer: { id: ledger.customer.id, name: ledger.customer.name, phone: ledger.customer.phone, city: ledger.customer.city, address: ledger.customer.billingAddress },
       from: q.from ?? null, to: q.to ?? null, opening, lines, debit, credit, closing: opening.add(debit).sub(credit),
       generatedAt: new Date(),

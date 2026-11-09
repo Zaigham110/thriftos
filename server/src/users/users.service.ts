@@ -416,11 +416,11 @@ export class UsersService {
   }
 
   /** The team for Settings: who can sign in, how, and whether a PIN is locked. */
-  async team(tenantId: string) {
+  async team(tenantId: string, meId?: string) {
     const users = await this.prisma.user.findMany({
       where: { tenantId },
-      orderBy: { name: 'asc' },
-      select: { id: true, name: true, email: true, phone: true, isActive: true, pinHash: true, pinLockedUntil: true, userRoles: { select: { role: { select: { name: true } } } } },
+      orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+      select: { id: true, name: true, email: true, phone: true, isActive: true, pinHash: true, pinLockedUntil: true, userRoles: { select: { role: { select: { id: true, name: true } } } } },
     });
     const now = new Date();
     return users.map(({ pinHash, userRoles, ...u }) => ({
@@ -428,13 +428,91 @@ export class UsersService {
       hasPin: !!pinHash,
       locked: !!u.pinLockedUntil && u.pinLockedUntil > now,
       roles: userRoles.map((r) => r.role.name),
+      roleIds: userRoles.map((r) => r.role.id),
+      you: u.id === meId,
     }));
+  }
+
+  /** The business's roles for Team (v2 review: Settings): id, name and how many people have it. */
+  async teamRoles(tenantId: string) {
+    const roles = await this.prisma.role.findMany({ where: { tenantId }, orderBy: { name: 'asc' }, select: { id: true, name: true, _count: { select: { userRoles: true } } } });
+    return roles.map((r) => ({ id: r.id, name: r.name, people: r._count.userRoles }));
+  }
+
+  /**
+   * Stop someone's access (a munshi who left): they cannot sign in and every session ends now. Not yourself.
+   * Give it back with startAccess. History stays (v2 review: Settings).
+   */
+  async stopAccess(tenantId: string, id: string, actorId: string) {
+    if (id === actorId) throw new BadRequestException({ code: 'SELF', message: 'You cannot stop your own access' });
+    const user = await this.ownUser(tenantId, id);
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id }, data: { isActive: false } }),
+      this.prisma.refreshToken.updateMany({ where: { userId: id, revokedAt: null }, data: { revokedAt: new Date() } }),
+    ]);
+    await this.auditService.log({ tenantId, userId: actorId, action: 'USER_BLOCKED', entityType: 'User', entityId: id, metadataJson: { userName: user.name } });
+    return { ok: true };
+  }
+
+  async startAccess(tenantId: string, id: string, actorId: string) {
+    const user = await this.ownUser(tenantId, id);
+    await this.prisma.user.update({ where: { id }, data: { isActive: true, failedPinAttempts: 0, pinLockedUntil: null } });
+    await this.auditService.log({ tenantId, userId: actorId, action: 'USER_UNBLOCKED', entityType: 'User', entityId: id, metadataJson: { userName: user.name } });
+    return { ok: true };
+  }
+
+  /** Fix a name or phone. Someone who signs in with phone + PIN keeps a phone. */
+  async updateDetails(tenantId: string, id: string, dto: { name?: string; phone?: string }, actorId: string) {
+    const user = await this.prisma.user.findFirst({ where: { id, tenantId }, select: { id: true, name: true, phone: true, pinHash: true } });
+    if (!user) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Person not found' });
+    const data: { name?: string; phone?: string | null } = {};
+    if (dto.name !== undefined && dto.name.trim() !== user.name) data.name = dto.name.trim();
+    if (dto.phone !== undefined) {
+      const raw = dto.phone.trim();
+      const phone = raw ? toE164(raw) : null;
+      if (raw && !phone) throw new BadRequestException({ code: 'PHONE_INVALID', message: 'Enter a valid phone number, e.g. 0300 1234567' });
+      if (!phone && user.pinHash) throw new BadRequestException({ code: 'PHONE_NEEDED', message: 'They sign in with this phone; it cannot be empty' });
+      if (phone !== user.phone) data.phone = phone;
+    }
+    if (!Object.keys(data).length) return { ok: true };
+    try {
+      await this.prisma.user.update({ where: { id }, data });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException({ code: 'PHONE_TAKEN', message: 'This phone already has a login' });
+      throw e;
+    }
+    await this.auditService.log({ tenantId, userId: actorId, action: 'USER_UPDATED', entityType: 'User', entityId: id, metadataJson: { before: { name: user.name, phone: user.phone }, after: data } });
+    return { ok: true };
+  }
+
+  /** One role per person on Team: the new one replaces the old. Not your own (you could lock yourself out). */
+  async setRole(tenantId: string, id: string, roleId: string, actorId: string) {
+    if (id === actorId) throw new BadRequestException({ code: 'SELF', message: 'You cannot change your own role' });
+    await this.ownUser(tenantId, id);
+    const role = await this.prisma.role.findFirst({ where: { id: roleId, tenantId }, select: { id: true, name: true } });
+    if (!role) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Role not found' });
+    await this.prisma.$transaction([
+      this.prisma.userRole.deleteMany({ where: { userId: id } }),
+      this.prisma.userRole.create({ data: { userId: id, roleId } }),
+    ]);
+    await this.auditService.log({ tenantId, userId: actorId, action: 'USER_ROLE_CHANGED', entityType: 'User', entityId: id, metadataJson: { role: role.name } });
+    return { ok: true };
+  }
+
+  /** Someone who signs in with email: a first password is made for the owner to pass on (they change it later). */
+  async addPerson(tenantId: string, dto: { name: string; email: string; roleId: string }, actorId: string) {
+    const role = await this.prisma.role.findFirst({ where: { id: dto.roleId, tenantId }, select: { id: true } });
+    if (!role) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Role not found' });
+    const email = dto.email.trim().toLowerCase();
+    if (await this.prisma.user.findFirst({ where: { email } })) throw new ConflictException({ code: 'EMAIL_TAKEN', message: 'This email already has a login' });
+    const created = await this.create(tenantId, { name: dto.name.trim(), email, roleIds: [role.id] }, actorId);
+    return { id: created.id, temporaryPassword: (created as { temporaryPassword?: string }).temporaryPassword };
   }
 
   /** Adds a munshi who signs in with phone + PIN (no email or password), in the Munshi role. */
   async createMunshi(tenantId: string, dto: CreateMunshiDto, actorId: string) {
     const phone = toE164(dto.phone);
-    if (!phone) throw new BadRequestException('Enter a valid phone number, e.g. 0300 1234567');
+    if (!phone) throw new BadRequestException({ code: 'PHONE_INVALID', message: 'Enter a valid phone number, e.g. 0300 1234567' });
     const pinHash = await this.passwordService.hash(dto.pin);
     try {
       const user = await this.prisma.$transaction(async (tx) => {
@@ -447,7 +525,7 @@ export class UsersService {
       await this.auditService.log({ tenantId, userId: actorId, action: 'MUNSHI_ADDED', entityType: 'User', entityId: user.id, metadataJson: { name: user.name, phone } });
       return user;
     } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException('This phone already has a login');
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException({ code: 'PHONE_TAKEN', message: 'This phone already has a login' });
       throw e;
     }
   }
@@ -469,8 +547,8 @@ export class UsersService {
   }
 
   private async ownUser(tenantId: string, id: string) {
-    const user = await this.prisma.user.findFirst({ where: { id, tenantId }, select: { id: true } });
-    if (!user) throw new NotFoundException('User not found');
+    const user = await this.prisma.user.findFirst({ where: { id, tenantId }, select: { id: true, name: true } });
+    if (!user) throw new NotFoundException({ code: 'NOT_FOUND', message: 'User not found' });
     return user;
   }
 }

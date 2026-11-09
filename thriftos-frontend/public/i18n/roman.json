@@ -511,7 +511,7 @@
  "settings": {
   "addMunshi": "Munshi daalein",
   "advanced": "Advanced",
-  "business": "Karobar ki setting",
+  "business": "Karobar",
   "export": "Mera sara data download karein",
   "exportHint": "CSV files ka zip",
   "exportNotAllowed": "Sirf owner sara data download kar sakta hai.",
@@ -523,7 +523,96 @@
   "team": "Team",
   "title": "Settings",
   "unlock": "Kholein",
-  "unlocked": "{name} dobara sign in kar sakta hai."
+  "unlocked": "{name} dobara sign in kar sakta hai.",
+  "signOut": "Log out",
+  "signsInEmail": "{email} se login",
+  "signsInPin": "{phone} aur PIN se login",
+  "item": {
+   "business": "Karobar",
+   "team": "Team",
+   "pin": "Apna PIN badlein",
+   "password": "Password badlein",
+   "import": "Apna register laayein",
+   "help": "Madad",
+   "terms": "Sharait · Raazdari",
+   "advanced": "Advanced"
+  },
+  "hint": {
+   "business": "Bill par naam, phone aur pata, currency, zaban",
+   "team": "Log, un ke role aur PIN; koi chhor jaye to access band karein",
+   "pin": "Woh PIN jis se aap login karte hain",
+   "password": "Woh password jis se aap login karte hain",
+   "language": "Is phone par zaban",
+   "import": "Excel se gahak, supplier aur maal",
+   "help": "Har kaam ki mukhtasar rehnumai",
+   "terms": "ThriftOS aap ka data kaise rakhta hai",
+   "advanced": "Qismein, grade, godown, role"
+  },
+  "biz": {
+   "phone": "Karobar ka phone",
+   "address": "Pata",
+   "addressHint": "maslan Dukaan 12, Landa Bazaar",
+   "city": "Shehar",
+   "onBills": "Bill aur raseed par naam ke neeche chhapta hai aur WhatsApp message mein jata hai, taake gahak aap ko phone kar sake.",
+   "currencyLocked": "raqam darj hone ke baad nahi badalti",
+   "language": "Bill aur WhatsApp message ki zaban",
+   "languageHint": "Har shakhs apni screen ki zaban khud chunta hai.",
+   "count": "{n} istemal mein",
+   "saved": "Karobar ki maloomat mehfooz.",
+   "err": {
+    "PHONE_INVALID": "Durust phone number likhein, maslan 0300 1234567.",
+    "CURRENCY_LOCKED": "Raqam darj hone ke baad currency nahi badal sakti.",
+    "NO_CATEGORIES": "Pehle ek qism shamil karein (Advanced → Qismein).",
+    "NO_GRADES": "Pehle ek grade shamil karein (Advanced → Grade)."
+   }
+  },
+  "role": {
+   "Admin": "Malik",
+   "Manager": "Manager",
+   "Worker": "Karigar",
+   "ReadOnly": "Sirf dekh sakta hai",
+   "Munshi": "Munshi"
+  },
+  "tm": {
+   "addEmail": "Email wala shakhs shamil karein",
+   "name": "Naam",
+   "role": "Role",
+   "you": "aap",
+   "stopped": "Access band",
+   "stoppedTitle": "Jin ka access band hai",
+   "edit": "Naam ya phone badlein",
+   "stop": "Access band karein",
+   "start": "Access wapas dein",
+   "stopHint": "Koi kaam chhor de to access band karein: woh login nahi kar sakega aur abhi logout ho jayega. Us ka kiya hua kaam rahega.",
+   "stopConfirm": "{name} ka access band karein? Woh abhi logout ho jayega.",
+   "stoppedToast": "{name} ab login nahi kar sakta.",
+   "startedToast": "{name} dobara login kar sakta hai.",
+   "saved": "Mehfooz ho gaya.",
+   "roleSaved": "{name} ab {role} hai.",
+   "firstPassword": "{name} ka pehla password:",
+   "firstPasswordHint": "Yeh unhein dein taake woh {email} se login karein; Settings mein badal lein. Yeh sirf abhi dikhaya ja raha hai.",
+   "err": {
+    "PHONE_INVALID": "Durust phone number likhein, maslan 0300 1234567.",
+    "PHONE_TAKEN": "Is phone se pehle hi login bana hua hai.",
+    "PHONE_NEEDED": "Woh isi phone se login karte hain, yeh khali nahi ho sakta.",
+    "EMAIL_TAKEN": "Is email se pehle hi login bana hua hai.",
+    "SELF": "Yeh aap apne saath nahi kar sakte.",
+    "NOT_FOUND": "Nahi mila; page dobara khol kar koshish karein."
+   }
+  },
+  "pin": {
+   "current": "Maujooda PIN",
+   "new": "Naya PIN",
+   "again": "Naya PIN dobara",
+   "save": "PIN mehfooz karein",
+   "saved": "Naya PIN mehfooz. Agli baar isi se login karein.",
+   "differ": "Dono naye PIN ek jaise nahi.",
+   "err": {
+    "PIN_WRONG": "Maujooda PIN durust nahi.",
+    "SAME_PIN": "Maujooda PIN se mukhtalif PIN chunein.",
+    "NO_PIN": "Aap password se login karte hain; usay \"Password badlein\" mein badlein."
+   }
+  }
  },
  "setup": {
   "addCategory": "Category daalein",
@@ -688,14 +777,6 @@
     "roles": {
      "hint": "Har role kya dekh aur kar sakta hai",
      "name": "Roles"
-    },
-    "tenant": {
-     "hint": "Naam, currency aur kaam ka tareeqa",
-     "name": "Karobar ki profile"
-    },
-    "users": {
-     "hint": "Login, roles aur band accounts",
-     "name": "Users"
     },
     "vendors": {
      "hint": "Jin se aap khareedte hain: daalein, badlein aur dekhein kis ne kya becha",
@@ -1932,6 +2013,154 @@
    "trend": "Mahine ke hisaab se chhantai %",
    "waste": "Qism ke hisaab se waste",
    "wasteHint": "{kg} waste"
+  },
+  "names": {
+   "name": "Naam",
+   "add": "Shamil karein",
+   "empty": "Abhi kuch nahi. Upar se pehla shamil karein.",
+   "offTitle": "Band (kahin nazar nahi aate)",
+   "main": "Markazi",
+   "change": "Badlein",
+   "makeMain": "Markazi banayein",
+   "remove": "Hatayein",
+   "turnOff": "Band karein",
+   "turnOn": "Chalu karein",
+   "aboutKg": "bale taqreeban {kg} kg",
+   "added": "{name} shamil ho gaya.",
+   "saved": "Mehfooz ho gaya.",
+   "removeConfirm": "{name} hata dein?",
+   "removed": "{name} hata diya.",
+   "turnedOff": "{name} band ho gaya.",
+   "turnedOn": "{name} chalu ho gaya.",
+   "mainSaved": "{name} ab markazi godown hai.",
+   "taken": "Yeh naam pehle se maujood hai, ya abhi istemal mein hai.",
+   "notAllowed": "Aap ko yeh badalne ki ijazat nahi.",
+   "baleKg": "Ek bale ka aam wazan (kg)",
+   "comesAs": "Kaise aata hai",
+   "rawType": {
+    "BALE": "Bales",
+    "RAG": "Khula maal",
+    "BOTH": "Dono"
+   },
+   "soldBy": "Kis hisaab se bikta hai",
+   "unit": {
+    "KG": "Kilo",
+    "PCS": "Adad"
+   },
+   "resalePrice": "Aam qeemat",
+   "location": "Kahan",
+   "categories": {
+    "title": "Qismein",
+    "hint": "Jis mein chhantai hoti hai, maslan jeans, shirts.",
+    "placeholder": "maslan Ladies jacket"
+   },
+   "grades": {
+    "title": "Grade",
+    "hint": "Grade shuda maal ka miyaar, sab se acha pehle: A, B, C…",
+    "placeholder": "maslan A"
+   },
+   "raw": {
+    "title": "Kachay maal ki qismein",
+    "hint": "Container aur lot mein kya aata hai, bales mein ya khula.",
+    "placeholder": "maslan Mix sardiyon ka maal"
+   },
+   "waste": {
+    "title": "Zaya ki qismein",
+    "hint": "Chhantai se nikalne wali katran aur deegar zaya, aam farokht qeemat ke saath.",
+    "placeholder": "maslan Katran"
+   },
+   "warehouses": {
+    "title": "Godown",
+    "hint": "Maal kahan rakha hai. Naya maal markazi godown mein jata hai.",
+    "placeholder": "maslan Shershah godown"
+   }
+  },
+  "roles": {
+   "title": "Role",
+   "hint": "Har qisam ka shakhs kya kar sakta hai. Logon ko role Team mein milta hai.",
+   "newName": "Naye role ka naam",
+   "add": "Role shamil karein",
+   "people": "{n} log",
+   "whatCan": "Kya kar sakte hain",
+   "teamNote": "Kisi ko role dene ke liye:",
+   "canDo": "{role} kya kar sakta hai",
+   "canDoHint": "Nishan lagayein ke yeh role kya kar sakta hai. Tabdeeli agli baar app kholne par lagu hogi.",
+   "ownerAll": "Malik sab kuch kar sakta hai; yeh role yahan nahi badalta.",
+   "chosen": "{n} par nishan",
+   "saved": "{role} mehfooz ho gaya."
+  },
+  "perm": {
+   "pattern": "{obj}: {verb}",
+   "group": {
+    "Procurement": "Kharidari aur maal ki aamad",
+    "Sorting": "Chhantai",
+    "Grading": "Grading",
+    "Repack": "Bales aur label",
+    "Inventory": "Stock",
+    "Sales": "Bikri",
+    "Finance": "Hisaab kitaab",
+    "Reports": "Reports",
+    "Data": "Data aur laagat",
+    "Configuration": "Settings aur fehristein",
+    "UserManagement": "Team",
+    "RoleManagement": "Role",
+    "SuperAdmin": "Karobar"
+   },
+   "verb": {
+    "create": "shamil karna",
+    "read": "dekhna",
+    "view": "dekhna",
+    "update": "badalna",
+    "edit": "badalna",
+    "delete": "hatana",
+    "close": "mukammal karna",
+    "adjust": "ginti ke baad durust karna",
+    "transfer": "godownon mein muntaqil karna",
+    "intake": "maal darj karna",
+    "export": "download karna"
+   },
+   "obj": {
+    "category": "Qismein",
+    "grade": "Grade",
+    "warehouse": "Godown",
+    "container": "Container",
+    "po": "Kharidari order",
+    "rag": "Khula maal",
+    "vendor": "Supplier",
+    "user": "Team",
+    "role": "Role",
+    "sort_session": "Chhantai ka kaam",
+    "grade_session": "Grading ka kaam",
+    "repack_session": "Bale banana",
+    "repack_unit": "Bales",
+    "inventory": "Stock",
+    "INVENTORY": "Stock",
+    "REPACK": "Bale banana",
+    "REPORTS": "Reports",
+    "SORTING_STAGE1": "Chhantai",
+    "SORTING_STAGE2": "Grading"
+   },
+   "code": {
+    "cost_view": "Laagat aur munafa dekhna",
+    "data_export": "Karobar ka sara data download karna",
+    "data_import": "Excel se gahak, supplier aur maal laana",
+    "expense_create": "Kharche darj aur mansookh karna",
+    "finance_view": "Khate, galla bandi aur munafa nuqsan dekhna",
+    "cash_close": "Din ka galla band karna",
+    "price_manage": "Rate list banana aur badalna",
+    "qr_generate": "Bale ke sticker chhapna",
+    "tenant_update": "Karobar ki settings badalna",
+    "stockmovement_read": "Maal ki aamad-o-raft dekhna",
+    "INVENTORY_APPROVE": "Stock ginti manzoor karna",
+    "INVENTORY_RESERVE": "Gahak ke liye maal rokna",
+    "REPACK_ALLOCATE": "Chhanta maal bales mein lagana",
+    "report_cost": "Laagat ki reports",
+    "report_grading": "Grading ki reports",
+    "report_inventory": "Stock ki reports",
+    "report_procurement": "Kharidari ki reports",
+    "report_sorting": "Chhantai ki reports",
+    "report_worker": "Karigaron ki reports"
+   }
   }
  }
 }

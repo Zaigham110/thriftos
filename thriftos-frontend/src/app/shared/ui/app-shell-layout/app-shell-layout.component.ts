@@ -1084,8 +1084,8 @@ export class AppShellLayoutComponent {
     { id: 'inv-stock', title: 'Finished Goods Warehouse Inventory', subtitle: 'Stock list, warehouse distribution & bin locations', route: '/stock/items', group: 'Inventory & Operations', icon: 'Warehouse', keywords: ['inventory', 'stock', 'warehouse', 'location'] },
 
     // System Admin
-    { id: 'admin-users', title: 'User Management & Permissions', subtitle: 'Manage ERP system users, roles and security permissions', route: '/settings/admin/users', group: 'Navigation', icon: 'Users', keywords: ['user', 'admin', 'permission', 'role', 'security'] },
-    { id: 'admin-tenants', title: 'Tenant Organization Settings', subtitle: 'Company profile, currency formatting & facility configuration', route: '/settings/admin/tenant', group: 'Navigation', icon: 'Building2', keywords: ['tenant', 'org', 'setting', 'company', 'facility'] },
+    { id: 'admin-users', title: 'User Management & Permissions', subtitle: 'Manage ERP system users, roles and security permissions', route: '/settings/team', group: 'Navigation', icon: 'Users', keywords: ['user', 'admin', 'permission', 'role', 'security'] },
+    { id: 'admin-tenants', title: 'Tenant Organization Settings', subtitle: 'Company profile, currency formatting & facility configuration', route: '/settings/business', group: 'Navigation', icon: 'Building2', keywords: ['tenant', 'org', 'setting', 'company', 'facility'] },
   ];
 
   readonly filteredNavItems = computed(() => {

@@ -1,3 +1,4 @@
+import { businessContact } from '../tenant/business';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PaymentMethod, Prisma, SaleStatus } from '@prisma/client';
 import { BUSINESS_UTC_OFFSET_MINUTES } from '../common/list/list-engine';
@@ -183,9 +184,9 @@ export class KhataService {
   async reminder(tenantId: string, customerId: string, lang?: string) {
     const [{ customer, applied }, tenant] = await Promise.all([
       this.accountTx(this.prisma, tenantId, customerId),
-      this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { name: true, defaultLanguage: true } }),
+      this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { name: true, phone: true, address: true, city: true, defaultLanguage: true } }),
     ]);
-    const text = reminderMessage(language(lang, tenant.defaultLanguage), { business: tenant.name, customer: customer.name, balance: applied.balance });
+    const text = reminderMessage(language(lang, tenant.defaultLanguage), { business: tenant.name, contact: businessContact(tenant), customer: customer.name, balance: applied.balance });
     return { balance: applied.balance, phone: customer.phone, text, url: whatsappLink(customer.phone, text) };
   }
 
@@ -238,7 +239,7 @@ export class KhataService {
   async printReceipt(tenantId: string, paymentId: string) {
     const payment = await this.prisma.payment.findFirst({
       where: { id: paymentId, tenantId },
-      include: { tenant: { select: { name: true } }, customer: { select: { id: true, name: true } }, sale: { select: { saleNumber: true } } },
+      include: { tenant: { select: { name: true, phone: true, address: true, city: true } }, customer: { select: { id: true, name: true } }, sale: { select: { saleNumber: true } } },
     });
     if (!payment) throw new NotFoundException('Payment not found');
     const [{ applied }, receiver] = await Promise.all([
@@ -247,6 +248,7 @@ export class KhataService {
     ]);
     return {
       business: payment.tenant.name,
+      businessContact: businessContact(payment.tenant),
       receiptNo: `R-${payment.id.slice(-6).toUpperCase()}`,
       date: payment.receivedAt,
       customer: payment.customer.name,

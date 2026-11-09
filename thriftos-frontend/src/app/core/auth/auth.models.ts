@@ -32,6 +32,8 @@ export interface User {
   /** Owners sign in with email; a munshi has only a phone + PIN. */
   email: string | null;
   phone?: string | null;
+  /** Signs in with phone + PIN (may also have an email). */
+  hasPin?: boolean;
   name: string;
   tenantId: string | null;
   isSuperAdmin: boolean;

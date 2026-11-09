@@ -511,7 +511,7 @@
  "settings": {
   "addMunshi": "Add munshi",
   "advanced": "Advanced",
-  "business": "Business setup",
+  "business": "Business",
   "export": "Download all my data",
   "exportHint": "Zip of CSV files",
   "exportNotAllowed": "Only the owner can download all the data.",
@@ -523,7 +523,96 @@
   "team": "Team",
   "title": "Settings",
   "unlock": "Unlock",
-  "unlocked": "{name} can sign in again."
+  "unlocked": "{name} can sign in again.",
+  "signOut": "Sign out",
+  "signsInEmail": "Signs in with {email}",
+  "signsInPin": "Signs in with {phone} and a PIN",
+  "item": {
+   "business": "Business",
+   "team": "Team",
+   "pin": "Change my PIN",
+   "password": "Change password",
+   "import": "Bring in your register",
+   "help": "Help",
+   "terms": "Terms · Privacy",
+   "advanced": "Advanced"
+  },
+  "hint": {
+   "business": "Name, phone and address on bills, currency, language",
+   "team": "People, their roles and PINs; stop access when someone leaves",
+   "pin": "The PIN you sign in with",
+   "password": "The password you sign in with",
+   "language": "Language on this phone",
+   "import": "Customers, suppliers and stock from Excel",
+   "help": "Short guides for each job",
+   "terms": "How ThriftOS keeps your data",
+   "advanced": "Categories, grades, godowns, roles"
+  },
+  "biz": {
+   "phone": "Business phone",
+   "address": "Address",
+   "addressHint": "e.g. Shop 12, Landa Bazaar",
+   "city": "City",
+   "onBills": "Printed under the name on bills and receipts, and sent in WhatsApp messages, so customers can call you.",
+   "currencyLocked": "fixed once money is recorded",
+   "language": "Language of bills and WhatsApp messages",
+   "languageHint": "Each person still picks their own screen language.",
+   "count": "{n} in use",
+   "saved": "Business saved.",
+   "err": {
+    "PHONE_INVALID": "Enter a valid phone number, e.g. 0300 1234567.",
+    "CURRENCY_LOCKED": "The currency cannot change after money has been recorded.",
+    "NO_CATEGORIES": "Add a category first (Advanced → Categories).",
+    "NO_GRADES": "Add a grade first (Advanced → Grades)."
+   }
+  },
+  "role": {
+   "Admin": "Owner",
+   "Manager": "Manager",
+   "Worker": "Worker",
+   "ReadOnly": "Can only look",
+   "Munshi": "Munshi"
+  },
+  "tm": {
+   "addEmail": "Add someone with email",
+   "name": "Name",
+   "role": "Role",
+   "you": "you",
+   "stopped": "Access stopped",
+   "stoppedTitle": "Access stopped",
+   "edit": "Change name or phone",
+   "stop": "Stop access",
+   "start": "Give access back",
+   "stopHint": "Stop access when someone leaves: they cannot sign in any more and are signed out now. Their work stays.",
+   "stopConfirm": "Stop access for {name}? They are signed out now.",
+   "stoppedToast": "{name} can no longer sign in.",
+   "startedToast": "{name} can sign in again.",
+   "saved": "Saved.",
+   "roleSaved": "{name} is now {role}.",
+   "firstPassword": "First password for {name}:",
+   "firstPasswordHint": "Give it to them to sign in with {email}; they change it in Settings. It is shown only now.",
+   "err": {
+    "PHONE_INVALID": "Enter a valid phone number, e.g. 0300 1234567.",
+    "PHONE_TAKEN": "This phone already has a login.",
+    "PHONE_NEEDED": "They sign in with this phone, so it cannot be empty.",
+    "EMAIL_TAKEN": "This email already has a login.",
+    "SELF": "You cannot do this to yourself.",
+    "NOT_FOUND": "Not found; refresh and try again."
+   }
+  },
+  "pin": {
+   "current": "Current PIN",
+   "new": "New PIN",
+   "again": "New PIN again",
+   "save": "Save PIN",
+   "saved": "New PIN saved. Use it next time you sign in.",
+   "differ": "The two new PINs are not the same.",
+   "err": {
+    "PIN_WRONG": "Current PIN is not right.",
+    "SAME_PIN": "Choose a PIN different from the current one.",
+    "NO_PIN": "You sign in with a password; change it under Change password."
+   }
+  }
  },
  "setup": {
   "addCategory": "Add category",
@@ -688,14 +777,6 @@
     "roles": {
      "hint": "What each role may see and do",
      "name": "Roles"
-    },
-    "tenant": {
-     "hint": "Name, currency and how you work",
-     "name": "Business profile"
-    },
-    "users": {
-     "hint": "Logins, roles and blocked accounts",
-     "name": "Users"
     },
     "vendors": {
      "hint": "Who you buy from: add, change and see what each sold you",
@@ -1932,6 +2013,154 @@
    "trend": "Sorted % by month",
    "waste": "Waste by type",
    "wasteHint": "{kg} waste"
+  },
+  "names": {
+   "name": "Name",
+   "add": "Add",
+   "empty": "Nothing here yet. Add the first one above.",
+   "offTitle": "Turned off (not offered anywhere)",
+   "main": "Main",
+   "change": "Change",
+   "makeMain": "Make main",
+   "remove": "Remove",
+   "turnOff": "Turn off",
+   "turnOn": "Turn on",
+   "aboutKg": "bale about {kg} kg",
+   "added": "{name} added.",
+   "saved": "Saved.",
+   "removeConfirm": "Remove {name}?",
+   "removed": "{name} removed.",
+   "turnedOff": "{name} turned off.",
+   "turnedOn": "{name} turned on.",
+   "mainSaved": "{name} is now the main godown.",
+   "taken": "That name is already there, or it is still in use.",
+   "notAllowed": "You are not allowed to change this.",
+   "baleKg": "Usual kg of one bale",
+   "comesAs": "Comes as",
+   "rawType": {
+    "BALE": "Bales",
+    "RAG": "Loose (rag)",
+    "BOTH": "Both"
+   },
+   "soldBy": "Sold by",
+   "unit": {
+    "KG": "Kg",
+    "PCS": "Pieces"
+   },
+   "resalePrice": "Usual price",
+   "location": "Where",
+   "categories": {
+    "title": "Categories",
+    "hint": "What you sort into, e.g. jeans, shirts. In the order you use them.",
+    "placeholder": "e.g. Ladies jackets"
+   },
+   "grades": {
+    "title": "Grades",
+    "hint": "Quality of graded goods, best first: A, B, C…",
+    "placeholder": "e.g. A"
+   },
+   "raw": {
+    "title": "What comes in",
+    "hint": "What arrives in containers and lots, and whether it comes in bales or loose.",
+    "placeholder": "e.g. Mixed winter"
+   },
+   "waste": {
+    "title": "Waste kinds",
+    "hint": "Katran and other waste from sorting, with the price it usually sells for.",
+    "placeholder": "e.g. Katran"
+   },
+   "warehouses": {
+    "title": "Godowns",
+    "hint": "Where stock is kept. The main one is where new stock goes.",
+    "placeholder": "e.g. Shershah godown"
+   }
+  },
+  "roles": {
+   "title": "Roles",
+   "hint": "What each kind of person may do. People get their role on Team.",
+   "newName": "New role name",
+   "add": "Add role",
+   "people": "{n} people",
+   "whatCan": "What they can do",
+   "teamNote": "Give someone a role on",
+   "canDo": "What {role} can do",
+   "canDoHint": "Tick what this role may do. Changes apply the next time they open the app.",
+   "ownerAll": "The owner can do everything; this role is not changed here.",
+   "chosen": "{n} ticked",
+   "saved": "{role} saved."
+  },
+  "perm": {
+   "pattern": "{obj}: {verb}",
+   "group": {
+    "Procurement": "Buying and receiving",
+    "Sorting": "Sorting",
+    "Grading": "Grading",
+    "Repack": "Bales and labels",
+    "Inventory": "Stock",
+    "Sales": "Selling",
+    "Finance": "Money",
+    "Reports": "Reports",
+    "Data": "Data and costs",
+    "Configuration": "Settings and lists",
+    "UserManagement": "Team",
+    "RoleManagement": "Roles",
+    "SuperAdmin": "Business"
+   },
+   "verb": {
+    "create": "add",
+    "read": "see",
+    "view": "see",
+    "update": "change",
+    "edit": "change",
+    "delete": "remove",
+    "close": "finish",
+    "adjust": "correct after a count",
+    "transfer": "move between godowns",
+    "intake": "add stock",
+    "export": "download"
+   },
+   "obj": {
+    "category": "Categories",
+    "grade": "Grades",
+    "warehouse": "Godowns",
+    "container": "Containers",
+    "po": "Purchase orders",
+    "rag": "Loose goods",
+    "vendor": "Suppliers",
+    "user": "Team",
+    "role": "Roles",
+    "sort_session": "Sorting work",
+    "grade_session": "Grading work",
+    "repack_session": "Bale making",
+    "repack_unit": "Bales",
+    "inventory": "Stock",
+    "INVENTORY": "Stock",
+    "REPACK": "Bale making",
+    "REPORTS": "Reports",
+    "SORTING_STAGE1": "Sorting",
+    "SORTING_STAGE2": "Grading"
+   },
+   "code": {
+    "cost_view": "See costs and profit",
+    "data_export": "Download all business data",
+    "data_import": "Bring in customers, suppliers and stock from Excel",
+    "expense_create": "Record and cancel expenses",
+    "finance_view": "See books, cash close and profit and loss",
+    "cash_close": "Close the day's cash",
+    "price_manage": "Manage price lists",
+    "qr_generate": "Print bale stickers",
+    "tenant_update": "Change business settings",
+    "stockmovement_read": "See stock movements",
+    "INVENTORY_APPROVE": "Approve stock counts",
+    "INVENTORY_RESERVE": "Hold stock for a customer",
+    "REPACK_ALLOCATE": "Use sorted goods in bales",
+    "report_cost": "Cost reports",
+    "report_grading": "Grading reports",
+    "report_inventory": "Stock reports",
+    "report_procurement": "Buying reports",
+    "report_sorting": "Sorting reports",
+    "report_worker": "Worker reports"
+   }
   }
  }
 }

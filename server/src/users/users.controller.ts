@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Put,
   Delete,
   Body,
   Param,
@@ -15,7 +16,7 @@ import {
 import { Request } from 'express';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { CreateMunshiDto, SetPinDto } from './dto/munshi.dto';
+import { CreateMunshiDto, SetPinDto, TeamDetailsDto, TeamPersonDto, TeamRoleDto } from './dto/munshi.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AssignRoleDto, AssignMultipleRolesDto } from './dto/assign-role.dto';
 import { TenantGuard } from '../common/guards/tenant.guard';
@@ -32,7 +33,50 @@ export class UsersController {
   @Get('team')
   @RequirePermissions('user.read')
   team(@CurrentUser() user: CurrentUserData, @Req() req: Request) {
-    return this.usersService.team((req as any).tenantId || user.tenantId);
+    return this.usersService.team((req as any).tenantId || user.tenantId, user.userId);
+  }
+
+  /** Team: the roles to choose from, with how many people have each. */
+  @Get('team/roles')
+  @RequirePermissions('user.read')
+  teamRoles(@CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    return this.usersService.teamRoles((req as any).tenantId || user.tenantId);
+  }
+
+  /** Team: someone who signs in with email; the answer carries a first password to pass on. */
+  @Post('team/person')
+  @RequirePermissions('user.create')
+  addPerson(@Body() dto: TeamPersonDto, @CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    return this.usersService.addPerson((req as any).tenantId || user.tenantId, dto, user.userId);
+  }
+
+  /** Team: stop access (they cannot sign in; sessions end now) and give it back. */
+  @Post(':id/stop')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('user.update')
+  stopAccess(@Param('id') id: string, @CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    return this.usersService.stopAccess((req as any).tenantId || user.tenantId, id, user.userId);
+  }
+
+  @Post(':id/start')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('user.update')
+  startAccess(@Param('id') id: string, @CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    return this.usersService.startAccess((req as any).tenantId || user.tenantId, id, user.userId);
+  }
+
+  /** Team: fix a name or phone. */
+  @Patch(':id/details')
+  @RequirePermissions('user.update')
+  updateDetails(@Param('id') id: string, @Body() dto: TeamDetailsDto, @CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    return this.usersService.updateDetails((req as any).tenantId || user.tenantId, id, dto, user.userId);
+  }
+
+  /** Team: one role per person. */
+  @Put(':id/role')
+  @RequirePermissions('user.update')
+  setRole(@Param('id') id: string, @Body() dto: TeamRoleDto, @CurrentUser() user: CurrentUserData, @Req() req: Request) {
+    return this.usersService.setRole((req as any).tenantId || user.tenantId, id, dto.roleId, user.userId);
   }
 
   /** Add a munshi: name, phone and PIN. */

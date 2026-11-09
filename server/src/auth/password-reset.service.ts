@@ -47,6 +47,16 @@ export class PasswordResetService {
     await this.audit.log({ tenantId: user.tenantId, userId: user.id, action: 'AUTH_PASSWORD_CHANGED', ipAddress });
   }
 
+  /** My own PIN: the current one first. Other sessions stay (the PIN is not the owner's password). */
+  async changePin(userId: string, currentPin: string, newPin: string, ipAddress?: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user?.pinHash) throw new BadRequestException({ code: 'NO_PIN', message: 'You sign in with a password' });
+    if (!(await this.passwords.compare(currentPin, user.pinHash))) throw new UnauthorizedException({ code: 'PIN_WRONG', message: 'Current PIN is not right' });
+    if (currentPin === newPin) throw new BadRequestException({ code: 'SAME_PIN', message: 'Choose a new PIN' });
+    await this.prisma.user.update({ where: { id: userId }, data: { pinHash: await this.passwords.hash(newPin), failedPinAttempts: 0, pinLockedUntil: null } });
+    await this.audit.log({ tenantId: user.tenantId, userId, action: 'AUTH_PIN_CHANGED', ipAddress });
+  }
+
   /** Always succeeds from the outside, so nobody can test which emails have accounts. */
   async requestReset(email: string, lang: Language = 'en', ipAddress?: string): Promise<void> {
     if (!this.mail.configured) return;

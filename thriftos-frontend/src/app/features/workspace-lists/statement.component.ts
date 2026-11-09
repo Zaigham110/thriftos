@@ -13,6 +13,7 @@ import { localPhone, whatsappUrl } from '../../shared/phone';
 /** GET /api/workspace/customers/:id/statement */
 export interface Statement {
   business: string;
+  businessContact?: string | null;
   customer: { id: string; name: string; phone: string | null; city: string | null; address: string | null };
   from: string | null;
   to: string | null;
@@ -46,7 +47,7 @@ export interface Statement {
     } @else if (data(); as s) {
       <article class="sheet">
         <header>
-          <div><h1>{{ s.business }}</h1><p>{{ 'ws.statement.title' | t }}</p></div>
+          <div><h1>{{ s.business }}</h1>@if (s.businessContact) { <p>{{ s.businessContact }}</p> }<p>{{ 'ws.statement.title' | t }}</p></div>
           <div class="right"><strong>{{ s.customer.name }}</strong><p>{{ [s.customer.city, phone(s.customer.phone), s.customer.address].filter(isText).join(' · ') }}</p><p>{{ period() }}</p></div>
         </header>
         <table>
@@ -175,6 +176,7 @@ export class StatementComponent {
       business: s.business, name: s.customer.name, period: this.period(),
       opening: this.i18n.money(s.opening), sold: this.i18n.money(s.debit), received: this.i18n.money(s.credit), balance: this.i18n.money(s.closing),
     });
-    window.open(whatsappUrl(s.customer.phone, text), '_blank', 'noopener');
+    // The business's phone and address under the message (v2 review: Settings).
+    window.open(whatsappUrl(s.customer.phone, s.businessContact ? `${text}\n${s.business} · ${s.businessContact}` : text), '_blank', 'noopener');
   }
 }

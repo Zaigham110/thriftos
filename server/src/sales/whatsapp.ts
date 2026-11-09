@@ -27,7 +27,7 @@ export function whatsappLink(phone: string | null, text: string): string {
 
 export function billMessage(
   lang: Language,
-  bill: { business: string; customer: string; saleNumber: string; total: DecimalLike; paid: DecimalLike; due: DecimalLike; url: string },
+  bill: { business: string; contact?: string | null; customer: string; saleNumber: string; total: DecimalLike; paid: DecimalLike; due: DecimalLike; url: string },
 ): string {
   const due = dec(bill.due);
   const t: Texts<{ head: string; total: string; paid: string; due: string; see: string }> = {
@@ -38,6 +38,7 @@ export function billMessage(
   const w = t[lang];
   return [
     `${bill.business}`,
+    ...(bill.contact ? [bill.contact] : []),
     w.head,
     `${w.total}: ${rupees(bill.total)}`,
     `${w.paid}: ${rupees(bill.paid)}`,
@@ -46,12 +47,13 @@ export function billMessage(
   ].join('\n');
 }
 
-export function reminderMessage(lang: Language, reminder: { business: string; customer: string; balance: DecimalLike }): string {
+export function reminderMessage(lang: Language, reminder: { business: string; contact?: string | null; customer: string; balance: DecimalLike }): string {
   const amount = rupees(reminder.balance);
   const t: Texts<string> = {
     en: `Assalam-o-alaikum ${reminder.customer},\nyour balance with ${reminder.business} is ${amount}.\nPlease pay at your earliest. Thank you.`,
     ur: `السلام علیکم ${reminder.customer} صاحب،\n${reminder.business} کے کھاتے میں آپ کی باقی رقم ${amount} ہے۔\nبراہ کرم جلد ادائیگی کر دیں۔ شکریہ۔`,
     roman: `Assalam-o-alaikum ${reminder.customer} sahib,\n${reminder.business} ke khate mein aap ki baqi raqam ${amount} hai.\nBaraye meharbani jald adaigi kar dein. Shukriya.`,
   };
-  return t[lang];
+  // The business's phone and address under the message, so the customer knows whom to call (v2 review: Settings).
+  return reminder.contact ? `${t[lang]}\n${reminder.business} · ${reminder.contact}` : t[lang];
 }

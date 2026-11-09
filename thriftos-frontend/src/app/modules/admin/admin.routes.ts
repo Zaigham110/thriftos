@@ -1,22 +1,22 @@
 /**
- * Admin Routes
- * Phase 8: Tenant Administration
- * 
- * Route Structure:
- * /app/admin                   - Redirect to tenant settings
- * /app/admin/tenant            - Tenant profile & settings
- * /app/admin/users             - User management
- * /app/admin/roles             - Role & permission management
- * /app/admin/categories        - Category management (sorting output)
- * /app/admin/raw-categories    - Raw category management (procurement input)
- * /app/admin/grades            - Grade management
- * /app/admin/warehouses        - Warehouse management
- * /app/admin/vendors           - goes to Suppliers (/receive/records/suppliers)
- * /app/admin/config            - Configuration settings
+ * Settings → Advanced (v2 review: Settings). One simple, translated page per list instead of the old English
+ * dashboards: people are on Team, the business on Business; the lists share one page (features/settings).
  */
-
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/guards/permission-guard';
+
+const names = (kind: string, permission: string) => ({
+  loadComponent: () => import('../../features/settings/names-list.component').then((m) => m.NamesListComponent),
+  title: 'ThriftOS',
+  canActivate: [permissionGuard],
+  data: { kind, permissions: [permission] },
+});
+const roles = {
+  loadComponent: () => import('../../features/settings/roles.component').then((m) => m.RolesComponent),
+  title: 'ThriftOS',
+  canActivate: [permissionGuard],
+  data: { permissions: ['role.read'] },
+};
 
 export const ADMIN_ROUTES: Routes = [
   {
@@ -33,219 +33,31 @@ export const ADMIN_ROUTES: Routes = [
     canActivate: [permissionGuard],
     data: { permissions: ['data.import'] },
   },
-  {
-    path: 'tenant',
-    loadComponent: () =>
-      import('./tenant/tenant-settings').then(
-        (m) => m.TenantSettingsComponent
-      ),
-    title: 'Tenant Settings - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['user.read'] }, // Basic admin permission
-  },
-  {
-    path: 'users',
-    loadComponent: () =>
-      import('./users/user-list').then(
-        (m) => m.UserListComponent
-      ),
-    title: 'User Management - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['user.read'] },
-  },
-  {
-    path: 'users/new',
-    loadComponent: () =>
-      import('./users/user-form.component').then(
-        (m) => m.UserFormComponent
-      ),
-    title: 'New User - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['user.create'] },
-  },
-  {
-    path: 'users/:id/edit',
-    loadComponent: () =>
-      import('./users/user-form.component').then(
-        (m) => m.UserFormComponent
-      ),
-    title: 'Edit User - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['user.update'] },
-  },
-  {
-    path: 'roles',
-    loadComponent: () =>
-      import('./roles/role-list').then(
-        (m) => m.RoleListComponent
-      ),
-    title: 'Role Management - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['role.read'] },
-  },
-  {
-    path: 'roles/new',
-    loadComponent: () =>
-      import('./roles/role-form.component').then(
-        (m) => m.RoleFormComponent
-      ),
-    title: 'New Role - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['role.create'] },
-  },
-  {
-    path: 'roles/:id/edit',
-    loadComponent: () =>
-      import('./roles/role-form.component').then(
-        (m) => m.RoleFormComponent
-      ),
-    title: 'Edit Role - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['role.update'] },
-  },
-  {
-    path: 'roles/:id/permissions',
-    loadComponent: () =>
-      import('./roles/role-permissions.component').then(
-        (m) => m.RolePermissionsComponent
-      ),
-    title: 'Role Permissions - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['role.update'] },
-  },
-  {
-    path: 'categories',
-    loadComponent: () =>
-      import('./categories/category-management').then(
-        (m) => m.CategoryManagementComponent
-      ),
-    title: 'Category Management - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['category.read'] },
-  },
-  {
-    path: 'categories/new',
-    loadComponent: () =>
-      import('./categories/category-form.component').then(
-        (m) => m.CategoryFormComponent
-      ),
-    title: 'New Category - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['category.create'] },
-  },
-  {
-    path: 'categories/:id/edit',
-    loadComponent: () =>
-      import('./categories/category-form.component').then(
-        (m) => m.CategoryFormComponent
-      ),
-    title: 'Edit Category - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['category.update'] },
-  },
-  {
-    path: 'raw-categories',
-    loadComponent: () =>
-      import('./raw-categories/raw-category-management').then(
-        (m) => m.RawCategoryManagementComponent
-      ),
-    title: 'Raw Category Management - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['category.read'] },
-  },
-  {
-    path: 'grades',
-    loadComponent: () =>
-      import('./grades/grade-management').then(
-        (m) => m.GradeManagementComponent
-      ),
-    title: 'Grade Management - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['grade.read'] },
-  },
-  {
-    path: 'grades/new',
-    loadComponent: () =>
-      import('./grades/grade-form.component').then(
-        (m) => m.GradeFormComponent
-      ),
-    title: 'New Grade - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['grade.create'] },
-  },
-  {
-    path: 'grades/:id/edit',
-    loadComponent: () =>
-      import('./grades/grade-form.component').then(
-        (m) => m.GradeFormComponent
-      ),
-    title: 'Edit Grade - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['grade.update'] },
-  },
-  {
-    path: 'warehouses',
-    loadComponent: () =>
-      import('./warehouses/warehouse-management').then(
-        (m) => m.WarehouseManagementComponent
-      ),
-    title: 'Warehouse Management - ThriftOS',
-    // Godowns are part of every business now (stock transfers, E3.3), not an optional module.
-    canActivate: [permissionGuard],
-    data: { permissions: ['warehouse.read'] },
-  },
-  {
-    path: 'warehouses/new',
-    loadComponent: () =>
-      import('./warehouses/warehouse-form.component').then(
-        (m) => m.WarehouseFormComponent
-      ),
-    title: 'New Warehouse - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['warehouse.create'] },
-  },
-  {
-    path: 'warehouses/:id/edit',
-    loadComponent: () =>
-      import('./warehouses/warehouse-form.component').then(
-        (m) => m.WarehouseFormComponent
-      ),
-    title: 'Edit Warehouse - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['warehouse.update'] },
-  },
+  { path: 'categories', ...names('categories', 'category.read') },
+  { path: 'raw-categories', ...names('raw', 'category.read') },
+  { path: 'grades', ...names('grades', 'grade.read') },
+  { path: 'waste-categories', ...names('waste', 'category.read') },
+  { path: 'warehouses', ...names('warehouses', 'warehouse.read') },
+  { path: 'roles', ...roles },
+  { path: 'roles/:id', ...roles },
+  // Old addresses land on the new pages.
+  { path: 'tenant', redirectTo: '/settings/business' },
+  { path: 'users', redirectTo: '/settings/team' },
+  { path: 'users/new', redirectTo: '/settings/team' },
+  { path: 'users/:id/edit', redirectTo: '/settings/team' },
+  { path: 'roles/new', redirectTo: 'roles' },
+  { path: 'roles/:id/edit', redirectTo: 'roles/:id' },
+  { path: 'roles/:id/permissions', redirectTo: 'roles/:id' },
+  { path: 'categories/new', redirectTo: 'categories' },
+  { path: 'categories/:id/edit', redirectTo: 'categories' },
+  { path: 'grades/new', redirectTo: 'grades' },
+  { path: 'grades/:id/edit', redirectTo: 'grades' },
+  { path: 'warehouses/new', redirectTo: 'warehouses' },
+  { path: 'warehouses/:id/edit', redirectTo: 'warehouses' },
+  { path: 'waste-categories/new', redirectTo: 'waste-categories' },
+  { path: 'waste-categories/:id/edit', redirectTo: 'waste-categories' },
   // Suppliers are added and changed in Suppliers (v2 review); old Settings links land there.
   { path: 'vendors', pathMatch: 'full', redirectTo: '/receive/records/suppliers' },
   { path: 'vendors/new', redirectTo: '/receive/records/suppliers/new' },
   { path: 'vendors/:id/edit', redirectTo: '/receive/records/suppliers/:id/edit' },
-  {
-    path: 'waste-categories',
-    loadComponent: () =>
-      import('./waste-categories/waste-category-list.component').then(
-        (m) => m.WasteCategoryListComponent
-      ),
-    title: 'Waste Category Management - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['category.read'] },
-  },
-  {
-    path: 'waste-categories/new',
-    loadComponent: () =>
-      import('./waste-categories/waste-category-form.component').then(
-        (m) => m.WasteCategoryFormComponent
-      ),
-    title: 'New Waste Category - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['category.create'] },
-  },
-  {
-    path: 'waste-categories/:id/edit',
-    loadComponent: () =>
-      import('./waste-categories/waste-category-form.component').then(
-        (m) => m.WasteCategoryFormComponent
-      ),
-    title: 'Edit Waste Category - ThriftOS',
-    canActivate: [permissionGuard],
-    data: { permissions: ['category.update'] },
-  },
 ];

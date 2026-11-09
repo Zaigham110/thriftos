@@ -12,6 +12,7 @@ import { Idempotent } from '../common/idempotency/idempotent.interceptor';
 import { TenantSetupDto } from './dto/setup.dto';
 import { SetupService } from './setup.service';
 import { DataExportService } from './data-export.service';
+import { BusinessDto, BusinessService } from './business.service';
 import { TenantId } from '../common/decorators/tenant-id.decorator';
 
 /**
@@ -26,6 +27,7 @@ export class TenantController {
     private readonly tenantService: TenantService,
     private readonly setup: SetupService,
     private readonly dataExport: DataExportService,
+    private readonly business: BusinessService,
   ) {}
 
   /** Everything that belongs to this business as a zip of CSV files (owner only: data.export). */
@@ -47,6 +49,19 @@ export class TenantController {
   }
 
   /** Setup wizard (journey 8): where it starts from (Karachi template until done). */
+  /** Settings → Business: name, phone, address, city, currency, language and how the business works. */
+  @Get('business')
+  @RequirePermissions('tenant.update')
+  getBusiness(@TenantId() tenantId: string) {
+    return this.business.get(tenantId);
+  }
+
+  @Patch('business')
+  @RequirePermissions('tenant.update')
+  saveBusiness(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Body() dto: BusinessDto) {
+    return this.business.save(tenantId, dto, user.userId);
+  }
+
   @Get('setup')
   @RequirePermissions('tenant.update')
   setupDefaults(@CurrentUser() user: CurrentUserData, @Req() req: Request) {

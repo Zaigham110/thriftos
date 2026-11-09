@@ -241,6 +241,8 @@ export const routes: Routes = [
             title: 'ThriftOS',
           },
           { path: 'team', loadComponent: () => import('./features/settings/team.component').then((m) => m.TeamComponent), title: 'ThriftOS' },
+          { path: 'business', loadComponent: () => import('./features/settings/business.component').then((m) => m.BusinessComponent), title: 'ThriftOS' },
+          { path: 'pin', loadComponent: () => import('./features/settings/change-pin.component').then((m) => m.ChangePinComponent), title: 'ThriftOS' },
           { path: 'password', loadComponent: () => import('./features/settings/change-password.component').then((m) => m.ChangePasswordComponent), title: 'ThriftOS' },
           { path: 'ui-gallery', loadComponent: () => import('./features/workspace-gallery/ui-gallery.component').then((m) => m.UiGalleryComponent), title: 'Interface gallery - ThriftOS' },
           {

@@ -237,6 +237,10 @@ enum RagBaleType {
 model Tenant {
   id                String       @id @default(cuid())
   name              String
+  /// On bills, receipts and WhatsApp messages (v2 review: Settings): the business's own phone (E.164), address and city.
+  phone             String?
+  address           String?
+  city              String?
   companyCode       String       @unique
   currency          String       @default("PKR")
   locale            String       @default("ur-PK")

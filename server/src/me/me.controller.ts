@@ -29,6 +29,8 @@ export class MeController {
       select: {
         id: true,
         email: true,
+        phone: true,
+        pinHash: true,
         name: true,
         tenantId: true,
         isActive: true,
@@ -47,6 +49,9 @@ export class MeController {
       user: {
         id: user.id,
         email: user.email,
+        // Settings shows how this person signs in, and "Change my PIN" for those with a PIN (v2 review).
+        phone: user.phone,
+        hasPin: !!user.pinHash,
         name: user.name,
         tenantId: currentUser.isSuperAdmin ? null : user.tenantId,
         isSuperAdmin: currentUser.isSuperAdmin,

@@ -1,6 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { Building2, Factory, FileUp, Layers3, LucideAngularModule, Medal, Package, Recycle, ShieldCheck, Tags, Users, Warehouse } from 'lucide-angular';
+import { Building2, Factory, FileUp, Layers3, LucideAngularModule, Medal, Package, Recycle, ShieldCheck, Tags, Warehouse } from 'lucide-angular';
 import { AuthService } from '../../core/auth';
 import { TPipe } from '../../core/i18n/t.pipe';
 import { WsPageHeaderComponent } from '../../shared/ui/workspace';
@@ -14,8 +14,6 @@ const GROUPS: Group[] = [
   {
     key: 'business',
     areas: [
-      { key: 'tenant', path: 'tenant', icon: Building2, permission: 'user.read' },
-      { key: 'users', path: 'users', icon: Users, permission: 'user.read' },
       { key: 'roles', path: 'roles', icon: ShieldCheck, permission: 'role.read' },
       { key: 'import', path: 'import', icon: FileUp, permission: 'data.import' },
     ],

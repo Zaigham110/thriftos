@@ -77,7 +77,7 @@ describe('Khata (e2e)', () => {
 
   it('opens the bill by its token without login, showing only what is on the bill', async () => {
     const bill = await request(app.getHttpServer()).get(`/api/public/bills/${credit.billToken}`).expect(200);
-    expect(Object.keys(bill.body).sort()).toEqual(['business', 'currency', 'customer', 'date', 'due', 'lines', 'paid', 'saleNumber', 'status', 'total'].sort());
+    expect(Object.keys(bill.body).sort()).toEqual(['business', 'businessContact', 'currency', 'customer', 'date', 'due', 'lines', 'paid', 'saleNumber', 'status', 'total'].sort());
     expect(bill.body).toMatchObject({ business: 'Al-Madina Traders', customer: 'Shafiq', total: '60000', paid: '12000', due: '48000', status: 'PARTIALLY_PAID' });
     expect(bill.body.lines).toEqual([{ description: 'Jeans A', unit: 'BALE', quantity: '2', unitPrice: '30000', lineTotal: '60000' }]);
     expect(JSON.stringify(bill.body)).not.toMatch(/cost|profit|phone|tenantId|customerId/i);

@@ -54,11 +54,49 @@ test('munshi phone + PIN sign-in with lockout after 5 wrong PINs', async ({ page
   await page.getByRole('button', { name: 'Sign in' }).click();
   await page.waitForURL('**/home');
   await page.goto('/settings/team');
-  const row = page.locator('li.member').filter({ hasText: 'Akram' }).filter({ hasText: '+92' + phone.slice(1) });
+  // Phones show the local way (0333 1234567); open the person to act.
+  const row = page.locator('li.member').filter({ hasText: 'Akram' }).filter({ hasText: phone.slice(4) });
   await expect(row).toContainText('Locked');
+  await expect(row).toContainText('Munshi');
+  await row.locator('button.head').click();
   await row.getByRole('button', { name: 'Unlock' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Akram can sign in again.' })).toBeVisible();
   await signOut(page);
   await pinSignIn(page, phone, '4821');
   await page.waitForURL('**/home');
+
+  // Settings review: the munshi sees their own things only, and changes their PIN.
+  await page.goto('/settings');
+  await expect(page.getByRole('link', { name: /Change my PIN/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Team/ })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /^Advanced/ })).toHaveCount(0);
+  await page.getByRole('link', { name: /Change my PIN/ }).click();
+  await page.getByLabel('Current PIN').fill('4821');
+  await page.getByLabel(/^New PIN/).first().fill('1357');
+  await page.getByLabel('New PIN again').fill('1357');
+  await page.getByRole('button', { name: 'Save PIN' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'New PIN saved.' })).toBeVisible();
+  // Settings has its own Sign out; use it.
+  await page.locator('.me').getByRole('button', { name: 'Sign out' }).click();
+  await page.waitForURL('**/auth/login**');
+  await pinSignIn(page, phone, '1357');
+  await page.waitForURL('**/home');
+  await signOut(page);
+
+  // The owner stops the munshi's access (they left); signing in no longer works.
+  await page.getByRole('tab', { name: 'Email' }).click();
+  await page.fill('input[type=email]', 'admin@demo.thriftos.com');
+  await page.fill('input[type=password]', 'admin123');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.waitForURL('**/home');
+  await page.goto('/settings/team');
+  const again = page.locator('li.member').filter({ hasText: phone.slice(4) });
+  await again.locator('button.head').click();
+  page.once('dialog', (d) => d.accept());
+  await again.getByRole('button', { name: 'Stop access' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Akram can no longer sign in.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Access stopped' })).toBeVisible();
+  await signOut(page);
+  await pinSignIn(page, phone, '1357');
+  await expect(page.getByRole('alert')).toBeVisible();
 });

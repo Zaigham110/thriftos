@@ -1,4 +1,4 @@
-import { IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 import { LANGUAGES, Language } from '../../common/language/language';
 
 const MIN = 10;
@@ -17,4 +17,10 @@ export class ForgotPasswordDto {
 export class ResetPasswordDto {
   @IsString() @MinLength(20) @MaxLength(200) token!: string;
   @IsString() @MinLength(MIN) @MaxLength(128) newPassword!: string;
+}
+
+/** Change my own PIN (people who sign in with phone + PIN; v2 review: Settings). */
+export class ChangePinDto {
+  @IsString() @Matches(/^\d{4,6}$/) currentPin!: string;
+  @IsString() @Matches(/^\d{4,6}$/, { message: 'PIN is 4 to 6 digits' }) newPin!: string;
 }

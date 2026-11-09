@@ -13,3 +13,9 @@ export function toE164(input: string): string | null {
   if (p.startsWith('+92') && !/^\+92\d{10}$/.test(p)) return null;
   return p;
 }
+
+/** +923001234567 → 0300 1234567 (how owners write it); other countries stay as stored. */
+export function localPhone(e164: string): string {
+  const m = /^\+92(\d{3})(\d{7})$/.exec(e164);
+  return m ? `0${m[1]} ${m[2]}` : e164;
+}

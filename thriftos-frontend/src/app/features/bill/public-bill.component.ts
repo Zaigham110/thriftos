@@ -9,6 +9,7 @@ import { LangPickerComponent } from '../../shared/ui/lang-picker.component';
 
 interface PublicBill {
   business: string;
+  businessContact?: string | null;
   saleNumber: string;
   date: string;
   customer: string;
@@ -31,6 +32,7 @@ interface PublicBill {
       @if (bill(); as b) {
         <header>
           <h1>{{ b.business }}</h1>
+          @if (b.businessContact) { <p class="contact">{{ b.businessContact }}</p> }
           <p>{{ 'bill.no' | t: { no: b.saleNumber } }} · <span class="ltr">{{ b.date | date: 'd MMM y' : undefined : 'en' }}</span></p>
           <p>{{ 'bill.to' | t }}: {{ b.customer }}</p>
           <p class="status" [class.due]="b.status !== 'PAID'">{{ 'bill.status.' + b.status | t }}</p>

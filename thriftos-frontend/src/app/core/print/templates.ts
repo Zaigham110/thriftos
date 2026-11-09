@@ -3,6 +3,8 @@ import { Block, Ticket } from './ticket';
 
 export interface BillPrint {
   business: string;
+  /** Phone · address · city of the business (v2 review: Settings); null when not filled in. */
+  businessContact?: string | null;
   saleNumber: string;
   date: string;
   customer: string;
@@ -17,6 +19,7 @@ export interface BillPrint {
 
 export interface ReceiptPrint {
   business: string;
+  businessContact?: string | null;
   receiptNo: string;
   date: string;
   customer: string;
@@ -59,6 +62,7 @@ export function billTicket(b: BillPrint, i18n: I18nService): Ticket {
   const t = (k: string, p?: Record<string, string | number>) => i18n.t(k, p);
   const blocks: Block[] = [
     { kind: 'text', text: b.business, size: 'xl', bold: true, align: 'center' },
+    ...(b.businessContact ? [{ kind: 'text' as const, text: b.businessContact, size: 'sm' as const, align: 'center' as const }] : []),
     { kind: 'text', text: `${t('bill.no', { no: ltr(b.saleNumber) })} · ${ltr(when(b.date))}`, size: 'sm', align: 'center' },
     { kind: 'text', text: `${t('bill.to')}: ${b.customer}`, size: 'md', bold: true, align: 'center' },
     { kind: 'rule' },
@@ -87,6 +91,7 @@ export function receiptTicket(r: ReceiptPrint, i18n: I18nService): Ticket {
   const t = (k: string, p?: Record<string, string | number>) => i18n.t(k, p);
   const blocks: Block[] = [
     { kind: 'text', text: r.business, size: 'xl', bold: true, align: 'center' },
+    ...(r.businessContact ? [{ kind: 'text' as const, text: r.businessContact, size: 'sm' as const, align: 'center' as const }] : []),
     { kind: 'text', text: t('print.receipt'), size: 'md', bold: true, align: 'center' },
     { kind: 'text', text: `${ltr(r.receiptNo)} · ${ltr(when(r.date))}`, size: 'sm', align: 'center' },
     { kind: 'rule' },

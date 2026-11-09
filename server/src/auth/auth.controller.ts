@@ -5,7 +5,7 @@ import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto, LoginResponseDto, PinLoginDto } from './dto/login.dto';
 import { RefreshTokenDto, RefreshResponseDto } from './dto/refresh.dto';
-import { ChangePasswordDto, ForgotPasswordDto, ResetPasswordDto } from './dto/password.dto';
+import { ChangePasswordDto, ChangePinDto, ForgotPasswordDto, ResetPasswordDto } from './dto/password.dto';
 import { PasswordResetService } from './password-reset.service';
 import { Public } from '../common/decorators/public.decorator';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
@@ -38,6 +38,15 @@ export class AuthController {
   @ApiOperation({ summary: 'Change my password', description: 'Ends every other session.' })
   async changePassword(@CurrentUser() user: CurrentUserData, @Body() dto: ChangePasswordDto, @Req() req: Request): Promise<void> {
     await this.passwordReset.change(user.userId, dto.currentPassword, dto.newPassword, req.ip);
+  }
+
+  @Post('pin')
+  @SkipPermissionCheck()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Throttle({ short: { limit: () => Number(process.env.THROTTLE_LOGIN_LIMIT || 5), ttl: 60000 } })
+  @ApiOperation({ summary: 'Change my PIN (phone + PIN sign-in)' })
+  async changePin(@CurrentUser() user: CurrentUserData, @Body() dto: ChangePinDto, @Req() req: Request): Promise<void> {
+    await this.passwordReset.changePin(user.userId, dto.currentPin, dto.newPin, req.ip);
   }
 
   @Public()

@@ -1,3 +1,4 @@
+import { localPhone } from '../common/phone/phone';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomInt } from 'crypto';
 import { Prisma } from '@prisma/client';
@@ -219,8 +220,4 @@ export class OnboardingService {
   }
 }
 
-/** +923001234567 → 0300 1234567 (how owners write it). */
-export function localPhone(e164: string): string {
-  const m = /^\+92(\d{3})(\d{7})$/.exec(e164);
-  return m ? `0${m[1]} ${m[2]}` : e164;
-}
+export { localPhone };

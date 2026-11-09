@@ -1,3 +1,4 @@
+import { businessContact } from '../tenant/business';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { tracePayments } from './khata';
 import { InventoryStatus, MovementType, PaymentMode, Prisma, SaleStatus, SaleType, SequenceScope } from '@prisma/client';
@@ -47,7 +48,7 @@ export function describeItem(item: {
  * used at its exact cost (cumulative share), the payment taken now, and the customer's khata.
  */
 const billInclude = {
-  tenant: { select: { name: true } },
+  tenant: { select: { name: true, phone: true, address: true, city: true } },
   customer: { select: { name: true } },
   lines: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], include: { inventoryItem: itemSummary } },
 } satisfies Prisma.SaleInclude;
@@ -220,11 +221,12 @@ export class SalesService {
   async whatsapp(tenantId: string, id: string, lang?: string) {
     const [sale, tenant] = await Promise.all([
       this.view(this.prisma, tenantId, id),
-      this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { name: true, defaultLanguage: true } }),
+      this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { name: true, phone: true, address: true, city: true, defaultLanguage: true } }),
     ]);
     const billUrl = `${(process.env.PUBLIC_APP_URL || 'http://localhost:4200').replace(/\/$/, '')}/bill/${sale.billToken}`;
     const text = billMessage(language(lang, tenant.defaultLanguage), {
       business: tenant.name,
+      contact: businessContact(tenant),
       customer: sale.customer.name,
       saleNumber: sale.saleNumber,
       total: sale.totalAmount,
@@ -265,6 +267,7 @@ export class SalesService {
     const own = applied.sales.find((x) => x.key.id === sale.id)!;
     const bill = {
       business: sale.tenant.name,
+      businessContact: businessContact(sale.tenant),
       saleNumber: sale.saleNumber,
       date: sale.issuedAt ?? sale.createdAt,
       customer: sale.customer.name,
