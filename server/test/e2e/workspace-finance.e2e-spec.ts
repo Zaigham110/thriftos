@@ -92,12 +92,14 @@ describe('Workspace finance: expenses, books, cash close, profit and loss (e2e)'
 
   it('profit and loss by month: sales − cost − write-offs − cash short − expenses', async () => {
     const p = (await api(app, a).get('/workspace/finance/pnl').expect(200)).body;
-    expect(p.months).toHaveLength(12);
-    const now = p.months[11];
+    // Only months with activity show (this business started this month).
+    expect(p.months).toHaveLength(1);
+    const now = p.months[0];
     expect(now).toMatchObject({ month: today().slice(0, 7), revenue: '10000', cost: '6000', grossProfit: '4000', marginPercent: 40, cashDifference: '-200', expenseTotal: '4000', netProfit: '-200' });
     expect(now.expenses).toMatchObject({ RENT: '3000', TRANSPORT: '1000', LABOUR: '0' });
     expect(p.totals).toMatchObject({ revenue: '10000', netProfit: '-200' });
-    expect((await api(app, a).get('/workspace/finance/pnl?months=3').expect(200)).body.months).toHaveLength(3);
+    expect(p.previous).toBeNull();
+    expect((await api(app, a).get('/workspace/finance/pnl?months=3').expect(200)).body.months).toHaveLength(1);
     await api(app, a).get('/workspace/finance/pnl?months=40').expect(400);
   });
 

@@ -357,62 +357,102 @@ export class FinanceService {
     return { id, cancelled: true };
   }
 
-  /** Profit and loss by month (Pakistan months), the latest last. */
+  /**
+   * Profit and loss by month (Pakistan months), the latest last (v2 review). Months before the business had any
+   * activity are left out; `previous` is the same number of months just before (null when nothing happened then);
+   * `current` says the latest month is not over yet (rent and salaries are booked for the whole month, sales only
+   * so far). `cashDays` per month: the days closed short or over, the latest last.
+   */
   async pnl(tenantId: string, q: PnlQueryDto, now = new Date()) {
     const count = q.months ?? 12;
-    const thisMonth = businessDay(now).slice(0, 7);
+    const today = businessDay(now);
+    const thisMonth = today.slice(0, 7);
     const [y, m] = thisMonth.split('-').map(Number);
-    const months = Array.from({ length: count }, (_, i) => new Date(Date.UTC(y, m - count + i, 1)).toISOString().slice(0, 7));
-    const start = localDayStart(months[0] + '-01');
+    // The window and the same number of months before it, in one pass.
+    const all = Array.from({ length: count * 2 }, (_, i) => new Date(Date.UTC(y, m - count * 2 + i, 1)).toISOString().slice(0, 7));
+    const start = localDayStart(all[0] + '-01');
+    const firstDay = dayDate(all[0] + '-01');
     const [sales, expenses, adjustments, closes] = await Promise.all([
       this.prisma.sale.findMany({
         where: { tenantId, status: { in: KHATA_SALE_STATUSES }, OR: [{ issuedAt: { gte: start } }, { issuedAt: null, createdAt: { gte: start } }] },
         select: { totalAmount: true, totalCost: true, issuedAt: true, createdAt: true },
       }),
-      this.prisma.expense.findMany({ where: { tenantId, cancelledAt: null, day: { gte: dayDate(months[0] + '-01') } }, select: { day: true, category: true, amount: true } }),
+      this.prisma.expense.findMany({ where: { tenantId, cancelledAt: null, day: { gte: firstDay } }, select: { day: true, category: true, amount: true } }),
       this.prisma.stockAdjustment.findMany({ where: { tenantId, status: StockAdjustmentStatus.APPROVED, decidedAt: { gte: start } }, select: { decidedAt: true, costChange: true } }),
-      this.prisma.cashClose.findMany({ where: { tenantId, day: { gte: dayDate(months[0] + '-01') } }, select: { day: true, difference: true } }),
+      this.prisma.cashClose.findMany({ where: { tenantId, day: { gte: firstDay } }, select: { day: true, difference: true }, orderBy: { day: 'asc' } }),
     ]);
     const blank = () => ({
-      revenue: ZERO, cost: ZERO, writeOffs: ZERO, cashDifference: ZERO,
+      revenue: ZERO, cost: ZERO, writeOffs: ZERO, cashDifference: ZERO, cashDays: [] as string[], active: false,
       expenses: Object.fromEntries(Object.values(ExpenseCategory).map((c) => [c, ZERO])) as Record<ExpenseCategory, Prisma.Decimal>,
     });
-    const rows = new Map(months.map((mm) => [mm, blank()]));
+    const rows = new Map(all.map((mm) => [mm, blank()]));
     const at = (d: Date) => rows.get(businessDay(d).slice(0, 7));
     for (const s of sales) {
       const r = at(s.issuedAt ?? s.createdAt);
-      if (r) { r.revenue = r.revenue.add(s.totalAmount); r.cost = r.cost.add(s.totalCost); }
+      if (r) { r.revenue = r.revenue.add(s.totalAmount); r.cost = r.cost.add(s.totalCost); r.active = true; }
     }
     for (const e of expenses) {
       const r = rows.get(dayOf(e.day).slice(0, 7));
-      if (r) r.expenses[e.category] = r.expenses[e.category].add(e.amount);
+      if (r) { r.expenses[e.category] = r.expenses[e.category].add(e.amount); r.active = true; }
     }
     for (const a of adjustments) {
       const r = a.decidedAt ? at(a.decidedAt) : undefined;
-      if (r && a.costChange) r.writeOffs = r.writeOffs.add(a.costChange);
+      if (r && a.costChange) { r.writeOffs = r.writeOffs.add(a.costChange); r.active = true; }
     }
     for (const c of closes) {
       const r = rows.get(dayOf(c.day).slice(0, 7));
-      if (r) r.cashDifference = r.cashDifference.add(c.difference);
+      if (!r) continue;
+      r.cashDifference = r.cashDifference.add(c.difference);
+      if (!c.difference.isZero()) r.cashDays.push(dayOf(c.day));
+      r.active = true;
     }
-    const out = months.map((month) => {
+    const line = (month: string) => {
       const r = rows.get(month)!;
       const gross = r.revenue.sub(r.cost);
       const expenseTotal = Object.values(r.expenses).reduce((t, v) => t.add(v), ZERO);
-      // Write-offs are negative cost changes (a loss) and cash short is a negative difference: both add on.
-      const net = gross.add(r.writeOffs).add(r.cashDifference).sub(expenseTotal);
       return {
         month, revenue: r.revenue, cost: r.cost, grossProfit: gross,
         marginPercent: r.revenue.isZero() ? null : gross.div(r.revenue).mul(100).toDecimalPlaces(1).toNumber(),
-        writeOffs: r.writeOffs, cashDifference: r.cashDifference, expenses: r.expenses, expenseTotal, netProfit: net,
+        writeOffs: r.writeOffs, cashDifference: r.cashDifference, cashDays: r.cashDays, expenses: r.expenses, expenseTotal,
+        netProfit: netProfit({ grossProfit: gross, writeOffs: r.writeOffs, cashDifference: r.cashDifference, expenseTotal }),
       };
-    });
-    const sum = (k: 'revenue' | 'cost' | 'grossProfit' | 'writeOffs' | 'cashDifference' | 'expenseTotal' | 'netProfit') => out.reduce((t, r) => t.add(r[k]), ZERO);
-    const totals = {
-      revenue: sum('revenue'), cost: sum('cost'), grossProfit: sum('grossProfit'), writeOffs: sum('writeOffs'), cashDifference: sum('cashDifference'),
-      expenseTotal: sum('expenseTotal'), netProfit: sum('netProfit'),
-      expenses: Object.fromEntries(Object.values(ExpenseCategory).map((c) => [c, out.reduce((t, r) => t.add(r.expenses[c]), ZERO)])),
     };
-    return { months: out, totals };
+    const totalOf = (list: ReturnType<typeof line>[]) => {
+      const sum = (k: 'revenue' | 'cost' | 'grossProfit' | 'writeOffs' | 'cashDifference' | 'expenseTotal' | 'netProfit') => list.reduce((t, r) => t.add(r[k]), ZERO);
+      const revenue = sum('revenue');
+      const grossProfit = sum('grossProfit');
+      return {
+        revenue, cost: sum('cost'), grossProfit, writeOffs: sum('writeOffs'), cashDifference: sum('cashDifference'),
+        expenseTotal: sum('expenseTotal'), netProfit: sum('netProfit'),
+        marginPercent: revenue.isZero() ? null : grossProfit.div(revenue).mul(100).toDecimalPlaces(1).toNumber(),
+        expenses: Object.fromEntries(Object.values(ExpenseCategory).map((c) => [c, list.reduce((t, r) => t.add(r.expenses[c]), ZERO)])),
+      };
+    };
+    const window = all.slice(count);
+    const before = all.slice(0, count);
+    // Months before the first activity are left out (the latest month always stays).
+    const first = window.findIndex((mm) => rows.get(mm)!.active);
+    const shown = window.slice(first === -1 ? window.length - 1 : first);
+    const out = shown.map(line);
+    const previous = before.some((mm) => rows.get(mm)!.active) ? totalOf(before.map(line)) : null;
+    const days = Number(today.slice(8, 10));
+    const of = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    return { months: out, totals: totalOf(out), previous, current: days < of ? { month: thisMonth, days, of } : null };
   }
+}
+
+/** Net profit, the same everywhere (P&L and dashboard): gross profit, less stock written off (a negative cost
+ * change) and cash short (a negative difference), less expenses. */
+export function netProfit(p: { grossProfit: Prisma.Decimal; writeOffs: Prisma.Decimal; cashDifference: Prisma.Decimal; expenseTotal: Prisma.Decimal }): Prisma.Decimal {
+  return p.grossProfit.add(p.writeOffs).add(p.cashDifference).sub(p.expenseTotal);
+}
+
+/** Stock written off and cash short or over in a period (business days from..to, inclusive). */
+export async function writeOffsAndCash(prisma: PrismaService, tenantId: string, fromDay: string, toDay: string) {
+  const end = new Date(localDayStart(toDay).getTime() + DAY);
+  const [adj, cash] = await Promise.all([
+    prisma.stockAdjustment.aggregate({ where: { tenantId, status: StockAdjustmentStatus.APPROVED, decidedAt: { gte: localDayStart(fromDay), lt: end } }, _sum: { costChange: true } }),
+    prisma.cashClose.aggregate({ where: { tenantId, day: { gte: dayDate(fromDay), lte: dayDate(toDay) } }, _sum: { difference: true } }),
+  ]);
+  return { writeOffs: adj._sum.costChange ?? ZERO, cashDifference: cash._sum.difference ?? ZERO };
 }

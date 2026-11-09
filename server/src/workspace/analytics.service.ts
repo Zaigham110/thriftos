@@ -7,6 +7,7 @@ import { percent } from '../home/home';
 import { PrismaService } from '../prisma/prisma.service';
 import { RECORD_TYPES } from '../records/record-types';
 import { KHATA_SALE_STATUSES } from '../sales/khata.service';
+import { netProfit, writeOffsAndCash } from './finance.service';
 import { ReceivablesService } from './receivables.service';
 import { StockRecordsService } from './stock-records.service';
 
@@ -115,6 +116,8 @@ export class AnalyticsService {
     const nameOf = new Map(users.map((u) => [u.id, u.name]));
     const typeOf = Object.entries(RECORD_TYPES);
     const expenseTotal = expenses._sum.amount ?? ZERO;
+    // Net profit as on Profit and loss: stock written off and cash short or over count too (v2 review).
+    const extras = perms.finance && perms.cost ? await writeOffsAndCash(this.prisma, tenantId, p.fromDay, p.toDay) : null;
 
     return {
       period: { from: p.fromDay, to: p.toDay, days: p.days, previousFrom: day(prevFrom) },
@@ -125,7 +128,7 @@ export class AnalyticsService {
         trend: { by: byMonth ? 'month' : 'day', points: buckets.map((b) => ({ key: b, revenue: trend.get(b)!.revenue, profit: money(perms.cost, trend.get(b)!.profit) })) },
       },
       cash: { collected, previousCollected: prevPayments._sum.amount ?? ZERO, byMethod },
-      expenses: perms.finance ? { total: expenseTotal, netProfit: perms.cost ? current.profit.sub(expenseTotal) : null } : null,
+      expenses: perms.finance ? { total: expenseTotal, netProfit: extras ? netProfit({ grossProfit: current.profit, expenseTotal, ...extras }) : null } : null,
       udhaar: { owed: receivables.totals.owed, customers: receivables.totals.customers, buckets: receivables.totals.buckets, brokenPromises: receivables.rows.filter((r) => r.promise?.status === 'BROKEN').length },
       stock: { items: stock.total.items, kg: stock.total.kg, value: stock.total.value, ageing: stock.ageing },
       containers: {

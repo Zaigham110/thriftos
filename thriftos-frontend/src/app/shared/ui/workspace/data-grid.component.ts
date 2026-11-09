@@ -80,11 +80,11 @@ export type WsRow = Record<string, unknown> & { id: string };
         <tbody>
           @if (!loading()) {
             @for (r of sorted(); track r.id) {
-              <tr [class.selected]="isSelected(r)" [class.clickable]="clickable()" (click)="clickable() && rowClick.emit(r)">
+              <tr [class.selected]="isSelected(r)" [class.clickable]="clickable()" [class.sub]="r['_sub']" [class.strong]="r['_strong']" (click)="clickable() && rowClick.emit(r)">
                 @if (selectable()) {
                   <td class="check" (click)="$event.stopPropagation()"><input type="checkbox" [checked]="isSelected(r)" (change)="toggle(r)" [attr.aria-label]="'ws.grid.selectRow' | t" /></td>
                 }
-                @for (c of columns(); track c.key) { <td [class.end]="isNumeric(c)" [class.ws-num]="isNumeric(c)" [class.neg]="c.tone === 'sign' && isNeg(r[c.key])">{{ c.blankZero && isZero(r[c.key]) ? '' : cell(r[c.key], c.format, c.round) }}</td> }
+                @for (c of columns(); track c.key) { <td [class.end]="isNumeric(c)" [class.ws-num]="isNumeric(c)" [class.neg]="c.tone === 'sign' && isNeg(r[c.key])" (click)="clickable() && cellClick.emit({ row: r, key: c.key })">{{ c.blankZero && isZero(r[c.key]) ? '' : cell(r[c.key], c.format, c.round) }}</td> }
                 @if (rowActions().length) {
                   <td class="acts" (click)="$event.stopPropagation()">
                     @for (a of rowActions(); track a.id) {
@@ -128,6 +128,8 @@ export type WsRow = Record<string, unknown> & { id: string };
     .end { text-align:end; }
     tbody tr:hover { background:var(--ws-surface-hover); }
     tr.clickable { cursor:pointer; }
+    tr.strong td { font-weight:700; }
+    tr.sub td:first-child { padding-inline-start:var(--ws-6); color:var(--ws-ink-2); }
     tr.selected { background:var(--ws-brand-soft); }
     tbody td { color:var(--ws-ink); }
     tfoot td { position:sticky; bottom:0; background:var(--ws-surface-2); font-weight:600; border-block-end:0; border-block-start:1px solid var(--ws-line-strong); }
@@ -153,6 +155,8 @@ export class WsDataGridComponent {
   readonly sort = model<WsSort | null>(null);
   readonly selected = model<string[]>([]);
   readonly rowClick = output<WsRow>();
+  /** With `clickable`: which cell was clicked (before rowClick), e.g. a month column of a statement. */
+  readonly cellClick = output<{ row: WsRow; key: string }>();
   readonly rowActions = input<WsRowAction[]>([]);
   readonly rowAction = output<{ action: string; row: WsRow }>();
 

@@ -378,6 +378,10 @@ test('finance: record an expense, close the day, cash book and profit and loss',
   await page.goto('/finance/pnl');
   await expect(page.getByRole('heading', { name: 'Profit and loss' })).toBeVisible();
   await expect(page.locator('ws-data-grid tbody tr').filter({ hasText: 'Net profit' })).toBeVisible();
+  // P&L review: the expenses total line, and an amount opens what is behind it.
+  await expect(page.locator('ws-data-grid tbody tr.strong').filter({ hasText: 'Expenses' })).toBeVisible();
+  await page.locator('ws-data-grid tbody tr').filter({ hasText: 'Transport' }).locator('td').last().click();
+  await expect(page).toHaveURL(/\/finance\/expenses\?v=.*TRANSPORT/);
 });
 
 test('sales extras: price list for a group, keyboard sale entry suggests the list price, sales by month', async ({ page, request }) => {

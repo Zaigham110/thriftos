@@ -2,6 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../core/auth';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
@@ -207,7 +208,8 @@ export class CashCloseComponent {
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly maxDay = today();
-  protected readonly day = signal(today());
+  /** ?day=YYYY-MM-DD opens that day (from Profit and loss: the day closed short or over). */
+  protected readonly day = signal(((d) => (d && /^\d{4}-\d{2}-\d{2}$/.test(d) && d <= this.maxDay ? d : today()))(inject(ActivatedRoute).snapshot.queryParamMap.get('day')));
   protected readonly data = signal<CloseView | null>(null);
   protected readonly failed = signal(false);
   protected readonly busy = signal(false);

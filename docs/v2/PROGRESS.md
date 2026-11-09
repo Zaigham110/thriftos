@@ -231,6 +231,18 @@
   - Tests: new `cash-close-review` e2e (moves in both books and not in P&L, closed day and back-dated cash, cash after the close, order, reason, reopen, 14 days, munshi 403, other business), the expenses close test gives a reason; browser finance test covers cash in, note counter, required reason, close, reopen and close again. Server 329, Karma 25, browser 52 + 4 skipped, i18n 1558 keys.
   - Databases: migration applied only by the test runs (thriftos_test, thriftos_pw_test, and a throwaway thriftos_look_test for the screenshots). Dev DB: `bash scripts/apply-v2-phase6.sh` now lists `v6_09_cash_close` (owner runs it). The demo needs `npm run demo:reset` for the new table and the closes.
 
+- **Review: Profit and loss (owner: "Fix all eight"), 2026-11-10.**
+  1. The month not yet over: its column and bar say "(so far)" and a line under the cards says how many days of the month have passed (rent and salaries are booked for the whole month, sales only so far). Server: `current: { month, days, of }`.
+  2. Whole rupees on screen (cards, table, chart); the CSV keeps paisa. The Gross profit card is no longer cut off.
+  3. Lines: Sales, cost, gross profit, an Expenses total with the categories under it (only categories used in the period), stock written off and cash short/over only when there are any, net profit; totals in bold.
+  4. Months before the first activity (sales, expenses, write-offs or closes) are left out; the current month always shows.
+  5. Phone: cards two by two, then one month as a list (month chips, latest first chosen) with the month before under each amount; the wide table is laptop only.
+  6. One Net profit: the dashboard's now also takes off stock written off and cash short/over (`netProfit()` and `writeOffsAndCash()` in `finance.service.ts`), so both screens show the same number; its "i" text says so.
+  7. Every amount opens what is behind it: sales of that month, its expenses (of one category), the latest day closed short or over (Cash close now opens `?day=`), stock counts. The grid has a new `cellClick` and bold/indented rows (`_strong`, `_sub`).
+  8. Comparison: each card shows up or down against the same number of months before (`previous`, null when nothing happened then); Net profit shows its share of sales. Plain error text. The demo seed writes off one bale at a stock count 12 days ago (`fillWriteOff`).
+  - Tests: new `pnl-review` e2e (first month with activity, previous period, month so far, days short/over, dashboard net equals P&L net, other business); finance P&L test updated for the trimmed months; browser finance test checks the Expenses total and that Transport opens the expenses list. Server 332, Karma 25, browser 52 + 4 skipped, i18n 1565 keys.
+  - Databases: no migration. Screenshots on a throwaway thriftos_look_test. The demo shows this after `npm run demo:reset` (and a restart of its API).
+
 ## Decisions
 - Sorting (6.6): bales made while a lot is open are costed at the lot's cost per kg and re-costed at close; sold ones keep their sale cost (logged adjustment). Kat goes to stock at zero cost, so a kat sale is pure extra profit and bale costs are right whether or not kat sells.
 - 6.2 Play Store app dropped by the owner (2026-11-05): the installable web app (PWA, "Add to Home screen" in Chrome) is how ThriftOS goes on phones; no Play Console account, store listing or Android package. Phase 6 is complete.

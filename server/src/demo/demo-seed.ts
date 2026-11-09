@@ -16,6 +16,7 @@ import { CustomersService } from '../sales/customers.service';
 import { SalesService } from '../sales/sales.service';
 import { KhataService } from '../sales/khata.service';
 import { FinanceService } from '../workspace/finance.service';
+import { StockRecordsService } from '../workspace/stock-records.service';
 import { startOfDayPKT } from '../home/home';
 
 /**
@@ -470,6 +471,7 @@ export async function fillSortingStory(
   log(`  ${spent} expenses`);
   const closed = await fillCashCloses(ctx, { tenantId: t, ownerId: owner.id, days: 21, keep: 25000 });
   log(`  ${closed} days closed`);
+  if (await fillWriteOff(ctx, { tenantId: t, ownerId: owner.id, workerId, daysAgo: 12 })) log('  1 stock write-off');
   return { bales: stock.length, sales: saleCount };
 }
 
@@ -511,6 +513,26 @@ export async function fillExpenses(ctx: Ctx, opts: { tenantId: string; ownerId: 
   });
   await ctx.prisma.expense.update({ where: { id: wrong.id }, data: { cancelledAt: moment(ctx, 6, 19), cancelledBy: opts.ownerId, cancelReason: 'Typed 45,000 instead of 4,500' } });
   return rows.length + 1;
+}
+
+/**
+ * Stock written off (P&L review): a count finds a bale short (or damp kg thrown away), the munshi enters it,
+ * the owner approves, and its cost shows as "Stock written off" on Profit and loss.
+ */
+export async function fillWriteOff(ctx: Ctx, opts: { tenantId: string; ownerId: string; workerId: string; daysAgo: number }): Promise<boolean> {
+  const stock = ctx.app.get(StockRecordsService as never, { strict: false }) as StockRecordsService;
+  const items = await ctx.prisma.inventoryItem.findMany({ where: { tenantId: opts.tenantId }, select: { id: true, unit: true, quantity: true, usedQuantity: true }, orderBy: { createdAt: 'asc' }, take: 300 });
+  const kg = items.find((i) => i.unit === 'KG' && i.quantity.sub(i.usedQuantity).gte(60));
+  const bale = items.find((i) => i.unit !== 'KG' && i.quantity.sub(i.usedQuantity).gte(1));
+  const item = bale ?? kg;
+  if (!item) return false;
+  const book = item.quantity.sub(item.usedQuantity);
+  const counted = item === bale ? book.sub(1) : book.sub(25);
+  const reason = item === bale ? 'One bale missing at the stock count' : 'Damp, 25 kg thrown away';
+  const a = await stock.requestCount(opts.tenantId, item.id, { counted: counted.toNumber(), reason } as never, opts.workerId);
+  await stock.decide(opts.tenantId, a.id, true, { note: 'Checked, write it off' } as never, opts.ownerId);
+  await ctx.prisma.stockAdjustment.update({ where: { id: a.id }, data: { createdAt: moment(ctx, opts.daysAgo, 17), decidedAt: moment(ctx, opts.daysAgo, 19) } });
+  return true;
 }
 
 /**
