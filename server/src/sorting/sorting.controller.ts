@@ -76,6 +76,14 @@ export class SortingStage1Controller {
     return this.sessions.close(tenantId, id, user.userId, dto.wasteCategoryId);
   }
 
+  /** Take one entry back by its id (the list of entries on the sorting screen). */
+  @Post('entries/:outputId/remove')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('SORTING_STAGE1_EDIT')
+  removeEntry(@TenantId() tenantId: string, @Param('outputId') outputId: string, @CurrentUser() user: CurrentUserData) {
+    return this.sessions.removeEntry(tenantId, outputId, user.userId);
+  }
+
   @Idempotent('SORT1_UNDO')
   @Post('unallocate')
   @HttpCode(HttpStatus.OK)

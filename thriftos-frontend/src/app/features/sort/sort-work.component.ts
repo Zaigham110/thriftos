@@ -2,12 +2,12 @@ import { Component, DestroyRef, OnInit, computed, inject, input, signal, viewChi
 import { NavService } from '../../core/nav/nav.service';
 import { WsPageHeaderComponent } from '../../shared/ui/workspace/page-header.component';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { ArrowLeft, CheckCircle2, LucideAngularModule, Minus, Plus, Printer } from 'lucide-angular';
+import { ArrowLeft, CheckCircle2, LucideAngularModule, Minus, Plus, Printer, Trash2 } from 'lucide-angular';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { I18N } from '../../core/i18n/t.pipe';
 import { OfflineQueueService } from '../../core/offline/offline-queue.service';
 import { TenantService } from '../../core/tenant/tenant.service';
-import { CategoryRow, FloorDataService, Named, ReadyRow, SessionOutput, SortSummary, WasteType, countUse, usageOrder } from '../../shared/floor/floor-data.service';
+import { CategoryRow, FloorDataService, Named, ReadyRow, SessionOutput, SortEntry, SortLot, SortSummary, WasteType, countUse, usageOrder } from '../../shared/floor/floor-data.service';
 import { NumberFieldComponent } from '../../shared/floor/number-field.component';
 import { Tile, TilesComponent } from '../../shared/floor/tiles.component';
 import { ToastService } from '../../shared/floor/toast.service';
@@ -62,7 +62,7 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
     <section class="floor" [class.wide]="desktop">
       @if (desktop) {
         <!-- Laptop: the shared header (breadcrumb lined up with the heading) and the way to the lot's page. -->
-        <ws-page-header [heading]="title()" [subtitle]="(stage() === 1 ? 'sort.title' : 'sort.grading') | t">
+        <ws-page-header [heading]="title()" [subtitle]="stage() === 1 && lotMeta() ? lotMeta() : ((stage() === 1 ? 'sort.title' : 'sort.grading') | t)">
           @if (stage() === 1) {
             <a actions class="ws-btn" [routerLink]="['/sort/records', id()]" [state]="nav.trailState()">{{ 'ws.sortRecord.openLot' | t }}</a>
           }
@@ -70,13 +70,14 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
       } @else {
         <header class="floor-head">
           <a class="icon-btn back" routerLink="/sort" [attr.aria-label]="'common.back' | t"><lucide-icon [img]="icons.ArrowLeft" [size]="22" /></a>
-          <h1>{{ title() }}<span class="sub">{{ (stage() === 1 ? 'sort.title' : 'sort.grading') | t }}</span></h1>
+          <h1>{{ title() }}<span class="sub">{{ stage() === 1 && lotMeta() ? lotMeta() : ((stage() === 1 ? 'sort.title' : 'sort.grading') | t) }}</span></h1>
         </header>
       }
 
       @if (result(); as r) {
         <section class="card">
           <h2><lucide-icon [img]="icons.CheckCircle2" [size]="22" class="good" /> {{ 'sort.closed' | t }} · {{ 'sort.yield' | t }}</h2>
+          <p class="hint">{{ 'sort.closedSummary' | t: { kg: (inputKg() | kg), out: (outputKgAtClose() | kg), bales: (totalBales() | num) } }}</p>
           <ul class="list">
             @for (o of r; track o.id) {
               <li class="row"><span><strong>{{ o.name }}</strong><small>{{ 'unit.percent' | t: { n: pct(o.weightKg) } }}@if (o.bales) { · {{ o.bales | num }} {{ (o.bales === 1 ? 'unit.bale' : 'unit.bales') | t }} }</small></span>
@@ -100,20 +101,74 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
         <a class="btn primary block" [routerLink]="desktop && stage() === 1 ? ['/sort/records', id()] : '/sort'">{{ (desktop && stage() === 1 ? 'ws.sortRecord.openLot' : 'common.done') | t }}</a>
       } @else {
         <div class="work">
-        <div class="side">
-        <div class="totals" aria-live="polite">
-          <div><small>{{ 'sort.sortedLabel' | t }}</small><strong>{{ sortedKg() | kg }}</strong></div>
-          <div [class.warn]="leftKg() < 0"><small>{{ 'sort.leftLabel' | t }}</small><strong>{{ leftKg() | kg }}</strong></div>
-        </div>
-        <div class="bar" role="progressbar" [attr.aria-valuenow]="donePct()" aria-valuemin="0" aria-valuemax="100"><i [style.width.%]="donePct()"></i></div>
-        @if (stage() === 1 && today(); as td) {
-          <p class="today">{{ 'sort.today' | t: { bales: (td.bales | num), kg: (td.kg | kg) } }}@if (totalBales()) { · {{ 'sort.allBales' | t: { n: (totalBales() | num) } }} }</p>
+        @if (stage() === 1) {
+          <section class="overview card" aria-live="polite">
+            <div class="stats">
+              <div><small>{{ 'sort.lotKg' | t }}</small><strong>{{ inputKg() | kg }}</strong>@if (lot()?.costPerKg; as c) { <span>{{ 'sort.costPerKg' | t: { rs: (c | rs) } }}</span> }</div>
+              <div><small>{{ 'sort.sortedLabel' | t }}</small><strong>{{ sortedKg() | kg }}</strong><span>{{ 'unit.percent' | t: { n: donePct() } }}</span></div>
+              <div [class.warn]="leftKg() < 0"><small>{{ 'sort.leftLabel' | t }}</small><strong>{{ leftKg() | kg }}</strong><span>{{ 'sort.leftHint' | t }}</span></div>
+              <div><small>{{ 'sort.balesLabel' | t }}</small><strong>{{ totalBales() | num }}</strong>@if (today(); as td) { <span>{{ 'sort.todayShort' | t: { bales: (td.bales | num), kg: (td.kg | kg) } }}</span> }</div>
+            </div>
+            <div class="bar big" role="progressbar" [attr.aria-valuenow]="donePct()" aria-valuemin="0" aria-valuemax="100" [attr.aria-label]="'sort.sortedLabel' | t"><i [style.width.%]="donePct()"></i></div>
+          </section>
+        } @else {
+          <div class="totals" aria-live="polite">
+            <div><small>{{ 'sort.sortedLabel' | t }}</small><strong>{{ sortedKg() | kg }}</strong></div>
+            <div [class.warn]="leftKg() < 0"><small>{{ 'sort.leftLabel' | t }}</small><strong>{{ leftKg() | kg }}</strong></div>
+          </div>
+          <div class="bar" role="progressbar" [attr.aria-valuenow]="donePct()" aria-valuemin="0" aria-valuemax="100"><i [style.width.%]="donePct()"></i></div>
         }
 
+        <div class="main">
+          <h2 class="section-title">{{ (stage() === 1 ? 'sort.whatSorted' : 'sort.tapTile') | t }}</h2>
+          @if (stage() === 1) { <p class="hint">{{ 'sort.whatSortedHint' | t }}</p> }
+          <tos-tiles [items]="tiles()" [limit]="80" [columns]="desktop ? 'auto' : 2" searchPlaceholder="sort.searchCategory" (pick)="startLine($event)" />
+        </div>
+
+        <div class="side">
         @if (lastBales(); as lb) {
           <a class="card printed" [routerLink]="['/stock/labels']" [queryParams]="{ ids: lb.ids.join(',') }">
             <lucide-icon [img]="icons.Printer" [size]="20" /><span>{{ 'sort.printStickers' | t: { n: (lb.ids.length | num), name: lb.name } }}</span>
           </a>
+        }
+
+        @if (stage() === 1) {
+          <section class="card entries" [attr.aria-label]="'sort.cameOut' | t">
+            <div class="head"><h2>{{ 'sort.cameOut' | t }}</h2>@if (entries().length) { <span class="count">{{ entries().length | num }}</span> }</div>
+            @if (!entries().length) {
+              <p class="hint">{{ 'sort.noEntries' | t }}</p>
+            } @else {
+              <ul class="elist">
+                @for (e of shownEntries(); track e.id) {
+                  <li [class.removing]="removing() === e.id">
+                    <div class="what">
+                      <strong>{{ e.categoryName }}@if (e.gradeName) { · {{ e.gradeName }} }</strong>
+                      <small>{{ when(e.at) }} · @if (e.bales) { {{ 'sort.entryBales' | t: { n: (e.bales | num), kg: (e.kg | kg) } }} } @else { {{ 'sort.entryLoose' | t: { kg: (e.kg | kg) } }} }</small>
+                    </div>
+                    @if (removing() === e.id) {
+                      <div class="confirm-row">
+                        <span>{{ 'sort.removeAsk' | t }}</span>
+                        <button type="button" class="btn sm" (click)="removing.set(null)">{{ 'common.cancel' | t }}</button>
+                        <button type="button" class="btn sm danger" [disabled]="busyRemove()" (click)="removeEntry(e)">{{ 'sort.removeYes' | t }}</button>
+                      </div>
+                    } @else {
+                      <div class="acts">
+                        @if (e.baleIds.length) {
+                          <a class="icon-btn sm" [routerLink]="['/stock/labels']" [queryParams]="{ ids: e.baleIds.join(',') }" [attr.aria-label]="'sort.printThese' | t" [title]="'sort.printThese' | t"><lucide-icon [img]="icons.Printer" [size]="18" /></a>
+                        }
+                        @if (e.removable) {
+                          <button type="button" class="icon-btn sm" (click)="removing.set(e.id)" [attr.aria-label]="'sort.removeEntry' | t" [title]="'sort.removeEntry' | t"><lucide-icon [img]="icons.Trash2" [size]="18" /></button>
+                        }
+                      </div>
+                    }
+                  </li>
+                }
+              </ul>
+              @if (entries().length > shownEntries().length) {
+                <button type="button" class="link" (click)="showAll.set(true)">{{ 'sort.showAll' | t: { n: (entries().length | num) } }}</button>
+              }
+            }
+          </section>
         }
 
         @if (stage() === 1 && (ready().length || madeBales().length)) {
@@ -141,6 +196,15 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
 
         @if (confirmClose()) {
           <section class="card confirm" role="alertdialog" [attr.aria-label]="'sort.closeLot' | t">
+            <h2>{{ 'sort.closeTitle' | t }}</h2>
+            @if (stage() === 1) {
+              <ul class="list sumlist">
+                @for (k of closePreview(); track k.name) {
+                  <li class="row"><span>{{ k.name }}</span><span class="amount">{{ k.kg | kg }} · {{ 'unit.percent' | t: { n: pct(k.kg) } }}</span></li>
+                }
+                <li class="row kat"><span>{{ 'sort.kat' | t }}</span><span class="amount">{{ leftKg() | kg }} · {{ 'unit.percent' | t: { n: pct(leftKg()) } }}</span></li>
+              </ul>
+            }
             <p><strong>{{ (stage() === 1 ? 'sort.closeConfirmKat' : 'sort.closeConfirm') | t: { kg: (leftKg() | kg) } }}</strong></p>
             <div class="row2">
               <button type="button" class="btn" (click)="confirmClose.set(false)">{{ 'common.cancel' | t }}</button>
@@ -150,13 +214,9 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
         }
 
         <footer class="action-bar">
-          <div class="summary"><small>{{ 'common.total' | t }}</small><strong>{{ inputKg() | kg }}</strong></div>
+          <div class="summary"><small>{{ 'sort.leftLabel' | t }}</small><strong>{{ leftKg() | kg }}</strong></div>
           <button type="button" class="btn primary" [disabled]="sortedKg() <= 0 || inputKg() <= 0 || closing()" (click)="askClose()">{{ 'sort.closeLot' | t }}</button>
         </footer>
-        </div>
-        <div class="main">
-        <p class="hint">{{ 'sort.tapTile' | t }}</p>
-        <tos-tiles [items]="tiles()" [limit]="80" [columns]="desktop ? 'auto' : 2" (pick)="startLine($event)" />
         </div>
         </div>
 
@@ -213,14 +273,45 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
     </section>
   `,
   styles: [`
-    /* Laptop (v2 review): the page's full width, tiles on the left, totals and what to bale on the right. */
-    .floor.wide { max-width:var(--ws-content-max, 1200px); padding-block-end:16px; }
+    /* Phone: numbers, categories, what came out, then close. Laptop (v2 sorting review): numbers across the top,
+       categories in the middle, what came out and closing on the right. */
+    .floor.wide { max-width:var(--ws-content-max, 1280px); padding-block-end:16px; }
     .work { display:grid; grid-template-columns:minmax(0, 1fr); gap:14px; }
     .work .side, .work .main { display:grid; gap:14px; align-content:start; min-width:0; }
-    .wide .work { grid-template-columns:minmax(0, 1fr) 380px; align-items:start; }
-    .wide .work .main { order:1; }
-    .wide .work .side { order:2; position:sticky; top:calc(var(--ws-topbar-h, 56px) + 16px); }
+    .wide .work { grid-template-columns:minmax(0, 1fr) 400px; grid-template-areas:'top top' 'main side'; align-items:start; gap:18px; }
+    .wide .overview, .wide .totals, .wide .bar:not(.big) { grid-area:top; }
+    .wide .work .main { grid-area:main; }
+    .wide .work .side { grid-area:side; position:sticky; top:calc(var(--ws-topbar-h, 56px) + 16px); max-height:calc(100vh - var(--ws-topbar-h, 56px) - 32px); overflow:auto; }
     .wide .action-bar { position:static; margin:0; }
+    .overview { display:grid; gap:12px; }
+    .stats { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
+    .wide .stats { grid-template-columns:repeat(4, minmax(0, 1fr)); }
+    .stats div { display:grid; gap:2px; align-content:start; padding:10px 12px; border-radius:12px; background:var(--tos-bg, #f6f3f1); }
+    .stats small { color:var(--tos-ink-soft); font-size:13px; font-weight:700; }
+    .stats strong { font-size:24px; line-height:1.15; white-space:nowrap; font-variant-numeric:tabular-nums; }
+    .stats span { color:var(--tos-ink-soft); font-size:13px; }
+    .stats .warn strong { color:var(--tos-danger, #b3261e); }
+    .bar.big { height:12px; border-radius:6px; }
+    .section-title { margin:0; font-size:18px; }
+    .main .hint { margin:0; }
+    .entries .head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .entries h2 { margin:0; }
+    .entries .count { min-width:28px; padding:2px 8px; border-radius:999px; background:var(--tos-primary-soft, #f3e8ef); color:var(--tos-primary); font-size:13px; font-weight:700; text-align:center; }
+    .elist { list-style:none; margin:0; padding:0; display:grid; }
+    .elist li { display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:56px; padding:8px 0; border-top:1px solid var(--tos-line); }
+    .elist li:first-child { border-top:0; }
+    .elist .what { display:grid; gap:2px; min-width:0; }
+    .elist .what strong { font-size:16px; }
+    .elist .what small { color:var(--tos-ink-soft); font-size:13px; }
+    .elist .acts { display:flex; gap:4px; flex:none; }
+    .icon-btn.sm { display:grid; place-items:center; width:40px; height:40px; border:1px solid var(--tos-line); border-radius:10px; background:var(--tos-card); color:var(--tos-ink); cursor:pointer; }
+    .elist li.removing { flex-wrap:wrap; }
+    .confirm-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px; font-size:14px; font-weight:600; }
+    .btn.sm { min-height:40px; padding:0 12px; }
+    .btn.danger { border-color:var(--tos-danger, #b3261e); color:var(--tos-danger, #b3261e); }
+    .link { justify-self:start; border:0; background:none; padding:6px 0; color:var(--tos-primary); font:inherit; font-weight:700; cursor:pointer; }
+    .confirm h2 { margin:0; }
+    .sumlist .kat { color:var(--tos-ink-soft); }
     .totals { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
     .totals div { display:grid; padding:12px 14px; border:1px solid var(--tos-line); border-radius:var(--tos-radius); background:var(--tos-card); }
     .totals small { color:var(--tos-ink-soft); font-weight:700; }
@@ -267,7 +358,7 @@ export class SortWorkComponent implements OnInit {
   protected readonly nav = inject(NavService);
   /** A laptop: wide layout, the shared header and typed numbers (phones keep the floor screen). */
   protected readonly desktop = typeof matchMedia === 'function' && matchMedia('(pointer: fine) and (min-width: 1024px)').matches;
-  protected readonly icons = { ArrowLeft, CheckCircle2, Minus, Plus, Printer };
+  protected readonly icons = { ArrowLeft, CheckCircle2, Minus, Plus, Printer, Trash2 };
   protected readonly stage = signal<Stage>(1);
 
   protected readonly title = signal('');
@@ -291,6 +382,26 @@ export class SortWorkComponent implements OnInit {
   protected readonly madeBales = signal<NonNullable<SortSummary['madeBales']>>([]);
   private readonly kgField = viewChild(NumberFieldComponent);
   protected readonly confirmClose = signal(false);
+  /** The lot (supplier, raw type, day, cost per kg) and its entries, newest first (v2 sorting review). */
+  protected readonly lot = signal<SortLot | null>(null);
+  protected readonly entries = signal<SortEntry[]>([]);
+  protected readonly showAll = signal(false);
+  protected readonly shownEntries = computed(() => (this.showAll() ? this.entries() : this.entries().slice(0, 8)));
+  protected readonly removing = signal<string | null>(null);
+  protected readonly busyRemove = signal(false);
+  /** "Shershah Gaari · Mixed · 11 Nov 2026": who sold it, what is inside, the day bought. */
+  protected readonly lotMeta = computed(() => {
+    const l = this.lot();
+    if (!l) return '';
+    const day = new Date(l.boughtAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    return [l.supplier ?? l.container, l.rawType, day].filter(Boolean).join(' · ');
+  });
+  /** What closing would book: kg per category (from the totals) before the question. */
+  protected readonly closePreview = computed(() => {
+    const names = new Map(this.kinds().map((k) => [k.id, k.name]));
+    return Object.entries(this.kgByKind()).filter(([, kg]) => kg > 0).map(([id, kg]) => ({ name: names.get(id) ?? '', kg })).sort((a, b) => b.kg - a.kg);
+  });
+  protected readonly outputKgAtClose = computed(() => (this.result() ?? []).reduce((s, o) => s + Number(o.weightKg), 0));
   protected readonly closing = signal(false);
   protected readonly throwing = signal(false);
   protected readonly result = signal<SessionOutput[] | null>(null);
@@ -403,6 +514,35 @@ export class SortWorkComponent implements OnInit {
         const open = output?.gradeSessions.find((s) => s.status === 'OPEN');
         if (open) this.data.gradeSession(open.id).subscribe((s) => this.applySummary(s));
       });
+    }
+  }
+
+  /** "3:42 pm" today, "9 Nov, 3:42 pm" before. */
+  protected when(at: string): string {
+    const d = new Date(at);
+    const time = d.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return d.toDateString() === new Date().toDateString() ? time : `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}, ${time}`;
+  }
+
+  /** Takes one entry back (and its bales, if none is used); the list and totals come back from the server. */
+  protected async removeEntry(e: SortEntry): Promise<void> {
+    this.busyRemove.set(true);
+    try {
+      const r = await this.queue.send<SortSummary>({
+        kind: 'sort',
+        label: `${this.title()} · ${e.categoryName} · −${this.i18n.kg(e.kg)}`,
+        url: `/api/sorting/stage-1/entries/${e.id}/remove`,
+        body: {},
+        meta: { target: this.id(), stage: 1, type: 'undo', kind: e.categoryId, kg: Number(e.kg), bales: e.bales },
+      });
+      if (r.saved) this.applySummary(r.response);
+      if (e.baleIds.length && this.lastBales()?.ids.some((id) => e.baleIds.includes(id))) this.lastBales.set(null);
+      this.toast.show(this.i18n.t('sort.removed', { name: e.gradeName ? `${e.categoryName} · ${e.gradeName}` : e.categoryName }));
+    } catch (err: any) {
+      this.toast.error(err?.error?.message || this.i18n.t('common.couldNotSave'));
+    } finally {
+      this.busyRemove.set(false);
+      this.removing.set(null);
     }
   }
 
@@ -676,6 +816,12 @@ export class SortWorkComponent implements OnInit {
   }
 
   private applySummary(summary: SortSummary | null): void {
+    if (summary?.lot) {
+      this.lot.set(summary.lot);
+      if (!this.title()) this.title.set(summary.lot.code);
+      if (!this.inputKg() && Number(summary.lot.weightKg) > 0) this.inputKg.set(Number(summary.lot.weightKg));
+    }
+    if (summary?.entries) this.entries.set(summary.entries);
     if (!summary?.session) return;
     if (!this.inputKg() && Number(summary.session.totalInputWeight) > 0) this.inputKg.set(Number(summary.session.totalInputWeight));
     this.sessionId.set(summary.session.id);

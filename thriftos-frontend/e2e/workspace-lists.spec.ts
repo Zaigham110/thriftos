@@ -1,5 +1,6 @@
 import { APIRequestContext, Page, expect, test } from '@playwright/test';
 import { apiAs, signIn } from './helpers';
+import { loose, sortLoose } from './floor';
 
 // Enterprise plan E2 in the browser: the sales list (server paging, filters, group-by, saved views, export)
 // and a sale's record page (pipeline, amounts, lines/payments, notes with @mention, attachments),
@@ -857,4 +858,44 @@ test('loose lot by rate per kg with transport and a bill attached (owner, 2026-1
   expect(lot.charges.map((c: any) => [c.kind, Number(c.amount)])).toEqual([['TRANSPORT', 5000]]);
   // The bill is on the lot.
   await expect(page.locator('ws-record-activity')).toContainText('gaari-bill.pdf');
+});
+
+test('sorting screen: lot details, what came out, take one back, close with a summary (v2 sorting review)', async ({ page, request }) => {
+  const api = await apiAs(request);
+  const tag = Date.now().toString().slice(-6);
+  const supplier = await api.post('/procurement/vendors', { name: `Sort Rags ${tag}` });
+  const lot = await api.post('/procurement/rags', { ragBaleType: 'BALE', weightKg: 300, ratePerKg: 100, vendorId: supplier.id });
+  await page.setViewportSize({ width: 390, height: 860 });
+  await signIn(page);
+  await page.goto(`/sort/${lot.id}`);
+  // The lot's details under its number, and its numbers.
+  await expect(page.locator('h1')).toContainText(`Sort Rags ${tag}`);
+  await expect(page.locator('.overview')).toContainText(loose('300.0 kg'));
+  await expect(page.getByText('Nothing yet.')).toBeVisible();
+
+  await sortLoose(page, 'Jeans', 40);
+  await sortLoose(page, 'Dresses', 25);
+  const list = page.locator('.entries .elist li');
+  await expect(list).toHaveCount(2);
+  await expect(list.first()).toContainText('Dresses');
+  await expect(page.locator('.overview')).toContainText(loose('65.0 kg'));
+
+  // Take the Shirts entry back.
+  await list.first().getByRole('button', { name: 'Take this entry back' }).click();
+  await list.first().getByRole('button', { name: 'Take back' }).click();
+  await expect(list).toHaveCount(1);
+  await expect(page.locator('.overview')).toContainText(loose('40.0 kg'));
+
+  // Closing shows what came out and the kat first.
+  await page.getByRole('button', { name: 'Close lot' }).click();
+  const confirm = page.locator('.confirm');
+  await expect(confirm).toContainText('Jeans');
+  await expect(confirm).toContainText(loose('260.0 kg'));
+  await confirm.getByRole('button', { name: 'Close lot' }).click();
+  await expect(page.getByText(/came out/)).toBeVisible();
+
+  // Opened again later, a finished lot shows its result, not an empty screen.
+  await page.goto(`/sort/${lot.id}`);
+  await expect(page.locator('.overview')).toHaveCount(0);
+  await expect(page.getByText(/came out/)).toBeVisible();
 });

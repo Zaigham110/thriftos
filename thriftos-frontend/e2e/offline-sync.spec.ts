@@ -109,8 +109,8 @@ test('offline lot, sort lines and bale sync once', async ({ page, context, reque
   await page.goto(`/sort/${lot.id}`);
   await sortLoose(page, 'Jeans', 120);
   await sortLoose(page, 'Dresses', 50);
-  await expect(page.locator('.totals')).toContainText(loose('170.0 kg'));
-  await expect(page.locator('.totals')).toContainText(loose('30.0 kg'));
+  await expect(page.locator('.overview')).toContainText(loose('170.0 kg'));
+  await expect(page.locator('.overview')).toContainText(loose('30.0 kg'));
 
   await page.goto('/stock/bale');
   await page.locator('.tiles').getByRole('button').filter({ hasText: 'T-Shirts' }).first().click();

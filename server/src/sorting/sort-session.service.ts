@@ -126,12 +126,11 @@ export class SortSessionService {
 
   /** The open session for a lot, or an empty summary (used to resume). */
   async openSummaryForLot(tenantId: string, lotId: string) {
-    const session = await this.prisma.sortSession.findFirst({
-      where: { tenantId, status: SortStatus.OPEN, ragId: lotId },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true },
-    });
-    if (!session) return { session: null, buckets: [], wasteLineItems: [] };
+    // The open sorting of the lot; a finished lot shows its result (v2 sorting review), not an empty screen.
+    const session =
+      (await this.prisma.sortSession.findFirst({ where: { tenantId, status: SortStatus.OPEN, ragId: lotId }, orderBy: { createdAt: 'desc' }, select: { id: true } })) ??
+      (await this.prisma.sortSession.findFirst({ where: { tenantId, ragId: lotId }, orderBy: { createdAt: 'desc' }, select: { id: true } }));
+    if (!session) return { session: null, buckets: [], wasteLineItems: [], lot: await this.lotInfo(tenantId, lotId) };
     return this.summary(tenantId, session.id);
   }
 
@@ -158,10 +157,10 @@ export class SortSessionService {
       this.prisma.categoryOutput.findMany({
         where: { tenantId, sortSessionId: sessionId },
         select: {
-          categoryId: true, gradeId: true, weightKg: true, usedKg: true, allocatedCost: true, entryBales: true, createdAt: true,
+          id: true, categoryId: true, gradeId: true, weightKg: true, usedKg: true, allocatedCost: true, entryBales: true, createdAt: true,
           category: { select: { name: true } }, grade: { select: { name: true, rank: true } },
           _count: { select: { gradeSessions: true } },
-          baleAllocations: { select: { repackUnitId: true, repackUnit: { select: { createdAt: true, weightKg: true, categoryId: true, gradeId: true, category: { select: { name: true } }, grade: { select: { name: true, rank: true } } } } } },
+          baleAllocations: { select: { repackUnitId: true, repackUnit: { select: { createdAt: true, weightKg: true, categoryId: true, gradeId: true, category: { select: { name: true } }, grade: { select: { name: true, rank: true } }, inventoryItems: { select: { usedQuantity: true, status: true } }, _count: { select: { inputAllocations: true } } } } } },
         },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       }),
@@ -237,7 +236,74 @@ export class SortSessionService {
             .map((k) => ({ id: `${k.categoryId}:${k.gradeId ?? ''}`, name: k.gradeName ? `${k.categoryName} · ${k.gradeName}` : k.categoryName, categoryId: k.categoryId, gradeId: k.gradeId, weightKg: k.kg.toString(), bales: k.bales, cost: k.cost.toString(), costPerKg: costPerKg(k.cost, k.kg).toString() }))
         : [],
       kat: kat ? { id: kat.id, name: kat.name, kg: kat.quantity.toString(), leftKg: kat.quantity.sub(kat.usedQuantity).toString(), status: kat.status } : null,
+      // The lot itself (who sold it, what is inside, when, its cost per kg) and every entry, newest first (v2 review).
+      lot: await this.lotInfo(tenantId, session.rag.id),
+      entries: [...outputs].reverse().map((o) => {
+        const unitIds = [...new Set(o.baleAllocations.map((a) => a.repackUnitId))];
+        const ownBales = o.entryBales > 0;
+        // Can be taken back while the lot is open and nothing from it is used (same rule as the server's undo).
+        const used = ownBales
+          ? o.baleAllocations.some((a) => a.repackUnit._count.inputAllocations > 1 || a.repackUnit.inventoryItems.some((i) => i.usedQuantity.greaterThan(0) || i.status !== InventoryStatus.AVAILABLE))
+          : o.usedKg.greaterThan(0) || o._count.gradeSessions > 0;
+        return {
+          id: o.id,
+          at: o.createdAt,
+          categoryId: o.categoryId,
+          categoryName: o.category.name,
+          gradeName: o.grade?.name ?? null,
+          kg: o.weightKg.toString(),
+          bales: o.entryBales,
+          baleIds: ownBales ? unitIds : [],
+          removable: !closed && !used,
+        };
+      }),
     };
+  }
+
+  /** What the sorting screen shows about a lot: code, supplier, raw type, day bought, weight and cost per kg. */
+  private async lotInfo(tenantId: string, lotId: string) {
+    const r = await this.prisma.rag.findFirst({
+      where: { id: lotId, tenantId },
+      select: {
+        id: true, ragCode: true, weightKg: true, allocatedCost: true, createdAt: true, status: true,
+        vendor: { select: { name: true } }, rawCategory: { select: { name: true } }, container: { select: { containerNumber: true, vendor: { select: { name: true } } } },
+      },
+    });
+    if (!r) return null;
+    return {
+      id: r.id, code: r.ragCode, status: r.status, weightKg: r.weightKg.toString(), boughtAt: r.createdAt,
+      supplier: r.vendor?.name ?? r.container?.vendor?.name ?? null, rawType: r.rawCategory?.name ?? null, container: r.container?.containerNumber ?? null,
+      costPerKg: r.weightKg.greaterThan(0) ? r.allocatedCost.div(r.weightKg).toDecimalPlaces(2).toString() : null,
+    };
+  }
+
+  /** Takes one entry back by its id (the list on the sorting screen): its bales too, if none is used. */
+  async removeEntry(tenantId: string, outputId: string, userId: string) {
+    const removed = await this.prisma.$transaction(async (tx) => {
+      const output = await tx.categoryOutput.findFirst({
+        where: { id: outputId, tenantId },
+        include: { baleAllocations: { select: { repackUnitId: true } }, _count: { select: { gradeSessions: true } } },
+      });
+      if (!output) throw new NotFoundException('Entry not found');
+      const session = await tx.sortSession.findFirstOrThrow({ where: { id: output.sortSessionId, tenantId }, select: { status: true } });
+      if (session.status !== SortStatus.OPEN) throw new ConflictException('This lot is closed; its entries cannot change');
+      if (output._count.gradeSessions) throw new ConflictException('This entry was graded separately; it cannot be taken back');
+      const capacity = await this.waste.capacity(tx, tenantId, WasteStage.STAGE_1, output.sortSessionId);
+      await this.deleteEntry(tx, tenantId, output);
+      await tx.sortCategoryBucket.update({ where: { id: output.sortCategoryBucketId }, data: { outputWeightKg: { decrement: output.weightKg } } });
+      const outputKg = capacity.outputKg.sub(output.weightKg);
+      await tx.sortSession.update({ where: { id: output.sortSessionId }, data: { totalOutputWeight: outputKg, wasteWeight: capacity.inputKg.sub(outputKg) } });
+      return output;
+    }, LONG_TX);
+    await this.audit.log({
+      tenantId,
+      userId,
+      action: 'SORT_OUTPUT_REMOVED',
+      entityType: 'SortSession',
+      entityId: removed.sortSessionId,
+      metadataJson: { categoryId: removed.categoryId, gradeId: removed.gradeId, amountKg: removed.weightKg.toString(), bales: removed.entryBales, outputId },
+    });
+    return this.summary(tenantId, removed.sortSessionId);
   }
 
   /**

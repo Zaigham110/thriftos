@@ -1,0 +1,59 @@
+import { INestApplication } from '@nestjs/common';
+import { PrismaService } from '../../src/prisma/prisma.service';
+import { api, createTenantWithOwner, createTestApp, seedSortableLot, TestTenant } from './fixtures';
+
+/** v2 sorting review: the screen gets the lot's details and every entry; one entry can be taken back; a finished lot shows its result. */
+describe('Sorting screen: lot details, entries, remove one, finished lot (e2e)', () => {
+  let app: INestApplication;
+  let prisma: PrismaService;
+  let a: TestTenant;
+  let b: TestTenant;
+
+  beforeAll(async () => {
+    app = await createTestApp();
+    prisma = app.get(PrismaService);
+    a = await createTenantWithOwner(app);
+    b = await createTenantWithOwner(app);
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('lists entries newest first, removes one by id (and its bales), and shows a finished lot with its result', async () => {
+    const { lot, jeans, shirts, gradeA, waste } = await seedSortableLot(app, a.tenantId);
+    const vendor = await prisma.vendor.create({ data: { tenantId: a.tenantId, name: 'Shershah Gaari' } });
+    await prisma.rag.update({ where: { id: lot.id }, data: { vendorId: vendor.id } });
+
+    // Before sorting: the lot's details already come with the (empty) summary.
+    const before = (await api(app, a).get(`/sorting/stage-1/summary?ragId=${lot.id}`).expect(200)).body;
+    expect(before.session).toBeNull();
+    expect(before.lot).toMatchObject({ code: lot.ragCode, supplier: 'Shershah Gaari', rawType: 'Mixed', weightKg: '100', costPerKg: '500' });
+
+    const session = (await api(app, a).post('/sorting/stage-1/start', { ragId: lot.id }).expect(201)).body.session ?? (await api(app, a).get(`/sorting/stage-1/summary?ragId=${lot.id}`).expect(200)).body.session;
+    await api(app, a).post('/sorting/stage-1/allocate', { sessionId: session.id, categoryId: jeans.id, amountKg: 30 }).expect(200);
+    await api(app, a).post('/sorting/stage-1/allocate', { sessionId: session.id, categoryId: shirts.id, gradeId: gradeA.id, bales: 2, baleWeightKg: 10 }).expect(200);
+    let s = (await api(app, a).get(`/sorting/stage-1/summary?ragId=${lot.id}`).expect(200)).body;
+    expect(s.lot.supplier).toBe('Shershah Gaari');
+    expect(s.entries.map((e: any) => [e.categoryName, e.gradeName, Number(e.kg), e.bales, e.baleIds.length, e.removable])).toEqual([
+      ['Shirts', 'A', 20, 2, 2, true],
+      ['Jeans', null, 30, 0, 0, true],
+    ]);
+
+    // Another business cannot touch it; taking the bales entry back removes its bales from stock.
+    const balesEntry = s.entries[0];
+    await api(app, b).post(`/sorting/stage-1/entries/${balesEntry.id}/remove`).expect(404);
+    s = (await api(app, a).post(`/sorting/stage-1/entries/${balesEntry.id}/remove`).expect(200)).body;
+    expect(s.entries.map((e: any) => e.categoryName)).toEqual(['Jeans']);
+    expect(Number(s.session.totalOutputWeight)).toBe(30);
+    expect(await prisma.repackUnit.count({ where: { id: { in: balesEntry.baleIds } } })).toBe(0);
+
+    // Closed: entries cannot change; opening the lot again returns its result, not an empty screen.
+    await api(app, a).patch(`/sorting/stage-1/${session.id}/seal`, { wasteCategoryId: waste.id }).expect(200);
+    s = (await api(app, a).get(`/sorting/stage-1/summary?ragId=${lot.id}`).expect(200)).body;
+    expect(s.session.status).toBe('CLOSED');
+    expect(s.outputs.map((o: any) => o.name)).toEqual(['Jeans']);
+    expect(s.entries[0].removable).toBe(false);
+    await api(app, a).post(`/sorting/stage-1/entries/${s.entries[0].id}/remove`).expect(409);
+  });
+});

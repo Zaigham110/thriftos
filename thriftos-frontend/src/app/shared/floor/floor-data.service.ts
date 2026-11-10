@@ -39,7 +39,13 @@ export interface SortSummary {
   kat?: { id: string; name: string; kg: string; leftKg: string; status: string } | null;
   /** Bales made by the entry just saved (for printing stickers). */
   baleIds?: string[];
+  /** The lot itself (v2 sorting review). */
+  lot?: SortLot | null;
+  /** Every entry of this lot, newest first. */
+  entries?: SortEntry[];
 }
+export interface SortLot { id: string; code: string; status: string; weightKg: string; boughtAt: string; supplier: string | null; rawType: string | null; container: string | null; costPerKg: string | null }
+export interface SortEntry { id: string; at: string; categoryId: string; categoryName: string; gradeName: string | null; kg: string; bales: number; baleIds: string[]; removable: boolean }
 export interface GradeQueueItem { id: string; weightKg: string; category: Named; rag?: { ragCode: string } | null; gradeSessions: { id: string; status: string }[] }
 export interface BaleKind { categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; availableKg: string }
 
