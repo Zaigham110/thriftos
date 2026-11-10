@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { INestApplication } from '@nestjs/common';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { api, createTenantWithOwner, createTestApp, TestTenant } from './fixtures';
@@ -51,5 +53,46 @@ describe('Loose lot form: date, raw type, supplier and editing (e2e)', () => {
     // A container lot keeps the container's supplier and date.
     const c = await api(app, a).post('/procurement/containers', { vendorId: shershah.body.id, netWeightKg: 500, purchaseCost: 5000, withLot: true }).expect(201);
     await api(app, a).patch(`/procurement/rags/${c.body.rags[0].id}`, { vendorId: other.body.id }).expect(400);
+  });
+
+  it('rate per kg and extra charges (transport, labour): the price is kg × rate and the lot costs price + charges (owner, 2026-11-11)', async () => {
+    // 800 kg at Rs 210/kg = Rs 168,000, with transport 6,000 and labour 2,500.
+    const r = await api(app, a)
+      .post('/procurement/rags', {
+        ragBaleType: 'BALE', weightKg: 800, ratePerKg: 210,
+        charges: [{ kind: 'TRANSPORT', amount: 6000, note: 'Rickshaw from Shershah' }, { kind: 'LABOUR', amount: 2500 }],
+      })
+      .expect(201);
+    expect(r.body.charges.map((c: any) => [c.kind, Number(c.amount)])).toEqual([['TRANSPORT', 6000], ['LABOUR', 2500]]);
+    let lot = await prisma.rag.findUniqueOrThrow({ where: { id: r.body.id } });
+    expect([Number(lot.ratePerKg), Number(lot.purchaseCost), Number(lot.allocatedCost)]).toEqual([210, 168000, 176500]);
+    expect((await api(app, a).get(`/procurement/rags/${lot.id}`).expect(200)).body.charges).toHaveLength(2);
+
+    // Change the charges (the whole list): transport only, 4,000.
+    await api(app, a).patch(`/procurement/rags/${lot.id}`, { charges: [{ kind: 'TRANSPORT', amount: 4000 }] }).expect(200);
+    lot = await prisma.rag.findUniqueOrThrow({ where: { id: lot.id } });
+    expect(Number(lot.allocatedCost)).toBe(172000);
+    expect(await prisma.lotCharge.count({ where: { ragId: lot.id } })).toBe(1);
+
+    // A new rate re-prices it; typing a total instead forgets the rate.
+    await api(app, a).patch(`/procurement/rags/${lot.id}`, { ratePerKg: 200 }).expect(200);
+    lot = await prisma.rag.findUniqueOrThrow({ where: { id: lot.id } });
+    expect([Number(lot.purchaseCost), Number(lot.allocatedCost)]).toEqual([160000, 164000]);
+    await api(app, a).patch(`/procurement/rags/${lot.id}`, { purchaseCost: 150000 }).expect(200);
+    lot = await prisma.rag.findUniqueOrThrow({ where: { id: lot.id } });
+    expect([lot.ratePerKg, Number(lot.allocatedCost)]).toEqual([null, 154000]);
+
+    // Wrong kinds and amounts are refused; a container lot takes charges on the container; another business cannot.
+    await api(app, a).post('/procurement/rags', { ragBaleType: 'BALE', weightKg: 10, purchaseCost: 100, charges: [{ kind: 'TEA', amount: 5 }] }).expect(400);
+    await api(app, a).post('/procurement/rags', { ragBaleType: 'BALE', weightKg: 10, purchaseCost: 100, charges: [{ kind: 'LABOUR', amount: 0 }] }).expect(400);
+    const v = await api(app, a).post('/procurement/vendors', { name: 'Charge Vendor' }).expect(201);
+    const c = await api(app, a).post('/procurement/containers', { vendorId: v.body.id, netWeightKg: 500, purchaseCost: 5000, withLot: true }).expect(201);
+    await api(app, a).patch(`/procurement/rags/${c.body.rags[0].id}`, { charges: [{ kind: 'LABOUR', amount: 100 }] }).expect(400);
+    await api(app, b).patch(`/procurement/rags/${lot.id}`, { charges: [] }).expect(404);
+    expect(await prisma.lotCharge.count({ where: { tenantId: b.tenantId } })).toBe(0);
+
+    // The cost check agrees (price + charges = lot cost) for this business.
+    const rows = (await prisma.$queryRawUnsafe<{ tenantId: string }[]>(fs.readFileSync(path.resolve(__dirname, '../../../prisma/checks/cost-chain-check.sql'), 'utf8'))).filter((x) => x.tenantId === a.tenantId);
+    expect(rows).toEqual([]);
   });
 });

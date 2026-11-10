@@ -268,6 +268,7 @@ model Tenant {
   purchaseOrders         PurchaseOrder[]
   containers             Container[]
   rags                   Rag[]
+  lotCharges             LotCharge[]
   sortSessions           SortSession[]
   categoryOutputs        CategoryOutput[]
   gradeSessions          GradeSession[]
@@ -909,7 +910,9 @@ model Rag {
   weightKg      Decimal     @db.Decimal(10, 2)
   /// Price paid for a loose lot bought without a container (null for container lots).
   purchaseCost  Decimal?    @db.Decimal(14, 2)
-  /// Container lots: share of the container's landed cost. Loose lots: purchaseCost.
+  /// The rate per kg typed for a loose lot (purchaseCost = kg × rate); null when the total was typed.
+  ratePerKg     Decimal?    @db.Decimal(14, 2)
+  /// Container lots: share of the container's landed cost. Loose lots: purchaseCost + its charges (LotCharge).
   allocatedCost Decimal     @db.Decimal(14, 2)
 
   // =============================================================
@@ -934,6 +937,8 @@ model Rag {
 
   // One-to-one with SortSession: Each Rag can only be sorted ONCE
   sortSession SortSession?
+  /// Transport, labour and other costs of a loose lot (part of its cost).
+  charges     LotCharge[]
 
   // Downstream traceability relations (Phase 2.5)
   categoryOutputs CategoryOutput[] // Category outputs from this rag
@@ -1672,4 +1677,23 @@ model ImportedRow {
 
   @@unique([tenantId, kind, rowKey])
   @@index([tenantId])
+}
+
+/// A cost of bringing a loose lot in on top of its price (transport, labour, loading…); part of the lot's cost.
+model LotCharge {
+  id        String   @id @default(cuid())
+  tenantId  String
+  ragId     String
+  /// TRANSPORT, LABOUR, LOADING or OTHER
+  kind      String
+  amount    Decimal  @db.Decimal(14, 2)
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  rag    Rag    @relation(fields: [ragId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([tenantId])
+  @@index([ragId])
 }

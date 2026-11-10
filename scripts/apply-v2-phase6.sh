@@ -24,6 +24,8 @@
 #                                        User.mustChangePassword (owners sign in with email)
 #  10. 20261114100000_v6_13_console_setup  data only: businesses made with the console's New business form
 #                                        are marked set up (the owner skips the setup)
+#  11. 20261115100000_v6_14_lot_charges  Rag.ratePerKg and LotCharge (transport, labour… of a loose lot,
+#                                        part of its cost)
 # Data step: base data (server/src/bootstrap): adds data.import and gives every Admin (owner) role all permissions.
 # Idempotent; nothing else changes.
 set -euo pipefail

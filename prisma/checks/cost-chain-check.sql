@@ -13,6 +13,12 @@ lots AS (
   FROM "Container" c JOIN "Rag" r ON r."containerId" = c.id
   GROUP BY c.id
 ),
+loose AS (
+  -- A loose lot costs its price plus its charges (transport, labour…).
+  SELECT r.id, r."tenantId", r."ragCode" AS ref, r."allocatedCost" AS stored,
+         r."purchaseCost" + COALESCE((SELECT SUM(amount) FROM "LotCharge" lc WHERE lc."ragId" = r.id), 0) AS expected
+  FROM "Rag" r WHERE r."containerId" IS NULL AND r."purchaseCost" IS NOT NULL
+),
 categories AS (
   SELECT r.id, r."tenantId", r."ragCode" AS ref, r."allocatedCost" AS expected, SUM(co."allocatedCost") AS stored
   FROM "Rag" r JOIN "CategoryOutput" co ON co."ragId" = r.id
@@ -66,6 +72,7 @@ bought_used_up AS (
 )
 SELECT 'container landed cost' AS stage, "tenantId", ref, expected, stored FROM landed WHERE stored <> expected
 UNION ALL SELECT 'lots vs container', "tenantId", ref, expected, stored FROM lots WHERE stored <> expected
+UNION ALL SELECT 'loose lot vs price and charges', "tenantId", ref, expected, stored FROM loose WHERE stored <> expected
 UNION ALL SELECT 'category outputs vs lot', "tenantId", ref, expected, stored FROM categories WHERE stored <> expected
 UNION ALL SELECT 'grade outputs vs category output', "tenantId", ref, expected, stored FROM grades WHERE stored <> expected
 UNION ALL SELECT 'bale vs its inputs', "tenantId", ref, expected, stored FROM bales WHERE stored <> expected

@@ -1,4 +1,6 @@
-import { IsString, IsNotEmpty, IsNumber, Min, MaxLength, IsOptional, IsEnum, IsDateString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { LotChargeDto } from './lot-charge.dto';
+import { IsString, IsNotEmpty, IsNumber, Min, MaxLength, IsOptional, IsEnum, IsDateString, IsArray, ArrayMaxSize, ValidateNested } from 'class-validator';
 import { RagBaleType } from '@prisma/client';
 
 export class CreateRagDto {
@@ -38,4 +40,18 @@ export class CreateRagDto {
   @IsDateString()
   @IsOptional()
   receivedAt?: string;
+
+  /** Loose lot: the rate per kg; without a price the price is kg × rate. */
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @IsOptional()
+  ratePerKg?: number;
+
+  /** Loose lot: transport, labour and other charges, part of its cost (on a change: the whole new list). */
+  @IsArray()
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => LotChargeDto)
+  @IsOptional()
+  charges?: LotChargeDto[];
 }

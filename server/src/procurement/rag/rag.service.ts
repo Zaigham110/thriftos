@@ -9,6 +9,19 @@ import { ContainerStatus, RagStatus, RagSourceType, SequenceScope } from '@prism
 import { defaultRawCategoryId } from '../shared/default-raw-category';
 import { TenantSequenceService } from '../shared/tenant-sequence.service';
 
+const CHARGE_SELECT = { id: true, kind: true, amount: true, note: true } as const;
+
+/** A loose lot's price: the total typed, else kg × rate per kg (to the paisa), else 0. */
+export function lotPrice(kg: number, total?: number, ratePerKg?: number): Prisma.Decimal {
+  if (total !== undefined && total !== null) return new Prisma.Decimal(total);
+  if (ratePerKg !== undefined && ratePerKg !== null) return new Prisma.Decimal(kg).mul(ratePerKg).toDecimalPlaces(2);
+  return new Prisma.Decimal(0);
+}
+
+export function sumCharges(charges: { amount: number | Prisma.Decimal }[]): Prisma.Decimal {
+  return charges.reduce<Prisma.Decimal>((s, c) => s.add(c.amount), new Prisma.Decimal(0));
+}
+
 @Injectable()
 export class RagService {
   constructor(
@@ -96,7 +109,13 @@ export class RagService {
     const originCountry = container?.originCountry
       ?? (vendorId ? (await this.prisma.vendor.findUnique({ where: { id: vendorId }, select: { originCountry: true } }))?.originCountry : null)
       ?? null;
-    const purchaseCost = container ? null : new Prisma.Decimal(dto.purchaseCost ?? 0);
+    if (container && (dto.ratePerKg !== undefined || dto.charges?.length)) {
+      throw new BadRequestException('A container lot takes its cost from the container. Add charges to the container.');
+    }
+    // A loose lot: the price typed, or kg × rate per kg; its charges (transport, labour…) are part of its cost.
+    const purchaseCost = container ? null : lotPrice(dto.weightKg, dto.purchaseCost, dto.ratePerKg);
+    const charges = container ? [] : (dto.charges ?? []);
+    const lotCost = purchaseCost ? purchaseCost.add(sumCharges(charges)) : null;
     const boughtAt = container ? null : lotDate(dto.receivedAt);
 
     const rag = await this.prisma.$transaction(async (tx) => {
@@ -112,7 +131,9 @@ export class RagService {
           originCountry,
           weightKg: dto.weightKg,
           purchaseCost,
-          allocatedCost: purchaseCost ?? 0,
+          ratePerKg: !container && dto.ratePerKg !== undefined ? new Prisma.Decimal(dto.ratePerKg) : null,
+          allocatedCost: lotCost ?? 0,
+          ...(charges.length ? { charges: { create: charges.map((c) => ({ tenantId, kind: c.kind, amount: new Prisma.Decimal(c.amount), note: c.note?.trim() || null })) } } : {}),
           notes: dto.notes,
           ...(boughtAt && { createdAt: boughtAt }),
         },
@@ -124,6 +145,7 @@ export class RagService {
         include: {
           container: { select: { containerNumber: true } },
           rawCategory: { select: { id: true, name: true, rawType: true } },
+          charges: { select: CHARGE_SELECT, orderBy: { createdAt: 'asc' } },
         },
       });
     });
@@ -221,6 +243,7 @@ export class RagService {
         rawCategory: {
           select: { id: true, name: true, rawType: true },
         },
+        charges: { select: CHARGE_SELECT, orderBy: { createdAt: 'asc' } },
         // Phase 2.5: One-to-one relation (Rag can only have one SortSession)
         sortSession: {
           select: { id: true, status: true },
@@ -242,7 +265,7 @@ export class RagService {
     if (reshapes && rag.status !== RagStatus.NOT_STARTED) {
       throw new ConflictException('Weight and type can only change before the lot is sorted');
     }
-    if (dto.purchaseCost !== undefined && rag.containerId) {
+    if ((dto.purchaseCost !== undefined || dto.ratePerKg !== undefined || dto.charges !== undefined) && rag.containerId) {
       throw new BadRequestException('A container lot takes its cost from the container. Change the container purchase cost or charges.');
     }
     if (dto.rawCategoryId) {
@@ -272,19 +295,32 @@ export class RagService {
       }
     }
 
+    // The price: typed, or kg × rate when only the rate (or the kg of a lot priced by rate) changes.
+    const kgNow = dto.weightKg ?? Number(rag.weightKg);
+    const rate = dto.ratePerKg !== undefined ? dto.ratePerKg : dto.purchaseCost === undefined && rag.ratePerKg !== null && dto.weightKg !== undefined ? Number(rag.ratePerKg) : undefined;
+    const newPrice = dto.purchaseCost !== undefined || rate !== undefined ? lotPrice(kgNow, dto.purchaseCost, rate) : undefined;
+    const costChanges = newPrice !== undefined || dto.charges !== undefined;
+
     const updated = await this.prisma.$transaction(async (tx) => {
+      if (dto.charges !== undefined) {
+        await tx.lotCharge.deleteMany({ where: { ragId: id, tenantId } });
+        if (dto.charges.length) {
+          await tx.lotCharge.createMany({ data: dto.charges.map((c) => ({ tenantId, ragId: id, kind: c.kind, amount: new Prisma.Decimal(c.amount), note: c.note?.trim() || null })) });
+        }
+      }
       await tx.rag.update({
         where: { id },
         data: {
           ...(dto.rawCategoryId !== undefined && { rawCategoryId: dto.rawCategoryId }),
           ...(dto.weightKg !== undefined && { weightKg: new Prisma.Decimal(dto.weightKg) }),
-          ...(dto.purchaseCost !== undefined && { purchaseCost: new Prisma.Decimal(dto.purchaseCost) }),
+          ...(newPrice !== undefined && { purchaseCost: newPrice }),
+          ...(dto.ratePerKg !== undefined ? { ratePerKg: new Prisma.Decimal(dto.ratePerKg) } : dto.purchaseCost !== undefined ? { ratePerKg: null } : {}),
           ...(dto.notes !== undefined && { notes: dto.notes }),
           ...(vendor && { vendorId: vendor.id, ...(vendor.originCountry ? { originCountry: vendor.originCountry } : {}) }),
           ...(boughtAt && { createdAt: boughtAt }),
         },
       });
-      if (dto.weightKg !== undefined || dto.purchaseCost !== undefined) {
+      if (dto.weightKg !== undefined || costChanges) {
         await this.costing.recalculateLotChainTx(tx, tenantId, id, userId);
       }
       return tx.rag.findUniqueOrThrow({
@@ -292,6 +328,7 @@ export class RagService {
         include: {
           container: { select: { containerNumber: true } },
           rawCategory: { select: { id: true, name: true, rawType: true } },
+          charges: { select: CHARGE_SELECT, orderBy: { createdAt: 'asc' } },
         },
       });
     });

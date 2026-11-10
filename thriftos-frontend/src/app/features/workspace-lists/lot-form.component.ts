@@ -15,16 +15,23 @@ interface Option { id: string; name: string; originCountry?: string | null; coun
 /** GET /api/procurement/rags/:id (the fields this form uses). */
 interface LotRow {
   id: string; ragCode: string; status: string; containerId: string | null; vendorId: string | null; rawCategoryId: string | null;
-  weightKg: string; purchaseCost: string | null; notes: string | null; createdAt: string;
+  weightKg: string; purchaseCost: string | null; ratePerKg: string | null; notes: string | null; createdAt: string;
+  charges?: { kind: ChargeKind; amount: string; note: string | null }[];
 }
+type ChargeKind = 'TRANSPORT' | 'LABOUR' | 'LOADING' | 'OTHER';
+interface Charge { kind: ChargeKind; amount: number | null; note: string }
+const CHARGE_KINDS: ChargeKind[] = ['TRANSPORT', 'LABOUR', 'LOADING', 'OTHER'];
+/** What can be attached to a lot (the server checks the same: photos, PDF, Excel, Word; 10 MB each). */
+const DOC_TYPES = 'image/*,application/pdf,.xlsx,.xls,.csv,.docx';
 
 const today = () => new Date(Date.now() + 5 * 3_600_000).toISOString().slice(0, 10);
 const day = (v: string) => new Date(new Date(v).getTime() + 5 * 3_600_000).toISOString().slice(0, 10);
 
 /**
  * The laptop form to buy a loose lot (a gaari or bales bought locally, no container), and to fix one later
- * (v2 review). Supplier, what is inside, the day, kg and price; the side shows the price per kg and what is
- * still missing. Saving opens the lot. Kg and raw type stay as they are once sorting has started.
+ * (v2 review). Supplier, what is inside, the day, kg and price (a total, or a rate per kg), extra charges
+ * (transport, labour…, part of the lot's cost) and the bill or other papers; the side shows the lot's cost and cost
+ * per kg and what is still missing. Saving opens the lot. Kg and raw type stay as they are once sorting has started.
  */
 @Component({
   selector: 'app-lot-form',
@@ -88,18 +95,65 @@ const day = (v: string) => new Date(new Date(v).getTime() + 5 * 3_600_000).toISO
                   <input name="kg" type="number" min="0.01" step="0.01" required [ngModel]="kg()" (ngModelChange)="kg.set($event)" [disabled]="locked()" />
                   @if (locked()) { <small>{{ 'ws.cf.kgLocked' | t }}</small> }
                 </label>
-                <label>{{ 'ws.purchaseLots.col.cost' | t }}<input name="cost" type="number" min="0" step="0.01" required [ngModel]="cost()" (ngModelChange)="cost.set($event)" /></label>
+                <div class="price">
+                  <span class="seg" role="radiogroup" [attr.aria-label]="'ws.lf.priceAs' | t">
+                    <button type="button" role="radio" [attr.aria-checked]="byRate() === false" [class.on]="!byRate()" (click)="byRate.set(false)">{{ 'ws.lf.total' | t }}</button>
+                    <button type="button" role="radio" [attr.aria-checked]="byRate()" [class.on]="byRate()" (click)="byRate.set(true)">{{ 'ws.lf.rate' | t }}</button>
+                  </span>
+                  @if (byRate()) {
+                    <label>{{ 'ws.lf.ratePerKg' | t }}<input name="rate" type="number" min="0" step="0.01" required [ngModel]="rate()" (ngModelChange)="rate.set($event)" /></label>
+                    <small>{{ 'ws.lf.priceIs' | t: { amount: price() === null ? '—' : i18n.money(price()) } }}</small>
+                  } @else {
+                    <label>{{ 'ws.lf.pricePaid' | t }}<input name="cost" type="number" min="0" step="0.01" required [ngModel]="cost()" (ngModelChange)="cost.set($event)" /></label>
+                  }
+                </div>
                 <label class="span2">{{ 'ws.customer.note' | t }} · {{ 'common.optional' | t }}<input name="notes" maxlength="500" [(ngModel)]="notes" [placeholder]="'ws.lf.noteHint' | t" /></label>
               </div>
+            </section>
+
+            <section class="card">
+              <h2 class="lbl">{{ 'ws.lf.charges' | t }} <ws-info [title]="'ws.lf.charges' | t" [text]="'ws.lf.chargesInfo' | t" /></h2>
+              @if (charges().length) {
+                <ul class="charges">
+                  @for (c of charges(); track $index; let i = $index) {
+                    <li>
+                      <select [name]="'kind' + i" [ngModel]="c.kind" (ngModelChange)="setCharge(i, { kind: $event })" [attr.aria-label]="'ws.lf.chargeKind' | t">
+                        @for (k of chargeKinds; track k) { <option [value]="k">{{ 'ws.lf.kind.' + k | t }}</option> }
+                      </select>
+                      <input [name]="'amount' + i" type="number" min="0.01" step="0.01" [ngModel]="c.amount" (ngModelChange)="setCharge(i, { amount: $event })" [attr.aria-label]="'ws.lf.chargeAmount' | t" [placeholder]="'ws.lf.chargeAmount' | t" />
+                      <input [name]="'note' + i" maxlength="120" [ngModel]="c.note" (ngModelChange)="setCharge(i, { note: $event })" [attr.aria-label]="'ws.customer.note' | t" [placeholder]="'ws.lf.chargeNote' | t" />
+                      <button type="button" class="ws-btn" (click)="removeCharge(i)" [attr.aria-label]="'ws.lf.removeCharge' | t">×</button>
+                    </li>
+                  }
+                </ul>
+              }
+              <div class="row">
+                @for (k of chargeKinds; track k) { <button type="button" class="ws-btn" (click)="addCharge(k)">+ {{ 'ws.lf.kind.' + k | t }}</button> }
+              </div>
+            </section>
+
+            <section class="card">
+              <h2>{{ 'ws.lf.docs' | t }}</h2>
+              @if (files().length) {
+                <ul class="files">
+                  @for (f of files(); track $index; let i = $index) {
+                    <li><span>{{ f.name }}</span><small>{{ size(f.size) }}</small><button type="button" class="ws-btn" (click)="removeFile(i)" [attr.aria-label]="'ws.lf.removeDoc' | t">×</button></li>
+                  }
+                </ul>
+              }
+              <label class="ws-btn pick">+ {{ 'ws.lf.addDoc' | t }}<input type="file" multiple [accept]="docTypes" (change)="pickFiles($event)" /></label>
+              <small>{{ (id() ? 'ws.lf.docsHintEdit' : 'ws.lf.docsHint') | t }}</small>
             </section>
           </div>
 
           <aside class="side card" aria-live="polite">
             <h2>{{ 'ws.cf.summary' | t }}</h2>
             <dl>
-              <div><dt>{{ 'ws.purchaseLots.col.cost' | t }}</dt><dd>{{ cost() === null || cost() === undefined ? '—' : i18n.money(cost()) }}</dd></div>
+              <div><dt>{{ 'ws.lf.pricePaid' | t }}</dt><dd>{{ price() === null ? '—' : i18n.money(price()) }}</dd></div>
+              @if (chargesTotal() > 0) { <div><dt>{{ 'ws.lf.charges' | t }}</dt><dd>{{ i18n.money(chargesTotal()) }}</dd></div> }
+              <div class="total"><dt>{{ 'ws.lf.lotCost' | t }}</dt><dd>{{ lotCost() === null ? '—' : i18n.money(lotCost()) }}</dd></div>
               <div><dt>{{ 'receive.lotWeight' | t }}</dt><dd>{{ kg() ? i18n.kg(kg()) : '—' }}</dd></div>
-              <div class="total big"><dt>{{ 'ws.purchaseLots.col.costPerKg' | t }}</dt><dd>{{ perKg() === null ? '—' : i18n.money(perKg()) }}</dd></div>
+              <div class="total big"><dt>{{ 'common.costPerKg' | t }}</dt><dd>{{ perKg() === null ? '—' : i18n.money(perKg()) }}</dd></div>
             </dl>
             @if (missing().length) {
               <div class="missing" role="status"><strong>{{ 'ws.cf.missing' | t }}</strong><ul>@for (m of missing(); track m) { <li>{{ m | t }}</li> }</ul></div>
@@ -139,6 +193,17 @@ const day = (v: string) => new Date(new Date(v).getTime() + 5 * 3_600_000).toISO
     .big dd { font-size:var(--ws-text-xl); }
     .missing { padding:var(--ws-3); border-radius:var(--ws-r-md); background:var(--ws-warn-soft, var(--ws-surface-2)); font-size:var(--ws-text-sm); }
     .missing ul { margin:4px 0 0; padding-inline-start:18px; }
+    .price { display:grid; gap:var(--ws-2); align-content:start; }
+    .seg { display:inline-flex; width:max-content; padding:2px; border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface-2); }
+    .seg button { padding:4px var(--ws-3); border:0; border-radius:var(--ws-r-sm, 6px); background:transparent; color:var(--ws-ink-2); font:inherit; font-size:var(--ws-text-sm); cursor:pointer; }
+    .seg button.on { background:var(--ws-surface); color:var(--ws-brand); font-weight:600; box-shadow:var(--ws-shadow-1); }
+    .charges, .files { list-style:none; margin:0 0 var(--ws-3); padding:0; display:grid; gap:var(--ws-2); }
+    .charges li { display:grid; grid-template-columns:160px 140px minmax(0, 1fr) auto; gap:var(--ws-2); align-items:center; }
+    .files li { display:flex; align-items:center; gap:var(--ws-2); font-size:var(--ws-text-sm); }
+    .files li span { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pick { position:relative; display:inline-flex; width:max-content; cursor:pointer; }
+    .pick input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+    @media (max-width: 640px) { .charges li { grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); } }
     .block { justify-content:center; width:100%; }
     @media (max-width: 1023px) { .cols { grid-template-columns:minmax(0, 1fr); } .side { position:static; } }
     @media (max-width: 640px) { .grid, .new-supplier { grid-template-columns:minmax(0, 1fr); } }
@@ -168,6 +233,13 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
   protected readonly containerId = signal<string | null>(null);
   protected readonly kg = signal<number | null>(null);
   protected readonly cost = signal<number | null>(null);
+  /** Price typed as a rate per kg (the price is kg × rate). */
+  protected readonly byRate = signal(false);
+  protected readonly rate = signal<number | null>(null);
+  protected readonly charges = signal<Charge[]>([]);
+  protected readonly files = signal<File[]>([]);
+  protected readonly chargeKinds = CHARGE_KINDS;
+  protected readonly docTypes = DOC_TYPES;
 
   protected code = '';
   protected vendorId = '';
@@ -177,17 +249,68 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
   protected newSupplier = '';
   protected newSupplierCountry = '';
 
+  /** The price paid: typed, or kg × rate (to the paisa, as the server works it out). */
+  protected readonly price = computed(() => {
+    if (this.byRate()) {
+      const kg = Number(this.kg()), rate = this.rate();
+      return kg > 0 && rate !== null && rate !== undefined && `${rate}` !== '' ? Math.round(kg * Number(rate) * 100) / 100 : null;
+    }
+    const c = this.cost();
+    return c === null || c === undefined || `${c}` === '' ? null : Number(c);
+  });
+  protected readonly chargesTotal = computed(() => this.charges().reduce((s, c) => s + (Number(c.amount) > 0 ? Number(c.amount) : 0), 0));
+  protected readonly lotCost = computed(() => (this.price() === null ? null : Math.round((this.price()! + this.chargesTotal()) * 100) / 100));
   protected readonly perKg = computed(() => {
     const kg = Number(this.kg());
-    const cost = this.cost();
-    return kg > 0 && cost !== null && cost !== undefined ? Math.round((Number(cost) / kg) * 100) / 100 : null;
+    const cost = this.lotCost();
+    return kg > 0 && cost !== null ? Math.round((cost / kg) * 100) / 100 : null;
   });
   protected readonly missing = computed(() => {
     const m: string[] = [];
     if (!this.kg() || Number(this.kg()) <= 0) m.push('ws.lf.needKg');
-    if (this.cost() === null || this.cost() === undefined || Number(this.cost()) < 0) m.push('ws.lf.needPrice');
+    if (this.price() === null || this.price()! < 0) m.push(this.byRate() ? 'ws.lf.needRate' : 'ws.lf.needPrice');
+    if (this.charges().some((c) => !(Number(c.amount) > 0))) m.push('ws.lf.needChargeAmount');
     return m;
   });
+
+  protected addCharge(kind: ChargeKind): void {
+    this.charges.update((l) => [...l, { kind, amount: null, note: '' }]);
+    this.touched = true;
+  }
+  protected setCharge(i: number, change: Partial<Charge>): void {
+    this.charges.update((l) => l.map((c, j) => (j === i ? { ...c, ...change } : c)));
+    this.touched = true;
+  }
+  protected removeCharge(i: number): void {
+    this.charges.update((l) => l.filter((_, j) => j !== i));
+    this.touched = true;
+  }
+  protected pickFiles(e: Event): void {
+    const input = e.target as HTMLInputElement;
+    const picked = Array.from(input.files ?? []);
+    const tooBig = picked.filter((f) => f.size > 10 * 1024 * 1024);
+    if (tooBig.length) this.toast.error(this.i18n.t('ws.lf.docTooBig', { name: tooBig[0].name }));
+    this.files.update((l) => [...l, ...picked.filter((f) => f.size <= 10 * 1024 * 1024)].slice(0, 5));
+    input.value = '';
+    this.touched = true;
+  }
+  protected removeFile(i: number): void {
+    this.files.update((l) => l.filter((_, j) => j !== i));
+  }
+  protected size(bytes: number): string {
+    return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  }
+  /** Papers go up after the lot is saved; one that fails does not undo the lot. */
+  private async upload(id: string): Promise<void> {
+    let failed = 0;
+    for (const f of this.files()) {
+      const form = new FormData();
+      form.append('file', f);
+      try { await firstValueFrom(this.http.post(`/api/records/lot/${id}/attachments`, form)); } catch { failed++; }
+    }
+    if (failed) this.toast.error(this.i18n.t('ws.lf.docFailed', { n: failed }));
+    this.files.set([]);
+  }
 
   ngOnInit(): void {
     // "Buy a loose lot" from a supplier's page arrives with ?supplier= already chosen.
@@ -220,6 +343,9 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
         this.date = day(r.createdAt);
         this.kg.set(Number(r.weightKg));
         this.cost.set(r.purchaseCost === null ? null : Number(r.purchaseCost));
+        this.byRate.set(r.ratePerKg !== null && r.ratePerKg !== undefined);
+        this.rate.set(r.ratePerKg === null || r.ratePerKg === undefined ? null : Number(r.ratePerKg));
+        this.charges.set((r.charges ?? []).map((c) => ({ kind: c.kind, amount: Number(c.amount), note: c.note ?? '' })));
         this.notes = r.notes ?? '';
         this.locked.set(r.status !== 'NOT_STARTED');
         this.loading.set(false);
@@ -261,7 +387,8 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
     if (this.missing().length || this.busy()) return;
     const body = {
       ...(this.vendorId ? { vendorId: this.vendorId } : {}),
-      purchaseCost: Number(this.cost()),
+      ...(this.byRate() ? { ratePerKg: Number(this.rate()) } : { purchaseCost: Number(this.cost()) }),
+      charges: this.charges().map((c) => ({ kind: c.kind, amount: Number(c.amount), ...(c.note.trim() ? { note: c.note.trim() } : {}) })),
       receivedAt: this.date,
       notes: this.notes.trim(),
       ...(this.locked() ? {} : { weightKg: Number(this.kg()), ...(this.rawCategoryId ? { rawCategoryId: this.rawCategoryId } : {}) }),
@@ -271,6 +398,7 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
       let id = this.id();
       if (id) {
         await firstValueFrom(this.http.patch(`/api/procurement/rags/${id}`, body));
+        await this.upload(id);
         this.toast.show(this.i18n.t('ws.lf.saved'));
         this.touched = false;
         this.nav.back(['/sort/records', id]);
@@ -278,6 +406,7 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
       } else {
         const r = await firstValueFrom(this.http.post<{ id: string; ragCode: string }>('/api/procurement/rags', { ragBaleType: 'BALE', ...body, notes: body.notes || undefined }));
         id = r.id;
+        await this.upload(r.id);
         this.toast.show(this.i18n.t('receive.lotSaved', { code: r.ragCode }));
       }
       this.touched = false;

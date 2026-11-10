@@ -89,8 +89,10 @@ export class CostingService {
     if (!lot) throw new NotFoundException('Lot not found');
     if (lot.containerId) return this.recalculateContainerTx(tx, tenantId, lot.containerId, userId);
     const result = emptyResult();
-    // A loose lot costs its purchase price; one recorded without a price keeps its current cost.
-    await this.recalculateLotTx(tx, tenantId, lot, lot.purchaseCost ? money(lot.purchaseCost) : lot.allocatedCost, result);
+    // A loose lot costs its purchase price plus its charges (transport, labour…); one without a price keeps its cost.
+    const charges = await tx.lotCharge.aggregate({ where: { ragId: lot.id, tenantId }, _sum: { amount: true } });
+    const cost = lot.purchaseCost ? money(lot.purchaseCost.add(charges._sum.amount ?? 0)) : lot.allocatedCost;
+    await this.recalculateLotTx(tx, tenantId, lot, cost, result);
     await this.logAdjustments(tx, tenantId, result.adjustments, userId);
     return result;
   }

@@ -830,3 +830,31 @@ test('receivables review: new customer with an opening balance, edit, bills add 
   await expect(page.getByRole('button', { name: 'Send on WhatsApp' })).toBeEnabled();
   await expect(page.locator('tfoot')).toContainText('25,000');
 });
+
+test('loose lot by rate per kg with transport and a bill attached (owner, 2026-11-11)', async ({ page, request }) => {
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await signIn(page);
+  await page.goto('/receive/records/lots/new');
+  await page.getByLabel(/^Lot weight/).fill('500');
+  await page.getByRole('radio', { name: 'Rate per kg' }).click();
+  await page.getByLabel(/^Rate per kg/).fill('200');
+  await expect(page.getByText(/Price: .*100,000/)).toBeVisible();
+  await page.getByRole('button', { name: '+ Transport' }).click();
+  // A charge without an amount is listed as still needed.
+  await expect(page.getByRole('status').filter({ hasText: 'Still needed' })).toContainText('an amount for each charge');
+  await page.getByLabel('Amount (Rs)').fill('5000');
+  await expect(page.locator('aside.side')).toContainText('Rs 105,000');
+  await expect(page.locator('aside.side')).toContainText('Rs 210');
+  await page.locator('input[type=file]').setInputFiles({ name: 'gaari-bill.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%%EOF\n') });
+  await expect(page.getByText('gaari-bill.pdf')).toBeVisible();
+  await page.getByRole('button', { name: 'Save lot' }).click();
+  await expect(page).toHaveURL(/\/sort\/records\/(?!new)[^/]+$/);
+  const id = page.url().split('/').pop()!;
+
+  const api = await apiAs(request);
+  const lot = await api.get(`/procurement/rags/${id}`);
+  expect([Number(lot.ratePerKg), Number(lot.purchaseCost), Number(lot.allocatedCost)]).toEqual([200, 100000, 105000]);
+  expect(lot.charges.map((c: any) => [c.kind, Number(c.amount)])).toEqual([['TRANSPORT', 5000]]);
+  // The bill is on the lot.
+  await expect(page.locator('ws-record-activity')).toContainText('gaari-bill.pdf');
+});
