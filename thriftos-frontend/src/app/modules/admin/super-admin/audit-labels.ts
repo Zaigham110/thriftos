@@ -22,6 +22,7 @@ const LABELS: Record<string, string> = {
   AUTH_TOKEN_REFRESH: 'Session renewed',
   USER_PIN_RESET: 'New PIN made',
   USER_PASSWORD_RESET: 'New password made',
+  STAFF_ADDED: 'Staff added',
   USER_UPDATED: 'Person changed',
   USER_CREATED: 'Person added',
   SUPERADMIN_IMPERSONATE: 'Support view opened',

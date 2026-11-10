@@ -43,11 +43,12 @@ export function companyCodeFrom(name: string): string {
 }
 
 /** The message the super admin sends the owner on WhatsApp, in the owner's language. */
-export function welcomeMessage(lang: Language, p: { owner: string; business: string; url: string; phone: string; pin: string }): string {
+/** The message the super admin sends a new owner: email and first password (v2: owners sign in with email). */
+export function welcomeMessage(lang: Language, p: { owner: string; business: string; url: string; email: string; password: string }): string {
   const t: Texts<string> = {
-    en: `Assalam o Alaikum ${p.owner}!\nThriftOS for ${p.business} is ready.\nOpen: ${p.url}\nPhone: ${p.phone}\nPIN: ${p.pin}\nThe first time, it asks a few questions; then you can start.`,
-    ur: `السلام علیکم ${p.owner}!\n${p.business} کے لیے آپ کا ThriftOS تیار ہے۔\nکھولیں: ${p.url}\nفون: ${p.phone}\nPIN: ${p.pin}\nپہلی بار کھولنے پر چند سوال پوچھے جائیں گے، پھر کام شروع کریں۔`,
-    roman: `Assalam o Alaikum ${p.owner}!\n${p.business} ke liye aap ka ThriftOS tayyar hai.\nKholein: ${p.url}\nPhone: ${p.phone}\nPIN: ${p.pin}\nPehli baar kholne par chand sawal poochay jayenge, phir kaam shuru karein.`,
+    en: `Assalam o Alaikum ${p.owner}!\nThriftOS for ${p.business} is ready.\nOpen: ${p.url}\nEmail: ${p.email}\nPassword: ${p.password}\nThe first time, you choose your own password and answer a few questions; then you can start.`,
+    ur: `السلام علیکم ${p.owner}!\n${p.business} کے لیے آپ کا ThriftOS تیار ہے۔\nکھولیں: ${p.url}\nای میل: ${p.email}\nپاس ورڈ: ${p.password}\nپہلی بار اپنا پاس ورڈ بنائیں اور چند سوالوں کے جواب دیں، پھر کام شروع کریں۔`,
+    roman: `Assalam o Alaikum ${p.owner}!\n${p.business} ke liye aap ka ThriftOS tayyar hai.\nKholein: ${p.url}\nEmail: ${p.email}\nPassword: ${p.password}\nPehli baar apna password banayein aur chand sawalon ke jawab dein, phir kaam shuru karein.`,
   };
   return t[lang];
 }
@@ -72,12 +73,13 @@ export class OnboardingService {
    * in with phone + a new 6-digit PIN. The PIN is returned once (for the welcome message) and never stored readable.
    */
   async quickCreate(dto: QuickCreateTenantDto, actorId: string) {
-    const phone = toE164(dto.ownerPhone);
-    if (!phone) throw new BadRequestException({ code: 'PHONE_INVALID', message: 'Enter a valid phone number, e.g. 0300 1234567' });
-    const taken = await this.prisma.user.findUnique({ where: { phone }, select: { id: true, tenant: { select: { name: true } } } });
-    if (taken) throw new ConflictException({ code: 'PHONE_TAKEN', message: `This phone already has a login (${taken.tenant.name})` });
-    const email = dto.ownerEmail?.trim().toLowerCase() || null;
-    if (email && (await this.prisma.user.findFirst({ where: { email }, select: { id: true } }))) throw new ConflictException({ code: 'EMAIL_TAKEN', message: 'This email already has a login' });
+    // The owner signs in with email and a first password made here (v2); their phone is only for reaching them.
+    const email = dto.ownerEmail.trim().toLowerCase();
+    if (await this.prisma.user.findFirst({ where: { email }, select: { id: true } })) throw new ConflictException({ code: 'EMAIL_TAKEN', message: 'This email already has a login' });
+    const phone = dto.ownerPhone?.trim() ? toE164(dto.ownerPhone) : null;
+    if (dto.ownerPhone?.trim() && !phone) throw new BadRequestException({ code: 'PHONE_INVALID', message: 'Enter a valid phone number, e.g. 0300 1234567' });
+    const taken = phone ? await this.prisma.user.findUnique({ where: { phone }, select: { id: true, tenant: { select: { name: true } } } }) : null;
+    if (taken) throw new ConflictException({ code: 'PHONE_TAKEN', message: `This phone is already someone's login (${taken.tenant.name})` });
 
     const base = companyCodeFrom(dto.businessName);
     let companyCode = base;
@@ -108,14 +110,15 @@ export class OnboardingService {
     const adminRole = await this.prisma.role.findFirst({ where: { tenantId: tenant.id, name: 'Admin' }, select: { id: true } });
     if (!adminRole) throw new Error('Business made without an Admin role');
 
-    const pin = String(randomInt(0, 1_000_000)).padStart(6, '0');
+    const password = this.passwords.generateTemporaryPassword();
     const owner = await this.prisma.user.create({
       data: {
         tenantId: tenant.id,
         name: dto.ownerName.trim(),
         phone,
         email,
-        pinHash: await this.passwords.hash(pin),
+        passwordHash: await this.passwords.hash(password),
+        mustChangePassword: true,
         userRoles: { create: { roleId: adminRole.id } },
       },
       select: { id: true, name: true, phone: true, email: true },
@@ -133,10 +136,10 @@ export class OnboardingService {
     const url = `${(process.env.PUBLIC_APP_URL || 'http://localhost:4200').replace(/\/$/, '')}/auth/login`;
     return {
       tenant: { id: tenant.id, name: tenant.name, companyCode },
-      owner: { ...owner, phoneLocal: localPhone(phone) },
-      pin,
+      owner: { ...owner, phoneLocal: phone ? localPhone(phone) : null },
+      temporaryPassword: password,
       signInUrl: url,
-      welcome: welcomeMessage(language, { owner: owner.name, business: tenant.name, url, phone: localPhone(phone), pin }),
+      welcome: welcomeMessage(language, { owner: owner.name, business: tenant.name, url, email, password }),
     };
   }
 
@@ -146,8 +149,10 @@ export class OnboardingService {
    * not in the audit log.
    */
   async newPin(tenantId: string, userId: string, actorId: string) {
-    const user = await this.prisma.user.findFirst({ where: { id: userId, tenantId }, select: { id: true, name: true, phone: true, tenant: { select: { name: true, defaultLanguage: true } } } });
+    const user = await this.prisma.user.findFirst({ where: { id: userId, tenantId }, select: { id: true, name: true, phone: true, passwordHash: true, tenant: { select: { name: true, defaultLanguage: true } } } });
     if (!user) throw new NotFoundException('Person not found in this business');
+    // Owners sign in with email (v2): a PIN is only for staff.
+    if (user.passwordHash) throw new BadRequestException({ code: 'USES_PASSWORD', message: 'This person signs in with email. Make a new password instead.' });
     if (!user.phone) throw new BadRequestException('This person has no phone number. Add one first, then make a PIN.');
     const pin = String(randomInt(0, 1_000_000)).padStart(6, '0');
     await this.prisma.user.update({ where: { id: user.id }, data: { pinHash: await this.passwords.hash(pin), failedPinAttempts: 0, pinLockedUntil: null } });
@@ -164,7 +169,7 @@ export class OnboardingService {
     if (!user) throw new NotFoundException('Person not found in this business');
     if (!user.email) throw new BadRequestException('This person signs in with phone and PIN. Make a new PIN instead.');
     const temporaryPassword = this.passwords.generateTemporaryPassword();
-    await this.prisma.user.update({ where: { id: user.id }, data: { passwordHash: await this.passwords.hash(temporaryPassword) } });
+    await this.prisma.user.update({ where: { id: user.id }, data: { passwordHash: await this.passwords.hash(temporaryPassword), mustChangePassword: true } });
     await this.prisma.refreshToken.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } });
     await this.audit.log({ userId: actorId, tenantId, action: 'USER_PASSWORD_RESET', entityType: 'User', entityId: user.id, metadataJson: { userName: user.name, bySuperAdmin: true } });
     return { email: user.email, temporaryPassword };

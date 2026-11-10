@@ -13,6 +13,8 @@ export const setupGuard: CanActivateFn = (): Observable<boolean | UrlTree> => {
   const tenants = inject(TenantService);
   const router = inject(Router);
   if (!auth.permissions().includes('tenant.update')) return of(true);
+  // Their own password first (passwordGuard), then the setup.
+  if (auth.user()?.mustChangePassword) return of(true);
   return tenants.loadTenant().pipe(
     map((t) => (t && t.setupCompletedAt === null ? router.createUrlTree(['/setup']) : true)),
     catchError(() => of(true)),

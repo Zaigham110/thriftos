@@ -34,6 +34,8 @@ export interface User {
   phone?: string | null;
   /** Signs in with phone + PIN (may also have an email). */
   hasPin?: boolean;
+  /** Signed in with a password ThriftOS made: must choose their own first. */
+  mustChangePassword?: boolean;
   name: string;
   tenantId: string | null;
   isSuperAdmin: boolean;

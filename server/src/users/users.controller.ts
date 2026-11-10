@@ -80,9 +80,9 @@ export class UsersController {
     return this.usersService.setRole((req as any).tenantId || user.tenantId, id, dto.roleId, user.userId);
   }
 
-  /** Add a munshi: name, phone and PIN. */
-  @RequireModule('MUNSHI')
-  @Post('munshi')
+  /** Add staff: name, phone, PIN and role (`munshi` is the older address of the same thing). */
+  @RequireModule('STAFF')
+  @Post(['staff', 'munshi'])
   @RequirePermissions('user.create')
   @HttpCode(HttpStatus.CREATED)
   createMunshi(@Body() dto: CreateMunshiDto, @CurrentUser() user: CurrentUserData, @Req() req: Request) {

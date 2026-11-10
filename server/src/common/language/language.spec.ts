@@ -25,12 +25,17 @@ describe('languages', () => {
 
   it('every server message exists in every language, each different', () => {
     const p = { owner: 'Rafiq', business: 'Bawa Traders', url: 'https://x', phone: '0335 2010376', pin: '123456' };
-    for (const make of [welcomeMessage, newPinMessage]) {
-      const texts = LANGUAGES.map((l) => make(l, p));
-      expect(new Set(texts).size).toBe(LANGUAGES.length);
-      for (const t of texts) expect(t).toContain('123456');
+    const w = { owner: 'Rafiq', business: 'Bawa Traders', url: 'https://x', email: 'rafiq@bawa.pk', password: 'Kx7-pass-9' };
+    const pins = LANGUAGES.map((l) => newPinMessage(l, p));
+    expect(new Set(pins).size).toBe(LANGUAGES.length);
+    for (const t of pins) expect(t).toContain('123456');
+    const welcomes = LANGUAGES.map((l) => welcomeMessage(l, w));
+    expect(new Set(welcomes).size).toBe(LANGUAGES.length);
+    for (const t of welcomes) {
+      expect(t).toContain('rafiq@bawa.pk');
+      expect(t).toContain('Kx7-pass-9');
     }
     expect(new Set(LANGUAGES.map((l) => resetEmail(l, 'https://x').text)).size).toBe(LANGUAGES.length);
-    expect(welcomeMessage('roman', p)).toContain('aap ka ThriftOS tayyar hai');
+    expect(welcomeMessage('roman', w)).toContain('aap ka ThriftOS tayyar hai');
   });
 });

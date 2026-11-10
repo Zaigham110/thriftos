@@ -7,6 +7,7 @@ import { authGuard } from './core/guards/auth-guard';
 import { tenantAreaGuard } from './core/guards/tenant-area.guard';
 import { moduleGuard } from './core/guards/module.guard';
 import { superAdminGuard } from './core/guards/super-admin-guard';
+import { passwordGuard } from './core/guards/password.guard';
 import { setupGuard } from './core/guards/setup.guard';
 import { LoginComponent } from './features/auth/login/login.component';
 
@@ -91,7 +92,7 @@ export const routes: Routes = [
   {
     path: 'setup',
     loadComponent: () => import('./features/setup/setup.component').then((m) => m.SetupComponent),
-    canActivate: [authGuard, tenantAreaGuard],
+    canActivate: [authGuard, tenantAreaGuard, passwordGuard],
     title: 'ThriftOS',
   },
 
@@ -99,7 +100,9 @@ export const routes: Routes = [
   {
     path: '',
     loadComponent: () => import('./shell/app-shell.component').then((m) => m.AppShellComponent),
-    canActivate: [authGuard, tenantAreaGuard, setupGuard],
+    canActivate: [authGuard, tenantAreaGuard, passwordGuard, setupGuard],
+    // Every page inside, too (a guard above runs only when the area is entered).
+    canActivateChild: [passwordGuard],
     children: [
       { path: '', redirectTo: 'home', pathMatch: 'full' },
       {

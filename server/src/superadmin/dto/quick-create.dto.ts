@@ -16,15 +16,16 @@ export class QuickCreateTenantDto {
   @MaxLength(100)
   ownerName: string;
 
-  /** Any local format, stored as E.164; the owner signs in with it and a PIN. */
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(30)
-  ownerPhone: string;
-
+  /** The owner signs in with this email and a first password made for them (v2). */
   @IsEmail()
+  @MaxLength(200)
+  ownerEmail: string;
+
+  /** The owner's own phone (to reach them on WhatsApp); optional, not their login. */
+  @IsString()
+  @MaxLength(30)
   @IsOptional()
-  ownerEmail?: string;
+  ownerPhone?: string;
 
   @IsIn(LANGUAGES)
   @IsOptional()

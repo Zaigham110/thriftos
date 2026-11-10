@@ -32,16 +32,18 @@ interface NavItem {
   label: string;
   path: string;
   module?: TenantModule | TenantModule[];
+  /** Shown to people with any one of these (staff roles, v2). */
+  anyOf?: string[];
   icon: typeof Home;
 }
 
 const NAV: NavItem[] = [
   { label: 'nav.home', path: '/home', icon: Home },
-  { label: 'nav.receive', path: '/receive', module: 'RECEIVE', icon: Truck },
-  { label: 'nav.sort', path: '/sort', module: 'SORT', icon: Layers3 },
-  { label: 'nav.sell', path: '/sell', module: 'SELL', icon: ShoppingCart },
-  { label: 'nav.khata', path: '/khata', module: 'KHATA', icon: BookOpen },
-  { label: 'nav.stock', path: '/stock', module: 'STOCK', icon: PackageSearch },
+  { label: 'nav.receive', path: '/receive', module: 'RECEIVE', anyOf: ['container.create', 'rag.create', 'INVENTORY_INTAKE'], icon: Truck },
+  { label: 'nav.sort', path: '/sort', module: 'SORT', anyOf: ['SORTING_STAGE1_VIEW'], icon: Layers3 },
+  { label: 'nav.sell', path: '/sell', module: 'SELL', anyOf: ['sale.create'], icon: ShoppingCart },
+  { label: 'nav.khata', path: '/khata', module: 'KHATA', anyOf: ['payment.create', 'finance.view'], icon: BookOpen },
+  { label: 'nav.stock', path: '/stock', module: 'STOCK', anyOf: ['INVENTORY_VIEW'], icon: PackageSearch },
   { label: 'nav.reports', path: '/reports', module: 'REPORTS', icon: BarChart3 },
   { label: 'nav.settings', path: '/settings', icon: Settings2 },
 ];
@@ -153,7 +155,9 @@ export class AppShellComponent {
   protected readonly tenantName = computed(() => this.tenantService.tenant()?.name || 'ThriftOS');
   protected readonly visibleNav = computed(() => {
     const tenant = this.tenantService.tenant();
-    return NAV.filter((item) => !item.module || this.tenantService.isModuleEnabled(item.module, tenant));
+    const perms = this.auth.permissions();
+    const can = (item: NavItem) => !item.anyOf || this.auth.isSuperAdmin() || item.anyOf.some((p) => perms.includes(p));
+    return NAV.filter((item) => (!item.module || this.tenantService.isModuleEnabled(item.module, tenant)) && can(item));
   });
   private readonly phoneTabPaths = ['/home', '/receive', '/sort', '/sell', '/khata'];
   protected readonly phoneTabs = computed(() => this.visibleNav().filter((item) => this.phoneTabPaths.includes(item.path)));

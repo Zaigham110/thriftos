@@ -37,9 +37,10 @@ test('a new business is set up through the wizard and ready to work', async ({ p
   await page.getByRole('button', { name: 'Next' }).click();
 
   await expect(page.getByText('Step 4 of 4')).toBeVisible();
-  await page.getByLabel('Munshi name').fill('Akram');
+  await page.getByLabel('Name', { exact: true }).fill('Akram');
+  await page.getByRole('button', { name: 'Manager', exact: true }).click();
   await page.getByLabel('WhatsApp number').fill(phone);
-  await page.getByLabel(/PIN for the munshi/).fill('4821');
+  await page.getByLabel(/PIN for them/).fill('4821');
   await page.getByRole('button', { name: 'Start using ThriftOS' }).click();
   await page.waitForURL('**/home');
   console.log(`setup took ${((Date.now() - started) / 1000).toFixed(1)} s of app time (4 screens, 4 fields typed)`);

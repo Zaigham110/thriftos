@@ -139,6 +139,9 @@ export const PERMISSIONS = [
 
   // Sales (enterprise E3.4)
   { code: 'price.manage', name: 'Sales - Manage price lists', group: 'Sales' },
+  // v2 staff roles: making a sale and taking a payment are their own permissions (Salesman, Cashier).
+  { code: 'sale.create', name: 'Make sales', group: 'Sales' },
+  { code: 'payment.create', name: 'Take payments', group: 'Sales' },
   { code: 'INVENTORY_RESERVE', name: 'Inventory - Reserve/Release', group: 'Inventory' },
   
   // Reports

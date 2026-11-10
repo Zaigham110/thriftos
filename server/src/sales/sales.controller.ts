@@ -1,6 +1,8 @@
 import { Body, Controller, Get, Headers, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser, CurrentUserData, Public, TenantId } from '../common/decorators';
 import { TenantGuard } from '../common/guards/tenant.guard';
+import { PermissionGuard } from '../common/guards/permission.guard';
+import { RequirePermissions } from '../common/decorators/permissions.decorator';
 import { CreateSaleDto, FulfillSaleDto, LanguageQueryDto, LastPriceQueryDto } from './dto';
 import { SalesService } from './sales.service';
 
@@ -22,6 +24,8 @@ export class SalesController {
 
   /** Saves a whole sale. Send an Idempotency-Key so a repeat (offline sync, double tap) creates one sale. */
   @Post()
+  @UseGuards(PermissionGuard)
+  @RequirePermissions('sale.create')
   create(
     @TenantId() tenantId: string,
     @Body() dto: CreateSaleDto,

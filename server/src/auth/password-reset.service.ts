@@ -87,7 +87,8 @@ export class PasswordResetService {
   private async setPassword(userId: string, password: string): Promise<void> {
     const passwordHash = await this.passwords.hash(password);
     await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id: userId }, data: { passwordHash } }),
+      // Their own password now: no longer one ThriftOS made (v2: owners sign in with email).
+      this.prisma.user.update({ where: { id: userId }, data: { passwordHash, mustChangePassword: false } }),
       this.prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } }),
       this.prisma.passwordResetToken.updateMany({ where: { userId, usedAt: null }, data: { usedAt: new Date() } }),
     ]);

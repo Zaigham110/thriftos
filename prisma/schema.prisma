@@ -246,7 +246,7 @@ model Tenant {
   locale            String       @default("ur-PK")
   status            TenantStatus @default(ACTIVE)
   /// Visible tabs/APIs: RECEIVE, SORT, STOCK, SELL, KHATA, REPORTS, EXPORT, WAREHOUSES, PAYROLL
-  enabledModules    String[]     @default(["RECEIVE", "STOCK", "SELL", "SORT", "CONTAINERS", "LOOSE_LOTS", "READY_STOCK", "STOCK_COUNTS", "PRICE_LISTS", "KHATA", "EXPENSES", "CASH_CLOSE", "PNL", "MUNSHI", "IMPORT"])
+  enabledModules    String[]     @default(["RECEIVE", "STOCK", "SELL", "SORT", "CONTAINERS", "LOOSE_LOTS", "READY_STOCK", "STOCK_COUNTS", "PRICE_LISTS", "KHATA", "EXPENSES", "CASH_CLOSE", "PNL", "STAFF", "IMPORT"])
   /// 0 = trading only (no sorting), 1 = category only, 2 = category + grade
   sortingStages     Int          @default(2)
   defaultLanguage   String       @default("ur")
@@ -561,22 +561,24 @@ model GlobalCategoryTemplate {
 // =============================================================
 
 model User {
-  id                String    @id @default(cuid())
-  tenantId          String
-  name              String
+  id                 String    @id @default(cuid())
+  tenantId           String
+  name               String
   /// Owners and admins sign in with email + password; a munshi may have only a phone + PIN.
-  email             String?
-  passwordHash      String?
+  email              String?
+  passwordHash       String?
   /// WhatsApp/phone in E.164 (+923001234567). Unique across tenants: it is the munshi's login.
-  phone             String?   @unique
+  phone              String?   @unique
   /// bcrypt of the 4–6 digit PIN.
-  pinHash           String?
+  pinHash            String?
   /// Wrong PINs in a row; 5 locks the PIN for 15 minutes (the owner can unlock).
-  failedPinAttempts Int       @default(0)
-  pinLockedUntil    DateTime?
-  isActive          Boolean   @default(true)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  failedPinAttempts  Int       @default(0)
+  pinLockedUntil     DateTime?
+  /// A first or reset password made by ThriftOS: the person must set their own at the next sign-in.
+  mustChangePassword Boolean   @default(false)
+  isActive           Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   // Relations
   tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -1565,22 +1567,22 @@ enum ExpenseCategory {
 
 /// Money paid out for running the business. Cancelled expenses stay for the record and count nowhere.
 model Expense {
-  id          String          @id @default(cuid())
-  tenantId    String
+  id           String          @id @default(cuid())
+  tenantId     String
   /// The business day (Pakistan) it was paid.
-  day         DateTime        @db.Date
-  category    ExpenseCategory
-  amount      Decimal         @db.Decimal(14, 2)
-  method      PaymentMethod   @default(CASH)
-  paidTo      String?
-  note        String?
-  createdBy   String
-  cancelledAt DateTime?
-  cancelledBy String?
+  day          DateTime        @db.Date
+  category     ExpenseCategory
+  amount       Decimal         @db.Decimal(14, 2)
+  method       PaymentMethod   @default(CASH)
+  paidTo       String?
+  note         String?
+  createdBy    String
+  cancelledAt  DateTime?
+  cancelledBy  String?
   /// Why it was cancelled (asked when cancelling).
   cancelReason String?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 
   @@index([tenantId, day])
   @@index([tenantId, category])

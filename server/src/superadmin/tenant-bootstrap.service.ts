@@ -1,3 +1,4 @@
+import { ensureStaffRoles, STAFF_ROLE_NAMES } from '../users/staff';
 import { DEFAULT_GRADES, KARACHI_CATEGORIES } from '../tenant/setup-template';
 import { Injectable } from '@nestjs/common';
 import { Prisma, Permission, GlobalCategoryTemplate } from '@prisma/client';
@@ -45,111 +46,17 @@ export class TenantBootstrapService {
     };
 
     await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      // 1. Create default roles
-      const defaultRoles = [
-        { name: 'Admin', description: 'Full access to all tenant features' },
-        { name: 'Manager', description: 'Manage operations and view reports' },
-        { name: 'Worker', description: 'Perform daily operations' },
-        { name: 'ReadOnly', description: 'View-only access' },
-      ];
-
-      const createdRoles = await Promise.all(
-        defaultRoles.map((role) =>
-          tx.role.create({
-            data: {
-              tenantId,
-              name: role.name,
-              description: role.description,
-            },
-          }),
-        ),
-      );
-      result.roles = createdRoles.length;
-
-      // 2. Get all permissions
+      // 1. Roles: the owner (Admin, every permission), the staff roles (v2: Manager, Buyer, Sorter, Salesman,
+      //    Cashier) and one that can only look.
+      const adminRole = await tx.role.create({ data: { tenantId, name: 'Admin', description: 'The owner: everything' } });
+      const readOnlyRole = await tx.role.create({ data: { tenantId, name: 'ReadOnly', description: 'Can only look' } });
       const allPermissions = await tx.permission.findMany();
       result.permissions = allPermissions.length;
-
-      // 3. Assign all permissions to Admin role
-      const adminRole = createdRoles.find((r) => r.name === 'Admin');
-      if (adminRole) {
-        await tx.rolePermission.createMany({
-          data: allPermissions.map((p: Permission) => ({
-            roleId: adminRole.id,
-            permissionId: p.id,
-          })),
-        });
-      }
-
-      // 4. Assign limited permissions to Manager role
-      const managerRole = createdRoles.find((r) => r.name === 'Manager');
-      if (managerRole) {
-        const managerPermissions = allPermissions.filter(
-          (p: Permission) =>
-            p.code.endsWith('.read') ||
-            p.group === 'Reports' ||
-            [
-              'sort.session.create',
-              'SORTING_STAGE1_CREATE',
-              'grade.session.create',
-              'SORTING_STAGE2_CREATE',
-              'repack.session.create',
-              'REPACK_CREATE',
-              'INVENTORY_INTAKE',
-              'REPORTS_VIEW',
-              'REPORTS_EXPORT',
-            ].includes(p.code),
-        );
-        await tx.rolePermission.createMany({
-          data: managerPermissions.map((p: Permission) => ({
-            roleId: managerRole.id,
-            permissionId: p.id,
-          })),
-        });
-      }
-
-      // 5. Assign read permissions to Worker and ReadOnly roles
-      const readPermissions = allPermissions.filter((p: Permission) => p.code.endsWith('.read'));
-      const workerRole = createdRoles.find((r) => r.name === 'Worker');
-      const readOnlyRole = createdRoles.find((r) => r.name === 'ReadOnly');
-
-      if (workerRole) {
-        const workerPermissions = allPermissions.filter(
-          (p: Permission) =>
-            p.code.endsWith('.read') ||
-            [
-              'sort.session.create',
-              'sort.session.update',
-              'SORTING_STAGE1_CREATE',
-              'SORTING_STAGE1_EDIT',
-              'grade.session.create',
-              'grade.session.update',
-              'SORTING_STAGE2_CREATE',
-              'SORTING_STAGE2_EDIT',
-              'REPACK_CREATE',
-              'REPACK_EDIT',
-              'INVENTORY_VIEW',
-              'INVENTORY_INTAKE',
-              'INVENTORY_ADJUST',
-              'INVENTORY_RESERVE',
-            ].includes(p.code),
-        );
-        await tx.rolePermission.createMany({
-          data: workerPermissions.map((p: Permission) => ({
-            roleId: workerRole.id,
-            permissionId: p.id,
-          })),
-        });
-      }
-
-      if (readOnlyRole) {
-        await tx.rolePermission.createMany({
-          data: readPermissions.map((p: Permission) => ({
-            roleId: readOnlyRole.id,
-            permissionId: p.id,
-          })),
-        });
-      }
+      await tx.rolePermission.createMany({ data: allPermissions.map((p: Permission) => ({ roleId: adminRole.id, permissionId: p.id })) });
+      const readPermissions = allPermissions.filter((p: Permission) => p.code.endsWith('.read') || p.code.endsWith('_VIEW'));
+      await tx.rolePermission.createMany({ data: readPermissions.map((p: Permission) => ({ roleId: readOnlyRole.id, permissionId: p.id })) });
+      await ensureStaffRoles(tx, tenantId);
+      result.roles = 2 + STAFF_ROLE_NAMES.length;
 
       if (plain) {
         if (plain.sortingStages >= 1) {

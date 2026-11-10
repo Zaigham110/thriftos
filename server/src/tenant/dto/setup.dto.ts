@@ -1,3 +1,4 @@
+import { STAFF_ROLE_NAMES, StaffRoleName } from '../../users/staff';
 import { Type } from 'class-transformer';
 import { ArrayMaxSize, IsArray, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 import { LANGUAGES, Language } from '../../common/language/language';
@@ -15,6 +16,11 @@ export class SetupMunshiDto {
 
   @Matches(/^\d{4,6}$/, { message: 'PIN is 4 to 6 digits' })
   pin: string;
+
+  /** Their staff role (v2); Sorter if not given. */
+  @IsIn(STAFF_ROLE_NAMES)
+  @IsOptional()
+  roleName?: StaffRoleName;
 }
 
 /** Journey 8: everything the wizard asks, saved in one step. */

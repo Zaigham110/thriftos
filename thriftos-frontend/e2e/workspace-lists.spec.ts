@@ -543,9 +543,13 @@ test('loose lot form: buy one on a laptop with supplier and day, open it, then f
   await expect(page.locator('aside.side')).toContainText('Rs 150');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page).toHaveURL(/\/sort\/records\/[^/]+$/);
+  const code = (await page.locator('main').textContent())!.match(/LOT-\d{4}-\d+/)![0];
 
+  // Found by its number (the list is newest first and may be long).
   await page.goto('/receive/records/lots');
-  const row = page.locator('ws-data-grid tbody tr').filter({ hasText: '1 Nov 2026' });
+  await page.getByPlaceholder(/Search/).fill(code);
+  const row = page.locator('ws-data-grid tbody tr').filter({ hasText: code });
+  await expect(row.first()).toContainText('1 Nov 2026');
   await expect(row.first()).toContainText('120,000');
 });
 

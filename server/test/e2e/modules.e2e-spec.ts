@@ -33,7 +33,7 @@ describe('Modules per business (e2e)', () => {
     ['CASH_CLOSE', 'get', '/workspace/finance/close', null],
     ['PNL', 'get', '/workspace/finance/pnl', null],
     ['REPORTS', 'get', '/reports/dashboard/summary', null],
-    ['MUNSHI', 'post', '/users/munshi', {}],
+    ['STAFF', 'post', '/users/munshi', {}],
     ['IMPORT', 'get', '/import/customers/template', null],
   ];
 

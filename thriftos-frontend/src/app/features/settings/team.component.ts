@@ -11,7 +11,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { I18N } from '../../core/i18n/t.pipe';
 import { ToastService } from '../../shared/floor/toast.service';
 import { localPhone } from '../../shared/phone';
-import { roleName } from './roles';
+import { roleName, STAFF_ROLES } from './roles';
 
 interface Member {
   id: string; name: string; email: string | null; phone: string | null; isActive: boolean; hasPin: boolean; locked: boolean;
@@ -52,11 +52,16 @@ const CODES = ['PHONE_INVALID', 'PHONE_TAKEN', 'PHONE_NEEDED', 'EMAIL_TAKEN', 'S
         <form class="card" (ngSubmit)="addMunshi()">
           <h2>{{ 'settings.addMunshi' | t }}</h2>
           <label class="field">{{ 'setup.munshiName' | t }}<input name="name" [(ngModel)]="name" maxlength="120" autocomplete="off" /></label>
+          <span class="field">{{ 'settings.tm.staffRole' | t }}</span>
+          <div class="chips">
+            @for (r of staffRoles(); track r.id) { <button type="button" class="chip" [class.on]="roleId === r.id" (click)="roleId = r.id">{{ role(r.name) }}</button> }
+          </div>
+          @if (roleHint(roleId); as h) { <p class="hint">{{ h | t }}</p> }
           <label class="field">{{ 'common.phone' | t }}<input name="phone" type="tel" inputmode="tel" [(ngModel)]="phone" [placeholder]="'common.phonePlaceholder' | t" /></label>
           <label class="field">{{ 'setup.munshiPin' | t }} <small>{{ 'auth.pinHint' | t }}</small><input name="pin" type="tel" inputmode="numeric" maxlength="6" [(ngModel)]="pin" class="ltr" autocomplete="off" /></label>
           <div class="row2">
             <button type="button" class="btn" (click)="adding.set(null)">{{ 'common.cancel' | t }}</button>
-            <button type="submit" class="btn primary" [disabled]="!name.trim() || !phone.trim() || !validPin(pin) || saving()">{{ 'common.save' | t }}</button>
+            <button type="submit" class="btn primary" [disabled]="!name.trim() || !phone.trim() || !validPin(pin) || !roleId || saving()">{{ 'common.save' | t }}</button>
           </div>
         </form>
       } @else if (adding() === 'email') {
@@ -141,8 +146,8 @@ const CODES = ['PHONE_INVALID', 'PHONE_TAKEN', 'PHONE_NEEDED', 'EMAIL_TAKEN', 'S
 
       @if (!adding()) {
         <footer class="action-bar">
-          @if (on('MUNSHI')) { <button type="button" class="btn primary" (click)="startAdd('munshi')"><lucide-icon [img]="icons.UserPlus" [size]="20" /> {{ 'settings.addMunshi' | t }}</button> }
-          <button type="button" class="btn" [class.primary]="!on('MUNSHI')" (click)="startAdd('email')"><lucide-icon [img]="icons.Mail" [size]="20" /> {{ 'settings.tm.addEmail' | t }}</button>
+          @if (on('STAFF')) { <button type="button" class="btn primary" (click)="startAdd('munshi')"><lucide-icon [img]="icons.UserPlus" [size]="20" /> {{ 'settings.addMunshi' | t }}</button> }
+          <button type="button" class="btn" [class.primary]="!on('STAFF')" (click)="startAdd('email')"><lucide-icon [img]="icons.Mail" [size]="20" /> {{ 'settings.tm.addEmail' | t }}</button>
         </footer>
       }
     </section>
@@ -172,6 +177,17 @@ export class TeamComponent implements OnInit {
   protected readonly icons = { ArrowLeft, Mail, UserPlus };
   protected readonly team = signal<Member[]>([]);
   protected readonly roles = signal<Role[]>([]);
+  /** Roles staff can have: the five staff roles first, then any the owner made (never the owner's own). */
+  protected readonly staffRoles = computed(() => {
+    const all = this.roles().filter((r) => r.name !== 'Admin' && r.name !== 'ReadOnly' && r.name !== 'Worker');
+    const rank = (n: string) => (STAFF_ROLES.includes(n) ? STAFF_ROLES.indexOf(n) : STAFF_ROLES.length);
+    return [...all].sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name));
+  });
+  /** One line on what the chosen staff role does (a role the owner made has none). */
+  protected roleHint(id: string): string | null {
+    const name = this.roles().find((r) => r.id === id)?.name;
+    return name && STAFF_ROLES.includes(name) ? `settings.tm.roleHint.${name}` : null;
+  }
   protected readonly active = computed(() => this.team().filter((m) => m.isActive));
   protected readonly stopped = computed(() => this.team().filter((m) => !m.isActive));
   protected readonly adding = signal<'munshi' | 'email' | null>(null);
@@ -212,13 +228,13 @@ export class TeamComponent implements OnInit {
   }
   protected startAdd(kind: 'munshi' | 'email'): void {
     this.name = this.phone = this.pin = this.email = '';
-    this.roleId = this.roles().find((r) => r.name === 'Manager')?.id ?? '';
+    this.roleId = this.roles().find((r) => r.name === (kind === 'munshi' ? 'Sorter' : 'Manager'))?.id ?? '';
     this.adding.set(kind);
   }
 
   protected addMunshi(): void {
     const name = this.name.trim();
-    this.run(this.http.post(`${API_BASE_URL}/users/munshi`, { name, phone: this.phone.trim(), pin: this.pin }), () => {
+    this.run(this.http.post(`${API_BASE_URL}/users/staff`, { name, phone: this.phone.trim(), pin: this.pin, roleId: this.roleId }), () => {
       this.adding.set(null);
       this.toast.show(this.i18n.t('settings.munshiAdded', { name }));
     });

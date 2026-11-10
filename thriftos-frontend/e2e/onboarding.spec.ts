@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
 
-// v2 6.5: the super admin makes a business in three fields, gets the welcome message with the PIN, opens it in the
-// read-only support view, and sees last activity per business. The new owner then signs in with phone + PIN.
+// v2 6.5: the super admin makes a business, gets the welcome message with the first password, opens it in the
+// read-only support view, and sees last activity per business. The new owner signs in with email and must choose
+// their own password first (v2: owners sign in with email).
 
-test('quick create, read-only support view, last activity, owner signs in with the PIN', async ({ page, browser }) => {
+test('quick create, read-only support view, last activity, owner signs in with email and chooses a password', async ({ page, browser }) => {
   const tag = Date.now().toString().slice(-7);
   await page.setViewportSize({ width: 1280, height: 860 });
   await page.goto('/auth/login');
@@ -19,15 +20,22 @@ test('quick create, read-only support view, last activity, owner signs in with t
   await expect(page).toHaveURL(/\/admin\/tenants\/quick$/);
   await page.getByLabel('Business name').fill(`Quick Bales ${tag}`);
   await page.getByLabel("Owner's name").fill('Haji Rafiq');
+  const email = `rafiq${tag}@quick.pk`;
+  // Email is the login; without it Create says what is missing.
+  await page.getByRole('button', { name: 'Create business' }).click();
+  await expect(page.getByText('Enter an email like rafiq@example.com.')).toBeVisible();
+  await page.getByLabel("Owner's email").fill(email);
   await page.getByLabel("Owner's phone").fill(`0304 ${tag}`);
   await page.getByRole('button', { name: 'Create business' }).click();
 
   await expect(page.getByRole('heading', { name: `Quick Bales ${tag} is ready` })).toBeVisible();
-  const pin = (await page.locator('.pin').textContent())!.trim();
-  expect(pin).toMatch(/^\d{6}$/);
+  const password = (await page.locator('.pin').textContent())!.trim();
+  expect(password.length).toBeGreaterThanOrEqual(10);
   await expect(page.locator('.facts')).toContainText(`0304 ${tag}`);
+  await expect(page.locator('.facts')).toContainText(email);
   const message = await page.getByLabel('Welcome message').inputValue();
-  expect(message).toContain(pin);
+  expect(message).toContain(password);
+  expect(message).toContain(email);
   expect(message).toContain('السلام علیکم Haji Rafiq');
   await expect(page.getByRole('link', { name: 'Send on WhatsApp' })).toHaveAttribute('href', new RegExp(`^https://wa\\.me/92304${tag}\\?text=`));
 
@@ -49,14 +57,24 @@ test('quick create, read-only support view, last activity, owner signs in with t
   await page.waitForURL('**/admin/tenants');
   await expect(banner).toHaveCount(0);
 
-  // The owner signs in on their phone with phone + PIN.
+  // The owner signs in with email and the first password, and must choose their own before anything else.
   const phone = await browser.newPage({ viewport: { width: 360, height: 780 } });
+  await phone.addInitScript(() => localStorage.setItem('thriftos.lang', 'en'));
   await phone.goto('/auth/login');
-  await phone.locator('.who .chip').nth(0).click();
-  await phone.locator('input[type=tel]').fill(`0304 ${tag}`);
-  for (const d of pin) await phone.getByRole('button', { name: d, exact: true }).click();
+  await phone.locator('.who .chip').nth(1).click();
+  await phone.fill('input[type=email]', email);
+  await phone.fill('input[type=password]', password);
   await phone.locator('button[type=submit]').click();
-  await phone.waitForURL(/\/(home|setup)/);
+  await phone.waitForURL('**/settings/password');
+  await expect(phone.getByRole('heading', { name: 'Choose your own password' })).toBeVisible();
+  await phone.goto('/home');
+  await phone.waitForURL('**/settings/password');
+  await phone.getByLabel('Password you were sent').fill(password);
+  await phone.getByLabel(/^New password/).first().fill('Rafiq-own-pass-1');
+  await phone.getByLabel('New password again').fill('Rafiq-own-pass-1');
+  await phone.getByRole('button', { name: 'Save password' }).click();
+  // Then the setup, as for any new business.
+  await phone.waitForURL('**/setup');
   await phone.close();
 });
 
@@ -78,6 +96,7 @@ test('test business: new PIN, fix the phone, sample data, audit, delete', async 
   await expect(page.getByRole('link', { name: 'Full form' })).toHaveCount(0);
   await page.getByLabel('Business name').fill(name);
   await page.getByLabel("Owner's name").fill('Test Owner');
+  await page.getByLabel("Owner's email").fill(`test${tag}@quick.pk`);
   await page.getByLabel("Owner's phone").fill(`0305 ${tag}`);
   await page.getByLabel(/Test business/).check();
   await page.getByRole('button', { name: 'Create business' }).click();
@@ -86,7 +105,8 @@ test('test business: new PIN, fix the phone, sample data, audit, delete', async 
   await expect(page.getByRole('heading', { name, level: 1 })).toContainText('Test');
   const owner = page.locator('tr').filter({ hasText: 'Test Owner' });
   await expect(owner).toContainText(`0305 ${tag}`);
-  await expect(owner).toContainText('Phone and PIN');
+  await expect(owner).toContainText('Email and password');
+  await expect(owner.getByRole('button', { name: 'New PIN' })).toHaveCount(0);
 
   // Fix the phone.
   await owner.getByRole('button', { name: 'Edit' }).click();
@@ -95,11 +115,10 @@ test('test business: new PIN, fix the phone, sample data, audit, delete', async 
   await dialog.getByRole('button', { name: 'Save' }).click();
   await expect(owner).toContainText(`0306 ${tag}`);
 
-  // A new PIN, with the message to send.
-  await owner.getByRole('button', { name: 'New PIN' }).click();
-  const pin = (await page.locator('.dialog .pin').textContent())!.trim();
-  expect(pin).toMatch(/^\d{6}$/);
-  await expect(page.getByRole('link', { name: 'Send on WhatsApp' })).toHaveAttribute('href', new RegExp(`^https://wa\\.me/92306${tag}\\?text=`));
+  // A new password (owners sign in with email); they choose their own at the next sign-in.
+  await owner.getByRole('button', { name: 'New password' }).click();
+  await expect(page.locator('.dialog .pin')).not.toBeEmpty();
+  await expect(page.getByRole('dialog')).toContainText('choose their own password');
   await page.getByRole('button', { name: 'Done' }).click();
 
   // How the business works (v2 modules): made with the everyday set; switch to ready bales only with Export sales.
@@ -140,9 +159,9 @@ test('test business: new PIN, fix the phone, sample data, audit, delete', async 
   await expect(page).toHaveURL(/\/admin\/audit\?business=/);
   const trail = page.locator('app-global-audit tbody');
   await expect(trail).toContainText('Sample data added');
-  await page.getByLabel('Search').fill('pin');
+  await page.getByLabel('Search').fill('password');
   await page.getByRole('button', { name: 'Search' }).click();
-  await expect(trail).toContainText('New PIN made');
+  await expect(trail).toContainText('New password made');
   await expect(trail).not.toContainText('Console change');
   await page.goBack();
 

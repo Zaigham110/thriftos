@@ -37,9 +37,9 @@ test('the first-week checklist adds a supplier in place, opens each step and its
   await card.getByRole('button', { name: /Receive your first container/ }).click();
   await expect(page).toHaveURL(/\/receive\/container$/);
   await page.goto('/home');
-  await card.getByRole('link', { name: 'How? Add your munshi' }).click();
+  await card.getByRole('link', { name: 'How? Add your staff' }).click();
   await expect(page).toHaveURL(/\/help\/team$/);
-  await expect(page.getByRole('heading', { name: 'Add your munshi' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Add your staff' })).toBeVisible();
   await expect(page.locator('.steps li')).toHaveCount(4);
   await page.getByRole('link', { name: 'Open Team' }).click();
   await expect(page).toHaveURL(/\/settings\/team$/);

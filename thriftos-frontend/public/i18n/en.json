@@ -38,7 +38,10 @@
   "tooMany": "Too many tries. Wait a minute and try again.",
   "wrong": "Email or password is wrong.",
   "wrongPin": "Phone or PIN is wrong. {n} tries left.",
-  "wrongPinPlain": "Phone or PIN is wrong."
+  "wrongPinPlain": "Phone or PIN is wrong.",
+  "firstPassword": "Choose your own password",
+  "firstPasswordHint": "You signed in with the password ThriftOS sent you. Choose your own now; only you will know it.",
+  "passwordYouGot": "Password you were sent"
  },
  "bill": {
   "amount": "Amount",
@@ -119,8 +122,8 @@
    "title": "Add your supplier"
   },
   "team": {
-   "hint": "Name, phone and a 4-digit PIN",
-   "title": "Add your munshi"
+   "hint": "Name, phone, role and a 4-digit PIN",
+   "title": "Add your staff"
   },
   "title": "Your first week",
   "lot": {
@@ -194,10 +197,10 @@
   "team": {
    "go": "Open Team",
    "s1": "Open Settings, then Team.",
-   "s2": "Tap Add munshi and write the name and phone number.",
-   "s3": "Choose a 4-digit PIN and tell it to the munshi.",
-   "s4": "The munshi signs in with phone and PIN, and sees floor work, not your profit.",
-   "title": "Add your munshi"
+   "s2": "Tap Add staff, write the name and phone number, and pick their job: manager, buyer, sorter, salesman or cashier.",
+   "s3": "Choose a 4-digit PIN and tell it to them.",
+   "s4": "They sign in with phone and PIN and see only the work of their job, not your profit.",
+   "title": "Add your staff"
   },
   "title": "Help"
  },
@@ -517,7 +520,7 @@
   "title": "Sell"
  },
  "settings": {
-  "addMunshi": "Add munshi",
+  "addMunshi": "Add staff",
   "advanced": "Advanced",
   "business": "Business",
   "export": "Download all my data",
@@ -582,7 +585,11 @@
    "Manager": "Manager",
    "Worker": "Worker",
    "ReadOnly": "Can only look",
-   "Munshi": "Munshi"
+   "Munshi": "Staff",
+   "Buyer": "Buyer",
+   "Sorter": "Sorter",
+   "Salesman": "Salesman",
+   "Cashier": "Cashier"
   },
   "tm": {
    "addEmail": "Add someone with email",
@@ -609,6 +616,14 @@
     "EMAIL_TAKEN": "This email already has a login.",
     "SELF": "You cannot do this to yourself.",
     "NOT_FOUND": "Not found; refresh and try again."
+   },
+   "staffRole": "Their job",
+   "roleHint": {
+    "Manager": "Runs the business day to day: everything except the team and business settings.",
+    "Buyer": "Suppliers, containers, loose lots and ready bales.",
+    "Sorter": "Sorting, grading, making bales and stock.",
+    "Salesman": "Sales, customers and collecting payments.",
+    "Cashier": "Expenses, cash close and payments."
    }
   },
   "pin": {
@@ -637,9 +652,9 @@
   "grades": "Grade names",
   "gradesHint": "Best first: number 1 is your top grade.",
   "language": "Language",
-  "munshi": "Add a munshi (optional)",
-  "munshiName": "Munshi name",
-  "munshiPin": "PIN for the munshi",
+  "munshi": "Add staff (optional)",
+  "munshiName": "Name",
+  "munshiPin": "PIN for them",
   "removed": "Removed — tap to add back",
   "skip": "Skip",
   "step": "Step {n} of {total}",
@@ -1433,8 +1448,8 @@
    "EXPENSES": "Expenses",
    "CASH_CLOSE": "Cash close",
    "PNL": "Profit and loss",
-   "MUNSHI": "Munshi",
-   "IMPORT": "Import from Excel"
+   "IMPORT": "Import from Excel",
+   "STAFF": "Staff"
   },
   "movement": {
    "ADJUSTMENT": "Count",
@@ -2176,7 +2191,9 @@
     "report_inventory": "Stock reports",
     "report_procurement": "Buying reports",
     "report_sorting": "Sorting reports",
-    "report_worker": "Worker reports"
+    "report_worker": "Worker reports",
+    "sale_create": "Make sales",
+    "payment_create": "Take payments"
    }
   }
  }

@@ -23,7 +23,7 @@ async function main(): Promise<void> {
     }
     console.log('Logins:');
     console.log(`  Owner (Al-Madina Traders):  ${DEMO.owner.email} / ${DEMO.owner.password}`);
-    console.log(`  Munshi (phone + PIN):       ${DEMO.munshi.phone} / ${DEMO.munshi.pin}`);
+    console.log(`  Staff, Sorter (phone + PIN): ${DEMO.munshi.phone} / ${DEMO.munshi.pin}`);
     console.log(`  Trader (Lahore Bale House): ${DEMO.trader.email} / ${DEMO.trader.password}`);
     console.log('  Super admin:                superadmin@thriftos.com / SuperAdmin@123');
   } finally {

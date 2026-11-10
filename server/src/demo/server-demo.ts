@@ -79,7 +79,7 @@ async function main(): Promise<void> {
     }
     console.log('Logins (your DEMO_PASSWORD / DEMO_PIN):');
     console.log(`  Owner, Al-Madina Traders (Demo):  ${DEMO.owner.email}`);
-    console.log(`  Munshi, Al-Madina (phone + PIN):  ${DEMO.munshi.phone}`);
+    console.log(`  Staff (Sorter), Al-Madina (phone + PIN):  ${DEMO.munshi.phone}`);
     console.log(`  Owner, Lahore Bale House (Demo):  ${DEMO.trader.email}`);
   } finally {
     await app.close();

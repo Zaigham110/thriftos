@@ -27,7 +27,7 @@ export function cleanNames(names: string[]): string[] {
 /**
  * Journey 8 — the setup wizard, saved in one step: business name, currency, language, whether and how the
  * business sorts, its categories (from the Karachi list) and grade names, the Waste/Katran type, and an
- * optional munshi (phone + PIN). Everything stays editable later.
+ * optional first staff member (phone + PIN, with a role). Everything stays editable later.
  */
 @Injectable()
 export class SetupService {
@@ -71,15 +71,15 @@ export class SetupService {
     const grades = cleanNames(dto.grades);
     if (sortingStages >= 1 && !categories.length) throw new BadRequestException('Keep at least one category.');
     if (sortingStages === 2 && !grades.length) throw new BadRequestException('Add at least one grade name.');
-    if (dto.munshi && !tenant.enabledModules.includes('MUNSHI')) throw new BadRequestException('Munshi is not turned on for this business.');
+    if (dto.munshi && !tenant.enabledModules.includes('STAFF')) throw new BadRequestException('Staff is not turned on for this business.');
 
     if (dto.currency !== tenant.currency && (await this.tenants.isCurrencyLocked(tenantId))) {
       throw new BadRequestException('The currency cannot change after money has been recorded.');
     }
     const phone = dto.munshi ? toE164(dto.munshi.phone) : null;
-    if (dto.munshi && !phone) throw new BadRequestException('Enter a valid phone number for the munshi, e.g. 0300 1234567');
+    if (dto.munshi && !phone) throw new BadRequestException('Enter a valid phone number for the staff member, e.g. 0300 1234567');
     if (phone && (await this.prisma.user.findUnique({ where: { phone }, select: { id: true } }))) {
-      throw new ConflictException("The munshi's phone already has a login");
+      throw new ConflictException("This staff member's phone already has a login");
     }
 
     await this.prisma.$transaction(async (tx) => {

@@ -185,7 +185,7 @@ export async function seedDemo(app: INestApplicationContext, opts: { today?: Dat
       sortingStages: 2,
       categories: CATEGORIES.map((c) => c.name),
       grades: GRADES,
-      munshi: { name: 'Akram Munshi', phone: DEMO.munshi.phone, pin: DEMO.munshi.pin },
+      munshi: { name: 'Akram', phone: DEMO.munshi.phone, pin: DEMO.munshi.pin, roleName: 'Sorter' },
     },
     owner.id,
     { platform: true },

@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, ConflictException, NotFoundException }
 import { Prisma } from '@prisma/client';
 import { toE164 } from '../common/phone/phone';
 import { CreateMunshiDto } from './dto/munshi.dto';
-import { munshiRoleId } from './munshi';
+import { ensureStaffRoles } from './staff';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { PasswordService } from '../auth/password.service';
@@ -435,6 +435,7 @@ export class UsersService {
 
   /** The business's roles for Team (v2 review: Settings): id, name and how many people have it. */
   async teamRoles(tenantId: string) {
+    await this.prisma.$transaction((tx) => ensureStaffRoles(tx, tenantId));
     const roles = await this.prisma.role.findMany({ where: { tenantId }, orderBy: { name: 'asc' }, select: { id: true, name: true, _count: { select: { userRoles: true } } } });
     return roles.map((r) => ({ id: r.id, name: r.name, people: r._count.userRoles }));
   }
@@ -506,23 +507,36 @@ export class UsersService {
     const email = dto.email.trim().toLowerCase();
     if (await this.prisma.user.findFirst({ where: { email } })) throw new ConflictException({ code: 'EMAIL_TAKEN', message: 'This email already has a login' });
     const created = await this.create(tenantId, { name: dto.name.trim(), email, roleIds: [role.id] }, actorId);
+    // A password made by ThriftOS: they set their own at the first sign-in.
+    await this.prisma.user.update({ where: { id: created.id }, data: { mustChangePassword: true } });
     return { id: created.id, temporaryPassword: (created as { temporaryPassword?: string }).temporaryPassword };
   }
 
-  /** Adds a munshi who signs in with phone + PIN (no email or password), in the Munshi role. */
+  /**
+   * Adds staff who sign in with phone + PIN (no email or password) in a role: a staff role (Manager, Buyer, Sorter,
+   * Salesman, Cashier) or one the owner made; never the owner's own role. Sorter when no role is given.
+   */
   async createMunshi(tenantId: string, dto: CreateMunshiDto, actorId: string) {
     const phone = toE164(dto.phone);
     if (!phone) throw new BadRequestException({ code: 'PHONE_INVALID', message: 'Enter a valid phone number, e.g. 0300 1234567' });
     const pinHash = await this.passwordService.hash(dto.pin);
     try {
       const user = await this.prisma.$transaction(async (tx) => {
-        const roleId = await munshiRoleId(tx, tenantId);
+        await ensureStaffRoles(tx, tenantId);
+        const role = dto.roleId
+          ? await tx.role.findFirst({ where: { id: dto.roleId, tenantId }, select: { id: true, name: true } })
+          : await tx.role.findFirst({ where: { tenantId, name: dto.roleName ?? 'Sorter' }, select: { id: true, name: true } });
+        if (!role) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Role not found' });
+        // The owner's role (or any role that may manage the team) is not for staff.
+        const ownerLevel = role.name === 'Admin' || (await tx.rolePermission.count({ where: { roleId: role.id, permission: { code: 'user.create' } } })) > 0;
+        if (ownerLevel) throw new BadRequestException({ code: 'OWNER_ROLE', message: 'Staff cannot have the owner role' });
+        const roleId = role.id;
         return tx.user.create({
           data: { tenantId, name: dto.name.trim(), phone, pinHash, userRoles: { create: { roleId } } },
           select: { id: true, name: true, phone: true, isActive: true },
         });
       });
-      await this.auditService.log({ tenantId, userId: actorId, action: 'MUNSHI_ADDED', entityType: 'User', entityId: user.id, metadataJson: { name: user.name, phone } });
+      await this.auditService.log({ tenantId, userId: actorId, action: 'STAFF_ADDED', entityType: 'User', entityId: user.id, metadataJson: { name: user.name, phone } });
       return user;
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException({ code: 'PHONE_TAKEN', message: 'This phone already has a login' });

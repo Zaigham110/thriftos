@@ -13,7 +13,7 @@ export const MODULE_KEYS = [
   'WAREHOUSES', 'STOCK_COUNTS',
   'PRICE_LISTS', 'EXPORT', 'KHATA',
   'EXPENSES', 'CASH_CLOSE', 'PNL',
-  'REPORTS', 'MUNSHI', 'IMPORT',
+  'REPORTS', 'STAFF', 'IMPORT',
 ] as const;
 export type ModuleKey = (typeof MODULE_KEYS)[number];
 
@@ -115,9 +115,9 @@ export const MODULES: readonly ModuleInfo[] = [
     hint: { en: 'Reports beyond the daily ones: sorting, grading, waste, workers.', ur: 'روزانہ سے بڑھ کر رپورٹس: چھانٹی، گریڈنگ، ویسٹ، مزدور۔', roman: 'Rozana se barh kar reports: chhantai, grading, waste, mazdoor.' },
   },
   {
-    key: 'MUNSHI', group: 'other', byDefault: true,
-    name: { en: 'Munshi (staff)', ur: 'منشی (عملہ)', roman: 'Munshi (amla)' },
-    hint: { en: 'Staff who sign in with a phone and PIN.', ur: 'عملہ جو فون اور PIN سے سائن ان کرے۔', roman: 'Amla jo phone aur PIN se sign in kare.' },
+    key: 'STAFF', group: 'other', byDefault: true,
+    name: { en: 'Staff', ur: 'عملہ', roman: 'Staff' },
+    hint: { en: 'Manager, buyer, sorter, salesman and cashier, each signing in with a phone and PIN.', ur: 'منیجر، خریدار، چھانٹنے والا، سیلز مین اور کیشیئر، ہر ایک فون اور PIN سے سائن ان کرے۔', roman: 'Manager, khareedar, chhantai wala, salesman aur cashier, har aik phone aur PIN se sign in kare.' },
   },
   {
     key: 'IMPORT', group: 'other', byDefault: true,

@@ -119,7 +119,7 @@ type Sheet = 'edit' | 'person' | 'switch' | 'support' | 'delete' | 'secret' | 'w
                       <td>{{ p.roles.join(', ') || '—' }}</td>
                       <td>{{ signIn(p) }}@if (p.pinLocked) { <span class="tag bad">Locked</span> }</td>
                       <td class="end"><span class="btns">
-                        @if (p.phone) { <button type="button" class="btn sm" [disabled]="busy()" (click)="newPin(p)">New PIN</button> }
+                        @if (p.phone && !p.email) { <button type="button" class="btn sm" [disabled]="busy()" (click)="newPin(p)">New PIN</button> }
                         @if (p.email) { <button type="button" class="btn sm" [disabled]="busy()" (click)="newPassword(p)">New password</button> }
                         <button type="button" class="btn sm" (click)="editPerson(p)">Edit</button>
                       </span></td>
@@ -189,7 +189,7 @@ type Sheet = 'edit' | 'person' | 'switch' | 'support' | 'delete' | 'secret' | 'w
                 <p class="pin" dir="ltr">{{ x.pin }}</p>
                 <label class="form">Message<textarea readonly rows="6" dir="auto" [value]="x.message"></textarea></label>
               } @else {
-                <p>Temporary password for {{ x.name }} ({{ x.email }}), shown only now. They are signed out.</p>
+                <p>Temporary password for {{ x.name }} ({{ x.email }}), shown only now. They are signed out and choose their own password the next time they sign in.</p>
                 <p class="pin" dir="ltr">{{ x.password }}</p>
               }
             }

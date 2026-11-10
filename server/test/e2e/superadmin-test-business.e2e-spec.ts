@@ -22,7 +22,7 @@ describe('Super admin: owners, test businesses, audit (e2e)', () => {
     superAdmin = await login(app, 'superadmin@thriftos.com', 'SuperAdmin@123');
     owner = await createTenantWithOwner(app);
     const made = (
-      await api(app, superAdmin).post('/superadmin/tenants/quick', { businessName: `Test Bales ${tag}`, ownerName: 'Test Owner', ownerPhone: `0302 ${tag}`, isTest: true }).expect(201)
+      await api(app, superAdmin).post('/superadmin/tenants/quick', { businessName: `Test Bales ${tag}`, ownerName: 'Test Owner', ownerEmail: `owner${tag}@test.pk`, ownerPhone: `0302 ${tag}`, isTest: true }).expect(201)
     ).body;
     testId = made.tenant.id;
     ownerId = made.owner.id;
@@ -33,23 +33,29 @@ describe('Super admin: owners, test businesses, audit (e2e)', () => {
     await app.close();
   });
 
-  it('a new PIN: the old one stops working, the new one signs in, it unlocks, and it is not in the audit log', async () => {
-    await prisma.user.update({ where: { id: ownerId }, data: { pinLockedUntil: new Date(Date.now() + 3_600_000), failedPinAttempts: 5 } });
+  it('a new PIN for staff: the old one stops working, the new one signs in, it unlocks, and it is not in the audit log', async () => {
+    // Staff sign in with phone + PIN; the owner (email) gets no PIN (v2).
+    const sorter = await prisma.role.findFirstOrThrow({ where: { tenantId: testId, name: 'Sorter' } });
+    const staff = await prisma.user.create({
+      data: { tenantId: testId, name: 'Akram', phone: `+92310${tag}`, pinHash: 'x', pinLockedUntil: new Date(Date.now() + 3_600_000), failedPinAttempts: 5, userRoles: { create: { roleId: sorter.id } } },
+    });
     const detail = (await api(app, superAdmin).get(`/superadmin/tenants/${testId}`).expect(200)).body;
-    expect(detail.users[0]).toMatchObject({ name: 'Test Owner', phone: `+92302${tag}`, hasPin: true, pinLocked: true });
+    expect(detail.users.find((u: any) => u.id === staff.id)).toMatchObject({ name: 'Akram', phone: `+92310${tag}`, hasPin: true, pinLocked: true });
     expect(detail.isTest).toBe(true);
+    expect((await api(app, superAdmin).post(`/superadmin/tenants/${testId}/users/${ownerId}/pin`, {}).expect(400)).body.code).toBe('USES_PASSWORD');
 
-    const res = (await api(app, superAdmin).post(`/superadmin/tenants/${testId}/users/${ownerId}/pin`, {}).expect(200)).body;
+    const res = (await api(app, superAdmin).post(`/superadmin/tenants/${testId}/users/${staff.id}/pin`, {}).expect(200)).body;
     expect(res.pin).toMatch(/^\d{6}$/);
     expect(res.message).toContain(res.pin);
-    await request(app.getHttpServer()).post('/api/auth/login/pin').send({ phone: `0302${tag}`, pin: res.pin }).expect(200);
+    await request(app.getHttpServer()).post('/api/auth/login/pin').send({ phone: `0310${tag}`, pin: res.pin }).expect(200);
     const audit = await prisma.auditLog.findFirstOrThrow({ where: { tenantId: testId, action: 'USER_PIN_RESET' } });
     expect(JSON.stringify(audit.metadataJson)).not.toContain(res.pin);
     // An email user gets a temporary password in their own business; a phone-only owner is told to use a PIN.
     const pw = (await api(app, superAdmin).post(`/superadmin/tenants/${owner.tenantId}/users/${owner.userId}/password`, {}).expect(200)).body;
     expect(pw.temporaryPassword).toBeTruthy();
     await request(app.getHttpServer()).post('/api/auth/login').send({ email: pw.email, password: pw.temporaryPassword }).expect(200);
-    await api(app, superAdmin).post(`/superadmin/tenants/${testId}/users/${ownerId}/password`, {}).expect(400);
+    await api(app, superAdmin).post(`/superadmin/tenants/${testId}/users/${ownerId}/password`, {}).expect(200);
+    await api(app, superAdmin).post(`/superadmin/tenants/${testId}/users/${staff.id}/password`, {}).expect(400);
     // Someone without a phone gets no PIN; another business's person is not found.
     await api(app, superAdmin).post(`/superadmin/tenants/${owner.tenantId}/users/${ownerId}/pin`, {}).expect(404);
   });
@@ -76,10 +82,10 @@ describe('Super admin: owners, test businesses, audit (e2e)', () => {
     const log = await prisma.auditLog.findFirstOrThrow({ where: { tenantId: testId, action: 'TENANT_WORKINGS_CHANGED' }, orderBy: { createdAt: 'desc' } });
     expect(log.metadataJson).toMatchObject({ after: { sortingStages: 1 } });
     // Back to the sorting story's type for the sample-data test below.
-    await api(app, superAdmin).patch(`/superadmin/tenants/${testId}/workings`, { sortingStages: 2, modules: ['CONTAINERS', 'LOOSE_LOTS', 'KHATA', 'STOCK_COUNTS', 'EXPENSES', 'CASH_CLOSE', 'PNL', 'MUNSHI'] }).expect(200);
+    await api(app, superAdmin).patch(`/superadmin/tenants/${testId}/workings`, { sortingStages: 2, modules: ['CONTAINERS', 'LOOSE_LOTS', 'KHATA', 'STOCK_COUNTS', 'EXPENSES', 'CASH_CLOSE', 'PNL', 'STAFF'] }).expect(200);
     // A new trading-only business starts without the Sorting tab.
     const trader = (
-      await api(app, superAdmin).post('/superadmin/tenants/quick', { businessName: `Trader ${tag}`, ownerName: 'T', ownerPhone: `0307 ${tag}`, sortingStages: 0, isTest: true }).expect(201)
+      await api(app, superAdmin).post('/superadmin/tenants/quick', { businessName: `Trader ${tag}`, ownerName: 'T', ownerEmail: `trader${tag}@test.pk`, sortingStages: 0, isTest: true }).expect(201)
     ).body;
     const t = await prisma.tenant.findUniqueOrThrow({ where: { id: trader.tenant.id } });
     expect(t.enabledModules).not.toContain('SORT');
@@ -91,7 +97,7 @@ describe('Super admin: owners, test businesses, audit (e2e)', () => {
 
   it('New business: chosen modules, currency and the business phone are saved; lists fit the type; mistakes have codes', async () => {
     const body = {
-      businessName: `Loose ${tag}`, ownerName: 'L', ownerPhone: `0308 ${tag}`, sortingStages: 1, isTest: true,
+      businessName: `Loose ${tag}`, ownerName: 'L', ownerEmail: `loose${tag}@test.pk`, ownerPhone: `0308 ${tag}`, sortingStages: 1, isTest: true,
       modules: ['LOOSE_LOTS', 'KHATA', 'EXPENSES'], currency: 'USD', businessPhone: '0300 1234567', city: 'Karachi', language: 'roman',
     };
     const made = (await api(app, superAdmin).post('/superadmin/tenants/quick', body).expect(201)).body;
@@ -104,8 +110,9 @@ describe('Super admin: owners, test businesses, audit (e2e)', () => {
     expect(await prisma.grade.count({ where: { tenantId: t.id } })).toBe(0);
     expect(await prisma.wasteCategory.count({ where: { tenantId: t.id } })).toBe(1);
 
-    const again = await api(app, superAdmin).post('/superadmin/tenants/quick', { ...body, businessName: `Other ${tag}` }).expect(409);
-    expect(again.body.code).toBe('PHONE_TAKEN');
+    expect((await api(app, superAdmin).post('/superadmin/tenants/quick', { ...body, businessName: `Other ${tag}` }).expect(409)).body.code).toBe('EMAIL_TAKEN');
+    expect((await api(app, superAdmin).post('/superadmin/tenants/quick', { ...body, businessName: `Other ${tag}`, ownerEmail: `other${tag}@test.pk` }).expect(409)).body.code).toBe('PHONE_TAKEN');
+    body.ownerEmail = `next${tag}@test.pk`;
     expect((await api(app, superAdmin).post('/superadmin/tenants/quick', { ...body, ownerPhone: '12' }).expect(400)).body.code).toBe('PHONE_INVALID');
     expect((await api(app, superAdmin).post('/superadmin/tenants/quick', { ...body, ownerPhone: `0309 ${tag}`, modules: ['KHATA'] }).expect(400)).body.code).toBe('NO_BUYING');
     expect((await api(app, superAdmin).post('/superadmin/tenants/quick', { ...body, ownerPhone: `0309 ${tag}`, modules: ['READY_STOCK'] }).expect(400)).body.code).toBe('SORT_NEEDS_LOTS');

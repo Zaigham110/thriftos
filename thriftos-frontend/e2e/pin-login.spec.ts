@@ -14,15 +14,20 @@ async function pinSignIn(page: Page, phone: string, pin: string): Promise<void> 
   await page.getByRole('button', { name: 'Sign in' }).click();
 }
 
-/** Task 3.7: the owner adds a munshi; the munshi signs in with phone + PIN; 5 wrong PINs lock it; the owner unlocks. */
-test('munshi phone + PIN sign-in with lockout after 5 wrong PINs', async ({ page }) => {
+/** Task 3.7 (v2: staff): the owner adds staff with a role; they sign in with phone + PIN; 5 wrong PINs lock it; the owner unlocks. */
+test('staff phone + PIN sign-in with lockout after 5 wrong PINs', async ({ page }) => {
   const phone = `0333${Date.now().toString().slice(-7)}`;
   await signIn(page);
   await page.goto('/settings/team');
-  await page.getByRole('button', { name: 'Add munshi' }).click();
-  await page.getByLabel('Munshi name').fill('Akram');
+  await page.getByRole('button', { name: 'Add staff' }).click();
+  await page.getByLabel('Name', { exact: true }).fill('Akram');
+  // Sorter is chosen first; each job says what it does.
+  await expect(page.getByRole('button', { name: 'Sorter', exact: true })).toHaveClass(/on/);
+  await page.getByRole('button', { name: 'Salesman', exact: true }).click();
+  await expect(page.getByText('Sales, customers and collecting payments.')).toBeVisible();
+  await page.getByRole('button', { name: 'Sorter', exact: true }).click();
   await page.getByLabel('WhatsApp number').fill(phone);
-  await page.getByLabel(/PIN for the munshi/).fill('4821');
+  await page.getByLabel(/PIN for them/).fill('4821');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Akram can now sign in with phone and PIN.' })).toBeVisible();
   await signOut(page);
@@ -57,7 +62,7 @@ test('munshi phone + PIN sign-in with lockout after 5 wrong PINs', async ({ page
   // Phones show the local way (0333 1234567); open the person to act.
   const row = page.locator('li.member').filter({ hasText: 'Akram' }).filter({ hasText: phone.slice(4) });
   await expect(row).toContainText('Locked');
-  await expect(row).toContainText('Munshi');
+  await expect(row).toContainText('Sorter');
   await row.locator('button.head').click();
   await row.getByRole('button', { name: 'Unlock' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Akram can sign in again.' })).toBeVisible();

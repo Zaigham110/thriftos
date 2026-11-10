@@ -67,7 +67,7 @@ describe('Settings review (e2e)', () => {
     await api(app, munshi).get('/me').expect(401);
     await pinLogin('03007651101', '4821').expect(401);
     const team = (await api(app, a).get('/users/team').expect(200)).body;
-    expect(team.find((u: { id: string }) => u.id === m.id)).toMatchObject({ isActive: false, roles: ['Munshi'] });
+    expect(team.find((u: { id: string }) => u.id === m.id)).toMatchObject({ isActive: false, roles: ['Sorter'] });
     expect(team.find((u: { you: boolean }) => u.you)).toBeTruthy();
     await api(app, a).post(`/users/${m.id}/start`, {}).expect(200);
     await pinLogin('03007651101', '4821').expect(200);

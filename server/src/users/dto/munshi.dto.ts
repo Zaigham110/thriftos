@@ -1,4 +1,5 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import { STAFF_ROLE_NAMES, StaffRoleName } from '../staff';
 
 export class CreateMunshiDto {
   @IsString()
@@ -14,6 +15,16 @@ export class CreateMunshiDto {
 
   @Matches(/^\d{4,6}$/, { message: 'PIN is 4 to 6 digits' })
   pin: string;
+
+  /** Their role (Manager, Buyer, Sorter, Salesman, Cashier or one the owner made); Sorter if not given. */
+  @IsOptional()
+  @IsString()
+  roleId?: string;
+
+  /** Or a staff role by name. */
+  @IsIn(STAFF_ROLE_NAMES)
+  @IsOptional()
+  roleName?: StaffRoleName;
 }
 
 export class SetPinDto {

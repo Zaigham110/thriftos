@@ -3,6 +3,8 @@ import { Body, Controller, Get, Headers, Param, Post, Query, StreamableFile, Upl
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentUser, CurrentUserData, TenantId } from '../common/decorators';
 import { TenantGuard } from '../common/guards/tenant.guard';
+import { PermissionGuard } from '../common/guards/permission.guard';
+import { RequirePermissions } from '../common/decorators/permissions.decorator';
 import { CreatePaymentDto, CustomersQueryDto, LanguageQueryDto } from './dto';
 import { KhataService, UploadedPhoto } from './khata.service';
 
@@ -30,6 +32,8 @@ export class KhataController {
 
   /** Payment received. Send an Idempotency-Key so a repeat (offline sync, double tap) records it once. */
   @Post('payments')
+  @UseGuards(PermissionGuard)
+  @RequirePermissions('payment.create')
   recordPayment(
     @TenantId() tenantId: string,
     @Body() dto: CreatePaymentDto,

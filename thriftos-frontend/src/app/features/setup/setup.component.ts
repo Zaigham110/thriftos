@@ -1,3 +1,4 @@
+import { STAFF_ROLES } from '../settings/roles';
 import { moduleOn } from '../../core/tenant/module-on';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
@@ -17,7 +18,7 @@ type Step = 'business' | 'categories' | 'grades' | 'munshi';
 /**
  * Journey 8 — setup in under 5 minutes, one question per screen: business (name, currency, language) →
  * "Do you sort?" → categories (Karachi list: tap to remove, add your own) → grade names (only when grading) →
- * a munshi with phone + PIN (optional). Saved in one step; everything can be changed later in Settings.
+ * a first staff member with phone + PIN and a role (optional). Saved in one step; everything can be changed later in Settings.
  */
 @Component({
   selector: 'app-setup',
@@ -70,6 +71,9 @@ type Step = 'business' | 'categories' | 'grades' | 'munshi';
           <h2>{{ 'setup.munshi' | t }}</h2>
           <section class="card">
             <label class="field">{{ 'setup.munshiName' | t }}<input name="mName" [(ngModel)]="munshiName" maxlength="120" autocomplete="off" /></label>
+            <span class="field">{{ 'settings.tm.staffRole' | t }}</span>
+            <div class="chips">@for (r of staffRoles; track r) { <button type="button" class="chip" [class.on]="munshiRole === r" (click)="munshiRole = r">{{ 'settings.role.' + r | t }}</button> }</div>
+            <p class="hint">{{ 'settings.tm.roleHint.' + munshiRole | t }}</p>
             <label class="field">{{ 'common.phone' | t }}<input name="mPhone" type="tel" inputmode="tel" [(ngModel)]="munshiPhone" [placeholder]="'common.phonePlaceholder' | t" /></label>
             <label class="field">{{ 'setup.munshiPin' | t }} <small>{{ 'auth.pinHint' | t }}</small><input name="mPin" type="tel" inputmode="numeric" maxlength="6" [(ngModel)]="munshiPin" class="ltr" autocomplete="off" /></label>
           </section>
@@ -121,19 +125,22 @@ export class SetupComponent implements OnInit {
   protected munshiName = '';
   protected munshiPhone = '';
   protected munshiPin = '';
+  /** Their staff role (v2: staff instead of "munshi"). */
+  protected munshiRole = 'Sorter';
+  protected readonly staffRoles = STAFF_ROLES;
   /** One key for this setup, so a retry after a network error saves it once. */
   private readonly key = crypto.randomUUID();
 
   private readonly on = moduleOn();
   /**
    * How the business sorts and what it has are set by ThriftOS when it is made (v2 modules): the owner is asked only
-   * for the names it needs — categories when it sorts, grades when it grades — and a munshi when it has munshi.
+   * for the names it needs — categories when it sorts, grades when it grades — and a first staff member when it has staff.
    */
   protected readonly steps = computed<Step[]>(() => [
     'business' as Step,
     ...(this.stages() >= 1 ? (['categories'] as Step[]) : []),
     ...(this.stages() === 2 ? (['grades'] as Step[]) : []),
-    ...(this.on('MUNSHI') ? (['munshi'] as Step[]) : []),
+    ...(this.on('STAFF') ? (['munshi'] as Step[]) : []),
   ]);
   protected readonly step = computed(() => this.steps()[Math.min(this.index(), this.steps().length - 1)]);
   protected readonly isLast = computed(() => this.index() >= this.steps().length - 1);
@@ -223,7 +230,7 @@ export class SetupComponent implements OnInit {
       language: this.language(),
       categories: this.stages() === 0 ? [] : this.categories(),
       grades: this.stages() === 2 ? this.grades().filter((g) => g.trim()) : [],
-      ...(withMunshi ? { munshi: { name: this.munshiName.trim(), phone: this.munshiPhone.trim(), pin: this.munshiPin } } : {}),
+      ...(withMunshi ? { munshi: { name: this.munshiName.trim(), phone: this.munshiPhone.trim(), pin: this.munshiPin, roleName: this.munshiRole } } : {}),
     };
     this.http.post(`${API_BASE_URL}/tenant/setup`, body, { headers: { 'Idempotency-Key': this.key } }).subscribe({
       next: () => {

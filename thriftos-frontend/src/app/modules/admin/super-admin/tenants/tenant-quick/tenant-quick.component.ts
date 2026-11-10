@@ -11,8 +11,8 @@ import { AppPageBodyComponent, AppPageComponent, AppPageHeaderComponent } from '
 
 interface QuickResult {
   tenant: { id: string; name: string; companyCode: string };
-  owner: { id: string; name: string; phone: string; phoneLocal?: string; email: string | null };
-  pin: string;
+  owner: { id: string; name: string; phone: string | null; phoneLocal?: string | null; email: string };
+  temporaryPassword: string;
   signInUrl: string;
   welcome: string;
   isTest?: boolean;
@@ -20,10 +20,11 @@ interface QuickResult {
 
 /** Pakistani mobile or landline, any common spelling (0300 1234567, +92 300…, 021 3241…); the server checks again. */
 const PHONE = /^(\+?92|0)?[\s-]?\d{2,4}[\s-]?\d{6,8}$/;
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ERRORS: Record<string, string> = {
   PHONE_INVALID: "The owner's phone does not look right. Use a number like 0300 1234567.",
   PHONE_TAKEN: '',
-  EMAIL_TAKEN: 'This email already has a login. Leave it empty or use another.',
+  EMAIL_TAKEN: 'This email already has a login. Use another.',
   BUSINESS_PHONE_INVALID: "The business phone does not look right. Use a number like 021 32412345 or 0300 1234567.",
   NO_BUYING: 'Choose at least one way they buy: containers, loose lots or ready bales.',
   SORT_NEEDS_LOTS: 'Sorting needs containers or loose lots. Turn one on, or choose No sorting.',
@@ -31,8 +32,8 @@ const ERRORS: Record<string, string> = {
 
 /**
  * New business (console, v2 modules): the business and its contact line on bills, the owner who signs in with
- * phone + PIN, and every module the customer gets — from the server's list. Then the PIN once, with the welcome
- * message to send. The owner's first sign-in asks only their category and grade names; the rest is set here.
+ * email and a first password (they choose their own at the first sign-in), and every module the customer gets —
+ * from the server's list. Then the password once, with the welcome message to send. The owner's first sign-in asks only their category and grade names; the rest is set here.
  */
 @Component({
   selector: 'app-tenant-quick',
@@ -51,19 +52,19 @@ const ERRORS: Record<string, string> = {
           <div class="done">
             <section class="card ready" aria-live="polite">
               <h2>{{ r.tenant.name }} is ready</h2>
-              <p class="muted">Send the owner this message. The PIN is shown only now.</p>
+              <p class="muted">Send the owner this message. The password is shown only now; they choose their own the first time they sign in.</p>
               <div class="facts">
-                <div><span>Owner</span><strong>{{ r.owner.name }}</strong></div>
-                <div><span>Phone (login)</span><strong dir="ltr">{{ r.owner.phoneLocal || r.owner.phone }}</strong></div>
-                <div class="pinbox"><span>PIN</span><strong class="pin" dir="ltr">{{ r.pin }}</strong>
-                  <button type="button" class="btn sm" (click)="copy(r.pin, 'pin')">{{ copied() === 'pin' ? 'Copied' : 'Copy PIN' }}</button></div>
+                <div><span>Owner</span><strong>{{ r.owner.name }}</strong>@if (r.owner.phoneLocal) { <small dir="ltr">{{ r.owner.phoneLocal }}</small> }</div>
+                <div><span>Email (login)</span><strong dir="ltr" class="mail">{{ r.owner.email }}</strong></div>
+                <div class="pinbox"><span>First password</span><strong class="pin" dir="ltr">{{ r.temporaryPassword }}</strong>
+                  <button type="button" class="btn sm" (click)="copy(r.temporaryPassword, 'pin')">{{ copied() === 'pin' ? 'Copied' : 'Copy password' }}</button></div>
               </div>
               <label class="field">Welcome message
                 <textarea readonly rows="7" dir="auto" [value]="r.welcome"></textarea>
               </label>
               <div class="btns">
-                <a class="btn primary" [href]="whatsapp(r)" target="_blank" rel="noopener">Send on WhatsApp</a>
-                <button type="button" class="btn" (click)="copy(r.welcome, 'msg')">{{ copied() === 'msg' ? 'Copied' : 'Copy message' }}</button>
+                @if (r.owner.phone) { <a class="btn primary" [href]="whatsapp(r)" target="_blank" rel="noopener">Send on WhatsApp</a> }
+                <button type="button" class="btn" [class.primary]="!r.owner.phone" (click)="copy(r.welcome, 'msg')">{{ copied() === 'msg' ? 'Copied' : 'Copy message' }}</button>
               </div>
             </section>
             <section class="card next">
@@ -104,19 +105,24 @@ const ERRORS: Record<string, string> = {
             </section>
 
             <section class="card">
-              <div class="sh"><h2>Owner</h2><p class="muted">Signs in with this phone and a PIN you get on the next screen.</p></div>
+              <div class="sh"><h2>Owner</h2><p class="muted">Signs in with this email and a first password you get on the next screen; they choose their own the first time.</p></div>
               <div class="grid">
                 <label class="field"><span>Owner's name <span class="req">required</span></span>
                   <input name="ownerName" [(ngModel)]="ownerName" required maxlength="100" autocomplete="off" (blur)="touched.add('ownerName')" [attr.aria-invalid]="show('ownerName') && !ownerName.trim()" />
                   @if (show('ownerName') && !ownerName.trim()) { <small class="bad">Enter the owner's name.</small> } @else { <small class="hint">For example Haji Rafiq</small> }
                 </label>
-                <label class="field"><span>Owner's phone <span class="req">required</span></span>
-                  <input name="ownerPhone" type="tel" inputmode="tel" dir="ltr" [(ngModel)]="ownerPhone" required maxlength="30" autocomplete="off" (blur)="touched.add('ownerPhone')" (input)="phoneError.set('')" [attr.aria-invalid]="(show('ownerPhone') && !ownerPhoneOk()) || !!phoneError()" />
+                <label class="field"><span>Owner's email <span class="req">required</span></span>
+                  <input name="ownerEmail" type="email" dir="ltr" [(ngModel)]="ownerEmail" required maxlength="200" autocomplete="off" (blur)="touched.add('ownerEmail')" (input)="emailError.set('')" [attr.aria-invalid]="(show('ownerEmail') && !ownerEmailOk()) || !!emailError()" />
+                  @if (emailError(); as ee) { <small class="bad">{{ ee }}</small> }
+                  @else if (show('ownerEmail') && !ownerEmailOk()) { <small class="bad">Enter an email like rafiq@example.com.</small> }
+                  @else { <small class="hint">Their login.</small> }
+                </label>
+                <label class="field wide"><span>Owner's phone</span>
+                  <input name="ownerPhone" type="tel" inputmode="tel" dir="ltr" [(ngModel)]="ownerPhone" maxlength="30" autocomplete="off" (blur)="touched.add('ownerPhone')" (input)="phoneError.set('')" [attr.aria-invalid]="(show('ownerPhone') && !ownerPhoneOk()) || !!phoneError()" />
                   @if (phoneError(); as pe) { <small class="bad">{{ pe }}</small> }
                   @else if (show('ownerPhone') && !ownerPhoneOk()) { <small class="bad">Use a mobile number like 0300 1234567.</small> }
-                  @else { <small class="hint">Their login. One phone, one login.</small> }
+                  @else { <small class="hint">Optional. To send them the welcome message on WhatsApp; not a login.</small> }
                 </label>
-                <label class="field wide"><span>Owner's email</span><input name="ownerEmail" type="email" dir="ltr" [(ngModel)]="ownerEmail" maxlength="200" autocomplete="off" /><small class="hint">Optional. Only for signing in with a password instead.</small></label>
               </div>
             </section>
 
@@ -185,7 +191,9 @@ const ERRORS: Record<string, string> = {
     .facts div { display:grid; gap:2px; }
     .facts span { color:var(--color-text-secondary, #6b6468); font-size:12px; }
     .pinbox { grid-template-columns:auto; }
-    .pin { font-size:26px; letter-spacing:.18em; }
+    .pin { font-size:22px; letter-spacing:.06em; word-break:break-all; }
+    .mail { word-break:break-all; }
+    .facts small { color:var(--color-text-secondary, #6b6468); }
     .next { align-content:start; }
     .next .btn { justify-content:flex-start; width:100%; white-space:normal; text-align:start; }
     .small { font-size:12px; }
@@ -216,6 +224,7 @@ export class TenantQuickComponent {
   protected readonly saving = signal(false);
   protected readonly error = signal('');
   protected readonly phoneError = signal('');
+  protected readonly emailError = signal('');
   protected readonly copied = signal<'pin' | 'msg' | null>(null);
   protected readonly result = signal<QuickResult | null>(null);
   /** Sample data is a container sorted into categories and grades; only such a business can get it. */
@@ -235,7 +244,11 @@ export class TenantQuickComponent {
   }
 
   protected ownerPhoneOk(): boolean {
-    return PHONE.test(this.ownerPhone.trim());
+    return !this.ownerPhone.trim() || PHONE.test(this.ownerPhone.trim());
+  }
+
+  protected ownerEmailOk(): boolean {
+    return EMAIL.test(this.ownerEmail.trim());
   }
 
   protected bizPhoneOk(): boolean {
@@ -251,7 +264,7 @@ export class TenantQuickComponent {
   protected save(): void {
     this.submitted = true;
     this.error.set('');
-    if (this.businessName.trim().length < 2 || !this.ownerName.trim() || !this.ownerPhoneOk() || !this.bizPhoneOk()) {
+    if (this.businessName.trim().length < 2 || !this.ownerName.trim() || !this.ownerEmailOk() || !this.ownerPhoneOk() || !this.bizPhoneOk()) {
       this.error.set('Fix the fields marked in red.');
       return;
     }
@@ -263,8 +276,8 @@ export class TenantQuickComponent {
     const body = {
       businessName: this.businessName.trim(),
       ownerName: this.ownerName.trim(),
-      ownerPhone: this.ownerPhone.trim(),
-      ...(this.ownerEmail.trim() ? { ownerEmail: this.ownerEmail.trim() } : {}),
+      ownerEmail: this.ownerEmail.trim(),
+      ...(this.ownerPhone.trim() ? { ownerPhone: this.ownerPhone.trim() } : {}),
       ...(this.businessPhone.trim() ? { businessPhone: this.businessPhone.trim() } : {}),
       ...(this.city.trim() ? { city: this.city.trim() } : {}),
       ...(this.address.trim() ? { address: this.address.trim() } : {}),
@@ -285,13 +298,14 @@ export class TenantQuickComponent {
         const m = e.error?.message;
         const text = (code && ERRORS[code]) || (Array.isArray(m) ? m.join('. ') : typeof m === 'string' ? m : 'Could not create the business. Try again.');
         if (code === 'PHONE_TAKEN' || code === 'PHONE_INVALID') this.phoneError.set(text);
+        else if (code === 'EMAIL_TAKEN') this.emailError.set(text);
         else this.error.set(text);
       },
     });
   }
 
   protected whatsapp(r: QuickResult): string {
-    return `https://wa.me/${r.owner.phone.replace(/\D/g, '')}?text=${encodeURIComponent(r.welcome)}`;
+    return `https://wa.me/${(r.owner.phone ?? '').replace(/\D/g, '')}?text=${encodeURIComponent(r.welcome)}`;
   }
 
   protected copy(text: string, what: 'pin' | 'msg'): void {
@@ -313,6 +327,7 @@ export class TenantQuickComponent {
     this.touched.clear();
     this.copied.set(null);
     this.phoneError.set('');
+    this.emailError.set('');
     this.stages.set(2);
     this.modules.set((this.catalogue()?.defaults ?? []).filter((k) => k !== 'SORT'));
   }

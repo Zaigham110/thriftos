@@ -38,7 +38,10 @@
   "tooMany": "Bohat koshishein. Ek minute ruk kar dobara karein.",
   "wrong": "Email ya password ghalat hai.",
   "wrongPin": "Phone ya PIN ghalat hai. {n} koshishein baqi.",
-  "wrongPinPlain": "Phone ya PIN ghalat hai."
+  "wrongPinPlain": "Phone ya PIN ghalat hai.",
+  "firstPassword": "Apna password banayein",
+  "firstPasswordHint": "Aap ne ThriftOS ke bheje hue password se sign in kiya hai. Ab apna password banayein; yeh sirf aap ko maloom hoga.",
+  "passwordYouGot": "Bheja gaya password"
  },
  "bill": {
   "amount": "Raqam",
@@ -119,8 +122,8 @@
    "title": "Apna supplier daalein"
   },
   "team": {
-   "hint": "Naam, phone aur 4 number ka PIN",
-   "title": "Apna munshi daalein"
+   "hint": "Naam, phone, kaam aur 4 number ka PIN",
+   "title": "Apna staff daalein"
   },
   "title": "Aap ka pehla hafta",
   "lot": {
@@ -194,10 +197,10 @@
   "team": {
    "go": "Team kholein",
    "s1": "Settings kholein, phir Team.",
-   "s2": "Munshi daalein dabayein aur naam aur phone number likhein.",
-   "s3": "4 number ka PIN chunein aur munshi ko bata dein.",
-   "s4": "Munshi phone aur PIN se sign in karta hai, aur floor ka kaam dekhta hai, aap ka munafa nahi.",
-   "title": "Apna munshi daalein"
+   "s2": "Staff daalein dabayein, naam aur phone number likhein, aur un ka kaam chunein: manager, khareedar, chhantai wala, salesman ya cashier.",
+   "s3": "4 number ka PIN chunein aur unhein bata dein.",
+   "s4": "Woh phone aur PIN se sign in karte hain aur sirf apne kaam ki cheezein dekhte hain, aap ka munafa nahi.",
+   "title": "Apna staff daalein"
   },
   "title": "Madad"
  },
@@ -517,7 +520,7 @@
   "title": "Becho"
  },
  "settings": {
-  "addMunshi": "Munshi daalein",
+  "addMunshi": "Staff daalein",
   "advanced": "Advanced",
   "business": "Karobar",
   "export": "Mera sara data download karein",
@@ -582,7 +585,11 @@
    "Manager": "Manager",
    "Worker": "Karigar",
    "ReadOnly": "Sirf dekh sakta hai",
-   "Munshi": "Munshi"
+   "Munshi": "Staff",
+   "Buyer": "Khareedar",
+   "Sorter": "Chhantai wala",
+   "Salesman": "Salesman",
+   "Cashier": "Cashier"
   },
   "tm": {
    "addEmail": "Email wala shakhs shamil karein",
@@ -609,6 +616,14 @@
     "EMAIL_TAKEN": "Is email se pehle hi login bana hua hai.",
     "SELF": "Yeh aap apne saath nahi kar sakte.",
     "NOT_FOUND": "Nahi mila; page dobara khol kar koshish karein."
+   },
+   "staffRole": "Un ka kaam",
+   "roleHint": {
+    "Manager": "Rozana ka karobar chalata hai: team aur karobar ki setting ke siwa sab kuch.",
+    "Buyer": "Supplier, container, khula maal aur tayyar bale.",
+    "Sorter": "Chhantai, grading, bale banana aur stock.",
+    "Salesman": "Bikri, gahak aur wasooli.",
+    "Cashier": "Akhrajaat, cash band aur wasooli."
    }
   },
   "pin": {
@@ -637,9 +652,9 @@
   "grades": "Grade ke naam",
   "gradesHint": "Behtar pehle: number 1 aap ka sab se acha grade hai.",
   "language": "Zabaan",
-  "munshi": "Munshi daalein (zaroori nahi)",
-  "munshiName": "Munshi ka naam",
-  "munshiPin": "Munshi ka PIN",
+  "munshi": "Staff daalein (zaroori nahi)",
+  "munshiName": "Naam",
+  "munshiPin": "Un ka PIN",
   "removed": "Hata diya — wapas daalne ko dabayein",
   "skip": "Chhorein",
   "step": "Qadam {n} / {total}",
@@ -1433,8 +1448,8 @@
    "EXPENSES": "Akhrajaat",
    "CASH_CLOSE": "Cash band",
    "PNL": "Nafa nuqsan",
-   "MUNSHI": "Munshi",
-   "IMPORT": "Excel se import"
+   "IMPORT": "Excel se import",
+   "STAFF": "Staff"
   },
   "movement": {
    "ADJUSTMENT": "Ginti",
@@ -2176,7 +2191,9 @@
     "report_inventory": "Stock ki reports",
     "report_procurement": "Kharidari ki reports",
     "report_sorting": "Chhantai ki reports",
-    "report_worker": "Karigaron ki reports"
+    "report_worker": "Karigaron ki reports",
+    "sale_create": "Bikri karna",
+    "payment_create": "Wasooli lena"
    }
   }
  }

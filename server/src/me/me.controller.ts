@@ -31,6 +31,7 @@ export class MeController {
         email: true,
         phone: true,
         pinHash: true,
+        mustChangePassword: true,
         name: true,
         tenantId: true,
         isActive: true,
@@ -52,6 +53,8 @@ export class MeController {
         // Settings shows how this person signs in, and "Change my PIN" for those with a PIN (v2 review).
         phone: user.phone,
         hasPin: !!user.pinHash,
+        /** A password ThriftOS made (new owner, reset): the app asks for their own before anything else. */
+        mustChangePassword: user.mustChangePassword,
         name: user.name,
         tenantId: currentUser.isSuperAdmin ? null : user.tenantId,
         isSuperAdmin: currentUser.isSuperAdmin,

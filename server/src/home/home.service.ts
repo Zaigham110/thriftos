@@ -58,7 +58,7 @@ export class HomeService {
     // "First stock in" is a container, a loose lot or ready bales, whichever this business buys (v2 modules);
     // the munshi step only when the business has munshi.
     const steps: { supplier: boolean; container: boolean; sale: boolean; team?: boolean } = { supplier: suppliers > 0, container: containers + lots + ready > 0, sale: sales > 0 };
-    if (tenant.enabledModules.includes('MUNSHI')) steps.team = team > 1;
+    if (tenant.enabledModules.includes('STAFF')) steps.team = team > 1;
     const total = Object.keys(steps).length;
     const done = Object.values(steps).filter(Boolean).length;
     const young = now.getTime() - tenant.createdAt.getTime() < FIRST_WEEK_DAYS * 86_400_000;

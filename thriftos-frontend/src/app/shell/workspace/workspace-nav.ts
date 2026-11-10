@@ -87,10 +87,10 @@ export const WS_SETTINGS: WsNavItem = { label: 'ws.nav.settings', path: '/settin
 
 /** Quick create (top bar "+" and the command palette). */
 export const WS_CREATE: WsNavItem[] = [
-  { label: 'ws.new.sale', path: '/sell/records/new', icon: ShoppingCart, module: 'SELL', keywords: 'new sale becho' },
-  { label: 'ws.new.container', path: '/receive/records/containers/new', icon: Truck, module: 'CONTAINERS', keywords: 'new container' },
-  { label: 'ws.new.lot', path: '/receive/records/lots/new', icon: Boxes, module: 'LOOSE_LOTS', keywords: 'loose lot' },
-  { label: 'ws.new.ready', path: '/receive/ready', icon: PackagePlus, module: 'READY_STOCK', keywords: 'ready stock' },
+  { label: 'ws.new.sale', path: '/sell/records/new', icon: ShoppingCart, module: 'SELL', permission: 'sale.create', keywords: 'new sale becho' },
+  { label: 'ws.new.container', path: '/receive/records/containers/new', icon: Truck, module: 'CONTAINERS', permission: 'container.create', keywords: 'new container' },
+  { label: 'ws.new.lot', path: '/receive/records/lots/new', icon: Boxes, module: 'LOOSE_LOTS', permission: 'rag.create', keywords: 'loose lot' },
+  { label: 'ws.new.ready', path: '/receive/ready', icon: PackagePlus, module: 'READY_STOCK', permission: 'INVENTORY_INTAKE', keywords: 'ready stock' },
   { label: 'ws.new.bale', path: '/stock/bale', icon: Boxes, module: 'STOCK', keywords: 'make bale' },
   { label: 'ws.expenses.new', path: '/finance/expenses/new', icon: Receipt, module: 'EXPENSES', permission: 'expense.create', keywords: 'kharcha' },
 ];
