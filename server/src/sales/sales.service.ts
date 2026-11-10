@@ -80,6 +80,10 @@ export class SalesService {
         // Same answer as a route of a module that is off (ModuleGuard).
         throw new ForbiddenException({ statusCode: 403, error: 'Forbidden', code: 'MODULE_DISABLED', module: 'EXPORT', message: 'EXPORT is not turned on for this business' });
       }
+      if (dto.paymentMode !== PaymentMode.CASH && !tenant.enabledModules.includes('KHATA')) {
+        // Selling on credit (all or part) is khata.
+        throw new ForbiddenException({ statusCode: 403, error: 'Forbidden', code: 'MODULE_DISABLED', module: 'KHATA', message: 'KHATA is not turned on for this business' });
+      }
 
       const sale = await tx.sale.create({
         data: {

@@ -1,3 +1,4 @@
+import { moduleOn } from '../../core/tenant/module-on';
 import { HttpClient } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
@@ -66,6 +67,7 @@ const ADVANCED = ['role.read', 'category.read', 'grade.read', 'warehouse.read', 
   `],
 })
 export class SettingsHomeComponent {
+  private readonly on = moduleOn();
   protected readonly auth = inject(AuthService);
   private readonly i18n = inject(I18nService);
   private readonly http = inject(HttpClient);
@@ -93,7 +95,7 @@ export class SettingsHomeComponent {
       { key: 'pin', icon: KeyRound, path: '/settings/pin', show: !!u?.hasPin },
       { key: 'password', icon: KeyRound, path: '/settings/password', show: !!u?.email },
       { key: 'language', icon: Languages, show: true },
-      { key: 'import', icon: FileUp, path: '/settings/admin/import', show: can('data.import') },
+      { key: 'import', icon: FileUp, path: '/settings/admin/import', show: can('data.import') && this.on('IMPORT') },
       { key: 'export', icon: Download, show: can('data.export') },
       { key: 'help', icon: CircleHelp, path: '/help', show: true },
       { key: 'terms', icon: FileText, path: '/terms', show: true },

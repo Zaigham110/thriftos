@@ -1,13 +1,12 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { isModuleKey } from '../common/modules/modules';
 import { LANGUAGES } from '../common/language/language';
 import { localPhone, toE164 } from '../common/phone/phone';
 import { businessContact } from './business';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { SUPPORTED_CURRENCY_CODES } from '../common/currency/currency';
-import { modulesFor } from './setup.service';
 import { TenantService } from './tenant.service';
 
 export class BusinessDto {
@@ -18,8 +17,6 @@ export class BusinessDto {
   @IsOptional() @IsString() @MaxLength(60) city?: string;
   @IsOptional() @IsIn(SUPPORTED_CURRENCY_CODES) currency?: string;
   @IsOptional() @IsIn(LANGUAGES) language?: string;
-  /** 0 = sells as bought, 1 = sorts into categories, 2 = categories and grades. */
-  @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(2) sortingStages?: number;
 }
 
 /** Errors with a code the app shows in the owner's language. */
@@ -40,7 +37,7 @@ export class BusinessService {
 
   async get(tenantId: string) {
     const [t, currencyLocked, categories, grades] = await Promise.all([
-      this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { name: true, phone: true, address: true, city: true, currency: true, defaultLanguage: true, sortingStages: true } }),
+      this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { name: true, phone: true, address: true, city: true, currency: true, defaultLanguage: true, sortingStages: true, enabledModules: true } }),
       this.tenants.isCurrencyLocked(tenantId),
       this.prisma.category.count({ where: { tenantId, isActive: true } }),
       this.prisma.grade.count({ where: { tenantId, isActive: true } }),
@@ -48,6 +45,8 @@ export class BusinessService {
     return {
       name: t.name, phone: t.phone ? localPhone(t.phone) : '', address: t.address ?? '', city: t.city ?? '',
       currency: t.currency, currencyLocked, language: t.defaultLanguage, sortingStages: t.sortingStages,
+      /** What the super admin turned on (read-only here). */
+      modules: t.enabledModules.filter(isModuleKey),
       categories, grades, contact: businessContact(t),
     };
   }
@@ -75,13 +74,6 @@ export class BusinessService {
       set('currency', t.currency, dto.currency);
     }
     if (dto.language !== undefined) set('defaultLanguage', t.defaultLanguage, dto.language);
-    if (dto.sortingStages !== undefined && dto.sortingStages !== t.sortingStages) {
-      // Sorting needs something to sort into: the lists must not be empty.
-      if (dto.sortingStages >= 1 && !(await this.prisma.category.count({ where: { tenantId, isActive: true } }))) throw err('NO_CATEGORIES', 'Add a category first.');
-      if (dto.sortingStages === 2 && !(await this.prisma.grade.count({ where: { tenantId, isActive: true } }))) throw err('NO_GRADES', 'Add a grade first.');
-      set('sortingStages', t.sortingStages, dto.sortingStages);
-      data['enabledModules'] = modulesFor(dto.sortingStages, t.enabledModules);
-    }
     if (Object.keys(changed).length) {
       await this.prisma.tenant.update({ where: { id: tenantId }, data });
       await this.audit.log({ tenantId, userId, action: 'BUSINESS_UPDATED', entityType: 'Tenant', entityId: tenantId, metadataJson: changed as never });

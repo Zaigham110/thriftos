@@ -1,3 +1,4 @@
+import { moduleOn } from '../../core/tenant/module-on';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -10,18 +11,12 @@ import { TPipe } from '../../core/i18n/t.pipe';
 import { COMMON_COUNTRIES, COUNTRIES } from '../../shared/countries';
 
 type StepKey = 'supplier' | 'container' | 'sale' | 'team';
-interface FirstWeek { show: boolean; done: number; steps: Record<StepKey, boolean> }
-
-const STEPS: { key: StepKey; link: string | null; help: string }[] = [
-  { key: 'supplier', link: null, help: 'supplier' },
-  { key: 'container', link: '/receive/container', help: 'container' },
-  { key: 'sale', link: '/sell/new', help: 'sale' },
-  { key: 'team', link: '/settings/team', help: 'team' },
-];
+interface FirstWeek { show: boolean; done: number; total?: number; steps: Partial<Record<StepKey, boolean>> }
+interface Step { key: StepKey; text: string; link: string | null; help: string }
 
 /**
- * First-week checklist on Home (v2 6.4): supplier → first container → first sale → munshi, each one tap. Ticks itself
- * from what the business has done; goes away when all four are done, after 30 days, or when the owner hides it.
+ * First-week checklist on Home (v2 6.4): supplier → first stock in → first sale → munshi, each one tap. Ticks itself
+ * from what the business has done; goes away when all are done, after 30 days, or when the owner hides it.
  */
 @Component({
   selector: 'app-first-week',
@@ -33,23 +28,23 @@ const STEPS: { key: StepKey; link: string | null; help: string }[] = [
         <section class="tos-fw" [attr.aria-label]="'fw.title' | t">
           <header>
             <h2>{{ 'fw.title' | t }}</h2>
-            <span class="count">{{ 'fw.progress' | t: { done: i18n.num(s.done) } }}</span>
+            <span class="count">{{ 'fw.progress' | t: { done: i18n.num(s.done), total: i18n.num(s.total ?? 4) } }}</span>
           </header>
-          <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="4" [attr.aria-valuenow]="s.done"><span [style.width.%]="s.done * 25"></span></div>
+          <div class="bar" role="progressbar" aria-valuemin="0" [attr.aria-valuemax]="s.total ?? 4" [attr.aria-valuenow]="s.done"><span [style.width.%]="(s.done / (s.total ?? 4)) * 100"></span></div>
           <ol>
-            @for (step of steps; track step.key) {
+            @for (step of steps(); track step.key) {
               <li [class.done]="s.steps[step.key]">
                 @if (s.steps[step.key]) {
                   <div class="step">
                     <span class="tick on" aria-hidden="true"><lucide-icon [img]="icons.Check" [size]="16" /></span>
-                    <span class="text"><strong>{{ 'fw.' + step.key + '.title' | t }}</strong><small>{{ 'fw.done' | t }}</small></span>
+                    <span class="text"><strong>{{ step.text + '.title' | t }}</strong><small>{{ 'fw.done' | t }}</small></span>
                   </div>
                 } @else {
                   <button type="button" class="step" (click)="go(step.key, step.link)" [attr.aria-expanded]="step.key === 'supplier' ? adding() : null">
                     <span class="tick" aria-hidden="true">{{ i18n.num($index + 1) }}</span>
-                    <span class="text"><strong>{{ 'fw.' + step.key + '.title' | t }}</strong><small>{{ 'fw.' + step.key + '.hint' | t }}</small></span>
+                    <span class="text"><strong>{{ step.text + '.title' | t }}</strong><small>{{ step.text + '.hint' | t }}</small></span>
                   </button>
-                  <a class="how" [routerLink]="['/help', step.help]" [attr.aria-label]="('fw.how' | t) + ' ' + ('fw.' + step.key + '.title' | t)"><lucide-icon [img]="icons.CircleHelp" [size]="20" /></a>
+                  <a class="how" [routerLink]="['/help', step.help]" [attr.aria-label]="('fw.how' | t) + ' ' + (step.text + '.title' | t)"><lucide-icon [img]="icons.CircleHelp" [size]="20" /></a>
                 }
                 @if (step.key === 'supplier' && adding() && !s.steps.supplier) {
                   <form class="add" (ngSubmit)="saveSupplier()">
@@ -119,7 +114,26 @@ export class FirstWeekComponent implements OnInit {
   private readonly auth = inject(AuthService);
   protected readonly i18n = inject(I18nService);
   protected readonly icons = { Check, CircleHelp };
-  protected readonly steps = STEPS;
+  private readonly on = moduleOn();
+  /**
+   * The steps this business has (the server leaves out the munshi step without Munshi). "First stock in" follows
+   * how it buys: a container, else a loose lot, else ready bales (v2 modules).
+   */
+  protected readonly steps = computed<Step[]>(() => {
+    const s = this.state();
+    const stockIn: Step = this.on('CONTAINERS')
+      ? { key: 'container', text: 'fw.container', link: '/receive/container', help: 'container' }
+      : this.on('LOOSE_LOTS')
+        ? { key: 'container', text: 'fw.lot', link: '/receive/lot', help: 'container' }
+        : { key: 'container', text: 'fw.ready', link: '/receive/ready', help: 'stock' };
+    const all: Step[] = [
+      { key: 'supplier', text: 'fw.supplier', link: null, help: 'supplier' },
+      stockIn,
+      { key: 'sale', text: 'fw.sale', link: '/sell/new', help: 'sale' },
+      { key: 'team', text: 'fw.team', link: '/settings/team', help: 'team' },
+    ];
+    return all.filter((step) => !s || step.key in s.steps);
+  });
   protected readonly countries = COUNTRIES;
   protected readonly commonCountries = COMMON_COUNTRIES;
   protected readonly state = signal<FirstWeek | null>(null);

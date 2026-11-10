@@ -115,7 +115,8 @@ describe('v1 data model', () => {
 
     beforeAll(async () => {
       owner = await createTenantWithOwner(app);
-      await api(app, owner).patch('/tenant/settings', { sortingStages: 1 }).expect(200);
+      // How a business sorts is set by the super admin (v2 modules).
+      await prisma.tenant.update({ where: { id: owner.tenantId }, data: { sortingStages: 1 } });
       const raw = (await api(app, owner).post('/tenant/raw-categories', { name: 'Mixed', rawType: 'BALE' }).expect(201)).body.id;
       jeans = (await prisma.category.create({ data: { tenantId: owner.tenantId, name: 'Jeans' } })).id;
       shirts = (await prisma.category.create({ data: { tenantId: owner.tenantId, name: 'Shirts' } })).id;

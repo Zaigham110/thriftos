@@ -1,3 +1,4 @@
+import { RequireModule } from '../../common/decorators/require-module.decorator';
 import {
   Controller,
   Get,
@@ -23,6 +24,7 @@ import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { RagStatus } from '@prisma/client';
 import { Idempotent } from '../../common/idempotency/idempotent.interceptor';
 
+@RequireModule('CONTAINERS', 'LOOSE_LOTS')
 @Controller('procurement')
 @UseGuards(TenantGuard, PermissionGuard)
 export class RagController {

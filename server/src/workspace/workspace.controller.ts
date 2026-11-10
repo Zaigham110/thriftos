@@ -1,3 +1,4 @@
+import { RequireModule } from '../common/decorators/require-module.decorator';
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 import { RequirePermissions, SkipPermissionCheck } from '../common/decorators/permissions.decorator';
@@ -32,6 +33,7 @@ export class WorkspaceController {
     return (await this.lists.permissionsOf(user)).has('cost.view');
   }
 
+  @RequireModule('CONTAINERS')
   @Get('containers/:id')
   @RequirePermissions('container.read')
   async container(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string) {
@@ -79,12 +81,14 @@ export class WorkspaceController {
   }
 
   /** A stock count; the books change only when someone with INVENTORY_APPROVE approves it. */
+  @RequireModule('STOCK_COUNTS')
   @Post('stock/:id/counts')
   @RequirePermissions('INVENTORY_ADJUST')
   count(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string, @Body() dto: StockCountDto) {
     return this.stock.requestCount(tenantId, id, dto, user.userId);
   }
 
+  @RequireModule('STOCK_COUNTS')
   @Post('stock-counts/:id/approve')
   @HttpCode(200)
   @RequirePermissions('INVENTORY_APPROVE')
@@ -92,6 +96,7 @@ export class WorkspaceController {
     return this.stock.decide(tenantId, id, true, dto, user.userId);
   }
 
+  @RequireModule('STOCK_COUNTS')
   @Post('stock-counts/:id/reject')
   @HttpCode(200)
   @RequirePermissions('INVENTORY_APPROVE')
@@ -100,6 +105,7 @@ export class WorkspaceController {
   }
 
   /** Move what is left of a stock item to another godown. */
+  @RequireModule('WAREHOUSES')
   @Post('stock/:id/transfer')
   @HttpCode(200)
   @RequirePermissions('INVENTORY_ADJUST')
@@ -109,6 +115,7 @@ export class WorkspaceController {
 
   // ---- Sorting (E3.2) ----
   /** Yield analysis over finished sorting: by supplier, origin, raw type, container or month. */
+  @RequireModule('SORT')
   @Get('sorting/yield')
   @RequirePermissions('SORTING_STAGE1_VIEW')
   sortingYield(@TenantId() tenantId: string, @Query() q: YieldQueryDto) {
@@ -116,6 +123,7 @@ export class WorkspaceController {
   }
 
   /** A lot's sorting record: stage 1 categories, stage 2 grades, waste, cost. */
+  @RequireModule('SORT')
   @Get('sorting/:lotId')
   @RequirePermissions('SORTING_STAGE1_VIEW')
   async sortingLot(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('lotId') id: string) {
@@ -143,24 +151,28 @@ export class WorkspaceController {
   }
 
   // ---- Price lists (E3.4) ----
+  @RequireModule('PRICE_LISTS')
   @Get('price-lists')
   @RequirePermissions('price.manage')
   priceLists(@TenantId() tenantId: string) {
     return this.prices.overview(tenantId);
   }
 
+  @RequireModule('PRICE_LISTS')
   @Put('price-lists/entries')
   @RequirePermissions('price.manage')
   setPrice(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Body() dto: PriceEntryDto) {
     return this.prices.setPrice(tenantId, dto, user.userId);
   }
 
+  @RequireModule('PRICE_LISTS')
   @Delete('price-lists/entries/:id')
   @RequirePermissions('price.manage')
   removePrice(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string) {
     return this.prices.removePrice(tenantId, id, user.userId);
   }
 
+  @RequireModule('PRICE_LISTS')
   @Patch('customers/:id/price-group')
   @RequirePermissions('price.manage')
   priceGroup(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string, @Body() dto: PriceGroupDto) {
@@ -168,12 +180,14 @@ export class WorkspaceController {
   }
 
   // ---- Finance (E3.6) ----
+  @RequireModule('EXPENSES')
   @Post('expenses')
   @RequirePermissions('expense.create')
   addExpense(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Body() dto: ExpenseDto) {
     return this.finance.addExpense(tenantId, dto, user.userId);
   }
 
+  @RequireModule('EXPENSES')
   @Get('expenses/:id')
   @RequirePermissions('finance.view')
   expense(@TenantId() tenantId: string, @Param('id') id: string) {
@@ -181,12 +195,14 @@ export class WorkspaceController {
   }
 
   /** Fix a mistake (v2 review). Changing or cancelling needs Finance as well: a munshi only records. */
+  @RequireModule('EXPENSES')
   @Patch('expenses/:id')
   @RequirePermissions('expense.create', 'finance.view')
   updateExpense(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string, @Body() dto: ExpenseUpdateDto) {
     return this.finance.updateExpense(tenantId, id, dto, user.userId);
   }
 
+  @RequireModule('EXPENSES')
   @Post('expenses/:id/cancel')
   @HttpCode(200)
   @RequirePermissions('expense.create', 'finance.view')
@@ -195,18 +211,21 @@ export class WorkspaceController {
   }
 
   /** Cash or bank book by payment method. */
+  @RequireModule('CASH_CLOSE', 'EXPENSES')
   @Get('finance/book')
   @RequirePermissions('finance.view')
   book(@TenantId() tenantId: string, @Query() q: BookQueryDto) {
     return this.finance.book(tenantId, q);
   }
 
+  @RequireModule('CASH_CLOSE')
   @Get('finance/close')
   @RequirePermissions('finance.view')
   closeView(@TenantId() tenantId: string, @Query() q: CloseQueryDto) {
     return this.finance.closeView(tenantId, q);
   }
 
+  @RequireModule('CASH_CLOSE')
   @Post('finance/close')
   @RequirePermissions('cash.close')
   closeDay(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Body() dto: CloseDto) {
@@ -214,6 +233,7 @@ export class WorkspaceController {
   }
 
   /** Undo a wrong count: the latest closed day only, with a reason (v2 review). */
+  @RequireModule('CASH_CLOSE')
   @Post('finance/close/:day/reopen')
   @HttpCode(200)
   @RequirePermissions('cash.close')
@@ -222,12 +242,14 @@ export class WorkspaceController {
   }
 
   /** Cash out of the drawer or into it: bank, owner or other (v2 review). */
+  @RequireModule('CASH_CLOSE')
   @Post('finance/cash-moves')
   @RequirePermissions('cash.close')
   addCashMove(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Body() dto: CashMoveDto) {
     return this.finance.addCashMove(tenantId, dto, user.userId);
   }
 
+  @RequireModule('CASH_CLOSE')
   @Post('finance/cash-moves/:id/cancel')
   @HttpCode(200)
   @RequirePermissions('cash.close')
@@ -236,6 +258,7 @@ export class WorkspaceController {
   }
 
   /** Profit and loss by month; cost of goods needs cost.view too. */
+  @RequireModule('PNL')
   @Get('finance/pnl')
   @RequirePermissions('finance.view', 'cost.view')
   pnl(@TenantId() tenantId: string, @Query() q: PnlQueryDto) {
@@ -245,6 +268,7 @@ export class WorkspaceController {
   // ---- Receivables (E3.5): open to everyone of the business, like the khata; profit needs cost.view ----
   /** Collections worklist and ageing: every customer who owes, biggest first. */
   @SkipPermissionCheck()
+  @RequireModule('KHATA')
   @Get('receivables')
   worklist(@TenantId() tenantId: string) {
     return this.receivables.worklist(tenantId);
@@ -257,18 +281,21 @@ export class WorkspaceController {
   }
 
   @SkipPermissionCheck()
+  @RequireModule('KHATA')
   @Get('customers/:id/statement')
   statement(@TenantId() tenantId: string, @Param('id') id: string, @Query() q: StatementQueryDto) {
     return this.receivables.statement(tenantId, id, q);
   }
 
   @SkipPermissionCheck()
+  @RequireModule('KHATA')
   @Post('customers/:id/promises')
   promise(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string, @Body() dto: PromiseDto) {
     return this.receivables.addPromise(tenantId, id, dto, user.userId);
   }
 
   @SkipPermissionCheck()
+  @RequireModule('KHATA')
   @Post('promises/:id/cancel')
   @HttpCode(200)
   cancelPromise(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string) {
@@ -277,6 +304,7 @@ export class WorkspaceController {
 
   /** The WhatsApp reminder link; logged as a reminder sent. */
   @SkipPermissionCheck()
+  @RequireModule('KHATA')
   @Post('customers/:id/remind')
   @HttpCode(200)
   remind(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string, @Body() dto: ReminderDto) {
@@ -284,6 +312,7 @@ export class WorkspaceController {
   }
 
   @SkipPermissionCheck()
+  @RequireModule('KHATA')
   @Patch('customers/:id/credit-limit')
   creditLimit(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string, @Body() dto: CreditLimitDto) {
     return this.receivables.setCreditLimit(tenantId, id, dto, user.userId);

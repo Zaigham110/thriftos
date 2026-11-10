@@ -246,7 +246,7 @@ model Tenant {
   locale            String       @default("ur-PK")
   status            TenantStatus @default(ACTIVE)
   /// Visible tabs/APIs: RECEIVE, SORT, STOCK, SELL, KHATA, REPORTS, EXPORT, WAREHOUSES, PAYROLL
-  enabledModules    String[]     @default(["RECEIVE", "SORT", "STOCK", "SELL", "KHATA"])
+  enabledModules    String[]     @default(["RECEIVE", "STOCK", "SELL", "SORT", "CONTAINERS", "LOOSE_LOTS", "READY_STOCK", "STOCK_COUNTS", "PRICE_LISTS", "KHATA", "EXPENSES", "CASH_CLOSE", "PNL", "MUNSHI", "IMPORT"])
   /// 0 = trading only (no sorting), 1 = category only, 2 = category + grade
   sortingStages     Int          @default(2)
   defaultLanguage   String       @default("ur")

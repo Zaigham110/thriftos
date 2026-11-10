@@ -1,3 +1,4 @@
+import { RequireModule } from '../common/decorators/require-module.decorator';
 import { Body, Controller, Get, Headers, Param, Post, Query, StreamableFile, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentUser, CurrentUserData, TenantId } from '../common/decorators';
@@ -5,6 +6,7 @@ import { TenantGuard } from '../common/guards/tenant.guard';
 import { CreatePaymentDto, CustomersQueryDto, LanguageQueryDto } from './dto';
 import { KhataService, UploadedPhoto } from './khata.service';
 
+@RequireModule('KHATA')
 @Controller('khata')
 @UseGuards(TenantGuard)
 export class KhataController {

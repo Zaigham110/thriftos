@@ -1,3 +1,4 @@
+import { moduleOn } from '../../core/tenant/module-on';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { AuthService } from '../../core/auth';
 import { RouterLink } from '@angular/router';
@@ -19,21 +20,25 @@ import { CashTodayComponent } from './cash-today.component';
       <header class="floor-head"><h1>{{ 'home.title' | t }}</h1></header>
       <app-needs-attention />
       <app-first-week />
-      @if (canSpend()) { <a class="card spend" routerLink="/finance/expenses/new">{{ 'home.recordExpense' | t }}</a> }
-      <app-cash-today />
+      @if (canSpend() && on('EXPENSES')) { <a class="card spend" routerLink="/finance/expenses/new">{{ 'home.recordExpense' | t }}</a> }
+      @if (on('CASH_CLOSE')) { <app-cash-today /> }
       @if (s(); as s) {
+        @if (on('CONTAINERS')) {
         <a class="card stat" routerLink="/home/containers">
           <small>{{ 'home.profitPerContainer' | t }}</small>
           <strong class="big-number" [class.warn]="+s.profitPerContainer.average < 0">{{ s.profitPerContainer.average | rs }}</strong>
           <span class="hint">{{ 'home.lastN' | t: { n: s.profitPerContainer.containers } }}</span>
           <lucide-icon [img]="icons.ChevronRight" [size]="20" class="go" />
         </a>
+        }
+        @if (on('KHATA')) {
         <a class="card stat" routerLink="/khata">
           <small>{{ 'home.udhaar' | t }}</small>
           <strong class="big-number warn">{{ s.udhaar.owed | rs }}</strong>
           <span class="hint">{{ 'home.customersOwing' | t: { n: s.udhaar.customers } }}</span>
           <lucide-icon [img]="icons.ChevronRight" [size]="20" class="go" />
         </a>
+        }
         <a class="card stat" routerLink="/stock">
           <small>{{ 'home.stockReady' | t }}</small>
           <strong class="big-number">{{ s.stockReady.kg | kg }}</strong>
@@ -60,6 +65,7 @@ import { CashTodayComponent } from './cash-today.component';
   `],
 })
 export class OwnerHomeComponent implements OnInit {
+  protected readonly on = moduleOn();
   private readonly data = inject(HomeDataService);
   private readonly auth = inject(AuthService);
   /** Record an expense straight from Home (v2 review). */

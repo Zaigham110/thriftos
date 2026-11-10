@@ -1,3 +1,4 @@
+import { RequireModule } from '../common/decorators/require-module.decorator';
 import {
   Controller,
   Get,
@@ -80,6 +81,7 @@ export class UsersController {
   }
 
   /** Add a munshi: name, phone and PIN. */
+  @RequireModule('MUNSHI')
   @Post('munshi')
   @RequirePermissions('user.create')
   @HttpCode(HttpStatus.CREATED)

@@ -7,11 +7,11 @@ import { TenantModule, TenantService } from '../tenant/tenant.service';
 export const moduleGuard: CanActivateFn = (route): Observable<boolean | UrlTree> => {
   const tenantService = inject(TenantService);
   const router = inject(Router);
-  const requiredModule = route.data?.['module'] as TenantModule | undefined;
+  const requiredModule = route.data?.['module'] as TenantModule | TenantModule[] | undefined;
 
   if (!requiredModule) return of(true);
 
-  const off = () => router.createUrlTree(['/unavailable'], { queryParams: { module: requiredModule } });
+  const off = () => router.createUrlTree(['/unavailable'], { queryParams: { module: Array.isArray(requiredModule) ? requiredModule[0] : requiredModule } });
   return tenantService.loadTenant().pipe(
     // The business as saved on this device may be old (the owner just turned the module on): before saying
     // "turned off", ask the server once. Turned off: a page that says so, not a silent jump to Home.

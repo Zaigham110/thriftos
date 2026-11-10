@@ -1,3 +1,4 @@
+import { moduleOn } from '../../core/tenant/module-on';
 import { HttpClient } from '@angular/common/http';
 import { NavService } from '../../core/nav/nav.service';
 import { Component, computed, inject, input, signal, effect } from '@angular/core';
@@ -80,15 +81,17 @@ const UNIT_KEYS: Record<string, string> = { KG: 'ws.stock.unit.KG', BALE: 'ws.st
               }
               <!-- Counting and moving are for stock that is still here, not for sold bales (v2 review). -->
               @if (can('INVENTORY_ADJUST') && +d.item.left > 0) {
+                @if (on('STOCK_COUNTS')) {
                 <button type="button" class="ws-btn" (click)="sheet.set('count')"><lucide-icon [img]="icons.ClipboardCheck" [size]="16" aria-hidden="true" />{{ 'ws.stockItem.count' | t }}</button>
-                @if (d.godowns.length) {
+                }
+                @if (d.godowns.length && on('WAREHOUSES')) {
                   <button type="button" class="ws-btn" (click)="sheet.set('move')"><lucide-icon [img]="icons.ArrowLeftRight" [size]="16" aria-hidden="true" />{{ 'ws.stockItem.move' | t }}</button>
                 }
               }
             </ng-container>
           </ws-page-header>
 
-          @if (pending(); as p) {
+          @if (on('STOCK_COUNTS') && pending(); as p) {
             <div class="pending" role="status">
               <span>{{ 'ws.stockItem.pending' | t: { counted: qty(p.counted), book: qty(p.book), by: p.requestedBy ?? '—' } }} · {{ p.reason }}</span>
               @if (can('INVENTORY_APPROVE')) {
@@ -203,6 +206,7 @@ const UNIT_KEYS: Record<string, string> = { KG: 'ws.stock.unit.KG', BALE: 'ws.st
   `],
 })
 export class StockRecordComponent {
+  protected readonly on = moduleOn();
   protected readonly i18n = inject(I18nService);
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);

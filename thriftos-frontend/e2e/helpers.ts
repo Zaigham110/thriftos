@@ -20,7 +20,23 @@ export async function apiAs(request: APIRequestContext, who = DEMO) {
       expect(r.ok(), `${url} → ${r.status()} ${await r.text()}`).toBeTruthy();
       return r.json();
     },
+    patch: async (url: string, data: object) => {
+      const r = await request.patch(`/api${url}`, { headers, data });
+      expect(r.ok(), `${url} → ${r.status()} ${await r.text()}`).toBeTruthy();
+      return r.json();
+    },
   };
+}
+
+/** The super admin switches a module of the demo business on or off (v2 modules); returns how to undo it. */
+export async function setDemoModule(request: APIRequestContext, module: string, on: boolean): Promise<() => Promise<void>> {
+  const owner = await apiAs(request);
+  const admin = await apiAs(request, { email: 'superadmin@thriftos.com', password: 'SuperAdmin@123' });
+  const tenant = await owner.get('/tenant');
+  const before = ((await owner.get('/tenant/modules')).on as string[]).filter((m) => m !== 'SORT');
+  const modules = on ? [...new Set([...before, module])] : before.filter((m) => m !== module);
+  await admin.patch(`/superadmin/tenants/${tenant.id}/workings`, { modules });
+  return async () => { await admin.patch(`/superadmin/tenants/${tenant.id}/workings`, { modules: before }); };
 }
 
 /** Signs in; the language is picked on the phone first (the demo tenant's default is Urdu). */

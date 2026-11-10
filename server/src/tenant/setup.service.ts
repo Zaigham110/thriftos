@@ -1,3 +1,4 @@
+import { storedModules } from '../common/modules/modules';
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
@@ -8,7 +9,6 @@ import { TenantSetupDto } from './dto/setup.dto';
 import { DEFAULT_GRADES, DEFAULT_WASTE, KARACHI_CATEGORIES } from './setup-template';
 import { TenantService } from './tenant.service';
 
-const FLOOR_MODULES = ['RECEIVE', 'SORT', 'STOCK', 'SELL', 'KHATA'];
 
 /** Trimmed, non-empty, first spelling of each name kept (case-insensitive). */
 export function cleanNames(names: string[]): string[] {
@@ -23,11 +23,6 @@ export function cleanNames(names: string[]): string[] {
   return out;
 }
 
-/** Modules for a business: no sorting → no Chhantai tab; extra modules the tenant had stay. */
-export function modulesFor(sortingStages: number, current: string[]): string[] {
-  const floor = sortingStages === 0 ? FLOOR_MODULES.filter((m) => m !== 'SORT') : FLOOR_MODULES;
-  return [...floor, ...current.filter((m) => !FLOOR_MODULES.includes(m))];
-}
 
 /**
  * Journey 8 — the setup wizard, saved in one step: business name, currency, language, whether and how the
@@ -65,13 +60,19 @@ export class SetupService {
     };
   }
 
-  async save(tenantId: string, dto: TenantSetupDto, userId: string) {
+  /**
+   * The owner's answers. How the business sorts and its modules are the super admin's (v2 modules): the owner's
+   * wizard keeps them; only the platform's own callers (demo seed, sample data) pass `platform` to set the type.
+   */
+  async save(tenantId: string, dto: TenantSetupDto, userId: string, opts: { platform?: boolean } = {}) {
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
+    const sortingStages = opts.platform && dto.sortingStages !== undefined ? dto.sortingStages : tenant.sortingStages;
     const categories = cleanNames(dto.categories);
     const grades = cleanNames(dto.grades);
-    if (dto.sortingStages >= 1 && !categories.length) throw new BadRequestException('Keep at least one category, or choose "No, I sell as bought".');
-    if (dto.sortingStages === 2 && !grades.length) throw new BadRequestException('Add at least one grade name.');
+    if (sortingStages >= 1 && !categories.length) throw new BadRequestException('Keep at least one category.');
+    if (sortingStages === 2 && !grades.length) throw new BadRequestException('Add at least one grade name.');
+    if (dto.munshi && !tenant.enabledModules.includes('MUNSHI')) throw new BadRequestException('Munshi is not turned on for this business.');
 
-    const tenant = await this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
     if (dto.currency !== tenant.currency && (await this.tenants.isCurrencyLocked(tenantId))) {
       throw new BadRequestException('The currency cannot change after money has been recorded.');
     }
@@ -88,13 +89,12 @@ export class SetupService {
           name: dto.businessName.trim(),
           currency: dto.currency,
           defaultLanguage: dto.language,
-          sortingStages: dto.sortingStages,
-          enabledModules: modulesFor(dto.sortingStages, tenant.enabledModules),
+          ...(opts.platform ? { sortingStages, enabledModules: storedModules(sortingStages, tenant.enabledModules, tenant.enabledModules) } : {}),
           setupCompletedAt: new Date(),
         },
       });
       await this.keepOnly(tx, tenantId, 'category', categories);
-      if (dto.sortingStages === 2) await this.keepOnly(tx, tenantId, 'grade', grades);
+      if (sortingStages === 2) await this.keepOnly(tx, tenantId, 'grade', grades);
       await tx.wasteCategory.upsert({
         where: { tenantId_name: { tenantId, name: DEFAULT_WASTE } },
         update: { isActive: true },
@@ -108,7 +108,7 @@ export class SetupService {
       action: 'TENANT_SETUP_DONE',
       entityType: 'Tenant',
       entityId: tenantId,
-      metadataJson: { sortingStages: dto.sortingStages, categories: categories.length, grades: grades.length, munshi: !!munshi },
+      metadataJson: { sortingStages, categories: categories.length, grades: grades.length, munshi: !!munshi },
     });
     return { ...(await this.defaults(tenantId)), munshi };
   }

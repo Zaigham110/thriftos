@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { signIn } from './helpers';
+import { setDemoModule, signIn } from './helpers';
 
 /** v2 review (Settings): one Business page, the Advanced lists and roles in plain, translated words. */
-test('business details for bills, a godown added on the simple list, a role in plain words', async ({ page }) => {
+test('business details for bills, a godown added on the simple list, a role in plain words', async ({ page, request }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await signIn(page);
   await page.goto('/settings');
@@ -25,6 +25,10 @@ test('business details for bills, a godown added on the simple list, a role in p
   const tag = Date.now().toString().slice(-5);
   await page.goto('/settings/admin/warehouses');
   await expect(page.getByRole('heading', { name: 'Godowns' })).toBeVisible();
+  // A second godown is "More than one godown" (v2 modules): off, there is no Add; the super admin turns it on.
+  await expect(page.getByLabel('Where')).toHaveCount(0);
+  const undo = await setDemoModule(request, 'WAREHOUSES', true);
+  await page.reload();
   await page.getByLabel('Name').fill(`Shershah ${tag}`);
   await page.getByLabel('Where').fill('Shershah, Karachi');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
@@ -32,6 +36,7 @@ test('business details for bills, a godown added on the simple list, a role in p
   const row = page.locator('li').filter({ hasText: `Shershah ${tag}` });
   await row.getByRole('button', { name: 'Turn off' }).click();
   await expect(page.getByRole('heading', { name: /Turned off/ })).toBeVisible();
+  await undo();
 
   await page.goto('/settings/admin/roles');
   await expect(page.getByRole('heading', { name: 'Roles' })).toBeVisible();

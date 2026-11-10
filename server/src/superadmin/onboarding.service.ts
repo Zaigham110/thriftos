@@ -9,8 +9,9 @@ import { toE164 } from '../common/phone/phone';
 import { Language, localeOf, Texts, toLanguage } from '../common/language/language';
 import { TenantBootstrapService } from './tenant-bootstrap.service';
 import { QuickCreateTenantDto, UpdatePersonDto, WorkingsDto } from './dto/quick-create.dto';
-import { workingModules } from './business-workings';
+import { DEFAULT_MODULES, moduleProblem, storedModules } from '../common/modules/modules';
 import { SYSTEM_COMPANY_CODE } from '../common/guards/module.guard';
+import { DEFAULT_GRADES, KARACHI_CATEGORIES } from '../tenant/setup-template';
 
 export type ActivityKind = 'sale' | 'payment' | 'container' | 'app';
 export interface LastActivity {
@@ -51,6 +52,11 @@ export function welcomeMessage(lang: Language, p: { owner: string; business: str
   return t[lang];
 }
 
+const MODULE_PROBLEMS = {
+  NO_BUYING: 'Turn on at least one way of buying: containers, loose lots or ready bales.',
+  SORT_NEEDS_LOTS: 'Sorting needs containers or loose lots to sort. Turn one on, or choose no sorting.',
+} as const;
+
 /** v2 6.5: Super Admin onboarding tools — quick create and last activity per business. */
 @Injectable()
 export class OnboardingService {
@@ -67,27 +73,38 @@ export class OnboardingService {
    */
   async quickCreate(dto: QuickCreateTenantDto, actorId: string) {
     const phone = toE164(dto.ownerPhone);
-    if (!phone) throw new BadRequestException('Enter a valid phone number, e.g. 0300 1234567');
-    if (await this.prisma.user.findUnique({ where: { phone }, select: { id: true } })) throw new ConflictException('This phone already has a login');
+    if (!phone) throw new BadRequestException({ code: 'PHONE_INVALID', message: 'Enter a valid phone number, e.g. 0300 1234567' });
+    const taken = await this.prisma.user.findUnique({ where: { phone }, select: { id: true, tenant: { select: { name: true } } } });
+    if (taken) throw new ConflictException({ code: 'PHONE_TAKEN', message: `This phone already has a login (${taken.tenant.name})` });
     const email = dto.ownerEmail?.trim().toLowerCase() || null;
-    if (email && (await this.prisma.user.findFirst({ where: { email }, select: { id: true } }))) throw new ConflictException('This email already has a login');
+    if (email && (await this.prisma.user.findFirst({ where: { email }, select: { id: true } }))) throw new ConflictException({ code: 'EMAIL_TAKEN', message: 'This email already has a login' });
 
     const base = companyCodeFrom(dto.businessName);
     let companyCode = base;
     for (let n = 2; await this.prisma.tenant.findUnique({ where: { companyCode }, select: { id: true } }); n++) companyCode = `${base}-${n}`;
 
     const language = dto.language ?? 'ur';
+    const sortingStages = dto.sortingStages ?? 2;
+    const chosen = dto.modules ?? DEFAULT_MODULES;
+    const problem = moduleProblem(chosen, sortingStages);
+    if (problem) throw new BadRequestException({ code: problem, message: MODULE_PROBLEMS[problem] });
+    const businessPhone = dto.businessPhone?.trim() ? toE164(dto.businessPhone) : null;
+    if (dto.businessPhone?.trim() && !businessPhone) throw new BadRequestException({ code: 'BUSINESS_PHONE_INVALID', message: "Enter a valid business phone, e.g. 021 32412345 or 0300 1234567" });
     const tenant = await this.prisma.tenant.create({
       data: {
         name: dto.businessName.trim(),
         companyCode,
         defaultLanguage: language,
         locale: localeOf(language),
-        sortingStages: dto.sortingStages ?? 2,
-        enabledModules: workingModules(dto.sortingStages ?? 2, dto.modules ?? ['KHATA'], []),
+        ...(dto.currency ? { currency: dto.currency } : {}),
+        phone: businessPhone,
+        address: dto.address?.trim() || null,
+        city: dto.city?.trim() || null,
+        sortingStages,
+        enabledModules: storedModules(sortingStages, chosen),
       },
     });
-    const boot = await this.bootstrap.bootstrapTenant(tenant.id);
+    const boot = await this.bootstrap.bootstrapTenant(tenant.id, undefined, undefined, undefined, { sortingStages });
     const adminRole = await this.prisma.role.findFirst({ where: { tenantId: tenant.id, name: 'Admin' }, select: { id: true } });
     if (!adminRole) throw new Error('Business made without an Admin role');
 
@@ -116,7 +133,7 @@ export class OnboardingService {
     const url = `${(process.env.PUBLIC_APP_URL || 'http://localhost:4200').replace(/\/$/, '')}/auth/login`;
     return {
       tenant: { id: tenant.id, name: tenant.name, companyCode },
-      owner,
+      owner: { ...owner, phoneLocal: localPhone(phone) },
       pin,
       signInUrl: url,
       welcome: welcomeMessage(language, { owner: owner.name, business: tenant.name, url, phone: localPhone(phone), pin }),
@@ -180,7 +197,15 @@ export class OnboardingService {
     if (!tenant || tenant.companyCode === SYSTEM_COMPANY_CODE) throw new NotFoundException('Business not found');
     const sortingStages = dto.sortingStages ?? tenant.sortingStages;
     const chosen = dto.modules ?? tenant.enabledModules;
-    const enabledModules = workingModules(sortingStages, chosen, tenant.enabledModules);
+    const problem = moduleProblem(chosen, sortingStages);
+    if (problem) throw new BadRequestException({ code: problem, message: MODULE_PROBLEMS[problem] });
+    if (sortingStages >= 1 && !(await this.prisma.category.count({ where: { tenantId, isActive: true } }))) {
+      await this.prisma.category.createMany({ data: KARACHI_CATEGORIES.map((name, i) => ({ tenantId, name, sortOrder: i, isActive: true })), skipDuplicates: true });
+    }
+    if (sortingStages === 2 && !(await this.prisma.grade.count({ where: { tenantId, isActive: true } }))) {
+      await this.prisma.grade.createMany({ data: DEFAULT_GRADES.map((name, i) => ({ tenantId, name, rank: i + 1, isActive: true })), skipDuplicates: true });
+    }
+    const enabledModules = storedModules(sortingStages, chosen, tenant.enabledModules);
     const updated = await this.prisma.tenant.update({ where: { id: tenantId }, data: { sortingStages, enabledModules }, select: { sortingStages: true, enabledModules: true } });
     await this.audit.log({
       userId: actorId,

@@ -1,3 +1,4 @@
+import { RequireModule } from '../common/decorators/require-module.decorator';
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { WasteStage } from '@prisma/client';
 import { CurrentUser, CurrentUserData, RequirePermissions, TenantId } from '../common/decorators';
@@ -21,6 +22,7 @@ import { SortingOutputsService } from './sorting-outputs.service';
 import { SortingWasteService } from './sorting-waste.service';
 import { Idempotent } from '../common/idempotency/idempotent.interceptor';
 
+@RequireModule('SORT')
 @Controller('sorting/stage-1')
 @UseGuards(TenantGuard, PermissionGuard)
 export class SortingStage1Controller {
@@ -114,6 +116,7 @@ export class SortingStage1Controller {
   }
 }
 
+@RequireModule('SORT')
 @Controller('sorting/stage-2')
 @UseGuards(TenantGuard, PermissionGuard)
 export class SortingStage2Controller {
@@ -186,6 +189,7 @@ export class SortingStage2Controller {
   }
 }
 
+@RequireModule('SORT')
 @Controller('sorting/outputs')
 @UseGuards(TenantGuard, PermissionGuard)
 export class SortingOutputsController {

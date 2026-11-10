@@ -30,11 +30,12 @@ export class TenantSetupDto {
   @IsIn(LANGUAGES)
   language: Language;
 
-  /** 0 = sells as bought, 1 = sorts into categories, 2 = categories then grades. */
+  /** 0 = sells as bought, 1 = sorts into categories, 2 = categories then grades. Only the platform's own callers set it; the owner's wizard keeps what the super admin chose. */
   @IsInt()
   @Min(0)
   @Max(2)
-  sortingStages: number;
+  @IsOptional()
+  sortingStages?: number;
 
   @IsArray()
   @ArrayMaxSize(60)

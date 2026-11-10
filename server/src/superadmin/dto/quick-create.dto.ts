@@ -1,6 +1,7 @@
 import { ArrayUnique, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { LANGUAGES, Language } from '../../common/language/language';
-import { BUSINESS_MODULES, BusinessModule } from '../business-workings';
+import { MODULE_KEYS, ModuleKey } from '../../common/modules/modules';
+import { SUPPORTED_CURRENCY_CODES } from '../../common/currency/currency';
 
 /** v2 6.5: a business for a customer in under 2 minutes: business name, owner's name and phone. */
 export class QuickCreateTenantDto {
@@ -36,17 +37,37 @@ export class QuickCreateTenantDto {
   @IsOptional()
   sortingStages?: number;
 
-  /** Switchable modules to start with (Receivables if not given); the type decides Sorting. */
+  /** The modules it starts with (the everyday set if not given); `sortingStages` decides Sorting. */
   @IsArray()
   @ArrayUnique()
-  @IsIn(BUSINESS_MODULES, { each: true })
+  @IsIn(MODULE_KEYS, { each: true })
   @IsOptional()
-  modules?: BusinessModule[];
+  modules?: ModuleKey[];
 
   /** A business for trying ThriftOS out: it can get sample data and be deleted later (v2 review). */
   @IsBoolean()
   @IsOptional()
   isTest?: boolean;
+
+  @IsIn(SUPPORTED_CURRENCY_CODES)
+  @IsOptional()
+  currency?: string;
+
+  /** The business's own phone, address and city (on its bills); the owner can change them in Settings. */
+  @IsString()
+  @MaxLength(30)
+  @IsOptional()
+  businessPhone?: string;
+
+  @IsString()
+  @MaxLength(200)
+  @IsOptional()
+  address?: string;
+
+  @IsString()
+  @MaxLength(60)
+  @IsOptional()
+  city?: string;
 }
 
 /** Change a person's name or phone from the console (e.g. a typo in the owner's number). */
@@ -96,7 +117,7 @@ export class WorkingsDto {
 
   @IsArray()
   @ArrayUnique()
-  @IsIn(BUSINESS_MODULES, { each: true })
+  @IsIn(MODULE_KEYS, { each: true })
   @IsOptional()
-  modules?: BusinessModule[];
+  modules?: ModuleKey[];
 }

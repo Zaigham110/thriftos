@@ -1,3 +1,4 @@
+import { RequireModule } from '../common/decorators/require-module.decorator';
 import { BadRequestException, Controller, Get, Param, Post, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
@@ -22,6 +23,7 @@ function kindOf(param: string): ImportKind {
 }
 
 /** Bring an old register in from Excel/CSV (v2 6.1): template → preview → confirm. Owner only (data.import). */
+@RequireModule('IMPORT')
 @Controller('import')
 @UseGuards(TenantGuard, PermissionGuard)
 export class ImportController {

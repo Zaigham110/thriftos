@@ -1,3 +1,4 @@
+import { assertModule } from '../../common/modules/module-check';
 import { Injectable, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../audit/audit.service';
@@ -19,6 +20,8 @@ export class RagService {
 
   async create(tenantId: string, dto: CreateRagDto, userId: string) {
     let container: any = null;
+    // A lot in a container needs Containers; a lot bought loose needs Loose lots (v2 modules).
+    await assertModule(this.prisma, tenantId, dto.containerId ? 'CONTAINERS' : 'LOOSE_LOTS');
 
     if (dto.containerId) {
       // Validate container if provided

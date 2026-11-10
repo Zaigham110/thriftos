@@ -109,7 +109,7 @@
   "hide": "Chhupayein",
   "how": "Kaise?",
   "import": "Kaghaz ka register hai? Excel se le aayein",
-  "progress": "4 mein se {done} ho gaye",
+  "progress": "{total} mein se {done} ho gaye",
   "sale": {
    "hint": "Bill customer ko WhatsApp par jata hai",
    "title": "Pehli sale karein"
@@ -122,7 +122,15 @@
    "hint": "Naam, phone aur 4 number ka PIN",
    "title": "Apna munshi daalein"
   },
-  "title": "Aap ka pehla hafta"
+  "title": "Aap ka pehla hafta",
+  "lot": {
+   "title": "Pehla khula maal (lot) khareedein",
+   "hint": "Wazan aur qeemat, taqreeban aik minute"
+  },
+  "ready": {
+   "title": "Pehli tayyar bale darj karein",
+   "hint": "Kya aaya, kitna aur qeemat"
+  }
  },
  "help": {
   "container": {
@@ -561,10 +569,13 @@
    "saved": "Karobar ki maloomat mehfooz.",
    "err": {
     "PHONE_INVALID": "Durust phone number likhein, maslan 0300 1234567.",
-    "CURRENCY_LOCKED": "Raqam darj hone ke baad currency nahi badal sakti.",
-    "NO_CATEGORIES": "Pehle ek qism shamil karein (Advanced → Qismein).",
-    "NO_GRADES": "Pehle ek grade shamil karein (Advanced → Grade)."
-   }
+    "CURRENCY_LOCKED": "Raqam darj hone ke baad currency nahi badal sakti."
+   },
+   "has": "Aap ke karobar mein kya hai",
+   "sorts0": "Maal jaisa aaye waisa bechta hai, chhantai nahi.",
+   "sorts1": "Maal category mein chhaantta hai.",
+   "sorts2": "Maal category, phir grade mein chhaantta hai.",
+   "hasHint": "Yeh ThriftOS tay karta hai. Kuch shamil ya khatam karne ke liye ThriftOS support se rabta karein."
   },
   "role": {
    "Admin": "Malik",
@@ -621,7 +632,6 @@
   "categories": "Aap ki categories",
   "categoriesHint": "Karachi ki list. Hatane ke liye dabayein, apni daalein.",
   "currency": "Currency",
-  "doYouSort": "Kya aap maal ki chhantai karte hain?",
   "done": "Sab tayyar. Sab kuch baad mein Settings mein badal sakte hain.",
   "finish": "ThriftOS shuru karein",
   "grades": "Grade ke naam",
@@ -632,9 +642,6 @@
   "munshiPin": "Munshi ka PIN",
   "removed": "Hata diya — wapas daalne ko dabayein",
   "skip": "Chhorein",
-  "sort0": "Nahi, jaisa liya waisa bechta hoon",
-  "sort1": "Haan, categories mein",
-  "sort2": "Haan, pehle categories phir grade",
   "step": "Qadam {n} / {total}",
   "title": "Apna karobar set karein"
  },
@@ -1417,7 +1424,17 @@
    "SELL": "Bikri",
    "SORT": "Chhantai",
    "STOCK": "Stock",
-   "WAREHOUSES": "Godown"
+   "WAREHOUSES": "Godown",
+   "CONTAINERS": "Container",
+   "LOOSE_LOTS": "Khula maal (lot)",
+   "READY_STOCK": "Tayyar bale",
+   "STOCK_COUNTS": "Stock ginti",
+   "PRICE_LISTS": "Rate list",
+   "EXPENSES": "Akhrajaat",
+   "CASH_CLOSE": "Cash band",
+   "PNL": "Nafa nuqsan",
+   "MUNSHI": "Munshi",
+   "IMPORT": "Excel se import"
   },
   "movement": {
    "ADJUSTMENT": "Ginti",
@@ -1458,7 +1475,7 @@
   },
   "notFound": {
    "home": "Home par jayein",
-   "offText": "Is karobar ke liye {module} band hai. Owner isay Settings → Karobar ki setting mein chalu kar sakta hai.",
+   "offText": "{module} is karobar mein shamil nahi. Shamil karne ke liye ThriftOS support se rabta karein.",
    "offTitle": "Yeh hissa band hai",
    "text": "{url} par kuch nahi. Link purana ya ghalat ho sakta hai.",
    "title": "Yeh safha maujood nahi"

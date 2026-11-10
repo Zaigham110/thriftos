@@ -1,3 +1,4 @@
+import { RequireModule } from '../../common/decorators/require-module.decorator';
 import {
   Controller,
   Get,
@@ -26,6 +27,7 @@ import { RequirePermissions } from '../../common/decorators/permissions.decorato
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
 import { Idempotent } from '../../common/idempotency/idempotent.interceptor';
 
+@RequireModule('CONTAINERS')
 @Controller('procurement/containers')
 @UseGuards(TenantGuard, PermissionGuard)
 export class ContainerController {

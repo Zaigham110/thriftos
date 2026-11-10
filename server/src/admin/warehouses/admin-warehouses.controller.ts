@@ -1,3 +1,4 @@
+import { RequireModule } from '../../common/decorators/require-module.decorator';
 import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { TenantGuard } from '../../common/guards/tenant.guard';
@@ -29,6 +30,7 @@ export class AdminWarehousesController {
   }
 
   @Post()
+  @RequireModule('WAREHOUSES')
   @RequirePermissions('warehouse.create')
   async create(
     @Body() dto: CreateWarehouseDto,

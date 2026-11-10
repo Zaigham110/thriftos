@@ -1,3 +1,4 @@
+import { moduleOn } from '../../core/tenant/module-on';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { NavService } from '../../core/nav/nav.service';
 import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
@@ -55,7 +56,7 @@ const change = (now: string | number | null, before: string | number | null): nu
     <div class="page">
       <ws-page-header [heading]="'ws.dash.title' | t" [subtitle]="subtitle()" />
       <app-first-week class="first-week" />
-      <app-cash-today />
+      @if (on('CASH_CLOSE')) { <app-cash-today /> }
       <ws-command-bar>
         <p start class="today">
           @if (data(); as d) { {{ 'ws.dash.today' | t: { sales: i18n.num(d.today.sales), revenue: i18n.money(d.today.revenue), collected: i18n.money(d.today.collected) } }} }
@@ -68,21 +69,24 @@ const change = (now: string | number | null, before: string | number | null): nu
         <section class="kpis">
           <ws-kpi-card [label]="'ws.dash.revenue' | t" [value]="rs(d.sales.revenue)" [delta]="delta(d.sales.revenue, d.sales.previousRevenue)" [trend]="revenueTrend()" link="/sell/records" [info]="'ws.dash.info.sales' | t" />
           @if (d.sales.grossProfit !== null) {
-            <ws-kpi-card [label]="'ws.pnl.gross' | t" [value]="rs(d.sales.grossProfit)" [delta]="delta(d.sales.grossProfit, d.sales.previousGrossProfit)" [trend]="profitTrend()" [info]="'ws.dash.info.gross' | t" [hint]="d.sales.marginPercent !== null ? ('ws.pnl.margin' | t: { n: i18n.num(d.sales.marginPercent, 1) }) : ''" link="/finance/pnl" />
+            <ws-kpi-card [label]="'ws.pnl.gross' | t" [value]="rs(d.sales.grossProfit)" [delta]="delta(d.sales.grossProfit, d.sales.previousGrossProfit)" [trend]="profitTrend()" [info]="'ws.dash.info.gross' | t" [hint]="d.sales.marginPercent !== null ? ('ws.pnl.margin' | t: { n: i18n.num(d.sales.marginPercent, 1) }) : ''" [link]="on('PNL') ? '/finance/pnl' : null" />
           }
-          <ws-kpi-card [label]="'ws.dash.collected' | t" [value]="rs(d.cash.collected)" [delta]="delta(d.cash.collected, d.cash.previousCollected)" [hint]="methods()" link="/finance/book" [info]="'ws.dash.info.collected' | t" />
+          <ws-kpi-card [label]="'ws.dash.collected' | t" [value]="rs(d.cash.collected)" [delta]="delta(d.cash.collected, d.cash.previousCollected)" [hint]="methods()" [link]="on(['CASH_CLOSE', 'EXPENSES']) ? '/finance/book' : null" [info]="'ws.dash.info.collected' | t" />
+          @if (on('KHATA')) {
           <ws-kpi-card [label]="'ws.collections.owed' | t" [value]="rs(d.udhaar.owed)" [higherIsBetter]="false" [hint]="'ws.dash.owing' | t: { n: i18n.num(d.udhaar.customers), broken: i18n.num(d.udhaar.brokenPromises) }" link="/khata/records" [info]="'ws.dash.info.owed' | t" />
+          }
           @if (d.stock.value !== null) {
             <ws-kpi-card [label]="'ws.stock.col.value' | t" [value]="rs(d.stock.value)" [hint]="'ws.dash.stockHint' | t: { kg: i18n.kg(d.stock.kg), n: i18n.num(d.stock.items) }" link="/stock/value" [info]="'ws.dash.info.stock' | t" />
           }
           @if (d.expenses?.netProfit; as net) {
-            <ws-kpi-card [label]="'ws.pnl.net' | t" [value]="rs(net)" [hint]="'ws.dash.afterExpenses' | t: { amount: i18n.money(d.expenses!.total) }" link="/finance/pnl" [info]="'ws.dash.info.net' | t" />
+            <ws-kpi-card [label]="'ws.pnl.net' | t" [value]="rs(net)" [hint]="'ws.dash.afterExpenses' | t: { amount: i18n.money(d.expenses!.total) }" [link]="on('PNL') ? '/finance/pnl' : null" [info]="'ws.dash.info.net' | t" />
           }
         </section>
 
         <ws-area-chart [heading]="(d.sales.trend.by === 'day' ? 'ws.dash.trendDay' : 'ws.dash.trendMonth') | t" [categories]="trendLabels()" [series]="trendSeries()" format="money" [info]="'ws.dash.info.trend' | t" />
 
         <div class="two">
+          @if (on('KHATA')) {
           <section class="panel">
             <div class="ph"><h2><a routerLink="/khata/records">{{ 'ws.collections.ageing' | t }}</a></h2><ws-info [title]="'ws.collections.ageing' | t" [text]="'ws.dash.info.udhaarAge' | t" /></div>
             <ol class="bars">
@@ -91,6 +95,7 @@ const change = (now: string | number | null, before: string | number | null): nu
               }
             </ol>
           </section>
+          }
           <section class="panel">
             <div class="ph"><h2><a routerLink="/stock/value">{{ 'ws.stockValue.ageing' | t }}</a></h2><ws-info [title]="'ws.stockValue.ageing' | t" [text]="'ws.dash.info.stockAge' | t" /></div>
             <ol class="bars">
@@ -101,10 +106,12 @@ const change = (now: string | number | null, before: string | number | null): nu
           </section>
         </div>
 
+        @if (on('CONTAINERS')) {
         <section class="grid-panel">
           <div class="ph"><h2>{{ 'ws.dash.containers' | t: { n: i18n.num(d.containers.count) } }}</h2><ws-info [title]="'ws.dash.containers' | t: { n: i18n.num(d.containers.count) }" [text]="'ws.dash.info.containers' | t" /></div>
           <ws-data-grid [caption]="'ws.dash.containers' | t: { n: i18n.num(d.containers.count) }" [columns]="containerColumns()" [rows]="containerRows()" [clickable]="true" (rowClick)="openContainer($event)" [emptyHeading]="'ws.dash.noContainers' | t" />
         </section>
+        }
       } @else {
         <ws-state kind="loading" />
       }
@@ -130,6 +137,7 @@ const change = (now: string | number | null, before: string | number | null): nu
   `],
 })
 export class DashboardComponent {
+  protected readonly on = moduleOn();
   protected readonly i18n = inject(I18nService);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);

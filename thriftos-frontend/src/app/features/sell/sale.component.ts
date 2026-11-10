@@ -1,3 +1,4 @@
+import { moduleOn } from '../../core/tenant/module-on';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -95,7 +96,7 @@ const MODES: PaymentMode[] = ['CASH', 'CREDIT', 'PARTIAL'];
 
         <section class="card">
           <h2>{{ 'sell.payment' | t }}</h2>
-          <div class="chips">@for (m of modes; track m) { <button type="button" class="chip" [class.on]="mode() === m" (click)="mode.set(m)">{{ 'sell.mode.' + m | t }}</button> }</div>
+          @if (modes().length > 1) {<div class="chips">@for (m of modes(); track m) { <button type="button" class="chip" [class.on]="mode() === m" (click)="mode.set(m)">{{ 'sell.mode.' + m | t }}</button> }</div>}
           @if (mode() === 'PARTIAL') { <tos-number label="sell.paidNow" unit="Rs" [(value)]="paidAmount" /> }
           @if (mode() !== 'CREDIT') {
             <div class="chips">@for (m of methods; track m) { <button type="button" class="chip" [class.on]="method() === m" (click)="method.set(m)">{{ 'method.' + m | t }}</button> }</div>
@@ -134,7 +135,9 @@ export class SaleComponent implements OnInit {
   protected readonly printJob = signal<PrintJob | null>(null);
   private readonly http = inject(HttpClient);
   protected readonly scanning = signal(false);
-  protected readonly modes = MODES;
+  private readonly on = moduleOn();
+  /** Udhaar (all or part) is khata: without it, cash only (v2 modules). */
+  protected readonly modes = computed(() => (this.on('KHATA') ? MODES : MODES.filter((m) => m === 'CASH')));
   protected readonly methods = METHODS;
   protected readonly name = (i: InventoryItem) => stockName(i as never);
   protected readonly customers = signal<Customer[]>([]);

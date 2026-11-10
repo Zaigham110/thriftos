@@ -17,6 +17,8 @@
 #                                        other), not part of profit and loss
 #   7. 20261111100000_v6_10_business_contact  Tenant.phone, address and city (on bills, receipts and WhatsApp
 #                                        messages; filled in on Settings → Business)
+#   8. 20261112100000_v6_11_modules  every part is a module the super admin switches per business; existing
+#                                        businesses get the new switches on (nothing they use disappears)
 # Data step: base data (server/src/bootstrap): adds data.import and gives every Admin (owner) role all permissions.
 # Idempotent; nothing else changes.
 set -euo pipefail

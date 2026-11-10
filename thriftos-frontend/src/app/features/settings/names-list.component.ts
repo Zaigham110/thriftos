@@ -1,3 +1,5 @@
+import { moduleOn } from '../../core/tenant/module-on';
+import type { TenantModule } from '../../core/tenant/tenant.service';
 import { NgTemplateOutlet } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
@@ -19,6 +21,8 @@ export type NamesKind = 'categories' | 'grades' | 'raw' | 'waste' | 'warehouses'
 interface Kind {
   url: string; update: 'patch' | 'put'; remove: 'off' | 'delete'; extras: Extra[];
   create: string; edit: string; order?: (a: Row, b: Row) => number;
+  /** Adding more needs this module (v2 modules: a second godown is "More than one godown"). */
+  module?: TenantModule;
   body: (name: string, extra: Record<string, unknown>, rows: Row[]) => Record<string, unknown>;
 }
 const num = (v: unknown) => (v === '' || v === null || v === undefined ? null : Number(v));
@@ -57,7 +61,7 @@ const KINDS: Record<NamesKind, Kind> = {
     body: (name, x) => ({ name, unitType: x['unitType'] || 'KG', defaultResalePrice: num(x['defaultResalePrice']) ?? 0 }),
   },
   warehouses: {
-    url: '/admin/warehouses', update: 'patch', remove: 'off', create: 'warehouse.create', edit: 'warehouse.update',
+    url: '/admin/warehouses', update: 'patch', remove: 'off', create: 'warehouse.create', edit: 'warehouse.update', module: 'WAREHOUSES',
     extras: [{ key: 'location', type: 'text', label: 'ws.names.location' }],
     body: (name, x, rows) => ({ name, code: codeOf(name, rows), ...(x['location'] ? { location: String(x['location']).trim() } : {}) }),
   },
@@ -184,7 +188,8 @@ export class NamesListComponent implements OnInit {
   protected readonly editing = signal<string | null>(null);
   protected readonly active = computed(() => this.sorted().filter((r) => r.isActive !== false));
   protected readonly off = computed(() => this.sorted().filter((r) => r.isActive === false));
-  protected readonly canCreate = computed(() => this.auth.hasPermission(this.kind().create));
+  private readonly on = moduleOn();
+  protected readonly canCreate = computed(() => this.auth.hasPermission(this.kind().create) && (!this.kind().module || this.on(this.kind().module!)));
   protected readonly canEdit = computed(() => this.auth.hasPermission(this.kind().edit));
   protected newName = '';
   protected newExtra: Record<string, unknown> = {};

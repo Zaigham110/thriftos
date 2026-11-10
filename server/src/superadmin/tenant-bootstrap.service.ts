@@ -1,3 +1,4 @@
+import { DEFAULT_GRADES, KARACHI_CATEGORIES } from '../tenant/setup-template';
 import { Injectable } from '@nestjs/common';
 import { Prisma, Permission, GlobalCategoryTemplate } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -28,6 +29,11 @@ export class TenantBootstrapService {
     adminEmail?: string,
     adminName?: string,
     adminPassword?: string,
+    /**
+     * New business (v2 modules): the lists its type needs, from the same template the owner's setup offers —
+     * categories when it sorts, grades only when it grades, one waste type. Without it: the older full set.
+     */
+    plain?: { sortingStages: number },
   ): Promise<BootstrapResult> {
     const result: BootstrapResult = {
       roles: 0,
@@ -145,57 +151,68 @@ export class TenantBootstrapService {
         });
       }
 
-      // 6. Copy categories from GlobalCategoryTemplate
-      const templates = await tx.globalCategoryTemplate.findMany();
-      if (templates.length > 0) {
-        await tx.category.createMany({
-          data: templates.map((t: GlobalCategoryTemplate) => ({
+      if (plain) {
+        if (plain.sortingStages >= 1) {
+          await tx.category.createMany({ data: KARACHI_CATEGORIES.map((name, i) => ({ tenantId, name, sortOrder: i, isActive: true })) });
+          result.categories = KARACHI_CATEGORIES.length;
+        }
+        if (plain.sortingStages === 2) {
+          await tx.grade.createMany({ data: DEFAULT_GRADES.map((name, i) => ({ tenantId, name, rank: i + 1, isActive: true })) });
+          result.grades = DEFAULT_GRADES.length;
+        }
+      } else {
+        // 6. Copy categories from GlobalCategoryTemplate
+        const templates = await tx.globalCategoryTemplate.findMany();
+        if (templates.length > 0) {
+          await tx.category.createMany({
+            data: templates.map((t: GlobalCategoryTemplate) => ({
+              tenantId,
+              name: t.categoryName,
+              sortOrder: t.defaultSortPriority,
+              isActive: true,
+            })),
+          });
+          result.categories = templates.length;
+
+          // AUTO-CREATE linked waste categories for each seeded category
+          const seededCategories = await tx.category.findMany({
+            where: { tenantId },
+            select: { id: true, name: true },
+          });
+
+          await tx.wasteCategory.createMany({
+            data: seededCategories.map((c) => ({
+              tenantId,
+              name: `${c.name} Waste`,
+              linkedCategoryId: c.id,
+              unitType: 'KG',
+              defaultResalePrice: 0,
+              isSystemGenerated: true,
+              isActive: true,
+            })),
+            skipDuplicates: true,
+          });
+        }
+
+        // 7. Create default grades
+        const defaultGrades = [
+          { name: 'Grade A', description: 'Premium quality', rank: 1 },
+          { name: 'Grade B', description: 'Good quality', rank: 2 },
+          { name: 'Grade C', description: 'Fair quality', rank: 3 },
+          { name: 'Waste', description: 'Unsuitable for resale', rank: 4 },
+        ];
+
+        await tx.grade.createMany({
+          data: defaultGrades.map((g) => ({
             tenantId,
-            name: t.categoryName,
-            sortOrder: t.defaultSortPriority,
+            name: g.name,
+            description: g.description,
+            rank: g.rank,
             isActive: true,
           })),
         });
-        result.categories = templates.length;
-
-        // AUTO-CREATE linked waste categories for each seeded category
-        const seededCategories = await tx.category.findMany({
-          where: { tenantId },
-          select: { id: true, name: true },
-        });
-
-        await tx.wasteCategory.createMany({
-          data: seededCategories.map((c) => ({
-            tenantId,
-            name: `${c.name} Waste`,
-            linkedCategoryId: c.id,
-            unitType: 'KG',
-            defaultResalePrice: 0,
-            isSystemGenerated: true,
-            isActive: true,
-          })),
-          skipDuplicates: true,
-        });
+        result.grades = defaultGrades.length;
       }
-
-      // 7. Create default grades
-      const defaultGrades = [
-        { name: 'Grade A', description: 'Premium quality', rank: 1 },
-        { name: 'Grade B', description: 'Good quality', rank: 2 },
-        { name: 'Grade C', description: 'Fair quality', rank: 3 },
-        { name: 'Waste', description: 'Unsuitable for resale', rank: 4 },
-      ];
-
-      await tx.grade.createMany({
-        data: defaultGrades.map((g) => ({
-          tenantId,
-          name: g.name,
-          description: g.description,
-          rank: g.rank,
-          isActive: true,
-        })),
-      });
-      result.grades = defaultGrades.length;
 
       // 7.5 Default waste type, so a lot with a remainder can always be closed
       await tx.wasteCategory.upsert({

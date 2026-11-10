@@ -109,7 +109,7 @@
   "hide": "Hide",
   "how": "How?",
   "import": "Have a paper register? Bring it in from Excel",
-  "progress": "{done} of 4 done",
+  "progress": "{done} of {total} done",
   "sale": {
    "hint": "The bill goes to the customer on WhatsApp",
    "title": "Make your first sale"
@@ -122,7 +122,15 @@
    "hint": "Name, phone and a 4-digit PIN",
    "title": "Add your munshi"
   },
-  "title": "Your first week"
+  "title": "Your first week",
+  "lot": {
+   "title": "Buy your first loose lot",
+   "hint": "Weight and cost, about a minute"
+  },
+  "ready": {
+   "title": "Add your first ready bales",
+   "hint": "What came, how many and the cost"
+  }
  },
  "help": {
   "container": {
@@ -561,10 +569,13 @@
    "saved": "Business saved.",
    "err": {
     "PHONE_INVALID": "Enter a valid phone number, e.g. 0300 1234567.",
-    "CURRENCY_LOCKED": "The currency cannot change after money has been recorded.",
-    "NO_CATEGORIES": "Add a category first (Advanced → Categories).",
-    "NO_GRADES": "Add a grade first (Advanced → Grades)."
-   }
+    "CURRENCY_LOCKED": "The currency cannot change after money has been recorded."
+   },
+   "has": "What your business has",
+   "sorts0": "Buys and sells as it is, no sorting.",
+   "sorts1": "Sorts into categories.",
+   "sorts2": "Sorts into categories, then grades.",
+   "hasHint": "Set by ThriftOS. To add or remove something, contact ThriftOS support."
   },
   "role": {
    "Admin": "Owner",
@@ -621,7 +632,6 @@
   "categories": "Your categories",
   "categoriesHint": "Karachi list. Tap to remove, add your own.",
   "currency": "Currency",
-  "doYouSort": "Do you sort the goods you buy?",
   "done": "All set. Everything can be changed later in Settings.",
   "finish": "Start using ThriftOS",
   "grades": "Grade names",
@@ -632,9 +642,6 @@
   "munshiPin": "PIN for the munshi",
   "removed": "Removed — tap to add back",
   "skip": "Skip",
-  "sort0": "No, I sell as bought",
-  "sort1": "Yes, into categories",
-  "sort2": "Yes, categories then grades",
   "step": "Step {n} of {total}",
   "title": "Set up your business"
  },
@@ -1417,7 +1424,17 @@
    "SELL": "Sales",
    "SORT": "Sorting",
    "STOCK": "Stock",
-   "WAREHOUSES": "Godowns"
+   "WAREHOUSES": "Godowns",
+   "CONTAINERS": "Containers",
+   "LOOSE_LOTS": "Loose lots",
+   "READY_STOCK": "Ready bales",
+   "STOCK_COUNTS": "Stock counts",
+   "PRICE_LISTS": "Price lists",
+   "EXPENSES": "Expenses",
+   "CASH_CLOSE": "Cash close",
+   "PNL": "Profit and loss",
+   "MUNSHI": "Munshi",
+   "IMPORT": "Import from Excel"
   },
   "movement": {
    "ADJUSTMENT": "Count",
@@ -1458,7 +1475,7 @@
   },
   "notFound": {
    "home": "Go to Home",
-   "offText": "{module} is turned off for this business. The owner can turn it on in Settings → Business setup.",
+   "offText": "{module} is not part of this business. To add it, contact ThriftOS support.",
    "offTitle": "This part is turned off",
    "text": "Nothing is at {url}. The link may be old or mistyped.",
    "title": "This page does not exist"

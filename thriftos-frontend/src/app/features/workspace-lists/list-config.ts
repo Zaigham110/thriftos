@@ -1,3 +1,4 @@
+import type { TenantModule } from '../../core/tenant/tenant.service';
 import type { WsCellFormat } from '../../shared/ui/workspace';
 
 /** One column of a workspace list: a server field, its dictionary label and how to show it. */
@@ -84,6 +85,7 @@ export interface ListConfig {
   /** A related page shown as a plain button before the primary action (Suppliers → Supplier scorecard). */
   related?: { label: string; link: string };
   /** Sibling lists shown as tabs over the title (Purchasing: containers, gaari / lots). */
-  tabs?: Array<{ label: string; link: string }>;
+  /** A tab whose module is off is not shown (v2 modules). */
+  tabs?: Array<{ label: string; link: string; module?: TenantModule }>;
   board?: BoardConfig;
 }

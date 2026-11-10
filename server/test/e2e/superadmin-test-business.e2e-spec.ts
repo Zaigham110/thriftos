@@ -65,25 +65,51 @@ describe('Super admin: owners, test businesses, audit (e2e)', () => {
   it('sets how a business works: type decides Sorting, modules switch on and off, always-on stay, audited', async () => {
     const made = (await api(app, superAdmin).get(`/superadmin/tenants/${testId}`).expect(200)).body;
     expect(made.enabledModules).toEqual(expect.arrayContaining(['RECEIVE', 'SORT', 'STOCK', 'SELL', 'KHATA']));
-    let res = (await api(app, superAdmin).patch(`/superadmin/tenants/${testId}/workings`, { sortingStages: 0, modules: ['KHATA', 'EXPORT'] }).expect(200)).body;
+    let res = (await api(app, superAdmin).patch(`/superadmin/tenants/${testId}/workings`, { sortingStages: 0, modules: ['READY_STOCK', 'KHATA', 'EXPORT'] }).expect(200)).body;
     expect(res.sortingStages).toBe(0);
-    expect(res.enabledModules.sort()).toEqual(['EXPORT', 'KHATA', 'RECEIVE', 'SELL', 'STOCK']);
-    res = (await api(app, superAdmin).patch(`/superadmin/tenants/${testId}/workings`, { sortingStages: 1, modules: [] }).expect(200)).body;
-    expect(res.enabledModules.sort()).toEqual(['RECEIVE', 'SELL', 'SORT', 'STOCK']);
+    expect(res.enabledModules.sort()).toEqual(['EXPORT', 'KHATA', 'READY_STOCK', 'RECEIVE', 'SELL', 'STOCK']);
+    res = (await api(app, superAdmin).patch(`/superadmin/tenants/${testId}/workings`, { sortingStages: 1, modules: ['LOOSE_LOTS'] }).expect(200)).body;
+    expect(res.enabledModules.sort()).toEqual(['LOOSE_LOTS', 'RECEIVE', 'SELL', 'SORT', 'STOCK']);
     await api(app, superAdmin).patch(`/superadmin/tenants/${testId}/workings`, { modules: ['BILLING'] }).expect(400);
     await api(app, superAdmin).patch(`/superadmin/tenants/${testId}/workings`, { sortingStages: 5 }).expect(400);
     await api(app, owner).patch(`/superadmin/tenants/${testId}/workings`, { sortingStages: 0 }).expect(403);
     const log = await prisma.auditLog.findFirstOrThrow({ where: { tenantId: testId, action: 'TENANT_WORKINGS_CHANGED' }, orderBy: { createdAt: 'desc' } });
     expect(log.metadataJson).toMatchObject({ after: { sortingStages: 1 } });
     // Back to the sorting story's type for the sample-data test below.
-    await api(app, superAdmin).patch(`/superadmin/tenants/${testId}/workings`, { sortingStages: 2, modules: ['KHATA'] }).expect(200);
+    await api(app, superAdmin).patch(`/superadmin/tenants/${testId}/workings`, { sortingStages: 2, modules: ['CONTAINERS', 'LOOSE_LOTS', 'KHATA', 'STOCK_COUNTS', 'EXPENSES', 'CASH_CLOSE', 'PNL', 'MUNSHI'] }).expect(200);
     // A new trading-only business starts without the Sorting tab.
     const trader = (
       await api(app, superAdmin).post('/superadmin/tenants/quick', { businessName: `Trader ${tag}`, ownerName: 'T', ownerPhone: `0307 ${tag}`, sortingStages: 0, isTest: true }).expect(201)
     ).body;
     const t = await prisma.tenant.findUniqueOrThrow({ where: { id: trader.tenant.id } });
     expect(t.enabledModules).not.toContain('SORT');
+    // Sample data is the container sorting story: it no longer switches a trader to sorting to fit it.
+    expect((await api(app, superAdmin).post(`/superadmin/tenants/${trader.tenant.id}/sample-data`, {}).expect(400)).body.code).toBe('SAMPLE_NEEDS_SORTING');
+    expect((await prisma.tenant.findUniqueOrThrow({ where: { id: trader.tenant.id } })).sortingStages).toBe(0);
     await api(app, superAdmin).delete(`/superadmin/tenants/${trader.tenant.id}`, { confirmName: `Trader ${tag}` }).expect(200);
+  });
+
+  it('New business: chosen modules, currency and the business phone are saved; lists fit the type; mistakes have codes', async () => {
+    const body = {
+      businessName: `Loose ${tag}`, ownerName: 'L', ownerPhone: `0308 ${tag}`, sortingStages: 1, isTest: true,
+      modules: ['LOOSE_LOTS', 'KHATA', 'EXPENSES'], currency: 'USD', businessPhone: '0300 1234567', city: 'Karachi', language: 'roman',
+    };
+    const made = (await api(app, superAdmin).post('/superadmin/tenants/quick', body).expect(201)).body;
+    expect(made.owner.phoneLocal).toBe(`0308 ${tag}`);
+    const t = await prisma.tenant.findUniqueOrThrow({ where: { id: made.tenant.id } });
+    expect(t).toMatchObject({ sortingStages: 1, currency: 'USD', phone: '+923001234567', city: 'Karachi', defaultLanguage: 'roman' });
+    expect(t.enabledModules).toEqual(['RECEIVE', 'STOCK', 'SELL', 'SORT', 'LOOSE_LOTS', 'KHATA', 'EXPENSES']);
+    // Categories (it sorts), no grades (it does not grade), one waste type.
+    expect(await prisma.category.count({ where: { tenantId: t.id } })).toBeGreaterThan(0);
+    expect(await prisma.grade.count({ where: { tenantId: t.id } })).toBe(0);
+    expect(await prisma.wasteCategory.count({ where: { tenantId: t.id } })).toBe(1);
+
+    const again = await api(app, superAdmin).post('/superadmin/tenants/quick', { ...body, businessName: `Other ${tag}` }).expect(409);
+    expect(again.body.code).toBe('PHONE_TAKEN');
+    expect((await api(app, superAdmin).post('/superadmin/tenants/quick', { ...body, ownerPhone: '12' }).expect(400)).body.code).toBe('PHONE_INVALID');
+    expect((await api(app, superAdmin).post('/superadmin/tenants/quick', { ...body, ownerPhone: `0309 ${tag}`, modules: ['KHATA'] }).expect(400)).body.code).toBe('NO_BUYING');
+    expect((await api(app, superAdmin).post('/superadmin/tenants/quick', { ...body, ownerPhone: `0309 ${tag}`, modules: ['READY_STOCK'] }).expect(400)).body.code).toBe('SORT_NEEDS_LOTS');
+    await api(app, superAdmin).delete(`/superadmin/tenants/${t.id}`, { confirmName: `Loose ${tag}` }).expect(200);
   });
 
   it('platform settings are kept (not lost on restart), checked, and audited', async () => {

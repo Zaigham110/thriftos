@@ -61,6 +61,11 @@ export class TestBusinessService {
   async fillSample(id: string, actorId: string): Promise<SampleState> {
     const tenant = await this.business(id);
     if (!(await this.isTest(id))) throw new BadRequestException('Only a test business can get sample data.');
+    // The sample is the container-and-sorting story; it no longer changes how a business works to fit it.
+    const kind = await this.prisma.tenant.findUniqueOrThrow({ where: { id }, select: { sortingStages: true, enabledModules: true } });
+    if (kind.sortingStages !== 2 || !kind.enabledModules.includes('CONTAINERS')) {
+      throw new BadRequestException({ code: 'SAMPLE_NEEDS_SORTING', message: 'Sample data is a container sorted into categories and grades. Turn on Containers and Sorting (categories and grades) first.' });
+    }
     if ((await this.sampleState(id))?.state === 'running') throw new ConflictException('Sample data is already being added.');
     const [containers, sales, customers] = await Promise.all([
       this.prisma.container.count({ where: { tenantId: id } }),

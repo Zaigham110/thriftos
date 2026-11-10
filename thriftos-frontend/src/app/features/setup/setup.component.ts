@@ -1,3 +1,4 @@
+import { moduleOn } from '../../core/tenant/module-on';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -11,7 +12,7 @@ import { ToastService } from '../../shared/floor/toast.service';
 import { LangPickerComponent } from '../../shared/ui/lang-picker.component';
 
 interface SetupDefaults { done: boolean; businessName: string; currency: string; language: Lang; sortingStages: number; categories: string[]; grades: string[] }
-type Step = 'business' | 'sort' | 'categories' | 'grades' | 'munshi';
+type Step = 'business' | 'categories' | 'grades' | 'munshi';
 
 /**
  * Journey 8 — setup in under 5 minutes, one question per screen: business (name, currency, language) →
@@ -40,14 +41,6 @@ type Step = 'business' | 'sort' | 'categories' | 'grades' | 'munshi';
             <span class="field">{{ 'setup.language' | t }}</span>
             <div class="chips">@for (l of langs; track l.id) { <button type="button" class="chip" [class.on]="language() === l.id" (click)="setLanguage(l.id)">{{ l.name }}</button> }</div>
           </section>
-        }
-        @case ('sort') {
-          <h2>{{ 'setup.doYouSort' | t }}</h2>
-          @for (o of sortOptions; track o.value) {
-            <button type="button" class="option" [class.on]="stages() === o.value" (click)="stages.set(o.value)">
-              <strong>{{ o.label | t }}</strong>@if (stages() === o.value) { <lucide-icon [img]="icons.Check" [size]="22" /> }
-            </button>
-          }
         }
         @case ('categories') {
           <h2>{{ 'setup.categories' | t }}</h2>
@@ -114,11 +107,6 @@ export class SetupComponent implements OnInit {
   private readonly toast = inject(ToastService);
   protected readonly icons = { ArrowLeft, Check, Plus, X };
   protected readonly currencies = ['PKR', 'USD', 'AED'];
-  protected readonly sortOptions = [
-    { value: 0, label: 'setup.sort0' },
-    { value: 1, label: 'setup.sort1' },
-    { value: 2, label: 'setup.sort2' },
-  ];
   protected readonly currency = signal('PKR');
   protected readonly langs = LANGS;
   protected readonly language = signal<Lang>(this.i18n.lang());
@@ -136,9 +124,17 @@ export class SetupComponent implements OnInit {
   /** One key for this setup, so a retry after a network error saves it once. */
   private readonly key = crypto.randomUUID();
 
-  protected readonly steps = computed<Step[]>(() =>
-    this.stages() === 0 ? ['business', 'sort', 'munshi'] : this.stages() === 1 ? ['business', 'sort', 'categories', 'munshi'] : ['business', 'sort', 'categories', 'grades', 'munshi'],
-  );
+  private readonly on = moduleOn();
+  /**
+   * How the business sorts and what it has are set by ThriftOS when it is made (v2 modules): the owner is asked only
+   * for the names it needs — categories when it sorts, grades when it grades — and a munshi when it has munshi.
+   */
+  protected readonly steps = computed<Step[]>(() => [
+    'business' as Step,
+    ...(this.stages() >= 1 ? (['categories'] as Step[]) : []),
+    ...(this.stages() === 2 ? (['grades'] as Step[]) : []),
+    ...(this.on('MUNSHI') ? (['munshi'] as Step[]) : []),
+  ]);
   protected readonly step = computed(() => this.steps()[Math.min(this.index(), this.steps().length - 1)]);
   protected readonly isLast = computed(() => this.index() >= this.steps().length - 1);
 
@@ -150,8 +146,8 @@ export class SetupComponent implements OnInit {
         this.stages.set(d.sortingStages);
         this.categories.set(d.categories);
         this.grades.set(d.grades);
-        if (!d.done) this.language.set(this.i18n.lang());
-        else this.language.set(d.language);
+        // The language ThriftOS set when it made the business (bills and messages), not whatever this phone shows.
+        this.language.set(d.language);
       },
       error: () => this.toast.error(this.i18n.t('common.couldNotLoad')),
     });
@@ -225,7 +221,6 @@ export class SetupComponent implements OnInit {
       businessName: this.businessName.trim(),
       currency: this.currency(),
       language: this.language(),
-      sortingStages: this.stages(),
       categories: this.stages() === 0 ? [] : this.categories(),
       grades: this.stages() === 2 ? this.grades().filter((g) => g.trim()) : [],
       ...(withMunshi ? { munshi: { name: this.munshiName.trim(), phone: this.munshiPhone.trim(), pin: this.munshiPin } } : {}),

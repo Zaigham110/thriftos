@@ -75,12 +75,15 @@ describe('Setup wizard (e2e)', () => {
     expect((await api(app, owner).get('/tenant/setup').expect(200)).body).toMatchObject({ done: true, categories: ['Jeans', 'T-Shirts', 'Pathani suits'] });
   });
 
-  it('a trader who does not sort gets no Chhantai tab and needs no categories', async () => {
+  it('a trader who does not sort (set by the super admin) needs no categories; the wizard cannot change the type', async () => {
     const owner = await newBusiness();
-    await api(app, owner).post('/tenant/setup', { businessName: 'Lahore Bales', currency: 'PKR', language: 'en', sortingStages: 0, categories: [], grades: [] }).expect(200);
+    const admin = await login(app, 'superadmin@thriftos.com', 'SuperAdmin@123');
+    await api(app, admin).patch(`/superadmin/tenants/${owner.tenantId}/workings`, { sortingStages: 0, modules: ['READY_STOCK', 'KHATA'] }).expect(200);
+    // The owner's wizard asking for sorting changes nothing: the super admin decides.
+    await api(app, owner).post('/tenant/setup', { businessName: 'Lahore Bales', currency: 'PKR', language: 'en', sortingStages: 2, categories: [], grades: [] }).expect(200);
     const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: owner.tenantId } });
     expect(tenant.enabledModules).not.toContain('SORT');
-    expect(tenant.enabledModules).toEqual(expect.arrayContaining(['RECEIVE', 'STOCK', 'SELL', 'KHATA']));
+    expect(tenant.enabledModules).toEqual(['RECEIVE', 'STOCK', 'SELL', 'READY_STOCK', 'KHATA']);
     expect(tenant.sortingStages).toBe(0);
   });
 

@@ -37,9 +37,8 @@ describe('Settings review (e2e)', () => {
     expect((await api(app, a).get('/tenant/business').expect(200)).body.currencyLocked).toBe(true);
     expect((await api(app, a).patch('/tenant/business', { currency: d.currency === 'PKR' ? 'USD' : 'PKR' }).expect(400)).body.code).toBe('CURRENCY_LOCKED');
 
-    await prisma.grade.updateMany({ where: { tenantId: a.tenantId }, data: { isActive: false } });
-    await api(app, a).patch('/tenant/business', { sortingStages: 0 }).expect(200);
-    expect((await api(app, a).patch('/tenant/business', { sortingStages: 2 }).expect(400)).body.code).toMatch(/NO_(CATEGORIES|GRADES)/);
+    // How the business sorts is the super admin's (v2 modules): the owner's page refuses it.
+    await api(app, a).patch('/tenant/business', { sortingStages: 0 }).expect(400);
     expect(await prisma.auditLog.count({ where: { tenantId: a.tenantId, action: 'BUSINESS_UPDATED' } })).toBeGreaterThan(0);
     // Another business keeps its own.
     expect((await api(app, b).get('/tenant/business').expect(200)).body.phone).toBe('');

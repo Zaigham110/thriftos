@@ -66,7 +66,9 @@ http
     const headers = { 'content-type': type, 'cache-control': hashed ? 'public, max-age=31536000, immutable' : 'no-cache' };
     let body = fs.readFileSync(file);
     if (/text|javascript|json|svg/.test(type) && /\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
-      body = gzipped.get(file) ?? gzipped.set(file, zlib.gzipSync(body, { level: 6 })).get(file);
+      // Keyed by the file's change time too: after a rebuild the new index.html is sent, not the one zipped before.
+      const key = `${file}:${fs.statSync(file).mtimeMs}`;
+      body = gzipped.get(key) ?? gzipped.set(key, zlib.gzipSync(body, { level: 6 })).get(key);
       headers['content-encoding'] = 'gzip';
       headers.vary = 'Accept-Encoding';
     }

@@ -2,24 +2,25 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ArrowLeft, Check, ChevronRight, LucideAngularModule } from 'lucide-angular';
+import { ArrowLeft, Check, ChevronRight, LucideAngularModule, Minus } from 'lucide-angular';
 import { API_BASE_URL } from '../../core/config/api.config';
 import { I18nService, LANGS } from '../../core/i18n/i18n.service';
 import { I18N } from '../../core/i18n/t.pipe';
-import { TenantService } from '../../core/tenant/tenant.service';
+import { ModuleCatalogue, TenantService } from '../../core/tenant/tenant.service';
 import { ToastService } from '../../shared/floor/toast.service';
 
 /** GET/PATCH /api/tenant/business */
 interface Business {
   name: string; phone: string; address: string; city: string;
-  currency: string; currencyLocked: boolean; language: string; sortingStages: number;
+  currency: string; currencyLocked: boolean; language: string; sortingStages: number; modules?: string[];
   categories: number; grades: number; contact: string | null;
 }
 
 /**
  * Settings → Business (v2 review): one plain page instead of the five-step setup wizard. Name, phone, address
  * and city (printed under the name on bills and receipts, and in WhatsApp messages), the currency (fixed once
- * money is recorded), the language of messages and bills, and how the business works.
+ * money is recorded), the language of messages and bills. What the business has (its modules and how it sorts)
+ * is shown read-only: ThriftOS sets it (v2 modules).
  */
 @Component({
   selector: 'app-business',
@@ -52,14 +53,23 @@ interface Business {
           <div class="chips">@for (l of langs; track l.id) { <button type="button" class="chip" [class.on]="language === l.id" (click)="language = l.id">{{ l.name }}</button> }</div>
           <p class="hint">{{ 'settings.biz.languageHint' | t }}</p>
 
-          <span class="field">{{ 'setup.doYouSort' | t }}</span>
-          @for (o of sortOptions; track o.value) {
-            <button type="button" class="option" [class.on]="stages === o.value" (click)="stages = o.value">
-              <strong>{{ o.label | t }}</strong>@if (stages === o.value) { <lucide-icon [img]="icons.Check" [size]="22" /> }
-            </button>
-          }
           <button type="submit" class="btn primary block" [disabled]="!name.trim() || saving()">{{ (saving() ? 'common.saving' : 'common.save') | t }}</button>
         </form>
+
+        <section class="card has" aria-labelledby="has-h">
+          <h2 id="has-h">{{ 'settings.biz.has' | t }}</h2>
+          <p class="hint">{{ ('settings.biz.sorts' + d.sortingStages) | t }}</p>
+          @if (cat(); as c) {
+            <ul class="mods">
+              @for (m of c.modules; track m.key) {
+                @if (m.key !== 'SORT') {
+                  <li [class.off]="!c.on?.includes(m.key)"><lucide-icon [img]="c.on?.includes(m.key) ? icons.Check : icons.Minus" [size]="16" /><span>{{ m.name[i18n.lang()] || m.name['en'] }}</span></li>
+                }
+              }
+            </ul>
+          }
+          <p class="hint">{{ 'settings.biz.hasHint' | t }}</p>
+        </section>
 
         @if (d.sortingStages >= 1) {
           <ul class="list">
@@ -74,8 +84,13 @@ interface Business {
   `,
   styles: [`
     .card { display:grid; gap:12px; }
-    .option { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-height:52px; padding:10px 14px; border:1px solid var(--tos-line); border-radius:12px; background:var(--tos-field); color:var(--tos-ink); font:inherit; text-align:start; cursor:pointer; }
-    .option.on { border:2px solid var(--tos-primary); background:var(--tos-primary-soft); color:var(--tos-primary); }
+    .has { display:grid; gap:10px; }
+    .has h2 { margin:0; font-size:17px; }
+    .mods { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:6px 16px; }
+    .mods li { display:flex; align-items:center; gap:8px; font-size:15px; }
+    .mods li lucide-icon { color:var(--tos-primary); flex:none; }
+    .mods li.off { color:var(--tos-ink-soft); }
+    .mods li.off lucide-icon { color:var(--tos-ink-soft); }
     .preview { display:grid; gap:2px; margin:0; padding:10px 12px; border:1px dashed var(--tos-line); border-radius:12px; text-align:center; }
     .preview span { color:var(--tos-ink-soft); font-size:14px; }
     html[dir='rtl'] .go { transform:scaleX(-1); }
@@ -83,17 +98,12 @@ interface Business {
 })
 export class BusinessComponent implements OnInit {
   private readonly http = inject(HttpClient);
-  private readonly i18n = inject(I18nService);
+  protected readonly i18n = inject(I18nService);
   private readonly toast = inject(ToastService);
   private readonly tenants = inject(TenantService);
-  protected readonly icons = { ArrowLeft, Check, ChevronRight };
+  protected readonly icons = { ArrowLeft, Check, ChevronRight, Minus };
   protected readonly currencies = ['PKR', 'USD', 'AED'];
   protected readonly langs = LANGS;
-  protected readonly sortOptions = [
-    { value: 0, label: 'setup.sort0' },
-    { value: 1, label: 'setup.sort1' },
-    { value: 2, label: 'setup.sort2' },
-  ];
   protected readonly b = signal<Business | null>(null);
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -103,9 +113,12 @@ export class BusinessComponent implements OnInit {
   protected city = '';
   protected currency = 'PKR';
   protected language = 'ur';
-  protected stages = 2;
+
+  /** What ThriftOS turned on for this business (set when it was made; read-only here). */
+  protected readonly cat = signal<ModuleCatalogue | null>(null);
 
   ngOnInit(): void {
+    this.tenants.moduleCatalogue().subscribe({ next: (c) => this.cat.set(c), error: () => undefined });
     this.http.get<Business>(`${API_BASE_URL}/tenant/business`).subscribe({
       next: (d) => this.fill(d),
       error: () => this.error.set('common.couldNotLoad'),
@@ -123,7 +136,7 @@ export class BusinessComponent implements OnInit {
     this.saving.set(true);
     this.error.set(null);
     const body = {
-      name: this.name.trim(), phone: this.phone.trim(), address: this.address.trim(), city: this.city.trim(), language: this.language, sortingStages: this.stages,
+      name: this.name.trim(), phone: this.phone.trim(), address: this.address.trim(), city: this.city.trim(), language: this.language,
       ...(d.currencyLocked ? {} : { currency: this.currency }),
     };
     this.http.patch<Business>(`${API_BASE_URL}/tenant/business`, body).subscribe({
@@ -136,7 +149,7 @@ export class BusinessComponent implements OnInit {
       error: (e: HttpErrorResponse) => {
         this.saving.set(false);
         const code = e.error?.code as string | undefined;
-        this.error.set(code && ['PHONE_INVALID', 'CURRENCY_LOCKED', 'NO_CATEGORIES', 'NO_GRADES'].includes(code) ? `settings.biz.err.${code}` : 'common.couldNotSave');
+        this.error.set(code && ['PHONE_INVALID', 'CURRENCY_LOCKED'].includes(code) ? `settings.biz.err.${code}` : 'common.couldNotSave');
       },
     });
   }
@@ -149,6 +162,5 @@ export class BusinessComponent implements OnInit {
     this.city = d.city;
     this.currency = d.currency;
     this.language = d.language;
-    this.stages = d.sortingStages;
   }
 }

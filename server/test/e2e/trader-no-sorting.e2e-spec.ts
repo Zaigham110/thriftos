@@ -22,9 +22,8 @@ describe('Trader without sorting (e2e)', () => {
       .post('/superadmin/tenants', { name: 'Gul Traders', companyCode: code, adminEmail: email, adminName: 'Gul', adminPassword: 'trader-pass-1' })
       .expect(201);
     owner = await login(app, email, 'trader-pass-1');
-    await api(app, owner)
-      .patch('/tenant/settings', { sortingStages: 0, enabledModules: ['RECEIVE', 'STOCK', 'SELL', 'KHATA'] })
-      .expect(200);
+    const created = await prisma.tenant.findUniqueOrThrow({ where: { companyCode: code } });
+    await api(app, superAdmin).patch(`/superadmin/tenants/${created.id}/workings`, { sortingStages: 0, modules: ['READY_STOCK', 'KHATA'] }).expect(200);
   });
 
   afterAll(async () => {
@@ -33,7 +32,7 @@ describe('Trader without sorting (e2e)', () => {
 
   it('buys ready stock, sells on udhaar, takes a payment and shows the right balance', async () => {
     const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: owner.tenantId } });
-    expect(tenant).toMatchObject({ sortingStages: 0, enabledModules: ['RECEIVE', 'STOCK', 'SELL', 'KHATA'] });
+    expect(tenant).toMatchObject({ sortingStages: 0, enabledModules: ['RECEIVE', 'STOCK', 'SELL', 'READY_STOCK', 'KHATA'] });
 
     // Maal aya: 10 bales of A-grade jeans for Rs 3,00,000 and 250 kg of mixed tops for Rs 75,000.
     const jeans = (await api(app, owner).post('/stock/items', { name: 'Jeans A grade', unit: 'BALE', quantity: 10, totalCost: 300000 }).expect(201)).body;

@@ -45,8 +45,8 @@ const CONTAINER_STATUSES = ['IN_TRANSIT', 'ARRIVED', 'CLEARED', 'CLOSED'] as con
 
 /** Purchasing (v2 review): what was bought, containers and gaari / loose lots, as two tabs of one screen. */
 export const PURCHASING_TABS = [
-  { label: 'ws.purchasing.containers', link: '/receive/records/containers' },
-  { label: 'ws.purchasing.lots', link: '/receive/records/lots' },
+  { label: 'ws.purchasing.containers', link: '/receive/records/containers', module: 'CONTAINERS' as const },
+  { label: 'ws.purchasing.lots', link: '/receive/records/lots', module: 'LOOSE_LOTS' as const },
 ];
 
 export const CONTAINERS_LIST: ListConfig = {

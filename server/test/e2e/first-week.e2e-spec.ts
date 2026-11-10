@@ -21,7 +21,7 @@ describe('First-week checklist (e2e)', () => {
   });
 
   it('starts with nothing done and ticks supplier, container, sale and team as they happen', async () => {
-    expect((await api(app, a).get('/home/first-week').expect(200)).body).toEqual({ show: true, done: 0, steps: { supplier: false, container: false, sale: false, team: false } });
+    expect((await api(app, a).get('/home/first-week').expect(200)).body).toEqual({ show: true, done: 0, total: 4, steps: { supplier: false, container: false, sale: false, team: false } });
 
     const vendor = (await api(app, a).post('/procurement/vendors', { name: 'Texas Rags', originCountry: 'USA' }).expect(201)).body;
     await prisma.container.create({ data: { tenantId: a.tenantId, containerNumber: `FW-${Date.now()}`, vendorId: vendor.id, grossWeight: 1000, netWeight: 1000 } });
@@ -35,6 +35,14 @@ describe('First-week checklist (e2e)', () => {
 
     // The other business is untouched.
     expect((await api(app, b).get('/home/first-week').expect(200)).body).toMatchObject({ show: true, done: 0 });
+  });
+
+  it('follows the modules: ready bales count as the first stock in; no munshi step without Munshi (v2 modules)', async () => {
+    const t = await createTenantWithOwner(app);
+    await prisma.tenant.update({ where: { id: t.tenantId }, data: { sortingStages: 0, enabledModules: ['RECEIVE', 'STOCK', 'SELL', 'READY_STOCK'] } });
+    expect((await api(app, t).get('/home/first-week').expect(200)).body).toEqual({ show: true, done: 0, total: 3, steps: { supplier: false, container: false, sale: false } });
+    await api(app, t).post('/stock/items', { name: 'Jeans A', unit: 'BALE', quantity: 3, totalCost: 30000 }).expect(201);
+    expect((await api(app, t).get('/home/first-week').expect(200)).body).toMatchObject({ done: 1, steps: { container: true } });
   });
 
   it('the owner can hide it; it also stops after the first 30 days', async () => {

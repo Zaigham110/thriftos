@@ -31,7 +31,7 @@ type LayoutMode = 'phone' | 'tablet' | 'desktop';
 interface NavItem {
   label: string;
   path: string;
-  module?: TenantModule;
+  module?: TenantModule | TenantModule[];
   icon: typeof Home;
 }
 

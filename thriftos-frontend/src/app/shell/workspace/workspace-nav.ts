@@ -29,7 +29,7 @@ export interface WsNavItem {
   /** Other pages that belong to this item (it stays highlighted there), e.g. Purchasing's second tab. */
   also?: string[];
   icon: Icon;
-  module?: TenantModule;
+  module?: TenantModule | TenantModule[];
   /** Shown only to people with this permission. */
   permission?: string;
   /** Extra words the command palette matches (English and Roman Urdu). */
@@ -48,7 +48,7 @@ export const WS_NAV: WsNavGroup[] = [
   {
     label: 'ws.group.operations',
     items: [
-      { label: 'ws.nav.purchasing', path: '/receive/records/containers', also: ['/receive/records/lots'], icon: Truck, module: 'RECEIVE', keywords: 'receive maal aya container lot gaari purchase kharidari' },
+      { label: 'ws.nav.purchasing', path: '/receive/records/containers', also: ['/receive/records/lots'], icon: Truck, module: ['CONTAINERS', 'LOOSE_LOTS'], keywords: 'receive maal aya container lot gaari purchase kharidari' },
       { label: 'ws.nav.suppliers', path: '/receive/records/suppliers', icon: Factory, module: 'RECEIVE', keywords: 'supplier vendor scorecard' },
       { label: 'ws.nav.sorting', path: '/sort/records', icon: Layers3, module: 'SORT', keywords: 'chhantai sort grade lots' },
       { label: 'ws.nav.yield', path: '/sort/yield', icon: Gauge, module: 'SORT', keywords: 'yield waste chhantai percent supplier' },
@@ -60,17 +60,17 @@ export const WS_NAV: WsNavGroup[] = [
     label: 'ws.group.sales',
     items: [
       { label: 'ws.nav.sales', path: '/sell/records', icon: ShoppingCart, module: 'SELL', keywords: 'becho sale invoice bill' },
-      { label: 'ws.nav.prices', path: '/sell/prices', icon: Tags, module: 'SELL', permission: 'price.manage', keywords: 'price list rate wholesale retail group' },
+      { label: 'ws.nav.prices', path: '/sell/prices', icon: Tags, module: 'PRICE_LISTS', permission: 'price.manage', keywords: 'price list rate wholesale retail group' },
       { label: 'ws.nav.receivables', path: '/khata/records', icon: BookOpen, module: 'KHATA', keywords: 'khata udhaar customers payments' },
     ],
   },
   {
     label: 'ws.group.finance',
     items: [
-      { label: 'ws.nav.expenses', path: '/finance/expenses', icon: Receipt, permission: 'finance.view', keywords: 'kharcha expense rent bijli labour transport' },
-      { label: 'ws.nav.book', path: '/finance/book', icon: Wallet, permission: 'finance.view', keywords: 'cash book bank jazzcash easypaisa raast' },
-      { label: 'ws.nav.close', path: '/finance/close', icon: Vault, permission: 'finance.view', keywords: 'cash close galla hisaab day end' },
-      { label: 'ws.nav.pnl', path: '/finance/pnl', icon: TrendingUp, permission: 'cost.view', keywords: 'profit loss munafa nuqsan p&l' },
+      { label: 'ws.nav.expenses', path: '/finance/expenses', icon: Receipt, module: 'EXPENSES', permission: 'finance.view', keywords: 'kharcha expense rent bijli labour transport' },
+      { label: 'ws.nav.book', path: '/finance/book', icon: Wallet, module: ['CASH_CLOSE', 'EXPENSES'], permission: 'finance.view', keywords: 'cash book bank jazzcash easypaisa raast' },
+      { label: 'ws.nav.close', path: '/finance/close', icon: Vault, module: 'CASH_CLOSE', permission: 'finance.view', keywords: 'cash close galla hisaab day end' },
+      { label: 'ws.nav.pnl', path: '/finance/pnl', icon: TrendingUp, module: 'PNL', permission: 'cost.view', keywords: 'profit loss munafa nuqsan p&l' },
     ],
   },
   {
@@ -78,7 +78,7 @@ export const WS_NAV: WsNavGroup[] = [
     items: [
       { label: 'ws.nav.reports', path: '/insights', icon: BarChart3, permission: 'REPORTS_VIEW', keywords: 'reports analytics report centre' },
       { label: 'ws.nav.salesAnalytics', path: '/sell/analytics', icon: TrendingUp, module: 'SELL', permission: 'REPORTS_VIEW', keywords: 'sales analytics customer city grade price trend' },
-      { label: 'ws.nav.scorecard', path: '/receive/scorecard', icon: Factory, module: 'RECEIVE', permission: 'REPORTS_VIEW', keywords: 'supplier origin scorecard ranking profit per kg' },
+      { label: 'ws.nav.scorecard', path: '/receive/scorecard', icon: Factory, module: ['CONTAINERS', 'LOOSE_LOTS'], permission: 'REPORTS_VIEW', keywords: 'supplier origin scorecard ranking profit per kg' },
     ],
   },
 ];
@@ -88,11 +88,11 @@ export const WS_SETTINGS: WsNavItem = { label: 'ws.nav.settings', path: '/settin
 /** Quick create (top bar "+" and the command palette). */
 export const WS_CREATE: WsNavItem[] = [
   { label: 'ws.new.sale', path: '/sell/records/new', icon: ShoppingCart, module: 'SELL', keywords: 'new sale becho' },
-  { label: 'ws.new.container', path: '/receive/records/containers/new', icon: Truck, module: 'RECEIVE', keywords: 'new container' },
-  { label: 'ws.new.lot', path: '/receive/records/lots/new', icon: Boxes, module: 'RECEIVE', keywords: 'loose lot' },
-  { label: 'ws.new.ready', path: '/receive/ready', icon: PackagePlus, module: 'RECEIVE', keywords: 'ready stock' },
+  { label: 'ws.new.container', path: '/receive/records/containers/new', icon: Truck, module: 'CONTAINERS', keywords: 'new container' },
+  { label: 'ws.new.lot', path: '/receive/records/lots/new', icon: Boxes, module: 'LOOSE_LOTS', keywords: 'loose lot' },
+  { label: 'ws.new.ready', path: '/receive/ready', icon: PackagePlus, module: 'READY_STOCK', keywords: 'ready stock' },
   { label: 'ws.new.bale', path: '/stock/bale', icon: Boxes, module: 'STOCK', keywords: 'make bale' },
-  { label: 'ws.expenses.new', path: '/finance/expenses/new', icon: Receipt, permission: 'expense.create', keywords: 'kharcha' },
+  { label: 'ws.expenses.new', path: '/finance/expenses/new', icon: Receipt, module: 'EXPENSES', permission: 'expense.create', keywords: 'kharcha' },
 ];
 
 /** Breadcrumb names for path segments; ids and unknown segments are not shown. */

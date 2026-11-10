@@ -14,13 +14,17 @@ import { inject } from '@angular/core';
 import { permissionGuard } from '../../core/guards/permission-guard';
 import { unsavedChangesGuard } from '../../core/nav/unsaved-changes.guard';
 import { moduleGuard } from '../../core/guards/module.guard';
+import { TenantService } from '../../core/tenant/tenant.service';
 import { CONTAINERS_LIST, PURCHASE_LOTS_LIST, PURCHASING_TABS, SUPPLIERS_LIST } from '../../features/workspace-lists/lists';
 
-/** Purchasing opens on the tab used last (containers by default). */
+/** Purchasing opens on the tab used last (containers by default), among the tabs whose module is on. */
 function lastPurchasingTab() {
+  const tenants = inject(TenantService);
+  const tabs = PURCHASING_TABS.filter((t) => tenants.isModuleEnabled(t.module));
   let last: string | null = null;
   try { last = localStorage.getItem(`thriftos.tab.${PURCHASING_TABS[0].link}`); } catch { /* private window */ }
-  return inject(Router).parseUrl(PURCHASING_TABS.some((t) => t.link === last) ? last! : PURCHASING_TABS[0].link);
+  const go = tabs.find((t) => t.link === last) ?? tabs[0];
+  return inject(Router).parseUrl(go ? go.link : '/receive/records/suppliers');
 }
 
 export const PROCUREMENT_ROUTES: Routes = [
@@ -30,6 +34,8 @@ export const PROCUREMENT_ROUTES: Routes = [
   // Gaari and loose lots bought without a container (v2 review): the second Purchasing tab.
   {
     path: 'lots',
+    canActivate: [moduleGuard],
+    data: { module: 'LOOSE_LOTS' },
     children: [
       {
         path: '',
@@ -114,6 +120,8 @@ export const PROCUREMENT_ROUTES: Routes = [
   // Containers
   {
     path: 'containers',
+    canActivate: [moduleGuard],
+    data: { module: 'CONTAINERS' },
     children: [
       {
         path: '',

@@ -1,3 +1,4 @@
+import { moduleOn } from '../../core/tenant/module-on';
 import { NgTemplateOutlet } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
@@ -140,8 +141,8 @@ const CODES = ['PHONE_INVALID', 'PHONE_TAKEN', 'PHONE_NEEDED', 'EMAIL_TAKEN', 'S
 
       @if (!adding()) {
         <footer class="action-bar">
-          <button type="button" class="btn primary" (click)="startAdd('munshi')"><lucide-icon [img]="icons.UserPlus" [size]="20" /> {{ 'settings.addMunshi' | t }}</button>
-          <button type="button" class="btn" (click)="startAdd('email')"><lucide-icon [img]="icons.Mail" [size]="20" /> {{ 'settings.tm.addEmail' | t }}</button>
+          @if (on('MUNSHI')) { <button type="button" class="btn primary" (click)="startAdd('munshi')"><lucide-icon [img]="icons.UserPlus" [size]="20" /> {{ 'settings.addMunshi' | t }}</button> }
+          <button type="button" class="btn" [class.primary]="!on('MUNSHI')" (click)="startAdd('email')"><lucide-icon [img]="icons.Mail" [size]="20" /> {{ 'settings.tm.addEmail' | t }}</button>
         </footer>
       }
     </section>
@@ -164,6 +165,7 @@ const CODES = ['PHONE_INVALID', 'PHONE_TAKEN', 'PHONE_NEEDED', 'EMAIL_TAKEN', 'S
   `],
 })
 export class TeamComponent implements OnInit {
+  protected readonly on = moduleOn();
   private readonly http = inject(HttpClient);
   private readonly toast = inject(ToastService);
   private readonly i18n = inject(I18nService);

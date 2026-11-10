@@ -35,14 +35,26 @@ export interface TenantProfile {
 }
 
 /**
- * Modules a tenant can turn on; the first five are on by default. The rest are not part of v1 and stay hidden
- * (and refused by the server) until turned on in `Tenant.enabledModules`. BILLING is read from the SYSTEM business.
+ * The parts of ThriftOS the super admin turns on or off per business (v2 modules; the list and its names come
+ * from the server, GET /tenant/modules). RECEIVE, STOCK and SELL are always on. BILLING is the platform's.
  */
-export type TenantModule =
-  | 'RECEIVE' | 'SORT' | 'STOCK' | 'SELL' | 'KHATA'
-  | 'REPORTS' | 'EXPORT' | 'WAREHOUSES' | 'PURCHASE_ORDERS' | 'PAYROLL' | 'BILLING';
+export type ModuleKey =
+  | 'CONTAINERS' | 'LOOSE_LOTS' | 'READY_STOCK' | 'PURCHASE_ORDERS'
+  | 'SORT'
+  | 'WAREHOUSES' | 'STOCK_COUNTS'
+  | 'PRICE_LISTS' | 'EXPORT' | 'KHATA'
+  | 'EXPENSES' | 'CASH_CLOSE' | 'PNL'
+  | 'REPORTS' | 'MUNSHI' | 'IMPORT';
+export type TenantModule = 'RECEIVE' | 'STOCK' | 'SELL' | ModuleKey | 'PAYROLL' | 'BILLING';
 
-const DEFAULT_MODULES: TenantModule[] = ['RECEIVE', 'SORT', 'STOCK', 'SELL', 'KHATA'];
+/** Before the business loads: the everyday set a new business starts with. */
+const DEFAULT_MODULES: TenantModule[] = [
+  'RECEIVE', 'STOCK', 'SELL', 'SORT', 'CONTAINERS', 'LOOSE_LOTS', 'READY_STOCK', 'STOCK_COUNTS', 'PRICE_LISTS', 'KHATA', 'EXPENSES', 'CASH_CLOSE', 'PNL', 'MUNSHI', 'IMPORT',
+];
+
+/** The module list as the server sends it (names in each language). */
+export interface ModuleInfo { key: ModuleKey; group: string; name: Record<string, string>; hint: Record<string, string>; byDefault: boolean }
+export interface ModuleCatalogue { groups: { id: string; name: Record<string, string> }[]; modules: ModuleInfo[]; buying: ModuleKey[]; defaults: ModuleKey[]; on?: ModuleKey[] }
 
 export interface TenantCategory {
   id: string;
@@ -72,10 +84,15 @@ export class TenantService {
     });
   }
 
-  /** A module is on when the tenant lists it (or, before the tenant loads, the default five are on). */
-  isModuleEnabled(module: TenantModule, tenant: TenantProfile | null = this._tenant()): boolean {
+  /** A module is on when the business lists it; with several, any one of them is enough. */
+  isModuleEnabled(module: TenantModule | readonly TenantModule[], tenant: TenantProfile | null = this._tenant()): boolean {
     const enabled = tenant?.enabledModules ?? DEFAULT_MODULES;
-    return enabled.includes(module);
+    return (Array.isArray(module) ? module : [module]).some((m) => enabled.includes(m));
+  }
+
+  /** The current business's modules with their names, for read-only display (Settings → Business). */
+  moduleCatalogue(): Observable<ModuleCatalogue> {
+    return this.http.get<ModuleCatalogue>(`${API_BASE_URL}/tenant/modules`);
   }
 
   loadTenant(force = false): Observable<TenantProfile> {

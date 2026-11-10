@@ -15,7 +15,9 @@ import { AppPageBodyComponent, AppPageComponent, AppPageHeaderComponent } from '
 import { auditLabel } from '../../audit-labels';
 import { activityLabel } from '../tenants-list/tenants-list';
 import { day, moment } from '../../console-format';
-import { ALWAYS_ON, BUSINESS_TYPES, SWITCHABLE, typeLabel } from '../../business-type';
+import { BUSINESS_TYPES, typeLabel } from '../../business-type';
+import { ModuleCatalogueService, ModulePickerComponent, moduleProblem } from '../../module-picker.component';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { Tenant } from '../tenant.models';
 import { isLang, Lang, langName, LANGS } from '../../../../../core/i18n/i18n.service';
 
@@ -36,7 +38,7 @@ type Sheet = 'edit' | 'person' | 'switch' | 'support' | 'delete' | 'secret' | 'w
 @Component({
   selector: 'app-tenant-detail',
   standalone: true,
-  imports: [FormsModule, RouterLink, AppPageComponent, AppPageHeaderComponent, AppPageBodyComponent],
+  imports: [FormsModule, RouterLink, AppPageComponent, AppPageHeaderComponent, AppPageBodyComponent, ModulePickerComponent],
   template: `
     <app-page>
       <app-page-header>
@@ -74,7 +76,7 @@ type Sheet = 'edit' | 'person' | 'switch' | 'support' | 'delete' | 'secret' | 'w
                   @if (t.sample?.state === 'failed') { <p class="note bad" role="alert">Sample data failed: {{ t.sample?.message }}</p> }
                 </div>
                 <div class="btns">
-                  @if (empty() && t.sample?.state !== 'running') { <button type="button" class="btn primary" [disabled]="busy()" (click)="fillSample()">Fill with sample data</button> }
+                  @if (empty() && t.sample?.state !== 'running' && (t.sortingStages ?? 2) === 2 && t.enabledModules?.includes('CONTAINERS')) { <button type="button" class="btn primary" [disabled]="busy()" (click)="fillSample()">Fill with sample data</button> }
                   <button type="button" class="btn" [disabled]="busy()" (click)="markTest(false)">Mark as real</button>
                   <button type="button" class="btn danger" [disabled]="t.sample?.state === 'running'" (click)="open('delete')">Delete business</button>
                 </div>
@@ -95,11 +97,11 @@ type Sheet = 'edit' | 'person' | 'switch' | 'support' | 'delete' | 'secret' | 'w
             <section class="card" aria-labelledby="works-h">
               <div class="card-head"><h2 id="works-h">How this business works</h2><button type="button" class="btn sm" (click)="openWorkings()">Change</button></div>
               <div class="works">
-                <div><span class="muted">Type</span><strong>{{ typeLabel(t.sortingStages) }}</strong><small class="muted">{{ typeHint(t.sortingStages) }}</small></div>
-                <div><span class="muted">Always on</span><strong>{{ alwaysOn(t.sortingStages).join(', ') }}</strong></div>
-                <div><span class="muted">Switched on</span>
-                  @if (switchedOn(t).length) { <strong>{{ switchedOn(t).join(', ') }}</strong> } @else { <strong>Nothing extra</strong> }
-                  @if (switchedOff(t).length) { <small class="muted">Off: {{ switchedOff(t).join(', ') }}</small> }
+                <div><span class="muted">Buys</span><strong>{{ names(t, 'buying', true).join(', ') || '—' }}</strong></div>
+                <div><span class="muted">Sorting</span><strong>{{ typeLabel(t.sortingStages) }}</strong><small class="muted">{{ typeHint(t.sortingStages) }}</small></div>
+                <div class="wide"><span class="muted">On</span>
+                  <div class="mods">@for (n of names(t, 'other', true); track n) { <span class="tag ok">{{ n }}</span> } @empty { <strong>Nothing else</strong> }</div>
+                  @if (names(t, 'other', false).length) { <span class="muted">Off</span><div class="mods">@for (n of names(t, 'other', false); track n) { <span class="tag">{{ n }}</span> }</div> }
                 </div>
               </div>
             </section>
@@ -166,18 +168,7 @@ type Sheet = 'edit' | 'person' | 'switch' | 'support' | 'delete' | 'secret' | 'w
           }
           @case ('workings') {
             <form id="d-form" class="form" (ngSubmit)="saveWorkings()">
-              <fieldset class="col"><legend>Type</legend>
-                @for (ty of types; track ty.stages) {
-                  <label class="choice"><input type="radio" name="stages" [value]="ty.stages" [(ngModel)]="wStages" /><span><strong>{{ ty.label }}</strong><small class="muted">{{ ty.hint }}</small></span></label>
-                }
-              </fieldset>
-              <fieldset class="col"><legend>Modules</legend>
-                <p class="muted small">Always on: {{ alwaysOn(wStages).join(', ') }}.</p>
-                @for (m of switchable; track m.id) {
-                  <label class="choice"><input type="checkbox" [name]="'m-' + m.id" [ngModel]="wModules.has(m.id)" (ngModelChange)="toggleModule(m.id, $event)" /><span><strong>{{ m.label }}</strong><small class="muted">{{ m.hint }}</small></span></label>
-                }
-              </fieldset>
-              @if (wStages === 0 && (b()?.sortingStages ?? 2) > 0) { <p class="note">The Sorting tab goes away for everyone. Sorting already recorded stays.</p> }
+              <app-module-picker [(stages)]="wStages" [(modules)]="wModules" [wasSorting]="(b()?.sortingStages ?? 2) > 0" />
             </form>
           }
           @case ('switch') {
@@ -216,7 +207,7 @@ type Sheet = 'edit' | 'person' | 'switch' | 'support' | 'delete' | 'secret' | 'w
             }
             @default {
               <button type="button" class="btn" (click)="close()">Cancel</button>
-              @if (s === 'edit' || s === 'person' || s === 'workings') { <button type="submit" form="d-form" class="btn primary" [disabled]="busy()">Save</button> }
+              @if (s === 'edit' || s === 'person' || s === 'workings') { <button type="submit" form="d-form" class="btn primary" [disabled]="busy() || (s === 'workings' && !!workingsProblem())">Save</button> }
               @if (s === 'switch') { <button type="button" class="btn" [class.danger]="b()?.status === 'ACTIVE'" [class.primary]="b()?.status !== 'ACTIVE'" [disabled]="busy()" (click)="toggle()">{{ b()?.status === 'ACTIVE' ? 'Switch off' : 'Switch on' }}</button> }
               @if (s === 'support') { <button type="button" class="btn primary" [disabled]="busy()" (click)="support()">Open read-only</button> }
               @if (s === 'delete') { <button type="button" class="btn danger" [disabled]="busy() || confirmName.trim().toLowerCase() !== (b()?.name ?? '').trim().toLowerCase()" (click)="remove()">Delete for good</button> }
@@ -244,6 +235,9 @@ type Sheet = 'edit' | 'person' | 'switch' | 'support' | 'delete' | 'secret' | 'w
     .works > div { display:grid; gap:2px; align-content:start; }
     .works span.muted { font-size:12px; }
     .works small { font-size:12px; }
+    .works .wide { grid-column:1 / -1; gap:6px; }
+    .mods { display:flex; flex-wrap:wrap; gap:6px; }
+    .mods .tag { margin:0; }
     .note { margin:6px 0 0; font-weight:600; }
     .note.ok { color:#047857; }
     .note.bad { color:var(--color-danger, #b3261e); }
@@ -298,9 +292,10 @@ export class TenantDetailComponent implements OnInit {
   protected readonly moment = moment;
   protected readonly typeLabel = typeLabel;
   protected readonly types = BUSINESS_TYPES;
-  protected readonly switchable = SWITCHABLE;
-  protected wStages = 2;
-  protected wModules = new Set<string>();
+  private readonly catalogue = toSignal(inject(ModuleCatalogueService).catalogue$);
+  protected readonly wStages = signal(2);
+  protected readonly wModules = signal<string[]>([]);
+  protected readonly workingsProblem = computed(() => moduleProblem(this.wModules(), this.wStages(), this.catalogue()?.buying ?? []));
   protected personId = '';
   protected personName = '';
   protected personPhone = '';
@@ -375,35 +370,27 @@ export class TenantDetailComponent implements OnInit {
     return BUSINESS_TYPES.find((t) => t.stages === (stages ?? 2))?.hint ?? '';
   }
 
-  protected alwaysOn(stages: number | undefined): string[] {
-    return (stages ?? 2) > 0 ? [...ALWAYS_ON.slice(0, 1), 'Sorting', ...ALWAYS_ON.slice(1)] : ALWAYS_ON;
-  }
-
-  protected switchedOn(t: Business): string[] {
-    return SWITCHABLE.filter((m) => t.enabledModules?.includes(m.id)).map((m) => m.label);
-  }
-
-  protected switchedOff(t: Business): string[] {
-    return SWITCHABLE.filter((m) => !t.enabledModules?.includes(m.id)).map((m) => m.label);
+  /** Module names of a business from the server's list: the ways it buys, or everything else; on or off. */
+  protected names(t: Business, part: 'buying' | 'other', on: boolean): string[] {
+    const c = this.catalogue();
+    if (!c) return [];
+    return c.modules
+      .filter((m) => m.key !== 'SORT' && (part === 'buying') === c.buying.includes(m.key))
+      .filter((m) => !!t.enabledModules?.includes(m.key) === on)
+      .map((m) => m.name['en']);
   }
 
   protected openWorkings(): void {
     const t = this.b();
-    if (!t) return;
-    this.wStages = t.sortingStages ?? 2;
-    this.wModules = new Set(SWITCHABLE.map((m) => m.id).filter((id) => t.enabledModules?.includes(id)));
+    const c = this.catalogue();
+    if (!t || !c) return;
+    this.wStages.set(t.sortingStages ?? 2);
+    this.wModules.set(c.modules.map((m) => m.key as string).filter((k) => k !== 'SORT' && t.enabledModules?.includes(k)));
     this.open('workings');
   }
 
-  protected toggleModule(id: string, on: boolean): void {
-    const next = new Set(this.wModules);
-    if (on) next.add(id);
-    else next.delete(id);
-    this.wModules = next;
-  }
-
   protected saveWorkings(): void {
-    this.run(this.http.patch(`${this.api}/${this.b()!.id}/workings`, { sortingStages: Number(this.wStages), modules: [...this.wModules] }), () => this.close());
+    this.run(this.http.patch(`${this.api}/${this.b()!.id}/workings`, { sortingStages: this.wStages(), modules: this.wModules() }), () => this.close());
   }
 
   protected editPerson(p: Person): void {

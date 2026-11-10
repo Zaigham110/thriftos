@@ -25,13 +25,14 @@ test('quick create, read-only support view, last activity, owner signs in with t
   await expect(page.getByRole('heading', { name: `Quick Bales ${tag} is ready` })).toBeVisible();
   const pin = (await page.locator('.pin').textContent())!.trim();
   expect(pin).toMatch(/^\d{6}$/);
+  await expect(page.locator('.facts')).toContainText(`0304 ${tag}`);
   const message = await page.getByLabel('Welcome message').inputValue();
   expect(message).toContain(pin);
   expect(message).toContain('السلام علیکم Haji Rafiq');
   await expect(page.getByRole('link', { name: 'Send on WhatsApp' })).toHaveAttribute('href', new RegExp(`^https://wa\\.me/92304${tag}\\?text=`));
 
   // Support view: the business as its owner sees it, a banner, and no changes allowed.
-  await page.getByRole('button', { name: 'Open support view' }).click();
+  await page.getByRole('button', { name: 'See it as the owner (read-only)' }).click();
   await page.waitForURL(/\/(home|setup)/);
   // The business opens in its own language (Urdu here).
   const banner = page.locator('.tos-support');
@@ -80,7 +81,7 @@ test('test business: new PIN, fix the phone, sample data, audit, delete', async 
   await page.getByLabel("Owner's phone").fill(`0305 ${tag}`);
   await page.getByLabel(/Test business/).check();
   await page.getByRole('button', { name: 'Create business' }).click();
-  await page.getByRole('link', { name: /Business page/ }).click();
+  await page.getByRole('link', { name: 'Open the business page' }).click();
 
   await expect(page.getByRole('heading', { name, level: 1 })).toContainText('Test');
   const owner = page.locator('tr').filter({ hasText: 'Test Owner' });
@@ -101,18 +102,33 @@ test('test business: new PIN, fix the phone, sample data, audit, delete', async 
   await expect(page.getByRole('link', { name: 'Send on WhatsApp' })).toHaveAttribute('href', new RegExp(`^https://wa\\.me/92306${tag}\\?text=`));
   await page.getByRole('button', { name: 'Done' }).click();
 
-  // How the business works: made as "sorts by category and grade"; switch to trading only with Export sales.
+  // How the business works (v2 modules): made with the everyday set; switch to ready bales only with Export sales.
   const works = page.locator('section').filter({ has: page.getByRole('heading', { name: 'How this business works' }) });
   await expect(works).toContainText('Sorts by category and grade');
+  await expect(works).toContainText('Containers, Loose lots, Ready bales');
   await works.getByRole('button', { name: 'Change' }).click();
-  await dialog.getByLabel(/Trading only/).check();
-  await dialog.getByLabel(/Export sales/).check();
+  await dialog.getByRole('button', { name: /^Containers/ }).click();
+  await dialog.getByRole('button', { name: /^Loose lots/ }).click();
+  // Without containers or loose lots there is nothing to sort: it goes to No sorting by itself.
+  await expect(dialog.getByRole('radio', { name: 'No sorting' })).toHaveAttribute('aria-checked', 'true');
+  await expect(dialog.getByRole('radio', { name: 'Categories', exact: true })).toBeDisabled();
+  await dialog.getByRole('switch', { name: 'Export sales' }).check();
   await expect(dialog).toContainText('The Sorting tab goes away');
   await dialog.getByRole('button', { name: 'Save' }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(works).toContainText('Trading only');
-  await expect(works).toContainText('Export sales');
+  await expect(works).toContainText('Ready bales');
+  await expect(works.locator('.tag.ok').filter({ hasText: 'Export sales' })).toBeVisible();
   await expect(page.locator('.page-subtitle')).toContainText('Trading only');
+  // Sample data is a container sorting story: a trader is not offered it.
+  await expect(page.getByRole('button', { name: 'Fill with sample data' })).toHaveCount(0);
+
+  // Back to containers sorted by category and grade.
+  await works.getByRole('button', { name: 'Change' }).click();
+  await dialog.getByRole('button', { name: /^Containers/ }).click();
+  await dialog.getByRole('radio', { name: 'Categories and grades' }).click();
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(works).toContainText('Sorts by category and grade');
 
   // Sample data, then the numbers show it.
   await page.getByRole('button', { name: 'Fill with sample data' }).click();

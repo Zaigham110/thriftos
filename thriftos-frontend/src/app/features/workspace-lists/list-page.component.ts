@@ -1,3 +1,4 @@
+import { TenantService } from '../../core/tenant/tenant.service';
 import { HelpLinkComponent } from '../help/help-link.component';
 import { NavService } from '../../core/nav/nav.service';
 import { Component, DestroyRef, HostListener, computed, effect, inject, input, signal, untracked } from '@angular/core';
@@ -65,7 +66,7 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
         <!-- The breadcrumb goes above the tabs (the header below leaves it out). -->
         <ws-breadcrumbs />
         <nav class="tabs" [attr.aria-label]="c.title | t">
-          @for (tab of c.tabs; track tab.link) {
+          @for (tab of shownTabs(); track tab.link) {
             <a [routerLink]="tab.link" routerLinkActive="on" ariaCurrentWhenActive="page" (click)="rememberTab(tab.link)">{{ tab.label | t }}</a>
           }
         </nav>
@@ -222,6 +223,9 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
 })
 export class ListPageComponent {
   protected readonly i18n = inject(I18nService);
+  private readonly tenants = inject(TenantService);
+  /** Tabs of modules that are on (one tab left still shows, as the page's name). */
+  protected readonly shownTabs = computed(() => (this.list().tabs ?? []).filter((t) => !t.module || this.tenants.isModuleEnabled(t.module, this.tenants.tenant())));
   private readonly lists = inject(ListClient);
   private readonly router = inject(Router);
   protected readonly nav = inject(NavService);

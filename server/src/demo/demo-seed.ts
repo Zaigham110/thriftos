@@ -1,3 +1,4 @@
+import { DEFAULT_MODULES, storedModules } from '../common/modules/modules';
 import { SYSTEM_COMPANY_CODE } from '../bootstrap/base-data';
 import { INestApplicationContext } from '@nestjs/common';
 import { ExpenseCategory, PaymentMethod, Prisma } from '@prisma/client';
@@ -187,6 +188,7 @@ export async function seedDemo(app: INestApplicationContext, opts: { today?: Dat
       munshi: { name: 'Akram Munshi', phone: DEMO.munshi.phone, pin: DEMO.munshi.pin },
     },
     owner.id,
+    { platform: true },
   );
   const munshi = await prisma.user.findFirstOrThrow({ where: { tenantId: t, phone: { not: null } } });
   const filled = await fillSortingStory(app, ctx, { tenantId: t, ownerId: owner.id, workerId: munshi.id, log, moveBusinessDate: true });
@@ -201,7 +203,9 @@ export async function seedDemo(app: INestApplicationContext, opts: { today?: Dat
   );
   const trader = await prisma.tenant.findUniqueOrThrow({ where: { companyCode: DEMO.traderCode } });
   const traderOwner = await prisma.user.findFirstOrThrow({ where: { tenantId: trader.id, email: DEMO.trader.email } });
-  await setup.save(trader.id, { businessName: 'Lahore Bale House (Demo)', currency: 'PKR', language: 'ur', sortingStages: 0, categories: [], grades: [] }, traderOwner.id);
+  await setup.save(trader.id, { businessName: 'Lahore Bale House (Demo)', currency: 'PKR', language: 'ur', sortingStages: 0, categories: [], grades: [] }, traderOwner.id, { platform: true });
+  // A trader: buys ready bales only (no containers, loose lots or sorting).
+  await prisma.tenant.update({ where: { id: trader.id }, data: { enabledModules: storedModules(0, DEFAULT_MODULES.filter((m) => m !== 'CONTAINERS' && m !== 'LOOSE_LOTS')) } });
   const wholesaler = (await vendors.create(trader.id, { name: 'Sher Shah Wholesale', originCountry: 'Pakistan', country: 'Pakistan' } as never, traderOwner.id)) as { id: string };
   const items: Record<string, string> = {};
   for (const [name, unit, quantity, totalCost, weightKg, salePrice, daysAgo] of [

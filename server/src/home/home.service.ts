@@ -46,17 +46,23 @@ export class HomeService {
    * business was made, until all four are done or the owner hides it.
    */
   async firstWeek(tenantId: string, now = new Date()) {
-    const [tenant, suppliers, containers, sales, team] = await Promise.all([
-      this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { createdAt: true, firstWeekHiddenAt: true } }),
+    const [tenant, suppliers, containers, lots, ready, sales, team] = await Promise.all([
+      this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { createdAt: true, firstWeekHiddenAt: true, enabledModules: true } }),
       this.prisma.vendor.count({ where: { tenantId } }),
       this.prisma.container.count({ where: { tenantId } }),
+      this.prisma.rag.count({ where: { tenantId } }),
+      this.prisma.inventoryItem.count({ where: { tenantId, source: 'PURCHASED' } }),
       this.prisma.sale.count({ where: { tenantId } }),
       this.prisma.user.count({ where: { tenantId, isActive: true } }),
     ]);
-    const steps = { supplier: suppliers > 0, container: containers > 0, sale: sales > 0, team: team > 1 };
+    // "First stock in" is a container, a loose lot or ready bales, whichever this business buys (v2 modules);
+    // the munshi step only when the business has munshi.
+    const steps: { supplier: boolean; container: boolean; sale: boolean; team?: boolean } = { supplier: suppliers > 0, container: containers + lots + ready > 0, sale: sales > 0 };
+    if (tenant.enabledModules.includes('MUNSHI')) steps.team = team > 1;
+    const total = Object.keys(steps).length;
     const done = Object.values(steps).filter(Boolean).length;
     const young = now.getTime() - tenant.createdAt.getTime() < FIRST_WEEK_DAYS * 86_400_000;
-    return { show: young && !tenant.firstWeekHiddenAt && done < 4, done, steps };
+    return { show: young && !tenant.firstWeekHiddenAt && done < total, done, total, steps };
   }
 
   async hideFirstWeek(tenantId: string) {

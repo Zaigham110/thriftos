@@ -1,3 +1,4 @@
+import { catalogue } from '../common/modules/modules';
 import {
   Body,
   Controller,
@@ -47,6 +48,12 @@ export class SuperAdminController {
   async getModules() {
     const system = await this.prisma.tenant.findUnique({ where: { companyCode: SYSTEM_COMPANY_CODE }, select: { enabledModules: true } });
     return { enabledModules: system?.enabledModules ?? [] };
+  }
+
+  /** The module list the console's business forms show (v2 modules). */
+  @Get('module-catalogue')
+  moduleCatalogue() {
+    return catalogue();
   }
 
   @Get('summary')

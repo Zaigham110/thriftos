@@ -1,3 +1,4 @@
+import { moduleOn } from '../../core/tenant/module-on';
 import { Component, HostListener, OnInit, computed, inject, signal } from '@angular/core';
 import { DashboardComponent } from '../workspace-lists/dashboard.component';
 import { AuthService } from '../../core/auth';
@@ -17,11 +18,13 @@ import { NeedsAttentionComponent } from '../../shared/offline/needs-attention.co
     <section class="floor">
       <header class="floor-head"><h1>{{ 'home.munshiTitle' | t }}</h1></header>
       <app-needs-attention />
-      @if (canSpend()) { <a class="card spend" routerLink="/finance/expenses/new">{{ 'home.recordExpense' | t }}</a> }
+      @if (canSpend() && on('EXPENSES')) { <a class="card spend" routerLink="/finance/expenses/new">{{ 'home.recordExpense' | t }}</a> }
+      @if (on('SORT')) {
       <div class="row2">
         <a class="card stat" routerLink="/sort"><small>{{ 'home.lotsToSort' | t }}</small><strong class="big-number">{{ waiting() | num }}</strong></a>
         <a class="card stat" routerLink="/sort"><small>{{ 'home.openSorting' | t }}</small><strong class="big-number">{{ open() | num }}</strong></a>
       </div>
+      }
     </section>
     }
   `,
@@ -29,6 +32,7 @@ import { NeedsAttentionComponent } from '../../shared/offline/needs-attention.co
     .spend { display:flex; align-items:center; justify-content:center; min-height:56px; color:var(--tos-primary, #6f3f63); font-size:17px; font-weight:700; text-decoration:none; }`],
 })
 export class HomeComponent implements OnInit {
+  protected readonly on = moduleOn();
   private readonly data = inject(FloorDataService);
   private readonly auth = inject(AuthService);
   protected readonly owner = computed(() => this.auth.permissions().includes('REPORTS_VIEW') || !!this.auth.user()?.isSuperAdmin);

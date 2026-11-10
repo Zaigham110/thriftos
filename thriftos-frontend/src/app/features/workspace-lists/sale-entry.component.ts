@@ -1,3 +1,4 @@
+import { moduleOn } from '../../core/tenant/module-on';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Component, ElementRef, HostListener, computed, inject, signal, viewChildren } from '@angular/core';
 import { NavService } from '../../core/nav/nav.service';
@@ -87,11 +88,13 @@ const optionLabel = (s: StockOption) => [s.code, s.name].filter(Boolean).join(' 
         </table>
 
         <div class="row pay">
+          @if (modes().length > 1) {
           <div class="modes" role="group" [attr.aria-label]="'ws.col.paymentMode' | t">
-            @for (m of modes; track m) {
+            @for (m of modes(); track m) {
               <button type="button" class="ws-btn" [class.on]="mode() === m" [attr.aria-pressed]="mode() === m" (click)="mode.set(m)">{{ 'ws.mode.' + m | t }}</button>
             }
           </div>
+          }
           @if (mode() === 'PARTIAL') {
             <label>{{ 'ws.sale.paid' | t }}<input name="paid" type="number" min="1" step="1" [(ngModel)]="paid" /></label>
           }
@@ -163,7 +166,9 @@ export class SaleEntryComponent implements HasUnsavedChanges {
   private readonly toast = inject(ToastService);
   private readonly qtyInputs = viewChildren<ElementRef<HTMLInputElement>>('qtyInput');
   protected readonly icons = { Trash2 };
-  protected readonly modes: Mode[] = ['CASH', 'CREDIT', 'PARTIAL'];
+  private readonly on = moduleOn();
+  /** Udhaar (all or part) is khata: without it, cash only (v2 modules). */
+  protected readonly modes = computed<Mode[]>(() => (this.on('KHATA') ? ['CASH', 'CREDIT', 'PARTIAL'] : ['CASH']));
   protected readonly methods = PAYMENT_METHODS;
   protected readonly isText = (x: string | null): x is string => !!x;
   protected readonly label = optionLabel;

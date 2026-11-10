@@ -185,8 +185,6 @@ export class TenantService {
       data: {
         ...(desiredCurrency ? { currency: desiredCurrency } : {}),
         ...(dto.locale ? { locale: dto.locale } : {}),
-        ...(dto.enabledModules ? { enabledModules: dto.enabledModules } : {}),
-        ...(dto.sortingStages !== undefined ? { sortingStages: dto.sortingStages } : {}),
         ...(dto.defaultLanguage ? { defaultLanguage: dto.defaultLanguage } : {}),
       },
       include: {
@@ -216,8 +214,6 @@ export class TenantService {
           changes: {
             ...(desiredCurrency ? { currencyCode: desiredCurrency } : {}),
             ...(dto.locale ? { locale: dto.locale } : {}),
-            ...(dto.enabledModules ? { enabledModules: dto.enabledModules } : {}),
-            ...(dto.sortingStages !== undefined ? { sortingStages: dto.sortingStages } : {}),
             ...(dto.defaultLanguage ? { defaultLanguage: dto.defaultLanguage } : {}),
           },
         },
@@ -230,6 +226,10 @@ export class TenantService {
       currency: currencyMeta,
       currencyLocked,
     };
+  }
+
+  async modulesOf(tenantId: string): Promise<string[]> {
+    return (await this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { enabledModules: true } })).enabledModules;
   }
 
   async isCurrencyLocked(tenantId: string): Promise<boolean> {

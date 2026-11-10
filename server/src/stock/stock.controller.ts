@@ -1,3 +1,4 @@
+import { RequireModule } from '../common/decorators/require-module.decorator';
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser, CurrentUserData, RequirePermissions, TenantId } from '../common/decorators';
 import { PermissionGuard } from '../common/guards/permission.guard';
@@ -68,6 +69,7 @@ export class StockItemsController {
   ) {}
 
   /** Receive stock bought ready to sell. */
+  @RequireModule('READY_STOCK')
   @Idempotent('STOCK_RECEIVE')
   @Post()
   @RequirePermissions('INVENTORY_INTAKE')

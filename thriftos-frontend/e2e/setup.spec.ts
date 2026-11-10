@@ -22,11 +22,9 @@ test('a new business is set up through the wizard and ready to work', async ({ p
 
   // The owner of a business that is not set up lands on the wizard.
   await page.waitForURL('**/setup');
-  await expect(page.getByText('Step 1 of 5')).toBeVisible();
+  // How it sorts was set when the business was made (v2 modules): the wizard asks only for names.
+  await expect(page.getByText('Step 1 of 4')).toBeVisible();
   await page.getByLabel('Business name').fill(`Al-Madina Traders ${tag}`);
-  await page.getByRole('button', { name: 'Next' }).click();
-
-  await page.getByRole('button', { name: 'Yes, categories then grades' }).click();
   await page.getByRole('button', { name: 'Next' }).click();
 
   await expect(page.getByRole('button', { name: /^Jeans/ })).toBeVisible();
@@ -38,13 +36,13 @@ test('a new business is set up through the wizard and ready to work', async ({ p
   await expect(page.getByLabel('Grade names 1')).toHaveValue('Cream');
   await page.getByRole('button', { name: 'Next' }).click();
 
-  await expect(page.getByText('Step 5 of 5')).toBeVisible();
+  await expect(page.getByText('Step 4 of 4')).toBeVisible();
   await page.getByLabel('Munshi name').fill('Akram');
   await page.getByLabel('WhatsApp number').fill(phone);
   await page.getByLabel(/PIN for the munshi/).fill('4821');
   await page.getByRole('button', { name: 'Start using ThriftOS' }).click();
   await page.waitForURL('**/home');
-  console.log(`setup took ${((Date.now() - started) / 1000).toFixed(1)} s of app time (5 screens, 4 fields typed)`);
+  console.log(`setup took ${((Date.now() - started) / 1000).toFixed(1)} s of app time (4 screens, 4 fields typed)`);
 
   // Its own categories on the sort screen, in order (with their grades, v2 6.6); no Bags. Kat is booked at close.
   const owner = await apiAs(request, { email, password: 'owner-pass-1' });

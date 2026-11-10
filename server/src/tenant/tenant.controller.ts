@@ -1,3 +1,4 @@
+import { catalogue, isModuleKey } from '../common/modules/modules';
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { TenantService } from './tenant.service';
@@ -39,6 +40,14 @@ export class TenantController {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Cache-Control', 'no-store');
     res.send(Buffer.from(zip));
+  }
+
+  /** Every module ThriftOS has (names in three languages) and which ones this business has on (v2 modules). */
+  @Get('modules')
+  @SkipPermissionCheck()
+  async modules(@TenantId() tenantId: string) {
+    const t = await this.tenantService.modulesOf(tenantId);
+    return { ...catalogue(), on: t.filter(isModuleKey) };
   }
 
   @Get()

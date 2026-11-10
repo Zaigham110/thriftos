@@ -141,6 +141,7 @@ describe('Workspace inventory: stock list, lineage, ageing, counts with approval
   });
 
   it('godown transfer moves what is left and records it', async () => {
+    await prisma.tenant.update({ where: { id: a.tenantId }, data: { enabledModules: { push: 'WAREHOUSES' } } });
     const main = await prisma.warehouse.create({ data: { tenantId: a.tenantId, name: 'Main godown', code: 'MAIN' } });
     const shop = await prisma.warehouse.create({ data: { tenantId: a.tenantId, name: 'Shershah shop', code: 'SHOP' } });
     await api(app, a).post(`/workspace/stock/${ids.bale}/transfer`, { godownId: main.id }).expect(200);
