@@ -73,8 +73,8 @@ test('quick create, read-only support view, last activity, owner signs in with e
   await phone.getByLabel(/^New password/).first().fill('Rafiq-own-pass-1');
   await phone.getByLabel('New password again').fill('Rafiq-own-pass-1');
   await phone.getByRole('button', { name: 'Save password' }).click();
-  // Then the setup, as for any new business.
-  await phone.waitForURL('**/setup');
+  // Then straight to work: everything the setup would ask was chosen in the console.
+  await phone.waitForURL('**/home');
   await phone.close();
 });
 

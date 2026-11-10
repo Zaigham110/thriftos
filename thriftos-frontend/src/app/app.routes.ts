@@ -8,7 +8,7 @@ import { tenantAreaGuard } from './core/guards/tenant-area.guard';
 import { moduleGuard } from './core/guards/module.guard';
 import { superAdminGuard } from './core/guards/super-admin-guard';
 import { passwordGuard } from './core/guards/password.guard';
-import { setupGuard } from './core/guards/setup.guard';
+import { setupGuard, setupOpenGuard } from './core/guards/setup.guard';
 import { LoginComponent } from './features/auth/login/login.component';
 
 export const routes: Routes = [
@@ -92,7 +92,7 @@ export const routes: Routes = [
   {
     path: 'setup',
     loadComponent: () => import('./features/setup/setup.component').then((m) => m.SetupComponent),
-    canActivate: [authGuard, tenantAreaGuard, passwordGuard],
+    canActivate: [authGuard, tenantAreaGuard, passwordGuard, setupOpenGuard],
     title: 'ThriftOS',
   },
 

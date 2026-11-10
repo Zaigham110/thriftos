@@ -20,3 +20,13 @@ export const setupGuard: CanActivateFn = (): Observable<boolean | UrlTree> => {
     catchError(() => of(true)),
   );
 };
+
+/** The setup is only for a business not set up yet; afterwards /setup opens Home (changes are made in Settings). */
+export const setupOpenGuard: CanActivateFn = (): Observable<boolean | UrlTree> => {
+  const tenants = inject(TenantService);
+  const router = inject(Router);
+  return tenants.loadTenant(true).pipe(
+    map((t) => (t && t.setupCompletedAt ? router.createUrlTree(['/home']) : true)),
+    catchError(() => of(true)),
+  );
+};

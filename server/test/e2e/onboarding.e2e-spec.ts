@@ -40,7 +40,9 @@ describe('Super Admin onboarding tools (e2e)', () => {
     expect(res.body.welcome).toContain('السلام علیکم');
 
     const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: res.body.tenant.id }, include: { roles: true, categories: true } });
-    expect(tenant).toMatchObject({ defaultLanguage: 'ur', sortingStages: 1, setupCompletedAt: null });
+    expect(tenant).toMatchObject({ defaultLanguage: 'ur', sortingStages: 1 });
+    // Everything the setup asked is chosen in the console: the owner goes straight to work.
+    expect(tenant.setupCompletedAt).not.toBeNull();
     expect(tenant.categories.length).toBeGreaterThan(0);
     // The owner, the staff roles and one that can only look.
     expect(tenant.roles.map((r) => r.name).sort()).toEqual(['Admin', 'Buyer', 'Cashier', 'Manager', 'ReadOnly', 'Salesman', 'Sorter']);

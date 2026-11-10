@@ -46,9 +46,9 @@ export function companyCodeFrom(name: string): string {
 /** The message the super admin sends a new owner: email and first password (v2: owners sign in with email). */
 export function welcomeMessage(lang: Language, p: { owner: string; business: string; url: string; email: string; password: string }): string {
   const t: Texts<string> = {
-    en: `Assalam o Alaikum ${p.owner}!\nThriftOS for ${p.business} is ready.\nOpen: ${p.url}\nEmail: ${p.email}\nPassword: ${p.password}\nThe first time, you choose your own password and answer a few questions; then you can start.`,
-    ur: `السلام علیکم ${p.owner}!\n${p.business} کے لیے آپ کا ThriftOS تیار ہے۔\nکھولیں: ${p.url}\nای میل: ${p.email}\nپاس ورڈ: ${p.password}\nپہلی بار اپنا پاس ورڈ بنائیں اور چند سوالوں کے جواب دیں، پھر کام شروع کریں۔`,
-    roman: `Assalam o Alaikum ${p.owner}!\n${p.business} ke liye aap ka ThriftOS tayyar hai.\nKholein: ${p.url}\nEmail: ${p.email}\nPassword: ${p.password}\nPehli baar apna password banayein aur chand sawalon ke jawab dein, phir kaam shuru karein.`,
+    en: `Assalam o Alaikum ${p.owner}!\nThriftOS for ${p.business} is ready.\nOpen: ${p.url}\nEmail: ${p.email}\nPassword: ${p.password}\nThe first time, you choose your own password; then you can start.`,
+    ur: `السلام علیکم ${p.owner}!\n${p.business} کے لیے آپ کا ThriftOS تیار ہے۔\nکھولیں: ${p.url}\nای میل: ${p.email}\nپاس ورڈ: ${p.password}\nپہلی بار اپنا پاس ورڈ بنائیں، پھر کام شروع کریں۔`,
+    roman: `Assalam o Alaikum ${p.owner}!\n${p.business} ke liye aap ka ThriftOS tayyar hai.\nKholein: ${p.url}\nEmail: ${p.email}\nPassword: ${p.password}\nPehli baar apna password banayein, phir kaam shuru karein.`,
   };
   return t[lang];
 }
@@ -104,6 +104,8 @@ export class OnboardingService {
         city: dto.city?.trim() || null,
         sortingStages,
         enabledModules: storedModules(sortingStages, chosen),
+        // Everything the owner's setup would ask is chosen here, and the lists are made below: no setup for the owner.
+        setupCompletedAt: new Date(),
       },
     });
     const boot = await this.bootstrap.bootstrapTenant(tenant.id, undefined, undefined, undefined, { sortingStages });

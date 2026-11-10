@@ -22,6 +22,8 @@
 #   9. 20261113100000_v6_12_staff  staff roles: sale.create and payment.create for every role except
 #                                        read-only, the Munshi role becomes Sorter, MUNSHI module becomes STAFF,
 #                                        User.mustChangePassword (owners sign in with email)
+#  10. 20261114100000_v6_13_console_setup  data only: businesses made with the console's New business form
+#                                        are marked set up (the owner skips the setup)
 # Data step: base data (server/src/bootstrap): adds data.import and gives every Admin (owner) role all permissions.
 # Idempotent; nothing else changes.
 set -euo pipefail
