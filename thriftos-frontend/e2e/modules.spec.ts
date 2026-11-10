@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { signIn } from './helpers';
+import { setDemoModule, signIn } from './helpers';
 
 /**
  * Task 4.5: reports, warehouses, purchase orders and super admin billing are not part of v1. With the default
@@ -41,5 +41,26 @@ test('the super admin console hides plans and billing unless the platform turned
   for (const url of ['/admin/billing', '/admin/plans']) {
     await page.goto(url);
     await page.waitForURL('**/admin/dashboard');
+  }
+});
+
+/** v2 modules: a business that buys only loose lots never lands on the Containers page (owner's report). */
+test('loose lots only: Purchasing opens Loose lots, no Containers tab, no "turned off" page', async ({ page, request }) => {
+  const undo = await setDemoModule(request, 'CONTAINERS', false);
+  try {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await signIn(page);
+    await page.getByRole('link', { name: 'Purchasing' }).first().click();
+    await expect(page).toHaveURL(/\/receive\/records\/lots$/);
+    await expect(page.getByText('This part is turned off')).toHaveCount(0);
+    await expect(page.locator('nav.tabs').getByRole('link', { name: 'Containers' })).toHaveCount(0);
+    // "Maal aya" on a laptop goes to the same place.
+    await page.goto('/receive');
+    await expect(page).toHaveURL(/\/receive\/records\/lots$/);
+    // The Purchasing address itself picks the tab this business has.
+    await page.goto('/receive/records');
+    await expect(page).toHaveURL(/\/receive\/records\/lots$/);
+  } finally {
+    await undo();
   }
 });

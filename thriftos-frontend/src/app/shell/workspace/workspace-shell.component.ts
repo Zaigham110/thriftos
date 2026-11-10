@@ -273,7 +273,12 @@ export class WorkspaceShellComponent {
   private readonly allowed = (item: WsNavItem) =>
     (!item.module || this.tenantService.isModuleEnabled(item.module, this.tenantService.tenant())) &&
     (!item.permission || this.auth.isSuperAdmin() || this.auth.permissions().includes(item.permission));
-  protected readonly navGroups = computed(() => WS_NAV.map((g) => ({ ...g, items: g.items.filter(this.allowed) })).filter((g) => g.items.length));
+  /** The item as this business has it: another page while one of its modules is off. */
+  private readonly resolved = (item: WsNavItem): WsNavItem =>
+    item.ifOff && !this.tenantService.isModuleEnabled(item.ifOff.module, this.tenantService.tenant())
+      ? { ...item, path: item.ifOff.path, also: item.ifOff.also ?? [] }
+      : item;
+  protected readonly navGroups = computed(() => WS_NAV.map((g) => ({ ...g, items: g.items.filter(this.allowed).map(this.resolved) })).filter((g) => g.items.length));
   protected readonly createItems = computed(() => WS_CREATE.filter(this.allowed));
   protected readonly commands = computed<PaletteCommand[]>(() => [
     ...this.navGroups().flatMap((g) => g.items).concat(WS_SETTINGS).map((i) => ({ id: 'go' + i.path.replace(/\//g, '-'), label: i.label, group: 'pages' as const, icon: i.icon, keywords: i.keywords, path: i.path })),

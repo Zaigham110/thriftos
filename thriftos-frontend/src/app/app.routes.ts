@@ -124,7 +124,8 @@ export const routes: Routes = [
         canActivate: [moduleGuard],
         data: { module: 'RECEIVE' },
         children: [
-          { path: '', canActivate: [desktopRedirect('/receive/records/containers')], loadComponent: () => import('./features/receive/receive-home.component').then((m) => m.ReceiveHomeComponent), title: 'ThriftOS' },
+          // On a laptop: Purchasing, on the tab this business has (containers, loose lots; else suppliers).
+          { path: '', canActivate: [desktopRedirect('/receive/records')], loadComponent: () => import('./features/receive/receive-home.component').then((m) => m.ReceiveHomeComponent), title: 'ThriftOS' },
           { path: 'container', canActivate: [moduleGuard, desktopRedirect('/receive/records/containers/new')], data: { module: 'CONTAINERS' }, loadComponent: () => import('./features/receive/receive-container.component').then((m) => m.ReceiveContainerComponent), title: 'ThriftOS' },
           { path: 'lot', canActivate: [moduleGuard, desktopRedirect('/receive/records/lots/new')], data: { module: 'LOOSE_LOTS' }, loadComponent: () => import('./features/receive/receive-lot.component').then((m) => m.ReceiveLotComponent), title: 'ThriftOS' },
           { path: 'ready', canActivate: [moduleGuard], data: { module: 'READY_STOCK' }, loadComponent: () => import('./features/receive/receive-ready.component').then((m) => m.ReceiveReadyComponent), title: 'ThriftOS' },

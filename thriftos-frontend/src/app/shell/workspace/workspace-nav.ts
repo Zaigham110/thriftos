@@ -28,6 +28,8 @@ export interface WsNavItem {
   path: string;
   /** Other pages that belong to this item (it stays highlighted there), e.g. Purchasing's second tab. */
   also?: string[];
+  /** Where it goes instead while a module is off (v2 modules: Purchasing of a loose-lots business opens Loose lots). */
+  ifOff?: { module: TenantModule; path: string; also?: string[] };
   icon: Icon;
   module?: TenantModule | TenantModule[];
   /** Shown only to people with this permission. */
@@ -48,7 +50,7 @@ export const WS_NAV: WsNavGroup[] = [
   {
     label: 'ws.group.operations',
     items: [
-      { label: 'ws.nav.purchasing', path: '/receive/records/containers', also: ['/receive/records/lots'], icon: Truck, module: ['CONTAINERS', 'LOOSE_LOTS'], keywords: 'receive maal aya container lot gaari purchase kharidari' },
+      { label: 'ws.nav.purchasing', path: '/receive/records/containers', also: ['/receive/records/lots'], ifOff: { module: 'CONTAINERS', path: '/receive/records/lots' }, icon: Truck, module: ['CONTAINERS', 'LOOSE_LOTS'], keywords: 'receive maal aya container lot gaari purchase kharidari' },
       { label: 'ws.nav.suppliers', path: '/receive/records/suppliers', icon: Factory, module: 'RECEIVE', keywords: 'supplier vendor scorecard' },
       { label: 'ws.nav.sorting', path: '/sort/records', icon: Layers3, module: 'SORT', keywords: 'chhantai sort grade lots' },
       { label: 'ws.nav.yield', path: '/sort/yield', icon: Gauge, module: 'SORT', keywords: 'yield waste chhantai percent supplier' },
@@ -165,7 +167,7 @@ export interface Crumb {
 export function isMenuPage(url: string): boolean {
   const path = url.split(/[?#]/)[0];
   const items = [...WS_NAV.flatMap((g) => g.items), WS_SETTINGS];
-  return items.some((i) => i.path === path || (i.also ?? []).includes(path));
+  return items.some((i) => i.path === path || (i.also ?? []).includes(path) || i.ifOff?.path === path);
 }
 
 /**
