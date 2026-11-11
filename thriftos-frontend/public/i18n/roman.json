@@ -704,7 +704,7 @@
   "saveBales": "Gaanthein save karein",
   "sorted": "{kg} chhanta",
   "sortedLabel": "Chhanta hua",
-  "tapTile": "Jo chhanta us par dabayein",
+  "tapTile": "Grade par dabayein, phir us ka wazan likhein",
   "title": "Chhantai",
   "today": "Aaj: {bales} gaanthein · {kg}",
   "tooMuch": "Wazan lot ke baqi ({kg}) se zyada hai. {kg} ya kam likhein.",
@@ -714,7 +714,6 @@
   "lotKg": "Lot",
   "leftHint": "abhi chhantna hai",
   "balesLabel": "Bani bale",
-  "todayShort": "Aaj {bales} · {kg}",
   "whatSorted": "Aap ne kya chhanta?",
   "whatSortedHint": "Category dabayein, phir bale ya khula kilo likhein.",
   "searchCategory": "Category dhoondein",
@@ -736,7 +735,14 @@
    "GRADED_WHILE_SORTING": "Chhantai ke waqt is ko grade de diya gaya tha, yeh grade ho chuka hai.",
    "IN_BALES": "In {kg} mein se kuch gaanthon mein ja chuka hai. Gaanthein banane se pehle grade karein.",
    "NOT_FOUND": "Yeh chhantai ka entry nahi mila. Shayad wapas le liya gaya."
-  }
+  },
+  "nToday": "aaj {n}",
+  "gradedLabel": "Grade hua",
+  "finishGrading": "Grading khatam karein",
+  "finishTitle": "Grading khatam karein?",
+  "finishConfirm": "{kg} jo grade nahi hua, kat mein jaye ga. Grading khatam karein?",
+  "gradingDone": "Grading mukammal",
+  "gradedSummary": "{kg} aaya · {out} grade hua"
  },
  "stock": {
   "advanced": "Stock haath se chunein",
@@ -874,7 +880,9 @@
    "STOCK_PRICE_SET": "ne qeemat lagayi",
    "VENDOR_CREATED": "ne supplier daala",
    "VENDOR_DELETED": "ne supplier hataya",
-   "VENDOR_UPDATED": "ne supplier badla"
+   "VENDOR_UPDATED": "ne supplier badla",
+   "SORT_SESSION_CREATED": "chhantai shuru ki",
+   "GRADE_SESSION_CREATED": "grading shuru ki"
   },
   "board": {
    "empty": "Yahan kuch nahi",
@@ -1882,7 +1890,11 @@
    "stage2": "Grading",
    "start": "Chhantai shuru karein",
    "time": "Kitna waqt laga",
-   "waste": "Waste"
+   "waste": "Waste",
+   "boughtPerKg": "Khareed fi kilo",
+   "sortedCostPerKg": "Chhante hue kilo ki laagat",
+   "paid": "Kitna ada kiya",
+   "papersHint": "Bill aur kaghazaat Kaam ki tafseel mein hain."
   },
   "sp": {
    "active": "Ab bhi is supplier se kharid (maal aane par dikhayein)",

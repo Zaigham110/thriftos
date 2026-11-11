@@ -46,7 +46,9 @@ test('journeys 1–6 on a 360px phone', async ({ page, request }) => {
   // Two bales of 100 kg straight into stock, with stickers to print.
   await sortBales(page, 'Jeans', 2, 100, 'Grade B');
   await expect(page.getByRole('link', { name: /Print stickers for the 2 bales of Jeans · Grade B/ })).toBeVisible();
-  await expect(page.locator('.overview')).toContainText(loose('Today 2 · 600.0 kg'));
+  // Today: the kg sorted under Sorted, the bales under Bales made (v2 cycle review: they were mixed up).
+  await expect(page.locator('.overview')).toContainText(loose('600.0 kg today'));
+  await expect(page.locator('.overview')).toContainText('2 today');
   await sortLoose(page, 'T-Shirts', 300, 'Grade A');
   await expect(page.locator('.overview')).toContainText(loose('900.0 kg'));
   await expect(page.locator('.overview')).toContainText(loose('100.0 kg'));
@@ -71,7 +73,7 @@ test('journeys 1–6 on a 360px phone', async ({ page, request }) => {
   await page.locator('.entry').getByRole('button', { name: 'Save bales' }).click();
   await expect(page.getByRole('link', { name: /Print stickers for the 2 bales of Jeans · Grade A/ })).toBeVisible();
   await expect(ready.locator('li', { hasText: 'Jeans · Grade A' })).toContainText(loose('200.0 kg sorted, not baled yet'));
-  await expect(page.locator('.overview')).toContainText(loose('Today 4'));
+  await expect(page.locator('.overview')).toContainText('4 today');
   await page.getByRole('button', { name: 'Close lot' }).click();
   await expect(page.getByText(loose('Is this lot finished? The 100.0 kg left becomes leftovers and goes into stock.'))).toBeVisible();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Close lot' }).click();

@@ -1,6 +1,6 @@
 import { APIRequestContext, Page, expect, test } from '@playwright/test';
 import { apiAs, signIn } from './helpers';
-import { loose, sortLoose } from './floor';
+import { baleCountAndWeight, keys, loose, sortLoose } from './floor';
 
 // Enterprise plan E2 in the browser: the sales list (server paging, filters, group-by, saved views, export)
 // and a sale's record page (pipeline, amounts, lines/payments, notes with @mention, attachments),
@@ -900,4 +900,51 @@ test('sorting screen: lot details, what came out, take one back, close with a su
   await page.goto(`/sort/${lot.id}`);
   await expect(page.getByText('Lot closed')).toBeVisible();
   await expect(page.locator('.overview')).toHaveCount(0);
+});
+
+test('loose lot cycle: what was paid, grade it from the lot page, finish grading, bale the graded kg (v2 cycle review)', async ({ page, request }) => {
+  const api = await apiAs(request);
+  const tag = Date.now().toString().slice(-6);
+  const supplier = await api.post('/procurement/vendors', { name: `Cycle Rags ${tag}` });
+  const lot = await api.post('/procurement/rags', { ragBaleType: 'BALE', weightKg: 300, ratePerKg: 100, vendorId: supplier.id, charges: [{ kind: 'TRANSPORT', amount: 5000 }] });
+  await page.setViewportSize({ width: 390, height: 860 });
+  await signIn(page);
+  await page.goto(`/sort/${lot.id}`);
+  await sortLoose(page, 'T-Shirts', 200);
+  await sortLoose(page, 'Jeans', 50, 'Grade A');
+  // The close question names each grade.
+  await page.getByRole('button', { name: 'Close lot' }).click();
+  await expect(page.locator('.confirm')).toContainText('Jeans · Grade A');
+  await page.locator('.confirm').getByRole('button', { name: 'Cancel' }).click();
+
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.goto(`/sort/records/${lot.id}`);
+  const paid = page.getByRole('region', { name: 'What was paid' });
+  await expect(paid).toContainText('Transport');
+  await expect(paid).toContainText(loose('Rs 35,000'));
+  // While sorting, Sorted % is how far it has got (it showed "—").
+  await expect(page.locator('.smart')).toContainText('83%');
+  await page.getByText('Grade it').click();
+
+  // Grading speaks of grading, not of closing the lot.
+  await expect(page).toHaveURL(/\/sort\/grade\//);
+  await expect(page.getByText('Graded', { exact: true })).toBeVisible();
+  await page.locator('.tiles').getByRole('button').filter({ hasText: 'Grade A' }).click();
+  await keys(page, 150);
+  await page.getByRole('button', { name: 'Finish grading' }).click();
+  await expect(page.getByRole('alertdialog')).toContainText(loose('50.0 kg not graded goes to waste'));
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Finish grading' }).click();
+  await expect(page.getByText('Grading finished')).toBeVisible();
+  await page.getByRole('link', { name: 'Open lot page' }).last().click();
+  await expect(page).toHaveURL(new RegExp(`/sort/records/${lot.id}$`));
+  await expect(page.locator('ws-record-activity')).toContainText('started grading');
+
+  // The graded kg can be baled from the lot.
+  await page.goto(`/sort/${lot.id}`);
+  const ready = page.locator('.ready li', { hasText: 'T-Shirts · Grade A' });
+  await expect(ready).toContainText(loose('150.0 kg sorted, not baled yet'));
+  await ready.getByRole('button', { name: 'Make bales' }).click();
+  await baleCountAndWeight(page, page.locator('.entry'), 1, 50);
+  await page.locator('.entry').getByRole('button', { name: /^Save bales/ }).click();
+  await expect(ready).toContainText(loose('100.0 kg sorted, not baled yet'));
 });

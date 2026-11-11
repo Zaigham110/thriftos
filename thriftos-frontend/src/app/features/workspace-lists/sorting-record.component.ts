@@ -25,6 +25,8 @@ type Money = string | null;
 /** GET /api/workspace/sorting/:lotId (money is null without cost.view). */
 export interface SortingRecord {
   lot: { id: string; code: string; status: 'NOT_STARTED' | 'IN_SORTING' | 'SORTED'; kg: string; createdAt: string; source: string; origin: string | null; rawCategory: string | null; container: { id: string; number: string } | null; supplier: { id: string; name: string } | null; cost: Money; costPerKg: Money };
+  /** A loose lot's price and extra charges (only for people who may see cost). */
+  purchase: { price: string; ratePerKg: string | null; charges: { kind: string; amount: string; note: string | null }[]; total: string } | null;
   session: { id: string; status: string; worker: string; supervisor: string; startTime: string; endTime: string | null; inputKg: string; outputKg: string; wasteKg: string } | null;
   categories: { id: string; name: string; kg: string; pieces: number; cost: Money; costPerKg: Money; sharePercent: number | null; usedKg: string; grading: { id: string; status: string; worker: string } | null; gradeTarget: string | null; gradedKg: string; wasteKg: string }[];
   grades: { name: string; kg: string; pieces: number; sharePercent: number | null; cost: Money }[];
@@ -67,11 +69,26 @@ const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
             } @else {
               <ws-smart-button [label]="'ws.lots.col.left' | t" [value]="i18n.kg(d.totals.leftKg)" [icon]="icons.Scale" [link]="[]" />
             }
-            <ws-smart-button [label]="'ws.containers.col.yield' | t" [value]="pct(d.totals.yieldPercent)" [icon]="icons.Percent" [tone]="(d.totals.yieldPercent ?? 100) < 80 ? 'bad' : 'plain'" [link]="[]" />
+            <!-- While sorting: how far it has got; once sorted: the yield (v2 cycle review: it showed "—" while sorting). -->
+            <ws-smart-button [label]="'ws.containers.col.yield' | t" [value]="pct(d.totals.yieldPercent ?? d.totals.progressPercent)" [icon]="icons.Percent" [tone]="d.lot.status === 'SORTED' && (d.totals.yieldPercent ?? 100) < 80 ? 'bad' : 'plain'" [link]="[]" />
             <ws-smart-button [label]="'ws.containers.col.topGrade' | t" [value]="pct(d.totals.topGradePercent)" [icon]="icons.Percent" [link]="[]" />
-            @if (d.lot.costPerKg !== null) { <ws-smart-button [label]="'ws.containers.col.costPerKg' | t" [value]="i18n.money(d.lot.costPerKg)" [icon]="icons.Coins" [link]="[]" /> }
+            @if (d.lot.costPerKg !== null) { <ws-smart-button [label]="'ws.sortRecord.boughtPerKg' | t" [value]="i18n.money(d.lot.costPerKg)" [icon]="icons.Coins" [link]="[]" /> }
+            @if (sortedCostPerKg(); as c) { <ws-smart-button [label]="'ws.sortRecord.sortedCostPerKg' | t" [value]="i18n.money(c)" [icon]="icons.Coins" [link]="[]" /> }
             @if (d.totals.minutes !== null) { <ws-smart-button [label]="'ws.sortRecord.time' | t" [value]="'ws.sortRecord.minutes' | t: { n: d.totals.minutes }" [icon]="icons.Clock" [link]="[]" /> }
           </section>
+          @if (d.purchase; as p) {
+            <section class="paid" [attr.aria-label]="'ws.sortRecord.paid' | t">
+              <h2>{{ 'ws.sortRecord.paid' | t }}</h2>
+              <dl>
+                <div><dt>{{ 'ws.lf.pricePaid' | t }}@if (p.ratePerKg) { <small>{{ i18n.kg(d.lot.kg) }} × {{ i18n.money(p.ratePerKg) }}</small> }</dt><dd>{{ i18n.money(p.price) }}</dd></div>
+                @for (c of p.charges; track $index) {
+                  <div><dt>{{ ('ws.lf.kind.' + c.kind) | t }}@if (c.note) { <small>{{ c.note }}</small> }</dt><dd>{{ i18n.money(c.amount) }}</dd></div>
+                }
+                <div class="total"><dt>{{ 'ws.lf.lotCost' | t }}</dt><dd>{{ i18n.money(p.total) }}</dd></div>
+              </dl>
+              <p class="hint">{{ 'ws.sortRecord.papersHint' | t }}</p>
+            </section>
+          }
           @if (d.lot.status !== 'SORTED') {
             <div class="progress" role="progressbar" [attr.aria-label]="'ws.sortRecord.progress' | t" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="d.totals.progressPercent ?? 0">
               <i [style.width.%]="d.totals.progressPercent ?? 0"></i>
@@ -103,6 +120,15 @@ const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
     .record { display:grid; grid-template-columns:minmax(0, 1fr) 340px; gap:var(--ws-5); max-width:var(--ws-content-max); margin-inline:auto; align-items:start; font-family:var(--ws-font); color:var(--ws-ink); }
     .main { display:grid; grid-template-columns:minmax(0, 1fr); gap:var(--ws-4); }
     .side { position:sticky; top:calc(var(--ws-topbar-h) + var(--ws-4)); }
+    .paid { padding:var(--ws-4); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg, 12px); background:var(--ws-surface); }
+    .paid h2 { margin:0 0 var(--ws-2); font-size:var(--ws-text-md, 15px); }
+    .paid dl { display:grid; gap:6px; margin:0; }
+    .paid dl > div { display:flex; justify-content:space-between; gap:var(--ws-3); }
+    .paid dt { display:grid; color:var(--ws-ink-2, inherit); }
+    .paid dt small { color:var(--ws-muted); font-size:12px; }
+    .paid dd { margin:0; font-variant-numeric:tabular-nums; }
+    .paid .total { padding-top:6px; border-top:1px solid var(--ws-line); font-weight:700; }
+    .paid .hint { margin:var(--ws-2) 0 0; color:var(--ws-muted); font-size:12px; }
     .smart { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:var(--ws-3); }
     .progress { position:relative; height:28px; border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface); overflow:hidden; }
     .progress i { position:absolute; inset-block:0; inset-inline-start:0; background:var(--ws-brand-soft); }
@@ -206,6 +232,13 @@ export class SortingRecordComponent {
         if (x.ok) this.data.set(x.d);
       });
   }
+
+  /** Once sorted: what each sellable kg cost (the lot's cost over the kg that came out). */
+  protected readonly sortedCostPerKg = computed(() => {
+    const d = this.data();
+    if (!d || d.lot.status !== 'SORTED' || d.lot.cost === null || !Number(d.totals.sortedKg)) return null;
+    return String(Math.round((Number(d.lot.cost) / Number(d.totals.sortedKg)) * 100) / 100);
+  });
 
   protected pct(v: number | null): string {
     return v === null ? '—' : `${this.i18n.num(v, 0)}%`;

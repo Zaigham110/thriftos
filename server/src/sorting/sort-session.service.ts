@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { ContainerStatus, InventoryStatus, MovementType, Prisma, RagStatus, SortStatus, StockSource, StockUnit, WasteStage } from '@prisma/client';
+import { ContainerStatus, GradingOutputStatus, InventoryStatus, MeasurementType, MovementType, Prisma, RagStatus, SortStatus, StockSource, StockUnit, WasteStage } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { AuditService } from '../audit/audit.service';
 import { costPerKg, money, openLotCost } from '../costing/costing';
@@ -147,7 +147,7 @@ export class SortSessionService {
       },
     });
     if (!session) throw new NotFoundException('Sort session not found');
-    const [buckets, wasteLineItems, outputs, kat] = await Promise.all([
+    const [buckets, wasteLineItems, outputs, kat, graded, gradedBales] = await Promise.all([
       this.prisma.sortCategoryBucket.findMany({
         where: { sortSessionId: sessionId },
         orderBy: { updatedAt: 'desc' },
@@ -167,6 +167,22 @@ export class SortSessionService {
       this.prisma.inventoryItem.findFirst({
         where: { tenantId, ragId: session.rag.id, source: StockSource.KAT },
         select: { id: true, name: true, quantity: true, usedQuantity: true, status: true },
+      }),
+      // Kg graded afterwards (a separate grading of an entry of this lot) and not baled yet: it can be baled from here too.
+      this.prisma.gradeOutput.findMany({
+        where: {
+          tenantId,
+          measurementType: MeasurementType.WEIGHT,
+          status: { in: [GradingOutputStatus.AVAILABLE, GradingOutputStatus.PARTIALLY_USED, GradingOutputStatus.READY_FOR_REPACK] },
+          remainingAmount: { gt: 0 },
+          gradeBucket: { gradeSession: { categoryOutput: { sortSessionId: sessionId } } },
+        },
+        select: { remainingAmount: true, gradeId: true, grade: { select: { name: true, rank: true } }, gradeBucket: { select: { gradeSession: { select: { categoryOutput: { select: { categoryId: true, category: { select: { name: true } } } } } } } } },
+      }),
+      // Bales made from that graded kg (they point at the grade output, not at the sorted entry).
+      this.prisma.repackInputAllocation.findMany({
+        where: { tenantId, gradingOutput: { gradeBucket: { gradeSession: { categoryOutput: { sortSessionId: sessionId } } } } },
+        select: { repackUnitId: true, repackUnit: { select: { createdAt: true, weightKg: true, categoryId: true, gradeId: true, category: { select: { name: true } }, grade: { select: { name: true, rank: true } } } } },
       }),
     ]);
     const outputKg = buckets.reduce((sum, b) => sum.add(b.outputWeightKg), ZERO);
@@ -200,6 +216,16 @@ export class SortSessionService {
         l.availableKg = l.availableKg.add(left);
         loose.set(key, l);
       }
+    }
+    for (const { repackUnitId, repackUnit: u } of gradedBales) {
+      if (!units.has(repackUnitId) && u.categoryId) units.set(repackUnitId, { ...u, categoryId: u.categoryId });
+    }
+    for (const g of graded) {
+      const co = g.gradeBucket.gradeSession.categoryOutput;
+      const key = `${co.categoryId}:${g.gradeId}`;
+      const l = loose.get(key) ?? { categoryId: co.categoryId, categoryName: co.category.name, gradeId: g.gradeId, gradeName: g.grade.name, rank: g.grade.rank, availableKg: ZERO };
+      l.availableKg = l.availableKg.add(g.remainingAmount);
+      loose.set(key, l);
     }
     const baleKinds = new Map<string, { categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; rank: number; bales: number; kg: Decimal; todayBales: number }>();
     for (const u of units.values()) {

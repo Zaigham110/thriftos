@@ -63,8 +63,8 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
       @if (desktop) {
         <!-- Laptop: the shared header (breadcrumb lined up with the heading) and the way to the lot's page. -->
         <ws-page-header [attr.inert]="sheetOpen() ? '' : null" [heading]="title()" [subtitle]="stage() === 1 && lotMeta() ? lotMeta() : ((stage() === 1 ? 'sort.title' : 'sort.grading') | t) + (stage() === 2 && gradeLot() ? ' · ' + gradeLot()!.code : '')">
-          @if (stage() === 1) {
-            <a actions class="ws-btn" [routerLink]="['/sort/records', id()]" [state]="nav.trailState()">{{ 'ws.sortRecord.openLot' | t }}</a>
+          @if (stage() === 1 || gradeLot()) {
+            <a actions class="ws-btn" [routerLink]="['/sort/records', stage() === 1 ? id() : gradeLot()!.id]" [state]="nav.trailState()">{{ 'ws.sortRecord.openLot' | t }}</a>
           }
         </ws-page-header>
       } @else {
@@ -82,8 +82,8 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
         </section>
       } @else if (result(); as r) {
         <section class="card">
-          <h2><lucide-icon [img]="icons.CheckCircle2" [size]="22" class="good" /> {{ 'sort.closed' | t }} · {{ 'sort.yield' | t }}</h2>
-          <p class="hint">{{ 'sort.closedSummary' | t: { kg: (inputKg() | kg), out: (outputKgAtClose() | kg), bales: (totalBales() | num) } }}</p>
+          <h2><lucide-icon [img]="icons.CheckCircle2" [size]="22" class="good" /> {{ (stage() === 1 ? 'sort.closed' : 'sort.gradingDone') | t }} · {{ 'sort.yield' | t }}</h2>
+          <p class="hint">{{ (stage() === 1 ? 'sort.closedSummary' : 'sort.gradedSummary') | t: { kg: (inputKg() | kg), out: (outputKgAtClose() | kg), bales: (totalBales() | num) } }}</p>
           <ul class="list">
             @for (o of r; track o.id) {
               <li class="row"><span><strong>{{ o.name }}</strong><small>{{ 'unit.percent' | t: { n: pct(o.weightKg) } }}@if (o.bales) { · {{ o.bales | num }} {{ (o.bales === 1 ? 'unit.bale' : 'unit.bales') | t }} }</small></span>
@@ -104,22 +104,22 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
             }
           </section>
         }
-        <a class="btn primary block" [routerLink]="desktop && stage() === 1 ? ['/sort/records', id()] : '/sort'">{{ (desktop && stage() === 1 ? 'ws.sortRecord.openLot' : 'common.done') | t }}</a>
+        <a class="btn primary block" [routerLink]="doneLink()">{{ (doneLink() === '/sort' ? 'common.done' : 'ws.sortRecord.openLot') | t }}</a>
       } @else {
         <div class="work" [attr.inert]="sheetOpen() ? '' : null">
         @if (stage() === 1) {
           <section class="overview card" aria-live="polite">
             <div class="stats">
               <div><small>{{ 'sort.lotKg' | t }}</small><strong>{{ inputKg() | kg }}</strong>@if (lot()?.costPerKg; as c) { <span>{{ 'sort.costPerKg' | t: { rs: (c | rs) } }}</span> }</div>
-              <div><small>{{ 'sort.sortedLabel' | t }}</small><strong>{{ sortedKg() | kg }}</strong><span>{{ 'unit.percent' | t: { n: donePct() } }}</span></div>
+              <div><small>{{ 'sort.sortedLabel' | t }}</small><strong>{{ sortedKg() | kg }}</strong><span>{{ 'unit.percent' | t: { n: donePct() } }}@if (today(); as td) { · {{ 'sort.nToday' | t: { n: (td.kg | kg) } }} }</span></div>
               <div [class.warn]="leftKg() < 0"><small>{{ 'sort.leftLabel' | t }}</small><strong>{{ leftKg() | kg }}</strong><span>{{ 'sort.leftHint' | t }}</span></div>
-              <div><small>{{ 'sort.balesLabel' | t }}</small><strong>{{ totalBales() | num }}</strong>@if (today(); as td) { <span>{{ 'sort.todayShort' | t: { bales: (td.bales | num), kg: (td.kg | kg) } }}</span> }</div>
+              <div><small>{{ 'sort.balesLabel' | t }}</small><strong>{{ totalBales() | num }}</strong>@if (today(); as td) { <span>{{ 'sort.nToday' | t: { n: (td.bales | num) } }}</span> }</div>
             </div>
             <div class="bar big" role="progressbar" [attr.aria-valuenow]="donePct()" aria-valuemin="0" aria-valuemax="100" [attr.aria-label]="'sort.sortedLabel' | t"><i [style.width.%]="donePct()"></i></div>
           </section>
         } @else {
           <div class="totals" aria-live="polite">
-            <div><small>{{ 'sort.sortedLabel' | t }}</small><strong>{{ sortedKg() | kg }}</strong></div>
+            <div><small>{{ 'sort.gradedLabel' | t }}</small><strong>{{ sortedKg() | kg }}</strong></div>
             <div [class.warn]="leftKg() < 0"><small>{{ 'sort.leftLabel' | t }}</small><strong>{{ leftKg() | kg }}</strong></div>
           </div>
           <div class="bar" role="progressbar" [attr.aria-valuenow]="donePct()" aria-valuemin="0" aria-valuemax="100"><i [style.width.%]="donePct()"></i></div>
@@ -201,8 +201,8 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
         }
 
         @if (confirmClose()) {
-          <section class="card confirm" role="alertdialog" [attr.aria-label]="'sort.closeLot' | t">
-            <h2>{{ 'sort.closeTitle' | t }}</h2>
+          <section class="card confirm" role="alertdialog" [attr.aria-label]="closeWord() | t">
+            <h2>{{ (stage() === 1 ? 'sort.closeTitle' : 'sort.finishTitle') | t }}</h2>
             @if (stage() === 1) {
               <ul class="list sumlist">
                 @for (k of closePreview(); track k.name) {
@@ -211,17 +211,17 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
                 <li class="row kat"><span>{{ 'sort.kat' | t }}</span><span class="amount">{{ leftKg() | kg }} · {{ 'unit.percent' | t: { n: pct(leftKg()) } }}</span></li>
               </ul>
             }
-            <p><strong>{{ (stage() === 1 ? 'sort.closeConfirmKat' : 'sort.closeConfirm') | t: { kg: (leftKg() | kg) } }}</strong></p>
+            <p><strong>{{ (stage() === 1 ? 'sort.closeConfirmKat' : 'sort.finishConfirm') | t: { kg: (leftKg() | kg) } }}</strong></p>
             <div class="row2">
               <button type="button" class="btn" (click)="confirmClose.set(false)">{{ 'common.cancel' | t }}</button>
-              <button type="button" class="btn primary" (click)="close()">{{ 'sort.closeLot' | t }}</button>
+              <button type="button" class="btn primary" (click)="close()">{{ closeWord() | t }}</button>
             </div>
           </section>
         }
 
         <footer class="action-bar">
           <div class="summary"><small>{{ 'sort.leftLabel' | t }}</small><strong>{{ leftKg() | kg }}</strong></div>
-          <button type="button" class="btn primary" [disabled]="sortedKg() <= 0 || inputKg() <= 0 || closing()" (click)="askClose()">{{ 'sort.closeLot' | t }}</button>
+          <button type="button" class="btn primary" [disabled]="sortedKg() <= 0 || inputKg() <= 0 || closing()" (click)="askClose()">{{ closeWord() | t }}</button>
         </footer>
         </div>
         </div>
@@ -446,11 +446,31 @@ export class SortWorkComponent implements OnInit {
     const day = new Date(l.boughtAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     return [l.supplier ?? l.container, l.rawType, day].filter(Boolean).join(' · ');
   });
-  /** What closing would book: kg per category (from the totals) before the question. */
+  /**
+   * What closing would book, per category and grade ("Jeans · A"), before the question: the server's kinds plus
+   * lines saved on this phone and not synced yet (by category).
+   */
   protected readonly closePreview = computed(() => {
+    const rows = new Map<string, { name: string; kg: number }>();
+    for (const k of this.serverKinds()) {
+      const name = k.gradeName ? `${k.categoryName} · ${k.gradeName}` : k.categoryName;
+      rows.set(name, { name, kg: (rows.get(name)?.kg ?? 0) + Number(k.kg) });
+    }
     const names = new Map(this.kinds().map((k) => [k.id, k.name]));
-    return Object.entries(this.kgByKind()).filter(([, kg]) => kg > 0).map(([id, kg]) => ({ name: names.get(id) ?? '', kg })).sort((a, b) => b.kg - a.kg);
+    for (const w of this.pendingLines()) {
+      const name = names.get(String(w.meta?.['kind'])) ?? '';
+      const kg = Number(w.meta?.['kg'] ?? 0) * (w.meta?.['type'] === 'undo' ? -1 : 1);
+      if (name) rows.set(name, { name, kg: (rows.get(name)?.kg ?? 0) + kg });
+    }
+    return [...rows.values()].filter((r) => r.kg > 0).sort((a, b) => b.kg - a.kg);
   });
+  private readonly serverKinds = signal<NonNullable<SortSummary['kinds']>>([]);
+  /** "Close lot" while sorting; "Finish grading" while grading (it does not close the lot). */
+  protected readonly closeWord = computed(() => (this.stage() === 1 ? 'sort.closeLot' : 'sort.finishGrading'));
+  /** After closing: the lot's page (laptop, or grading of a lot), else the sorting list. */
+  protected readonly doneLink = computed<string | string[]>(() =>
+    this.stage() === 2 && this.gradeLot() ? ['/sort/records', this.gradeLot()!.id] : this.desktop && this.stage() === 1 ? ['/sort/records', this.id()] : '/sort',
+  );
   protected readonly outputKgAtClose = computed(() => (this.result() ?? []).reduce((s, o) => s + Number(o.weightKg), 0));
   protected readonly closing = signal(false);
   protected readonly throwing = signal(false);
@@ -504,7 +524,7 @@ export class SortWorkComponent implements OnInit {
   protected readonly tiles = computed<Tile[]>(() => {
     const kg = this.kgByKind();
     const bales = this.balesByKind();
-    const tiles: Tile[] = usageOrder(this.kinds(), this.usageKey()).map((k) => ({
+    const tiles: Tile[] = this.inFixedOrder(this.kinds()).map((k) => ({
       id: k.id,
       label: k.name,
       sub: [bales[k.id] ? `${this.i18n.num(bales[k.id])} ${this.i18n.t(bales[k.id] === 1 ? 'unit.bale' : 'unit.bales')}` : '', kg[k.id] ? this.i18n.kg(kg[k.id]) : ''].filter(Boolean).join(' · '),
@@ -573,7 +593,23 @@ export class SortWorkComponent implements OnInit {
 
   /** Called in the tap itself: iPhone opens the keyboard only for a focus made during the tap. */
   private keyboardNow(): void {
-    this.kbProxy()?.nativeElement.focus({ preventScroll: true });
+    const proxy = this.kbProxy()?.nativeElement;
+    if (!proxy) return;
+    proxy.value = '';
+    proxy.focus({ preventScroll: true });
+    // Keys typed before the kg box takes over land here: hand them to the box, cursor at the end.
+    const handOver = (e: FocusEvent) => {
+      const box = e.target;
+      if (box === proxy) return;
+      document.removeEventListener('focusin', handOver, true);
+      const typed = proxy.value;
+      proxy.value = '';
+      if (!typed || !(box instanceof HTMLInputElement)) return;
+      box.value = typed;
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+      queueMicrotask(() => queueMicrotask(() => box.setSelectionRange(box.value.length, box.value.length)));
+    };
+    document.addEventListener('focusin', handOver, true);
   }
 
   private rememberOpener(): void {
@@ -887,6 +923,8 @@ export class SortWorkComponent implements OnInit {
       }
       this.closedOnline.set(r.saved);
       this.result.set(outputs);
+      // Closed: an entry can no longer be undone.
+      this.toast.dismiss();
     } catch (e: any) {
       this.toast.error(e?.error?.message || this.i18n.t('common.couldNotSave'));
     } finally {
@@ -954,6 +992,7 @@ export class SortWorkComponent implements OnInit {
       // Tiles are categories: kg sorted per category (all grades, and kg from before v2 6.6), bales made from it.
       for (const b of summary.buckets) if (b.categoryId) kg[b.categoryId] = Number(b.outputWeightKg);
       for (const k of summary.kinds) bales[k.categoryId] = (bales[k.categoryId] ?? 0) + k.bales;
+      this.serverKinds.set(summary.kinds);
       if (summary.today) this.today.set({ kg: Number(summary.today.kg), bales: summary.today.bales });
       this.ready.set(summary.ready ?? []);
       this.madeBales.set(summary.madeBales ?? []);
@@ -989,6 +1028,18 @@ export class SortWorkComponent implements OnInit {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Most-used first, but decided once when the screen opens: tiles do not jump while the worker is entering
+   * (v2 cycle review). A category added meanwhile goes last.
+   */
+  private tileOrder: string[] | null = null;
+  private inFixedOrder(kinds: Kind[]): Kind[] {
+    if (!kinds.length) return kinds;
+    this.tileOrder ??= usageOrder(kinds, this.usageKey()).map((k) => k.id);
+    const at = (id: string) => { const i = this.tileOrder!.indexOf(id); return i < 0 ? Number.MAX_SAFE_INTEGER : i; };
+    return [...kinds].sort((a, b) => at(a.id) - at(b.id));
   }
 
   private usageKey(): string {

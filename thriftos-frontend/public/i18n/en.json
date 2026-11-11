@@ -704,7 +704,7 @@
   "saveBales": "Save bales",
   "sorted": "{kg} sorted",
   "sortedLabel": "Sorted",
-  "tapTile": "Tap what you sorted",
+  "tapTile": "Tap a grade, then enter its kg",
   "title": "Sorting",
   "today": "Today: {bales} bales · {kg}",
   "tooMuch": "Weight is more than the lot left ({kg}). Enter {kg} or less.",
@@ -714,7 +714,6 @@
   "lotKg": "Lot",
   "leftHint": "still to sort",
   "balesLabel": "Bales made",
-  "todayShort": "Today {bales} · {kg}",
   "whatSorted": "What did you sort?",
   "whatSortedHint": "Tap a category, then enter bales or loose kg.",
   "searchCategory": "Find a category",
@@ -736,7 +735,14 @@
    "GRADED_WHILE_SORTING": "It was given a grade while sorting, so it is graded already.",
    "IN_BALES": "Part of these {kg} is already in bales. Grade before making bales.",
    "NOT_FOUND": "This sorted entry was not found. It may have been taken back."
-  }
+  },
+  "nToday": "{n} today",
+  "gradedLabel": "Graded",
+  "finishGrading": "Finish grading",
+  "finishTitle": "Finish grading?",
+  "finishConfirm": "{kg} not graded goes to waste. Finish grading?",
+  "gradingDone": "Grading finished",
+  "gradedSummary": "{kg} in · {out} graded"
  },
  "stock": {
   "advanced": "Pick stock by hand",
@@ -874,7 +880,9 @@
    "STOCK_PRICE_SET": "set the price",
    "VENDOR_CREATED": "added the supplier",
    "VENDOR_DELETED": "removed the supplier",
-   "VENDOR_UPDATED": "changed the supplier"
+   "VENDOR_UPDATED": "changed the supplier",
+   "SORT_SESSION_CREATED": "started sorting",
+   "GRADE_SESSION_CREATED": "started grading"
   },
   "board": {
    "empty": "Nothing here",
@@ -1882,7 +1890,11 @@
    "stage2": "Grading",
    "start": "Start sorting",
    "time": "Time taken",
-   "waste": "Waste"
+   "waste": "Waste",
+   "boughtPerKg": "Bought per kg",
+   "sortedCostPerKg": "Cost per sorted kg",
+   "paid": "What was paid",
+   "papersHint": "Bills and papers are under Activity."
   },
   "sp": {
    "active": "Still buying from this supplier (shown when receiving)",

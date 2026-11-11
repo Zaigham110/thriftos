@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { FileStorageService } from '../common/storage/file-storage.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -50,7 +51,7 @@ export class RecordsService {
   async activity(tenantId: string, type: string, id: string): Promise<ActivityItem[]> {
     const { t } = await this.record(tenantId, type, id);
     const [audit, notes, attachments] = await Promise.all([
-      this.prisma.auditLog.findMany({ where: { tenantId, entityType: { in: t.auditEntities }, entityId: id }, orderBy: { createdAt: 'desc' }, take: 100 }),
+      this.prisma.auditLog.findMany({ where: { tenantId, OR: [{ entityType: { in: t.auditEntities }, entityId: id }, ...(await this.lotSteps(tenantId, type, id))] }, orderBy: { createdAt: 'desc' }, take: 100 }),
       this.prisma.recordNote.findMany({ where: { tenantId, recordType: type, recordId: id }, orderBy: { createdAt: 'desc' }, take: 100 }),
       this.prisma.attachment.findMany({ where: { tenantId, recordType: type, recordId: id }, orderBy: { createdAt: 'desc' }, take: 100 }),
     ]);
@@ -63,6 +64,22 @@ export class RecordsService {
       ...attachments.map((a) => ({ id: a.id, at: a.createdAt, kind: 'attachment' as const, who: who(a.uploadedBy), attachment: { id: a.id, fileName: a.fileName, contentType: a.contentType, size: a.size } })),
     ];
     return items.sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, 100);
+  }
+
+  /**
+   * A lot's history also shows its work (v2 cycle review): sorting started and closed, each grading started and
+   * finished. Single entries are left out (the sorting screen lists them).
+   */
+  private async lotSteps(tenantId: string, type: string, id: string): Promise<Prisma.AuditLogWhereInput[]> {
+    if (type !== 'lot') return [];
+    const [sorts, grades] = await Promise.all([
+      this.prisma.sortSession.findMany({ where: { tenantId, ragId: id }, select: { id: true } }),
+      this.prisma.gradeSession.findMany({ where: { tenantId, categoryOutput: { ragId: id } }, select: { id: true } }),
+    ]);
+    return [
+      ...(sorts.length ? [{ entityType: 'SortSession', entityId: { in: sorts.map((x) => x.id) }, action: { in: ['SORT_SESSION_CREATED', 'SORT_SESSION_CLOSED'] } }] : []),
+      ...(grades.length ? [{ entityType: 'GradeSession', entityId: { in: grades.map((x) => x.id) }, action: { in: ['GRADE_SESSION_CREATED', 'GRADE_SESSION_CLOSED'] } }] : []),
+    ];
   }
 
   /** Team members who can be @mentioned (active users of this business). */

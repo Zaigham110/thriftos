@@ -98,4 +98,30 @@ describe('Sorting screen: lot details, entries, remove one, finished lot (e2e)',
     await api(app, a).post('/sorting/stage-1/unallocate', { sessionId: session.id, categoryId: shirts.id, amountKg: 40 }).expect(409);
     expect((await api(app, a).get(`/sorting/stage-2/outputs/${shirtsId}`).expect(200)).body).toMatchObject({ canGrade: true, gradeSession: { id: g.id, status: 'OPEN' } });
   });
+
+  it('cycle: graded kg is ready to bale from its lot and its bales count; the lot page shows what was paid and the sorting and grading steps', async () => {
+    const { lot, shirts, gradeA, waste } = await seedSortableLot(app, a.tenantId);
+    await prisma.rag.update({ where: { id: lot.id }, data: { purchaseCost: 45000, ratePerKg: 450, charges: { create: [{ tenantId: a.tenantId, kind: 'TRANSPORT', amount: 5000, note: 'Truck' }] } } });
+    const session = (await api(app, a).post('/sorting/stage-1/start', { ragId: lot.id }).expect(201)).body.session ?? (await api(app, a).get(`/sorting/stage-1/summary?ragId=${lot.id}`).expect(200)).body.session;
+    await api(app, a).post('/sorting/stage-1/allocate', { sessionId: session.id, categoryId: shirts.id, amountKg: 60 }).expect(200);
+    const entry = (await api(app, a).get(`/sorting/stage-1/summary?ragId=${lot.id}`).expect(200)).body.entries[0];
+    const g = (await api(app, a).post('/sorting/stage-2/start', { categoryOutputId: entry.id }).expect(201)).body.session;
+    await api(app, a).post('/sorting/stage-2/allocate', { sessionId: g.id, gradeId: gradeA.id, amountKg: 50 }).expect(200);
+    await api(app, a).patch(`/sorting/stage-2/${g.id}/seal`, { wasteCategoryId: waste.id }).expect(200);
+
+    let s = (await api(app, a).get(`/sorting/stage-1/summary?ragId=${lot.id}`).expect(200)).body;
+    expect(s.ready.map((r: any) => [r.categoryName, r.gradeName, Number(r.availableKg)])).toEqual([['Shirts', 'A', 50]]);
+    await api(app, a).post('/stock/bales', { categoryId: shirts.id, gradeId: gradeA.id, fromUngraded: false, ragId: lot.id, count: 2, weightKg: 20 }).expect(201);
+    s = (await api(app, a).get(`/sorting/stage-1/summary?ragId=${lot.id}`).expect(200)).body;
+    expect(s.ready.map((r: any) => Number(r.availableKg))).toEqual([10]);
+    expect(s.bales).toBe(2);
+    expect(s.madeBales.map((b: any) => [b.categoryName, b.gradeName, b.bales])).toEqual([['Shirts', 'A', 2]]);
+
+    const page = (await api(app, a).get(`/workspace/sorting/${lot.id}`).expect(200)).body;
+    expect(page.purchase).toMatchObject({ price: '45000', ratePerKg: '450', charges: [{ kind: 'TRANSPORT', amount: '5000', note: 'Truck' }] });
+    const activity = (await api(app, a).get(`/records/lot/${lot.id}/activity`).expect(200)).body.map((x: any) => x.action);
+    expect(activity).toEqual(expect.arrayContaining(['SORT_SESSION_CREATED', 'GRADE_SESSION_CREATED', 'GRADE_SESSION_CLOSED']));
+    expect(activity).not.toContain('SORT_OUTPUT_ADDED');
+    await api(app, b).get(`/records/lot/${lot.id}/activity`).expect(404);
+  });
 });

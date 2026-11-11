@@ -252,7 +252,7 @@ export class SaleEntryComponent implements HasUnsavedChanges {
       list.find((x) => x.name.toLowerCase() === text.toLowerCase()) ?? list.find((x) => x.name.toLowerCase().includes(text.toLowerCase()));
     const take = (c: CustomerOption) => {
       this.pickCustomer(c.name);
-      setTimeout(() => (document.querySelector('input[name=item]') as HTMLInputElement | null)?.focus());
+      this.focusItemWhenReady();
     };
     const c = match(this.customers());
     if (c) return take(c);
@@ -303,6 +303,16 @@ export class SaleEntryComponent implements HasUnsavedChanges {
       perUnit = perUnit / kgPerBale;
     }
     return l.unitPrice < perUnit ? Math.round(perUnit) : null;
+  }
+
+  /**
+   * The cursor to "Add item" once a customer is picked. The box is enabled a moment after (forms apply "disabled"
+   * later), and focusing it while still disabled does nothing: wait for it, a few frames at most.
+   */
+  private focusItemWhenReady(tries = 0): void {
+    const el = document.querySelector<HTMLInputElement>('input[name=item]');
+    if (el && !el.disabled) return el.focus();
+    if (tries < 20) requestAnimationFrame(() => this.focusItemWhenReady(tries + 1));
   }
 
   protected pickCustomer(text: string): void {
