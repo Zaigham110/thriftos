@@ -1,8 +1,8 @@
-import { Component, DestroyRef, OnInit, computed, inject, input, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, OnInit, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
 import { NavService } from '../../core/nav/nav.service';
 import { WsPageHeaderComponent } from '../../shared/ui/workspace/page-header.component';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { ArrowLeft, CheckCircle2, LucideAngularModule, Minus, Plus, Printer, Trash2 } from 'lucide-angular';
+import { ArrowLeft, CheckCircle2, LucideAngularModule, Minus, Plus, Printer, Trash2, X } from 'lucide-angular';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { I18N } from '../../core/i18n/t.pipe';
 import { OfflineQueueService } from '../../core/offline/offline-queue.service';
@@ -62,13 +62,13 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
     <section class="floor" [class.wide]="desktop">
       @if (desktop) {
         <!-- Laptop: the shared header (breadcrumb lined up with the heading) and the way to the lot's page. -->
-        <ws-page-header [heading]="title()" [subtitle]="stage() === 1 && lotMeta() ? lotMeta() : ((stage() === 1 ? 'sort.title' : 'sort.grading') | t)">
+        <ws-page-header [attr.inert]="sheetOpen() ? '' : null" [heading]="title()" [subtitle]="stage() === 1 && lotMeta() ? lotMeta() : ((stage() === 1 ? 'sort.title' : 'sort.grading') | t)">
           @if (stage() === 1) {
             <a actions class="ws-btn" [routerLink]="['/sort/records', id()]" [state]="nav.trailState()">{{ 'ws.sortRecord.openLot' | t }}</a>
           }
         </ws-page-header>
       } @else {
-        <header class="floor-head">
+        <header class="floor-head" [attr.inert]="sheetOpen() ? '' : null">
           <a class="icon-btn back" routerLink="/sort" [attr.aria-label]="'common.back' | t"><lucide-icon [img]="icons.ArrowLeft" [size]="22" /></a>
           <h1>{{ title() }}<span class="sub">{{ stage() === 1 && lotMeta() ? lotMeta() : ((stage() === 1 ? 'sort.title' : 'sort.grading') | t) }}</span></h1>
         </header>
@@ -100,7 +100,7 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
         }
         <a class="btn primary block" [routerLink]="desktop && stage() === 1 ? ['/sort/records', id()] : '/sort'">{{ (desktop && stage() === 1 ? 'ws.sortRecord.openLot' : 'common.done') | t }}</a>
       } @else {
-        <div class="work">
+        <div class="work" [attr.inert]="sheetOpen() ? '' : null">
         @if (stage() === 1) {
           <section class="overview card" aria-live="polite">
             <div class="stats">
@@ -221,20 +221,24 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
         </div>
 
         @if (entry(); as e) {
-          <div class="entry-backdrop" (click)="entry.set(null)" aria-hidden="true"></div>
-          <section class="card entry" role="group" [attr.aria-label]="e.kind.name">
-            @if (e.purpose === 'bale') {
-              <h2>{{ 'sort.makeBalesOf' | t: { name: rowName(e.ready!) } }}</h2>
-              <p class="sum">{{ 'sort.readyKg' | t: { kg: (e.ready!.availableKg | kg) } }}</p>
-            } @else {
-              <h2>{{ e.kind.name }}</h2>
-            }
+          <div class="entry-backdrop" (click)="closeSheet()" aria-hidden="true"></div>
+          <section class="card entry" role="dialog" aria-modal="true" tabindex="-1" aria-labelledby="entry-title" [attr.aria-describedby]="'entry-left'" [style.bottom.px]="kbInset()" [style.max-height]="sheetMaxH()" (keydown.escape)="closeSheet()">
+            <header class="sheet-head">
+              <div>
+                <h2 id="entry-title">{{ e.purpose === 'bale' ? ('sort.makeBalesOf' | t: { name: rowName(e.ready!) }) : e.kind.name }}</h2>
+                <p class="sum" id="entry-left">{{ e.purpose === 'bale' ? ('sort.readyKg' | t: { kg: (e.ready!.availableKg | kg) }) : ('sort.left' | t: { kg: (leftKg() | kg) }) }}</p>
+              </div>
+              <button type="button" class="x" [attr.aria-label]="'common.cancel' | t" (click)="closeSheet()"><lucide-icon [img]="icons.X" [size]="22" /></button>
+            </header>
             @if (canPickGrade(e)) {
-              <div class="grades" role="group" [attr.aria-label]="'sort.grade' | t">
-                <button type="button" class="chip" [class.on]="!e.gradeId" [attr.aria-pressed]="!e.gradeId" (click)="patch({ gradeId: null })">{{ 'sort.noGrade' | t }}</button>
-                @for (g of gradeOptions(); track g.id) {
-                  <button type="button" class="chip" [class.on]="e.gradeId === g.id" [attr.aria-pressed]="e.gradeId === g.id" (click)="patch({ gradeId: g.id })">{{ g.name }}</button>
-                }
+              <div class="field">
+                <span class="field-label" id="entry-grade">{{ 'sort.grade' | t }} <em>· {{ 'common.optional' | t }}</em></span>
+                <div class="grades" role="group" aria-labelledby="entry-grade">
+                  <button type="button" class="chip" [class.on]="!e.gradeId" [attr.aria-pressed]="!e.gradeId" (click)="patch({ gradeId: null })">{{ 'sort.noGrade' | t }}</button>
+                  @for (g of gradeOptions(); track g.id) {
+                    <button type="button" class="chip" [class.on]="e.gradeId === g.id" [attr.aria-pressed]="e.gradeId === g.id" (click)="patch({ gradeId: g.id })">{{ g.name }}</button>
+                  }
+                </div>
               </div>
             }
             @if (e.purpose === 'sort') {
@@ -244,30 +248,45 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
               </div>
             }
             @if (e.mode === 'bales') {
-              <div class="count">
-                <span>{{ 'sort.howManyBales' | t }}</span>
-                <div class="stepper">
-                  <button type="button" [attr.aria-label]="'sort.fewer' | t" [disabled]="e.bales <= 1" (click)="step(-1)"><lucide-icon [img]="icons.Minus" [size]="22" /></button>
-                  <output aria-live="polite">{{ e.bales | num }}</output>
-                  <button type="button" [attr.aria-label]="'sort.more' | t" (click)="step(1)"><lucide-icon [img]="icons.Plus" [size]="22" /></button>
+              <div class="bales-row">
+                <div class="field">
+                  <label class="field-label" for="entry-count">{{ 'sort.howManyBales' | t }}</label>
+                  <div class="stepper">
+                    <button type="button" [attr.aria-label]="'sort.fewer' | t" [disabled]="e.bales <= 1" (click)="step(-1)"><lucide-icon [img]="icons.Minus" [size]="22" /></button>
+                    <input id="entry-count" class="ltr" type="text" inputmode="numeric" enterkeyhint="next" autocomplete="off" [value]="e.bales" (input)="typedCount($event)" (blur)="fixCount($event)" (focus)="selectAll($event)" />
+                    <button type="button" [attr.aria-label]="'sort.more' | t" (click)="step(1)"><lucide-icon [img]="icons.Plus" [size]="22" /></button>
+                  </div>
                 </div>
+                <tos-number size="big" label="sort.kgPerBale" unit="unit.kgShort" [autofocus]="!e.baleKg" [value]="e.baleKg" (valueChange)="patch({ baleKg: $event })" (enter)="save()" />
               </div>
-              <tos-number label="sort.kgPerBale" unit="unit.kgShort" [value]="e.baleKg" (valueChange)="patch({ baleKg: $event })" />
-              @if (e.baleKg) { <p class="sum">{{ 'sort.balesTotal' | t: { n: (e.bales | num), kg: (entryKg() | kg) } }}</p> }
             } @else {
-              <tos-number label="sort.looseKg" unit="unit.kgShort" [max]="leftKg()" maxMessage="sort.tooMuch" [value]="e.kg" (valueChange)="patch({ kg: $event })" />
+              <tos-number size="big" label="common.weight" unit="unit.kgShort" [autofocus]="true" [max]="leftKg()" maxMessage="sort.tooMuch" [value]="e.kg" (valueChange)="patch({ kg: $event })" (enter)="save()" />
             }
-            @if (tooMuch()) { <p class="err" role="alert">{{ (e.purpose === 'bale' ? 'sort.tooMuchReady' : 'sort.tooMuch') | t: { kg: (limitKg() | kg) } }}</p> }
-            <div class="row2">
-              <button type="button" class="btn" (click)="entry.set(null)">{{ 'common.cancel' | t }}</button>
-              <button type="button" class="btn primary" [disabled]="!entryKg() || tooMuch()" (click)="save()">{{ (e.purpose === 'bale' ? 'sort.saveBales' : 'common.save') | t }}</button>
-            </div>
+            @if (tooMuch() && e.mode === 'bales') { <p class="err" role="alert">{{ (e.purpose === 'bale' ? 'sort.tooMuchReady' : 'sort.tooMuch') | t: { kg: (limitKg() | kg) } }}</p> }
+            <button type="button" class="btn primary save" [disabled]="!entryKg() || tooMuch()" (click)="save()">
+              {{ (e.purpose === 'bale' ? 'sort.saveBales' : 'common.save') | t }}
+              @if (entryKg() && !tooMuch()) { <span class="what">· @if (e.mode === 'bales') { {{ 'sort.balesTotal' | t: { n: (e.bales | num), kg: (entryKg() | kg) } }} } @else { {{ entryKg() | kg }} }</span> }
+            </button>
           </section>
         }
 
         @if (picking(); as p) {
-          <tos-number class="hidden-field" [inline]="false" [label]="p.label" unit="unit.kgShort" [max]="leftKg()" maxMessage="sort.tooMuch" [value]="null" (valueChange)="saveLine(p, $event)" />
+          <div class="entry-backdrop" (click)="closeSheet()" aria-hidden="true"></div>
+          <section class="card entry" role="dialog" aria-modal="true" tabindex="-1" aria-labelledby="pick-title" [style.bottom.px]="kbInset()" [style.max-height]="sheetMaxH()" (keydown.escape)="closeSheet()">
+            <header class="sheet-head">
+              <div>
+                <h2 id="pick-title">{{ p.label }}</h2>
+                <p class="sum">{{ 'sort.left' | t: { kg: (leftKg() | kg) } }}</p>
+              </div>
+              <button type="button" class="x" [attr.aria-label]="'common.cancel' | t" (click)="closeSheet()"><lucide-icon [img]="icons.X" [size]="22" /></button>
+            </header>
+            <tos-number size="big" label="common.weight" unit="unit.kgShort" [autofocus]="true" [max]="leftKg()" maxMessage="sort.tooMuch" [value]="pickKg()" (valueChange)="pickKg.set($event)" (enter)="saveLine(p, $event)" />
+            <button type="button" class="btn primary save" [disabled]="!pickKg()" (click)="saveLine(p, pickKg())">{{ 'common.save' | t }}@if (pickKg(); as k) { <span class="what">· {{ k | kg }}</span> }</button>
+          </section>
         }
+
+        <!-- Focused in the tap itself so the phone's keyboard opens; the kg box takes the focus a moment later (iPhone). -->
+        <input #kbProxy class="kb-proxy" type="text" inputmode="decimal" tabindex="-1" aria-hidden="true" />
 
       }
     </section>
@@ -320,21 +339,33 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
     .bar i { display:block; height:100%; background:var(--tos-primary); }
     .today { margin:0; color:var(--tos-ink-soft); font-weight:700; }
     .printed { display:flex; flex-direction:row; align-items:center; gap:10px; color:var(--tos-primary); font-weight:700; text-decoration:none; }
-    .hidden-field ::ng-deep .field-btn { display:none; }
     .confirm { border-color:var(--tos-warn); background:var(--tos-warn-soft); }
     .confirm p { margin:0; }
     /* A sheet at the bottom: it opens over the tiles wherever the list was scrolled to. */
     .entry-backdrop { position:fixed; inset:0; z-index:40; background:rgb(0 0 0 / .35); }
-    .entry { position:fixed; z-index:41; inset-inline:0; inset-block-end:0; max-height:85vh; overflow:auto; margin:0 auto; max-width:560px; padding-block-end:calc(16px + env(safe-area-inset-bottom)); border-color:var(--tos-primary); border-radius:18px 18px 0 0; box-shadow:0 -8px 30px rgb(0 0 0 / .2); }
-    .entry h2 { margin:0; }
+    .entry { position:fixed; z-index:41; inset-inline:0; bottom:0; display:grid; gap:16px; max-height:85vh; overflow:auto; overscroll-behavior:contain; margin:0 auto; max-width:560px; padding:18px 16px calc(16px + env(safe-area-inset-bottom)); border:0; border-radius:20px 20px 0 0; box-shadow:0 -8px 30px rgb(0 0 0 / .2); transition:bottom .15s ease-out; }
+    @media (min-width:1024px) and (pointer:fine) { .entry { bottom:auto !important; top:50%; transform:translateY(-50%); border-radius:18px; max-width:480px; } }
+    .entry:focus { outline:none; }
+    .sheet-head { display:flex; align-items:flex-start; gap:12px; }
+    .sheet-head > div { flex:1; min-width:0; display:grid; gap:2px; }
+    .sheet-head h2 { margin:0; font-size:20px; }
+    .x { flex:none; display:grid; place-items:center; width:44px; height:44px; margin:-6px -6px 0 0; border:0; border-radius:50%; background:var(--tos-bg, #f6f3f1); color:var(--tos-ink); cursor:pointer; }
+    .x:focus-visible, .seg button:focus-visible, .stepper button:focus-visible, .chip:focus-visible { outline:3px solid var(--tos-primary); outline-offset:2px; }
+    .field { display:grid; gap:8px; }
+    .field-label { font-size:15px; font-weight:700; }
+    .field-label em { color:var(--tos-ink-soft); font-style:normal; font-weight:600; }
     .seg { display:grid; grid-template-columns:1fr 1fr; padding:4px; border-radius:12px; background:var(--tos-line); }
-    .seg button { min-height:44px; border:0; border-radius:9px; background:transparent; color:var(--tos-ink); font:inherit; font-weight:700; cursor:pointer; }
+    .seg button { min-height:48px; border:0; border-radius:9px; background:transparent; color:var(--tos-ink); font:inherit; font-weight:700; cursor:pointer; }
     .seg button.on { background:var(--tos-card); box-shadow:0 1px 3px rgb(0 0 0 / .15); color:var(--tos-primary); }
-    .count { display:flex; align-items:center; justify-content:space-between; gap:12px; font-weight:700; }
-    .stepper { display:flex; align-items:center; gap:6px; }
-    .stepper button { display:grid; place-items:center; width:52px; height:52px; border:1px solid var(--tos-line); border-radius:12px; background:var(--tos-card); color:var(--tos-ink); cursor:pointer; }
+    .bales-row { display:grid; gap:16px; }
+    .stepper { display:grid; grid-template-columns:56px minmax(0, 1fr) 56px; gap:8px; }
+    .stepper button { display:grid; place-items:center; height:64px; border:2px solid var(--tos-line); border-radius:14px; background:var(--tos-card); color:var(--tos-ink); cursor:pointer; }
     .stepper button:disabled { opacity:.4; }
-    .stepper output { min-width:56px; text-align:center; font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; }
+    .stepper input { min-width:0; height:64px; padding:0; border:2px solid var(--tos-line); border-radius:14px; background:var(--tos-card); color:var(--tos-ink); font:inherit; font-size:30px; font-weight:800; text-align:center; font-variant-numeric:tabular-nums; }
+    .stepper input:focus { outline:0; border-color:var(--tos-primary); box-shadow:0 0 0 3px var(--tos-primary-soft, #f3e8ef); }
+    .save { width:100%; min-height:56px; font-size:17px; }
+    .save .what { font-weight:600; }
+    .kb-proxy { position:fixed; top:0; left:0; width:1px; height:1px; opacity:0; border:0; padding:0; font-size:16px; pointer-events:none; }
     .sum { margin:0; color:var(--tos-ink-soft); font-weight:700; }
     .err { margin:0; color:var(--tos-danger, #b3261e); font-weight:600; }
     .kat h2 { margin:0; }
@@ -343,7 +374,7 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
     .ready .row .btn { flex:none; min-height:44px; padding:0 14px; }
     .made { display:flex; flex-wrap:wrap; gap:4px 12px; margin:0; color:var(--tos-ink-soft); font-size:14px; }
     .grades { display:flex; flex-wrap:wrap; gap:8px; }
-    .grades .chip { min-height:44px; }
+    .grades .chip { min-height:44px; padding-inline:16px; }
   `],
 })
 export class SortWorkComponent implements OnInit {
@@ -358,7 +389,7 @@ export class SortWorkComponent implements OnInit {
   protected readonly nav = inject(NavService);
   /** A laptop: wide layout, the shared header and typed numbers (phones keep the floor screen). */
   protected readonly desktop = typeof matchMedia === 'function' && matchMedia('(pointer: fine) and (min-width: 1024px)').matches;
-  protected readonly icons = { ArrowLeft, CheckCircle2, Minus, Plus, Printer, Trash2 };
+  protected readonly icons = { ArrowLeft, CheckCircle2, Minus, Plus, Printer, Trash2, X };
   protected readonly stage = signal<Stage>(1);
 
   protected readonly title = signal('');
@@ -380,7 +411,17 @@ export class SortWorkComponent implements OnInit {
   /** This lot's sorted kg not baled yet, and the bales made from it (v2 6.6). */
   protected readonly ready = signal<ReadyRow[]>([]);
   protected readonly madeBales = signal<NonNullable<SortSummary['madeBales']>>([]);
-  private readonly kgField = viewChild(NumberFieldComponent);
+  /** Stage 2 and waste: the kg being typed in the small sheet. */
+  protected readonly pickKg = signal<number | null>(null);
+  protected readonly sheetOpen = computed(() => !!this.entry() || !!this.picking());
+  /** How much of the screen the phone's keyboard covers: the sheet sits just above it. */
+  protected readonly kbInset = signal(0);
+  private readonly viewportH = signal<number | null>(null);
+  protected readonly sheetMaxH = computed(() => (this.viewportH() ? `${Math.round(this.viewportH()! - 24)}px` : null));
+  private readonly kbProxy = viewChild<ElementRef<HTMLInputElement>>('kbProxy');
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  /** The tile or button that opened the sheet: the focus goes back to it when the sheet closes. */
+  private opener: HTMLElement | null = null;
   protected readonly confirmClose = signal(false);
   /** The lot (supplier, raw type, day, cost per kg) and its entries, newest first (v2 sorting review). */
   protected readonly lot = signal<SortLot | null>(null);
@@ -486,7 +527,72 @@ export class SortWorkComponent implements OnInit {
         this.applySummary(response as SortSummary);
       }
     });
-    inject(DestroyRef).onDestroy(stop);
+    const destroy = inject(DestroyRef);
+    destroy.onDestroy(stop);
+
+    // The phone's keyboard: keep the sheet above it (iPhone does not shrink the page for it).
+    const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+    if (vv) {
+      const fit = () => {
+        this.kbInset.set(Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)));
+        this.viewportH.set(vv.height);
+      };
+      vv.addEventListener('resize', fit);
+      vv.addEventListener('scroll', fit);
+      destroy.onDestroy(() => { vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit); });
+    }
+
+    // A sheet takes the focus when it opens (its kg box, or the sheet itself) and gives it back when it closes.
+    let wasOpen = false;
+    effect(() => {
+      const open = this.sheetOpen();
+      untracked(() => {
+        if (open && !wasOpen) {
+          setTimeout(() => {
+            const sheet = this.host.nativeElement.querySelector<HTMLElement>('.entry');
+            if (sheet && !sheet.contains(document.activeElement)) sheet.focus();
+          }, 50);
+        } else if (!open && wasOpen) {
+          const back = this.opener;
+          this.opener = null;
+          if (back?.isConnected) setTimeout(() => back.focus());
+        }
+        wasOpen = open;
+      });
+    });
+  }
+
+  /** Called in the tap itself: iPhone opens the keyboard only for a focus made during the tap. */
+  private keyboardNow(): void {
+    this.kbProxy()?.nativeElement.focus({ preventScroll: true });
+  }
+
+  private rememberOpener(): void {
+    const el = document.activeElement;
+    this.opener = el instanceof HTMLElement && el !== document.body ? el : null;
+  }
+
+  protected closeSheet(): void {
+    this.entry.set(null);
+    this.picking.set(null);
+  }
+
+  /** The bale count typed with the keyboard (1 to 200). */
+  protected typedCount(ev: Event): void {
+    const el = ev.target as HTMLInputElement;
+    const digits = el.value.replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x6f0)).replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660)).replace(/\D/g, '').slice(0, 3);
+    if (digits !== el.value) el.value = digits;
+    const n = Number(digits);
+    if (digits && n >= 1) this.patch({ bales: Math.min(200, n) });
+  }
+
+  protected fixCount(ev: Event): void {
+    (ev.target as HTMLInputElement).value = String(this.entry()?.bales ?? 1);
+  }
+
+  protected selectAll(ev: Event): void {
+    const el = ev.target as HTMLInputElement;
+    queueMicrotask(() => el.select());
   }
 
   ngOnInit(): void {
@@ -551,24 +657,30 @@ export class SortWorkComponent implements OnInit {
   }
 
   protected startLine(tile: Tile): void {
+    this.rememberOpener();
     if (this.stage() === 2 || tile.id === WASTE_TILE) {
+      // One tap on the tile, then the kg: the keyboard opens straight away.
+      this.keyboardNow();
+      this.pickKg.set(null);
       this.picking.set(tile);
-      // Open the keypad straight away: one tap on the tile, then the kg.
-      setTimeout(() => this.kgField()?.open());
       return;
     }
     const kind = this.kinds().find((k) => k.id === tile.id);
     if (!kind) return;
     const baleKg = lastBaleKg(kind.id) ?? kind.baleKg;
     // Bales first when this category has a bale weight; the worker can switch to loose kg. The grade is optional.
+    // Without a bale weight it starts on loose kg, and the keyboard opens at once.
+    if (!baleKg) this.keyboardNow();
     this.entry.set({ purpose: 'sort', kind, ready: null, mode: baleKg ? 'bales' : 'kg', gradeId: this.lastGrade(kind.id), bales: 1, baleKg, kg: null });
-    if (!baleKg) this.openKgPad();
   }
 
   /** "Make bales" from this lot's sorted kg of one kind; ungraded kg can be given a grade now. */
   protected startBales(r: ReadyRow): void {
     const kind = this.kinds().find((k) => k.id === r.categoryId) ?? { id: r.categoryId, name: r.categoryName, categoryId: r.categoryId, gradeId: null, baleKg: null };
-    this.entry.set({ purpose: 'bale', kind, ready: r, mode: 'bales', gradeId: r.gradeId, bales: 1, baleKg: lastBaleKg(kind.id) ?? kind.baleKg, kg: null });
+    this.rememberOpener();
+    const baleKg = lastBaleKg(kind.id) ?? kind.baleKg;
+    if (!baleKg) this.keyboardNow();
+    this.entry.set({ purpose: 'bale', kind, ready: r, mode: 'bales', gradeId: r.gradeId, bales: 1, baleKg, kg: null });
   }
 
   protected canPickGrade(e: Entry): boolean {
@@ -614,13 +726,11 @@ export class SortWorkComponent implements OnInit {
   }
 
   protected setMode(mode: Mode): void {
+    const e = this.entry();
+    if (!e || e.mode === mode) return;
+    // The new box gets the cursor: loose kg always, bales when there is no bale weight yet.
+    if (mode === 'kg' || !e.baleKg) this.keyboardNow();
     this.patch({ mode });
-    if (mode === 'kg' && !this.entry()?.kg) this.openKgPad();
-  }
-
-  /** Loose kg: the keypad opens at once (one tap on the tile, then the kg). */
-  private openKgPad(): void {
-    setTimeout(() => this.kgField()?.open());
   }
 
   protected step(by: number): void {

@@ -892,10 +892,12 @@ test('sorting screen: lot details, what came out, take one back, close with a su
   await expect(confirm).toContainText('Jeans');
   await expect(confirm).toContainText(loose('260.0 kg'));
   await confirm.getByRole('button', { name: 'Close lot' }).click();
-  await expect(page.getByText(/came out/)).toBeVisible();
+  await expect(page.getByText('Lot closed')).toBeVisible();
+  await expect(page.getByText(/in · .* came out/)).toBeVisible();
+  await expect(page.getByText('Synced', { exact: true })).toBeVisible();
 
   // Opened again later, a finished lot shows its result, not an empty screen.
   await page.goto(`/sort/${lot.id}`);
+  await expect(page.getByText('Lot closed')).toBeVisible();
   await expect(page.locator('.overview')).toHaveCount(0);
-  await expect(page.getByText(/came out/)).toBeVisible();
 });

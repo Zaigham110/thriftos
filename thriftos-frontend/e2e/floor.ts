@@ -1,25 +1,27 @@
 import { Locator, Page, expect } from '@playwright/test';
 
-/** Types a number on the big keypad: tap the field, tap the keys, OK. */
+/** Types a number into a number field (the phone's own keyboard; no keypad since the v2 sorting review). */
 export async function keypad(page: Page, label: string | RegExp, value: string | number): Promise<void> {
-  await page.locator('tos-number .field-btn').filter({ has: page.locator('.label', { hasText: label }) }).first().click();
-  const sheet = page.getByRole('dialog');
-  await expect(sheet).toBeVisible();
-  for (const ch of String(value)) await sheet.getByRole('button', { name: ch, exact: true }).click();
-  await sheet.locator('.ok').click();
-  await expect(sheet).toBeHidden();
+  const box = page.locator('tos-number').filter({ has: page.locator('.label', { hasText: label }) }).first().locator('input');
+  await box.fill(String(value));
+  await expect(box).toHaveValue(String(value));
 }
 
-/** Sorting (v2 6.6): tap a category tile, enter loose kg, give a grade if asked, Save. */
+/** The kg box of the open sorting sheet. */
+export function sheetKg(page: Page): Locator {
+  return page.locator('.entry tos-number input').last();
+}
+
+/** Sorting (v2 6.6): tap a category tile, give a grade if asked, enter loose kg, Save. */
 export async function sortLoose(page: Page, tile: string | RegExp, kg: string | number, grade?: string): Promise<void> {
   await page.locator('.tiles').getByRole('button').filter({ hasText: tile }).first().click();
   const entry = page.locator('.entry');
-  // Loose kg opens the keypad by itself (straight away when the category has no bale weight).
-  await page.getByRole('dialog').waitFor({ timeout: 1500 }).catch(() => undefined);
-  if (!(await page.getByRole('dialog').isVisible())) await entry.locator('.seg').getByRole('button', { name: 'Loose kg' }).click();
-  await keys(page, kg);
+  await expect(entry).toBeVisible();
+  // A category with a bale weight opens on bales: switch to loose kg (its box takes the cursor).
+  if (!(await entry.getByRole('button', { name: 'Loose kg', pressed: true }).count())) await entry.locator('.seg').getByRole('button', { name: 'Loose kg' }).click();
   if (grade) await entry.locator('.grades').getByRole('button', { name: grade, exact: true }).click();
-  await entry.getByRole('button', { name: 'Save' }).click();
+  await sheetKg(page).fill(String(kg));
+  await entry.getByRole('button', { name: /^Save/ }).click();
   await expect(entry).toBeHidden();
 }
 
@@ -27,29 +29,28 @@ export async function sortLoose(page: Page, tile: string | RegExp, kg: string | 
 export async function sortBales(page: Page, tile: string | RegExp, bales: number, kgPerBale: number, grade?: string): Promise<void> {
   await page.locator('.tiles').getByRole('button').filter({ hasText: tile }).first().click();
   const entry = page.locator('.entry');
-  // A category without a bale weight opens the loose-kg keypad first: close it to switch to bales.
-  await page.getByRole('dialog').waitFor({ timeout: 1500 }).catch(() => undefined);
-  if (await page.getByRole('dialog').isVisible()) await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+  await expect(entry).toBeVisible();
   await entry.locator('.seg').getByRole('button', { name: 'Bales' }).click();
   await baleCountAndWeight(page, entry, bales, kgPerBale);
   if (grade) await entry.locator('.grades').getByRole('button', { name: grade, exact: true }).click();
-  await entry.getByRole('button', { name: 'Save' }).click();
+  await entry.getByRole('button', { name: /^Save/ }).click();
   await expect(entry).toBeHidden();
 }
 
-/** The bales stepper and the kg per bale keypad, in a sheet. */
+/** The bales stepper and the kg per bale box, in a sheet. */
 export async function baleCountAndWeight(page: Page, sheet: Locator, bales: number, kgPerBale: number): Promise<void> {
   for (let i = 1; i < bales; i++) await sheet.getByRole('button', { name: 'One bale more' }).click();
-  await keypad(page, /^Kg per bale/, kgPerBale);
+  await expect(sheet.getByLabel('How many bales?')).toHaveValue(String(bales));
+  await sheet.getByLabel('Kg per bale').fill(String(kgPerBale));
 }
 
-/** Keypad already open (a sort tile opens it directly): tap the keys, OK. */
+/** A sorting sheet is open (a tile opens it, the cursor in its kg box): type the kg and press Enter to save. */
 export async function keys(page: Page, value: string | number): Promise<void> {
-  const sheet = page.getByRole('dialog');
-  await expect(sheet).toBeVisible();
-  for (const ch of String(value)) await sheet.getByRole('button', { name: ch, exact: true }).click();
-  await sheet.locator('.ok').click();
-  await expect(sheet).toBeHidden();
+  const box = sheetKg(page);
+  await expect(box).toBeFocused();
+  await box.fill(String(value));
+  await box.press('Enter');
+  await expect(page.locator('.entry')).toBeHidden();
 }
 
 /**

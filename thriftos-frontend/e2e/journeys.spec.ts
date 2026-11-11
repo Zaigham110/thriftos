@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { baleCountAndWeight, checkFloorScreen, keypad, loose, pickTile, sortBales, sortLoose } from './floor';
+import { baleCountAndWeight, checkFloorScreen, keypad, loose, pickTile, sheetKg, sortBales, sortLoose } from './floor';
 import { apiAs, signIn } from './helpers';
 
 /**
@@ -50,16 +50,19 @@ test('journeys 1–6 on a 360px phone', async ({ page, request }) => {
   await sortLoose(page, 'T-Shirts', 300, 'Grade A');
   await expect(page.locator('.overview')).toContainText(loose('900.0 kg'));
   await expect(page.locator('.overview')).toContainText(loose('100.0 kg'));
-  // More than is left is refused on the keypad itself.
-  // Jeans opens on bales now (this phone remembers 100 kg a bale): switch to loose kg, which opens the keypad.
+  // More than is left is refused as it is typed.
+  // Jeans opens on bales now (this phone remembers 100 kg a bale): switch to loose kg, whose box takes the cursor.
   await page.locator('.tiles').getByRole('button').filter({ hasText: 'Jeans' }).click();
   await page.locator('.entry .seg').getByRole('button', { name: 'Loose kg' }).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
-  for (const ch of '101') await page.getByRole('dialog').last().getByRole('button', { name: ch, exact: true }).click();
-  await expect(page.getByRole('dialog').last()).toContainText(loose('Weight is more than the lot left (100.0 kg)'));
-  await expect(page.getByRole('dialog').last().locator('.ok')).toBeDisabled();
-  await page.getByRole('dialog').last().getByRole('button', { name: 'Cancel' }).click();
-  await page.locator('.entry > .row2').getByRole('button', { name: 'Cancel' }).click();
+  await expect(sheetKg(page)).toBeFocused();
+  await sheetKg(page).fill('101');
+  await expect(page.getByRole('dialog')).toContainText(loose('Weight is more than the lot left (100.0 kg)'));
+  await expect(sheetKg(page)).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.locator('.entry').getByRole('button', { name: /^Save/ })).toBeDisabled();
+  // Escape closes the sheet and the focus goes back to the tile.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.entry')).toBeHidden();
+  await expect(page.locator('.tiles').getByRole('button').filter({ hasText: 'Jeans' })).toBeFocused();
   // While the gaari is still open: 2 bales of 100 kg from the 400 kg of Jeans · Grade A sorted loose.
   const ready = page.locator('.ready');
   await expect(ready.locator('li', { hasText: 'Jeans · Grade A' })).toContainText(loose('400.0 kg sorted, not baled yet'));
@@ -143,14 +146,9 @@ test('journey 5: a trader receives ready stock and opens a bale into pieces', as
   await keypad(page, /^Pieces/, 30);
   // A second price tier: Rs 800 × 9 pieces (fields 3 and 4 on the screen).
   await page.locator('button.btn').filter({ hasText: 'Price' }).click();
-  const fields = page.locator('tos-number .field-btn');
+  const fields = page.locator('tos-number input');
   await expect(fields).toHaveCount(4);
-  for (const [i, value] of [[2, '800'], [3, '9']] as const) {
-    await fields.nth(i).click();
-    for (const ch of value) await page.getByRole('dialog').getByRole('button', { name: ch, exact: true }).click();
-    await page.getByRole('dialog').locator('.ok').click();
-    await expect(page.getByRole('dialog')).toBeHidden();
-  }
+  for (const [i, value] of [[2, '800'], [3, '9']] as const) await fields.nth(i).fill(value);
   await expect(page.locator('.action-bar')).toContainText('39');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page).toHaveURL(/\/receive\/ready$/);
