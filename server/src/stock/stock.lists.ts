@@ -25,6 +25,7 @@ export const STOCK_LABELS: Record<string, { en: string; ur: string }> = {
   status: { en: 'Status', ur: 'حالت' },
   quantity: { en: 'Received', ur: 'وصول' },
   left: { en: 'Left', ur: 'باقی' },
+  pieces: { en: 'Pieces left', ur: 'باقی پیس' },
   kg: { en: 'Kg', ur: 'کلو' },
   cost: { en: 'Cost (Rs)', ur: 'لاگت (روپے)' },
   value: { en: 'Value left (Rs)', ur: 'باقی مال کی لاگت (روپے)' },
@@ -55,6 +56,7 @@ export const STOCK_LIST: ListResource = {
     { key: 'status', type: 'enum', path: ['status'], enumValues: Object.values(InventoryStatus), sortable: true, filterable: true, groupable: true },
     { key: 'quantity', type: 'number', path: ['quantity'], sortable: true, filterable: true },
     { key: 'left', type: 'number', path: ['_computed'], computed: true },
+    { key: 'pieces', type: 'number', path: ['_computed'], computed: true },
     { key: 'kg', type: 'number', path: ['weightKg'], sortable: true, filterable: true, sum: true },
     { key: 'cost', type: 'number', path: ['totalCost'], sortable: true, filterable: true, sum: true, permission: 'cost.view' },
     { key: 'value', type: 'number', path: ['_computed'], computed: true, permission: 'cost.view' },
@@ -69,7 +71,7 @@ export const STOCK_LIST: ListResource = {
   delegate: (prisma) => (prisma as PrismaClient).inventoryItem as never,
   select: {
     id: true, name: true, categoryId: true, gradeId: true, source: true, unit: true, status: true, quantity: true, usedQuantity: true,
-    weightKg: true, totalCost: true, salePrice: true, createdAt: true, warehouseId: true, priceTier: true,
+    weightKg: true, totalCost: true, salePrice: true, createdAt: true, warehouseId: true, priceTier: true, pcsCount: true,
     repackUnit: { select: { unitCode: true } }, category: { select: { name: true } }, grade: { select: { name: true } },
     warehouse: { select: { name: true } }, vendor: { select: { name: true } },
   },
@@ -88,6 +90,8 @@ export const STOCK_LIST: ListResource = {
     return {
       id: i.id, code: i.repackUnit?.unitCode ?? null, name, category: i.category?.name ?? null, categoryId: i.categoryId, grade: i.grade?.name ?? null,
       gradeId: i.gradeId, source: i.source, unit: i.unit, status: i.status, quantity: i.quantity, left, kg: i.weightKg, cost: i.totalCost, value,
+      // Bales made of a number of pieces: the pieces left (they can be sold by the piece).
+      pieces: i.unit === StockUnit.BALE && i.pcsCount && !i.quantity.isZero() ? left.mul(i.pcsCount).div(i.quantity).toDecimalPlaces(0).toNumber() : null,
       salePrice: i.salePrice, date: i.createdAt, age: ageDays(i.createdAt), godown: i.warehouse?.name ?? null, godownId: i.warehouseId, supplier: i.vendor?.name ?? null,
     };
   },

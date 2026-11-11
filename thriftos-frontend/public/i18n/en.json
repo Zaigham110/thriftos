@@ -744,7 +744,14 @@
   "finishTitle": "Finish grading?",
   "finishConfirm": "{kg} not graded goes to waste. Finish grading?",
   "gradingDone": "Grading finished",
-  "gradedSummary": "{kg} in · {out} graded"
+  "gradedSummary": "{kg} in · {out} graded",
+  "costPerPiece": "{rs} per piece",
+  "leftPieces": "{n} pieces left",
+  "tooManyPieces": "Only {max} pieces are left",
+  "baleBy": "How each bale is made",
+  "piecesPerBale": "Pieces per bale",
+  "kgEach": "{kg} each",
+  "piecesEach": "{n} pcs each"
  },
  "stock": {
   "advanced": "Pick stock by hand",

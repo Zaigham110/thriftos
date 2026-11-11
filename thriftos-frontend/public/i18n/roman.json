@@ -744,7 +744,14 @@
   "finishTitle": "Grading khatam karein?",
   "finishConfirm": "{kg} jo grade nahi hua, kat mein jaye ga. Grading khatam karein?",
   "gradingDone": "Grading mukammal",
-  "gradedSummary": "{kg} aaya · {out} grade hua"
+  "gradedSummary": "{kg} aaya · {out} grade hua",
+  "costPerPiece": "{rs} fi piece",
+  "leftPieces": "{n} piece baqi",
+  "tooManyPieces": "Sirf {max} piece baqi hain",
+  "baleBy": "Har gaanth kaise bane",
+  "piecesPerBale": "Fi gaanth piece",
+  "kgEach": "Har aik {kg}",
+  "piecesEach": "Har aik {n} piece"
  },
  "stock": {
   "advanced": "Stock haath se chunein",

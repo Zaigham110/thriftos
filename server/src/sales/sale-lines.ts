@@ -7,6 +7,8 @@ export interface StockForSale {
   quantity: Decimal;
   usedQuantity: Decimal;
   weightKg: Decimal | null;
+  /** Pieces in the item (a bale made of a number of pieces); 0 when not counted. */
+  pcsCount?: number;
 }
 
 /** Why a line cannot be sold: bad input, or not enough stock left. */
@@ -36,6 +38,14 @@ export function saleTake(item: StockForSale, line: { unit?: StockUnit; quantity:
   if (unit === item.unit) {
     if (unit !== StockUnit.KG && !quantity.isInteger()) throw new SaleLineError(`Sell whole ${UNIT_NAMES[unit]}`, 'invalid');
     use = quantity;
+  } else if (item.unit === StockUnit.BALE && unit === StockUnit.PIECE && item.pcsCount) {
+    // Pieces out of bales made of a number of pieces (owner 2026-11-11): the part of a bale they are; the last
+    // pieces take exactly what is left, so the bale ends sold out.
+    if (!quantity.isInteger()) throw new SaleLineError('Sell whole pieces', 'invalid');
+    const piecesLeft = left.mul(item.pcsCount).div(item.quantity).toDecimalPlaces(0, Decimal.ROUND_HALF_UP);
+    if (quantity.greaterThan(piecesLeft)) throw new SaleLineError(`Only ${piecesLeft.toString()} pieces left`, 'short');
+    use = quantity.equals(piecesLeft) ? left : quantity.mul(item.quantity).div(item.pcsCount).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+    if (use.isZero()) throw new SaleLineError('Sell more pieces at once', 'invalid');
   } else if (item.unit === StockUnit.BALE && unit === StockUnit.KG && item.weightKg) {
     const kgPerBale = item.weightKg.div(item.quantity);
     use = quantity.div(kgPerBale);
@@ -49,6 +59,6 @@ export function saleTake(item: StockForSale, line: { unit?: StockUnit; quantity:
     unit,
     use,
     kg: unit === StockUnit.KG ? quantity : weightOf(use),
-    pieces: item.unit === StockUnit.PIECE ? use.toNumber() : 0,
+    pieces: item.unit === StockUnit.PIECE ? use.toNumber() : unit === StockUnit.PIECE ? quantity.toNumber() : 0,
   };
 }

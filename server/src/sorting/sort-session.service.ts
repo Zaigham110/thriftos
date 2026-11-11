@@ -157,7 +157,7 @@ export class SortSessionService {
       this.prisma.categoryOutput.findMany({
         where: { tenantId, sortSessionId: sessionId },
         select: {
-          id: true, categoryId: true, gradeId: true, weightKg: true, usedKg: true, allocatedCost: true, entryBales: true, createdAt: true,
+          id: true, categoryId: true, gradeId: true, weightKg: true, usedKg: true, allocatedCost: true, entryBales: true, createdAt: true, count: true,
           category: { select: { name: true } }, grade: { select: { name: true, rank: true } },
           _count: { select: { gradeSessions: true } },
           baleAllocations: { select: { repackUnitId: true, repackUnit: { select: { createdAt: true, weightKg: true, categoryId: true, gradeId: true, category: { select: { name: true } }, grade: { select: { name: true, rank: true } }, inventoryItems: { select: { usedQuantity: true, status: true } }, _count: { select: { inputAllocations: true } } } } } },
@@ -191,15 +191,17 @@ export class SortSessionService {
 
     // What came out, per kind (category + grade): all of it, and today's (Pakistan time).
     const today = startOfDayPKT(now);
-    const kinds = new Map<string, { categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; rank: number; kg: Decimal; bales: number; todayKg: Decimal; todayBales: number; cost: Decimal }>();
+    const kinds = new Map<string, { categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; rank: number; kg: Decimal; pieces: number; bales: number; todayKg: Decimal; todayPieces: number; todayBales: number; cost: Decimal }>();
     // Bales made from this lot — while sorting or later from its sorted kg — each counted once, by the bale's kind.
     const units = new Map<string, { createdAt: Date; weightKg: Decimal; categoryId: string; gradeId: string | null; category: { name: string }; grade: { name: string; rank: number } | null }>();
     // Kg sorted and not baled yet, per kind: what "Make bales" can still take.
-    const loose = new Map<string, { categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; rank: number; availableKg: Decimal }>();
+    const loose = new Map<string, { categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; rank: number; availableKg: Decimal; availablePieces: number }>();
     for (const o of outputs) {
       const key = `${o.categoryId}:${o.gradeId ?? ''}`;
-      const k = kinds.get(key) ?? { categoryId: o.categoryId, categoryName: o.category.name, gradeId: o.gradeId, gradeName: o.grade?.name ?? null, rank: o.grade?.rank ?? 0, kg: ZERO, bales: 0, todayKg: ZERO, todayBales: 0, cost: ZERO };
+      const k = kinds.get(key) ?? { categoryId: o.categoryId, categoryName: o.category.name, gradeId: o.gradeId, gradeName: o.grade?.name ?? null, rank: o.grade?.rank ?? 0, kg: ZERO, pieces: 0, bales: 0, todayKg: ZERO, todayPieces: 0, todayBales: 0, cost: ZERO };
       k.kg = k.kg.add(o.weightKg);
+      k.pieces += o.count;
+      if (o.createdAt >= today) k.todayPieces += o.count;
       k.cost = k.cost.add(o.allocatedCost);
       if (o.createdAt >= today) k.todayKg = k.todayKg.add(o.weightKg);
       kinds.set(key, k);
@@ -212,8 +214,10 @@ export class SortSessionService {
       }
       const left = o.weightKg.sub(o.usedKg);
       if (left.greaterThan(ZERO) && !o._count.gradeSessions) {
-        const l = loose.get(key) ?? { categoryId: o.categoryId, categoryName: o.category.name, gradeId: o.gradeId, gradeName: o.grade?.name ?? null, rank: o.grade?.rank ?? 0, availableKg: ZERO };
+        const l = loose.get(key) ?? { categoryId: o.categoryId, categoryName: o.category.name, gradeId: o.gradeId, gradeName: o.grade?.name ?? null, rank: o.grade?.rank ?? 0, availableKg: ZERO, availablePieces: 0 };
         l.availableKg = l.availableKg.add(left);
+        // Pieces still loose: the entry's pieces in proportion to its kg not baled yet (bales by pieces, owner 2026-11-11).
+        if (o.count > 0 && o.weightKg.greaterThan(0)) l.availablePieces += Math.round(left.mul(o.count).div(o.weightKg).toNumber());
         loose.set(key, l);
       }
     }
@@ -223,7 +227,7 @@ export class SortSessionService {
     for (const g of graded) {
       const co = g.gradeBucket.gradeSession.categoryOutput;
       const key = `${co.categoryId}:${g.gradeId}`;
-      const l = loose.get(key) ?? { categoryId: co.categoryId, categoryName: co.category.name, gradeId: g.gradeId, gradeName: g.grade.name, rank: g.grade.rank, availableKg: ZERO };
+      const l = loose.get(key) ?? { categoryId: co.categoryId, categoryName: co.category.name, gradeId: g.gradeId, gradeName: g.grade.name, rank: g.grade.rank, availableKg: ZERO, availablePieces: 0 };
       l.availableKg = l.availableKg.add(g.remainingAmount);
       loose.set(key, l);
     }
@@ -253,7 +257,9 @@ export class SortSessionService {
       kinds: kindRows,
       ready: [...loose.values()].sort(byName).map(({ rank: _r, ...l }) => ({ ...l, availableKg: l.availableKg.toString() })),
       madeBales: [...baleKinds.values()].sort(byName).map(({ rank: _r, ...b }) => ({ ...b, kg: b.kg.toString() })),
-      today: { kg: kindRows.reduce((s, k) => s.add(k.todayKg), ZERO).toString(), bales: [...units.values()].filter((u) => u.createdAt >= today).length },
+      // Pieces: sorted so far and today (a lot bought by the piece counts in pieces).
+      pieces: kindRows.reduce((s, k) => s + k.pieces, 0),
+      today: { kg: kindRows.reduce((s, k) => s.add(k.todayKg), ZERO).toString(), pieces: kindRows.reduce((s, k) => s + k.todayPieces, 0), bales: [...units.values()].filter((u) => u.createdAt >= today).length },
       bales: units.size,
       // After closing: each kind with its share of the lot cost (the yield screen), and the kat put into stock.
       outputs: closed
@@ -278,6 +284,7 @@ export class SortSessionService {
           categoryName: o.category.name,
           gradeName: o.grade?.name ?? null,
           kg: o.weightKg.toString(),
+          pieces: o.count,
           bales: o.entryBales,
           baleIds: ownBales ? unitIds : [],
           removable: !closed && !used,
@@ -286,12 +293,30 @@ export class SortSessionService {
     };
   }
 
+  /**
+   * One entry's kg, bales and pieces. A lot bought by the piece takes pieces (its kg is pieces × the lot's kg per piece;
+   * the last pieces take the kg that is left, so nothing is lost to rounding). A lot bought by kg takes kg or bales,
+   * with an optional count of pieces.
+   */
+  private async entryFor(tx: Tx, tenantId: string, dto: AddCategoryKgDto, remainingKg: Decimal): Promise<{ kg: Decimal; bales: number; baleKg: Decimal | null; pieces: number }> {
+    const session = await tx.sortSession.findFirstOrThrow({ where: { id: dto.sessionId, tenantId }, select: { rag: { select: { pieces: true, weightKg: true } } } });
+    const lotPieces = session.rag.pieces;
+    if (!lotPieces) return { ...entryOf(dto), pieces: dto.pieces ?? dto.outputCount ?? 0 };
+    if (!dto.pieces) throw new BadRequestException('This lot was bought by the piece: enter how many pieces');
+    if (dto.bales) throw new BadRequestException('This lot was bought by the piece: enter pieces, then make bales of them');
+    const done = await tx.categoryOutput.aggregate({ where: { tenantId, sortSessionId: dto.sessionId }, _sum: { count: true } });
+    const left = lotPieces - (done._sum.count ?? 0);
+    if (dto.pieces > left) throw new BadRequestException(`Only ${Math.max(left, 0)} pieces are left in this lot`);
+    const kg = dto.pieces === left ? remainingKg : session.rag.weightKg.mul(dto.pieces).div(lotPieces).toDecimalPlaces(2);
+    return { kg, bales: 0, baleKg: null, pieces: dto.pieces };
+  }
+
   /** What the sorting screen shows about a lot: code, supplier, raw type, day bought, weight and cost per kg. */
   private async lotInfo(tenantId: string, lotId: string) {
     const r = await this.prisma.rag.findFirst({
       where: { id: lotId, tenantId },
       select: {
-        id: true, ragCode: true, weightKg: true, allocatedCost: true, createdAt: true, status: true,
+        id: true, ragCode: true, weightKg: true, allocatedCost: true, createdAt: true, status: true, pieces: true,
         vendor: { select: { name: true } }, rawCategory: { select: { name: true } }, container: { select: { containerNumber: true, vendor: { select: { name: true } } } },
       },
     });
@@ -300,6 +325,9 @@ export class SortSessionService {
       id: r.id, code: r.ragCode, status: r.status, weightKg: r.weightKg.toString(), boughtAt: r.createdAt,
       supplier: r.vendor?.name ?? r.container?.vendor?.name ?? null, rawType: r.rawCategory?.name ?? null, container: r.container?.containerNumber ?? null,
       costPerKg: r.weightKg.greaterThan(0) ? r.allocatedCost.div(r.weightKg).toDecimalPlaces(2).toString() : null,
+      // Bought by the piece: sorted in pieces (how many, and the cost of one).
+      pieces: r.pieces,
+      costPerPiece: r.pieces ? r.allocatedCost.div(r.pieces).toDecimalPlaces(2).toString() : null,
     };
   }
 
@@ -337,9 +365,9 @@ export class SortSessionService {
    * with its QR sticker. Costed at the lot's cost per kg until the lot closes.
    */
   async addKg(tenantId: string, dto: AddCategoryKgDto, userId: string) {
-    const entry = entryOf(dto);
     const made = await this.prisma.$transaction(async (tx) => {
       const capacity = await this.waste.capacity(tx, tenantId, WasteStage.STAGE_1, dto.sessionId);
+      const entry = await this.entryFor(tx, tenantId, dto, capacity.remainingKg);
       this.waste.assertFits(capacity, entry.kg);
       const category = await tx.category.findFirst({ where: { id: dto.categoryId, tenantId, isActive: true }, select: { id: true } });
       if (!category) throw new BadRequestException('Invalid category');
@@ -348,8 +376,8 @@ export class SortSessionService {
       }
       const bucket = await tx.sortCategoryBucket.upsert({
         where: { sortSessionId_categoryId: { sortSessionId: dto.sessionId, categoryId: category.id } },
-        create: { sortSessionId: dto.sessionId, categoryId: category.id, outputWeightKg: entry.kg, outputCount: dto.outputCount ?? 0 },
-        update: { outputWeightKg: { increment: entry.kg }, outputCount: { increment: dto.outputCount ?? 0 } },
+        create: { sortSessionId: dto.sessionId, categoryId: category.id, outputWeightKg: entry.kg, outputCount: entry.pieces },
+        update: { outputWeightKg: { increment: entry.kg }, outputCount: { increment: entry.pieces } },
       });
       const outputKg = capacity.outputKg.add(entry.kg);
       const session = await tx.sortSession.update({
@@ -364,7 +392,7 @@ export class SortSessionService {
           categoryId: category.id,
           gradeId: dto.gradeId ?? null,
           weightKg: entry.kg,
-          count: dto.outputCount ?? 0,
+          count: entry.pieces,
           entryBales: entry.bales,
           allocatedCost: openLotCost(session.rag.allocatedCost, session.rag.weightKg, entry.kg),
           containerId: session.rag.containerId,
@@ -382,7 +410,7 @@ export class SortSessionService {
         );
         baleIds.push(bale.baleId);
       }
-      return { outputId: output.id, baleIds };
+      return { outputId: output.id, baleIds, kg: entry.kg.toString(), bales: entry.bales, pieces: entry.pieces };
     }, LONG_TX);
     await this.audit.log({
       tenantId,
@@ -390,7 +418,7 @@ export class SortSessionService {
       action: 'SORT_OUTPUT_ADDED',
       entityType: 'SortSession',
       entityId: dto.sessionId,
-      metadataJson: { categoryId: dto.categoryId, gradeId: dto.gradeId ?? null, amountKg: entry.kg.toString(), bales: entry.bales, baleIds: made.baleIds, outputCount: dto.outputCount ?? 0 },
+      metadataJson: { categoryId: dto.categoryId, gradeId: dto.gradeId ?? null, amountKg: made.kg, bales: made.bales, baleIds: made.baleIds, outputCount: made.pieces },
     });
     return { ...(await this.summary(tenantId, dto.sessionId)), baleIds: made.baleIds };
   }

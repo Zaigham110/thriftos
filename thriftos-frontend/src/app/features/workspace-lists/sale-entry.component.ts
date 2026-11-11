@@ -16,7 +16,7 @@ import { WsPageHeaderComponent, WsSideSheetComponent } from '../../shared/ui/wor
 import { PAYMENT_METHODS } from './lists';
 
 interface CustomerOption { id: string; name: string; city: string | null; phone: string | null; priceGroup?: string | null }
-interface StockOption { id: string; code: string | null; name: string | null; unit: 'KG' | 'BALE' | 'PIECE'; left: string; salePrice: string | null; value?: string | null; kg?: string | null; categoryId?: string | null; gradeId?: string | null }
+interface StockOption { id: string; code: string | null; name: string | null; unit: 'KG' | 'BALE' | 'PIECE'; left: string; salePrice: string | null; value?: string | null; kg?: string | null; categoryId?: string | null; gradeId?: string | null; pieces?: number | null }
 /**
  * One choice in "Add item": the bales of one kind (Jeans A, 4 bales) together, or one other item (kg, pieces).
  * `members` are the bales, oldest first; a sale of 2 takes the first 2 (or the ones scanned, which go first).
@@ -39,11 +39,23 @@ function toPicks(rows: StockOption[]): Pick[] {
   }
   return [...map.values()].map((p) => ({ ...p, members: p.members.sort(byCode) }));
 }
+/** Pieces sold from a kind's bales: the oldest bales first, each giving what it has left. */
+function piecesOver(members: StockOption[], wanted: number): { id: string; n: number }[] {
+  const out: { id: string; n: number }[] = [];
+  for (const m of members) {
+    if (wanted <= 0) break;
+    const n = Math.min(wanted, m.pieces ?? 0);
+    if (n > 0) out.push({ id: m.id, n });
+    wanted -= n;
+  }
+  return out;
+}
 /** The line's item for a kind: what is left and its value add up over its bales. */
 function kindItem(p: Pick): StockOption {
   if (p.members.length === 1 && p.key.startsWith('item|')) return p.members[0];
   const sum = (f: (m: StockOption) => string | null | undefined) => String(p.members.reduce((t, m) => t + Number(f(m) ?? 0), 0));
-  return { ...p.members[0], id: `kind:${p.key}`, code: null, name: p.label, left: sum((m) => m.left), value: sum((m) => m.value), kg: sum((m) => m.kg) };
+  const pieces = p.members.every((m) => m.pieces) ? p.members.reduce((t, m) => t + (m.pieces ?? 0), 0) : null;
+  return { ...p.members[0], id: `kind:${p.key}`, code: null, name: p.label, left: sum((m) => m.left), value: sum((m) => m.value), kg: sum((m) => m.kg), pieces };
 }
 
 /**
@@ -88,11 +100,12 @@ function kindItem(p: Pick): StockOption {
           <tbody>
             @for (l of lines(); track l.item.id; let i = $index) {
               <tr>
-                <td>{{ label(l.item) }}<small>{{ 'ws.saleEntry.left' | t: { n: qty(l.item.left, l.item.unit) } }}</small></td>
+                <td>{{ label(l.item) }}<small>{{ 'ws.saleEntry.left' | t: { n: qty(l.item.left, l.item.unit) } }}@if (l.item.pieces) { · {{ 'ws.lf.piecesN' | t: { n: i18n.num(l.item.pieces) } }} }</small></td>
                 <td>
                   <select [name]="'unit' + i" [ngModel]="l.unit" (ngModelChange)="setUnit(i, $event)" [attr.aria-label]="'ws.sale.unit' | t">
                     <option [value]="l.item.unit">{{ 'ws.stock.unit.' + l.item.unit | t }}</option>
                     @if (l.item.unit === 'BALE' && (l.members?.length ?? 1) === 1) { <option value="KG">{{ 'ws.stock.unit.KG' | t }}</option> }
+                    @if (l.item.unit === 'BALE' && l.item.pieces) { <option value="PIECE">{{ 'ws.stock.unit.PIECE' | t }}</option> }
                   </select>
                 </td>
                 <td class="num"><input #qtyInput [name]="'qty' + i" type="number" min="0.01" [max]="maxQty(l)" [step]="l.unit === 'KG' ? '0.01' : '1'" [ngModel]="l.quantity" (ngModelChange)="setQty(i, +$event)" [attr.aria-label]="'ws.sale.quantity' | t" /></td>
@@ -257,6 +270,7 @@ export class SaleEntryComponent implements HasUnsavedChanges {
   /** The most this line can sell: the bales of its kind, or what is left of the item (in kg when sold by kg). */
   protected maxQty(l: Line): number {
     if (l.unit === 'KG' && l.item.unit === 'BALE') return Number(l.item.kg ?? 0);
+    if (l.unit === 'PIECE' && l.item.unit === 'BALE') return l.item.pieces ?? 0;
     return Number(l.item.left);
   }
 
@@ -499,9 +513,11 @@ export class SaleEntryComponent implements HasUnsavedChanges {
       customerId: c.id,
       // A kind line sells its first bales, one sale line per bale.
       lines: this.lines().flatMap((l) =>
-        l.members
-          ? l.members.slice(0, l.quantity).map((m) => ({ inventoryItemId: m.id, unit: 'BALE' as const, quantity: 1, unitPrice: l.unitPrice }))
-          : [{ inventoryItemId: l.item.id, unit: l.unit, quantity: l.quantity, unitPrice: l.unitPrice }],
+        l.members && l.unit === 'PIECE'
+          ? piecesOver(l.members, l.quantity).map(({ id, n }) => ({ inventoryItemId: id, unit: 'PIECE' as const, quantity: n, unitPrice: l.unitPrice }))
+          : l.members
+            ? l.members.slice(0, l.quantity).map((m) => ({ inventoryItemId: m.id, unit: 'BALE' as const, quantity: 1, unitPrice: l.unitPrice }))
+            : [{ inventoryItemId: l.item.id, unit: l.unit, quantity: l.quantity, unitPrice: l.unitPrice }],
       ),
       paymentMode: this.mode(),
       ...(this.mode() === 'CASH' ? { paidAmount: this.total(), paymentMethod: this.method } : {}),

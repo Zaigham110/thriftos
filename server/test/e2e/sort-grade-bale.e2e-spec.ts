@@ -37,7 +37,7 @@ describe('Sort, grade and bale in one step (e2e)', () => {
       .expect(200);
     expect(res.body.baleIds).toHaveLength(2);
     expect(res.body.kinds).toEqual([expect.objectContaining({ categoryId: data.jeans.id, gradeId: data.gradeA.id, gradeName: 'A', kg: '40', bales: 2, todayKg: '40', todayBales: 2 })]);
-    expect(res.body.today).toEqual({ kg: '40', bales: 2 });
+    expect(res.body.today).toEqual({ kg: '40', bales: 2, pieces: 0 });
 
     const items = await prisma.inventoryItem.findMany({ where: { tenantId: a.tenantId, repackUnitId: { in: res.body.baleIds } } });
     expect(items).toHaveLength(2);

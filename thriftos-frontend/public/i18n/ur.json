@@ -744,7 +744,14 @@
   "finishTitle": "گریڈنگ ختم کریں؟",
   "finishConfirm": "{kg} جو گریڈ نہیں ہوا، کٹ میں جائے گا۔ گریڈنگ ختم کریں؟",
   "gradingDone": "گریڈنگ مکمل",
-  "gradedSummary": "{kg} آیا · {out} گریڈ ہوا"
+  "gradedSummary": "{kg} آیا · {out} گریڈ ہوا",
+  "costPerPiece": "{rs} فی پیس",
+  "leftPieces": "{n} پیس باقی",
+  "tooManyPieces": "صرف {max} پیس باقی ہیں",
+  "baleBy": "ہر گانٹھ کیسے بنے",
+  "piecesPerBale": "فی گانٹھ پیس",
+  "kgEach": "ہر ایک {kg}",
+  "piecesEach": "ہر ایک {n} پیس"
  },
  "stock": {
   "advanced": "مال خود چنیں",

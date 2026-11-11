@@ -42,6 +42,11 @@ interface Entry {
   bales: number;
   baleKg: number | null;
   kg: number | null;
+  /** A lot bought by the piece is sorted in pieces. */
+  pieces?: number | null;
+  /** Making bales: each bale by kg or by a number of pieces (chosen each time, owner 2026-11-11). */
+  baleBy?: 'kg' | 'pieces';
+  piecesPerBale?: number | null;
 }
 
 const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:${gradeId ?? ''}`;
@@ -110,9 +115,16 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
         @if (stage() === 1) {
           <section class="overview card" aria-live="polite">
             <div class="stats">
+              @if (byPieces()) {
+                <!-- Bought by the piece: counted in pieces (the kg is shown under them). -->
+                <div><small>{{ 'sort.lotKg' | t }}</small><strong>{{ 'ws.lf.piecesN' | t: { n: (lotPieces() | num) } }}</strong><span>{{ inputKg() | kg }}@if (lot()?.costPerPiece; as c) { · {{ 'sort.costPerPiece' | t: { rs: (c | rs) } }} }</span></div>
+                <div><small>{{ 'sort.sortedLabel' | t }}</small><strong>{{ 'ws.lf.piecesN' | t: { n: (sortedPieces() | num) } }}</strong><span>{{ 'unit.percent' | t: { n: donePct() } }}@if (today(); as td) { · {{ 'sort.nToday' | t: { n: ('ws.lf.piecesN' | t: { n: (td.pieces | num) }) } }} }</span></div>
+                <div [class.warn]="leftPieces() < 0"><small>{{ 'sort.leftLabel' | t }}</small><strong>{{ 'ws.lf.piecesN' | t: { n: (leftPieces() | num) } }}</strong><span>{{ 'sort.leftHint' | t }}</span></div>
+              } @else {
               <div><small>{{ 'sort.lotKg' | t }}</small><strong>{{ inputKg() | kg }}</strong>@if (lot()?.costPerKg; as c) { <span>{{ 'sort.costPerKg' | t: { rs: (c | rs) } }}</span> }</div>
               <div><small>{{ 'sort.sortedLabel' | t }}</small><strong>{{ sortedKg() | kg }}</strong><span>{{ 'unit.percent' | t: { n: donePct() } }}@if (today(); as td) { · {{ 'sort.nToday' | t: { n: (td.kg | kg) } }} }</span></div>
               <div [class.warn]="leftKg() < 0"><small>{{ 'sort.leftLabel' | t }}</small><strong>{{ leftKg() | kg }}</strong><span>{{ 'sort.leftHint' | t }}</span></div>
+              }
               <div><small>{{ 'sort.balesLabel' | t }}</small><strong>{{ totalBales() | num }}</strong>@if (today(); as td) { <span>{{ 'sort.nToday' | t: { n: (td.bales | num) } }}</span> }</div>
             </div>
             <div class="bar big" role="progressbar" [attr.aria-valuenow]="donePct()" aria-valuemin="0" aria-valuemax="100" [attr.aria-label]="'sort.sortedLabel' | t"><i [style.width.%]="donePct()"></i></div>
@@ -149,7 +161,7 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
                   <li [class.removing]="removing() === e.id">
                     <div class="what">
                       <strong>{{ e.categoryName }}@if (e.gradeName) { · {{ e.gradeName }} }</strong>
-                      <small>{{ when(e.at) }} · @if (e.bales) { {{ 'sort.entryBales' | t: { n: (e.bales | num), kg: (e.kg | kg) } }} } @else { {{ 'sort.entryLoose' | t: { kg: (e.kg | kg) } }} }</small>
+                      <small>{{ when(e.at) }} · @if (e.bales) { {{ 'sort.entryBales' | t: { n: (e.bales | num), kg: (e.kg | kg) } }} } @else if (byPieces() && e.pieces) { {{ 'ws.lf.piecesN' | t: { n: (e.pieces | num) } }} · {{ e.kg | kg }} } @else { {{ 'sort.entryLoose' | t: { kg: (e.kg | kg) } }} }</small>
                     </div>
                     @if (removing() === e.id) {
                       <div class="confirm-row">
@@ -184,7 +196,7 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
               <ul class="list">
                 @for (r of ready(); track readyKey(r)) {
                   <li class="row">
-                    <span><strong>{{ rowName(r) }}</strong><small>{{ 'sort.readyKg' | t: { kg: (r.availableKg | kg) } }}</small></span>
+                    <span><strong>{{ rowName(r) }}</strong><small>{{ 'sort.readyKg' | t: { kg: (r.availableKg | kg) } }}@if (r.availablePieces) { · {{ 'ws.lf.piecesN' | t: { n: (r.availablePieces | num) } }} }</small></span>
                     <button type="button" class="btn" (click)="startBales(r)">{{ 'sort.makeBales' | t }}</button>
                   </li>
                 }
@@ -232,7 +244,7 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
             <header class="sheet-head">
               <div>
                 <h2 id="entry-title">{{ e.purpose === 'bale' ? ('sort.makeBalesOf' | t: { name: rowName(e.ready!) }) : e.kind.name }}</h2>
-                <p class="sum" id="entry-left">{{ e.purpose === 'bale' ? ('sort.readyKg' | t: { kg: (e.ready!.availableKg | kg) }) : ('sort.left' | t: { kg: (leftKg() | kg) }) }}</p>
+                <p class="sum" id="entry-left">{{ e.purpose === 'bale' ? ('sort.readyKg' | t: { kg: (e.ready!.availableKg | kg) }) : (byPieces() ? ('sort.leftPieces' | t: { n: (leftPieces() | num) }) : ('sort.left' | t: { kg: (leftKg() | kg) })) }}</p>
               </div>
               <button type="button" class="x" [attr.aria-label]="'common.cancel' | t" (click)="closeSheet()"><lucide-icon [img]="icons.X" [size]="22" /></button>
             </header>
@@ -247,10 +259,16 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
                 </div>
               </div>
             }
-            @if (e.purpose === 'sort') {
+            @if (e.purpose === 'sort' && !byPieces()) {
               <div class="seg" role="group" [attr.aria-label]="'sort.howEntered' | t">
                 <button type="button" [class.on]="e.mode === 'bales'" [attr.aria-pressed]="e.mode === 'bales'" (click)="setMode('bales')">{{ 'sort.modeBales' | t }}</button>
                 <button type="button" [class.on]="e.mode === 'kg'" [attr.aria-pressed]="e.mode === 'kg'" (click)="setMode('kg')">{{ 'sort.modeLoose' | t }}</button>
+              </div>
+            }
+            @if (e.purpose === 'bale' && e.ready?.availablePieces) {
+              <div class="seg" role="group" [attr.aria-label]="'sort.baleBy' | t">
+                <button type="button" [class.on]="e.baleBy !== 'pieces'" [attr.aria-pressed]="e.baleBy !== 'pieces'" (click)="patch({ baleBy: 'kg' })">{{ 'sort.kgPerBale' | t }}</button>
+                <button type="button" [class.on]="e.baleBy === 'pieces'" [attr.aria-pressed]="e.baleBy === 'pieces'" (click)="patch({ baleBy: 'pieces', baleKg: piecesKg(e, e.piecesPerBale ?? null) })">{{ 'sort.piecesPerBale' | t }}</button>
               </div>
             }
             @if (e.mode === 'bales') {
@@ -263,15 +281,21 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
                     <button type="button" [attr.aria-label]="'sort.more' | t" (click)="step(1)"><lucide-icon [img]="icons.Plus" [size]="22" /></button>
                   </div>
                 </div>
+                @if (e.baleBy === 'pieces') {
+                  <tos-number size="big" label="sort.piecesPerBale" unit="unit.pcs" [decimals]="0" [autofocus]="!e.piecesPerBale" [value]="e.piecesPerBale ?? null" (valueChange)="patch({ piecesPerBale: $event, baleKg: piecesKg(e, $event) })" (enter)="save()" [hint]="e.baleKg ? ('sort.kgEach' | t: { kg: (e.baleKg | kg) }) : null" />
+                } @else {
                 <tos-number size="big" label="sort.kgPerBale" unit="unit.kgShort" [autofocus]="!e.baleKg" [value]="e.baleKg" (valueChange)="patch({ baleKg: $event })" (enter)="save()" />
+                }
               </div>
+            } @else if (byPieces() && e.purpose === 'sort') {
+              <tos-number size="big" label="ws.lf.pieces" unit="unit.pcs" [decimals]="0" [autofocus]="true" [max]="leftPieces()" maxMessage="sort.tooManyPieces" [value]="e.pieces ?? null" (valueChange)="patch({ pieces: $event })" (enter)="save()" />
             } @else {
               <tos-number size="big" label="common.weight" unit="unit.kgShort" [autofocus]="true" [max]="leftKg()" maxMessage="sort.tooMuch" [value]="e.kg" (valueChange)="patch({ kg: $event })" (enter)="save()" />
             }
             @if (tooMuch() && e.mode === 'bales') { <p class="err" role="alert">{{ (e.purpose === 'bale' ? 'sort.tooMuchReady' : 'sort.tooMuch') | t: { kg: (limitKg() | kg) } }}</p> }
             <button type="button" class="btn primary save" [disabled]="!entryKg() || tooMuch()" (click)="save()">
               {{ (e.purpose === 'bale' ? 'sort.saveBales' : 'common.save') | t }}
-              @if (entryKg() && !tooMuch()) { <span class="what">· @if (e.mode === 'bales') { {{ 'sort.balesTotal' | t: { n: (e.bales | num), kg: (entryKg() | kg) } }} } @else { {{ entryKg() | kg }} }</span> }
+              @if (entryKg() && !tooMuch()) { <span class="what">· @if (byPieces() && e.purpose === 'sort') { {{ 'ws.lf.piecesN' | t: { n: (e.pieces | num) } }} · {{ entryKg() | kg }} } @else if (e.mode === 'bales') { {{ 'sort.balesTotal' | t: { n: (e.bales | num), kg: (entryKg() | kg) } }} } @else { {{ entryKg() | kg }} }</span> }
             </button>
           </section>
         }
@@ -410,7 +434,7 @@ export class SortWorkComponent implements OnInit {
   private readonly serverKg = signal<Record<string, number>>({});
   private readonly serverBales = signal<Record<string, number>>({});
   private readonly serverWasteKg = signal(0);
-  protected readonly today = signal<{ kg: number; bales: number } | null>(null);
+  protected readonly today = signal<{ kg: number; bales: number; pieces?: number } | null>(null);
   protected readonly picking = signal<Tile | null>(null);
   /** Grading: why this entry cannot be graded (graded while sorting, in bales, already graded, not found). */
   protected readonly blocked = signal<string | null>(null);
@@ -510,7 +534,20 @@ export class SortWorkComponent implements OnInit {
   private readonly wasteKg = computed(() => this.serverWasteKg() + this.pendingLines().filter((w) => w.meta?.['type'] === 'waste').reduce((s, w) => s + Number(w.meta?.['kg'] ?? 0), 0));
   protected readonly sortedKg = computed(() => round(Object.values(this.kgByKind()).reduce((s, v) => s + v, 0) + this.wasteKg()));
   protected readonly leftKg = computed(() => round(this.inputKg() - this.sortedKg()));
-  protected readonly donePct = computed(() => (this.inputKg() ? Math.min(100, Math.round((this.sortedKg() / this.inputKg()) * 100)) : 0));
+  protected readonly donePct = computed(() =>
+    this.byPieces()
+      ? Math.min(100, Math.round((this.sortedPieces() / this.lotPieces()) * 100))
+      : this.inputKg() ? Math.min(100, Math.round((this.sortedKg() / this.inputKg()) * 100)) : 0,
+  );
+
+  /** A lot bought by the piece is sorted in pieces (owner, 2026-11-11): each entry's kg is its share of the lot's kg. */
+  protected readonly lotPieces = computed(() => (this.stage() === 1 ? this.lot()?.pieces ?? 0 : 0));
+  protected readonly byPieces = computed(() => this.lotPieces() > 0);
+  private readonly serverPieces = signal(0);
+  protected readonly sortedPieces = computed(() =>
+    this.serverPieces() + this.pendingLines().reduce((s, w) => s + Number(w.meta?.['pieces'] ?? 0) * (w.meta?.['type'] === 'undo' ? -1 : 1), 0),
+  );
+  protected readonly leftPieces = computed(() => this.lotPieces() - this.sortedPieces());
 
   /** Stage 1: one tile per category (the grade, if any, is picked in the sheet). Stage 2: grades. */
   private readonly kinds = computed<Kind[]>(() => {
@@ -537,6 +574,12 @@ export class SortWorkComponent implements OnInit {
   protected readonly entryKg = computed(() => {
     const e = this.entry();
     if (!e) return 0;
+    if (this.byPieces() && e.purpose === 'sort') {
+      const n = e.pieces ?? 0;
+      if (!n) return 0;
+      // The last pieces take what is left, so the lot ends at exactly its kg.
+      return n === this.leftPieces() ? Math.max(this.leftKg(), 0) : round((n * this.inputKg()) / this.lotPieces());
+    }
     return e.mode === 'bales' ? round(e.bales * (e.baleKg ?? 0)) : e.kg ?? 0;
   });
   /** Sorting can take what is left of the lot; "Make bales" what is sorted and not baled. */
@@ -544,7 +587,11 @@ export class SortWorkComponent implements OnInit {
     const e = this.entry();
     return e?.purpose === 'bale' && e.ready ? Number(e.ready.availableKg) : this.leftKg();
   });
-  protected readonly tooMuch = computed(() => this.entryKg() > this.limitKg() + 0.001);
+  protected readonly tooMuch = computed(() => {
+    const e = this.entry();
+    if (this.byPieces() && e?.purpose === 'sort') return (e.pieces ?? 0) > this.leftPieces();
+    return this.entryKg() > this.limitKg() + 0.001;
+  });
 
   constructor() {
     // Lines are sent in the background: when one reaches the server, its answer is the session's new state.
@@ -688,7 +735,7 @@ export class SortWorkComponent implements OnInit {
         label: `${this.title()} · ${e.categoryName} · −${this.i18n.kg(e.kg)}`,
         url: `/api/sorting/stage-1/entries/${e.id}/remove`,
         body: {},
-        meta: { target: this.id(), stage: 1, type: 'undo', kind: e.categoryId, kg: Number(e.kg), bales: e.bales },
+        meta: { target: this.id(), stage: 1, type: 'undo', kind: e.categoryId, kg: Number(e.kg), bales: e.bales, pieces: this.byPieces() ? e.pieces ?? 0 : 0 },
       });
       if (r.saved) this.applySummary(r.response);
       if (e.baleIds.length && this.lastBales()?.ids.some((id) => e.baleIds.includes(id))) this.lastBales.set(null);
@@ -717,6 +764,12 @@ export class SortWorkComponent implements OnInit {
     const kind = this.kinds().find((k) => k.id === tile.id);
     if (!kind) return;
     const baleKg = lastBaleKg(kind.id) ?? kind.baleKg;
+    // A lot bought by the piece: the number of pieces, the keyboard at once.
+    if (this.byPieces()) {
+      this.keyboardNow();
+      this.entry.set({ purpose: 'sort', kind, ready: null, mode: 'kg', gradeId: this.lastGrade(kind.id), bales: 1, baleKg, kg: null, pieces: null });
+      return;
+    }
     // Bales first when this category has a bale weight; the worker can switch to loose kg. The grade is optional.
     // Without a bale weight it starts on loose kg, and the keyboard opens at once.
     if (!baleKg) this.keyboardNow();
@@ -729,7 +782,15 @@ export class SortWorkComponent implements OnInit {
     this.rememberOpener();
     const baleKg = lastBaleKg(kind.id) ?? kind.baleKg;
     if (!baleKg) this.keyboardNow();
-    this.entry.set({ purpose: 'bale', kind, ready: r, mode: 'bales', gradeId: r.gradeId, bales: 1, baleKg, kg: null });
+    // Pieces ready (a lot sorted in pieces): bales of a number of pieces first; kg per bale is one tap away.
+    const byPieces = !!r.availablePieces && this.byPieces();
+    this.entry.set({ purpose: 'bale', kind, ready: r, mode: 'bales', gradeId: r.gradeId, bales: 1, baleKg: byPieces ? null : baleKg, kg: null, baleBy: byPieces ? 'pieces' : 'kg', piecesPerBale: null });
+  }
+
+  /** Kg of a bale of `pieces` pieces: the kind's ready kg per piece. */
+  protected piecesKg(e: Entry, pieces: number | null): number | null {
+    const kg = Number(e.ready?.availableKg ?? 0), n = e.ready?.availablePieces ?? 0;
+    return pieces && n ? round((pieces * kg) / n) : null;
   }
 
   protected canPickGrade(e: Entry): boolean {
@@ -754,16 +815,17 @@ export class SortWorkComponent implements OnInit {
     const kg = this.entryKg();
     if (!e?.ready || !e.baleKg || !kg || this.tooMuch()) return;
     this.entry.set(null);
-    rememberBaleKg(e.kind.id, e.baleKg);
+    const pieces = e.baleBy === 'pieces' ? e.piecesPerBale ?? 0 : 0;
+    if (!pieces) rememberBaleKg(e.kind.id, e.baleKg);
     const grade = this.gradeOptions().find((g) => g.id === e.gradeId) ?? null;
     const name = grade ? `${e.kind.name} · ${grade.name}` : e.kind.name;
-    const what = `${this.i18n.num(e.bales)} ${this.i18n.t(e.bales === 1 ? 'unit.bale' : 'unit.bales')} · ${this.i18n.kg(kg)}`;
+    const what = `${this.i18n.num(e.bales)} ${this.i18n.t(e.bales === 1 ? 'unit.bale' : 'unit.bales')}${pieces ? ` · ${this.i18n.t('sort.piecesEach', { n: this.i18n.num(pieces) })}` : ''} · ${this.i18n.kg(kg)}`;
     try {
       const r = await this.queue.send<{ baleIds?: string[] }>({
         kind: 'bale',
         label: `${this.title()} · ${name} · ${what}`,
         url: '/api/stock/bales',
-        body: { categoryId: e.kind.categoryId, ...(e.gradeId ? { gradeId: e.gradeId } : {}), fromUngraded: !e.ready.gradeId, ragId: this.id(), count: e.bales, weightKg: e.baleKg },
+        body: { categoryId: e.kind.categoryId, ...(e.gradeId ? { gradeId: e.gradeId } : {}), fromUngraded: !e.ready.gradeId, ragId: this.id(), count: e.bales, weightKg: e.baleKg, ...(pieces ? { pieces } : {}) },
         meta: { kind: kindKey(e.kind.categoryId, e.ready.gradeId), kg },
       });
       if (r.saved && r.response.baleIds?.length) this.lastBales.set({ ids: r.response.baleIds, name });
@@ -803,15 +865,23 @@ export class SortWorkComponent implements OnInit {
     const grade = this.gradeOptions().find((g) => g.id === e.gradeId) ?? null;
     const kind = { ...e.kind, name: grade ? `${e.kind.name} · ${grade.name}` : e.kind.name };
     const sessionId = await this.ensureSession();
-    const body = { sessionId, categoryId: e.kind.categoryId, ...(e.gradeId ? { gradeId: e.gradeId } : {}), ...(bales ? { bales, baleWeightKg: e.baleKg } : { amountKg: kg }) };
-    const what = bales ? `${this.i18n.num(bales)} ${this.i18n.t(bales === 1 ? 'unit.bale' : 'unit.bales')} · ${this.i18n.kg(kg)}` : this.i18n.kg(kg);
+    const pieces = this.byPieces() ? e.pieces ?? 0 : 0;
+    const body = {
+      sessionId,
+      categoryId: e.kind.categoryId,
+      ...(e.gradeId ? { gradeId: e.gradeId } : {}),
+      ...(pieces ? { pieces } : bales ? { bales, baleWeightKg: e.baleKg } : { amountKg: kg }),
+    };
+    const what = pieces
+      ? `${this.i18n.t('ws.lf.piecesN', { n: this.i18n.num(pieces) })} · ${this.i18n.kg(kg)}`
+      : bales ? `${this.i18n.num(bales)} ${this.i18n.t(bales === 1 ? 'unit.bale' : 'unit.bales')} · ${this.i18n.kg(kg)}` : this.i18n.kg(kg);
     try {
       const r = await this.queue.send<SortSummary>({
         kind: 'sort',
         label: `${this.title()} · ${kind.name} · ${what}`,
         url: '/api/sorting/stage-1/allocate',
         body,
-        meta: { target: this.id(), stage: 1, type: 'line', kind: e.kind.id, kg, bales },
+        meta: { target: this.id(), stage: 1, type: 'line', kind: e.kind.id, kg, bales, pieces },
         background: !bales,
       });
       if (r.saved) {
@@ -993,7 +1063,8 @@ export class SortWorkComponent implements OnInit {
       for (const b of summary.buckets) if (b.categoryId) kg[b.categoryId] = Number(b.outputWeightKg);
       for (const k of summary.kinds) bales[k.categoryId] = (bales[k.categoryId] ?? 0) + k.bales;
       this.serverKinds.set(summary.kinds);
-      if (summary.today) this.today.set({ kg: Number(summary.today.kg), bales: summary.today.bales });
+      if (summary.today) this.today.set({ kg: Number(summary.today.kg), bales: summary.today.bales, pieces: summary.today.pieces ?? 0 });
+      this.serverPieces.set(summary.kinds.reduce((t, k) => t + (k.pieces ?? 0), 0));
       this.ready.set(summary.ready ?? []);
       this.madeBales.set(summary.madeBales ?? []);
     } else {

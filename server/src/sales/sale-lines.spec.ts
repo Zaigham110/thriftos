@@ -51,4 +51,14 @@ describe('saleTake', () => {
     expect(error(() => saleTake(item('KG', '500', '450', '500'), { quantity: 60 }))).toEqual(['short', 'Only 50 kg left']);
     expect(error(() => saleTake(item('BALE', '1', '0', '50'), { unit: 'KG', quantity: 100 }))).toEqual(['short', 'Only 1 bales left']);
   });
+  it('sells pieces out of bales counted in pieces; the last pieces sell what is left', () => {
+    const bale = { ...item('BALE', '2', '0', '90'), pcsCount: 200 };
+    expect(take(bale, { unit: 'PIECE', quantity: 30 })).toEqual({ unit: 'PIECE', use: '0.3', kg: '13.5', pieces: 30 });
+    const almost = { ...item('BALE', '2', '1.7', '90'), pcsCount: 200 };
+    expect(take(almost, { unit: 'PIECE', quantity: 30 })).toEqual({ unit: 'PIECE', use: '0.3', kg: '13.5', pieces: 30 });
+    expect(error(() => saleTake(almost, { unit: 'PIECE', quantity: 31 }))).toEqual(['short', 'Only 30 pieces left']);
+    expect(error(() => saleTake(bale, { unit: 'PIECE', quantity: '1.5' }))).toEqual(['invalid', 'Sell whole pieces']);
+    // A bale without a piece count is not sold by the piece.
+    expect(error(() => saleTake(item('BALE', '2', '0', '90'), { unit: 'PIECE', quantity: 1 }))).toEqual(['invalid', 'This stock is sold by bales']);
+  });
 });

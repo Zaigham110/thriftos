@@ -21,15 +21,15 @@ export interface Lot {
 export interface SessionLine { categoryId?: string; gradeId?: string; outputWeightKg: string; category?: Named; grade?: Named }
 export interface SessionOutput { id: string; name: string; weightKg: string; cost: string; costPerKg: string; bales?: number }
 /** What a lot gave per kind (category + grade), all of it and today (v2 6.6). */
-export interface SortKind { categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; kg: string; bales: number; todayKg: string; todayBales: number }
-export interface ReadyRow { categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; availableKg: string }
+export interface SortKind { categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; kg: string; bales: number; todayKg: string; todayBales: number; pieces?: number }
+export interface ReadyRow { categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; availableKg: string; availablePieces?: number }
 export interface SortSummary {
   session: { id: string; status: 'OPEN' | 'CLOSED'; totalInputWeight?: string; totalOutputWeight?: string; totalGradeOutputWeight?: string; categoryOutput?: { weightKg: string; category: Named } } | null;
   buckets: SessionLine[];
   wasteLineItems: { amount: string; wasteCategoryId: string }[];
   outputs: SessionOutput[];
   kinds?: SortKind[];
-  today?: { kg: string; bales: number };
+  today?: { kg: string; bales: number; pieces?: number };
   bales?: number;
   /** Kg sorted and not baled yet, per kind: what "Make bales" can take (v2 6.6). */
   ready?: ReadyRow[];
@@ -44,8 +44,8 @@ export interface SortSummary {
   /** Every entry of this lot, newest first. */
   entries?: SortEntry[];
 }
-export interface SortLot { id: string; code: string; status: string; weightKg: string; boughtAt: string; supplier: string | null; rawType: string | null; container: string | null; costPerKg: string | null }
-export interface SortEntry { id: string; at: string; categoryId: string; categoryName: string; gradeName: string | null; kg: string; bales: number; baleIds: string[]; removable: boolean }
+export interface SortLot { id: string; code: string; status: string; weightKg: string; boughtAt: string; supplier: string | null; rawType: string | null; container: string | null; costPerKg: string | null; pieces?: number | null; costPerPiece?: string | null }
+export interface SortEntry { id: string; at: string; categoryId: string; categoryName: string; gradeName: string | null; kg: string; pieces?: number; bales: number; baleIds: string[]; removable: boolean }
 export interface GradeQueueItem { id: string; weightKg: string; category: Named; rag?: { ragCode: string } | null; gradeSessions: { id: string; status: string }[] }
 /** One sorted entry for the grading screen: can it be graded, and if not, why. */
 export interface GradeOutputInfo {

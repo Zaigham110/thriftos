@@ -72,6 +72,16 @@ export class AddCategoryKgDto {
   @Min(0)
   @IsOptional()
   outputCount?: number;
+
+  /**
+   * Pieces (owner, 2026-11-11). A lot bought by the piece is sorted in pieces: the entry's kg is worked out from the
+   * lot's kg per piece, so its cost is its share of the pieces. In a lot bought by kg it is the count of the kg entered.
+   */
+  @IsInt()
+  @Min(1)
+  @Max(1000000)
+  @IsOptional()
+  pieces?: number;
 }
 
 export class StartGradingDto {
