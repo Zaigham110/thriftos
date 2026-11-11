@@ -3,11 +3,11 @@
  * Provides cached tenant profile + category catalog for read-only consumers
  */
 
-import { Injectable, signal } from '@angular/core';
+import { Injectable, effect, inject, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, catchError, of, tap, throwError } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
-import type { Lang } from '../i18n/i18n.service';
+import { I18nService, type Lang } from '../i18n/i18n.service';
 import { SIGNED_OUT_EVENT, sessionCache } from '../auth/session-cache';
 
 export type CategoryType = 'RAG' | 'BALE' | 'GENERAL';
@@ -20,6 +20,8 @@ export interface CurrencyMeta {
 
 export interface TenantProfile {
   id: string;
+  /** The best grade's name (number 1 in the list), or null when the business has no grades. */
+  topGrade?: string | null;
   name: string;
   companyCode: string;
   currencyCode: string;
@@ -76,7 +78,11 @@ export class TenantService {
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
 
+  private readonly i18n = inject(I18nService);
+
   constructor(private readonly http: HttpClient) {
+    // "Cream %" / "A %": the screens that measure the best grade name it (v2: it always said "A grade").
+    effect(() => this.i18n.setGlobal('topGrade', this._tenant()?.topGrade ?? null));
     // Nothing about one business stays in memory for the next person who signs in on this phone.
     window.addEventListener(SIGNED_OUT_EVENT, () => {
       this._tenant.set(null);

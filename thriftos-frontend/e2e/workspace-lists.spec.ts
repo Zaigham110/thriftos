@@ -924,6 +924,9 @@ test('loose lot cycle: what was paid, grade it from the lot page, finish grading
   await expect(paid).toContainText(loose('Rs 35,000'));
   // While sorting, Sorted % is how far it has got (it showed "—").
   await expect(page.locator('.smart')).toContainText('83%');
+  // The best-grade box is named after this business's number 1 grade, not always "A grade".
+  const top = (await api.get('/tenant')).topGrade;
+  await expect(page.locator('.smart')).toContainText(`${top} %`);
   await page.getByText('Grade it').click();
 
   // Grading speaks of grading, not of closing the lot.

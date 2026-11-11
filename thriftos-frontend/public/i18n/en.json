@@ -101,7 +101,8 @@
   "today": "Today",
   "total": "Total",
   "undo": "Undo",
-  "weight": "Weight"
+  "weight": "Weight",
+  "topGrade": "Top grade"
  },
  "fw": {
   "container": {
@@ -235,7 +236,7 @@
   "todaySales": "Today's sales",
   "topOwing": "Owe you the most",
   "udhaar": "Owed to you",
-  "yield": "A-grade {n}%",
+  "yield": "{topGrade} {n}%",
   "yieldShort": "Yield {n}%"
  },
  "import": {
@@ -1148,7 +1149,7 @@
     "profit": "Profit so far",
     "revenue": "Sold so far",
     "supplier": "Supplier",
-    "topGrade": "A grade %",
+    "topGrade": "{topGrade} %",
     "yield": "Sorted %"
    },
    "count": "{n} containers",
@@ -1160,7 +1161,7 @@
     "landedCost": "What the container cost you in all: its price in rupees plus every charge added, such as freight, duty, clearing and transport.",
     "profit": "Sales so far minus what the sold goods cost (their share of the container's total cost).",
     "revenue": "Sales so far of everything that came out of this container.",
-    "topGrade": "Of the kg that was graded, the part that came out in your best grade (A).",
+    "topGrade": "Of the kg that was graded, the part that came out in your best grade ({topGrade}, number 1 in your grade list).",
     "yield": "Kg sorted into categories so far, as a part of the container's net kg. Leftovers and kg still to sort are not counted."
    },
    "search": "Search container number, supplier or country",
@@ -1212,7 +1213,7 @@
    "moved": "Status changed",
    "perKgBought": "{amount} per kg bought",
    "salesCount": "{n} sales",
-   "sortedLine": "A grade {a} · waste {waste}"
+   "sortedLine": "{topGrade} {a} · waste {waste}"
   },
   "create": "Create",
   "crumb": {
@@ -1723,7 +1724,7 @@
      "name": "Sales analytics"
     },
     "scorecard": {
-     "hint": "Profit per kg, sorted % and A grade, ranked",
+     "hint": "Profit per kg, sorted % and {topGrade} %, ranked",
      "name": "Supplier scorecard"
     },
     "stockList": {
@@ -1824,11 +1825,11 @@
   },
   "score": {
    "chartProfit": "Profit per kg",
-   "chartYield": "Sorted % and A grade %",
+   "chartYield": "Sorted % and {topGrade} %",
    "empty": "No containers in this period",
    "profitSoFar": "{amount} profit so far",
    "rank": "Rank",
-   "subtitle": "Who gives the most profit per kg bought, sorted % and A grade — ranked",
+   "subtitle": "Who gives the most profit per kg bought, sorted % and {topGrade} % — ranked",
    "title": "Supplier and origin scorecard"
   },
   "search": "Search or jump to…",
@@ -2101,7 +2102,7 @@
   },
   "yield": {
    "by": "By",
-   "chart": "Sorted % and A grade % by {by}",
+   "chart": "Sorted % and {topGrade} % by {by}",
    "empty": "No sorting finished in this period",
    "group": {
     "container": "Container",

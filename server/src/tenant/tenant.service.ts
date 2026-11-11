@@ -76,12 +76,15 @@ export class TenantService {
     }
 
     const currencyMeta = getCurrencyMeta(tenant.currency);
+    // The best grade (number 1 in the list): "Cream %" / "A %" on the screens that measure it (v2).
+    const topGrade = await this.prisma.grade.findFirst({ where: { tenantId: id, isActive: true }, orderBy: { rank: 'asc' }, select: { name: true } });
 
     return {
       ...tenant,
       currencyCode: tenant.currency,
       currency: currencyMeta,
       currencyLocked,
+      topGrade: topGrade?.name ?? null,
     };
   }
 

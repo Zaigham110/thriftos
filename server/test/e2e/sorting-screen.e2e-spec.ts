@@ -126,4 +126,13 @@ describe('Sorting screen: lot details, entries, remove one, finished lot (e2e)',
     expect(activity).not.toContain('SORT_OUTPUT_ADDED');
     await api(app, b).get(`/records/lot/${lot.id}/activity`).expect(404);
   });
+
+  it('the business profile names its best grade (number 1 in the list), for "Cream %" / "A %" labels', async () => {
+    await seedSortableLot(app, a.tenantId);
+    expect((await api(app, a).get('/tenant').expect(200)).body.topGrade).toBe('A');
+    await prisma.grade.create({ data: { tenantId: a.tenantId, name: 'Cream', rank: 0 } });
+    expect((await api(app, a).get('/tenant').expect(200)).body.topGrade).toBe('Cream');
+    // Another business keeps its own.
+    expect((await api(app, b).get('/tenant').expect(200)).body.topGrade).not.toBe('Cream');
+  });
 });

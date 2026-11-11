@@ -101,7 +101,8 @@
   "today": "Aaj",
   "total": "Kul",
   "undo": "Wapas karein",
-  "weight": "Wazan"
+  "weight": "Wazan",
+  "topGrade": "Behtareen grade"
  },
  "fw": {
   "container": {
@@ -235,7 +236,7 @@
   "todaySales": "Aaj ki sale",
   "topOwing": "Sab se zyada udhaar",
   "udhaar": "Udhaar baqi",
-  "yield": "A-grade {n}%",
+  "yield": "{topGrade} {n}%",
   "yieldShort": "Nateeja {n}%"
  },
  "import": {
@@ -1148,7 +1149,7 @@
     "profit": "Ab tak munafa",
     "revenue": "Ab tak bika",
     "supplier": "Supplier",
-    "topGrade": "A grade %",
+    "topGrade": "{topGrade} %",
     "yield": "Chhantai %"
    },
    "count": "{n} container",
@@ -1160,7 +1161,7 @@
     "landedCost": "Container aap ko kul kitne ka para: rupay mein qeemat aur har kharcha, jaise freight, duty, clearing aur transport.",
     "profit": "Ab tak ki sale minus bike maal ki laagat (container ki kul laagat mein us ka hissa).",
     "revenue": "Is container se nikle har maal ki ab tak ki sale.",
-    "topGrade": "Jitna kg grade hua, us mein se aap ke sab se ache grade (A) ka hissa.",
+    "topGrade": "Jitna kg grade hua, us mein se aap ke sab se ache grade ({topGrade}, grade list mein number 1) ka hissa.",
     "yield": "Ab tak categories mein chhanta kg, container ke saaf kg ke hisse ke tor par. Kat aur baqi kg nahi gine jate."
    },
    "search": "Container number, supplier ya mulk dhoondein",
@@ -1212,7 +1213,7 @@
    "moved": "Haalat badal gayi",
    "perKgBought": "{amount} fi khareeda kg",
    "salesCount": "{n} sale",
-   "sortedLine": "A grade {a} · waste {waste}"
+   "sortedLine": "{topGrade} {a} · waste {waste}"
   },
   "create": "Banayein",
   "crumb": {
@@ -1723,7 +1724,7 @@
      "name": "Bikri ka hisaab"
     },
     "scorecard": {
-     "hint": "Fi kg munafa, chhantai % aur A grade, darja ba darja",
+     "hint": "Fi kg munafa, chhantai % aur {topGrade} %, darja ba darja",
      "name": "Supplier report"
     },
     "stockList": {
@@ -1824,11 +1825,11 @@
   },
   "score": {
    "chartProfit": "Fi kg munafa",
-   "chartYield": "Chhantai % aur A grade %",
+   "chartYield": "Chhantai % aur {topGrade} %",
    "empty": "Is muddat mein koi container nahi",
    "profitSoFar": "Ab tak {amount} munafa",
    "rank": "Darja",
-   "subtitle": "Kaun khareede gaye fi kg par sab se zyada munafa, chhantai % aur A grade deta hai — darja ba darja",
+   "subtitle": "Kaun khareede gaye fi kg par sab se zyada munafa, chhantai % aur {topGrade} % deta hai — darja ba darja",
    "title": "Supplier aur mulk ki report"
   },
   "search": "Dhoondein ya kahin jayein…",
@@ -2101,7 +2102,7 @@
   },
   "yield": {
    "by": "Hisaab",
-   "chart": "{by} ke hisaab se chhantai % aur A grade %",
+   "chart": "{by} ke hisaab se chhantai % aur {topGrade} %",
    "empty": "Is muddat mein koi chhantai khatam nahi hui",
    "group": {
     "container": "Container",

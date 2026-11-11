@@ -87,7 +87,21 @@ export class I18nService {
   t(key: string, params?: Record<string, string | number>): string {
     const lang = this.lang();
     const raw = lookup(this.dicts()[lang], key) ?? lookup(this.dicts().en, key) ?? key;
-    return params ? raw.replace(/\{(\w+)\}/g, (m, k) => (k in params ? String(params[k]) : m)) : raw;
+    if (!raw.includes('{')) return raw;
+    // Words every screen may use: {topGrade} is this business's best grade ("Cream", "A"), or "Top grade" when none.
+    const all: Record<string, string | number> = { topGrade: this.globals()['topGrade'] ?? lookup(this.dicts()[lang], 'common.topGrade') ?? 'Top grade', ...params };
+    return raw.replace(/\{(\w+)\}/g, (m, k) => (k in all ? String(all[k]) : m));
+  }
+
+  private readonly globals = signal<Record<string, string>>({});
+  /** Sets (or clears, with null) a word every string may use, e.g. the business's best grade. */
+  setGlobal(name: string, value: string | null): void {
+    this.globals.update((g) => {
+      const next = { ...g };
+      if (value) next[name] = value;
+      else delete next[name];
+      return next;
+    });
   }
 
   /** 12,500 (Western digits, up to 2 decimals). */
