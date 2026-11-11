@@ -1894,7 +1894,9 @@
    "boughtPerKg": "Bought per kg",
    "sortedCostPerKg": "Cost per sorted kg",
    "paid": "What was paid",
-   "papersHint": "Bills and papers are under Activity."
+   "papersHint": "Bills and papers are under Activity.",
+   "gradedWhileSorting": "While sorting",
+   "gradingNow": "grading"
   },
   "sp": {
    "active": "Still buying from this supplier (shown when receiving)",

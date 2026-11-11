@@ -1894,7 +1894,9 @@
    "boughtPerKg": "Khareed fi kilo",
    "sortedCostPerKg": "Chhante hue kilo ki laagat",
    "paid": "Kitna ada kiya",
-   "papersHint": "Bill aur kaghazaat Kaam ki tafseel mein hain."
+   "papersHint": "Bill aur kaghazaat Kaam ki tafseel mein hain.",
+   "gradedWhileSorting": "Chhantai ke waqt",
+   "gradingNow": "grading jaari"
   },
   "sp": {
    "active": "Ab bhi is supplier se kharid (maal aane par dikhayein)",

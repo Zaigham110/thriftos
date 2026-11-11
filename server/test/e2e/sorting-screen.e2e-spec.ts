@@ -90,6 +90,7 @@ describe('Sorting screen: lot details, entries, remove one, finished lot (e2e)',
     // The lot page offers grading only for Shirts.
     const page = (await api(app, a).get(`/workspace/sorting/${lot.id}`).expect(200)).body;
     expect(page.categories.map((c: any) => [c.name, c.gradeTarget])).toEqual(expect.arrayContaining([['Shirts', shirtsId], ['Jeans · A', null]]));
+    expect(page.categories.find((c: any) => c.name === 'Jeans · A').gradedWhileSorting).toBe(true);
 
     const g = (await api(app, a).post('/sorting/stage-2/start', { categoryOutputId: shirtsId }).expect(201)).body.session;
     await api(app, a).post('/sorting/stage-2/allocate', { sessionId: g.id, gradeId: gradeB.id, amountKg: 30 }).expect(200);
@@ -118,6 +119,7 @@ describe('Sorting screen: lot details, entries, remove one, finished lot (e2e)',
     expect(s.madeBales.map((b: any) => [b.categoryName, b.gradeName, b.bales])).toEqual([['Shirts', 'A', 2]]);
 
     const page = (await api(app, a).get(`/workspace/sorting/${lot.id}`).expect(200)).body;
+    expect(page.categories.find((c: any) => c.name === 'Shirts')).toMatchObject({ gradedAs: [{ name: 'A', kg: '50' }], gradedWhileSorting: false });
     expect(page.purchase).toMatchObject({ price: '45000', ratePerKg: '450', charges: [{ kind: 'TRANSPORT', amount: '5000', note: 'Truck' }] });
     const activity = (await api(app, a).get(`/records/lot/${lot.id}/activity`).expect(200)).body.map((x: any) => x.action);
     expect(activity).toEqual(expect.arrayContaining(['SORT_SESSION_CREATED', 'GRADE_SESSION_CREATED', 'GRADE_SESSION_CLOSED']));

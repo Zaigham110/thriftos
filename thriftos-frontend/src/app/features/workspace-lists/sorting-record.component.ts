@@ -28,7 +28,7 @@ export interface SortingRecord {
   /** A loose lot's price and extra charges (only for people who may see cost). */
   purchase: { price: string; ratePerKg: string | null; charges: { kind: string; amount: string; note: string | null }[]; total: string } | null;
   session: { id: string; status: string; worker: string; supervisor: string; startTime: string; endTime: string | null; inputKg: string; outputKg: string; wasteKg: string } | null;
-  categories: { id: string; name: string; kg: string; pieces: number; cost: Money; costPerKg: Money; sharePercent: number | null; usedKg: string; grading: { id: string; status: string; worker: string } | null; gradeTarget: string | null; gradedKg: string; wasteKg: string }[];
+  categories: { id: string; name: string; kg: string; pieces: number; cost: Money; costPerKg: Money; sharePercent: number | null; usedKg: string; grading: { id: string; status: string; worker: string } | null; gradeTarget: string | null; gradedKg: string; gradedAs: { name: string; kg: string }[]; gradedWhileSorting: boolean; wasteKg: string }[];
   grades: { name: string; kg: string; pieces: number; sharePercent: number | null; cost: Money }[];
   waste: { stage: string; category: string; amount: string; unit: string; value: Money }[];
   totals: { sortedKg: string; stage1WasteKg: string; stage2WasteKg: string; yieldPercent: number | null; topGradePercent: number | null; minutes: number | null; leftKg: string; progressPercent: number | null };
@@ -202,7 +202,7 @@ export class SortingRecordComponent {
   ]);
   protected readonly categoryRows = computed<WsRow[]>(() =>
     (this.data()?.categories ?? []).map((c) => ({
-      ...c, graded: c.grading ? `${this.i18n.kg(c.gradedKg)} · ${this.i18n.t(c.grading.status === 'CLOSED' ? 'ws.sortRecord.done' : 'ws.lotStatus.IN_SORTING')}` : c.gradeTarget ? `${this.i18n.t('sort.gradeIt')} →` : '—',
+      ...c, graded: this.gradedText(c),
     })) as unknown as WsRow[],
   );
   protected readonly gradeColumns = computed(() => [
@@ -231,6 +231,18 @@ export class SortingRecordComponent {
         this.failed.set(!x.ok);
         if (x.ok) this.data.set(x.d);
       });
+  }
+
+  /**
+   * The Graded column: what a grading made of the row ("A 200.0 kg · B 80.0 kg"), grading still going on, "While
+   * sorting" for a row given its grade as it was sorted (Bedsheets · A), "Grade it →" where grading can start.
+   */
+  private gradedText(c: SortingRecord['categories'][number]): string {
+    if (c.grading?.status === 'CLOSED') return c.gradedAs.length ? c.gradedAs.map((g) => `${g.name} ${this.i18n.kg(g.kg)}`).join(' · ') : this.i18n.t('ws.sortRecord.done');
+    if (c.grading) return `${this.i18n.kg(c.gradedKg)} · ${this.i18n.t('ws.sortRecord.gradingNow')}`;
+    if (c.gradedWhileSorting) return this.i18n.t('ws.sortRecord.gradedWhileSorting');
+    if (c.gradeTarget) return `${this.i18n.t('sort.gradeIt')} →`;
+    return '—';
   }
 
   /** Once sorted: what each sellable kg cost (the lot's cost over the kg that came out). */

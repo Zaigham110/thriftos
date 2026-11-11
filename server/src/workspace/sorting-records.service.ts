@@ -117,6 +117,11 @@ export class SortingRecordsService {
           // Grading afterwards works on one ungraded entry not in bales (v2): only then does the row open grading.
           gradeTarget: list.length === 1 && !first.grade && first.usedKg.isZero() && gs?.status !== 'CLOSED' ? first.id : null,
           gradedKg: mine.reduce((t, g) => t.add(g.weightKg), ZERO),
+          // What a grading afterwards made of it, best grade first ("A 200 kg · B 80 kg"); and whether it was graded while sorting.
+          gradedAs: [...mine.reduce((m, g) => m.set(g.grade.name, { name: g.grade.name, rank: g.grade.rank, kg: (m.get(g.grade.name)?.kg ?? ZERO).add(g.weightKg) }), new Map<string, { name: string; rank: number; kg: Prisma.Decimal }>()).values()]
+            .sort((x, y) => x.rank - y.rank)
+            .map(({ name, kg: k }) => ({ name, kg: k })),
+          gradedWhileSorting: !!first.grade,
           wasteKg: waste.filter((w) => w.stage === WasteStage.STAGE_2 && w.categoryOutputId && ids.has(w.categoryOutputId) && w.unitType === WasteUnitType.KG).reduce((t, w) => t.add(w.amount), ZERO),
         };
       }),

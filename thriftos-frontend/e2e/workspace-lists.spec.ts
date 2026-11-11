@@ -938,6 +938,9 @@ test('loose lot cycle: what was paid, grade it from the lot page, finish grading
   await page.getByRole('link', { name: 'Open lot page' }).last().click();
   await expect(page).toHaveURL(new RegExp(`/sort/records/${lot.id}$`));
   await expect(page.locator('ws-record-activity')).toContainText('started grading');
+  // The Graded column: what the grading made of T-Shirts, and "While sorting" for Jeans · Grade A.
+  await expect(page.getByRole('row', { name: /^T-Shirts/ })).toContainText(loose('Grade A 150.0 kg'));
+  await expect(page.getByRole('row', { name: /Jeans · Grade A/ })).toContainText('While sorting');
 
   // The graded kg can be baled from the lot.
   await page.goto(`/sort/${lot.id}`);
