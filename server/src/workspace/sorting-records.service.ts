@@ -45,7 +45,7 @@ export class SortingRecordsService {
         where: { tenantId, ragId },
         orderBy: { weightKg: 'desc' },
         select: {
-          id: true, weightKg: true, usedKg: true, count: true, allocatedCost: true, category: { select: { name: true } }, grade: { select: { name: true } },
+          id: true, weightKg: true, usedKg: true, count: true, allocatedCost: true, category: { select: { name: true } }, grade: { select: { name: true, rank: true } },
           gradeSessions: { select: { id: true, status: true, startTime: true, endTime: true, worker: { select: { name: true } } } },
         },
       }),
@@ -76,6 +76,12 @@ export class SortingRecordsService {
       }),
     ]);
     const topRank = (await this.prisma.grade.findFirst({ where: { tenantId, isActive: true }, orderBy: { rank: 'asc' }, select: { rank: true } }))?.rank ?? null;
+    // Graded kg: grades given while sorting ("Jeans · A") plus a separate grading afterwards. An entry that was
+    // graded again afterwards counts once, by that grading.
+    const allGraded = [
+      ...outputs.filter((o) => o.grade && !o.gradeSessions.length).map((o) => ({ weightKg: o.weightKg, count: o.count, allocatedCost: o.allocatedCost, grade: o.grade! })),
+      ...grades,
+    ];
     const sortedKg = outputs.reduce((t, o) => t.add(o.weightKg), ZERO);
     const wasteKg = (stage: WasteStage) => waste.filter((w) => w.stage === stage && w.unitType === WasteUnitType.KG).reduce((t, w) => t.add(w.amount), ZERO);
 
@@ -108,7 +114,7 @@ export class SortingRecordsService {
         };
       }),
       bales: baleRows(allocations, canSeeCost),
-      grades: aggregateGrades(grades, canSeeCost),
+      grades: aggregateGrades(allGraded, canSeeCost),
       waste: waste.map((w) => ({ stage: w.stage, category: w.wasteCategory.name, amount: w.amount, unit: w.unitType, value: money(canSeeCost, w.estimatedValue) })),
       totals: {
         sortedKg, stage1WasteKg: wasteKg(WasteStage.STAGE_1), stage2WasteKg: wasteKg(WasteStage.STAGE_2),
@@ -116,7 +122,7 @@ export class SortingRecordsService {
         // While sorting: what is still to sort and how far it has got (v2 review).
         leftKg: !s ? r.weightKg : s.status === SortStatus.OPEN ? s.wasteWeight : ZERO,
         progressPercent: r.weightKg.isZero() ? null : Math.min(100, percent(sortedKg, r.weightKg) ?? 0),
-        topGradePercent: topRank === null ? null : topGradePercent(grades.map((g) => ({ rank: g.grade.rank, kg: g.weightKg })), topRank),
+        topGradePercent: topRank === null ? null : topGradePercent(allGraded.map((g) => ({ rank: g.grade.rank, kg: g.weightKg })), topRank),
         minutes: s?.endTime ? Math.round((s.endTime.getTime() - s.startTime.getTime()) / 60_000) : null,
       },
     };
@@ -142,7 +148,10 @@ export class SortingRecordsService {
     });
     const ragIds = sessions.map((s) => s.rag.id);
     const [outputs, grades, topGrade, wasteLines] = await Promise.all([
-      this.prisma.categoryOutput.findMany({ where: { tenantId, ragId: { in: ragIds } }, select: { ragId: true, weightKg: true, category: { select: { name: true } } } }),
+      this.prisma.categoryOutput.findMany({
+        where: { tenantId, ragId: { in: ragIds } },
+        select: { ragId: true, weightKg: true, count: true, category: { select: { name: true } }, grade: { select: { name: true, rank: true } }, _count: { select: { gradeSessions: true } } },
+      }),
       this.prisma.gradeOutput.findMany({
         where: { tenantId, gradeBucket: { gradeSession: { categoryOutput: { ragId: { in: ragIds } } } } },
         select: { weightKg: true, count: true, grade: { select: { name: true, rank: true } }, gradeBucket: { select: { gradeSession: { select: { categoryOutput: { select: { ragId: true } } } } } } },
@@ -170,13 +179,17 @@ export class SortingRecordsService {
       g.ragIds.add(s.rag.id);
       groups.set(k, g);
     }
-    const gradeRag = (g: (typeof grades)[number]) => g.gradeBucket.gradeSession.categoryOutput.ragId;
+    // Graded kg per lot: grades given while sorting plus a separate grading afterwards (counted once).
+    const graded = [
+      ...outputs.filter((o) => o.grade && !o._count.gradeSessions).map((o) => ({ ragId: o.ragId, weightKg: o.weightKg, count: o.count, grade: o.grade! })),
+      ...grades.map((g) => ({ ragId: g.gradeBucket.gradeSession.categoryOutput.ragId, weightKg: g.weightKg, count: g.count, grade: g.grade })),
+    ];
     const top = topGrade?.rank ?? null;
     const rows = [...groups.values()]
       .map((g) => ({
         key: g.key, lots: g.lots, inputKg: g.inputKg, outputKg: g.outputKg, wasteKg: g.wasteKg,
         yieldPercent: percent(g.outputKg, g.inputKg),
-        topGradePercent: top === null ? null : topGradePercent(grades.filter((x) => g.ragIds.has(gradeRag(x))).map((x) => ({ rank: x.grade.rank, kg: x.weightKg })), top),
+        topGradePercent: top === null ? null : topGradePercent(graded.filter((x) => g.ragIds.has(x.ragId)).map((x) => ({ rank: x.grade.rank, kg: x.weightKg })), top),
       }))
       .sort((a, b) => (by === 'month' ? a.key.localeCompare(b.key) : (b.yieldPercent ?? -1) - (a.yieldPercent ?? -1) || b.inputKg.comparedTo(a.inputKg)));
 
@@ -190,11 +203,11 @@ export class SortingRecordsService {
       to: q.to ?? null,
       totals: {
         lots: sessions.length, inputKg, outputKg, wasteKg: inputKg.sub(outputKg), yieldPercent: percent(outputKg, inputKg),
-        topGradePercent: top === null ? null : topGradePercent(grades.map((x) => ({ rank: x.grade.rank, kg: x.weightKg })), top),
+        topGradePercent: top === null ? null : topGradePercent(graded.map((x) => ({ rank: x.grade.rank, kg: x.weightKg })), top),
       },
       rows,
       categories: [...byCategory.entries()].map(([name, kg]) => ({ name, kg, sharePercent: percent(kg, outputKg) })).sort((a, b) => b.kg.comparedTo(a.kg)),
-      grades: aggregateGrades(grades, false).map(({ cost: _c, ...g }) => g),
+      grades: aggregateGrades(graded, false).map(({ cost: _c, ...g }) => g),
       waste: [...wasteLines.reduce((m, w) => {
         const k = `${w.stage}|${w.wasteCategory.name}`;
         const cur = m.get(k) ?? { stage: w.stage, category: w.wasteCategory.name, kg: ZERO };

@@ -26,7 +26,7 @@ export const topPercent = (e: ContainerEconomics): number | null => (e.topRank =
 export async function containerEconomics(prisma: PrismaClient | Prisma.TransactionClient, tenantId: string, ids: string[]): Promise<Map<string, ContainerEconomics>> {
   const out = new Map<string, ContainerEconomics>();
   if (!ids.length) return out;
-  const [lots, lines, outputs, graded, topGrade] = await Promise.all([
+  const [lots, lines, outputs, graded, sortGraded, topGrade] = await Promise.all([
     prisma.rag.groupBy({ by: ['containerId'], where: { tenantId, containerId: { in: ids } }, _sum: { weightKg: true } }),
     prisma.saleLine.findMany({
       where: {
@@ -43,6 +43,11 @@ export async function containerEconomics(prisma: PrismaClient | Prisma.Transacti
     prisma.gradeOutput.findMany({
       where: { tenantId, gradeBucket: { gradeSession: { categoryOutput: { containerId: { in: ids } } } } },
       select: { weightKg: true, grade: { select: { rank: true } }, gradeBucket: { select: { gradeSession: { select: { categoryOutput: { select: { containerId: true } } } } } } },
+    }),
+    // Grades given while sorting ("Jeans · A"), unless that kg was graded again afterwards.
+    prisma.categoryOutput.findMany({
+      where: { tenantId, containerId: { in: ids }, gradeId: { not: null }, gradeSessions: { none: {} } },
+      select: { containerId: true, weightKg: true, grade: { select: { rank: true } } },
     }),
     prisma.grade.findFirst({ where: { tenantId, isActive: true }, orderBy: { rank: 'asc' }, select: { rank: true } }),
   ]);
@@ -64,6 +69,9 @@ export async function containerEconomics(prisma: PrismaClient | Prisma.Transacti
   for (const g of graded) {
     const cid = g.gradeBucket.gradeSession.categoryOutput.containerId;
     if (cid && out.has(cid)) out.get(cid)!.graded.push({ rank: g.grade.rank, kg: g.weightKg });
+  }
+  for (const o of sortGraded) {
+    if (o.containerId && o.grade && out.has(o.containerId)) out.get(o.containerId)!.graded.push({ rank: o.grade.rank, kg: o.weightKg });
   }
   return out;
 }

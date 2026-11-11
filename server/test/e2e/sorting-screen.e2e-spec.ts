@@ -56,4 +56,21 @@ describe('Sorting screen: lot details, entries, remove one, finished lot (e2e)',
     expect(s.entries[0].removable).toBe(false);
     await api(app, a).post(`/sorting/stage-1/entries/${s.entries[0].id}/remove`).expect(409);
   });
+
+  it('A grade % and the grade table count grades given while sorting (owner: "why is A grade 0?")', async () => {
+    const { lot, jeans, shirts, gradeA, gradeB, waste } = await seedSortableLot(app, a.tenantId);
+    const session = (await api(app, a).post('/sorting/stage-1/start', { ragId: lot.id }).expect(201)).body.session ?? (await api(app, a).get(`/sorting/stage-1/summary?ragId=${lot.id}`).expect(200)).body.session;
+    await api(app, a).post('/sorting/stage-1/allocate', { sessionId: session.id, categoryId: jeans.id, gradeId: gradeA.id, amountKg: 50 }).expect(200);
+    await api(app, a).post('/sorting/stage-1/allocate', { sessionId: session.id, categoryId: shirts.id, gradeId: gradeA.id, amountKg: 10 }).expect(200);
+    await api(app, a).post('/sorting/stage-1/allocate', { sessionId: session.id, categoryId: jeans.id, gradeId: gradeB.id, amountKg: 20 }).expect(200);
+    // Not graded: not part of the A grade share.
+    await api(app, a).post('/sorting/stage-1/allocate', { sessionId: session.id, categoryId: shirts.id, amountKg: 5 }).expect(200);
+    await api(app, a).patch(`/sorting/stage-1/${session.id}/seal`, { wasteCategoryId: waste.id }).expect(200);
+
+    const r = (await api(app, a).get(`/workspace/sorting/${lot.id}`).expect(200)).body;
+    expect(r.totals.topGradePercent).toBe(75);
+    expect(r.grades.map((g: any) => [g.name, g.kg, g.sharePercent])).toEqual([['A', '60', 75], ['B', '20', 25]]);
+    // Another business sees nothing of it.
+    await api(app, b).get(`/workspace/sorting/${lot.id}`).expect(404);
+  });
 });

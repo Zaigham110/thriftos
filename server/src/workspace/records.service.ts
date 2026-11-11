@@ -26,13 +26,18 @@ export class WorkspaceRecordsService {
     });
     if (!c) throw new NotFoundException('Container not found');
 
-    const [econ, lots, outputs, waste, grades, allocations] = await Promise.all([
+    const [econ, lots, outputs, waste, stage2Grades, sortGraded, allocations] = await Promise.all([
       containerEconomics(this.prisma, tenantId, [id]),
       this.prisma.rag.findMany({ where: { tenantId, containerId: id }, orderBy: { createdAt: 'asc' }, select: { id: true, ragCode: true, weightKg: true, allocatedCost: true, status: true, rawCategory: { select: { name: true } } } }),
       this.prisma.categoryOutput.groupBy({ by: ['categoryId'], where: { tenantId, containerId: id }, _sum: { weightKg: true, allocatedCost: true } }),
       this.prisma.wasteLineItem.aggregate({ where: { tenantId, containerId: id, unitType: 'KG' }, _sum: { amount: true } }),
       this.prisma.gradeOutput.findMany({
         where: { tenantId, gradeBucket: { gradeSession: { categoryOutput: { containerId: id } } } },
+        select: { weightKg: true, grade: { select: { name: true, rank: true } } },
+      }),
+      // Grades given while sorting ("Jeans · A"), unless that kg was graded again afterwards.
+      this.prisma.categoryOutput.findMany({
+        where: { tenantId, containerId: id, gradeId: { not: null }, gradeSessions: { none: {} } },
         select: { weightKg: true, grade: { select: { name: true, rank: true } } },
       }),
       this.prisma.repackInputAllocation.findMany({
@@ -53,7 +58,8 @@ export class WorkspaceRecordsService {
     const categories = await this.prisma.category.findMany({ where: { tenantId, id: { in: outputs.map((o) => o.categoryId) } }, select: { id: true, name: true } });
     const catName = new Map(categories.map((x) => [x.id, x.name]));
 
-    // Grades: kg per grade name, best first.
+    // Grades: kg per grade name, best first (given while sorting or in a grading afterwards).
+    const grades = [...stage2Grades, ...sortGraded.flatMap((o) => (o.grade ? [{ weightKg: o.weightKg, grade: o.grade }] : []))];
     const byGrade = new Map<string, { name: string; rank: number; kg: Prisma.Decimal }>();
     for (const g of grades) {
       const cur = byGrade.get(g.grade.name) ?? { name: g.grade.name, rank: g.grade.rank, kg: ZERO };
