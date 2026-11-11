@@ -1,5 +1,5 @@
 import { costPerKg } from '../costing/costing';
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { GradeStatus, GradingOutputStatus, MeasurementType, SortStatus, WasteStage } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { AuditService } from '../audit/audit.service';
@@ -54,6 +54,31 @@ export class GradeSessionService {
       .map((row) => ({ ...row, gradeStatus: row.gradeSessions.length ? 'IN_PROGRESS' : 'NOT_STARTED' }))
       .sort((a, b) => Number(b.gradeStatus === 'IN_PROGRESS') - Number(a.gradeStatus === 'IN_PROGRESS'));
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  /**
+   * One sorted entry for the grading screen (v2): its name, kg, lot, open grading if any, and whether it can be
+   * graded — and if not, why (graded while sorting, already in bales, already graded). A lot still being sorted
+   * can be graded already.
+   */
+  async output(tenantId: string, id: string) {
+    const o = await this.prisma.categoryOutput.findFirst({
+      where: { id, tenantId },
+      select: {
+        id: true, weightKg: true, usedKg: true, gradeId: true,
+        category: { select: { id: true, name: true } },
+        grade: { select: { name: true } },
+        rag: { select: { id: true, ragCode: true } },
+        gradeSessions: { select: { id: true, status: true }, orderBy: { createdAt: 'desc' }, take: 1 },
+      },
+    });
+    if (!o) throw new NotFoundException('Sorted output not found');
+    const last = o.gradeSessions[0] ?? null;
+    const blocked = o.gradeId ? 'GRADED_WHILE_SORTING' : last?.status === GradeStatus.CLOSED ? 'ALREADY_GRADED' : o.usedKg.greaterThan(ZERO) ? 'IN_BALES' : null;
+    return {
+      id: o.id, weightKg: o.weightKg, category: o.category, grade: o.grade?.name ?? null, lot: o.rag ? { id: o.rag.id, code: o.rag.ragCode } : null,
+      gradeSession: last, canGrade: !blocked, blocked,
+    };
   }
 
   /** Starts grading, or resumes the open grading for the same output. */

@@ -729,7 +729,14 @@
   "showAll": "Show all {n}",
   "closeTitle": "Close this lot?",
   "removed": "{name} taken back.",
-  "closedSummary": "{kg} in · {out} came out · {bales} bales"
+  "closedSummary": "{kg} in · {out} came out · {bales} bales",
+  "cannotGrade": "This cannot be graded",
+  "cannotGradeWhy": {
+   "ALREADY_GRADED": "It is graded already. See the result on the lot's page.",
+   "GRADED_WHILE_SORTING": "It was given a grade while sorting, so it is graded already.",
+   "IN_BALES": "Part of these {kg} is already in bales. Grade before making bales.",
+   "NOT_FOUND": "This sorted entry was not found. It may have been taken back."
+  }
  },
  "stock": {
   "advanced": "Pick stock by hand",

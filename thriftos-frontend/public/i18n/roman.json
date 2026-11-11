@@ -729,7 +729,14 @@
   "showAll": "Sab {n} dikhayein",
   "closeTitle": "Yeh lot band karein?",
   "removed": "{name} wapas le liya.",
-  "closedSummary": "{kg} aaya · {out} nikla · {bales} bale"
+  "closedSummary": "{kg} aaya · {out} nikla · {bales} bale",
+  "cannotGrade": "Is ki grading nahi ho sakti",
+  "cannotGradeWhy": {
+   "ALREADY_GRADED": "Yeh grade ho chuka hai. Natija lot ke page par dekhein.",
+   "GRADED_WHILE_SORTING": "Chhantai ke waqt is ko grade de diya gaya tha, yeh grade ho chuka hai.",
+   "IN_BALES": "In {kg} mein se kuch gaanthon mein ja chuka hai. Gaanthein banane se pehle grade karein.",
+   "NOT_FOUND": "Yeh chhantai ka entry nahi mila. Shayad wapas le liya gaya."
+  }
  },
  "stock": {
   "advanced": "Stock haath se chunein",

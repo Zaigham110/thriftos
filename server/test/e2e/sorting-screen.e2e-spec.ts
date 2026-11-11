@@ -73,4 +73,29 @@ describe('Sorting screen: lot details, entries, remove one, finished lot (e2e)',
     // Another business sees nothing of it.
     await api(app, b).get(`/workspace/sorting/${lot.id}`).expect(404);
   });
+
+  it('grading: an entry of a lot still being sorted can be graded; one that cannot says why; it cannot be taken back while graded', async () => {
+    const { lot, jeans, shirts, gradeA, gradeB } = await seedSortableLot(app, a.tenantId);
+    const session = (await api(app, a).post('/sorting/stage-1/start', { ragId: lot.id }).expect(201)).body.session ?? (await api(app, a).get(`/sorting/stage-1/summary?ragId=${lot.id}`).expect(200)).body.session;
+    await api(app, a).post('/sorting/stage-1/allocate', { sessionId: session.id, categoryId: shirts.id, amountKg: 40 }).expect(200);
+    await api(app, a).post('/sorting/stage-1/allocate', { sessionId: session.id, categoryId: jeans.id, gradeId: gradeA.id, amountKg: 10 }).expect(200);
+    const s = (await api(app, a).get(`/sorting/stage-1/summary?ragId=${lot.id}`).expect(200)).body;
+    const shirtsId = s.entries.find((e: any) => e.categoryName === 'Shirts').id;
+    const jeansId = s.entries.find((e: any) => e.categoryName === 'Jeans').id;
+
+    // The lot is still open: Shirts can be graded, Jeans · A was graded while sorting.
+    expect((await api(app, a).get(`/sorting/stage-2/outputs/${shirtsId}`).expect(200)).body).toMatchObject({ category: { name: 'Shirts' }, weightKg: '40', canGrade: true, blocked: null, lot: { code: lot.ragCode } });
+    expect((await api(app, a).get(`/sorting/stage-2/outputs/${jeansId}`).expect(200)).body).toMatchObject({ canGrade: false, blocked: 'GRADED_WHILE_SORTING' });
+    await api(app, b).get(`/sorting/stage-2/outputs/${shirtsId}`).expect(404);
+    // The lot page offers grading only for Shirts.
+    const page = (await api(app, a).get(`/workspace/sorting/${lot.id}`).expect(200)).body;
+    expect(page.categories.map((c: any) => [c.name, c.gradeTarget])).toEqual(expect.arrayContaining([['Shirts', shirtsId], ['Jeans · A', null]]));
+
+    const g = (await api(app, a).post('/sorting/stage-2/start', { categoryOutputId: shirtsId }).expect(201)).body.session;
+    await api(app, a).post('/sorting/stage-2/allocate', { sessionId: g.id, gradeId: gradeB.id, amountKg: 30 }).expect(200);
+    // Being graded: sorting cannot take the Shirts entry back.
+    await api(app, a).post(`/sorting/stage-1/entries/${shirtsId}/remove`).expect(409);
+    await api(app, a).post('/sorting/stage-1/unallocate', { sessionId: session.id, categoryId: shirts.id, amountKg: 40 }).expect(409);
+    expect((await api(app, a).get(`/sorting/stage-2/outputs/${shirtsId}`).expect(200)).body).toMatchObject({ canGrade: true, gradeSession: { id: g.id, status: 'OPEN' } });
+  });
 });

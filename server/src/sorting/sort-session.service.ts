@@ -443,6 +443,7 @@ export class SortSessionService {
   private async deleteEntry(tx: Tx, tenantId: string, output: { id: string; usedKg: Decimal; entryBales: number; baleAllocations: { repackUnitId: string }[] }) {
     const unitIds = [...new Set(output.baleAllocations.map((a) => a.repackUnitId))];
     if (!output.entryBales && output.usedKg.greaterThan(0)) throw new ConflictException('Some of these kg are already in a bale; it cannot be taken back');
+    if (await tx.gradeSession.count({ where: { tenantId, categoryOutputId: output.id } })) throw new ConflictException('This entry is being graded; it cannot be taken back');
     if (unitIds.length) {
       const units = await tx.repackUnit.findMany({
         where: { id: { in: unitIds }, tenantId },

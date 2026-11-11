@@ -139,6 +139,12 @@ export class SortingStage2Controller {
     return this.sessions.queue(tenantId, query);
   }
 
+  @Get('outputs/:id')
+  @RequirePermissions('SORTING_STAGE2_VIEW')
+  output(@TenantId() tenantId: string, @Param('id') id: string) {
+    return this.sessions.output(tenantId, id);
+  }
+
   @Get('sessions/:id')
   @RequirePermissions('SORTING_STAGE2_VIEW')
   summary(@TenantId() tenantId: string, @Param('id') id: string) {

@@ -62,7 +62,7 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
     <section class="floor" [class.wide]="desktop">
       @if (desktop) {
         <!-- Laptop: the shared header (breadcrumb lined up with the heading) and the way to the lot's page. -->
-        <ws-page-header [attr.inert]="sheetOpen() ? '' : null" [heading]="title()" [subtitle]="stage() === 1 && lotMeta() ? lotMeta() : ((stage() === 1 ? 'sort.title' : 'sort.grading') | t)">
+        <ws-page-header [attr.inert]="sheetOpen() ? '' : null" [heading]="title()" [subtitle]="stage() === 1 && lotMeta() ? lotMeta() : ((stage() === 1 ? 'sort.title' : 'sort.grading') | t) + (stage() === 2 && gradeLot() ? ' · ' + gradeLot()!.code : '')">
           @if (stage() === 1) {
             <a actions class="ws-btn" [routerLink]="['/sort/records', id()]" [state]="nav.trailState()">{{ 'ws.sortRecord.openLot' | t }}</a>
           }
@@ -70,11 +70,17 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
       } @else {
         <header class="floor-head" [attr.inert]="sheetOpen() ? '' : null">
           <a class="icon-btn back" routerLink="/sort" [attr.aria-label]="'common.back' | t"><lucide-icon [img]="icons.ArrowLeft" [size]="22" /></a>
-          <h1>{{ title() }}<span class="sub">{{ stage() === 1 && lotMeta() ? lotMeta() : ((stage() === 1 ? 'sort.title' : 'sort.grading') | t) }}</span></h1>
+          <h1>{{ title() }}<span class="sub">{{ stage() === 1 && lotMeta() ? lotMeta() : ((stage() === 1 ? 'sort.title' : 'sort.grading') | t) + (stage() === 2 && gradeLot() ? ' · ' + gradeLot()!.code : '') }}</span></h1>
         </header>
       }
 
-      @if (result(); as r) {
+      @if (blocked(); as why) {
+        <section class="card" role="status">
+          <h2>{{ 'sort.cannotGrade' | t }}</h2>
+          <p class="hint">{{ ('sort.cannotGradeWhy.' + why) | t: { kg: (inputKg() | kg) } }}</p>
+          <a class="btn primary block" [routerLink]="gradeLot() ? ['/sort/records', gradeLot()!.id] : '/sort'">{{ (gradeLot() ? 'ws.sortRecord.openLot' : 'common.back') | t }}</a>
+        </section>
+      } @else if (result(); as r) {
         <section class="card">
           <h2><lucide-icon [img]="icons.CheckCircle2" [size]="22" class="good" /> {{ 'sort.closed' | t }} · {{ 'sort.yield' | t }}</h2>
           <p class="hint">{{ 'sort.closedSummary' | t: { kg: (inputKg() | kg), out: (outputKgAtClose() | kg), bales: (totalBales() | num) } }}</p>
@@ -406,6 +412,9 @@ export class SortWorkComponent implements OnInit {
   private readonly serverWasteKg = signal(0);
   protected readonly today = signal<{ kg: number; bales: number } | null>(null);
   protected readonly picking = signal<Tile | null>(null);
+  /** Grading: why this entry cannot be graded (graded while sorting, in bales, already graded, not found). */
+  protected readonly blocked = signal<string | null>(null);
+  protected readonly gradeLot = signal<{ id: string; code: string } | null>(null);
   protected readonly entry = signal<Entry | null>(null);
   protected readonly lastBales = signal<{ ids: string[]; name: string } | null>(null);
   /** This lot's sorted kg not baled yet, and the bales made from it (v2 6.6). */
@@ -613,12 +622,16 @@ export class SortWorkComponent implements OnInit {
         this.applySummary(summary);
       });
     } else {
-      this.data.toGrade().subscribe((outputs) => {
-        const output = outputs.find((o) => o.id === this.id());
-        this.title.set(output?.category.name ?? '');
-        this.inputKg.set(Number(output?.weightKg ?? 0));
-        const open = output?.gradeSessions.find((s) => s.status === 'OPEN');
-        if (open) this.data.gradeSession(open.id).subscribe((s) => this.applySummary(s));
+      // The entry itself (not the "waiting for grading" list, which holds closed lots only): a lot still being
+      // sorted can be graded too, and an entry that cannot be graded says why.
+      this.data.gradeOutput(this.id()).subscribe((o) => {
+        if (!o) return this.blocked.set('NOT_FOUND');
+        this.title.set(o.category.name);
+        this.gradeLot.set(o.lot);
+        if (o.lot) this.nav.setName(o.id, o.category.name);
+        this.inputKg.set(Number(o.weightKg));
+        if (!o.canGrade) return this.blocked.set(o.blocked);
+        if (o.gradeSession?.status === 'OPEN') this.data.gradeSession(o.gradeSession.id).subscribe((s) => this.applySummary(s));
       });
     }
   }

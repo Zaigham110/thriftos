@@ -26,7 +26,7 @@ type Money = string | null;
 export interface SortingRecord {
   lot: { id: string; code: string; status: 'NOT_STARTED' | 'IN_SORTING' | 'SORTED'; kg: string; createdAt: string; source: string; origin: string | null; rawCategory: string | null; container: { id: string; number: string } | null; supplier: { id: string; name: string } | null; cost: Money; costPerKg: Money };
   session: { id: string; status: string; worker: string; supervisor: string; startTime: string; endTime: string | null; inputKg: string; outputKg: string; wasteKg: string } | null;
-  categories: { id: string; name: string; kg: string; pieces: number; cost: Money; costPerKg: Money; sharePercent: number | null; usedKg: string; grading: { id: string; status: string; worker: string } | null; gradedKg: string; wasteKg: string }[];
+  categories: { id: string; name: string; kg: string; pieces: number; cost: Money; costPerKg: Money; sharePercent: number | null; usedKg: string; grading: { id: string; status: string; worker: string } | null; gradeTarget: string | null; gradedKg: string; wasteKg: string }[];
   grades: { name: string; kg: string; pieces: number; sharePercent: number | null; cost: Money }[];
   waste: { stage: string; category: string; amount: string; unit: string; value: Money }[];
   totals: { sortedKg: string; stage1WasteKg: string; stage2WasteKg: string; yieldPercent: number | null; topGradePercent: number | null; minutes: number | null; leftKg: string; progressPercent: number | null };
@@ -176,7 +176,7 @@ export class SortingRecordComponent {
   ]);
   protected readonly categoryRows = computed<WsRow[]>(() =>
     (this.data()?.categories ?? []).map((c) => ({
-      ...c, graded: c.grading ? `${this.i18n.kg(c.gradedKg)} · ${this.i18n.t(c.grading.status === 'CLOSED' ? 'ws.sortRecord.done' : 'ws.lotStatus.IN_SORTING')}` : '—',
+      ...c, graded: c.grading ? `${this.i18n.kg(c.gradedKg)} · ${this.i18n.t(c.grading.status === 'CLOSED' ? 'ws.sortRecord.done' : 'ws.lotStatus.IN_SORTING')}` : c.gradeTarget ? `${this.i18n.t('sort.gradeIt')} →` : '—',
     })) as unknown as WsRow[],
   );
   protected readonly gradeColumns = computed(() => [
@@ -219,6 +219,7 @@ export class SortingRecordComponent {
   /** Grade a category (or continue grading) on the sorting screen. */
   protected grade(row: WsRow): void {
     const c = (this.data()?.categories ?? []).find((x) => x.id === row.id);
-    if (c && c.grading?.status !== 'CLOSED') void this.router.navigate(['/sort/grade', c.id]);
+    // Only an entry that can be graded opens grading (one ungraded entry, not in bales, not graded yet).
+    if (c?.gradeTarget) void this.router.navigate(['/sort/grade', c.gradeTarget]);
   }
 }

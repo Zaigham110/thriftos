@@ -47,6 +47,11 @@ export interface SortSummary {
 export interface SortLot { id: string; code: string; status: string; weightKg: string; boughtAt: string; supplier: string | null; rawType: string | null; container: string | null; costPerKg: string | null }
 export interface SortEntry { id: string; at: string; categoryId: string; categoryName: string; gradeName: string | null; kg: string; bales: number; baleIds: string[]; removable: boolean }
 export interface GradeQueueItem { id: string; weightKg: string; category: Named; rag?: { ragCode: string } | null; gradeSessions: { id: string; status: string }[] }
+/** One sorted entry for the grading screen: can it be graded, and if not, why. */
+export interface GradeOutputInfo {
+  id: string; weightKg: string; category: Named; grade: string | null; lot: { id: string; code: string } | null;
+  gradeSession: { id: string; status: string } | null; canGrade: boolean; blocked: 'GRADED_WHILE_SORTING' | 'ALREADY_GRADED' | 'IN_BALES' | null;
+}
 export interface BaleKind { categoryId: string; categoryName: string; gradeId: string | null; gradeName: string | null; availableKg: string }
 
 const list = <T>(r: T[] | { data?: T[]; items?: T[] } | null | undefined): T[] => (Array.isArray(r) ? r : r?.data ?? r?.items ?? []);
@@ -91,6 +96,10 @@ export class FloorDataService {
   }
   sortSession(sessionId: string): Observable<SortSummary | null> {
     return this.http.get<SortSummary>(`${API_BASE_URL}/sorting/stage-1/sessions/${sessionId}`).pipe(catchError(() => of(null)));
+  }
+  /** The entry being graded, straight from the server (also for a lot still being sorted). */
+  gradeOutput(id: string): Observable<GradeOutputInfo | null> {
+    return this.http.get<GradeOutputInfo>(`${API_BASE_URL}/sorting/stage-2/outputs/${encodeURIComponent(id)}`).pipe(catchError(() => of(null)));
   }
   gradeSession(sessionId: string): Observable<SortSummary | null> {
     return this.http.get<SortSummary>(`${API_BASE_URL}/sorting/stage-2/sessions/${sessionId}`).pipe(catchError(() => of(null)));

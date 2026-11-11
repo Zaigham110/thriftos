@@ -109,6 +109,8 @@ export class SortingRecordsService {
           costPerKg: money(canSeeCost, kg.isZero() ? ZERO : cost.div(kg).toDecimalPlaces(2)),
           sharePercent: percent(kg, sortedKg), usedKg: list.reduce((t, o) => t.add(o.usedKg), ZERO),
           grading: gs ? { id: gs.id, status: gs.status, startTime: gs.startTime, endTime: gs.endTime, worker: gs.worker.name } : null,
+          // Grading afterwards works on one ungraded entry not in bales (v2): only then does the row open grading.
+          gradeTarget: list.length === 1 && !first.grade && first.usedKg.isZero() && gs?.status !== 'CLOSED' ? first.id : null,
           gradedKg: mine.reduce((t, g) => t.add(g.weightKg), ZERO),
           wasteKg: waste.filter((w) => w.stage === WasteStage.STAGE_2 && w.categoryOutputId && ids.has(w.categoryOutputId) && w.unitType === WasteUnitType.KG).reduce((t, w) => t.add(w.amount), ZERO),
         };
