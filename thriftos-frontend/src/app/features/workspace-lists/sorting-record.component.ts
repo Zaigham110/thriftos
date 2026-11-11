@@ -26,7 +26,7 @@ type Money = string | null;
 export interface SortingRecord {
   lot: { id: string; code: string; status: 'NOT_STARTED' | 'IN_SORTING' | 'SORTED'; kg: string; createdAt: string; source: string; origin: string | null; rawCategory: string | null; container: { id: string; number: string } | null; supplier: { id: string; name: string } | null; cost: Money; costPerKg: Money };
   /** A loose lot's price and extra charges (only for people who may see cost). */
-  purchase: { price: string; ratePerKg: string | null; charges: { kind: string; amount: string; note: string | null }[]; total: string } | null;
+  purchase: { price: string; ratePerKg: string | null; pieces?: number | null; ratePerPiece?: string | null; charges: { kind: string; amount: string; note: string | null }[]; total: string } | null;
   session: { id: string; status: string; worker: string; supervisor: string; startTime: string; endTime: string | null; inputKg: string; outputKg: string; wasteKg: string } | null;
   categories: { id: string; name: string; kg: string; pieces: number; cost: Money; costPerKg: Money; sharePercent: number | null; usedKg: string; grading: { id: string; status: string; worker: string } | null; gradeTarget: string | null; gradedKg: string; gradedAs: { name: string; kg: string }[]; gradedWhileSorting: boolean; wasteKg: string }[];
   grades: { name: string; kg: string; pieces: number; sharePercent: number | null; cost: Money }[];
@@ -80,11 +80,12 @@ const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
             <section class="paid" [attr.aria-label]="'ws.sortRecord.paid' | t">
               <h2>{{ 'ws.sortRecord.paid' | t }}</h2>
               <dl>
-                <div><dt>{{ 'ws.lf.pricePaid' | t }}@if (p.ratePerKg) { <small>{{ i18n.kg(d.lot.kg) }} × {{ i18n.money(p.ratePerKg) }}</small> }</dt><dd>{{ i18n.money(p.price) }}</dd></div>
+                <div><dt>{{ 'ws.lf.pricePaid' | t }}@if (p.ratePerKg) { <small>{{ i18n.kg(d.lot.kg) }} × {{ i18n.money(p.ratePerKg) }}</small> } @else if (p.ratePerPiece && p.pieces) { <small>{{ 'ws.lf.piecesN' | t: { n: i18n.num(p.pieces) } }} × {{ i18n.money(p.ratePerPiece) }}</small> }</dt><dd>{{ i18n.money(p.price) }}</dd></div>
                 @for (c of p.charges; track $index) {
                   <div><dt>{{ ('ws.lf.kind.' + c.kind) | t }}@if (c.note) { <small>{{ c.note }}</small> }</dt><dd>{{ i18n.money(c.amount) }}</dd></div>
                 }
                 <div class="total"><dt>{{ 'ws.lf.lotCost' | t }}</dt><dd>{{ i18n.money(p.total) }}</dd></div>
+                @if (p.pieces) { <div><dt>{{ 'ws.lf.costPerPiece' | t }}<small>{{ 'ws.lf.piecesN' | t: { n: i18n.num(p.pieces) } }}</small></dt><dd>{{ i18n.money(round2(+p.total / p.pieces)) }}</dd></div> }
               </dl>
               <p class="hint">{{ 'ws.sortRecord.papersHint' | t }}</p>
             </section>
@@ -266,5 +267,9 @@ export class SortingRecordComponent {
     const c = (this.data()?.categories ?? []).find((x) => x.id === row.id);
     // Only an entry that can be graded opens grading (one ungraded entry, not in bales, not graded yet).
     if (c?.gradeTarget) void this.router.navigate(['/sort/grade', c.gradeTarget]);
+  }
+
+  protected round2(n: number): number {
+    return Math.round(n * 100) / 100;
   }
 }

@@ -1464,7 +1464,14 @@
    "docFailed": "Lot mehfooz ho gaya, lekin {n} file nahi lag saki. Lot par dobara lagayein.",
    "billPhoto": "Bill ki tasveer",
    "takePhoto": "Tasveer lein ya chunein",
-   "photoOffline": "Internet nahi: lot online hone par bhej diya jayega, lekin tasveer mehfooz nahi hui. Baad mein lot par lagayein."
+   "photoOffline": "Internet nahi: lot online hone par bhej diya jayega, lekin tasveer mehfooz nahi hui. Baad mein lot par lagayein.",
+   "ratePiece": "Fi piece rate",
+   "pieces": "Piece",
+   "ratePerPiece": "Fi piece rate ({money})",
+   "costPerPiece": "Fi piece laagat",
+   "needPieces": "kitne piece",
+   "needPieceRate": "fi piece rate",
+   "piecesN": "{n} piece"
   },
   "lotStatus": {
    "IN_SORTING": "Chhantai",

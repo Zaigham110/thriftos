@@ -908,6 +908,30 @@ test('loose lot by rate per kg with transport and a bill attached (owner, 2026-1
   await expect(page.locator('ws-record-activity')).toContainText('gaari-bill.pdf');
 });
 
+test('loose lot bought by the piece: pieces × rate per piece, cost per piece on the lot page (owner, 2026-11-11)', async ({ page, request }) => {
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await signIn(page);
+  await page.goto('/receive/records/lots/new');
+  await page.getByLabel(/^Lot weight/).fill('400');
+  await page.getByRole('radio', { name: 'Rate per piece' }).click();
+  // Pieces still needed until typed.
+  await expect(page.getByRole('status').filter({ hasText: 'Still needed' })).toContainText('how many pieces');
+  await page.getByLabel(/^Pieces/).fill('500');
+  await page.getByLabel(/^Rate per piece/).fill('300');
+  await expect(page.getByText(/Price: .*150,000/)).toBeVisible();
+  await expect(page.locator('aside.side')).toContainText('Cost per piece');
+  await expect(page.locator('aside.side')).toContainText('Rs 300');
+  await page.getByRole('button', { name: 'Save lot' }).click();
+  await expect(page).toHaveURL(/\/sort\/records\/(?!new)[^/]+$/);
+  const id = page.url().split('/').pop()!;
+  const lot = await (await apiAs(request)).get(`/procurement/rags/${id}`);
+  expect([lot.pieces, Number(lot.ratePerPiece), Number(lot.purchaseCost), lot.ratePerKg]).toEqual([500, 300, 150000, null]);
+  // The lot page says how it was bought and what one piece cost.
+  const paid = page.getByRole('region', { name: 'What was paid' });
+  await expect(paid).toContainText(/500 pcs × \W*Rs 300/);
+  await expect(paid).toContainText('Cost per piece');
+});
+
 test('sorting screen: lot details, what came out, take one back, close with a summary (v2 sorting review)', async ({ page, request }) => {
   const api = await apiAs(request);
   const tag = Date.now().toString().slice(-6);

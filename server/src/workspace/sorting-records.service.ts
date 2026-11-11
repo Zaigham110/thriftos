@@ -95,7 +95,7 @@ export class SortingRecordsService {
       },
       // What was paid for a loose lot (v2 cycle review): the price (kg × rate, or the total typed) and each extra charge.
       purchase: canSeeCost && r.purchaseCost !== null
-        ? { price: r.purchaseCost, ratePerKg: r.ratePerKg, charges: r.charges.map((c) => ({ kind: c.kind, amount: c.amount, note: c.note })), total: r.allocatedCost }
+        ? { price: r.purchaseCost, ratePerKg: r.ratePerKg, pieces: r.pieces, ratePerPiece: r.ratePerPiece, charges: r.charges.map((c) => ({ kind: c.kind, amount: c.amount, note: c.note })), total: r.allocatedCost }
         : null,
       session: s
         ? { id: s.id, status: s.status, worker: s.worker.name, supervisor: s.supervisor.name, startTime: s.startTime, endTime: s.endTime, inputKg: s.totalInputWeight, outputKg: s.totalOutputWeight, wasteKg: s.wasteWeight }

@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { LotChargeDto } from './lot-charge.dto';
-import { IsDateString, IsNumber, IsOptional, IsString, MaxLength, Min, IsArray, ArrayMaxSize, ValidateNested } from 'class-validator';
+import { IsDateString, IsNumber, IsOptional, IsString, MaxLength, Min, IsArray, ArrayMaxSize, ValidateNested, IsInt } from 'class-validator';
 
 /** Corrections to a lot. Weight and raw category only before sorting; price, supplier and date only for loose lots. */
 export class UpdateRagDto {
@@ -36,6 +36,18 @@ export class UpdateRagDto {
   @Min(0)
   @IsOptional()
   ratePerKg?: number;
+
+  /** Loose lot bought by the piece: how many pieces (also kept when the total was typed). */
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  pieces?: number;
+
+  /** Loose lot bought by the piece: the rate per piece; without a price the price is pieces × rate. */
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @IsOptional()
+  ratePerPiece?: number;
 
   /** Loose lot: transport, labour and other charges, part of its cost (on a change: the whole new list). */
   @IsArray()

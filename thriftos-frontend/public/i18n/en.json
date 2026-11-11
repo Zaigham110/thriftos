@@ -1464,7 +1464,14 @@
    "docFailed": "The lot is saved, but {n} file(s) could not be attached. Add them on the lot.",
    "billPhoto": "Bill photo",
    "takePhoto": "Take or choose a photo",
-   "photoOffline": "No internet: the lot will be sent when online, but the photo was not kept. Add it on the lot later."
+   "photoOffline": "No internet: the lot will be sent when online, but the photo was not kept. Add it on the lot later.",
+   "ratePiece": "Rate per piece",
+   "pieces": "Pieces",
+   "ratePerPiece": "Rate per piece ({money})",
+   "costPerPiece": "Cost per piece",
+   "needPieces": "how many pieces",
+   "needPieceRate": "the rate per piece",
+   "piecesN": "{n} pcs"
   },
   "lotStatus": {
    "IN_SORTING": "Sorting",

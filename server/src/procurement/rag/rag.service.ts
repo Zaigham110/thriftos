@@ -11,11 +11,20 @@ import { TenantSequenceService } from '../shared/tenant-sequence.service';
 
 const CHARGE_SELECT = { id: true, kind: true, amount: true, note: true } as const;
 
-/** A loose lot's price: the total typed, else kg × rate per kg (to the paisa), else 0. */
-export function lotPrice(kg: number, total?: number, ratePerKg?: number): Prisma.Decimal {
+/**
+ * A loose lot's price: the total typed, else kg × rate per kg, else pieces × rate per piece (to the paisa), else 0.
+ */
+export function lotPrice(kg: number, total?: number, ratePerKg?: number, byPiece?: { pieces?: number | null; rate?: number | null }): Prisma.Decimal {
   if (total !== undefined && total !== null) return new Prisma.Decimal(total);
   if (ratePerKg !== undefined && ratePerKg !== null) return new Prisma.Decimal(kg).mul(ratePerKg).toDecimalPlaces(2);
+  if (byPiece?.rate !== undefined && byPiece.rate !== null && byPiece.pieces) return new Prisma.Decimal(byPiece.pieces).mul(byPiece.rate).toDecimalPlaces(2);
   return new Prisma.Decimal(0);
+}
+
+/** One way of pricing at a time; a rate per piece needs the number of pieces. */
+function checkPricing(dto: { ratePerKg?: number; ratePerPiece?: number; pieces?: number }, piecesNow?: number | null): void {
+  if (dto.ratePerKg !== undefined && dto.ratePerPiece !== undefined) throw new BadRequestException('Give a rate per kg or a rate per piece, not both');
+  if (dto.ratePerPiece !== undefined && !(dto.pieces ?? piecesNow)) throw new BadRequestException('Enter how many pieces were bought');
 }
 
 export function sumCharges(charges: { amount: number | Prisma.Decimal }[]): Prisma.Decimal {
@@ -109,11 +118,12 @@ export class RagService {
     const originCountry = container?.originCountry
       ?? (vendorId ? (await this.prisma.vendor.findUnique({ where: { id: vendorId }, select: { originCountry: true } }))?.originCountry : null)
       ?? null;
-    if (container && (dto.ratePerKg !== undefined || dto.charges?.length)) {
+    if (container && (dto.ratePerKg !== undefined || dto.ratePerPiece !== undefined || dto.pieces !== undefined || dto.charges?.length)) {
       throw new BadRequestException('A container lot takes its cost from the container. Add charges to the container.');
     }
     // A loose lot: the price typed, or kg × rate per kg; its charges (transport, labour…) are part of its cost.
-    const purchaseCost = container ? null : lotPrice(dto.weightKg, dto.purchaseCost, dto.ratePerKg);
+    if (!container) checkPricing(dto);
+    const purchaseCost = container ? null : lotPrice(dto.weightKg, dto.purchaseCost, dto.ratePerKg, { pieces: dto.pieces, rate: dto.ratePerPiece });
     const charges = container ? [] : (dto.charges ?? []);
     const lotCost = purchaseCost ? purchaseCost.add(sumCharges(charges)) : null;
     const boughtAt = container ? null : lotDate(dto.receivedAt);
@@ -132,6 +142,8 @@ export class RagService {
           weightKg: dto.weightKg,
           purchaseCost,
           ratePerKg: !container && dto.ratePerKg !== undefined ? new Prisma.Decimal(dto.ratePerKg) : null,
+          pieces: !container && dto.pieces !== undefined ? dto.pieces : null,
+          ratePerPiece: !container && dto.ratePerPiece !== undefined && dto.purchaseCost === undefined ? new Prisma.Decimal(dto.ratePerPiece) : null,
           allocatedCost: lotCost ?? 0,
           ...(charges.length ? { charges: { create: charges.map((c) => ({ tenantId, kind: c.kind, amount: new Prisma.Decimal(c.amount), note: c.note?.trim() || null })) } } : {}),
           notes: dto.notes,
@@ -265,7 +277,7 @@ export class RagService {
     if (reshapes && rag.status !== RagStatus.NOT_STARTED) {
       throw new ConflictException('Weight and type can only change before the lot is sorted');
     }
-    if ((dto.purchaseCost !== undefined || dto.ratePerKg !== undefined || dto.charges !== undefined) && rag.containerId) {
+    if ((dto.purchaseCost !== undefined || dto.ratePerKg !== undefined || dto.ratePerPiece !== undefined || dto.pieces !== undefined || dto.charges !== undefined) && rag.containerId) {
       throw new BadRequestException('A container lot takes its cost from the container. Change the container purchase cost or charges.');
     }
     if (dto.rawCategoryId) {
@@ -297,8 +309,15 @@ export class RagService {
 
     // The price: typed, or kg × rate when only the rate (or the kg of a lot priced by rate) changes.
     const kgNow = dto.weightKg ?? Number(rag.weightKg);
-    const rate = dto.ratePerKg !== undefined ? dto.ratePerKg : dto.purchaseCost === undefined && rag.ratePerKg !== null && dto.weightKg !== undefined ? Number(rag.ratePerKg) : undefined;
-    const newPrice = dto.purchaseCost !== undefined || rate !== undefined ? lotPrice(kgNow, dto.purchaseCost, rate) : undefined;
+    checkPricing(dto, rag.pieces);
+    const rate = dto.ratePerKg !== undefined ? dto.ratePerKg : dto.purchaseCost === undefined && dto.ratePerPiece === undefined && rag.ratePerKg !== null && dto.weightKg !== undefined ? Number(rag.ratePerKg) : undefined;
+    // By the piece: a new rate, or new pieces for a lot priced by the piece, gives pieces × rate.
+    const piecesNow = dto.pieces ?? rag.pieces;
+    const pieceRate = dto.ratePerPiece !== undefined ? dto.ratePerPiece : dto.purchaseCost === undefined && dto.ratePerKg === undefined && rag.ratePerPiece !== null && dto.pieces !== undefined ? Number(rag.ratePerPiece) : undefined;
+    const newPrice =
+      dto.purchaseCost !== undefined || rate !== undefined || pieceRate !== undefined
+        ? lotPrice(kgNow, dto.purchaseCost, rate, { pieces: piecesNow, rate: pieceRate })
+        : undefined;
     const costChanges = newPrice !== undefined || dto.charges !== undefined;
 
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -314,7 +333,9 @@ export class RagService {
           ...(dto.rawCategoryId !== undefined && { rawCategoryId: dto.rawCategoryId }),
           ...(dto.weightKg !== undefined && { weightKg: new Prisma.Decimal(dto.weightKg) }),
           ...(newPrice !== undefined && { purchaseCost: newPrice }),
-          ...(dto.ratePerKg !== undefined ? { ratePerKg: new Prisma.Decimal(dto.ratePerKg) } : dto.purchaseCost !== undefined ? { ratePerKg: null } : {}),
+          ...(dto.ratePerKg !== undefined ? { ratePerKg: new Prisma.Decimal(dto.ratePerKg) } : dto.purchaseCost !== undefined || dto.ratePerPiece !== undefined ? { ratePerKg: null } : {}),
+          ...(dto.ratePerPiece !== undefined ? { ratePerPiece: new Prisma.Decimal(dto.ratePerPiece) } : dto.purchaseCost !== undefined || dto.ratePerKg !== undefined ? { ratePerPiece: null } : {}),
+          ...(dto.pieces !== undefined && { pieces: dto.pieces }),
           ...(dto.notes !== undefined && { notes: dto.notes }),
           ...(vendor && { vendorId: vendor.id, ...(vendor.originCountry ? { originCountry: vendor.originCountry } : {}) }),
           ...(boughtAt && { createdAt: boughtAt }),

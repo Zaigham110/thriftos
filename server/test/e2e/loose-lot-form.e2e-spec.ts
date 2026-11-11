@@ -95,4 +95,37 @@ describe('Loose lot form: date, raw type, supplier and editing (e2e)', () => {
     const rows = (await prisma.$queryRawUnsafe<{ tenantId: string }[]>(fs.readFileSync(path.resolve(__dirname, '../../../prisma/checks/cost-chain-check.sql'), 'utf8'))).filter((x) => x.tenantId === a.tenantId);
     expect(rows).toEqual([]);
   });
+
+  it('bought by the piece (bedsheets): the price is pieces × rate per piece; one way of pricing at a time (owner, 2026-11-11)', async () => {
+    // 500 bedsheets at Rs 300 each = Rs 150,000, weighing 400 kg, with transport 5,000.
+    const r = await api(app, a)
+      .post('/procurement/rags', { ragBaleType: 'BALE', weightKg: 400, pieces: 500, ratePerPiece: 300, charges: [{ kind: 'TRANSPORT', amount: 5000 }] })
+      .expect(201);
+    let lot = await prisma.rag.findUniqueOrThrow({ where: { id: r.body.id } });
+    expect([lot.pieces, Number(lot.ratePerPiece), Number(lot.purchaseCost), Number(lot.allocatedCost), lot.ratePerKg]).toEqual([500, 300, 150000, 155000, null]);
+    const page = (await api(app, a).get(`/workspace/sorting/${lot.id}`).expect(200)).body;
+    expect(page.purchase).toMatchObject({ pieces: 500, ratePerPiece: '300', price: '150000', total: '155000' });
+
+    // More pieces at the same rate re-price it; a new rate too.
+    await api(app, a).patch(`/procurement/rags/${lot.id}`, { pieces: 520 }).expect(200);
+    lot = await prisma.rag.findUniqueOrThrow({ where: { id: lot.id } });
+    expect([Number(lot.purchaseCost), Number(lot.allocatedCost)]).toEqual([156000, 161000]);
+    await api(app, a).patch(`/procurement/rags/${lot.id}`, { ratePerPiece: 250 }).expect(200);
+    lot = await prisma.rag.findUniqueOrThrow({ where: { id: lot.id } });
+    expect(Number(lot.purchaseCost)).toBe(130000);
+    // Switching to a rate per kg forgets the rate per piece (the pieces stay as information).
+    await api(app, a).patch(`/procurement/rags/${lot.id}`, { ratePerKg: 300 }).expect(200);
+    lot = await prisma.rag.findUniqueOrThrow({ where: { id: lot.id } });
+    expect([Number(lot.purchaseCost), lot.ratePerPiece, lot.pieces]).toEqual([120000, null, 520]);
+
+    // A rate per piece needs pieces; not both rates; a container lot cannot; another business cannot.
+    await api(app, a).post('/procurement/rags', { ragBaleType: 'BALE', weightKg: 10, ratePerPiece: 300 }).expect(400);
+    await api(app, a).post('/procurement/rags', { ragBaleType: 'BALE', weightKg: 10, pieces: 5, ratePerPiece: 300, ratePerKg: 10 }).expect(400);
+    await api(app, a).post('/procurement/rags', { ragBaleType: 'BALE', weightKg: 10, pieces: 0, ratePerPiece: 300 }).expect(400);
+    const v = await api(app, a).post('/procurement/vendors', { name: 'Piece Vendor' }).expect(201);
+    const c = await api(app, a).post('/procurement/containers', { vendorId: v.body.id, netWeightKg: 500, purchaseCost: 5000, withLot: true }).expect(201);
+    await api(app, a).patch(`/procurement/rags/${c.body.rags[0].id}`, { pieces: 10, ratePerPiece: 5 }).expect(400);
+    await api(app, b).patch(`/procurement/rags/${lot.id}`, { pieces: 1 }).expect(404);
+    await api(app, b).get(`/workspace/sorting/${lot.id}`).expect(404);
+  });
 });

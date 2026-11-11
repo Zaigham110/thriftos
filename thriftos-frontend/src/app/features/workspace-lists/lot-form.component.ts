@@ -15,7 +15,7 @@ interface Option { id: string; name: string; originCountry?: string | null; coun
 /** GET /api/procurement/rags/:id (the fields this form uses). */
 interface LotRow {
   id: string; ragCode: string; status: string; containerId: string | null; vendorId: string | null; rawCategoryId: string | null;
-  weightKg: string; purchaseCost: string | null; ratePerKg: string | null; notes: string | null; createdAt: string;
+  weightKg: string; purchaseCost: string | null; ratePerKg: string | null; pieces?: number | null; ratePerPiece?: string | null; notes: string | null; createdAt: string;
   charges?: { kind: ChargeKind; amount: string; note: string | null }[];
 }
 type ChargeKind = 'TRANSPORT' | 'LABOUR' | 'LOADING' | 'OTHER';
@@ -97,10 +97,15 @@ const day = (v: string) => new Date(new Date(v).getTime() + 5 * 3_600_000).toISO
                 </label>
                 <div class="price">
                   <span class="seg" role="radiogroup" [attr.aria-label]="'ws.lf.priceAs' | t">
-                    <button type="button" role="radio" [attr.aria-checked]="byRate() === false" [class.on]="!byRate()" (click)="byRate.set(false)">{{ 'ws.lf.total' | t }}</button>
-                    <button type="button" role="radio" [attr.aria-checked]="byRate()" [class.on]="byRate()" (click)="byRate.set(true)">{{ 'ws.lf.rate' | t }}</button>
+                    <button type="button" role="radio" [attr.aria-checked]="!byRate() && !byPiece()" [class.on]="!byRate() && !byPiece()" (click)="priceAs('TOTAL')">{{ 'ws.lf.total' | t }}</button>
+                    <button type="button" role="radio" [attr.aria-checked]="byRate()" [class.on]="byRate()" (click)="priceAs('KG')">{{ 'ws.lf.rate' | t }}</button>
+                    <button type="button" role="radio" [attr.aria-checked]="byPiece()" [class.on]="byPiece()" (click)="priceAs('PIECE')">{{ 'ws.lf.ratePiece' | t }}</button>
                   </span>
-                  @if (byRate()) {
+                  @if (byPiece()) {
+                    <label>{{ 'ws.lf.pieces' | t }}<input name="pieces" type="number" min="1" step="1" required [ngModel]="pieces()" (ngModelChange)="pieces.set($event)" /></label>
+                    <label>{{ 'ws.lf.ratePerPiece' | t }}<input name="pieceRate" type="number" min="0" step="0.01" required [ngModel]="pieceRate()" (ngModelChange)="pieceRate.set($event)" /></label>
+                    <small>{{ 'ws.lf.priceIs' | t: { amount: price() === null ? '—' : i18n.money(price()) } }}</small>
+                  } @else if (byRate()) {
                     <label>{{ 'ws.lf.ratePerKg' | t }}<input name="rate" type="number" min="0" step="0.01" required [ngModel]="rate()" (ngModelChange)="rate.set($event)" /></label>
                     <small>{{ 'ws.lf.priceIs' | t: { amount: price() === null ? '—' : i18n.money(price()) } }}</small>
                   } @else {
@@ -154,6 +159,7 @@ const day = (v: string) => new Date(new Date(v).getTime() + 5 * 3_600_000).toISO
               <div class="total"><dt>{{ 'ws.lf.lotCost' | t }}</dt><dd>{{ lotCost() === null ? '—' : i18n.money(lotCost()) }}</dd></div>
               <div><dt>{{ 'receive.lotWeight' | t }}</dt><dd>{{ kg() ? i18n.kg(kg()) : '—' }}</dd></div>
               <div class="total big"><dt>{{ 'common.costPerKg' | t }}</dt><dd>{{ perKg() === null ? '—' : i18n.money(perKg()) }}</dd></div>
+              @if (byPiece()) { <div class="total big"><dt>{{ 'ws.lf.costPerPiece' | t }}</dt><dd>{{ perPiece() === null ? '—' : i18n.money(perPiece()) }}</dd></div> }
             </dl>
             @if (missing().length) {
               <div class="missing" role="status"><strong>{{ 'ws.cf.missing' | t }}</strong><ul>@for (m of missing(); track m) { <li>{{ m | t }}</li> }</ul></div>
@@ -236,6 +242,10 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
   /** Price typed as a rate per kg (the price is kg × rate). */
   protected readonly byRate = signal(false);
   protected readonly rate = signal<number | null>(null);
+  /** Bought by the piece (bedsheets, blankets…): the price is pieces × rate per piece. */
+  protected readonly byPiece = signal(false);
+  protected readonly pieces = signal<number | null>(null);
+  protected readonly pieceRate = signal<number | null>(null);
   protected readonly charges = signal<Charge[]>([]);
   protected readonly files = signal<File[]>([]);
   protected readonly chargeKinds = CHARGE_KINDS;
@@ -251,6 +261,10 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
 
   /** The price paid: typed, or kg × rate (to the paisa, as the server works it out). */
   protected readonly price = computed(() => {
+    if (this.byPiece()) {
+      const n = Number(this.pieces()), rate = this.pieceRate();
+      return n > 0 && Number.isInteger(n) && rate !== null && rate !== undefined && `${rate}` !== '' ? Math.round(n * Number(rate) * 100) / 100 : null;
+    }
     if (this.byRate()) {
       const kg = Number(this.kg()), rate = this.rate();
       return kg > 0 && rate !== null && rate !== undefined && `${rate}` !== '' ? Math.round(kg * Number(rate) * 100) / 100 : null;
@@ -265,10 +279,20 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
     const cost = this.lotCost();
     return kg > 0 && cost !== null ? Math.round((cost / kg) * 100) / 100 : null;
   });
+  protected readonly perPiece = computed(() => {
+    const n = Number(this.pieces());
+    const cost = this.lotCost();
+    return this.byPiece() && n > 0 && cost !== null ? Math.round((cost / n) * 100) / 100 : null;
+  });
+  protected priceAs(how: 'TOTAL' | 'KG' | 'PIECE'): void {
+    this.byRate.set(how === 'KG');
+    this.byPiece.set(how === 'PIECE');
+  }
   protected readonly missing = computed(() => {
     const m: string[] = [];
     if (!this.kg() || Number(this.kg()) <= 0) m.push('ws.lf.needKg');
-    if (this.price() === null || this.price()! < 0) m.push(this.byRate() ? 'ws.lf.needRate' : 'ws.lf.needPrice');
+    if (this.byPiece() && !(Number(this.pieces()) >= 1 && Number.isInteger(Number(this.pieces())))) m.push('ws.lf.needPieces');
+    else if (this.price() === null || this.price()! < 0) m.push(this.byPiece() ? 'ws.lf.needPieceRate' : this.byRate() ? 'ws.lf.needRate' : 'ws.lf.needPrice');
     if (this.charges().some((c) => !(Number(c.amount) > 0))) m.push('ws.lf.needChargeAmount');
     return m;
   });
@@ -345,6 +369,9 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
         this.cost.set(r.purchaseCost === null ? null : Number(r.purchaseCost));
         this.byRate.set(r.ratePerKg !== null && r.ratePerKg !== undefined);
         this.rate.set(r.ratePerKg === null || r.ratePerKg === undefined ? null : Number(r.ratePerKg));
+        this.byPiece.set(r.ratePerPiece !== null && r.ratePerPiece !== undefined);
+        this.pieceRate.set(r.ratePerPiece === null || r.ratePerPiece === undefined ? null : Number(r.ratePerPiece));
+        this.pieces.set(r.pieces ?? null);
         this.charges.set((r.charges ?? []).map((c) => ({ kind: c.kind, amount: Number(c.amount), note: c.note ?? '' })));
         this.notes = r.notes ?? '';
         this.locked.set(r.status !== 'NOT_STARTED');
@@ -387,7 +414,11 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
     if (this.missing().length || this.busy()) return;
     const body = {
       ...(this.vendorId ? { vendorId: this.vendorId } : {}),
-      ...(this.byRate() ? { ratePerKg: Number(this.rate()) } : { purchaseCost: Number(this.cost()) }),
+      ...(this.byPiece()
+        ? { pieces: Number(this.pieces()), ratePerPiece: Number(this.pieceRate()) }
+        : this.byRate()
+          ? { ratePerKg: Number(this.rate()) }
+          : { purchaseCost: Number(this.cost()) }),
       charges: this.charges().map((c) => ({ kind: c.kind, amount: Number(c.amount), ...(c.note.trim() ? { note: c.note.trim() } : {}) })),
       receivedAt: this.date,
       notes: this.notes.trim(),

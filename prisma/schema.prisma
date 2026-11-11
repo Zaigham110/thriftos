@@ -912,6 +912,10 @@ model Rag {
   purchaseCost  Decimal?    @db.Decimal(14, 2)
   /// The rate per kg typed for a loose lot (purchaseCost = kg × rate); null when the total was typed.
   ratePerKg     Decimal?    @db.Decimal(14, 2)
+  /// Pieces in a loose lot bought by the piece (bedsheets, blankets…); null when bought by weight.
+  pieces        Int?
+  /// The rate per piece typed for such a lot (purchaseCost = pieces × rate); null otherwise.
+  ratePerPiece  Decimal?    @db.Decimal(14, 2)
   /// Container lots: share of the container's landed cost. Loose lots: purchaseCost + its charges (LotCharge).
   allocatedCost Decimal     @db.Decimal(14, 2)
 

@@ -38,10 +38,15 @@ const today = () => new Date(Date.now() + 5 * 3_600_000).toISOString().slice(0, 
         <section class="card">
           <tos-number label="receive.lotWeight" unit="unit.kgShort" [(value)]="weightKg" />
           <div class="chips" role="radiogroup" [attr.aria-label]="'ws.lf.priceAs' | t">
-            <button type="button" class="chip" role="radio" [attr.aria-checked]="!byRate()" [class.on]="!byRate()" (click)="byRate.set(false)">{{ 'ws.lf.total' | t }}</button>
-            <button type="button" class="chip" role="radio" [attr.aria-checked]="byRate()" [class.on]="byRate()" (click)="byRate.set(true)">{{ 'ws.lf.rate' | t }}</button>
+            <button type="button" class="chip" role="radio" [attr.aria-checked]="!byRate() && !byPiece()" [class.on]="!byRate() && !byPiece()" (click)="priceAs('TOTAL')">{{ 'ws.lf.total' | t }}</button>
+            <button type="button" class="chip" role="radio" [attr.aria-checked]="byRate()" [class.on]="byRate()" (click)="priceAs('KG')">{{ 'ws.lf.rate' | t }}</button>
+            <button type="button" class="chip" role="radio" [attr.aria-checked]="byPiece()" [class.on]="byPiece()" (click)="priceAs('PIECE')">{{ 'ws.lf.ratePiece' | t }}</button>
           </div>
-          @if (byRate()) {
+          @if (byPiece()) {
+            <tos-number label="ws.lf.pieces" unit="unit.pcs" [decimals]="0" [(value)]="pieces" />
+            <tos-number label="ws.lf.ratePerPiece" unit="unit.money" [(value)]="pieceRate" />
+            <p class="hint">{{ 'ws.lf.priceIs' | t: { amount: price() === null ? '—' : (price() | rs) } }}</p>
+          } @else if (byRate()) {
             <tos-number label="ws.lf.ratePerKg" unit="unit.money" [(value)]="rate" />
             <p class="hint">{{ 'ws.lf.priceIs' | t: { amount: price() === null ? '—' : (price() | rs) } }}</p>
           } @else {
@@ -99,12 +104,22 @@ export class ReceiveLotComponent implements OnInit {
   /** Price typed as a rate per kg (price = kg × rate). */
   protected readonly byRate = signal(false);
   protected readonly rate = signal<number | null>(null);
+  /** Bought by the piece (bedsheets, blankets…): price = pieces × rate per piece. */
+  protected readonly byPiece = signal(false);
+  protected readonly pieces = signal<number | null>(null);
+  protected readonly pieceRate = signal<number | null>(null);
+  protected priceAs(how: 'TOTAL' | 'KG' | 'PIECE'): void {
+    this.byRate.set(how === 'KG');
+    this.byPiece.set(how === 'PIECE');
+  }
   protected readonly transport = signal<number | null>(null);
   protected readonly labour = signal<number | null>(null);
   protected readonly other = signal<number | null>(null);
   protected readonly photo = signal<File | null>(null);
   protected readonly price = computed(() =>
-    this.byRate() ? (this.weightKg() && this.rate() !== null ? Math.round(this.weightKg()! * this.rate()! * 100) / 100 : null) : this.cost(),
+    this.byPiece()
+      ? this.pieces() && this.pieceRate() !== null ? Math.round(this.pieces()! * this.pieceRate()! * 100) / 100 : null
+      : this.byRate() ? (this.weightKg() && this.rate() !== null ? Math.round(this.weightKg()! * this.rate()! * 100) / 100 : null) : this.cost(),
   );
   private readonly chargesTotal = computed(() => (this.transport() ?? 0) + (this.labour() ?? 0) + (this.other() ?? 0));
   protected readonly supplier = signal<Supplier | null>(null);
@@ -116,7 +131,7 @@ export class ReceiveLotComponent implements OnInit {
   protected readonly rawType = signal<string | null>(null);
   protected readonly missing = computed(() => [
     ...(!this.weightKg() ? ['ws.lf.needKg'] : []),
-    ...(this.price() === null ? [this.byRate() ? 'ws.lf.needRate' : 'ws.lf.needPrice'] : []),
+    ...(this.byPiece() && !this.pieces() ? ['ws.lf.needPieces'] : this.price() === null ? [this.byPiece() ? 'ws.lf.needPieceRate' : this.byRate() ? 'ws.lf.needRate' : 'ws.lf.needPrice'] : []),
   ]);
   protected readonly missingText = computed(() => this.missing().map((k) => this.i18n.t(k)).join(' · '));
 
@@ -143,7 +158,7 @@ export class ReceiveLotComponent implements OnInit {
     const s = this.supplier();
     const body = {
       ragBaleType: 'BALE', weightKg: this.weightKg(),
-      ...(this.byRate() ? { ratePerKg: this.rate() } : { purchaseCost: this.cost() }),
+      ...(this.byPiece() ? { pieces: this.pieces(), ratePerPiece: this.pieceRate() } : this.byRate() ? { ratePerKg: this.rate() } : { purchaseCost: this.cost() }),
       charges: ([['TRANSPORT', this.transport()], ['LABOUR', this.labour()], ['OTHER', this.other()]] as const)
         .filter(([, a]) => (a ?? 0) > 0).map(([kind, amount]) => ({ kind, amount })),
       ...(s ? { vendorId: supplierRef(this.queue, s.id) } : {}),
@@ -165,6 +180,8 @@ export class ReceiveLotComponent implements OnInit {
       this.weightKg.set(null);
       this.cost.set(null);
       this.rate.set(null);
+      this.pieces.set(null);
+      this.pieceRate.set(null);
       this.transport.set(null);
       this.labour.set(null);
       this.other.set(null);

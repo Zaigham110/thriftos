@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { LotChargeDto } from './lot-charge.dto';
-import { IsString, IsNotEmpty, IsNumber, Min, MaxLength, IsOptional, IsEnum, IsDateString, IsArray, ArrayMaxSize, ValidateNested } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, Min, MaxLength, IsOptional, IsEnum, IsDateString, IsArray, ArrayMaxSize, ValidateNested, IsInt } from 'class-validator';
 import { RagBaleType } from '@prisma/client';
 
 export class CreateRagDto {
@@ -46,6 +46,18 @@ export class CreateRagDto {
   @Min(0)
   @IsOptional()
   ratePerKg?: number;
+
+  /** Loose lot bought by the piece: how many pieces (also kept when the total was typed). */
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  pieces?: number;
+
+  /** Loose lot bought by the piece: the rate per piece; without a price the price is pieces × rate. */
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @IsOptional()
+  ratePerPiece?: number;
 
   /** Loose lot: transport, labour and other charges, part of its cost (on a change: the whole new list). */
   @IsArray()
