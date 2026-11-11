@@ -32,6 +32,8 @@ interface SortedSource {
   kg: Decimal;
   cost: Decimal;
   usedKg: Decimal;
+  /** An entry of a lot without a weight: kg/usedKg above are its pieces and the pieces already baled. */
+  byPieces?: boolean;
   categoryId: string;
   categoryName: string;
   gradeId: string | null;
@@ -147,7 +149,7 @@ export class BaleService {
         action: 'BALE_MADE',
         entityType: 'RepackUnit',
         entityId: result.baleId,
-        metadataJson: { unitCode: result.unitCode, weightKg: new Decimal(dto.weightKg).toFixed(2), totalCost: result.totalCost.toFixed(2), ...(dto.ragId ? { ragId: dto.ragId } : {}) },
+        metadataJson: { unitCode: result.unitCode, weightKg: new Decimal(dto.weightKg ?? 0).toFixed(2), pieces: dto.pieces ?? 0, totalCost: result.totalCost.toFixed(2), ...(dto.ragId ? { ragId: dto.ragId } : {}) },
       });
     }
     return { ...(await this.findOne(tenantId, made[0].baleId)), baleIds: made.map((m) => m.baleId) };
@@ -155,14 +157,24 @@ export class BaleService {
 
   /** Makes one bale inside the caller's transaction (also used when bales are made while sorting, v2 6.6). */
   async makeBaleTx(tx: Tx, tenantId: string, dto: MakeBaleDto, userId: string): Promise<{ baleId: string; unitCode: string; totalCost: Decimal }> {
-    const weightKg = new Decimal(dto.weightKg);
+    const weightKg = new Decimal(dto.weightKg ?? 0);
     {
       const { sessionId, unitCode, qrCode } = await this.openSessionAndCode(tx, tenantId, dto.categoryId, dto.gradeId, userId);
-      const sources = dto.fromUngraded
+      const all = dto.fromUngraded
         ? await this.categorySources(tx, tenantId, dto.categoryId, null, dto.ragId)
         : await this.loadSources(tx, tenantId, dto.categoryId, dto.gradeId, dto.ragId);
       if (dto.gradeId && !(await tx.grade.findFirst({ where: { id: dto.gradeId, tenantId }, select: { id: true } }))) throw new BadRequestException('Invalid grade');
-      const takes = dto.allocations?.length ? this.pickManual(sources, dto.allocations, weightKg) : this.pickFifo(sources, weightKg);
+      // Sorted pieces without kg (a lot bought by the piece without a weight) are baled by the piece: the bale takes
+      // `pieces` of them, and its weight is whatever was weighed (or none). Everything else is baled by kg.
+      const byPieces = !!dto.pieces && !dto.allocations?.length && all.some((s) => s.byPieces);
+      const sources = all.filter((s) => !!s.byPieces === byPieces);
+      if (!byPieces && weightKg.isZero()) throw new BadRequestException('Enter the bale weight');
+      if (!byPieces && !sources.length && all.some((s) => s.byPieces)) {
+        throw new BadRequestException('These pieces were sorted without a weight: enter how many pieces are in the bale');
+      }
+      const takes = byPieces
+        ? this.pickFifo(sources, new Decimal(dto.pieces!), 'pieces')
+        : dto.allocations?.length ? this.pickManual(sources, dto.allocations, weightKg) : this.pickFifo(sources, weightKg);
 
       const unit = await tx.repackUnit.create({
         data: {
@@ -176,8 +188,8 @@ export class BaleService {
           pcsCount: dto.pieces ?? 0,
           totalCost: ZERO,
           status: RepackStatus.SEALED,
-          measurementType: MeasurementType.WEIGHT,
-          targetAmount: weightKg,
+          measurementType: byPieces ? MeasurementType.QUANTITY : MeasurementType.WEIGHT,
+          targetAmount: byPieces ? new Decimal(dto.pieces!) : weightKg,
           allocationMode: dto.allocations?.length ? AllocationMode.MANUAL : AllocationMode.FIFO,
           createdBy: userId,
         },
@@ -197,7 +209,7 @@ export class BaleService {
             containerId: source.containerId,
             ragBaleId: source.ragId,
             amountUsed: kg,
-            measurementType: MeasurementType.WEIGHT,
+            measurementType: source.byPieces ? MeasurementType.QUANTITY : MeasurementType.WEIGHT,
             allocatedCost: cost,
           },
         });
@@ -231,7 +243,8 @@ export class BaleService {
           quantity: 1,
           totalCost,
           unitCost: totalCost,
-          weightKg,
+          // A bale of pieces nobody weighed has no weight (it is sold by the bale or by the piece).
+          weightKg: weightKg.isZero() ? null : weightKg,
           pcsCount: sealed.pcsCount,
           avgCost: money(costPerKg(totalCost, weightKg)),
           warehouseId: dto.warehouseId ?? null,
@@ -464,13 +477,15 @@ export class BaleService {
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });
     return rows
-      .filter((o) => o.usedKg.lessThan(o.weightKg))
+      .filter((o) => (o.weightKg.isZero() ? o.usedPieces < o.count : o.usedKg.lessThan(o.weightKg)))
       .map((o) => ({
         kind: 'CATEGORY' as const,
         id: o.id,
-        kg: o.weightKg,
+        // An entry without kg (a lot without a weight) is measured in pieces.
+        byPieces: o.weightKg.isZero(),
+        kg: o.weightKg.isZero() ? new Decimal(o.count) : o.weightKg,
         cost: o.allocatedCost,
-        usedKg: o.usedKg,
+        usedKg: o.weightKg.isZero() ? new Decimal(o.usedPieces) : o.usedKg,
         categoryId: o.categoryId,
         categoryName: o.category.name,
         gradeId: o.gradeId,
@@ -487,11 +502,15 @@ export class BaleService {
       }));
   }
 
-  private pickFifo(sources: SortedSource[], weightKg: Decimal) {
+  private pickFifo(sources: SortedSource[], weightKg: Decimal, unit: 'kg' | 'pieces' = 'kg') {
     try {
       return fifoTake(sources.map((s) => ({ key: s, availableKg: s.kg.sub(s.usedKg) })), weightKg).map((t) => ({ source: t.key, kg: t.kg }));
     } catch (error) {
       if (error instanceof InsufficientStockError) {
+        if (unit === 'pieces') {
+          const n = error.availableKg.toFixed(0);
+          throw new BadRequestException(`Not enough sorted pieces: ${n} available. Enter ${n} or fewer.`);
+        }
         const left = error.availableKg.toFixed(2);
         throw new BadRequestException(`Not enough sorted stock: ${left} kg available. Enter ${left} kg or less.`);
       }
@@ -535,10 +554,15 @@ export class BaleService {
               status: usedAfter.equals(source.kg) ? GradingOutputStatus.DEPLETED : GradingOutputStatus.PARTIALLY_USED,
             },
           })
-        : await tx.categoryOutput.updateMany({
-            where: { id: source.id, tenantId, usedKg: source.usedKg },
-            data: { usedKg: usedAfter },
-          });
+        : source.byPieces
+          ? await tx.categoryOutput.updateMany({
+              where: { id: source.id, tenantId, usedPieces: source.usedKg.toNumber() },
+              data: { usedPieces: usedAfter.toNumber() },
+            })
+          : await tx.categoryOutput.updateMany({
+              where: { id: source.id, tenantId, usedKg: source.usedKg },
+              data: { usedKg: usedAfter },
+            });
     if (updated.count !== 1) throw new ConflictException('Stock changed while making the bale. Please try again.');
   }
 

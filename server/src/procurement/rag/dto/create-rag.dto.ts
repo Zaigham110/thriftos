@@ -17,9 +17,11 @@ export class CreateRagDto {
   @IsOptional()
   rawCategoryId?: string;
 
+  /** Kg of the lot. Optional only for a loose lot bought by the piece (`pieces`): it is then counted in pieces. */
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
-  weightKg: number;
+  @IsOptional()
+  weightKg?: number;
 
   /** Price paid for a loose lot (no container). Container lots take a share of the landed cost. */
   @IsNumber({ maxDecimalPlaces: 2 })

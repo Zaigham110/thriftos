@@ -157,7 +157,7 @@ export class SortSessionService {
       this.prisma.categoryOutput.findMany({
         where: { tenantId, sortSessionId: sessionId },
         select: {
-          id: true, categoryId: true, gradeId: true, weightKg: true, usedKg: true, allocatedCost: true, entryBales: true, createdAt: true, count: true,
+          id: true, categoryId: true, gradeId: true, weightKg: true, usedKg: true, usedPieces: true, allocatedCost: true, entryBales: true, createdAt: true, count: true,
           category: { select: { name: true } }, grade: { select: { name: true, rank: true } },
           _count: { select: { gradeSessions: true } },
           baleAllocations: { select: { repackUnitId: true, repackUnit: { select: { createdAt: true, weightKg: true, categoryId: true, gradeId: true, category: { select: { name: true } }, grade: { select: { name: true, rank: true } }, inventoryItems: { select: { usedQuantity: true, status: true } }, _count: { select: { inputAllocations: true } } } } } },
@@ -219,6 +219,11 @@ export class SortSessionService {
         // Pieces still loose: the entry's pieces in proportion to its kg not baled yet (bales by pieces, owner 2026-11-11).
         if (o.count > 0 && o.weightKg.greaterThan(0)) l.availablePieces += Math.round(left.mul(o.count).div(o.weightKg).toNumber());
         loose.set(key, l);
+      } else if (o.weightKg.isZero() && o.count > o.usedPieces && !o._count.gradeSessions) {
+        // An entry of a lot without a weight: only pieces, baled by the piece.
+        const l = loose.get(key) ?? { categoryId: o.categoryId, categoryName: o.category.name, gradeId: o.gradeId, gradeName: o.grade?.name ?? null, rank: o.grade?.rank ?? 0, availableKg: ZERO, availablePieces: 0 };
+        l.availablePieces += o.count - o.usedPieces;
+        loose.set(key, l);
       }
     }
     for (const { repackUnitId, repackUnit: u } of gradedBales) {
@@ -276,7 +281,7 @@ export class SortSessionService {
         // Can be taken back while the lot is open and nothing from it is used (same rule as the server's undo).
         const used = ownBales
           ? o.baleAllocations.some((a) => a.repackUnit._count.inputAllocations > 1 || a.repackUnit.inventoryItems.some((i) => i.usedQuantity.greaterThan(0) || i.status !== InventoryStatus.AVAILABLE))
-          : o.usedKg.greaterThan(0) || o._count.gradeSessions > 0;
+          : o.usedKg.greaterThan(0) || o.usedPieces > 0 || o._count.gradeSessions > 0;
         return {
           id: o.id,
           at: o.createdAt,
@@ -383,7 +388,7 @@ export class SortSessionService {
       const session = await tx.sortSession.update({
         where: { id: dto.sessionId },
         data: { totalOutputWeight: outputKg, wasteWeight: capacity.inputKg.sub(outputKg) },
-        select: { ragId: true, rag: { select: { allocatedCost: true, weightKg: true, containerId: true } } },
+        select: { ragId: true, rag: { select: { allocatedCost: true, weightKg: true, containerId: true, pieces: true } } },
       });
       const output = await tx.categoryOutput.create({
         data: {
@@ -394,7 +399,10 @@ export class SortSessionService {
           weightKg: entry.kg,
           count: entry.pieces,
           entryBales: entry.bales,
-          allocatedCost: openLotCost(session.rag.allocatedCost, session.rag.weightKg, entry.kg),
+          // A lot bought by the piece: its share of the pieces; otherwise its share of the kg.
+          allocatedCost: session.rag.pieces
+            ? openLotCost(session.rag.allocatedCost, session.rag.pieces, entry.pieces)
+            : openLotCost(session.rag.allocatedCost, session.rag.weightKg, entry.kg),
           containerId: session.rag.containerId,
           ragId: session.ragId,
           sortSessionId: dto.sessionId,
@@ -477,7 +485,7 @@ export class SortSessionService {
     if (left.isZero()) return;
     const session = await tx.sortSession.findFirstOrThrow({ where: { id: sessionId, tenantId }, select: { rag: { select: { allocatedCost: true, weightKg: true } } } });
     const loose = await tx.categoryOutput.findMany({
-      where: { tenantId, sortSessionId: sessionId, categoryId, gradeId, entryBales: 0, usedKg: 0, gradeSessions: { none: {} } },
+      where: { tenantId, sortSessionId: sessionId, categoryId, gradeId, entryBales: 0, usedKg: 0, usedPieces: 0, gradeSessions: { none: {} } },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
     if (loose.reduce((t, o) => t.add(o.weightKg), ZERO).lessThan(left)) {
@@ -494,7 +502,8 @@ export class SortSessionService {
   }
 
   /** Deletes a sorting entry and the bales made from it, if none of it has been used. */
-  private async deleteEntry(tx: Tx, tenantId: string, output: { id: string; usedKg: Decimal; entryBales: number; baleAllocations: { repackUnitId: string }[] }) {
+  private async deleteEntry(tx: Tx, tenantId: string, output: { id: string; usedKg: Decimal; usedPieces?: number; entryBales: number; baleAllocations: { repackUnitId: string }[] }) {
+    if (!output.entryBales && (output.usedPieces ?? 0) > 0) throw new ConflictException('Some of these pieces are already in a bale; it cannot be taken back');
     const unitIds = [...new Set(output.baleAllocations.map((a) => a.repackUnitId))];
     if (!output.entryBales && output.usedKg.greaterThan(0)) throw new ConflictException('Some of these kg are already in a bale; it cannot be taken back');
     if (await tx.gradeSession.count({ where: { tenantId, categoryOutputId: output.id } })) throw new ConflictException('This entry is being graded; it cannot be taken back');
@@ -522,11 +531,13 @@ export class SortSessionService {
   async close(tenantId: string, sessionId: string, userId: string, wasteCategoryId?: string) {
     const result = await this.prisma.$transaction(async (tx) => {
       const capacity = await this.waste.bookRemainder(tx, tenantId, WasteStage.STAGE_1, sessionId, wasteCategoryId);
-      if (capacity.outputKg.equals(ZERO)) throw new BadRequestException('Record at least one category before closing');
       const session = await tx.sortSession.findFirstOrThrow({
         where: { id: sessionId, tenantId },
-        include: { rag: { select: { id: true, ragCode: true, containerId: true } }, sortCategoryBuckets: true },
+        include: { rag: { select: { id: true, ragCode: true, containerId: true, pieces: true, weightKg: true } }, sortCategoryBuckets: true },
       });
+      const sortedPieces = session.rag.pieces ? (await tx.categoryOutput.aggregate({ where: { tenantId, sortSessionId: sessionId }, _sum: { count: true } }))._sum.count ?? 0 : 0;
+      // A lot without a weight has no kg: it needs at least one entry of pieces.
+      if (capacity.outputKg.equals(ZERO) && !sortedPieces) throw new BadRequestException('Record at least one category before closing');
 
       // Lots sorted before v2 6.6 keep kg on the category without an entry: give it one now.
       for (const bucket of session.sortCategoryBuckets) {
@@ -541,7 +552,7 @@ export class SortSessionService {
 
       // Untouched loose kg of a category without a grade becomes one output (what the separate grading step takes).
       const loose = await tx.categoryOutput.findMany({
-        where: { tenantId, sortSessionId: sessionId, gradeId: null, entryBales: 0, usedKg: 0, gradeSessions: { none: {} } },
+        where: { tenantId, sortSessionId: sessionId, gradeId: null, entryBales: 0, usedKg: 0, usedPieces: 0, gradeSessions: { none: {} } },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       });
       for (const categoryId of new Set(loose.map((o) => o.categoryId))) {
@@ -560,7 +571,11 @@ export class SortSessionService {
         where: { id: sessionId },
         data: { status: SortStatus.CLOSED, endTime: new Date(), totalOutputWeight: capacity.outputKg, wasteWeight: katKg },
       });
-      const katId = katKg.greaterThan(ZERO) ? await this.katToStock(tx, tenantId, session, katKg, wasteCategoryId) : null;
+      // Kat: the kg left; a lot without a weight leaves pieces instead (into stock as pieces, at no cost).
+      const katPieces = session.rag.pieces && session.rag.weightKg.isZero() ? session.rag.pieces - sortedPieces : 0;
+      const katId = katKg.greaterThan(ZERO)
+        ? await this.katToStock(tx, tenantId, session, katKg, wasteCategoryId)
+        : katPieces > 0 ? await this.katToStock(tx, tenantId, session, new Decimal(katPieces), wasteCategoryId, StockUnit.PIECE) : null;
       // Now closed: the lot's whole cost is shared over what came out (kat carries none).
       const costing = await this.costing.recostLotOutputsTx(tx, tenantId, session.ragId, userId);
       return { katKg, katId, adjustments: costing.adjustments.length };
@@ -578,7 +593,8 @@ export class SortSessionService {
   }
 
   /** Kat into stock: one loose-kg item named after the waste type and lot, at zero cost, to sell or throw away. */
-  private async katToStock(tx: Tx, tenantId: string, session: { id: string; ragId: string; rag: { ragCode: string; containerId: string | null } }, kg: Decimal, wasteCategoryId?: string) {
+  private async katToStock(tx: Tx, tenantId: string, session: { id: string; ragId: string; rag: { ragCode: string; containerId: string | null } }, kg: Decimal, wasteCategoryId?: string, unit: StockUnit = StockUnit.KG) {
+    const pieces = unit === StockUnit.PIECE;
     const type = wasteCategoryId
       ? await tx.wasteCategory.findFirst({ where: { id: wasteCategoryId, tenantId }, select: { name: true } })
       : await tx.wasteCategory.findFirst({ where: { tenantId, isActive: true, linkedCategoryId: null }, orderBy: { createdAt: 'asc' }, select: { name: true } });
@@ -587,19 +603,20 @@ export class SortSessionService {
         tenantId,
         source: StockSource.KAT,
         name: `${type?.name ?? 'Kat'} · ${session.rag.ragCode}`,
-        unit: StockUnit.KG,
+        unit,
         quantity: kg,
         totalCost: ZERO,
         unitCost: ZERO,
         avgCost: money(ZERO),
-        weightKg: kg,
+        weightKg: pieces ? null : kg,
+        pcsCount: pieces ? kg.toNumber() : 0,
         status: InventoryStatus.AVAILABLE,
         containerId: session.rag.containerId,
         ragId: session.ragId,
       },
     });
     await tx.stockMovement.create({
-      data: { inventoryItemId: item.id, movementType: MovementType.INTAKE, quantityKg: kg, referenceId: session.id, metadataJson: { kind: 'KAT', sortSessionId: session.id } },
+      data: { inventoryItemId: item.id, movementType: MovementType.INTAKE, quantityKg: pieces ? 0 : kg, quantityPcs: pieces ? kg.toNumber() : 0, referenceId: session.id, metadataJson: { kind: 'KAT', sortSessionId: session.id } },
     });
     return item.id;
   }

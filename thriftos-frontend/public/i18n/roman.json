@@ -1478,7 +1478,8 @@
    "costPerPiece": "Fi piece laagat",
    "needPieces": "kitne piece",
    "needPieceRate": "fi piece rate",
-   "piecesN": "{n} piece"
+   "piecesN": "{n} piece",
+   "weightOptional": "Agar wazan nahi kiya to khali chhor dein: lot phir piece mein gini jaye gi."
   },
   "lotStatus": {
    "IN_SORTING": "Chhantai",

@@ -91,8 +91,9 @@ const day = (v: string) => new Date(new Date(v).getTime() + 5 * 3_600_000).toISO
             <section class="card">
               <h2>{{ 'ws.cf.weightPrice' | t }}</h2>
               <div class="grid">
-                <label>{{ 'receive.lotWeight' | t }} ({{ 'unit.kgShort' | t }})
-                  <input name="kg" type="number" min="0.01" step="0.01" required [ngModel]="kg()" (ngModelChange)="kg.set($event)" [disabled]="locked()" />
+                <label>{{ 'receive.lotWeight' | t }} ({{ 'unit.kgShort' | t }})@if (byPiece()) { · {{ 'common.optional' | t }} }
+                  <input name="kg" type="number" min="0.01" step="0.01" [required]="!byPiece()" [ngModel]="kg()" (ngModelChange)="kg.set($event)" [disabled]="locked()" />
+                  @if (byPiece() && !locked()) { <small>{{ 'ws.lf.weightOptional' | t }}</small> }
                   @if (locked()) { <small>{{ 'ws.cf.kgLocked' | t }}</small> }
                 </label>
                 <div class="price">
@@ -290,7 +291,8 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
   }
   protected readonly missing = computed(() => {
     const m: string[] = [];
-    if (!this.kg() || Number(this.kg()) <= 0) m.push('ws.lf.needKg');
+    // Bought by the piece: the weight may be left out (the lot is then counted in pieces only).
+    if ((!this.kg() || Number(this.kg()) <= 0) && !this.byPiece()) m.push('ws.lf.needKg');
     if (this.byPiece() && !(Number(this.pieces()) >= 1 && Number.isInteger(Number(this.pieces())))) m.push('ws.lf.needPieces');
     else if (this.price() === null || this.price()! < 0) m.push(this.byPiece() ? 'ws.lf.needPieceRate' : this.byRate() ? 'ws.lf.needRate' : 'ws.lf.needPrice');
     if (this.charges().some((c) => !(Number(c.amount) > 0))) m.push('ws.lf.needChargeAmount');
@@ -422,7 +424,7 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
       charges: this.charges().map((c) => ({ kind: c.kind, amount: Number(c.amount), ...(c.note.trim() ? { note: c.note.trim() } : {}) })),
       receivedAt: this.date,
       notes: this.notes.trim(),
-      ...(this.locked() ? {} : { weightKg: Number(this.kg()), ...(this.rawCategoryId ? { rawCategoryId: this.rawCategoryId } : {}) }),
+      ...(this.locked() ? {} : { ...(Number(this.kg()) > 0 ? { weightKg: Number(this.kg()) } : {}), ...(this.rawCategoryId ? { rawCategoryId: this.rawCategoryId } : {}) }),
     };
     this.busy.set(true);
     try {

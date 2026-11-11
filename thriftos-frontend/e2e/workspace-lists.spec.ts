@@ -1064,3 +1064,41 @@ test('pieces through the cycle: a lot bought by the piece is sorted in pieces an
   await entry.getByRole('button', { name: /^Save bales/ }).click();
   await expect(ready).toContainText('100 pcs');
 });
+
+test('a lot bought by the piece without a weight: saved, sorted in pieces and baled by pieces (owner, 2026-11-12)', async ({ page, request }) => {
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await signIn(page);
+  await page.goto('/receive/records/lots/new');
+  await page.getByRole('radio', { name: 'Rate per piece' }).click();
+  // The weight is optional once bought by the piece.
+  await expect(page.getByText('Leave empty if it was not weighed')).toBeVisible();
+  await page.getByLabel(/^Pieces/).fill('300');
+  await page.getByLabel(/^Rate per piece/).fill('200');
+  await expect(page.getByRole('status').filter({ hasText: 'Still needed' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Save lot' }).click();
+  await expect(page).toHaveURL(/\/sort\/records\/(?!new)[^/]+$/);
+  const id = page.url().split('/').pop()!;
+  const lot = await (await apiAs(request)).get(`/procurement/rags/${id}`);
+  expect([Number(lot.weightKg), lot.pieces, Number(lot.purchaseCost)]).toEqual([0, 300, 60000]);
+
+  const cats = (await (await apiAs(request)).get('/tenant/categories')) as Array<{ id: string; name: string }>;
+  const cat = cats[1] ?? cats[0];
+  await page.setViewportSize({ width: 390, height: 860 });
+  await page.goto(`/sort/${id}`);
+  await page.locator('.tiles').getByRole('button').filter({ hasText: cat.name }).first().click();
+  const entry = page.locator('.entry');
+  await entry.getByLabel(/^Pieces/).fill('120');
+  await entry.getByRole('button', { name: /^Save/ }).click();
+  await expect(entry).toBeHidden();
+  await expect(page.locator('.overview')).toContainText('180 pcs');
+
+  // Bale by pieces, weighed (optional): 60 pieces, 30 kg.
+  const ready = page.locator('.ready li', { hasText: cat.name });
+  await expect(ready).toContainText('120 pcs');
+  await ready.getByRole('button', { name: 'Make bales' }).click();
+  await expect(entry.getByRole('button', { name: 'Kg per bale' })).toHaveCount(0);
+  await entry.getByLabel(/^Pieces per bale/).fill('60');
+  await entry.getByLabel(/^Kg per bale/).fill('30');
+  await entry.getByRole('button', { name: /^Save bales/ }).click();
+  await expect(ready).toContainText('60 pcs');
+});

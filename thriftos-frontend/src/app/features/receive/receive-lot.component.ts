@@ -36,7 +36,7 @@ const today = () => new Date(Date.now() + 5 * 3_600_000).toISOString().slice(0, 
         </section>
       } @else {
         <section class="card">
-          <tos-number label="receive.lotWeight" unit="unit.kgShort" [(value)]="weightKg" />
+          <tos-number label="receive.lotWeight" unit="unit.kgShort" [optional]="byPiece()" [hint]="byPiece() ? ('ws.lf.weightOptional' | t) : null" [(value)]="weightKg" />
           <div class="chips" role="radiogroup" [attr.aria-label]="'ws.lf.priceAs' | t">
             <button type="button" class="chip" role="radio" [attr.aria-checked]="!byRate() && !byPiece()" [class.on]="!byRate() && !byPiece()" (click)="priceAs('TOTAL')">{{ 'ws.lf.total' | t }}</button>
             <button type="button" class="chip" role="radio" [attr.aria-checked]="byRate()" [class.on]="byRate()" (click)="priceAs('KG')">{{ 'ws.lf.rate' | t }}</button>
@@ -130,7 +130,7 @@ export class ReceiveLotComponent implements OnInit {
   protected readonly rawTypes = signal<{ id: string; name: string }[]>([]);
   protected readonly rawType = signal<string | null>(null);
   protected readonly missing = computed(() => [
-    ...(!this.weightKg() ? ['ws.lf.needKg'] : []),
+    ...(!this.weightKg() && !this.byPiece() ? ['ws.lf.needKg'] : []),
     ...(this.byPiece() && !this.pieces() ? ['ws.lf.needPieces'] : this.price() === null ? [this.byPiece() ? 'ws.lf.needPieceRate' : this.byRate() ? 'ws.lf.needRate' : 'ws.lf.needPrice'] : []),
   ]);
   protected readonly missingText = computed(() => this.missing().map((k) => this.i18n.t(k)).join(' · '));
@@ -157,7 +157,7 @@ export class ReceiveLotComponent implements OnInit {
   protected async save(): Promise<void> {
     const s = this.supplier();
     const body = {
-      ragBaleType: 'BALE', weightKg: this.weightKg(),
+      ragBaleType: 'BALE', ...(this.weightKg() ? { weightKg: this.weightKg() } : {}),
       ...(this.byPiece() ? { pieces: this.pieces(), ratePerPiece: this.pieceRate() } : this.byRate() ? { ratePerKg: this.rate() } : { purchaseCost: this.cost() }),
       charges: ([['TRANSPORT', this.transport()], ['LABOUR', this.labour()], ['OTHER', this.other()]] as const)
         .filter(([, a]) => (a ?? 0) > 0).map(([kind, amount]) => ({ kind, amount })),

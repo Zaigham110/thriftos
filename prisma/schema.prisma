@@ -1033,6 +1033,8 @@ model CategoryOutput {
   weightKg             Decimal @db.Decimal(10, 2)
   /// kg already put into bales directly (tenants that sort in one stage). Graded outputs stay 0.
   usedKg               Decimal @default(0) @db.Decimal(10, 2)
+  /// Pieces already in bales, for an entry of a lot bought by the piece without a weight (its weightKg is 0).
+  usedPieces           Int     @default(0)
   count                Int     @default(0)
   /// Graded while sorting (v2 6.6): this output is already of this grade. Null = not graded.
   gradeId              String?

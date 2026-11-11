@@ -113,7 +113,7 @@ export class CostingService {
   private async recalculateLotTx(
     tx: Tx,
     tenantId: string,
-    lot: { id: string; allocatedCost: Decimal; weightKg: Decimal },
+    lot: { id: string; allocatedCost: Decimal; weightKg: Decimal; pieces?: number | null },
     lotCost: Decimal,
     result: RecalculationResult,
   ) {
@@ -124,22 +124,27 @@ export class CostingService {
     const outputs = await tx.categoryOutput.findMany({
       where: { tenantId, ragId: lot.id },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      select: { id: true, weightKg: true, allocatedCost: true },
+      select: { id: true, weightKg: true, allocatedCost: true, count: true },
     });
     if (!outputs.length) return;
+    // A lot bought by the piece shares its cost by pieces (its entries' kg, if any, are the same shares); an entry
+    // without kg (a lot without a weight) gives bales pieces, so its bales are costed by pieces too.
+    const byPieces = !!lot.pieces;
+    const part = (o: { weightKg: Decimal; count: number }) => (byPieces ? new Decimal(o.count) : o.weightKg);
+    const measure = (o: { weightKg: Decimal; count: number }) => (o.weightKg.greaterThan(0) ? o.weightKg : new Decimal(o.count));
     const units = new Set<string>();
     // Still being sorted: each output costs its kg at the lot's cost per kg; the kat's cost is shared at close.
     const open = await tx.sortSession.count({ where: { tenantId, ragId: lot.id, status: SortStatus.OPEN } });
     const shares = open
-      ? outputs.map((o) => ({ key: o, amount: openLotCost(lotCost, lot.weightKg, o.weightKg) }))
-      : outputCosts(lotCost, outputs.map((o) => ({ key: o, kg: o.weightKg })));
+      ? outputs.map((o) => ({ key: o, amount: openLotCost(lotCost, byPieces ? lot.pieces! : lot.weightKg, part(o)) }))
+      : outputCosts(lotCost, outputs.map((o) => ({ key: o, kg: part(o) })));
     for (const share of shares) {
       const output = share.key;
       if (!share.amount.equals(output.allocatedCost)) {
         await tx.categoryOutput.update({ where: { id: output.id }, data: { allocatedCost: share.amount } });
         result.changed.categoryOutputs += 1;
       }
-      await this.recalculateCategoryOutputTx(tx, tenantId, output.id, share.amount, output.weightKg, units, result);
+      await this.recalculateCategoryOutputTx(tx, tenantId, output.id, share.amount, measure(output), units, result);
     }
     await this.recalculateBalesTx(tx, [...units], result);
   }

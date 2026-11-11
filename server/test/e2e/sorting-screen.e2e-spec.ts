@@ -181,4 +181,49 @@ describe('Sorting screen: lot details, entries, remove one, finished lot (e2e)',
     // Another business cannot sort it.
     await api(app, b).post('/sorting/stage-1/allocate', { sessionId: session.id, categoryId: jeans.id, pieces: 1 }).expect((r) => expect([400, 403, 404, 409]).toContain(r.status));
   });
+
+  it('a lot bought by the piece without a weight: counted in pieces, baled by pieces (weighed or not), leftover pieces as waste (owner, 2026-11-12)', async () => {
+    const { jeans, shirts, waste } = await seedSortableLot(app, a.tenantId);
+    // No weight without pieces; a weightless lot needs pieces.
+    await api(app, a).post('/procurement/rags', { ragBaleType: 'BALE', purchaseCost: 1000 }).expect(400);
+    const lot = (await api(app, a).post('/procurement/rags', { ragBaleType: 'BALE', pieces: 500, ratePerPiece: 300 }).expect(201)).body;
+    expect([Number(lot.weightKg), lot.pieces, Number(lot.allocatedCost)]).toEqual([0, 500, 150000]);
+    const session = (await api(app, a).post('/sorting/stage-1/start', { ragId: lot.id }).expect(201)).body.session;
+
+    let s = (await api(app, a).post('/sorting/stage-1/allocate', { sessionId: session.id, categoryId: jeans.id, pieces: 200 }).expect(200)).body;
+    expect([s.entries[0].kg, s.entries[0].pieces]).toEqual(['0', 200]);
+    expect(Number((await prisma.categoryOutput.findFirstOrThrow({ where: { id: s.entries[0].id } })).allocatedCost)).toBe(60000);
+    expect(s.ready.find((r: any) => r.categoryId === jeans.id)).toMatchObject({ availableKg: '0', availablePieces: 200 });
+
+    // A bale by kg alone cannot take pieces that have no weight; by pieces it can, weighed or not.
+    await api(app, a).post('/stock/bales', { categoryId: jeans.id, fromUngraded: true, ragId: lot.id, count: 1, weightKg: 40 }).expect(400);
+    const plain = (await api(app, a).post('/stock/bales', { categoryId: jeans.id, fromUngraded: true, ragId: lot.id, count: 1, pieces: 100 }).expect(201)).body;
+    const weighed = (await api(app, a).post('/stock/bales', { categoryId: jeans.id, fromUngraded: true, ragId: lot.id, count: 1, pieces: 50, weightKg: 45 }).expect(201)).body;
+    await api(app, a).post('/stock/bales', { categoryId: jeans.id, fromUngraded: true, ragId: lot.id, count: 1, pieces: 51 }).expect(400);
+    const plainItem = await prisma.inventoryItem.findFirstOrThrow({ where: { repackUnitId: plain.baleIds[0] } });
+    const weighedItem = await prisma.inventoryItem.findFirstOrThrow({ where: { repackUnitId: weighed.baleIds[0] } });
+    expect([plainItem.weightKg, plainItem.pcsCount, Number(plainItem.totalCost)]).toEqual([null, 100, 30000]);
+    expect([Number(weighedItem.weightKg), weighedItem.pcsCount, Number(weighedItem.totalCost)]).toEqual([45, 50, 15000]);
+    s = (await api(app, a).get(`/sorting/stage-1/summary?ragId=${lot.id}`).expect(200)).body;
+    expect(s.ready.find((r: any) => r.categoryId === jeans.id)).toMatchObject({ availablePieces: 50 });
+    // Pieces already in a bale cannot be taken back.
+    await api(app, a).post(`/sorting/stage-1/entries/${s.entries[0].id}/remove`).expect(409);
+
+    // 250 Shirts; closing leaves 50 pieces as waste in stock, and the cost is shared over the 450 sorted.
+    await api(app, a).post('/sorting/stage-1/allocate', { sessionId: session.id, categoryId: shirts.id, pieces: 250 }).expect(200);
+    await api(app, a).patch(`/sorting/stage-1/${session.id}/seal`, { wasteCategoryId: waste.id }).expect(200);
+    const outs = await prisma.categoryOutput.findMany({ where: { ragId: lot.id }, orderBy: { createdAt: 'asc' } });
+    expect(outs.map((o) => [o.count, Number(o.allocatedCost)])).toEqual([[200, 66666.67], [250, 83333.33]]);
+    const kat = await prisma.inventoryItem.findFirstOrThrow({ where: { ragId: lot.id, source: 'KAT' } });
+    expect([kat.unit, Number(kat.quantity), kat.weightKg]).toEqual(['PIECE', 50, null]);
+    // The bales follow the new cost: 100 and 50 of the 200 Jeans pieces.
+    expect(Number((await prisma.inventoryItem.findUniqueOrThrow({ where: { id: plainItem.id } })).totalCost)).toBe(33333.34);
+    const page = (await api(app, a).get(`/workspace/sorting/${lot.id}`).expect(200)).body;
+    expect(page.totals).toMatchObject({ sortedPieces: 450, piecesLeft: 50, yieldPercent: 90 });
+
+    // Pieces of the unweighed bale sell by the piece.
+    const buyer = await prisma.customer.create({ data: { tenantId: a.tenantId, name: 'Weightless Buyer', phone: '+923001112398' } });
+    await api(app, a).post('/sales', { customerId: buyer.id, paymentMode: 'CASH', paymentMethod: 'CASH', lines: [{ inventoryItemId: plainItem.id, unit: 'PIECE', quantity: 10, unitPrice: 500 }] }).expect(201);
+    await api(app, b).get(`/workspace/sorting/${lot.id}`).expect(404);
+  });
 });

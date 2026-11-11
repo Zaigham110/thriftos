@@ -31,7 +31,7 @@ export interface SortingRecord {
   categories: { id: string; name: string; kg: string; pieces: number; cost: Money; costPerKg: Money; sharePercent: number | null; usedKg: string; grading: { id: string; status: string; worker: string } | null; gradeTarget: string | null; gradedKg: string; gradedAs: { name: string; kg: string }[]; gradedWhileSorting: boolean; wasteKg: string }[];
   grades: { name: string; kg: string; pieces: number; sharePercent: number | null; cost: Money }[];
   waste: { stage: string; category: string; amount: string; unit: string; value: Money }[];
-  totals: { sortedKg: string; stage1WasteKg: string; stage2WasteKg: string; yieldPercent: number | null; topGradePercent: number | null; minutes: number | null; leftKg: string; progressPercent: number | null };
+  totals: { sortedKg: string; stage1WasteKg: string; stage2WasteKg: string; yieldPercent: number | null; topGradePercent: number | null; minutes: number | null; leftKg: string; progressPercent: number | null; sortedPieces?: number | null; piecesLeft?: number | null };
   bales: { id: string; itemId: string | null; code: string; category: string | null; grade: string | null; kg: string; sold: boolean; cost: Money }[];
 }
 
@@ -63,11 +63,11 @@ const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
 
           <section class="smart">
             <ws-smart-button [label]="'ws.sortRecord.input' | t" [value]="i18n.kg(d.lot.kg)" [icon]="icons.Scale" [link]="[]" />
-            <ws-smart-button [label]="'ws.lots.col.sorted' | t" [value]="i18n.kg(d.totals.sortedKg)" [icon]="icons.Layers3" [link]="[]" />
+            <ws-smart-button [label]="'ws.lots.col.sorted' | t" [value]="amount(d.totals.sortedPieces, d.totals.sortedKg)" [icon]="icons.Layers3" [link]="[]" />
             @if (d.lot.status === 'SORTED') {
               <ws-smart-button [label]="'ws.lots.col.waste' | t" [value]="i18n.kg(wasteTotal())" [icon]="icons.Trash2" [link]="[]" />
             } @else {
-              <ws-smart-button [label]="'ws.lots.col.left' | t" [value]="i18n.kg(d.totals.leftKg)" [icon]="icons.Scale" [link]="[]" />
+              <ws-smart-button [label]="'ws.lots.col.left' | t" [value]="amount(d.totals.piecesLeft, d.totals.leftKg)" [icon]="icons.Scale" [link]="[]" />
             }
             <!-- While sorting: how far it has got; once sorted: the yield (v2 cycle review: it showed "—" while sorting). -->
             <ws-smart-button [label]="'ws.containers.col.yield' | t" [value]="pct(d.totals.yieldPercent ?? d.totals.progressPercent)" [icon]="icons.Percent" [tone]="d.lot.status === 'SORTED' && (d.totals.yieldPercent ?? 100) < 80 ? 'bad' : 'plain'" [link]="[]" />
@@ -93,7 +93,7 @@ const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
           @if (d.lot.status !== 'SORTED') {
             <div class="progress" role="progressbar" [attr.aria-label]="'ws.sortRecord.progress' | t" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="d.totals.progressPercent ?? 0">
               <i [style.width.%]="d.totals.progressPercent ?? 0"></i>
-              <span>{{ 'ws.sortRecord.progressText' | t: { pct: i18n.num(d.totals.progressPercent ?? 0, 0), sorted: i18n.kg(d.totals.sortedKg), left: i18n.kg(d.totals.leftKg) } }}</span>
+              <span>{{ 'ws.sortRecord.progressText' | t: { pct: i18n.num(d.totals.progressPercent ?? 0, 0), sorted: amount(d.totals.sortedPieces, d.totals.sortedKg), left: amount(d.totals.piecesLeft, d.totals.leftKg) } }}</span>
             </div>
           }
 
@@ -271,5 +271,10 @@ export class SortingRecordComponent {
 
   protected round2(n: number): number {
     return Math.round(n * 100) / 100;
+  }
+
+  /** Pieces for a lot bought by the piece ("320 pcs"), else kg. */
+  protected amount(pieces: number | null | undefined, kg: string): string {
+    return pieces !== null && pieces !== undefined ? this.i18n.t('ws.lf.piecesN', { n: this.i18n.num(pieces) }) : this.i18n.kg(kg);
   }
 }

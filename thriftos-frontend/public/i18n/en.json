@@ -1478,7 +1478,8 @@
    "costPerPiece": "Cost per piece",
    "needPieces": "how many pieces",
    "needPieceRate": "the rate per piece",
-   "piecesN": "{n} pcs"
+   "piecesN": "{n} pcs",
+   "weightOptional": "Leave empty if it was not weighed: the lot is then counted in pieces."
   },
   "lotStatus": {
    "IN_SORTING": "Sorting",

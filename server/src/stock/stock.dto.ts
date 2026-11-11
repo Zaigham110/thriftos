@@ -31,9 +31,11 @@ export class MakeBaleDto {
   @IsOptional()
   gradeId?: string;
 
+  /** Kg of the bale. May be left out for a bale of pieces from a lot bought by the piece without a weight. */
   @IsNumber()
   @IsPositive()
-  weightKg!: number;
+  @IsOptional()
+  weightKg?: number;
 
   @IsInt()
   @Min(0)

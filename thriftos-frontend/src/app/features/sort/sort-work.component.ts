@@ -220,10 +220,10 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
                 @for (k of closePreview(); track k.name) {
                   <li class="row"><span>{{ k.name }}</span><span class="amount">{{ k.kg | kg }} · {{ 'unit.percent' | t: { n: pct(k.kg) } }}</span></li>
                 }
-                <li class="row kat"><span>{{ 'sort.kat' | t }}</span><span class="amount">{{ leftKg() | kg }} · {{ 'unit.percent' | t: { n: pct(leftKg()) } }}</span></li>
+                <li class="row kat"><span>{{ 'sort.kat' | t }}</span><span class="amount">{{ leftText() }}@if (!byPieces()) { · {{ 'unit.percent' | t: { n: pct(leftKg()) } }} }</span></li>
               </ul>
             }
-            <p><strong>{{ (stage() === 1 ? 'sort.closeConfirmKat' : 'sort.finishConfirm') | t: { kg: (leftKg() | kg) } }}</strong></p>
+            <p><strong>{{ (stage() === 1 ? 'sort.closeConfirmKat' : 'sort.finishConfirm') | t: { kg: leftText() } }}</strong></p>
             <div class="row2">
               <button type="button" class="btn" (click)="confirmClose.set(false)">{{ 'common.cancel' | t }}</button>
               <button type="button" class="btn primary" (click)="close()">{{ closeWord() | t }}</button>
@@ -233,7 +233,7 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
 
         <footer class="action-bar">
           <div class="summary"><small>{{ 'sort.leftLabel' | t }}</small><strong>{{ leftKg() | kg }}</strong></div>
-          <button type="button" class="btn primary" [disabled]="sortedKg() <= 0 || inputKg() <= 0 || closing()" (click)="askClose()">{{ closeWord() | t }}</button>
+          <button type="button" class="btn primary" [disabled]="(byPieces() ? sortedPieces() <= 0 : sortedKg() <= 0 || inputKg() <= 0) || closing()" (click)="askClose()">{{ closeWord() | t }}</button>
         </footer>
         </div>
         </div>
@@ -267,7 +267,9 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
             }
             @if (e.purpose === 'bale' && e.ready?.availablePieces) {
               <div class="seg" role="group" [attr.aria-label]="'sort.baleBy' | t">
-                <button type="button" [class.on]="e.baleBy !== 'pieces'" [attr.aria-pressed]="e.baleBy !== 'pieces'" (click)="patch({ baleBy: 'kg' })">{{ 'sort.kgPerBale' | t }}</button>
+                @if (+e.ready!.availableKg > 0) {
+                  <button type="button" [class.on]="e.baleBy !== 'pieces'" [attr.aria-pressed]="e.baleBy !== 'pieces'" (click)="patch({ baleBy: 'kg' })">{{ 'sort.kgPerBale' | t }}</button>
+                }
                 <button type="button" [class.on]="e.baleBy === 'pieces'" [attr.aria-pressed]="e.baleBy === 'pieces'" (click)="patch({ baleBy: 'pieces', baleKg: piecesKg(e, e.piecesPerBale ?? null) })">{{ 'sort.piecesPerBale' | t }}</button>
               </div>
             }
@@ -282,7 +284,11 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
                   </div>
                 </div>
                 @if (e.baleBy === 'pieces') {
-                  <tos-number size="big" label="sort.piecesPerBale" unit="unit.pcs" [decimals]="0" [autofocus]="!e.piecesPerBale" [value]="e.piecesPerBale ?? null" (valueChange)="patch({ piecesPerBale: $event, baleKg: piecesKg(e, $event) })" (enter)="save()" [hint]="e.baleKg ? ('sort.kgEach' | t: { kg: (e.baleKg | kg) }) : null" />
+                  <tos-number size="big" label="sort.piecesPerBale" unit="unit.pcs" [decimals]="0" [autofocus]="!e.piecesPerBale" [value]="e.piecesPerBale ?? null" (valueChange)="patch({ piecesPerBale: $event, baleKg: piecesKg(e, $event) })" (enter)="save()" [hint]="+e.ready!.availableKg > 0 && e.baleKg ? ('sort.kgEach' | t: { kg: (e.baleKg | kg) }) : null" />
+                  @if (+e.ready!.availableKg === 0) {
+                    <!-- Sorted without a weight: the bale may be weighed (optional). -->
+                    <tos-number label="sort.kgPerBale" unit="unit.kgShort" [optional]="true" [value]="e.baleKg" (valueChange)="patch({ baleKg: $event })" (enter)="save()" />
+                  }
                 } @else {
                 <tos-number size="big" label="sort.kgPerBale" unit="unit.kgShort" [autofocus]="!e.baleKg" [value]="e.baleKg" (valueChange)="patch({ baleKg: $event })" (enter)="save()" />
                 }
@@ -293,9 +299,9 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
               <tos-number size="big" label="common.weight" unit="unit.kgShort" [autofocus]="true" [max]="leftKg()" maxMessage="sort.tooMuch" [value]="e.kg" (valueChange)="patch({ kg: $event })" (enter)="save()" />
             }
             @if (tooMuch() && e.mode === 'bales') { <p class="err" role="alert">{{ (e.purpose === 'bale' ? 'sort.tooMuchReady' : 'sort.tooMuch') | t: { kg: (limitKg() | kg) } }}</p> }
-            <button type="button" class="btn primary save" [disabled]="!entryKg() || tooMuch()" (click)="save()">
+            <button type="button" class="btn primary save" [disabled]="!canSave() || tooMuch()" (click)="save()">
               {{ (e.purpose === 'bale' ? 'sort.saveBales' : 'common.save') | t }}
-              @if (entryKg() && !tooMuch()) { <span class="what">· @if (byPieces() && e.purpose === 'sort') { {{ 'ws.lf.piecesN' | t: { n: (e.pieces | num) } }} · {{ entryKg() | kg }} } @else if (e.mode === 'bales') { {{ 'sort.balesTotal' | t: { n: (e.bales | num), kg: (entryKg() | kg) } }} } @else { {{ entryKg() | kg }} }</span> }
+              @if (canSave() && !tooMuch()) { <span class="what">· @if (byPieces() && e.purpose === 'sort') { {{ 'ws.lf.piecesN' | t: { n: (e.pieces | num) } }}@if (entryKg()) { · {{ entryKg() | kg }} } } @else if (e.baleBy === 'pieces') { {{ 'sort.balesTotal' | t: { n: (e.bales | num), kg: ('ws.lf.piecesN' | t: { n: ((e.bales * (e.piecesPerBale ?? 0)) | num) }) } }} } @else if (e.mode === 'bales') { {{ 'sort.balesTotal' | t: { n: (e.bales | num), kg: (entryKg() | kg) } }} } @else { {{ entryKg() | kg }} }</span> }
             </button>
           </section>
         }
@@ -548,6 +554,16 @@ export class SortWorkComponent implements OnInit {
     this.serverPieces() + this.pendingLines().reduce((s, w) => s + Number(w.meta?.['pieces'] ?? 0) * (w.meta?.['type'] === 'undo' ? -1 : 1), 0),
   );
   protected readonly leftPieces = computed(() => this.lotPieces() - this.sortedPieces());
+  /** What is left, as the owner reads it: pieces for a lot bought by the piece, else kg. */
+  protected readonly leftText = computed(() => (this.byPieces() ? this.i18n.t('ws.lf.piecesN', { n: this.i18n.num(this.leftPieces()) }) : this.i18n.kg(this.leftKg())));
+  /** Save is possible: pieces typed (a lot by the piece, even without kg), a bale of pieces, or some kg. */
+  protected readonly canSave = computed(() => {
+    const e = this.entry();
+    if (!e) return false;
+    if (this.byPieces() && e.purpose === 'sort') return (e.pieces ?? 0) > 0;
+    if (e.purpose === 'bale' && e.baleBy === 'pieces') return (e.piecesPerBale ?? 0) > 0 && e.bales > 0;
+    return this.entryKg() > 0;
+  });
 
   /** Stage 1: one tile per category (the grade, if any, is picked in the sheet). Stage 2: grades. */
   private readonly kinds = computed<Kind[]>(() => {
@@ -590,6 +606,7 @@ export class SortWorkComponent implements OnInit {
   protected readonly tooMuch = computed(() => {
     const e = this.entry();
     if (this.byPieces() && e?.purpose === 'sort') return (e.pieces ?? 0) > this.leftPieces();
+    if (e?.purpose === 'bale' && e.baleBy === 'pieces') return e.bales * (e.piecesPerBale ?? 0) > (e.ready?.availablePieces ?? 0);
     return this.entryKg() > this.limitKg() + 0.001;
   });
 
@@ -783,13 +800,15 @@ export class SortWorkComponent implements OnInit {
     const baleKg = lastBaleKg(kind.id) ?? kind.baleKg;
     if (!baleKg) this.keyboardNow();
     // Pieces ready (a lot sorted in pieces): bales of a number of pieces first; kg per bale is one tap away.
-    const byPieces = !!r.availablePieces && this.byPieces();
+    const byPieces = !!r.availablePieces && (this.byPieces() || Number(r.availableKg) === 0);
     this.entry.set({ purpose: 'bale', kind, ready: r, mode: 'bales', gradeId: r.gradeId, bales: 1, baleKg: byPieces ? null : baleKg, kg: null, baleBy: byPieces ? 'pieces' : 'kg', piecesPerBale: null });
   }
 
   /** Kg of a bale of `pieces` pieces: the kind's ready kg per piece. */
   protected piecesKg(e: Entry, pieces: number | null): number | null {
     const kg = Number(e.ready?.availableKg ?? 0), n = e.ready?.availablePieces ?? 0;
+    // Pieces sorted without a weight: kg is only what was weighed, kept as typed.
+    if (!kg) return e.baleKg;
     return pieces && n ? round((pieces * kg) / n) : null;
   }
 
@@ -813,19 +832,20 @@ export class SortWorkComponent implements OnInit {
   private async saveBales(): Promise<void> {
     const e = this.entry();
     const kg = this.entryKg();
-    if (!e?.ready || !e.baleKg || !kg || this.tooMuch()) return;
+    if (!e?.ready || !this.canSave() || this.tooMuch()) return;
+    if (e.baleBy !== 'pieces' && !e.baleKg) return;
     this.entry.set(null);
     const pieces = e.baleBy === 'pieces' ? e.piecesPerBale ?? 0 : 0;
-    if (!pieces) rememberBaleKg(e.kind.id, e.baleKg);
+    if (!pieces && e.baleKg) rememberBaleKg(e.kind.id, e.baleKg);
     const grade = this.gradeOptions().find((g) => g.id === e.gradeId) ?? null;
     const name = grade ? `${e.kind.name} · ${grade.name}` : e.kind.name;
-    const what = `${this.i18n.num(e.bales)} ${this.i18n.t(e.bales === 1 ? 'unit.bale' : 'unit.bales')}${pieces ? ` · ${this.i18n.t('sort.piecesEach', { n: this.i18n.num(pieces) })}` : ''} · ${this.i18n.kg(kg)}`;
+    const what = `${this.i18n.num(e.bales)} ${this.i18n.t(e.bales === 1 ? 'unit.bale' : 'unit.bales')}${pieces ? ` · ${this.i18n.t('sort.piecesEach', { n: this.i18n.num(pieces) })}` : ''}${kg ? ` · ${this.i18n.kg(kg)}` : ''}`;
     try {
       const r = await this.queue.send<{ baleIds?: string[] }>({
         kind: 'bale',
         label: `${this.title()} · ${name} · ${what}`,
         url: '/api/stock/bales',
-        body: { categoryId: e.kind.categoryId, ...(e.gradeId ? { gradeId: e.gradeId } : {}), fromUngraded: !e.ready.gradeId, ragId: this.id(), count: e.bales, weightKg: e.baleKg, ...(pieces ? { pieces } : {}) },
+        body: { categoryId: e.kind.categoryId, ...(e.gradeId ? { gradeId: e.gradeId } : {}), fromUngraded: !e.ready.gradeId, ragId: this.id(), count: e.bales, ...(e.baleKg ? { weightKg: e.baleKg } : {}), ...(pieces ? { pieces } : {}) },
         meta: { kind: kindKey(e.kind.categoryId, e.ready.gradeId), kg },
       });
       if (r.saved && r.response.baleIds?.length) this.lastBales.set({ ids: r.response.baleIds, name });
@@ -857,7 +877,7 @@ export class SortWorkComponent implements OnInit {
   protected async saveEntry(): Promise<void> {
     const e = this.entry();
     const kg = this.entryKg();
-    if (!e || !kg || this.tooMuch()) return;
+    if (!e || !this.canSave() || this.tooMuch()) return;
     this.entry.set(null);
     const bales = e.mode === 'bales' ? e.bales : 0;
     if (bales) rememberBaleKg(e.kind.id, e.baleKg!);
@@ -873,7 +893,7 @@ export class SortWorkComponent implements OnInit {
       ...(pieces ? { pieces } : bales ? { bales, baleWeightKg: e.baleKg } : { amountKg: kg }),
     };
     const what = pieces
-      ? `${this.i18n.t('ws.lf.piecesN', { n: this.i18n.num(pieces) })} · ${this.i18n.kg(kg)}`
+      ? `${this.i18n.t('ws.lf.piecesN', { n: this.i18n.num(pieces) })}${kg ? ` · ${this.i18n.kg(kg)}` : ''}`
       : bales ? `${this.i18n.num(bales)} ${this.i18n.t(bales === 1 ? 'unit.bale' : 'unit.bales')} · ${this.i18n.kg(kg)}` : this.i18n.kg(kg);
     try {
       const r = await this.queue.send<SortSummary>({
@@ -955,6 +975,11 @@ export class SortWorkComponent implements OnInit {
   }
 
   protected askClose(): void {
+    if (this.byPieces()) {
+      if (this.leftPieces() > 0) this.confirmClose.set(true);
+      else void this.close();
+      return;
+    }
     if (this.inputKg() <= 0) return; // weight not known yet (the button is disabled meanwhile)
     if (this.leftKg() > 0) this.confirmClose.set(true);
     else void this.close();

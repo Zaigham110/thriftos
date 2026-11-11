@@ -1478,7 +1478,8 @@
    "costPerPiece": "فی پیس لاگت",
    "needPieces": "کتنے پیس",
    "needPieceRate": "فی پیس ریٹ",
-   "piecesN": "{n} پیس"
+   "piecesN": "{n} پیس",
+   "weightOptional": "اگر وزن نہیں کیا تو خالی چھوڑ دیں: لاٹ پھر پیس میں گنی جائے گی۔"
   },
   "lotStatus": {
    "IN_SORTING": "چھانٹی جاری",

@@ -85,6 +85,7 @@ export class RagService {
         new Prisma.Decimal(0),
       );
       const available = new Prisma.Decimal(container.netWeight).sub(currentTotalWeight);
+      if (!dto.weightKg) throw new BadRequestException('Enter the lot weight');
       if (new Prisma.Decimal(dto.weightKg).greaterThan(available)) {
         throw new BadRequestException(
           `Weight is more than the container has left (${available.toFixed(2)} kg). Enter ${available.toFixed(2)} or less.`,
@@ -123,7 +124,10 @@ export class RagService {
     }
     // A loose lot: the price typed, or kg × rate per kg; its charges (transport, labour…) are part of its cost.
     if (!container) checkPricing(dto);
-    const purchaseCost = container ? null : lotPrice(dto.weightKg, dto.purchaseCost, dto.ratePerKg, { pieces: dto.pieces, rate: dto.ratePerPiece });
+    // The weight may be left out only for a loose lot bought by the piece: it is then counted in pieces (weight 0).
+    if (!dto.weightKg && (container || !dto.pieces)) throw new BadRequestException('Enter the lot weight');
+    const weightKg = dto.weightKg ?? 0;
+    const purchaseCost = container ? null : lotPrice(weightKg, dto.purchaseCost, dto.ratePerKg, { pieces: dto.pieces, rate: dto.ratePerPiece });
     const charges = container ? [] : (dto.charges ?? []);
     const lotCost = purchaseCost ? purchaseCost.add(sumCharges(charges)) : null;
     const boughtAt = container ? null : lotDate(dto.receivedAt);
@@ -139,7 +143,7 @@ export class RagService {
           rawCategoryId,
           vendorId,
           originCountry,
-          weightKg: dto.weightKg,
+          weightKg,
           purchaseCost,
           ratePerKg: !container && dto.ratePerKg !== undefined ? new Prisma.Decimal(dto.ratePerKg) : null,
           pieces: !container && dto.pieces !== undefined ? dto.pieces : null,

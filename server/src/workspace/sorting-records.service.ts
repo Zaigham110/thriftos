@@ -84,6 +84,9 @@ export class SortingRecordsService {
       ...grades,
     ];
     const sortedKg = outputs.reduce((t, o) => t.add(o.weightKg), ZERO);
+    // A lot bought by the piece counts in pieces: sorted %, yield and each row's share are of its pieces.
+    const sortedPieces = outputs.reduce((t, o) => t + o.count, 0);
+    const lotPieces = r.pieces ?? 0;
     const wasteKg = (stage: WasteStage) => waste.filter((w) => w.stage === stage && w.unitType === WasteUnitType.KG).reduce((t, w) => t.add(w.amount), ZERO);
 
     return {
@@ -92,6 +95,8 @@ export class SortingRecordsService {
         rawCategory: r.rawCategory?.name ?? null, container: r.container ? { id: r.container.id, number: r.container.containerNumber } : null,
         supplier: r.container?.vendor ?? r.vendor ?? null, cost: money(canSeeCost, r.allocatedCost),
         costPerKg: money(canSeeCost, r.weightKg.isZero() ? ZERO : r.allocatedCost.div(r.weightKg).toDecimalPlaces(2)),
+        pieces: r.pieces,
+        costPerPiece: lotPieces ? money(canSeeCost, r.allocatedCost.div(lotPieces).toDecimalPlaces(2)) : null,
       },
       // What was paid for a loose lot (v2 cycle review): the price (kg × rate, or the total typed) and each extra charge.
       purchase: canSeeCost && r.purchaseCost !== null
@@ -112,7 +117,7 @@ export class SortingRecordsService {
           id: first.id, name: first.grade ? `${first.category.name} · ${first.grade.name}` : first.category.name,
           kg, pieces: list.reduce((t, o) => t + o.count, 0), cost: money(canSeeCost, cost),
           costPerKg: money(canSeeCost, kg.isZero() ? ZERO : cost.div(kg).toDecimalPlaces(2)),
-          sharePercent: percent(kg, sortedKg), usedKg: list.reduce((t, o) => t.add(o.usedKg), ZERO),
+          sharePercent: lotPieces ? percent(new Prisma.Decimal(list.reduce((t, o) => t + o.count, 0)), new Prisma.Decimal(sortedPieces)) : percent(kg, sortedKg), usedKg: list.reduce((t, o) => t.add(o.usedKg), ZERO),
           grading: gs ? { id: gs.id, status: gs.status, startTime: gs.startTime, endTime: gs.endTime, worker: gs.worker.name } : null,
           // Grading afterwards works on one ungraded entry not in bales (v2): only then does the row open grading.
           gradeTarget: list.length === 1 && !first.grade && first.usedKg.isZero() && gs?.status !== 'CLOSED' ? first.id : null,
@@ -130,11 +135,15 @@ export class SortingRecordsService {
       waste: waste.map((w) => ({ stage: w.stage, category: w.wasteCategory.name, amount: w.amount, unit: w.unitType, value: money(canSeeCost, w.estimatedValue) })),
       totals: {
         sortedKg, stage1WasteKg: wasteKg(WasteStage.STAGE_1), stage2WasteKg: wasteKg(WasteStage.STAGE_2),
-        yieldPercent: s?.status === SortStatus.CLOSED ? percent(sortedKg, r.weightKg) : null,
+        sortedPieces: lotPieces ? sortedPieces : null,
+        piecesLeft: lotPieces ? Math.max(lotPieces - sortedPieces, 0) : null,
+        yieldPercent: s?.status === SortStatus.CLOSED ? (lotPieces ? percent(new Prisma.Decimal(sortedPieces), new Prisma.Decimal(lotPieces)) : percent(sortedKg, r.weightKg)) : null,
         // While sorting: what is still to sort and how far it has got (v2 review).
         leftKg: !s ? r.weightKg : s.status === SortStatus.OPEN ? s.wasteWeight : ZERO,
-        progressPercent: r.weightKg.isZero() ? null : Math.min(100, percent(sortedKg, r.weightKg) ?? 0),
-        topGradePercent: topRank === null ? null : topGradePercent(allGraded.map((g) => ({ rank: g.grade.rank, kg: g.weightKg })), topRank),
+        progressPercent: lotPieces
+          ? Math.min(100, percent(new Prisma.Decimal(sortedPieces), new Prisma.Decimal(lotPieces)) ?? 0)
+          : r.weightKg.isZero() ? null : Math.min(100, percent(sortedKg, r.weightKg) ?? 0),
+        topGradePercent: topRank === null ? null : topGradePercent(allGraded.map((g) => ({ rank: g.grade.rank, kg: lotPieces ? new Prisma.Decimal(g.count ?? 0) : g.weightKg })), topRank),
         minutes: s?.endTime ? Math.round((s.endTime.getTime() - s.startTime.getTime()) / 60_000) : null,
       },
     };
