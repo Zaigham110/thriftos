@@ -28,25 +28,27 @@ let nextId = 0;
   `,
   styles: [`
     :host { display:block; }
-    .nf { display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:center; gap:4px 12px; padding:8px 12px; border:1px solid var(--tos-line); border-radius:12px; background:var(--tos-card); color:var(--tos-ink); }
-    .nf.bad { border-color:var(--tos-warn); }
+    /* One border only: the box. The label sits beside it (or above it, 'big'); no card around the two. */
+    .nf { display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:center; gap:6px 12px; padding:4px 0; color:var(--tos-ink); }
     .label { font-size:15px; font-weight:700; cursor:pointer; }
     .label em { color:var(--tos-ink-soft); font-style:normal; font-weight:600; }
-    .box { display:inline-flex; align-items:center; gap:6px; min-height:48px; padding:0 12px; border:1px solid var(--tos-line); border-radius:10px; background:var(--tos-card); cursor:text; }
-    .box:focus-within { border-color:var(--tos-primary); box-shadow:0 0 0 3px var(--tos-primary-soft, #f3e8ef); }
-    .bad .box { border-color:var(--tos-warn); }
-    input { width:7.5em; min-width:0; padding:0; border:0; outline:0; background:transparent; color:var(--tos-ink); font:inherit; font-size:20px; font-weight:800; text-align:end; font-variant-numeric:tabular-nums; }
-    input::placeholder { color:#b9b1b6; }
+    .nf .box { display:inline-flex; align-items:center; gap:6px; min-height:52px; padding:0 14px; border:1px solid var(--tos-line); border-radius:12px; background:var(--tos-field, var(--tos-card)); cursor:text; }
+    .nf .box:focus-within { border-color:var(--tos-primary); box-shadow:0 0 0 3px var(--tos-primary-soft, #f3e8ef); }
+    .nf.bad .box { border-color:var(--tos-warn); }
+    .nf.bad .box:focus-within { box-shadow:0 0 0 3px var(--tos-warn-soft, #fdecea); }
+    /* The box draws the border; the input itself is bare (beats global ".field input" rules and browser defaults). */
+    .nf .box input { appearance:none; -webkit-appearance:none; width:7.5em; min-width:0; min-height:0; height:auto; margin:0; padding:0; border:0; border-radius:0; outline:0; box-shadow:none; background:transparent; color:var(--tos-ink); font:inherit; font-size:20px; font-weight:800; text-align:end; font-variant-numeric:tabular-nums; }
+    .nf .box input::placeholder { color:#b9b1b6; }
     .unit { color:var(--tos-ink-soft); font-size:15px; font-weight:700; }
     .err, .hint { grid-column:1 / -1; margin:0; font-size:14px; }
     .err { color:var(--tos-warn); font-weight:700; }
     .hint { color:var(--tos-ink-soft); font-weight:600; }
     /* The sorting sheet: the label on top, one wide box with large digits. */
-    .big { grid-template-columns:minmax(0, 1fr); padding:0; border:0; background:none; gap:6px; }
-    .big .box { min-height:64px; padding:0 16px; border-width:2px; border-radius:14px; }
-    .big input { flex:1; width:auto; font-size:30px; text-align:start; }
-    .big .unit { font-size:18px; }
-    @media (max-width:420px) { .nf:not(.big) input { width:6em; } }
+    .nf.big { grid-template-columns:minmax(0, 1fr); padding:0; gap:8px; }
+    .nf.big .box { min-height:64px; padding:0 16px; border-width:2px; border-radius:14px; }
+    .nf.big .box input { flex:1; width:auto; font-size:30px; text-align:start; }
+    .nf.big .unit { font-size:18px; }
+    @media (max-width:420px) { .nf:not(.big) .box input { width:6em; } }
   `],
 })
 export class NumberFieldComponent {
