@@ -7,7 +7,7 @@ import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { LucideAngularModule, Trash2 } from 'lucide-angular';
-import { catchError, debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, filter, of, switchMap } from 'rxjs';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
 import { ListResult } from '../../core/list/list-client';
@@ -16,11 +16,35 @@ import { WsPageHeaderComponent, WsSideSheetComponent } from '../../shared/ui/wor
 import { PAYMENT_METHODS } from './lists';
 
 interface CustomerOption { id: string; name: string; city: string | null; phone: string | null; priceGroup?: string | null }
-interface StockOption { id: string; code: string | null; name: string | null; unit: 'KG' | 'BALE' | 'PIECE'; left: string; salePrice: string | null; value?: string | null; kg?: string | null }
-interface Line { item: StockOption; unit: 'KG' | 'BALE' | 'PIECE'; quantity: number; unitPrice: number | null; from: string | null }
+interface StockOption { id: string; code: string | null; name: string | null; unit: 'KG' | 'BALE' | 'PIECE'; left: string; salePrice: string | null; value?: string | null; kg?: string | null; categoryId?: string | null; gradeId?: string | null }
+/**
+ * One choice in "Add item": the bales of one kind (Jeans A, 4 bales) together, or one other item (kg, pieces).
+ * `members` are the bales, oldest first; a sale of 2 takes the first 2 (or the ones scanned, which go first).
+ */
+interface Pick { key: string; label: string; unit: StockOption['unit']; members: StockOption[] }
+interface Line { item: StockOption; unit: 'KG' | 'BALE' | 'PIECE'; quantity: number; unitPrice: number | null; from: string | null; members?: StockOption[] }
 type Mode = 'CASH' | 'CREDIT' | 'PARTIAL';
 
 const optionLabel = (s: StockOption) => [s.code, s.name].filter(Boolean).join(' · ');
+/** Bales of the same category and grade are one kind; anything else stands alone. */
+const kindKey = (s: StockOption) => (s.unit === 'BALE' && s.categoryId ? `${s.categoryId}|${s.gradeId ?? ''}` : `item|${s.id}`);
+const byCode = (a: StockOption, b: StockOption) => (a.code ?? '').localeCompare(b.code ?? '', undefined, { numeric: true });
+function toPicks(rows: StockOption[]): Pick[] {
+  const map = new Map<string, Pick>();
+  for (const r of rows) {
+    const key = kindKey(r);
+    const p = map.get(key) ?? { key, label: key.startsWith('item|') ? optionLabel(r) : r.name ?? optionLabel(r), unit: r.unit, members: [] };
+    p.members.push(r);
+    map.set(key, p);
+  }
+  return [...map.values()].map((p) => ({ ...p, members: p.members.sort(byCode) }));
+}
+/** The line's item for a kind: what is left and its value add up over its bales. */
+function kindItem(p: Pick): StockOption {
+  if (p.members.length === 1 && p.key.startsWith('item|')) return p.members[0];
+  const sum = (f: (m: StockOption) => string | null | undefined) => String(p.members.reduce((t, m) => t + Number(f(m) ?? 0), 0));
+  return { ...p.members[0], id: `kind:${p.key}`, code: null, name: p.label, left: sum((m) => m.left), value: sum((m) => m.value), kg: sum((m) => m.kg) };
+}
 
 /**
  * New sale on the laptop (enterprise plan E3.4), keyboard first: type the customer, then scan or type items
@@ -55,7 +79,7 @@ const optionLabel = (s: StockOption) => [s.code, s.name].filter(Boolean).join(' 
 
         <label>{{ 'ws.saleEntry.addItem' | t }}
           <input #itemInput name="item" list="ws-stock" autocomplete="off" [ngModel]="itemText()" (ngModelChange)="itemText.set($event)" (keydown.enter)="$event.preventDefault(); addItem()" [placeholder]="'ws.saleEntry.itemHint' | t" [disabled]="!customer()" />
-          <datalist id="ws-stock">@for (s of stock(); track s.id) { <option [value]="label(s)">{{ 'ws.saleEntry.left' | t: { n: qty(s.left, s.unit) } }}</option> }</datalist>
+          <datalist id="ws-stock">@for (p of picks(); track p.key) { <option [value]="p.label">{{ 'ws.saleEntry.left' | t: { n: qty(kindLeft(p), p.unit) } }}</option> }</datalist>
         </label>
 
         <table>
@@ -68,10 +92,10 @@ const optionLabel = (s: StockOption) => [s.code, s.name].filter(Boolean).join(' 
                 <td>
                   <select [name]="'unit' + i" [ngModel]="l.unit" (ngModelChange)="setUnit(i, $event)" [attr.aria-label]="'ws.sale.unit' | t">
                     <option [value]="l.item.unit">{{ 'ws.stock.unit.' + l.item.unit | t }}</option>
-                    @if (l.item.unit === 'BALE') { <option value="KG">{{ 'ws.stock.unit.KG' | t }}</option> }
+                    @if (l.item.unit === 'BALE' && (l.members?.length ?? 1) === 1) { <option value="KG">{{ 'ws.stock.unit.KG' | t }}</option> }
                   </select>
                 </td>
-                <td class="num"><input #qtyInput [name]="'qty' + i" type="number" min="0.01" [step]="l.unit === 'KG' ? '0.01' : '1'" [ngModel]="l.quantity" (ngModelChange)="patch(i, { quantity: +$event })" [attr.aria-label]="'ws.sale.quantity' | t" /></td>
+                <td class="num"><input #qtyInput [name]="'qty' + i" type="number" min="0.01" [max]="maxQty(l)" [step]="l.unit === 'KG' ? '0.01' : '1'" [ngModel]="l.quantity" (ngModelChange)="setQty(i, +$event)" [attr.aria-label]="'ws.sale.quantity' | t" /></td>
                 <td class="num">
                   <input [name]="'price' + i" type="number" min="0" step="1" [ngModel]="l.unitPrice" (ngModelChange)="patch(i, { unitPrice: $event === null || $event === '' ? null : +$event })" [attr.aria-label]="'ws.sale.unitPrice' | t" />
                   @if (l.from) { <small>{{ 'ws.saleEntry.from.' + l.from | t }}</small> }
@@ -178,6 +202,9 @@ export class SaleEntryComponent implements HasUnsavedChanges {
   protected readonly customer = signal<CustomerOption | null>(null);
   protected readonly itemText = signal('');
   protected readonly stock = signal<StockOption[]>([]);
+  /** The choices in "Add item": bales grouped by kind. Each one seen is remembered, so picking it never searches again. */
+  protected readonly picks = computed(() => toPicks(this.stock()));
+  private readonly seen = new Map<string, Pick>();
   protected readonly lines = signal<Line[]>([]);
   protected readonly mode = signal<Mode>('CASH');
   protected readonly busy = signal(false);
@@ -208,6 +235,8 @@ export class SaleEntryComponent implements HasUnsavedChanges {
       .pipe(
         debounceTime(200),
         distinctUntilChanged(),
+        // A choice picked from the list ("Jeans A") is not something to search for: keep the list as it is.
+        filter((q) => !this.seen.has(q.trim())),
         switchMap((q) =>
           this.http
             .get<ListResult>('/api/lists/stock', { params: new HttpParams().set('q', q).set('pageSize', '50').append('f', 'status:ne:SOLD') })
@@ -215,7 +244,33 @@ export class SaleEntryComponent implements HasUnsavedChanges {
         ),
         takeUntilDestroyed(),
       )
-      .subscribe((r) => this.stock.set(r.rows as unknown as StockOption[]));
+      .subscribe((r) => {
+        this.stock.set(r.rows as unknown as StockOption[]);
+        for (const p of this.picks()) this.seen.set(p.label, p);
+      });
+  }
+
+  protected kindLeft(p: Pick): number {
+    return p.members.reduce((t, m) => t + Number(m.left), 0);
+  }
+
+  /** The most this line can sell: the bales of its kind, or what is left of the item (in kg when sold by kg). */
+  protected maxQty(l: Line): number {
+    if (l.unit === 'KG' && l.item.unit === 'BALE') return Number(l.item.kg ?? 0);
+    return Number(l.item.left);
+  }
+
+  protected setQty(i: number, q: number): void {
+    const l = this.lines()[i];
+    if (!l) return;
+    const max = this.maxQty(l);
+    if (max > 0 && q > max) {
+      this.toast.show(this.i18n.t('ws.saleEntry.onlyLeft', { n: this.qty(max, l.unit) }));
+      q = max;
+      // The box shows what was typed until the model changes: put the limit back in it.
+      setTimeout(() => { const el = this.qtyInputs()[i]?.nativeElement; if (el) el.value = String(max); });
+    }
+    this.patch(i, { quantity: q });
   }
 
   protected qty(v: string | number, unit: string): string {
@@ -334,6 +389,8 @@ export class SaleEntryComponent implements HasUnsavedChanges {
   protected addItem(): void {
     const text = this.itemText().trim();
     if (!text) return;
+    const p = this.seen.get(text) ?? this.picks().find((x) => x.label.toLowerCase() === text.toLowerCase());
+    if (p) return this.addKind(p);
     const s = this.stock().find((x) => optionLabel(x) === text) ?? this.stock().find((x) => x.code?.toLowerCase() === text.toLowerCase());
     if (s) return this.addStock(s);
     // A scanner (or fast typing) presses Enter before the search answers: look the code up now.
@@ -350,9 +407,38 @@ export class SaleEntryComponent implements HasUnsavedChanges {
       });
   }
 
+  /** A kind picked from the list: every bale of it (not only those on this page), oldest first, as one line. */
+  private addKind(p: Pick): void {
+    this.itemText.set('');
+    if (p.key.startsWith('item|')) return this.addStock(p.members[0]);
+    const existing = this.lines().findIndex((l) => l.item.id === `kind:${p.key}`);
+    if (existing >= 0) return this.setQty(existing, this.lines()[existing].quantity + 1);
+    const [categoryId, gradeId] = p.key.split('|');
+    let params = new HttpParams().set('pageSize', '200').append('f', 'status:ne:SOLD').append('f', `categoryId:eq:${categoryId}`);
+    if (gradeId) params = params.append('f', `gradeId:eq:${gradeId}`);
+    this.http.get<ListResult>('/api/lists/stock', { params }).pipe(catchError(() => of({ rows: [] } as unknown as ListResult))).subscribe((r) => {
+      const all = (r.rows as unknown as StockOption[]).filter((x) => kindKey(x) === p.key && Number(x.left) > 0);
+      // Bales already on another line (scanned one by one) are not taken twice.
+      const taken = new Set(this.lines().filter((l) => !l.members).map((l) => l.item.id));
+      const members = (all.length ? all : p.members).filter((m) => !taken.has(m.id)).sort(byCode);
+      if (!members.length) return this.toast.show(this.i18n.t('ws.saleEntry.notFound'));
+      this.lines.set([...this.lines(), { item: kindItem({ ...p, members }), unit: 'BALE', quantity: 1, unitPrice: null, from: null, members }]);
+      this.suggest(this.lines().length - 1);
+      setTimeout(() => this.qtyInputs()[this.lines().length - 1]?.nativeElement.select());
+    });
+  }
+
   private addStock(s: StockOption): void {
+    // A bale scanned whose kind is already a line: that bale goes first in it, one more.
+    const kind = this.lines().findIndex((l) => l.members?.some((m) => m.id === s.id));
+    if (kind >= 0) {
+      const l = this.lines()[kind];
+      this.patch(kind, { members: [s, ...l.members!.filter((m) => m.id !== s.id)] });
+      this.itemText.set('');
+      return this.setQty(kind, l.quantity + 1);
+    }
     const existing = this.lines().findIndex((l) => l.item.id === s.id);
-    if (existing >= 0) this.patch(existing, { quantity: this.lines()[existing].quantity + 1 });
+    if (existing >= 0) this.setQty(existing, this.lines()[existing].quantity + 1);
     else {
       this.lines.set([...this.lines(), { item: s, unit: s.unit, quantity: 1, unitPrice: null, from: null }]);
       this.suggest(this.lines().length - 1);
@@ -365,7 +451,7 @@ export class SaleEntryComponent implements HasUnsavedChanges {
     const c = this.customer();
     const l = this.lines()[i];
     if (!c || !l) return;
-    const params = new HttpParams().set('customerId', c.id).set('inventoryItemId', l.item.id).set('unit', l.unit);
+    const params = new HttpParams().set('customerId', c.id).set('inventoryItemId', l.members?.[0]?.id ?? l.item.id).set('unit', l.unit);
     this.http.get<{ unitPrice: string | null; from: string | null }>('/api/sales/last-price', { params }).subscribe({
       next: (p) => {
         const cur = this.lines()[i];
@@ -411,7 +497,12 @@ export class SaleEntryComponent implements HasUnsavedChanges {
     this.busy.set(true);
     const body = {
       customerId: c.id,
-      lines: this.lines().map((l) => ({ inventoryItemId: l.item.id, unit: l.unit, quantity: l.quantity, unitPrice: l.unitPrice })),
+      // A kind line sells its first bales, one sale line per bale.
+      lines: this.lines().flatMap((l) =>
+        l.members
+          ? l.members.slice(0, l.quantity).map((m) => ({ inventoryItemId: m.id, unit: 'BALE' as const, quantity: 1, unitPrice: l.unitPrice }))
+          : [{ inventoryItemId: l.item.id, unit: l.unit, quantity: l.quantity, unitPrice: l.unitPrice }],
+      ),
       paymentMode: this.mode(),
       ...(this.mode() === 'CASH' ? { paidAmount: this.total(), paymentMethod: this.method } : {}),
       ...(this.mode() === 'PARTIAL' ? { paidAmount: this.paid, paymentMethod: this.method } : {}),

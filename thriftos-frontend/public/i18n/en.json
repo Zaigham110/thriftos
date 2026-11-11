@@ -1802,7 +1802,8 @@
    "saved": "Sale {number} saved",
    "shortcut": "Ctrl + Enter",
    "subtitle": "Type the customer, scan or type items, Ctrl + Enter to save",
-   "title": "New sale"
+   "title": "New sale",
+   "onlyLeft": "Only {n} left"
   },
   "sales": {
    "count": "{n} sales",

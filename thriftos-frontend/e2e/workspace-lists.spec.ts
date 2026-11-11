@@ -428,6 +428,54 @@ test('sales extras: price list for a group, keyboard sale entry suggests the lis
   await expect(page.getByRole('heading', { name: `Wholesale ${tag}`, level: 2 })).toBeVisible();
 });
 
+test('sale entry: bales of one kind are one choice, quantity stops at what is left, a sale of 2 sells 2 bales', async ({ page, request }) => {
+  const api = await apiAs(request);
+  const tag = Date.now().toString().slice(-6);
+  const cats = (await api.get('/tenant/categories')) as Array<{ id: string; name: string }>;
+  const kids = cats[cats.length - 1];
+  const grades = (await api.get('/tenant/grades')) as Array<{ id: string; name: string }>;
+  // The test business may sort without grades: the kind is then the category alone.
+  const grade = grades.length ? grades[grades.length - 1] : null;
+  const kind = grade ? `${kids.name} ${grade.name}` : kids.name;
+  const kindLeft = async () => {
+    const r = await api.get(`/lists/stock?pageSize=200&f=status:ne:SOLD&f=categoryId:eq:${kids.id}`);
+    return (r.rows as Array<{ unit: string; left: string; gradeId: string | null }>).filter((x) => x.unit === 'BALE' && Number(x.left) > 0 && (x.gradeId ?? null) === (grade?.id ?? null)).length;
+  };
+  const lot = await api.post('/procurement/rags', { ragBaleType: 'BALE', weightKg: 200, purchaseCost: 40000 });
+  const s = await api.post('/sorting/stage-1/start', { ragId: lot.id });
+  const sessionId = s.session?.id ?? (await api.get(`/sorting/stage-1/summary?ragId=${lot.id}`)).session?.id;
+  expect(sessionId, JSON.stringify(s)).toBeTruthy();
+  await api.post('/sorting/stage-1/allocate', { sessionId, categoryId: kids.id, ...(grade ? { gradeId: grade.id } : {}), bales: 3, baleWeightKg: 45 });
+  const total = await kindLeft();
+  expect(total).toBeGreaterThanOrEqual(3);
+  const customer = await api.post('/customers', { name: `Bale Buyer ${tag}`, phone: `0303${tag}1`, city: 'Karachi' });
+
+  await signIn(page);
+  await page.goto('/sell/records/new');
+  await page.getByLabel('Customer').fill(customer.name);
+  const itemInput = page.getByLabel('Add item');
+  await itemInput.fill(kids.name);
+  // One choice for the kind, not one per bale.
+  const option = page.locator(`#ws-stock option[value="${kind}"]`);
+  await expect(option).toHaveCount(1);
+  await expect(page.locator('#ws-stock option[value^="B-"]')).toHaveCount(0);
+  await itemInput.fill(kind);
+  await itemInput.press('Enter');
+  const row = page.locator('tbody tr').filter({ hasText: kind });
+  await expect(row).toContainText(`${total} left`);
+  // More than is left: held at what is left.
+  const qty = page.getByLabel('Quantity');
+  await qty.fill(String(total + 5));
+  await expect(page.getByText(`Only ${total} left`)).toBeVisible();
+  await expect(qty).toHaveValue(String(total));
+  await qty.fill('2');
+  await page.getByLabel('Price', { exact: true }).fill('20000');
+  await expect(page.locator('tfoot')).toContainText('40,000');
+  await qty.press('Control+Enter');
+  await expect(page).toHaveURL(/\/sell\/records\/(?!new)[^/]+$/);
+  expect(await kindLeft()).toBe(total - 2);
+});
+
 test('dashboards: owner dashboard on Home, scorecard, sales analytics with CSV, report centre', async ({ page, request }) => {
   await makeSale(request);
   await signIn(page);

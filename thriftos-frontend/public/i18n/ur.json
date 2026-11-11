@@ -1802,7 +1802,8 @@
    "saved": "بکری {number} محفوظ ہو گئی",
    "shortcut": "Ctrl + Enter",
    "subtitle": "گاہک لکھیں، مال اسکین یا لکھیں، محفوظ کرنے کے لیے Ctrl + Enter",
-   "title": "نئی بکری"
+   "title": "نئی بکری",
+   "onlyLeft": "صرف {n} باقی ہیں"
   },
   "sales": {
    "count": "{n} بکریاں",

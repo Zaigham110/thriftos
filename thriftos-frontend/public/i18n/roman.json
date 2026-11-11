@@ -1802,7 +1802,8 @@
    "saved": "Sale {number} save ho gayi",
    "shortcut": "Ctrl + Enter",
    "subtitle": "Customer likhein, maal scan ya likhein, save ke liye Ctrl + Enter",
-   "title": "Nayi sale"
+   "title": "Nayi sale",
+   "onlyLeft": "Sirf {n} baqi hain"
   },
   "sales": {
    "count": "{n} sale",
