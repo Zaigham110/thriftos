@@ -24,7 +24,7 @@ interface SavedContainer {
 }
 
 /**
- * Journey 1 — a container arrives (< 60 s). Required: supplier, invoice kg, purchase cost (+ rate if not PKR).
+ * Journey 1 — a container arrives (< 60 s). Required: supplier, invoice kg, purchase cost (+ rate if not in the business's own currency).
  * Charges are quick chips; kanta weight, container number, country, date and raw type are under "More details".
  * It is saved as arrived, on today's date unless another day is picked.
  * Saved in one request (container + charges + one lot ready to sort); offline it is kept on the phone.
@@ -61,7 +61,7 @@ interface SavedContainer {
             @for (c of currencies; track c) { <button type="button" class="chip" [class.on]="currency() === c" (click)="currency.set(c)">{{ c }}</button> }
           </div>
           <tos-number label="receive.purchaseCost" [unit]="currency()" [(value)]="purchaseCost" />
-          @if (currency() !== 'PKR') { <tos-number label="receive.fxRate" unit="Rs" [decimals]="4" [(value)]="fxRate" /> }
+          @if (currency() !== home) { <tos-number label="receive.fxRate" unit="unit.money" [decimals]="4" [(value)]="fxRate" /> }
         </section>
 
         <section class="card">
@@ -70,7 +70,7 @@ interface SavedContainer {
             @for (c of chargeTypes; track c) { <button type="button" class="chip" [class.on]="charges()[c] !== undefined" (click)="toggleCharge(c)">{{ 'receive.charge.' + c | t }}</button> }
           </div>
           @for (c of chargeTypes; track c) {
-            @if (charges()[c] !== undefined) { <tos-number [label]="'receive.charge.' + c" unit="Rs" [value]="charges()[c] ?? null" (valueChange)="setCharge(c, $event)" /> }
+            @if (charges()[c] !== undefined) { <tos-number [label]="'receive.charge.' + c" unit="unit.money" [value]="charges()[c] ?? null" (valueChange)="setCharge(c, $event)" /> }
           }
           <p class="hint">{{ 'receive.chargesLater' | t }}</p>
         </section>
@@ -114,7 +114,9 @@ export class ReceiveContainerComponent implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly i18n = inject(I18nService);
   protected readonly icons = { ArrowLeft, CheckCircle2 };
-  protected readonly currencies = ['PKR', 'USD'];
+  /** The business's own currency first (needs no rate), then dollars. */
+  protected readonly home = this.i18n.currency();
+  protected readonly currencies = [...new Set([this.home, 'USD'])];
   protected readonly chargeTypes = CHARGES;
   protected readonly countries = COUNTRIES;
   protected readonly commonCountries = COMMON_COUNTRIES;
@@ -128,7 +130,7 @@ export class ReceiveContainerComponent implements OnInit {
   protected readonly invoiceKg = signal<number | null>(null);
   protected readonly kantaKg = signal<number | null>(null);
   protected readonly purchaseCost = signal<number | null>(null);
-  protected readonly currency = signal('PKR');
+  protected readonly currency = signal(this.home);
   protected readonly fxRate = signal<number | null>(null);
   protected readonly origin = signal<string | null>(null);
   protected readonly charges = signal<Partial<Record<ChargeType, number | null>>>({});
@@ -141,7 +143,7 @@ export class ReceiveContainerComponent implements OnInit {
     const kg = this.kantaKg() ?? this.invoiceKg();
     const cost = this.purchaseCost();
     if (!kg || cost === null) return null;
-    const rate = this.currency() === 'PKR' ? 1 : this.fxRate();
+    const rate = this.currency() === this.home ? 1 : this.fxRate();
     if (!rate) return null;
     const charges = Object.values(this.charges()).reduce<number>((s, v) => s + (v || 0), 0);
     return Math.round(((cost * rate + charges) / kg) * 100) / 100;
@@ -153,7 +155,7 @@ export class ReceiveContainerComponent implements OnInit {
     if (!this.supplier()) m.push('ws.cf.need.supplier');
     if (!this.invoiceKg()) m.push('ws.cf.need.kg');
     if (this.purchaseCost() === null) m.push('ws.cf.need.cost');
-    if (this.currency() !== 'PKR' && !this.fxRate()) m.push('ws.cf.need.rate');
+    if (this.currency() !== this.home && !this.fxRate()) m.push('ws.cf.need.rate');
     if ((this.kantaKg() ?? 0) > (this.invoiceKg() ?? 0) && this.invoiceKg()) m.push('ws.cf.need.kanta');
     return m;
   });
@@ -197,7 +199,7 @@ export class ReceiveContainerComponent implements OnInit {
       ...(this.kantaKg() ? { weighbridgeKg: this.kantaKg() } : {}),
       purchaseCost: this.purchaseCost(),
       purchaseCurrency: this.currency(),
-      ...(this.currency() !== 'PKR' ? { fxRate: this.fxRate() } : {}),
+      ...(this.currency() !== this.home ? { fxRate: this.fxRate() } : {}),
       ...(this.origin() ? { originCountry: this.origin() } : {}),
       ...(this.containerNumber.trim() ? { containerNumber: this.containerNumber.trim() } : {}),
       charges: Object.entries(this.charges())

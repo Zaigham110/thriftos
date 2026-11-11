@@ -131,7 +131,7 @@ const num = (v: string | null | undefined) => (v === null || v === undefined || 
                   <select name="currency" [(ngModel)]="currency">@for (c of currencies; track c) { <option [value]="c">{{ c }}</option> }</select>
                 </label>
                 <label>{{ 'receive.purchaseCost' | t }} ({{ currency }})<input name="cost" type="number" min="0" step="0.01" required [(ngModel)]="cost" /></label>
-                @if (currency !== 'PKR') {
+                @if (currency !== home) {
                   <label>{{ 'ws.cf.rate' | t: { cur: currency } }}<input name="rate" type="number" min="0" step="0.0001" required [(ngModel)]="rate" /></label>
                 }
               </div>
@@ -256,7 +256,9 @@ export class ContainerFormComponent implements OnInit, HasUnsavedChanges {
   readonly id = input<string | undefined>();
 
   protected readonly statuses = ['ARRIVED', 'IN_TRANSIT'] as const;
-  protected readonly currencies = CURRENCIES;
+  /** The business's own currency first (it needs no rate). */
+  protected get home() { return this.i18n.currency(); }
+  protected get currencies() { return [...new Set([this.home, ...CURRENCIES])]; }
   protected readonly chargeTypes = CONTAINER_CHARGES;
   protected readonly containerTypes = CONTAINER_TYPES;
   protected readonly countries = COUNTRIES;
@@ -281,7 +283,7 @@ export class ContainerFormComponent implements OnInit, HasUnsavedChanges {
   private _kanta: number | null = null;
   private _cost: number | null = null;
   private _rate: number | null = null;
-  private _currency = 'PKR';
+  private _currency = this.i18n.currency();
   private _charges: ChargeLine[] = [];
   protected get vendorId() { return this._vendorId; }
   protected set vendorId(v: string) { this._vendorId = v; this.tick.update((n) => n + 1); }
@@ -311,7 +313,7 @@ export class ContainerFormComponent implements OnInit, HasUnsavedChanges {
   protected readonly priceRs = computed(() => {
     this.tick();
     if (this._cost === null || this._cost === undefined) return null;
-    const rate = this._currency === 'PKR' ? 1 : this._rate;
+    const rate = this._currency === this.home ? 1 : this._rate;
     return rate ? Math.round(this._cost * rate * 100) / 100 : null;
   });
   protected readonly chargesRs = computed(() => {
@@ -335,7 +337,7 @@ export class ContainerFormComponent implements OnInit, HasUnsavedChanges {
     if (!this._vendorId) m.push('ws.cf.need.supplier');
     if (!this._kg || this._kg <= 0) m.push('ws.cf.need.kg');
     if (this._cost === null || this._cost === undefined || this._cost < 0) m.push('ws.cf.need.cost');
-    if (this._currency !== 'PKR' && !this._rate) m.push('ws.cf.need.rate');
+    if (this._currency !== this.home && !this._rate) m.push('ws.cf.need.rate');
     if (this._kanta && this._kg && this._kanta > this._kg) m.push('ws.cf.need.kanta');
     if (this._charges.some((c) => c.amount !== null && c.amount !== undefined && Number(c.amount) < 0)) m.push('ws.cf.need.charge');
     return m;
@@ -378,9 +380,9 @@ export class ContainerFormComponent implements OnInit, HasUnsavedChanges {
         this.date = day(c.createdAt);
         this.kg = num(c.netWeight);
         this.kanta = num(c.weighbridgeNetWeight);
-        this.currency = c.purchaseCurrency || 'PKR';
+        this.currency = c.purchaseCurrency || this.home;
         this.cost = num(c.purchaseCost);
-        this.rate = this._currency === 'PKR' ? null : num(c.fxRate);
+        this.rate = this._currency === this.home ? null : num(c.fxRate);
         this.existingChargesRs = c.containerCharges.reduce((s, x) => s + Number(x.amount), 0);
         const started = c.rags.some((r) => r.status !== 'NOT_STARTED');
         this.kgLocked.set(started);
@@ -466,7 +468,7 @@ export class ContainerFormComponent implements OnInit, HasUnsavedChanges {
       originCountry: this.origin.trim() || undefined,
       purchaseCost: Number(this._cost),
       purchaseCurrency: this._currency,
-      ...(this._currency !== 'PKR' ? { fxRate: Number(this._rate) } : {}),
+      ...(this._currency !== this.home ? { fxRate: Number(this._rate) } : {}),
       receivedAt: this.date,
       ...(this.rawCategoryId && !this.rawLocked() ? { rawCategoryId: this.rawCategoryId } : {}),
       ...(this.statusEditable() ? { status: this.status } : {}),

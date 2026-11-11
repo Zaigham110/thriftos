@@ -83,6 +83,8 @@ export class TenantService {
   constructor(private readonly http: HttpClient) {
     // "Cream %" / "A %": the screens that measure the best grade name it (v2: it always said "A grade").
     effect(() => this.i18n.setGlobal('topGrade', this._tenant()?.topGrade ?? null));
+    // Money shows in the currency the business keeps its books in (Rs, $ or AED).
+    effect(() => this.i18n.setGlobal('currency', this._tenant()?.currencyCode ?? null));
     // Nothing about one business stays in memory for the next person who signs in on this phone.
     window.addEventListener(SIGNED_OUT_EVENT, () => {
       this._tenant.set(null);

@@ -26,7 +26,7 @@ import { ToastService } from '../../shared/floor/toast.service';
         <form class="card" (ngSubmit)="add()">
           <label class="field">{{ 'common.name' | t }}<input name="name" [(ngModel)]="name" maxlength="200" autocomplete="off" /></label>
           <label class="field">{{ 'common.phone' | t }}<input name="phone" type="tel" inputmode="tel" [(ngModel)]="phone" [placeholder]="'common.phonePlaceholder' | t" /></label>
-          <tos-number label="khata.oldUdhaar" unit="Rs" [optional]="true" [(value)]="openingBalance" />
+          <tos-number label="khata.oldUdhaar" unit="unit.money" [optional]="true" [(value)]="openingBalance" />
           <div class="row2">
             <button type="button" class="btn" (click)="adding.set(false)">{{ 'common.cancel' | t }}</button>
             <button type="submit" class="btn primary" [disabled]="!name.trim() || !phone.trim() || saving()">{{ 'khata.saveCustomer' | t }}</button>

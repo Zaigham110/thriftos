@@ -86,7 +86,7 @@ const MODES: PaymentMode[] = ['CASH', 'CREDIT', 'PARTIAL'];
               }
               <div class="row2">
                 <tos-number label="sell.quantity" [unit]="unitKey(line.unit)" [decimals]="line.unit === 'KG' ? 2 : 0" [value]="line.quantity" (valueChange)="setLine(line, 'quantity', $event)" />
-                <tos-number label="common.price" unit="Rs" [value]="line.unitPrice" (valueChange)="setLine(line, 'unitPrice', $event)" />
+                <tos-number label="common.price" unit="unit.money" [value]="line.unitPrice" (valueChange)="setLine(line, 'unitPrice', $event)" />
               </div>
             </div>
           }
@@ -97,7 +97,7 @@ const MODES: PaymentMode[] = ['CASH', 'CREDIT', 'PARTIAL'];
         <section class="card">
           <h2>{{ 'sell.payment' | t }}</h2>
           @if (modes().length > 1) {<div class="chips">@for (m of modes(); track m) { <button type="button" class="chip" [class.on]="mode() === m" (click)="mode.set(m)">{{ 'sell.mode.' + m | t }}</button> }</div>}
-          @if (mode() === 'PARTIAL') { <tos-number label="sell.paidNow" unit="Rs" [(value)]="paidAmount" /> }
+          @if (mode() === 'PARTIAL') { <tos-number label="sell.paidNow" unit="unit.money" [(value)]="paidAmount" /> }
           @if (mode() !== 'CREDIT') {
             <div class="chips">@for (m of methods; track m) { <button type="button" class="chip" [class.on]="method() === m" (click)="method.set(m)">{{ 'method.' + m | t }}</button> }</div>
           }

@@ -97,6 +97,32 @@ describe('v1 data model', () => {
       expect(res.body.message).toContain('USD to PKR rate');
     });
 
+    it("a business that keeps its books in dollars buys in dollars with no rate; a rupee business still needs one", async () => {
+      const usd = await createTenantWithOwner(app);
+      await prisma.tenant.update({ where: { id: usd.tenantId }, data: { currency: 'USD' } });
+      const supplier = await api(app, usd).post('/procurement/vendors', { name: 'Ahsen Exports' }).expect(201);
+      const made = await api(app, usd)
+        .post('/procurement/containers', { vendorId: supplier.body.id, netWeightKg: 1000, purchaseCost: 1270, purchaseCurrency: 'USD' })
+        .expect(201);
+      expect(Number(made.body.fxRate)).toBe(1);
+      expect(Number(made.body.landedCostPKR)).toBe(1270);
+      // No currency given: the business's own.
+      const plain = await api(app, usd).post('/procurement/containers', { vendorId: supplier.body.id, netWeightKg: 100, purchaseCost: 90 }).expect(201);
+      expect(plain.body.purchaseCurrency).toBe('USD');
+      // Rupees are foreign to it: a rate is needed.
+      const res = await api(app, usd)
+        .post('/procurement/containers', { vendorId: supplier.body.id, netWeightKg: 100, purchaseCost: 10, purchaseCurrency: 'PKR' })
+        .expect(400);
+      expect(res.body.message).toContain('PKR to USD rate');
+      // Switching an existing container to its own currency sets the rate back to 1.
+      const foreign = await api(app, usd)
+        .post('/procurement/containers', { vendorId: supplier.body.id, netWeightKg: 100, purchaseCost: 28000, purchaseCurrency: 'PKR', fxRate: 0.0036 })
+        .expect(201);
+      const fixed = await api(app, usd).patch(`/procurement/containers/${foreign.body.id}`, { purchaseCost: 100, purchaseCurrency: 'USD' }).expect(200);
+      expect(Number(fixed.body.fxRate)).toBe(1);
+      expect(Number(fixed.body.landedCostPKR)).toBe(100);
+    });
+
     it("is invisible to another tenant", async () => {
       await api(app, other).get(`/procurement/containers/${containerId}`).expect(404);
       await api(app, other).get(`/procurement/containers/${containerId}/cost-breakdown`).expect(404);

@@ -36,14 +36,14 @@ interface StockItem { id: string; name: string | null; unit: Unit; remainingQuan
           @for (u of units; track u.value) { <button type="button" class="chip" [class.on]="unit() === u.value" (click)="unit.set(u.value)">{{ u.label | t }}</button> }
         </div>
         <tos-number label="receive.howMany" [unit]="unitKey()" [decimals]="unit() === 'KG' ? 2 : 0" [(value)]="quantity" />
-        <tos-number label="receive.totalCost" unit="Rs" [(value)]="totalCost" />
+        <tos-number label="receive.totalCost" unit="unit.money" [(value)]="totalCost" />
       </section>
 
       <details class="more card">
         <summary>{{ 'common.more' | t }}</summary>
         <app-supplier-picker (picked)="supplier.set($event)" />
         @if (unit() === 'BALE') { <tos-number label="common.weight" unit="unit.kgShort" [optional]="true" [(value)]="weightKg" /> }
-        <tos-number label="receive.salePrice" unit="Rs" [optional]="true" [(value)]="salePrice" />
+        <tos-number label="receive.salePrice" unit="unit.money" [optional]="true" [(value)]="salePrice" />
       </details>
 
       @if (bales().length) {

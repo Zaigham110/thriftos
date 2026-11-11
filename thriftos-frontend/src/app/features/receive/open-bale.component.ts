@@ -25,7 +25,7 @@ interface Tier { price: number | null; pieces: number | null }
       @for (tier of tiers(); track $index; let i = $index) {
         <section class="card">
           <div class="row2">
-            <tos-number label="common.price" unit="Rs" [value]="tier.price" (valueChange)="set(i, 'price', $event)" />
+            <tos-number label="common.price" unit="unit.money" [value]="tier.price" (valueChange)="set(i, 'price', $event)" />
             <tos-number label="stock.pieces" unit="unit.pcs" [decimals]="0" [value]="tier.pieces" (valueChange)="set(i, 'pieces', $event)" />
           </div>
           @if (tiers().length > 1) { <button type="button" class="link-btn" (click)="remove(i)"><lucide-icon [img]="icons.Trash2" [size]="16" /> {{ 'common.remove' | t }}</button> }

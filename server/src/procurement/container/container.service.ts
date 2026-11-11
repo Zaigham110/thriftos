@@ -124,9 +124,11 @@ export class ContainerService {
     if (taken) throw new ConflictException(`Container ${containerNumber} already exists`);
 
     const { gross, tare, net } = this.computeCreateWeightsOrThrow(dto.grossWeightKg ?? dto.netWeightKg, dto.netWeightKg, dto.tareWeightKg);
-    const purchaseCurrency = (dto.purchaseCurrency ?? 'PKR').toUpperCase();
-    if (purchaseCurrency !== 'PKR' && !dto.fxRate) {
-      throw new BadRequestException(`Enter the ${purchaseCurrency} to PKR rate`);
+    // The business's own currency (PKR, or USD/AED for a business that keeps its books in those) needs no rate.
+    const home = await this.homeCurrency(tenantId);
+    const purchaseCurrency = (dto.purchaseCurrency ?? home).toUpperCase();
+    if (purchaseCurrency !== home && !dto.fxRate) {
+      throw new BadRequestException(`Enter the ${purchaseCurrency} to ${home} rate`);
     }
 
     const lotWeight = new Prisma.Decimal(dto.weighbridgeKg ?? dto.netWeightKg);
@@ -162,7 +164,7 @@ export class ContainerService {
           netWeight: net,
           purchaseCost: new Prisma.Decimal(dto.purchaseCost ?? 0),
           purchaseCurrency,
-          fxRate: new Prisma.Decimal(purchaseCurrency === 'PKR' ? 1 : dto.fxRate!),
+          fxRate: new Prisma.Decimal(purchaseCurrency === home ? 1 : dto.fxRate!),
           billOfLadingNumber: dto.billOfLadingNumber,
           shipmentReference: dto.shipmentReference,
           shippingLine: dto.shippingLine,
@@ -350,6 +352,8 @@ export class ContainerService {
       if (!vendor) throw new BadRequestException('Supplier not found');
     }
 
+    // Bought in the business's own currency: the rate is 1, whatever was entered before.
+    const homeRate = dto.purchaseCurrency !== undefined && dto.purchaseCurrency.toUpperCase() === (await this.homeCurrency(tenantId));
     const updated = await this.prisma.$transaction(async (tx) => {
       await tx.container.update({
       where: { id },
@@ -376,7 +380,7 @@ export class ContainerService {
         ...(weightVarianceKg !== null && { weightVarianceKg }),
         ...(weightVariancePct !== null && { weightVariancePct }),
         ...(varianceAlertStatus !== null && { varianceAlertStatus }),
-        ...(dto.fxRate !== undefined && { fxRate: new Prisma.Decimal(dto.fxRate) }),
+        ...(homeRate ? { fxRate: new Prisma.Decimal(1) } : dto.fxRate !== undefined && { fxRate: new Prisma.Decimal(dto.fxRate) }),
         ...(dto.purchaseCost !== undefined && { purchaseCost: new Prisma.Decimal(dto.purchaseCost) }),
         ...(dto.purchaseCurrency !== undefined && { purchaseCurrency: dto.purchaseCurrency.toUpperCase() }),
         ...(dto.vendorId !== undefined && { vendorId: dto.vendorId }),
@@ -622,5 +626,10 @@ export class ContainerService {
   async getCostBreakdown(tenantId: string, containerId: string) {
     return this.costing.containerBreakdown(tenantId, containerId);
   }
-}
 
+  /** The currency the business keeps its books in (PKR unless set otherwise). */
+  private async homeCurrency(tenantId: string): Promise<string> {
+    const t = await this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { currency: true } });
+    return (t?.currency || 'PKR').toUpperCase();
+  }
+}

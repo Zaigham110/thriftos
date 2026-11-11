@@ -42,17 +42,17 @@ const today = () => new Date(Date.now() + 5 * 3_600_000).toISOString().slice(0, 
             <button type="button" class="chip" role="radio" [attr.aria-checked]="byRate()" [class.on]="byRate()" (click)="byRate.set(true)">{{ 'ws.lf.rate' | t }}</button>
           </div>
           @if (byRate()) {
-            <tos-number label="ws.lf.ratePerKg" unit="Rs" [(value)]="rate" />
+            <tos-number label="ws.lf.ratePerKg" unit="unit.money" [(value)]="rate" />
             <p class="hint">{{ 'ws.lf.priceIs' | t: { amount: price() === null ? '—' : (price() | rs) } }}</p>
           } @else {
-            <tos-number label="receive.purchaseCost" unit="Rs" [(value)]="cost" />
+            <tos-number label="receive.purchaseCost" unit="unit.money" [(value)]="cost" />
           }
         </section>
         <section class="card">
           <h2>{{ 'ws.lf.charges' | t }} · {{ 'common.optional' | t }}</h2>
-          <tos-number label="ws.lf.kind.TRANSPORT" unit="Rs" [(value)]="transport" />
-          <tos-number label="ws.lf.kind.LABOUR" unit="Rs" [(value)]="labour" />
-          <tos-number label="ws.lf.kind.OTHER" unit="Rs" [(value)]="other" />
+          <tos-number label="ws.lf.kind.TRANSPORT" unit="unit.money" [(value)]="transport" />
+          <tos-number label="ws.lf.kind.LABOUR" unit="unit.money" [(value)]="labour" />
+          <tos-number label="ws.lf.kind.OTHER" unit="unit.money" [(value)]="other" />
         </section>
         <section class="card">
           <h2>{{ 'ws.lf.billPhoto' | t }} · {{ 'common.optional' | t }}</h2>

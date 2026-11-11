@@ -51,7 +51,7 @@ import { METHODS } from '../sell/sale.component';
             <label class="field">{{ 'common.name' | t }}<input name="name" [(ngModel)]="editName" /></label>
             <label class="field">{{ 'common.phone' | t }}<input name="phone" type="tel" inputmode="tel" [(ngModel)]="editPhone" /></label>
             <label class="field">{{ 'common.city' | t }}<input name="city" [(ngModel)]="editCity" /></label>
-            <tos-number label="khata.oldUdhaar" unit="Rs" [optional]="true" [(value)]="editOpening" />
+            <tos-number label="khata.oldUdhaar" unit="unit.money" [optional]="true" [(value)]="editOpening" />
             <button type="submit" class="btn primary" [disabled]="!editName.trim() || !editPhone.trim() || saving()">{{ 'common.save' | t }}</button>
           </form>
         }
@@ -66,7 +66,7 @@ import { METHODS } from '../sell/sale.component';
         @if (paying()) {
           <section class="card">
             <h2>{{ 'khata.paymentReceived' | t }}</h2>
-            <tos-number label="khata.amount" unit="Rs" [(value)]="amount" />
+            <tos-number label="khata.amount" unit="unit.money" [(value)]="amount" />
             <div class="chips">@for (m of methods; track m) { <button type="button" class="chip" [class.on]="method() === m" (click)="method.set(m)">{{ 'method.' + m | t }}</button> }</div>
             <label class="photo"><lucide-icon [img]="icons.Camera" [size]="20" /> {{ photo ? photo.name : ('khata.screenshot' | t) }}<input type="file" accept="image/*,application/pdf" (change)="pickPhoto($event)" hidden /></label>
           </section>

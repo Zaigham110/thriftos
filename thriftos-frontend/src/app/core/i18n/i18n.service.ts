@@ -88,12 +88,26 @@ export class I18nService {
     const lang = this.lang();
     const raw = lookup(this.dicts()[lang], key) ?? lookup(this.dicts().en, key) ?? key;
     if (!raw.includes('{')) return raw;
-    // Words every screen may use: {topGrade} is this business's best grade ("Cream", "A"), or "Top grade" when none.
-    const all: Record<string, string | number> = { topGrade: this.globals()['topGrade'] ?? lookup(this.dicts()[lang], 'common.topGrade') ?? 'Top grade', ...params };
+    // Words every screen may use: {topGrade} is this business's best grade ("Cream", "A"), or "Top grade" when none;
+    // {money} is the business's currency as a word ("Rs", "$", "AED"), for labels such as "Price per bale ({money})".
+    const all: Record<string, string | number> = {
+      topGrade: this.globals()['topGrade'] ?? lookup(this.dicts()[lang], 'common.topGrade') ?? 'Top grade',
+      money: this.currencyWord(),
+      ...params,
+    };
     return raw.replace(/\{(\w+)\}/g, (m, k) => (k in all ? String(all[k]) : m));
   }
 
   private readonly globals = signal<Record<string, string>>({});
+  /** The currency the business keeps its books in (PKR, USD, AED); set from the business's profile. */
+  readonly currency = computed(() => (this.globals()['currency'] || 'PKR').toUpperCase());
+
+  /** "Rs" / "روپے" for PKR, "$" for USD, "AED" for AED; any other code is shown as it is. */
+  currencyWord(): string {
+    const code = this.currency();
+    return lookup(this.dicts()[this.lang()], `unit.curName.${code}`) ?? lookup(this.dicts().en, `unit.curName.${code}`) ?? code;
+  }
+
   /** Sets (or clears, with null) a word every string may use, e.g. the business's best grade. */
   setGlobal(name: string, value: string | null): void {
     this.globals.update((g) => {
@@ -113,13 +127,17 @@ export class I18nService {
   }
 
   /**
-   * "Rs 12,500" or "Rs 11,947.30": whole rupees without decimals, otherwise always two (paisa), kept
-   * left-to-right inside Urdu text (Unicode isolate), so it never reads "12,500 Rs".
+   * "Rs 12,500" or "Rs 11,947.30" in the business's currency ("$12,500" for USD, "AED 12,500"): whole amounts
+   * without decimals, otherwise always two, kept left-to-right inside Urdu text (Unicode isolate), so it never
+   * reads "12,500 Rs".
    */
   money(value: number | string | null | undefined): string {
     const n = typeof value === 'string' ? Number(value) : value;
     const s = n === null || n === undefined || Number.isNaN(n) ? '' : this.num(n, Number.isInteger(Math.round(n * 100) / 100) ? 0 : 2);
-    return s === '' ? '' : ltr(this.t('unit.rs', { n: s }));
+    if (s === '') return '';
+    const code = this.currency();
+    const key = code === 'PKR' ? 'unit.rs' : lookup(this.dicts().en, `unit.fmt.${code}`) ? `unit.fmt.${code}` : null;
+    return ltr(key ? this.t(key, { n: s }) : `${code} ${s}`);
   }
 
   /** "12.5 kg" (1 decimal, as the owner reads weight), left-to-right inside Urdu text. */

@@ -15,7 +15,8 @@ export interface Tile {
 
 /**
  * Big tap tiles instead of dropdowns (docs/v1/05 rule 4): min 64×64, most-used first (the caller orders them).
- * A search box appears only when there are more than 8; "+ new" is an optional last tile.
+ * A search box appears only when there are more than `limit`; then a "Show all N" tile ends the list, so nothing is
+ * reachable only by typing. "+ new" is an optional last tile.
  */
 @Component({
   selector: 'tos-tiles',
@@ -34,6 +35,9 @@ export interface Tile {
           <strong>{{ tile.label }}</strong>
           @if (tile.sub) { <small>{{ tile.sub }}</small> }
         </button>
+      }
+      @if (hidden() > 0) {
+        <button type="button" class="tile add more" (click)="all.set(true)"><strong>{{ 'common.showAllN' | t: { n: items().length } }}</strong></button>
       }
       @if (newLabel(); as label) {
         <button type="button" class="tile add" (click)="addNew.emit(query())"><lucide-icon [img]="icons.Plus" [size]="20" /><strong>{{ label | t }}</strong></button>
@@ -70,6 +74,8 @@ export class TilesComponent {
   readonly addNew = output<string>();
   protected readonly icons = { Plus, Search };
   protected readonly query = signal('');
+  /** "Show all" was tapped: every tile shows, the search box stays. */
+  protected readonly all = signal(false);
   protected choose(tile: Tile): void {
     this.query.set('');
     this.pick.emit(tile);
@@ -78,6 +84,8 @@ export class TilesComponent {
   protected readonly shown = computed(() => {
     const q = this.query().trim().toLowerCase();
     const list = q ? this.items().filter((t) => `${t.label} ${t.sub ?? ''} ${t.keywords ?? ''}`.toLowerCase().includes(q)) : this.items();
-    return q ? list : list.slice(0, this.limit());
+    return q || this.all() ? list : list.slice(0, this.limit());
   });
+  /** Tiles not shown yet (none while searching). */
+  protected readonly hidden = computed(() => (this.query().trim() ? 0 : this.items().length - this.shown().length));
 }
