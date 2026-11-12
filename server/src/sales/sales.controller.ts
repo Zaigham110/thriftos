@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Headers, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Patch, Post, Query, SetMetadata, UseGuards } from '@nestjs/common';
+import { ModuleGuard, REQUIRED_MODULE_KEY } from '../common/guards/module.guard';
 import { CurrentUser, CurrentUserData, Public, TenantId } from '../common/decorators';
 import { TenantGuard } from '../common/guards/tenant.guard';
 import { PermissionGuard } from '../common/guards/permission.guard';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
-import { CreateSaleDto, FulfillSaleDto, LanguageQueryDto, LastPriceQueryDto } from './dto';
+import { CreateSaleDto, FulfillSaleDto, LanguageQueryDto, LastPriceQueryDto, SetShipmentDto } from './dto';
 import { SalesService } from './sales.service';
 
 @Controller('sales')
@@ -54,6 +55,22 @@ export class SalesController {
   @Get(':id/print')
   print(@TenantId() tenantId: string, @Param('id') id: string) {
     return this.sales.printBill(tenantId, id);
+  }
+
+  /** Phase 9.2: an export sale's shipment details, changed later; a local sale can be made an export sale here. */
+  @Patch(':id/shipment')
+  @UseGuards(PermissionGuard)
+  @RequirePermissions('sale.create')
+  shipment(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: SetShipmentDto, @CurrentUser() user: CurrentUserData) {
+    return this.sales.setShipment(tenantId, id, dto, user.userId);
+  }
+
+  /** Phase 9.2: the export pack (packing list, commercial invoice, each bale's sorting record). */
+  @Get(':id/export-pack')
+  @UseGuards(ModuleGuard)
+  @SetMetadata(REQUIRED_MODULE_KEY, 'EXPORT')
+  exportPack(@TenantId() tenantId: string, @Param('id') id: string) {
+    return this.sales.exportPack(tenantId, id);
   }
 
   @Post(':id/fulfill')

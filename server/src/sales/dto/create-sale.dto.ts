@@ -1,6 +1,6 @@
 import { PaymentMethod, PaymentMode, SaleType, StockUnit } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, IsIn, ArrayMinSize, IsArray, IsEnum, IsNumber, IsOptional, IsPositive, IsString, MaxLength, Min, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsBoolean, IsIn, ArrayMinSize, IsArray, IsEnum, IsNumber, IsOptional, IsPositive, IsString, MaxLength, Min, ValidateNested } from 'class-validator';
 import { LANGUAGES, Language } from '../../common/language/language';
 
 export class SaleLineDto {
@@ -19,6 +19,22 @@ export class SaleLineDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   unitPrice!: number;
+}
+
+/** An export sale's shipment: where it goes and on what (for the packing list and commercial invoice). */
+export class ShipmentDto {
+  @IsString() @MaxLength(80) @IsOptional() destinationCountry?: string;
+  @IsString() @MaxLength(80) @IsOptional() portOfLoading?: string;
+  @IsString() @MaxLength(80) @IsOptional() portOfDischarge?: string;
+  @IsString() @MaxLength(80) @IsOptional() vesselName?: string;
+  @IsString() @MaxLength(60) @IsOptional() billOfLadingNumber?: string;
+  @IsString() @MaxLength(60) @IsOptional() containerSealNumber?: string;
+  @IsString() @MaxLength(120) @IsOptional() freightForwarder?: string;
+}
+
+/** Changing a sale's shipment later; `makeExport` turns a local sale into an export sale (Export sales on). */
+export class SetShipmentDto extends ShipmentDto {
+  @IsBoolean() @IsOptional() makeExport?: boolean;
 }
 
 /** Journey 4: customer, items, how they paid. Saved complete in one request. */
@@ -54,7 +70,14 @@ export class CreateSaleDto {
   @IsEnum(SaleType)
   @IsOptional()
   type?: SaleType;
+
+  /** Phase 9.2: the shipment of an export sale (kept only when `type` is EXPORT). */
+  @ValidateNested()
+  @Type(() => ShipmentDto)
+  @IsOptional()
+  shipment?: ShipmentDto;
 }
+
 
 export class LastPriceQueryDto {
   @IsString()

@@ -10,7 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TenantSequenceService } from '../procurement/shared/tenant-sequence.service';
 import { DirectStockService } from '../stock/direct-stock.service';
 import { priceListPrice } from '../workspace/price-lists.service';
-import { CreateSaleDto, LastPriceQueryDto } from './dto';
+import { CreateSaleDto, LastPriceQueryDto, SetShipmentDto } from './dto';
 import { KHATA_SALE_STATUSES, KhataService } from './khata.service';
 import { SaleLineError, saleTake } from './sale-lines';
 import { billMessage, language, whatsappLink } from './whatsapp';
@@ -31,6 +31,15 @@ const itemSummary = {
 } satisfies Prisma.InventoryItemDefaultArgs;
 
 /** What the bill calls an item: its name, else category + grade, plus the bale code. */
+/** The shipment fields of an export sale, trimmed (empty = none). */
+export function shipmentData(s: { destinationCountry?: string | null; portOfLoading?: string | null; portOfDischarge?: string | null; vesselName?: string | null; billOfLadingNumber?: string | null; containerSealNumber?: string | null; freightForwarder?: string | null }) {
+  const v = (x?: string | null) => (x === undefined ? undefined : x?.trim() || null);
+  return {
+    destinationCountry: v(s.destinationCountry), portOfLoading: v(s.portOfLoading), portOfDischarge: v(s.portOfDischarge), vesselName: v(s.vesselName),
+    billOfLadingNumber: v(s.billOfLadingNumber), containerSealNumber: v(s.containerSealNumber), freightForwarder: v(s.freightForwarder),
+  };
+}
+
 export function describeItem(item: {
   name: string | null;
   priceTier?: string | null;
@@ -97,6 +106,7 @@ export class SalesService {
           currencyCode: tenant.currency,
           billToken: randomBytes(24).toString('base64url'),
           createdBy: userId,
+          ...(type === SaleType.EXPORT && dto.shipment ? shipmentData(dto.shipment) : {}),
         },
       });
 
@@ -193,6 +203,120 @@ export class SalesService {
 
   async get(tenantId: string, id: string) {
     return this.view(this.prisma, tenantId, id);
+  }
+
+  /** Phase 9.2: change an export sale's shipment details (they are often known only after the sale). */
+  async setShipment(tenantId: string, id: string, dto: SetShipmentDto, userId: string) {
+    const { makeExport, ...shipment } = dto;
+    const sale = await this.prisma.sale.findFirst({ where: { id, tenantId }, select: { id: true, type: true, status: true } });
+    if (!sale) throw new NotFoundException('Sale not found');
+    const toExport = sale.type !== SaleType.EXPORT && makeExport === true;
+    if (sale.type !== SaleType.EXPORT && !toExport) throw new BadRequestException('Only an export sale has a shipment');
+    if (toExport) {
+      // A local sale made an export sale afterwards: only with Export sales on, never a cancelled sale.
+      const t = await this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { enabledModules: true } });
+      if (!t?.enabledModules.includes('EXPORT')) throw new ForbiddenException({ code: 'MODULE_DISABLED', message: 'Export sales are not on for this business' });
+      if (sale.status === SaleStatus.CANCELLED) throw new BadRequestException('A cancelled sale cannot be made an export sale');
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.sale.update({ where: { id }, data: { ...shipmentData(shipment), ...(toExport ? { type: SaleType.EXPORT } : {}) } });
+      if (toExport) {
+        // Its stock went out as an export, like a sale saved as export from the start.
+        await tx.stockMovement.updateMany({ where: { referenceId: id, movementType: MovementType.SALE, inventoryItem: { tenantId } }, data: { movementType: MovementType.EXPORT } });
+      }
+      await tx.auditLog.create({ data: { tenantId, userId, action: toExport ? 'SALE_MADE_EXPORT' : 'SALE_SHIPMENT_SET', entityType: 'Sale', entityId: id, metadataJson: { ...shipment } } });
+    });
+    return this.view(this.prisma, tenantId, id);
+  }
+
+  /**
+   * Phase 9.2: everything the export pack prints, from data ThriftOS already has: the seller and buyer, the
+   * shipment, the packing list (each bale: code, item, kg, pieces), the commercial invoice lines, and each bale's
+   * sorting record (where it came from — lot, container, supplier, origin — when it was sorted and graded, by whom).
+   */
+  async exportPack(tenantId: string, id: string) {
+    const sale = await this.prisma.sale.findFirst({
+      where: { id, tenantId },
+      include: {
+        customer: { select: { name: true, phone: true, city: true } },
+        tenant: { select: { name: true, phone: true, address: true, city: true, currency: true } },
+        lines: {
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          include: {
+            inventoryItem: {
+              select: {
+                id: true, name: true, unit: true, quantity: true, weightKg: true, pcsCount: true, createdAt: true,
+                category: { select: { name: true } }, grade: { select: { name: true } },
+                repackUnit: {
+                  select: {
+                    unitCode: true, createdAt: true, weightKg: true, pcsCount: true,
+                    inputAllocations: {
+                      select: {
+                        amountUsed: true, measurementType: true,
+                        categoryOutput: { select: { createdAt: true, category: { select: { name: true } }, grade: { select: { name: true } }, worker: { select: { name: true } }, rag: { select: { ragCode: true, originCountry: true, vendor: { select: { name: true } }, container: { select: { containerNumber: true, originCountry: true, vendor: { select: { name: true } } } } } } } },
+                        gradingOutput: { select: { createdAt: true, grade: { select: { name: true } }, gradeBucket: { select: { gradeSession: { select: { endTime: true, categoryOutput: { select: { category: { select: { name: true } }, rag: { select: { ragCode: true, originCountry: true, vendor: { select: { name: true } }, container: { select: { containerNumber: true, originCountry: true, vendor: { select: { name: true } } } } } } } } } } } } } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!sale) throw new NotFoundException('Sale not found');
+    if (sale.type !== SaleType.EXPORT) throw new BadRequestException('Only an export sale has an export pack');
+    const name = (i: { name: string | null; category: { name: string } | null; grade: { name: string } | null }) => i.name ?? ([i.category?.name, i.grade?.name].filter(Boolean).join(' · ') || null);
+    const packing = sale.lines.map((l) => {
+      const i = l.inventoryItem;
+      // The kg and pieces this line takes: whole bales by their weight and count, part of a bale by its share.
+      const share = i.quantity.isZero() ? new Prisma.Decimal(0) : (l.unit === i.unit ? l.quantity : l.unit === 'KG' && i.weightKg ? l.quantity.div(i.weightKg).mul(i.quantity) : l.unit === 'PIECE' && i.pcsCount ? l.quantity.div(i.pcsCount).mul(i.quantity) : l.quantity).div(i.quantity);
+      return {
+        code: i.repackUnit?.unitCode ?? null,
+        item: name(i),
+        unit: l.unit,
+        quantity: l.quantity,
+        kg: l.unit === 'KG' ? l.quantity : i.weightKg ? i.weightKg.mul(share).toDecimalPlaces(2) : null,
+        pieces: l.unit === 'PIECE' ? l.quantity.toNumber() : i.pcsCount ? Math.round(share.mul(i.pcsCount).toNumber()) : null,
+        unitPrice: l.unitPrice,
+        total: l.lineTotal,
+      };
+    });
+    const records = sale.lines
+      .filter((l) => l.inventoryItem.repackUnit)
+      .map((l) => {
+        const u = l.inventoryItem.repackUnit!;
+        const from = u.inputAllocations.map((a) => {
+          const co = a.categoryOutput;
+          const go = a.gradingOutput;
+          const rag = co?.rag ?? go?.gradeBucket.gradeSession.categoryOutput.rag ?? null;
+          return {
+            lot: rag?.ragCode ?? null,
+            container: rag?.container?.containerNumber ?? null,
+            supplier: rag?.container?.vendor?.name ?? rag?.vendor?.name ?? null,
+            origin: rag?.container?.originCountry ?? rag?.originCountry ?? null,
+            category: co?.category.name ?? go?.gradeBucket.gradeSession.categoryOutput.category.name ?? null,
+            grade: co?.grade?.name ?? go?.grade.name ?? null,
+            sortedAt: co?.createdAt ?? null,
+            gradedAt: go?.gradeBucket.gradeSession.endTime ?? (co?.grade ? co.createdAt : null),
+            sortedBy: co?.worker?.name ?? null,
+            amount: a.amountUsed,
+            measure: a.measurementType,
+          };
+        });
+        return { code: u.unitCode, item: name(l.inventoryItem), madeAt: u.createdAt, kg: u.weightKg.isZero() ? null : u.weightKg, pieces: u.pcsCount || null, from };
+      });
+    const sum = (f: (r: (typeof packing)[number]) => Prisma.Decimal | number | null) => packing.reduce((t, r) => t.add(f(r) ?? 0), new Prisma.Decimal(0));
+    return {
+      sale: { id: sale.id, number: sale.saleNumber, date: sale.issuedAt ?? sale.createdAt, currency: sale.currencyCode, total: sale.totalAmount },
+      seller: sale.tenant,
+      buyer: sale.customer,
+      shipment: shipmentData(sale),
+      packing,
+      totals: { lines: packing.length, bales: packing.filter((p) => p.unit === 'BALE').reduce((t, p) => t + Number(p.quantity), 0), kg: sum((r) => r.kg), pieces: sum((r) => r.pieces).toNumber(), amount: sale.totalAmount },
+      records,
+    };
   }
 
   /** Price to suggest: this customer's last price for the same kind of stock, else anyone's, else the item's sale price. */

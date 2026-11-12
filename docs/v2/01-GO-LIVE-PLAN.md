@@ -70,7 +70,7 @@ Target: the owner's existing AWS free-tier account. One EC2 micro instance (1 GB
 
 ## Phase 9 — FBR e-invoicing and export (weeks 10–12)
 - [ ] 9.1 (postponed by the owner, 2026-11-12: no registered business with a sandbox token yet) FBR e-invoicing for sales-tax-registered businesses via PRAL or a licensed integrator: tenant settings (NTN/STRN, buyer registration), invoice submission on sale issue, FBR invoice number + QR on the bill, retry queue, sandbox tests. Confirm the current FBR technical spec and integrator terms before building; record sources in PROGRESS.md.
-- [ ] 9.2 Export pack (EXPORT module): packing list per container shipment from bales (code, grade, kg, pieces), commercial invoice, fumigation/certificate attachments, per-bale sorting record ("fit for reuse" evidence) printable/exportable.
+- [x] 9.2 Export pack (EXPORT module): packing list per container shipment from bales (code, grade, kg, pieces), commercial invoice, fumigation/certificate attachments, per-bale sorting record ("fit for reuse" evidence) printable/exportable.
 - [x] 9.3 Multi-warehouse (WAREHOUSES module): stock per location, transfer with QR scan, stock report per warehouse.
 - Acceptance: a registered business's sale gets an FBR invoice number in sandbox; an export shipment produces a packing list and per-bale records from existing data.
 

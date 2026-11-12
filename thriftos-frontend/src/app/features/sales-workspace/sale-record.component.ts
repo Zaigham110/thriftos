@@ -1,3 +1,5 @@
+import { moduleOn } from '../../core/tenant/module-on';
+import { ExportPackComponent } from './export-pack.component';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { NavService } from '../../core/nav/nav.service';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
@@ -53,6 +55,7 @@ const UNIT_KEYS: Record<string, string> = { KG: 'unit.kgShort', BALE: 'unit.bale
     WsSideSheetComponent,
     FormsModule,
     PrintSheetComponent,
+    ExportPackComponent,
   ],
   template: `
     @if (failed()) {
@@ -88,6 +91,8 @@ const UNIT_KEYS: Record<string, string> = { KG: 'unit.kgShort', BALE: 'unit.bale
           <div role="tabpanel" [id]="'ws-panel-' + tab()" [attr.aria-labelledby]="'ws-tab-' + tab()">
             @if (tab() === 'lines') {
               <ws-data-grid [caption]="'ws.sale.lines' | t" [columns]="lineColumns()" [rows]="lineRows()" />
+            } @else if (tab() === 'export' && canExport()) {
+              <app-export-pack [saleId]="s.id" [local]="!isExport()" (madeExport)="reload()" />
             } @else {
               <ws-data-grid [caption]="'ws.sale.payments' | t" [columns]="paymentColumns()" [rows]="paymentRows()" [emptyHeading]="'ws.sale.noPayments' | t" />
               <p class="hint">{{ 'ws.sp2.paymentsHint' | t }}</p>
@@ -164,7 +169,7 @@ export class SaleRecordComponent {
   protected readonly failed = signal(false);
   private readonly reloads = signal(0);
   protected readonly chosenTab = signal<string | null>(null);
-  protected readonly tab = computed(() => this.chosenTab() ?? (this.tabParam() === 'payments' ? 'payments' : 'lines'));
+  protected readonly tab = computed(() => this.chosenTab() ?? (this.tabParam() === 'payments' ? 'payments' : this.tabParam() === 'export' ? 'export' : 'lines'));
   protected readonly canSeeCost = computed(() => this.auth.isSuperAdmin() || this.auth.permissions().includes('cost.view'));
 
   protected readonly steps = computed(() => STEPS.map((s) => this.i18n.t(`ws.status.${s}`)));
@@ -179,7 +184,12 @@ export class SaleRecordComponent {
   protected readonly tabs = computed<WsTab[]>(() => [
     { id: 'lines', label: this.i18n.t('ws.sale.lines'), count: this.sale()?.lines.length ?? 0 },
     { id: 'payments', label: this.i18n.t('ws.sale.payments'), count: this.sale()?.paidBy?.length ?? 0 },
+    // Phase 9.2: an export sale's pack (packing list, commercial invoice, bale records); a local sale can be made export there.
+    ...(this.canExport() ? [{ id: 'export', label: this.i18n.t('xp.tab') }] : []),
   ]);
+  private readonly on = moduleOn();
+  protected readonly isExport = computed(() => (this.sale() as { type?: string } | null)?.type === 'EXPORT' && this.on('EXPORT'));
+  protected readonly canExport = computed(() => this.isExport() || (this.on('EXPORT') && !!this.sale() && this.sale()!.status !== 'CANCELLED'));
   protected readonly lineColumns = computed<WsColumn[]>(() => [
     { key: 'description', label: this.i18n.t('ws.sale.item') },
     { key: 'unit', label: this.i18n.t('ws.sale.unit') },

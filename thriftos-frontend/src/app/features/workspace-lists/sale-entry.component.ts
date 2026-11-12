@@ -124,6 +124,17 @@ function kindItem(p: Pick): StockOption {
           <tfoot><tr><td colspan="4">{{ 'ws.col.total' | t }}</td><td class="num">{{ i18n.money(total()) }}</td><td></td></tr></tfoot>
         </table>
 
+        @if (on('EXPORT')) {
+          <!-- Phase 9.2: an export sale and its shipment (all can be filled in later on the sale). -->
+          <div class="export">
+            <label class="check"><input type="checkbox" name="isExport" [(ngModel)]="isExport" /> {{ 'xp.isExport' | t }}</label>
+            @if (isExport) {
+              <div class="ship">
+                @for (f of shipFields; track f) { <label>{{ ('xp.f.' + f) | t }}<input [name]="'ship-' + f" maxlength="120" [(ngModel)]="ship[f]" /></label> }
+              </div>
+            }
+          </div>
+        }
         <div class="row pay">
           @if (modes().length > 1) {
           <div class="modes" role="group" [attr.aria-label]="'ws.col.paymentMode' | t">
@@ -159,6 +170,10 @@ function kindItem(p: Pick): StockOption {
     </ws-side-sheet>
   `,
   styles: [`
+    .export { display:grid; gap:8px; }
+    .export .check { display:flex; gap:8px; align-items:center; font-weight:600; }
+    .export .ship { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:8px; }
+    .export .ship label { display:grid; gap:4px; font-size:13px; }
     .page { display:grid; gap:var(--ws-4); max-width:var(--ws-content-max); margin-inline:auto; font-family:var(--ws-font); color:var(--ws-ink); }
     .sheet { display:grid; gap:var(--ws-4); padding:var(--ws-4); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); }
     label { display:grid; gap:4px; color:var(--ws-ink-2); font-size:var(--ws-text-sm); }
@@ -203,7 +218,7 @@ export class SaleEntryComponent implements HasUnsavedChanges {
   private readonly toast = inject(ToastService);
   private readonly qtyInputs = viewChildren<ElementRef<HTMLInputElement>>('qtyInput');
   protected readonly icons = { Trash2 };
-  private readonly on = moduleOn();
+  protected readonly on = moduleOn();
   /** Udhaar (all or part) is khata: without it, cash only (v2 modules). */
   protected readonly modes = computed<Mode[]>(() => (this.on('KHATA') ? ['CASH', 'CREDIT', 'PARTIAL'] : ['CASH']));
   protected readonly methods = PAYMENT_METHODS;
@@ -222,6 +237,10 @@ export class SaleEntryComponent implements HasUnsavedChanges {
   protected readonly mode = signal<Mode>('CASH');
   protected readonly busy = signal(false);
   protected paid: number | null = null;
+  /** Phase 9.2: an export sale and its shipment. */
+  protected isExport = false;
+  protected readonly shipFields = ['destinationCountry', 'portOfLoading', 'portOfDischarge', 'vesselName', 'billOfLadingNumber', 'containerSealNumber', 'freightForwarder'] as const;
+  protected ship: Record<string, string> = {};
   protected method = 'CASH';
   /** One key per sale being entered: a double submit or retry records it once. */
   private idempotencyKey = crypto.randomUUID();
@@ -520,6 +539,7 @@ export class SaleEntryComponent implements HasUnsavedChanges {
             : [{ inventoryItemId: l.item.id, unit: l.unit, quantity: l.quantity, unitPrice: l.unitPrice }],
       ),
       paymentMode: this.mode(),
+      ...(this.isExport && this.on('EXPORT') ? { type: 'EXPORT', shipment: Object.fromEntries(Object.entries(this.ship).filter(([, v]) => v.trim())) } : {}),
       ...(this.mode() === 'CASH' ? { paidAmount: this.total(), paymentMethod: this.method } : {}),
       ...(this.mode() === 'PARTIAL' ? { paidAmount: this.paid, paymentMethod: this.method } : {}),
     };
