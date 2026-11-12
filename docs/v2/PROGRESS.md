@@ -398,6 +398,14 @@
   - Code changed for it: `prisma.health.ts` (terminus 11 `HealthIndicatorService`), `sentry.ts` (Sentry 11 collects user info, cookies, headers, bodies and query strings by default: all switched off with `dataCollection`, replacing `sendDefaultPii: false`), `auth.module.ts` (type of `expiresIn`).
   - Web: Angular 20.3.15 → 20.3.35 (the XSS and service-worker fixes), same major.
   - Checked: server 398/398, web unit 34/34, i18n ok, the server release image built locally on Node 20 (bcrypt hashes, NestJS, Sentry and nodemailer load). 12 warnings remain in development-only tools (not in the live image).
+- 2026-11-13 — 5.3 / audit H5, backups off the server (owner: "Complete"; was postponed 2026-11-03). **Built and rehearsed locally; not yet running on the server: one AWS permission is still missing (below).**
+  - Bucket `thriftos-backups-<account>-ap-southeast-2-an` created in the project's Region: private (public access blocked), encrypted (SSE-S3), versioned, HTTPS only. Its rules keep `daily/` 14 days and `weekly/` 8 weeks; `uploads/` is kept. Access logging was not set up.
+  - `deploy/backup.sh` (new): `pg_dump -Fc`, checked with `pg_restore -l`, copied to `daily/thriftos-YYYY-MM-DD.dump` (Sundays also `weekly/`), and the uploaded files (payment photos, attachments) synced to `uploads/`. No AWS keys on the server: the instance's role, and the AWS CLI from its container image. `--check` fails when the newest backup is older than 26 hours.
+  - `deploy/restore-from-s3.sh` (new): the newest (or a named) backup restored into a scratch database beside the live one, tables counted against live, `cost-chain-check` and `khata-check` run (0 rows), scratch dropped (`--keep` leaves it; the header says how to switch to it after a real loss).
+  - `deploy/deploy.sh` installs `thriftos-backup.timer` (every night 21:00 UTC = 02:00 in Pakistan) once, after a healthy deploy, and fetches the two scripts if the server does not have them yet; `auto-deploy.sh` keeps them up to date.
+  - Rehearsed here on the copy of live data: dump → restore into `thriftos_restore_test` → 2 businesses, 3 users, 3 sales, 3 payments → both checks 0 rows → dropped.
+  - **Missing:** the server's role (`tradebrain-ec2`) may not write to the bucket yet. The grant (inline policy `thriftos-backups`: list the bucket, put and get its objects, nothing else) was stopped by the session's permission system and waits for the owner. Until then the nightly run fails and nothing is backed up.
+  - Not built: an alert when a night is missed (no mail or alert channel is set up on the server; `deploy/backup.sh --check` is the manual check).
 
 ## Decisions
 - Sorting (6.6): bales made while a lot is open are costed at the lot's cost per kg and re-costed at close; sold ones keep their sale cost (logged adjustment). Kat goes to stock at zero cost, so a kat sale is pure extra profit and bale costs are right whether or not kat sells.
@@ -423,5 +431,5 @@
 - **Own domain later** (5.5): add it to the CloudFront distribution with an ACM certificate (us-east-1), then update `CORS_ORIGIN` and `PUBLIC_APP_URL` in `/opt/thriftos/.env.prod`.
 
 ## Blockers
-- 5.3 (nightly off-server backups, tested restore) postponed by the owner; listed again before real customer data goes in.
+- 5.3 backups: scripts and bucket are ready (2026-11-13); the server's role still needs the grant to write to the bucket (owner's go-ahead), then one restore test on the server.
 - None for 5.0. AWS steps wait for `aws login`.

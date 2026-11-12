@@ -3,7 +3,7 @@
 # Usage (as root, in /opt/thriftos):  deploy/deploy.sh <tag>   (normally run by deploy/auto-deploy.sh)
 #   GHCR_USER / GHCR_TOKEN (optional): short-lived registry login for the pull; logged out right after.
 #   SKIP_PULL=1: use images already on this machine (rehearsals).
-# Steps: backup → pull → switch tag → up → wait for health → (fail: previous tag back) → prune.
+# Steps: backup → pull → switch tag → up → wait for health → (fail: previous tag back) → prune → nightly backup timer.
 # A rollback brings back the previous images; migrations already applied stay applied, and the
 # backup taken in step 1 is the way back for data (see docs/v2/PROGRESS.md, 5.2).
 set -euo pipefail
@@ -31,6 +31,43 @@ healthy() {
 wait_healthy() {
   for _ in $(seq 1 "${HEALTH_TRIES:-36}"); do healthy && return 0; sleep 5; done
   return 1
+}
+
+# Nightly off-server backup (plan 5.3): deploy/backup.sh at 21:00 UTC (02:00 in Pakistan). Set up once; a
+# server whose auto-deploy.sh is older than the backup scripts gets them from the release being deployed.
+install_backup_timer() {
+  command -v systemctl >/dev/null || return 0
+  local repo="${THRIFTOS_REPO:-Zaigham110/thriftos}" f
+  for f in deploy/backup.sh deploy/restore-from-s3.sh; do
+    [ -f "$f" ] || curl -fsSL --max-time 30 "https://raw.githubusercontent.com/$repo/$TAG/$f" -o "$f" || return 1
+    chmod 755 "$f"
+  done
+  [ -f /etc/systemd/system/thriftos-backup.timer ] && return 0
+  cat > /etc/systemd/system/thriftos-backup.service <<UNIT
+[Unit]
+Description=ThriftOS nightly backup to S3
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=$PWD/deploy/backup.sh
+UNIT
+  cat > /etc/systemd/system/thriftos-backup.timer <<UNIT
+[Unit]
+Description=ThriftOS nightly backup (21:00 UTC, 02:00 in Pakistan)
+
+[Timer]
+OnCalendar=*-*-* 21:00:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
+UNIT
+  systemctl daemon-reload
+  systemctl enable --now thriftos-backup.timer
+  echo "   nightly backup timer installed"
 }
 
 echo "== Deploy $TAG (running now: ${PREV:-none})"
@@ -68,6 +105,7 @@ echo "== 4/5 Health"
 if wait_healthy; then
   echo "== 5/5 Healthy — cleaning old images"
   docker image prune -f >/dev/null
+  install_backup_timer || echo "   (nightly backup timer not installed: see above)"
   echo "Deployed $TAG."
   exit 0
 fi

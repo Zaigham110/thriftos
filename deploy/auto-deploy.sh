@@ -9,7 +9,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 REPO="${THRIFTOS_REPO:-Zaigham110/thriftos}"
-FILES=(docker-compose.prod.yml deploy/Caddyfile deploy/deploy.sh deploy/auto-deploy.sh)
+FILES=(docker-compose.prod.yml deploy/Caddyfile deploy/deploy.sh deploy/auto-deploy.sh deploy/backup.sh deploy/restore-from-s3.sh)
 
 exec 9>.auto-deploy.lock
 flock -n 9 || exit 0
