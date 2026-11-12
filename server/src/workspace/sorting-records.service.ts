@@ -41,6 +41,8 @@ export class SortingRecordsService {
     });
     if (!r) throw new NotFoundException('Lot not found');
     const s = r.sortSession;
+    // Phase 8: sorter pay put on this lot by paid pay sheets.
+    const labour = (await this.prisma.labourCost.aggregate({ where: { tenantId, ragId }, _sum: { amount: true } }))._sum.amount ?? ZERO;
     const [outputs, waste, grades, allocations] = await Promise.all([
       this.prisma.categoryOutput.findMany({
         where: { tenantId, ragId },
@@ -95,6 +97,7 @@ export class SortingRecordsService {
         rawCategory: r.rawCategory?.name ?? null, container: r.container ? { id: r.container.id, number: r.container.containerNumber } : null,
         supplier: r.container?.vendor ?? r.vendor ?? null, cost: money(canSeeCost, r.allocatedCost),
         costPerKg: money(canSeeCost, r.weightKg.isZero() ? ZERO : r.allocatedCost.div(r.weightKg).toDecimalPlaces(2)),
+        labour: money(canSeeCost, labour),
         pieces: r.pieces,
         costPerPiece: lotPieces ? money(canSeeCost, r.allocatedCost.div(lotPieces).toDecimalPlaces(2)) : null,
       },

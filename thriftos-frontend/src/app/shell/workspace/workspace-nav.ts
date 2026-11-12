@@ -4,6 +4,7 @@ import {
   Coins,
   Factory,
   Gauge,
+  HandCoins,
   Boxes,
   Home,
   Layers3,
@@ -73,6 +74,7 @@ export const WS_NAV: WsNavGroup[] = [
       { label: 'ws.nav.book', path: '/finance/book', icon: Wallet, module: ['CASH_CLOSE', 'EXPENSES'], permission: 'finance.view', keywords: 'cash book bank jazzcash easypaisa raast' },
       { label: 'ws.nav.close', path: '/finance/close', icon: Vault, module: 'CASH_CLOSE', permission: 'finance.view', keywords: 'cash close galla hisaab day end' },
       { label: 'ws.nav.pnl', path: '/finance/pnl', icon: TrendingUp, module: 'PNL', permission: 'cost.view', keywords: 'profit loss munafa nuqsan p&l' },
+      { label: 'ws.nav.payroll', path: '/payroll', icon: HandCoins, module: 'PAYROLL', permission: 'tenant.update', keywords: 'tankhwah mazdoori payroll wages salary sorter advance' },
     ],
   },
   {

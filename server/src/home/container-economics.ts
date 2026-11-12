@@ -17,6 +17,8 @@ export interface ContainerEconomics {
   graded: { rank: number; kg: Prisma.Decimal }[];
   /** Rank of the business's top grade (A), if it has grades. */
   topRank: number | null;
+  /** Phase 8: sorter pay put on it (paid pay sheets); already taken off `profit`. */
+  labour: Prisma.Decimal;
 }
 
 export const yieldPercent = (e: ContainerEconomics): number | null => (e.outputKg.isZero() ? null : percent(e.outputKg, e.kg));
@@ -26,7 +28,7 @@ export const topPercent = (e: ContainerEconomics): number | null => (e.topRank =
 export async function containerEconomics(prisma: PrismaClient | Prisma.TransactionClient, tenantId: string, ids: string[]): Promise<Map<string, ContainerEconomics>> {
   const out = new Map<string, ContainerEconomics>();
   if (!ids.length) return out;
-  const [lots, lines, outputs, graded, sortGraded, topGrade] = await Promise.all([
+  const [lots, lines, outputs, graded, sortGraded, topGrade, labour] = await Promise.all([
     prisma.rag.groupBy({ by: ['containerId'], where: { tenantId, containerId: { in: ids } }, _sum: { weightKg: true } }),
     prisma.saleLine.findMany({
       where: {
@@ -50,6 +52,8 @@ export async function containerEconomics(prisma: PrismaClient | Prisma.Transacti
       select: { containerId: true, weightKg: true, grade: { select: { rank: true } } },
     }),
     prisma.grade.findFirst({ where: { tenantId, isActive: true }, orderBy: { rank: 'asc' }, select: { rank: true } }),
+    // Container profit = sales − landed cost − labour (Phase 8.4).
+    prisma.labourCost.groupBy({ by: ['containerId'], where: { tenantId, containerId: { in: ids } }, _sum: { amount: true } }),
   ]);
 
   const sources: LineSource[] = lines.map((l) => {
@@ -63,8 +67,10 @@ export async function containerEconomics(prisma: PrismaClient | Prisma.Transacti
   const money = byContainer(sources);
   const kg = new Map(lots.map((l) => [l.containerId, l._sum.weightKg ?? ZERO]));
   const sorted = new Map(outputs.map((o) => [o.containerId, o._sum.weightKg ?? ZERO]));
+  const wages = new Map(labour.map((l) => [l.containerId, l._sum.amount ?? ZERO]));
   for (const id of ids) {
-    out.set(id, { kg: kg.get(id) ?? ZERO, revenue: money.get(id)?.revenue ?? ZERO, profit: money.get(id)?.profit ?? ZERO, outputKg: sorted.get(id) ?? ZERO, graded: [], topRank: topGrade?.rank ?? null });
+    const lab = wages.get(id) ?? ZERO;
+    out.set(id, { kg: kg.get(id) ?? ZERO, revenue: money.get(id)?.revenue ?? ZERO, profit: (money.get(id)?.profit ?? ZERO).sub(lab), outputKg: sorted.get(id) ?? ZERO, graded: [], topRank: topGrade?.rank ?? null, labour: lab });
   }
   for (const g of graded) {
     const cid = g.gradeBucket.gradeSession.categoryOutput.containerId;

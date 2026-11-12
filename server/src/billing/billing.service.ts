@@ -49,6 +49,8 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
     if (process.env.NODE_ENV === 'test') return;
     // Trials and paid periods run out on their own: the modules follow within the hour.
     this.timer = setInterval(() => void this.sweep().catch((e) => this.log.warn(`billing sweep: ${e}`)), 60 * 60 * 1000);
+    // Never keeps the process alive on its own (tests, shutdown).
+    this.timer.unref();
   }
 
   onModuleDestroy(): void {

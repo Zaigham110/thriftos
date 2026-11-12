@@ -24,7 +24,7 @@ import {
 type Money = string | null;
 /** GET /api/workspace/sorting/:lotId (money is null without cost.view). */
 export interface SortingRecord {
-  lot: { id: string; code: string; status: 'NOT_STARTED' | 'IN_SORTING' | 'SORTED'; kg: string; createdAt: string; source: string; origin: string | null; rawCategory: string | null; container: { id: string; number: string } | null; supplier: { id: string; name: string } | null; cost: Money; costPerKg: Money };
+  lot: { id: string; code: string; status: 'NOT_STARTED' | 'IN_SORTING' | 'SORTED'; kg: string; createdAt: string; source: string; origin: string | null; rawCategory: string | null; container: { id: string; number: string } | null; supplier: { id: string; name: string } | null; cost: Money; costPerKg: Money; labour?: Money };
   /** A loose lot's price and extra charges (only for people who may see cost). */
   purchase: { price: string; ratePerKg: string | null; pieces?: number | null; ratePerPiece?: string | null; charges: { kind: string; amount: string; note: string | null }[]; total: string } | null;
   session: { id: string; status: string; worker: string; supervisor: string; startTime: string; endTime: string | null; inputKg: string; outputKg: string; wasteKg: string } | null;
@@ -85,6 +85,7 @@ const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
                   <div><dt>{{ ('ws.lf.kind.' + c.kind) | t }}@if (c.note) { <small>{{ c.note }}</small> }</dt><dd>{{ i18n.money(c.amount) }}</dd></div>
                 }
                 <div class="total"><dt>{{ 'ws.lf.lotCost' | t }}</dt><dd>{{ i18n.money(p.total) }}</dd></div>
+                @if (d.lot.labour && +d.lot.labour > 0) { <div><dt>{{ 'pay.lotLabour' | t }}<small>{{ 'pay.lotLabourHint' | t }}</small></dt><dd>{{ i18n.money(d.lot.labour) }}</dd></div> }
                 @if (p.pieces) { <div><dt>{{ 'ws.lf.costPerPiece' | t }}<small>{{ 'ws.lf.piecesN' | t: { n: i18n.num(p.pieces) } }}</small></dt><dd>{{ i18n.money(round2(+p.total / p.pieces)) }}</dd></div> }
               </dl>
               <p class="hint">{{ 'ws.sortRecord.papersHint' | t }}</p>

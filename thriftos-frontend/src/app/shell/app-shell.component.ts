@@ -13,8 +13,7 @@ import {
   PackageSearch,
   Settings2,
   ShoppingCart,
-  Truck,
-} from 'lucide-angular';
+  Truck, HandCoins } from 'lucide-angular';
 
 import { AuthService } from '../core/auth';
 import { OfflineQueueService } from '../core/offline/offline-queue.service';
@@ -46,6 +45,7 @@ const NAV: NavItem[] = [
   { label: 'nav.khata', path: '/khata', module: 'KHATA', anyOf: ['payment.create', 'finance.view'], icon: BookOpen },
   { label: 'nav.stock', path: '/stock', module: 'STOCK', anyOf: ['INVENTORY_VIEW'], icon: PackageSearch },
   { label: 'nav.reports', path: '/reports', module: 'REPORTS', icon: BarChart3 },
+  { label: 'ws.nav.payroll', path: '/payroll', module: 'PAYROLL', anyOf: ['tenant.update'], icon: HandCoins },
   { label: 'nav.settings', path: '/settings', icon: Settings2 },
 ];
 

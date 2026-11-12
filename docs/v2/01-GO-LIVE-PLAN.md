@@ -61,12 +61,12 @@ Target: the owner's existing AWS free-tier account. One EC2 micro instance (1 GB
 - Acceptance: a business moves trial → paid → expired → read-only → paid again, with correct module access at each step; tests cover it. (Done 2026-11-12: server `billing.e2e-spec.ts`, browser `billing.spec.ts`.)
 
 ## Phase 8 — Sorter payroll (weeks 8–9)
-- [ ] 8.1 Workers as people without login (name, phone, rate type: per kg / per day / monthly, rate).
-- [ ] 8.2 Sorting entries can carry a worker (default: last worker on this device); kg per worker per day computed from sorting outputs.
-- [ ] 8.3 Pay sheet per week/month: kg × rate or days × rate, advances, deductions, net; mark paid (cash); WhatsApp payslip text.
-- [ ] 8.4 Owner home: labour cost per container added to profit (container profit = sales − landed cost − labour).
-- [ ] 8.5 Productivity: kg per worker per day and A-grade share by worker (useful for theft/quality questions), visible to owner only.
-- Acceptance: a week of sorting produces a correct pay sheet; container profit includes labour; tests prove totals.
+- [x] 8.1 Workers as people without login (name, phone, rate type: per kg / per day / monthly, rate).
+- [x] 8.2 Sorting entries can carry a worker (default: last worker on this device); kg per worker per day computed from sorting outputs.
+- [x] 8.3 Pay sheet per week/month: kg × rate or days × rate, advances, deductions, net; mark paid (cash); WhatsApp payslip text.
+- [x] 8.4 Owner home: labour cost per container added to profit (container profit = sales − landed cost − labour).
+- [x] 8.5 Productivity: kg per worker per day and A-grade share by worker (useful for theft/quality questions), visible to owner only.
+- Acceptance: a week of sorting produces a correct pay sheet; container profit includes labour; tests prove totals. (Done 2026-11-12: server `payroll.e2e-spec.ts`, browser `payroll.spec.ts`.)
 
 ## Phase 9 — FBR e-invoicing and export (weeks 10–12)
 - [ ] 9.1 FBR e-invoicing for sales-tax-registered businesses via PRAL or a licensed integrator: tenant settings (NTN/STRN, buyer registration), invoice submission on sale issue, FBR invoice number + QR on the bill, retry queue, sandbox tests. Confirm the current FBR technical spec and integrator terms before building; record sources in PROGRESS.md.

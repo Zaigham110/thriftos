@@ -193,6 +193,8 @@ export const routes: Routes = [
           { path: 'pnl', canActivate: [moduleGuard], data: { module: 'PNL' }, loadComponent: () => import('./features/workspace-lists/pnl.component').then((m) => m.PnlComponent), title: 'ThriftOS' },
         ],
       },
+      // Phase 8: sorter pay (owners).
+      { path: 'payroll', canActivate: [moduleGuard], data: { module: 'PAYROLL' }, loadComponent: () => import('./features/payroll/payroll.component').then((m) => m.PayrollComponent), title: 'ThriftOS' },
       {
         path: 'khata',
         canActivate: [moduleGuard],

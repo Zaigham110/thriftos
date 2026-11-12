@@ -1,3 +1,4 @@
+import { HttpClient } from '@angular/common/http';
 import { Component, DestroyRef, ElementRef, OnInit, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
 import { NavService } from '../../core/nav/nav.service';
 import { WsPageHeaderComponent } from '../../shared/ui/workspace/page-header.component';
@@ -50,6 +51,15 @@ interface Entry {
 }
 
 const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:${gradeId ?? ''}`;
+const WORKER_KEY = 'thriftos.sortWorker';
+const WORKERS_KEY = 'thriftos.sortWorkers';
+function readWorker(): string | null {
+  try {
+    return localStorage.getItem(WORKER_KEY);
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Journey 2 — sorting a lot (gaari). Since v2 6.6 one step sorts, grades and bales: big tiles are category + grade
@@ -248,6 +258,17 @@ const kindKey = (categoryId: string, gradeId: string | null) => `${categoryId}:$
               </div>
               <button type="button" class="x" [attr.aria-label]="'common.cancel' | t" (click)="closeSheet()"><lucide-icon [img]="icons.X" [size]="22" /></button>
             </header>
+            @if (e.purpose === 'sort' && workers().length) {
+              <!-- Phase 8: who sorted it (sorter pay); remembered on this phone. -->
+              <div class="field">
+                <span class="field-label" id="entry-worker">{{ 'pay.whoSorted' | t }} <em>· {{ 'common.optional' | t }}</em></span>
+                <div class="grades" role="group" aria-labelledby="entry-worker">
+                  @for (w of workers(); track w.id) {
+                    <button type="button" class="chip" [class.on]="workerId() === w.id" [attr.aria-pressed]="workerId() === w.id" (click)="pickWorker(w.id)">{{ w.name }}</button>
+                  }
+                </div>
+              </div>
+            }
             @if (canPickGrade(e)) {
               <div class="field">
                 <span class="field-label" id="entry-grade">{{ 'sort.grade' | t }} <em>· {{ 'common.optional' | t }}</em></span>
@@ -418,6 +439,20 @@ export class SortWorkComponent implements OnInit {
   readonly id = input.required<string>();
   private readonly route = inject(ActivatedRoute);
   private readonly data = inject(FloorDataService);
+  private readonly http = inject(HttpClient);
+  /** Phase 8: workers to name on an entry (none unless the business has Sorter pay), and who sorts on this phone. */
+  protected readonly workers = signal<{ id: string; name: string }[]>([]);
+  protected readonly workerId = signal<string | null>(readWorker());
+  protected pickWorker(id: string): void {
+    const next = this.workerId() === id ? null : id;
+    this.workerId.set(next);
+    try {
+      if (next) localStorage.setItem(WORKER_KEY, next);
+      else localStorage.removeItem(WORKER_KEY);
+    } catch {
+      /* private mode */
+    }
+  }
   private readonly queue = inject(OfflineQueueService);
   private readonly toast = inject(ToastService);
   private readonly tenant = inject(TenantService);
@@ -611,6 +646,16 @@ export class SortWorkComponent implements OnInit {
   });
 
   constructor() {
+    // Workers for "Who sorted it" (an empty list when the business has no Sorter pay); kept for offline use.
+    this.http.get<{ id: string; name: string }[]>('/api/sorting/workers').subscribe({
+      next: (w) => {
+        this.workers.set(w);
+        try { localStorage.setItem(WORKERS_KEY, JSON.stringify(w)); } catch { /* private mode */ }
+      },
+      error: () => {
+        try { this.workers.set(JSON.parse(localStorage.getItem(WORKERS_KEY) ?? '[]')); } catch { /* none */ }
+      },
+    });
     // Lines are sent in the background: when one reaches the server, its answer is the session's new state.
     const stop = this.queue.onSynced((write, response) => {
       const m = write.meta;
@@ -886,11 +931,13 @@ export class SortWorkComponent implements OnInit {
     const kind = { ...e.kind, name: grade ? `${e.kind.name} · ${grade.name}` : e.kind.name };
     const sessionId = await this.ensureSession();
     const pieces = this.byPieces() ? e.pieces ?? 0 : 0;
+    const workerId = this.workers().some((w) => w.id === this.workerId()) ? this.workerId() : null;
     const body = {
       sessionId,
       categoryId: e.kind.categoryId,
       ...(e.gradeId ? { gradeId: e.gradeId } : {}),
       ...(pieces ? { pieces } : bales ? { bales, baleWeightKg: e.baleKg } : { amountKg: kg }),
+      ...(workerId ? { workerId } : {}),
     };
     const what = pieces
       ? `${this.i18n.t('ws.lf.piecesN', { n: this.i18n.num(pieces) })}${kg ? ` · ${this.i18n.kg(kg)}` : ''}`

@@ -5,7 +5,8 @@ import type { Texts } from '../language/language';
  * admin turns them on or off per business; the server refuses a module that is off and the app hides it.
  *
  * Stored in `Tenant.enabledModules`. RECEIVE, STOCK and SELL are always there (the old route switches); SORT is
- * there when the business sorts (`sortingStages` > 0). BILLING and PAYROLL belong to the platform, not to this list.
+ * there when the business sorts (`sortingStages` > 0). BILLING belongs to the platform, not to this list; PAYROLL is a
+ * business module since Phase 8 (sorter pay).
  */
 export const MODULE_KEYS = [
   'CONTAINERS', 'LOOSE_LOTS', 'READY_STOCK', 'PURCHASE_ORDERS',
@@ -14,6 +15,7 @@ export const MODULE_KEYS = [
   'PRICE_LISTS', 'EXPORT', 'KHATA',
   'EXPENSES', 'CASH_CLOSE', 'PNL',
   'REPORTS', 'STAFF', 'IMPORT',
+  'PAYROLL',
 ] as const;
 export type ModuleKey = (typeof MODULE_KEYS)[number];
 
@@ -123,6 +125,11 @@ export const MODULES: readonly ModuleInfo[] = [
     key: 'IMPORT', group: 'other', byDefault: true,
     name: { en: 'Import from Excel', ur: 'ایکسل سے درآمد', roman: 'Excel se import' },
     hint: { en: 'Bring in customers, suppliers and opening stock from a register.', ur: 'رجسٹر سے گاہک، سپلائر اور ابتدائی اسٹاک لائیں۔', roman: 'Register se gahak, supplier aur ibtidai stock layein.' },
+  },
+  {
+    key: 'PAYROLL', group: 'money', byDefault: false,
+    name: { en: 'Sorter pay', ur: 'چھانٹنے والوں کی تنخواہ', roman: 'Chhantai walon ki tankhwah' },
+    hint: { en: 'Workers paid per kg, piece, day or month; pay sheets, advances, labour cost in profit.', ur: 'فی کلو، فی پیس، روزانہ یا ماہانہ مزدوری؛ تنخواہ شیٹ، ایڈوانس، منافع میں مزدوری کی لاگت۔', roman: 'Fi kilo, fi piece, rozana ya mahana mazdoori; tankhwah sheet, advance, munafa mein mazdoori ki laagat.' },
   },
 ];
 

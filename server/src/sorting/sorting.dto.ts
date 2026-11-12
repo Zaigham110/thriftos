@@ -82,6 +82,11 @@ export class AddCategoryKgDto {
   @Max(1000000)
   @IsOptional()
   pieces?: number;
+
+  /** Phase 8: the worker who sorted it (sorter pay, kg per worker per day). */
+  @IsString()
+  @IsOptional()
+  workerId?: string;
 }
 
 export class StartGradingDto {

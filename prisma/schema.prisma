@@ -1043,6 +1043,9 @@ model CategoryOutput {
   usedKg               Decimal @default(0) @db.Decimal(10, 2)
   /// Pieces already in bales, for an entry of a lot bought by the piece without a weight (its weightKg is 0).
   usedPieces           Int     @default(0)
+  /// Phase 8: the worker who sorted it (kg per worker per day, pay by kg/piece, productivity).
+  workerId             String?
+  worker               Worker? @relation(fields: [workerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   count                Int     @default(0)
   /// Graded while sorting (v2 6.6): this output is already of this grade. Null = not graded.
   gradeId              String?
@@ -1770,4 +1773,119 @@ model SubscriptionPayment {
 
   @@index([tenantId])
   @@index([status])
+}
+
+enum WorkerPayType {
+  KG
+  PIECE
+  DAY
+  MONTH
+}
+
+enum PaySheetStatus {
+  DRAFT
+  PAID
+}
+
+/// Phase 8: a sorter or helper paid by the business, without a login.
+model Worker {
+  id        String        @id @default(cuid())
+  tenantId  String
+  name      String
+  /// E.164, for the WhatsApp payslip.
+  phone     String?
+  payType   WorkerPayType
+  /// Rs per kg, per piece, per day, or a month's salary.
+  rate      Decimal       @db.Decimal(14, 2)
+  isActive  Boolean       @default(true)
+  createdBy String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  outputs  CategoryOutput[]
+  advances WorkerAdvance[]
+  lines    PaySheetLine[]
+
+  @@index([tenantId])
+}
+
+/// Money given to a worker before pay day (a cash Labour expense when given), taken off their next pay sheet.
+model WorkerAdvance {
+  id             String   @id @default(cuid())
+  tenantId       String
+  workerId       String
+  day            DateTime @db.Date
+  amount         Decimal  @db.Decimal(14, 2)
+  note           String?
+  expenseId      String?
+  /// The pay sheet line it was taken off (null until then).
+  paySheetLineId String?
+  createdBy      String
+  createdAt      DateTime @default(now())
+
+  worker Worker        @relation(fields: [workerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  line   PaySheetLine? @relation(fields: [paySheetLineId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([tenantId, workerId])
+}
+
+/// Pay for a week or a month: one line per worker; paid in cash as one Labour expense.
+model PaySheet {
+  id          String         @id @default(cuid())
+  tenantId    String
+  periodStart DateTime       @db.Date
+  periodEnd   DateTime       @db.Date
+  status      PaySheetStatus @default(DRAFT)
+  total       Decimal        @default(0) @db.Decimal(14, 2)
+  expenseId   String?
+  paidAt      DateTime?
+  paidBy      String?
+  createdBy   String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  lines PaySheetLine[]
+
+  @@index([tenantId, periodStart])
+}
+
+model PaySheetLine {
+  id         String        @id @default(cuid())
+  tenantId   String
+  paySheetId String
+  workerId   String
+  payType    WorkerPayType
+  rate       Decimal       @db.Decimal(14, 2)
+  kg         Decimal       @default(0) @db.Decimal(12, 2)
+  pieces     Int           @default(0)
+  days       Int           @default(0)
+  gross      Decimal       @db.Decimal(14, 2)
+  advances   Decimal       @default(0) @db.Decimal(14, 2)
+  deductions Decimal       @default(0) @db.Decimal(14, 2)
+  net        Decimal       @db.Decimal(14, 2)
+  note       String?
+
+  sheet        PaySheet        @relation(fields: [paySheetId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  worker       Worker          @relation(fields: [workerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  advancesTook WorkerAdvance[]
+  labour       LabourCost[]
+
+  @@index([tenantId])
+  @@index([paySheetId])
+}
+
+/// A paid line's cost (gross less deductions) on the lots the worker sorted in the period (Phase 8.4).
+model LabourCost {
+  id             String   @id @default(cuid())
+  tenantId       String
+  paySheetLineId String
+  ragId          String
+  containerId    String?
+  amount         Decimal  @db.Decimal(14, 2)
+  createdAt      DateTime @default(now())
+
+  line PaySheetLine @relation(fields: [paySheetLineId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([tenantId, ragId])
+  @@index([tenantId, containerId])
 }

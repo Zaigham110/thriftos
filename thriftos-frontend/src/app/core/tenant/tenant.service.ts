@@ -48,7 +48,7 @@ export type ModuleKey =
   | 'WAREHOUSES' | 'STOCK_COUNTS'
   | 'PRICE_LISTS' | 'EXPORT' | 'KHATA'
   | 'EXPENSES' | 'CASH_CLOSE' | 'PNL'
-  | 'REPORTS' | 'STAFF' | 'IMPORT';
+  | 'REPORTS' | 'STAFF' | 'IMPORT' | 'PAYROLL';
 export type TenantModule = 'RECEIVE' | 'STOCK' | 'SELL' | ModuleKey | 'PAYROLL' | 'BILLING';
 
 /** Before the business loads: the everyday set a new business starts with. */

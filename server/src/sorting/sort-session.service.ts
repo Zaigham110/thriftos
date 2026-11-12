@@ -376,6 +376,9 @@ export class SortSessionService {
       this.waste.assertFits(capacity, entry.kg);
       const category = await tx.category.findFirst({ where: { id: dto.categoryId, tenantId, isActive: true }, select: { id: true } });
       if (!category) throw new BadRequestException('Invalid category');
+      if (dto.workerId && !(await tx.worker.findFirst({ where: { id: dto.workerId, tenantId, isActive: true }, select: { id: true } }))) {
+        throw new BadRequestException('Worker not found');
+      }
       if (dto.gradeId && !(await tx.grade.findFirst({ where: { id: dto.gradeId, tenantId, isActive: true }, select: { id: true } }))) {
         throw new BadRequestException('Invalid grade');
       }
@@ -399,6 +402,7 @@ export class SortSessionService {
           weightKg: entry.kg,
           count: entry.pieces,
           entryBales: entry.bales,
+          workerId: dto.workerId ?? null,
           // A lot bought by the piece: its share of the pieces; otherwise its share of the kg.
           allocatedCost: session.rag.pieces
             ? openLotCost(session.rag.allocatedCost, session.rag.pieces, entry.pieces)
@@ -555,8 +559,9 @@ export class SortSessionService {
         where: { tenantId, sortSessionId: sessionId, gradeId: null, entryBales: 0, usedKg: 0, usedPieces: 0, gradeSessions: { none: {} } },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       });
-      for (const categoryId of new Set(loose.map((o) => o.categoryId))) {
-        const [keep, ...rest] = loose.filter((o) => o.categoryId === categoryId);
+      // One per category and worker: whose kg it was stays known (sorter pay, Phase 8).
+      for (const key of new Set(loose.map((o) => `${o.categoryId}|${o.workerId ?? ''}`))) {
+        const [keep, ...rest] = loose.filter((o) => `${o.categoryId}|${o.workerId ?? ''}` === key);
         if (!rest.length) continue;
         await tx.categoryOutput.update({
           where: { id: keep.id },
