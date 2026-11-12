@@ -140,6 +140,7 @@ export const WS_CRUMBS: Record<string, string> = {
   value: 'ws.nav.stockValue',
   yield: 'ws.nav.yield',
   finance: 'ws.group.finance',
+  payroll: 'ws.nav.payroll',
   expenses: 'ws.nav.expenses',
   book: 'ws.nav.book',
   close: 'ws.nav.close',
