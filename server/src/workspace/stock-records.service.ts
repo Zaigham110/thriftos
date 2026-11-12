@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InventoryStatus, MovementType, Prisma, StockAdjustmentStatus, StockUnit } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsIn, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 import { takeCost } from '../costing/costing';
 import { PrismaService } from '../prisma/prisma.service';
 import { KHATA_SALE_STATUSES } from '../sales/khata.service';
@@ -45,6 +45,18 @@ export class StockDecisionDto {
 export class StockTransferDto {
   @IsString()
   godownId!: string;
+}
+
+/** Phase 9.3: several bales (scanned one after another) to one godown in one go. */
+export class StockTransferManyDto {
+  @IsString()
+  godownId!: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  itemIds!: string[];
 }
 
 /** Age buckets for stock ageing (days since the stock was received). */
@@ -397,6 +409,55 @@ export class StockRecordsService {
       });
       return { id, godown: to };
     });
+  }
+
+  /**
+   * A scanned bale code (or QR text): the stock item with what is left and its godown, for the move screen.
+   * Only this business's stock that is still available.
+   */
+  async scanForMove(tenantId: string, code: string) {
+    const c = code.trim();
+    const i = await this.prisma.inventoryItem.findFirst({
+      where: { tenantId, status: InventoryStatus.AVAILABLE, OR: [{ repackUnit: { unitCode: c } }, { repackUnit: { qrLabel: { qrCode: c } } }] },
+      include: { warehouse: { select: { id: true, name: true } }, repackUnit: { select: { unitCode: true } }, category: { select: { name: true } }, grade: { select: { name: true } } },
+    });
+    if (!i) throw new NotFoundException('This code is not a bale in stock');
+    const { left, leftKg } = stockLeft(i);
+    return {
+      id: i.id, code: i.repackUnit?.unitCode ?? null, name: i.name ?? ([i.category?.name, i.grade?.name].filter(Boolean).join(' ') || null),
+      unit: i.unit, left, kg: leftKg, godown: i.warehouse,
+    };
+  }
+
+  /**
+   * Moves several stock items to one godown in one go (all or nothing): each gets a transfer movement and an audit
+   * line; items already there are skipped and said so.
+   */
+  async transferMany(tenantId: string, dto: StockTransferManyDto, userId: string) {
+    const to = await this.prisma.warehouse.findFirst({ where: { id: dto.godownId, tenantId, isActive: true }, select: { id: true, name: true } });
+    if (!to) throw new NotFoundException('Godown not found');
+    const ids = [...new Set(dto.itemIds)];
+    const items = await this.prisma.inventoryItem.findMany({ where: { id: { in: ids }, tenantId }, include: { warehouse: { select: { id: true, name: true } } } });
+    if (items.length !== ids.length) throw new NotFoundException('Some stock items were not found');
+    const empty = items.filter((i) => stockLeft(i).left.lessThanOrEqualTo(0) || i.status !== InventoryStatus.AVAILABLE);
+    if (empty.length) throw new ConflictException(`${empty.length} of them are sold or have nothing left to move`);
+    const moving = items.filter((i) => i.warehouseId !== to.id);
+    await this.prisma.$transaction(async (tx) => {
+      for (const i of moving) {
+        const { left, leftKg } = stockLeft(i);
+        await tx.inventoryItem.update({ where: { id: i.id }, data: { warehouseId: to.id } });
+        await tx.stockMovement.create({
+          data: {
+            inventoryItemId: i.id, movementType: MovementType.TRANSFER, quantityKg: leftKg ?? ZERO, quantityPcs: i.unit === StockUnit.KG ? 0 : left.toNumber(),
+            metadataJson: { kind: 'TRANSFER', from: i.warehouse?.name ?? null, fromId: i.warehouseId, to: to.name, toId: to.id, quantity: left.toString(), unit: i.unit, batch: true },
+          },
+        });
+      }
+      await tx.auditLog.create({
+        data: { tenantId, userId, action: 'STOCK_TRANSFERRED_MANY', entityType: 'Warehouse', entityId: to.id, metadataJson: { to: to.name, items: moving.map((i) => i.id), skipped: items.length - moving.length } },
+      });
+    });
+    return { moved: moving.length, alreadyThere: items.length - moving.length, godown: to };
   }
 
   private async people(tenantId: string, ids: (string | null)[]): Promise<Map<string, string>> {

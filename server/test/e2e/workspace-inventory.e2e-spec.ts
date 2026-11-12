@@ -157,6 +157,27 @@ describe('Workspace inventory: stock list, lineage, ageing, counts with approval
     await api(app, a).post(`/workspace/stock/${ids.bale}/transfer`, { godownId: otherGodown.id }).expect(404);
   });
 
+  it('moves scanned bales to a godown in one go (Phase 9.3); another business can neither scan nor move them', async () => {
+    const unit = await prisma.inventoryItem.findUniqueOrThrow({ where: { id: ids.bale }, select: { repackUnit: { select: { unitCode: true } } } });
+    const code = unit.repackUnit!.unitCode;
+    const scanned = (await api(app, a).get(`/workspace/stock/scan/${encodeURIComponent(code)}`).expect(200)).body;
+    expect(scanned).toMatchObject({ id: ids.bale, code, godown: { name: 'Shershah shop' } });
+    await api(app, a).get('/workspace/stock/scan/NO-SUCH-CODE').expect(404);
+    const main = await prisma.warehouse.findFirstOrThrow({ where: { tenantId: a.tenantId, code: 'MAIN' } });
+    expect((await api(app, a).post('/workspace/stock/transfer', { godownId: main.id, itemIds: [ids.bale, ids.bale] }).expect(200)).body).toMatchObject({ moved: 1, alreadyThere: 0, godown: { name: 'Main godown' } });
+    expect((await api(app, a).post('/workspace/stock/transfer', { godownId: main.id, itemIds: [ids.bale] }).expect(200)).body).toMatchObject({ moved: 0, alreadyThere: 1 });
+    const r = (await api(app, a).get(`/workspace/stock/${ids.bale}`).expect(200)).body;
+    expect(r.movements[0]).toMatchObject({ type: 'TRANSFER', details: expect.objectContaining({ from: 'Shershah shop', to: 'Main godown' }) });
+    await api(app, a).post('/workspace/stock/transfer', { godownId: main.id, itemIds: [] }).expect(400);
+    await api(app, a).post('/workspace/stock/transfer', { godownId: main.id, itemIds: ['nope'] }).expect(404);
+    // Another business: not its godown, not its bale.
+    await prisma.tenant.update({ where: { id: b.tenantId }, data: { enabledModules: { push: 'WAREHOUSES' } } });
+    const theirs = await prisma.warehouse.create({ data: { tenantId: b.tenantId, name: 'Theirs', code: 'B2' } });
+    await api(app, a).post('/workspace/stock/transfer', { godownId: theirs.id, itemIds: [ids.bale] }).expect(404);
+    await api(app, b).get(`/workspace/stock/scan/${encodeURIComponent(code)}`).expect(404);
+    await api(app, b).post('/workspace/stock/transfer', { godownId: theirs.id, itemIds: [ids.bale] }).expect(404);
+  });
+
   it('another business sees and changes nothing', async () => {
     await api(app, b).get(`/workspace/stock/${ids.bale}`).expect(404);
     await api(app, b).post(`/workspace/stock/${ids.bale}/counts`, { counted: 0, reason: 'x y' }).expect(404);

@@ -12,7 +12,7 @@ import { SortingRecordsService, YieldQueryDto } from './sorting-records.service'
 import { AnalyticsService, PeriodDto, SalesAnalyticsQueryDto, ScorecardQueryDto } from './analytics.service';
 import { PriceEntryDto, PriceGroupDto, PriceListsService } from './price-lists.service';
 import { BookQueryDto, CancelExpenseDto, CashMoveDto, CloseDto, CloseQueryDto, ExpenseDto, ExpenseUpdateDto, FinanceService, PnlQueryDto, ReopenDto } from './finance.service';
-import { StockCountDto, StockDecisionDto, StockRecordsService, StockTransferDto, StockPriceDto, StockKindPriceDto } from './stock-records.service';
+import { StockCountDto, StockDecisionDto, StockRecordsService, StockTransferDto, StockTransferManyDto, StockPriceDto, StockKindPriceDto } from './stock-records.service';
 
 /** Workspace record pages (enterprise plan E3): one call per page; cost and profit need cost.view. */
 @Controller('workspace')
@@ -102,6 +102,23 @@ export class WorkspaceController {
   @RequirePermissions('INVENTORY_APPROVE')
   reject(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string, @Body() dto: StockDecisionDto) {
     return this.stock.decide(tenantId, id, false, dto, user.userId);
+  }
+
+  /** Phase 9.3: a scanned bale for the move screen (what it is, what is left, where it is). */
+  @RequireModule('WAREHOUSES')
+  @Get('stock/scan/:code')
+  @RequirePermissions('INVENTORY_ADJUST')
+  scanForMove(@TenantId() tenantId: string, @Param('code') code: string) {
+    return this.stock.scanForMove(tenantId, code);
+  }
+
+  /** Phase 9.3: several bales to one godown in one go. */
+  @RequireModule('WAREHOUSES')
+  @Post('stock/transfer')
+  @HttpCode(200)
+  @RequirePermissions('INVENTORY_ADJUST')
+  transferMany(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Body() dto: StockTransferManyDto) {
+    return this.stock.transferMany(tenantId, dto, user.userId);
   }
 
   /** Move what is left of a stock item to another godown. */

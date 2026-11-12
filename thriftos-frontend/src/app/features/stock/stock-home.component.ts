@@ -1,9 +1,10 @@
+import { moduleOn } from '../../core/tenant/module-on';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { HelpLinkComponent } from '../help/help-link.component';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { LucideAngularModule, PackagePlus, Printer, ScanLine } from 'lucide-angular';
+import { LucideAngularModule, PackagePlus, Printer, ScanLine, ArrowLeftRight } from 'lucide-angular';
 import { API_BASE_URL } from '../../core/config/api.config';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { I18N } from '../../core/i18n/t.pipe';
@@ -50,6 +51,7 @@ export function stockName(i: StockRow): string {
         } @empty { <li class="empty">{{ 'stock.empty' | t }}<app-help-link topic="stock" /></li> }
       </ul>
       <footer class="action-bar">
+        @if (on('WAREHOUSES')) { <a class="btn" routerLink="/stock/move"><lucide-icon [img]="icons.ArrowLeftRight" [size]="20" /> {{ 'move.button' | t }}</a> }
         <a class="btn primary" routerLink="/stock/bale"><lucide-icon [img]="icons.PackagePlus" [size]="20" /> {{ 'stock.makeBale' | t }}</a>
       </footer>
     </section>
@@ -57,7 +59,8 @@ export function stockName(i: StockRow): string {
 })
 export class StockHomeComponent implements OnInit {
   private readonly http = inject(HttpClient);
-  protected readonly icons = { PackagePlus, Printer, ScanLine };
+  protected readonly icons = { ArrowLeftRight, PackagePlus, Printer, ScanLine };
+  protected readonly on = moduleOn();
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
   private readonly i18n = inject(I18nService);

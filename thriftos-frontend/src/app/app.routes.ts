@@ -156,6 +156,8 @@ export const routes: Routes = [
         children: [
           { path: '', canActivate: [desktopRedirect('/stock/by-item')], loadComponent: () => import('./features/stock/stock-home.component').then((m) => m.StockHomeComponent), title: 'ThriftOS' },
           { path: 'bale', loadComponent: () => import('./features/stock/make-bale.component').then((m) => m.MakeBaleComponent), title: 'ThriftOS' },
+          // Phase 9.3: move bales between godowns by scanning them.
+          { path: 'move', canActivate: [moduleGuard], data: { module: 'WAREHOUSES' }, loadComponent: () => import('./features/stock/move-stock.component').then((m) => m.MoveStockComponent), title: 'ThriftOS' },
           { path: 'label/:id', loadComponent: () => import('./features/stock/labels.component').then((m) => m.LabelsComponent), title: 'ThriftOS' },
           { path: 'labels', loadComponent: () => import('./features/stock/labels.component').then((m) => m.LabelsComponent), title: 'ThriftOS' },
           { path: 'items', loadChildren: () => import('./modules/inventory/inventory.routes').then((m) => m.INVENTORY_ROUTES) },

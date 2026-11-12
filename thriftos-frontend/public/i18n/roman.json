@@ -2443,5 +2443,24 @@
   "whoSorted": "Kis ne chhanta",
   "lotLabour": "Chhantai walon ki tankhwah",
   "lotLabourHint": "Ada shuda tankhwah sheeton se; munafe se minha."
+ },
+ "move": {
+  "title": "Godamon mein muntaqli",
+  "to": "Kahan le jana hai",
+  "noGodowns": "Pehle apne godam shamil karein: Settings → Mazeed → Godam.",
+  "scan": "Gaanth scan karein",
+  "add": "Shamil karein",
+  "list": "Muntaqil hone wali gaanthein",
+  "noGodown": "koi godam nahi",
+  "alreadyThere": "pehle se wahin",
+  "remove": "Hatayein",
+  "empty": "Har gaanth scan karein, ya us ka code likhein.",
+  "count": "{n} gaanthein",
+  "moveTo": "{godown} mein muntaqil karein",
+  "twice": "{code} pehle se list mein hai",
+  "notFound": "{code} stock mein gaanth nahi",
+  "done": "{n} gaanthein {godown} mein muntaqil",
+  "doneSome": "{n} {godown} mein muntaqil; {there} pehle se wahin thin",
+  "button": "Muntaqil"
  }
 }

@@ -2443,5 +2443,24 @@
   "whoSorted": "Who sorted it",
   "lotLabour": "Sorter pay",
   "lotLabourHint": "From paid pay sheets; taken off the profit."
+ },
+ "move": {
+  "title": "Move between godowns",
+  "to": "Move to",
+  "noGodowns": "Add your godowns first: Settings → Advanced → Godowns.",
+  "scan": "Scan a bale",
+  "add": "Add",
+  "list": "Bales to move",
+  "noGodown": "no godown",
+  "alreadyThere": "already there",
+  "remove": "Remove",
+  "empty": "Scan each bale, or type its code.",
+  "count": "{n} bales",
+  "moveTo": "Move to {godown}",
+  "twice": "{code} is already on the list",
+  "notFound": "{code} is not a bale in stock",
+  "done": "{n} bales moved to {godown}",
+  "doneSome": "{n} moved to {godown}; {there} were already there",
+  "button": "Move"
  }
 }
