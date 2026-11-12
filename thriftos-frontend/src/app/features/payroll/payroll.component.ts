@@ -1,4 +1,4 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, MessageCircle, Plus } from 'lucide-angular';
@@ -272,7 +272,11 @@ export class PayrollComponent {
     });
   }
 
+  /** One key per entry: a double tap or a retry on a slow line saves it once (the server keeps the first answer). */
+  private saveKey = crypto.randomUUID();
+
   protected startAdvance(w: Worker): void {
+    this.saveKey = crypto.randomUUID();
     this.advance = 0;
     this.advanceNote = '';
     this.advanceFor.set(w.id);
@@ -280,7 +284,7 @@ export class PayrollComponent {
 
   protected giveAdvance(w: Worker): void {
     this.busy.set(true);
-    this.http.post(`/api/payroll/workers/${w.id}/advances`, { amount: Number(this.advance), ...(this.advanceNote.trim() ? { note: this.advanceNote.trim() } : {}) }).subscribe({
+    this.http.post(`/api/payroll/workers/${w.id}/advances`, { amount: Number(this.advance), ...(this.advanceNote.trim() ? { note: this.advanceNote.trim() } : {}) }, { headers: new HttpHeaders({ 'Idempotency-Key': this.saveKey }) }).subscribe({
       next: () => { this.busy.set(false); this.advanceFor.set(null); this.toast.show(this.i18n.t('pay.advanceGiven', { rs: this.i18n.money(this.advance), name: w.name })); },
       error: (e) => this.fail(e),
     });

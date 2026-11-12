@@ -1,4 +1,4 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -351,11 +351,14 @@ export class CashCloseComponent {
     this.moving.set(true);
   }
 
+  /** One key per entry: a double tap or a retry on a slow line saves it once (the server keeps the first answer). */
+  private saveKey = crypto.randomUUID();
+
   protected saveMove(): void {
     if (!this.kind || !this.moveAmount) return;
     this.busy.set(true);
-    this.http.post('/api/workspace/finance/cash-moves', { day: this.day(), direction: this.direction, kind: this.kind, amount: this.moveAmount, note: this.moveNote.trim() || undefined }).subscribe({
-      next: () => { this.busy.set(false); this.moving.set(false); this.toast.show(this.i18n.t('ws.close.moveSaved')); this.load(); },
+    this.http.post('/api/workspace/finance/cash-moves', { day: this.day(), direction: this.direction, kind: this.kind, amount: this.moveAmount, note: this.moveNote.trim() || undefined }, { headers: new HttpHeaders({ 'Idempotency-Key': this.saveKey }) }).subscribe({
+      next: () => { this.saveKey = crypto.randomUUID(); this.busy.set(false); this.moving.set(false); this.toast.show(this.i18n.t('ws.close.moveSaved')); this.load(); },
       error: (e) => this.failedWith(e),
     });
   }

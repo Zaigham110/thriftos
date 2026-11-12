@@ -1,3 +1,4 @@
+import { Idempotent } from '../common/idempotency/idempotent.interceptor';
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { WorkerPayType } from '@prisma/client';
 import { Type } from 'class-transformer';
@@ -73,6 +74,7 @@ export class PayrollController {
     return this.payroll.updateWorker(tenantId, id, dto, user.userId);
   }
 
+  @Idempotent('WORKER_ADVANCE')
   @Post('workers/:id/advances')
   @RequirePermissions('tenant.update')
   advance(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: AdvanceDto, @CurrentUser() user: CurrentUserData) {

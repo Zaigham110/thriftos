@@ -1,3 +1,4 @@
+import { Idempotent } from '../common/idempotency/idempotent.interceptor';
 import { RequireModule } from '../common/decorators/require-module.decorator';
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
@@ -199,6 +200,7 @@ export class WorkspaceController {
 
   // ---- Finance (E3.6) ----
   @RequireModule('EXPENSES')
+  @Idempotent('EXPENSE_CREATE')
   @Post('expenses')
   @RequirePermissions('expense.create')
   addExpense(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Body() dto: ExpenseDto) {
@@ -261,6 +263,7 @@ export class WorkspaceController {
 
   /** Cash out of the drawer or into it: bank, owner or other (v2 review). */
   @RequireModule('CASH_CLOSE')
+  @Idempotent('CASH_MOVE_CREATE')
   @Post('finance/cash-moves')
   @RequirePermissions('cash.close')
   addCashMove(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Body() dto: CashMoveDto) {

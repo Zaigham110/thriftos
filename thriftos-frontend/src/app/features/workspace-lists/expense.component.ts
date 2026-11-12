@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { NavService } from '../../core/nav/nav.service';
 import { HasUnsavedChanges, warnBeforeUnload } from '../../core/nav/unsaved-changes.guard';
 import { AfterViewInit, Component, ElementRef, HostListener, computed, effect, inject, input, signal, viewChild } from '@angular/core';
@@ -321,6 +321,9 @@ export class ExpenseComponent implements HasUnsavedChanges, AfterViewInit {
     this.toast.show(code && ERROR_CODES.includes(code) ? this.i18n.t(`ws.expenses.err.${code}`) : this.i18n.t('common.couldNotSave'));
   }
 
+  /** One key per entry: a double tap or a retry on a slow line saves it once (the server keeps the first answer). */
+  private saveKey = crypto.randomUUID();
+
   private body() {
     return { category: this.category, amount: this.amount, day: this.day, method: this.method, paidTo: this.paidTo.trim(), note: this.note.trim() };
   }
@@ -330,8 +333,9 @@ export class ExpenseComponent implements HasUnsavedChanges, AfterViewInit {
     if (this.editing()) return this.saveChanges();
     this.busy.set(true);
     const { paidTo, note, ...rest } = this.body();
-    this.http.post<{ id: string }>('/api/workspace/expenses', { ...rest, paidTo: paidTo || undefined, note: note || undefined }).subscribe({
+    this.http.post<{ id: string }>('/api/workspace/expenses', { ...rest, paidTo: paidTo || undefined, note: note || undefined }, { headers: new HttpHeaders({ 'Idempotency-Key': this.saveKey }) }).subscribe({
       next: (e) => {
+        this.saveKey = crypto.randomUUID();
         const photo = this.photo();
         const done = () => {
           this.busy.set(false);
