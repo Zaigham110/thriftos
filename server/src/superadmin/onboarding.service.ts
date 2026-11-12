@@ -10,7 +10,7 @@ import { toE164 } from '../common/phone/phone';
 import { Language, localeOf, Texts, toLanguage } from '../common/language/language';
 import { TenantBootstrapService } from './tenant-bootstrap.service';
 import { QuickCreateTenantDto, UpdatePersonDto, WorkingsDto } from './dto/quick-create.dto';
-import { DEFAULT_MODULES, moduleProblem, storedModules } from '../common/modules/modules';
+import { DEFAULT_MODULES, moduleProblem, storedModules, MODULE_KEYS } from '../common/modules/modules';
 import { SYSTEM_COMPANY_CODE } from '../common/guards/module.guard';
 import { DEFAULT_GRADES, KARACHI_CATEGORIES } from '../tenant/setup-template';
 
@@ -216,8 +216,19 @@ export class OnboardingService {
     if (sortingStages === 2 && !(await this.prisma.grade.count({ where: { tenantId, isActive: true } }))) {
       await this.prisma.grade.createMany({ data: DEFAULT_GRADES.map((name, i) => ({ tenantId, name, rank: i + 1, isActive: true })), skipDuplicates: true });
     }
-    const enabledModules = storedModules(sortingStages, chosen, tenant.enabledModules);
-    const updated = await this.prisma.tenant.update({ where: { id: tenantId }, data: { sortingStages, enabledModules }, select: { sortingStages: true, enabledModules: true } });
+    // A business on a plan (Phase 7): the plan gives its modules; what is switched on beyond them is kept as this
+    // business's extras, so the plan does not undo it the next time the business opens the app (owner: "saving issue").
+    const base = await this.billing.planBase(tenantId);
+    let updated: { sortingStages: number; enabledModules: string[] };
+    if (base) {
+      const extraModules = (MODULE_KEYS as readonly string[]).filter((m) => m !== 'SORT' && chosen.includes(m) && !base.includes(m));
+      await this.prisma.tenant.update({ where: { id: tenantId }, data: { sortingStages, extraModules } });
+      await this.billing.apply(tenantId);
+      updated = await this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { sortingStages: true, enabledModules: true } });
+    } else {
+      const enabledModules = storedModules(sortingStages, chosen, tenant.enabledModules);
+      updated = await this.prisma.tenant.update({ where: { id: tenantId }, data: { sortingStages, enabledModules }, select: { sortingStages: true, enabledModules: true } });
+    }
     await this.audit.log({
       userId: actorId,
       tenantId,

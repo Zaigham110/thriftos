@@ -177,4 +177,22 @@ describe('Phase 7 billing: plans, trial, manual payment, grace and read-only (e2
     await api(app, admin).put('/superadmin/billing/pay-to', { accountTitle: 'ThriftOS', jazzcash: '0300 0000000' }).expect(200);
     expect((await billingOf(d)).payTo).toMatchObject({ accountTitle: 'ThriftOS', jazzcash: '0300 0000000' });
   });
+
+  it('module switches saved in the console stay for a business on a plan (owner: "saving issue on superadmin side")', async () => {
+    const e = await createTenantWithOwner(app);
+    await api(app, admin).patch(`/superadmin/billing/tenants/${e.tenantId}`, { planId: plans.WORKSHOP.id, paidUntil: days(30) }).expect(200);
+    const before = await modulesOf(e);
+    expect(before).not.toContain('PRICE_LISTS');
+    // The console's "How this business works": everything it had, plus price lists and godowns.
+    const chosen = [...before.filter((m) => !['RECEIVE', 'STOCK', 'SELL'].includes(m)), 'PRICE_LISTS', 'WAREHOUSES'];
+    await api(app, admin).patch(`/superadmin/tenants/${e.tenantId}/workings`, { modules: chosen }).expect(200);
+    // The owner opens the app (the plan is applied again): the switches are still on, kept as extras.
+    expect(await modulesOf(e)).toEqual(expect.arrayContaining(['PRICE_LISTS', 'WAREHOUSES', 'LOOSE_LOTS']));
+    expect((await prisma.tenant.findUniqueOrThrow({ where: { id: e.tenantId } })).extraModules.sort()).toEqual(['PRICE_LISTS', 'WAREHOUSES']);
+    // Switching one off again removes it.
+    await api(app, admin).patch(`/superadmin/tenants/${e.tenantId}/workings`, { modules: chosen.filter((m) => m !== 'WAREHOUSES') }).expect(200);
+    const after = await modulesOf(e);
+    expect(after).toContain('PRICE_LISTS');
+    expect(after).not.toContain('WAREHOUSES');
+  });
 });

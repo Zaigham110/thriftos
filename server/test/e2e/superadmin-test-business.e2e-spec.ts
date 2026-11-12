@@ -22,7 +22,7 @@ describe('Super admin: owners, test businesses, audit (e2e)', () => {
     superAdmin = await login(app, 'superadmin@thriftos.com', 'SuperAdmin@123');
     owner = await createTenantWithOwner(app);
     const made = (
-      await api(app, superAdmin).post('/superadmin/tenants/quick', { businessName: `Test Bales ${tag}`, ownerName: 'Test Owner', ownerEmail: `owner${tag}@test.pk`, ownerPhone: `0302 ${tag}`, isTest: true }).expect(201)
+      await api(app, superAdmin).post('/superadmin/tenants/quick', { businessName: `Test Bales ${tag}`, ownerName: 'Test Owner', ownerEmail: `owner${tag}@test.pk`, ownerPhone: `0302 ${tag}`, isTest: true, plan: 'NONE' }).expect(201)
     ).body;
     testId = made.tenant.id;
     ownerId = made.owner.id;

@@ -89,6 +89,17 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
     return storedModules(chosen.includes('SORT') ? t.sortingStages : 0, chosen, t.enabledModules);
   }
 
+  /**
+   * The modules a business's plan gives it now (the Free plan's once a trial is over unpaid); null without a plan.
+   * The console uses it to keep its module switches as extras on top of the plan.
+   */
+  async planBase(tenantId: string, now = new Date()): Promise<string[] | null> {
+    const t = await this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { trialEndsAt: true, paidUntil: true, plan: { select: { code: true, modules: true } } } });
+    if (!t?.plan) return null;
+    if (this.stateOf(t, now) !== 'TRIAL_OVER') return t.plan.modules;
+    return (await this.prisma.plan.findUnique({ where: { code: FREE_PLAN }, select: { modules: true } }))?.modules ?? [];
+  }
+
   /** Every business with a plan, once an hour. */
   async sweep(now = new Date()): Promise<number> {
     const ids = await this.prisma.tenant.findMany({ where: { planId: { not: null } }, select: { id: true } });
