@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PERMISSIONS_KEY, SKIP_PERMISSION_KEY } from '../decorators/permissions.decorator';
+import { ANY_PERMISSIONS_KEY, PERMISSIONS_KEY, SKIP_PERMISSION_KEY } from '../decorators/permissions.decorator';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { CurrentUserData } from '../decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -35,13 +35,15 @@ export class PermissionGuard implements CanActivate {
       context.getClass(),
     ]);
 
-    const requiredPermissions = this.reflector.getAllAndOverride<string[]>(PERMISSIONS_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    // A route's own declaration (all-of or any-of) wins over the controller's.
+    const onHandler = (key: string) => this.reflector.get<string[] | undefined>(key, context.getHandler());
+    const onClass = (key: string) => this.reflector.get<string[] | undefined>(key, context.getClass());
+    const handlerDeclares = !!(onHandler(PERMISSIONS_KEY)?.length || onHandler(ANY_PERMISSIONS_KEY)?.length);
+    const requiredPermissions = (handlerDeclares ? onHandler(PERMISSIONS_KEY) : onClass(PERMISSIONS_KEY)) ?? [];
+    const anyPermissions = (handlerDeclares ? onHandler(ANY_PERMISSIONS_KEY) : onClass(ANY_PERMISSIONS_KEY)) ?? [];
 
     // DENY BY DEFAULT: If no permissions declared and not explicitly skipped, deny access
-    if (!skipPermission && (!requiredPermissions || requiredPermissions.length === 0)) {
+    if (!skipPermission && requiredPermissions.length === 0 && anyPermissions.length === 0) {
       const handler = context.getHandler().name;
       const controller = context.getClass().name;
       this.logger.warn(
@@ -96,18 +98,22 @@ export class PermissionGuard implements CanActivate {
 
     // Super Admin bypasses permission checks (but still logged)
     if (user.isSuperAdmin) {
+      request.seesEverything = true;
       return true;
     }
 
     // Get user's permissions through roles
     const userPermissions = await this.getUserPermissions(user.userId);
+    // For the route itself (e.g. hiding cost and profit without cost.view): see @Can().
+    request.permissionCodes = userPermissions;
 
-    // Check if user has all required permissions
+    // Check if user has all required permissions, and one of the any-of ones
     const missingPermissions = requiredPermissions.filter(
       (permission) => !userPermissions.includes(permission),
     );
+    const noneOfAny = anyPermissions.length > 0 && !anyPermissions.some((p) => userPermissions.includes(p));
 
-    if (missingPermissions.length > 0) {
+    if (missingPermissions.length > 0 || noneOfAny) {
       // Log permission denied attempt
       await this.logSecurityEvent(
         user.userId,
@@ -117,6 +123,7 @@ export class PermissionGuard implements CanActivate {
           path: request.path,
           method: request.method,
           required: requiredPermissions,
+          anyOf: anyPermissions,
           missing: missingPermissions,
           userPermissions: userPermissions,
         },
@@ -124,7 +131,9 @@ export class PermissionGuard implements CanActivate {
       );
 
       throw new ForbiddenException(
-        `Missing required permissions: ${missingPermissions.join(', ')}`,
+        missingPermissions.length > 0
+          ? `Missing required permissions: ${missingPermissions.join(', ')}`
+          : `Missing required permissions: one of ${anyPermissions.join(', ')}`,
       );
     }
 

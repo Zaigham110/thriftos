@@ -18,6 +18,6 @@ export class SearchController {
     @Query('q') query: string,
   ): Promise<GlobalSearchResultItem[]> {
     const tenantId = this.requireTenant(user);
-    return this.searchService.searchGlobal(tenantId, query || '');
+    return this.searchService.searchGlobal(tenantId, query || '', user);
   }
 }

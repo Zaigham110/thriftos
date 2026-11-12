@@ -43,7 +43,8 @@ export class ListsService {
     const list = LISTS[name];
     if (!list) throw new NotFoundException(`No list "${name}"`);
     const permissions = await this.permissionsOf(user);
-    if (list.permission && !permissions.has(list.permission)) throw new ForbiddenException(`Missing permission ${list.permission}`);
+    const anyOf = typeof list.permission === 'string' ? [list.permission] : list.permission;
+    if (!anyOf.some((p) => permissions.has(p))) throw new ForbiddenException(`Missing permission ${anyOf.join(' or ')}`);
     return { list, permissions };
   }
 

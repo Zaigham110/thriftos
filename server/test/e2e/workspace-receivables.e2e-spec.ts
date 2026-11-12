@@ -1,7 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { businessDay } from '../../src/workspace/receivables.service';
-import { api, createTenantWithOwner, createTestApp, createUserWithoutPermissions, TestTenant } from './fixtures';
+import { api, createTenantWithOwner, createTestApp, createUserWith, createUserWithoutPermissions, TestTenant } from './fixtures';
 
 const DAY = 86_400_000;
 const daysAgo = (n: number) => new Date(Date.now() - n * DAY);
@@ -88,8 +88,10 @@ describe('Workspace receivables: ageing, customer 360, statement, promises, remi
     expect(c.sales[0]).toMatchObject({ id: ids.today, due: '20000', status: 'ISSUED' });
     expect(c.sales[1]).toMatchObject({ id: ids.old, paid: '35000', due: '15000', status: 'PARTIALLY_PAID' });
     expect(c.payments.map((p: { amount: string }) => p.amount)).toEqual(['30000', '15000']);
-    const munshi = await createUserWithoutPermissions(app, a.tenantId);
-    expect((await api(app, munshi).get(`/workspace/customers/${ids.customer}`).expect(200)).body.totals.profit).toBeNull();
+    // A salesman opens the customer but not the profit; someone with no role does not open it at all (audit H1).
+    const salesman = await createUserWith(app, a.tenantId, ['sale.create']);
+    expect((await api(app, salesman).get(`/workspace/customers/${ids.customer}`).expect(200)).body.totals.profit).toBeNull();
+    await api(app, await createUserWithoutPermissions(app, a.tenantId)).get(`/workspace/customers/${ids.customer}`).expect(403);
   });
 
   it('credit limit: over the limit shows on the worklist and the 360', async () => {

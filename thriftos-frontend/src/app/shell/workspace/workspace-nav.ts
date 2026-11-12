@@ -36,6 +36,8 @@ export interface WsNavItem {
   module?: TenantModule | TenantModule[];
   /** Shown only to people with this permission. */
   permission?: string;
+  /** Shown only to people with one of these (the server asks the same: sales and the khata are for people who sell, take payments or keep the books). */
+  anyOf?: readonly string[];
   /** Extra words the command palette matches (English and Roman Urdu). */
   keywords?: string;
 }
@@ -45,6 +47,9 @@ export interface WsNavGroup {
   label: string;
   items: WsNavItem[];
 }
+
+/** Who opens sales, customers and the khata: the same rule as the server (server/src/sales/sales-access.ts). */
+export const SEE_SALES = ['sale.create', 'payment.create', 'finance.view'] as const;
 
 /** The workspace menu, grouped like an ERP. Areas that do not exist yet (Finance) join in E3. */
 export const WS_NAV: WsNavGroup[] = [
@@ -64,9 +69,9 @@ export const WS_NAV: WsNavGroup[] = [
   {
     label: 'ws.group.sales',
     items: [
-      { label: 'ws.nav.sales', path: '/sell/records', icon: ShoppingCart, module: 'SELL', keywords: 'becho sale invoice bill' },
+      { label: 'ws.nav.sales', path: '/sell/records', icon: ShoppingCart, module: 'SELL', anyOf: SEE_SALES, keywords: 'becho sale invoice bill' },
       { label: 'ws.nav.prices', path: '/sell/prices', icon: Tags, module: 'PRICE_LISTS', permission: 'price.manage', keywords: 'price list rate wholesale retail group' },
-      { label: 'ws.nav.receivables', path: '/khata/records', icon: BookOpen, module: 'KHATA', keywords: 'khata udhaar customers payments' },
+      { label: 'ws.nav.receivables', path: '/khata/records', icon: BookOpen, module: 'KHATA', anyOf: SEE_SALES, keywords: 'khata udhaar customers payments' },
     ],
   },
   {

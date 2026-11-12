@@ -284,7 +284,8 @@ export class WorkspaceShellComponent {
 
   private readonly allowed = (item: WsNavItem) =>
     (!item.module || this.tenantService.isModuleEnabled(item.module, this.tenantService.tenant())) &&
-    (!item.permission || this.auth.isSuperAdmin() || this.auth.permissions().includes(item.permission));
+    (!item.permission || this.auth.isSuperAdmin() || this.auth.permissions().includes(item.permission)) &&
+    (!item.anyOf || this.auth.isSuperAdmin() || item.anyOf.some((p) => this.auth.permissions().includes(p)));
   /** The item as this business has it: another page while one of its modules is off. */
   private readonly resolved = (item: WsNavItem): WsNavItem =>
     item.ifOff && !this.tenantService.isModuleEnabled(item.ifOff.module, this.tenantService.tenant())

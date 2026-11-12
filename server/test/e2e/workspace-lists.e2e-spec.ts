@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import { Workbook } from 'exceljs';
 import * as request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
-import { api, createTenantWithOwner, createTestApp, createUserWithoutPermissions, TestTenant } from './fixtures';
+import { api, createTenantWithOwner, createTestApp, createUserWith, createUserWithoutPermissions, TestTenant } from './fixtures';
 
 /**
  * Enterprise plan E2: the list contract (paging, sort, filters, search, group-by, totals), exports, saved
@@ -91,7 +91,9 @@ describe('Workspace lists, views, activity and search (e2e)', () => {
     await list(a, 'f=status:eq:GONE').expect(400);
     await api(app, a).get('/lists/nothing').expect(404);
 
-    const plain = await createUserWithoutPermissions(app, a.tenantId);
+    // A salesman opens the list without cost and profit; someone with no role does not open it (audit H1).
+    await list(await createUserWithoutPermissions(app, a.tenantId), '').expect(403);
+    const plain = await createUserWith(app, a.tenantId, ['sale.create']);
     const res = await list(plain, '').expect(200);
     expect(res.body.rows[0]).not.toHaveProperty('cost');
     expect(res.body.rows[0]).not.toHaveProperty('profit');

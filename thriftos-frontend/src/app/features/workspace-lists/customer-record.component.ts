@@ -446,6 +446,8 @@ export class CustomerRecordComponent {
   }
 
   protected openLimit(): void {
+    // A credit limit is set by someone who keeps the books (the server refuses anyone else).
+    if (!this.can('finance.view')) return;
     const c = this.data()?.customer;
     this.limit = c?.creditLimit ? +c.creditLimit : 0;
     this.sheet.set('limit');

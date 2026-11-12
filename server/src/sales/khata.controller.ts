@@ -4,13 +4,15 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentUser, CurrentUserData, TenantId } from '../common/decorators';
 import { TenantGuard } from '../common/guards/tenant.guard';
 import { PermissionGuard } from '../common/guards/permission.guard';
-import { RequirePermissions } from '../common/decorators/permissions.decorator';
+import { RequireAnyPermission, RequirePermissions } from '../common/decorators/permissions.decorator';
+import { SEE_SALES } from './sales-access';
 import { CreatePaymentDto, CustomersQueryDto, LanguageQueryDto } from './dto';
 import { KhataService, UploadedPhoto } from './khata.service';
 
 @RequireModule('KHATA')
 @Controller('khata')
-@UseGuards(TenantGuard)
+@UseGuards(TenantGuard, PermissionGuard)
+@RequireAnyPermission(...SEE_SALES)
 export class KhataController {
   constructor(private readonly khata: KhataService) {}
 
@@ -32,7 +34,6 @@ export class KhataController {
 
   /** Payment received. Send an Idempotency-Key so a repeat (offline sync, double tap) records it once. */
   @Post('payments')
-  @UseGuards(PermissionGuard)
   @RequirePermissions('payment.create')
   recordPayment(
     @TenantId() tenantId: string,
@@ -49,6 +50,7 @@ export class KhataController {
   }
 
   @Post('payments/:id/photo')
+  @RequirePermissions('payment.create')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 + 1 } }))
   attachPhoto(
     @TenantId() tenantId: string,

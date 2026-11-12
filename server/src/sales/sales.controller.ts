@@ -3,19 +3,23 @@ import { ModuleGuard, REQUIRED_MODULE_KEY } from '../common/guards/module.guard'
 import { CurrentUser, CurrentUserData, Public, TenantId } from '../common/decorators';
 import { TenantGuard } from '../common/guards/tenant.guard';
 import { PermissionGuard } from '../common/guards/permission.guard';
-import { RequirePermissions } from '../common/decorators/permissions.decorator';
+import { RequireAnyPermission, RequirePermissions } from '../common/decorators/permissions.decorator';
+import { Can } from '../common/decorators/can.decorator';
+import { hideItemCost, hideSaleCost, SEE_SALES } from './sales-access';
 import { CreateSaleDto, FulfillSaleDto, LanguageQueryDto, LastPriceQueryDto, SetShipmentDto } from './dto';
 import { SalesService } from './sales.service';
 
+/** Sales are for people who sell, take payments or keep the books; cost and profit need cost.view (audit H1). */
 @Controller('sales')
-@UseGuards(TenantGuard)
+@UseGuards(TenantGuard, PermissionGuard)
+@RequireAnyPermission(...SEE_SALES)
 export class SalesController {
   constructor(private readonly sales: SalesService) {}
 
   /** QR scan: the bale behind a code, if it can still be sold (does not add it to a sale). */
   @Get('scan/qr/:code')
-  scan(@TenantId() tenantId: string, @Param('code') code: string) {
-    return this.sales.scan(tenantId, code);
+  async scan(@TenantId() tenantId: string, @Param('code') code: string, @Can('cost.view') cost: boolean) {
+    return hideItemCost(await this.sales.scan(tenantId, code), cost);
   }
 
   @Get('last-price')
@@ -25,25 +29,25 @@ export class SalesController {
 
   /** Saves a whole sale. Send an Idempotency-Key so a repeat (offline sync, double tap) creates one sale. */
   @Post()
-  @UseGuards(PermissionGuard)
   @RequirePermissions('sale.create')
-  create(
+  async create(
     @TenantId() tenantId: string,
     @Body() dto: CreateSaleDto,
     @CurrentUser() user: CurrentUserData,
+    @Can('cost.view') cost: boolean,
     @Headers('idempotency-key') idempotencyKey?: string,
   ) {
-    return this.sales.create(tenantId, dto, user.userId, idempotencyKey);
+    return hideSaleCost(await this.sales.create(tenantId, dto, user.userId, idempotencyKey), cost);
   }
 
   @Get()
-  list(@TenantId() tenantId: string) {
-    return this.sales.list(tenantId);
+  async list(@TenantId() tenantId: string, @Can('cost.view') cost: boolean) {
+    return hideSaleCost(await this.sales.list(tenantId), cost);
   }
 
   @Get(':id')
-  get(@TenantId() tenantId: string, @Param('id') id: string) {
-    return this.sales.get(tenantId, id);
+  async get(@TenantId() tenantId: string, @Param('id') id: string, @Can('cost.view') cost: boolean) {
+    return hideSaleCost(await this.sales.get(tenantId, id), cost);
   }
 
   @Get(':id/whatsapp')
@@ -59,10 +63,9 @@ export class SalesController {
 
   /** Phase 9.2: an export sale's shipment details, changed later; a local sale can be made an export sale here. */
   @Patch(':id/shipment')
-  @UseGuards(PermissionGuard)
   @RequirePermissions('sale.create')
-  shipment(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: SetShipmentDto, @CurrentUser() user: CurrentUserData) {
-    return this.sales.setShipment(tenantId, id, dto, user.userId);
+  async shipment(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: SetShipmentDto, @CurrentUser() user: CurrentUserData, @Can('cost.view') cost: boolean) {
+    return hideSaleCost(await this.sales.setShipment(tenantId, id, dto, user.userId), cost);
   }
 
   /** Phase 9.2: the export pack (packing list, commercial invoice, each bale's sorting record). */
@@ -74,8 +77,9 @@ export class SalesController {
   }
 
   @Post(':id/fulfill')
-  fulfill(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: FulfillSaleDto, @CurrentUser() user: CurrentUserData) {
-    return this.sales.fulfill(tenantId, id, dto.fulfillmentReference, user.userId);
+  @RequirePermissions('sale.create')
+  async fulfill(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: FulfillSaleDto, @CurrentUser() user: CurrentUserData, @Can('cost.view') cost: boolean) {
+    return hideSaleCost(await this.sales.fulfill(tenantId, id, dto.fulfillmentReference, user.userId), cost);
   }
 }
 

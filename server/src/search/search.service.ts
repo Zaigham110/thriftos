@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { SEE_SALES } from '../sales/sales-access';
 
 export interface GlobalSearchResultItem {
   id: string;
@@ -14,6 +15,17 @@ export interface GlobalSearchResultItem {
 
 const PER_GROUP = 5;
 
+/** Search finds only what the person may open: each group needs one of the permissions its list needs (audit H1). */
+export const SEARCH_GROUP_PERMISSIONS: Record<string, readonly string[]> = {
+  containers: ['container.read'],
+  lots: ['rag.read', 'SORTING_STAGE1_VIEW'],
+  stock: ['INVENTORY_VIEW'],
+  customers: SEE_SALES,
+  suppliers: ['vendor.read'],
+  sales: SEE_SALES,
+  payments: SEE_SALES,
+};
+
 /**
  * Search across a business's records (enterprise plan E2.5) for Ctrl/⌘ K: containers, lots, bales and stock,
  * customers (name, WhatsApp number, city), suppliers, sales and payments. Routes are the v1 screens.
@@ -22,55 +34,61 @@ const PER_GROUP = 5;
 export class SearchService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async searchGlobal(tenantId: string, query: string): Promise<GlobalSearchResultItem[]> {
+  async searchGlobal(tenantId: string, query: string, user: { userId: string; isSuperAdmin: boolean }): Promise<GlobalSearchResultItem[]> {
     const q = query?.trim();
     if (!q || q.length < 2 || q.length > 100) return [];
+    const held = user.isSuperAdmin
+      ? null
+      : new Set((await this.prisma.rolePermission.findMany({ where: { role: { userRoles: { some: { userId: user.userId } } } }, select: { permission: { select: { code: true } } } })).map((r) => r.permission.code));
+    /** Runs a group's query only for someone who may open that group. */
+    const may = <T>(group: string, find: () => Promise<T[]>): Promise<T[]> =>
+      !held || SEARCH_GROUP_PERMISSIONS[group].some((p) => held.has(p)) ? find() : Promise.resolve([]);
     const has = { contains: q, mode: 'insensitive' as const };
     const digits = q.replace(/\D/g, '');
 
     const [containers, lots, stock, customers, suppliers, sales, payments] = await Promise.all([
-      this.prisma.container.findMany({
+      may('containers', () => this.prisma.container.findMany({
         where: { tenantId, OR: [{ containerNumber: has }, { vendor: { name: has } }] },
         select: { id: true, containerNumber: true, createdAt: true, vendor: { select: { name: true } } },
         orderBy: { createdAt: 'desc' },
         take: PER_GROUP,
-      }),
-      this.prisma.rag.findMany({
+      })),
+      may('lots', () => this.prisma.rag.findMany({
         where: { tenantId, ragCode: has },
         select: { id: true, ragCode: true, container: { select: { containerNumber: true } } },
         orderBy: { createdAt: 'desc' },
         take: PER_GROUP,
-      }),
-      this.prisma.inventoryItem.findMany({
+      })),
+      may('stock', () => this.prisma.inventoryItem.findMany({
         where: { tenantId, OR: [{ repackUnit: { unitCode: has } }, { name: has }] },
         select: { id: true, name: true, status: true, repackUnit: { select: { unitCode: true } }, category: { select: { name: true } } },
         orderBy: { createdAt: 'desc' },
         take: PER_GROUP,
-      }),
-      this.prisma.customer.findMany({
+      })),
+      may('customers', () => this.prisma.customer.findMany({
         where: { tenantId, OR: [{ name: has }, { city: has }, ...(digits.length >= 4 ? [{ phone: { contains: digits } }] : [])] },
         select: { id: true, name: true, city: true, phone: true },
         orderBy: { name: 'asc' },
         take: PER_GROUP,
-      }),
-      this.prisma.vendor.findMany({
+      })),
+      may('suppliers', () => this.prisma.vendor.findMany({
         where: { tenantId, name: has },
         select: { id: true, name: true, originCountry: true },
         orderBy: { name: 'asc' },
         take: PER_GROUP,
-      }),
-      this.prisma.sale.findMany({
+      })),
+      may('sales', () => this.prisma.sale.findMany({
         where: { tenantId, status: { not: 'DRAFT' }, OR: [{ saleNumber: has }, { customer: { name: has } }] },
         select: { id: true, saleNumber: true, totalAmount: true, status: true, customer: { select: { name: true } } },
         orderBy: { createdAt: 'desc' },
         take: PER_GROUP,
-      }),
-      this.prisma.payment.findMany({
+      })),
+      may('payments', () => this.prisma.payment.findMany({
         where: { tenantId, reference: has },
         select: { id: true, reference: true, amount: true, customerId: true, customer: { select: { name: true } } },
         orderBy: { createdAt: 'desc' },
         take: PER_GROUP,
-      }),
+      })),
     ]);
 
     return [

@@ -1,7 +1,8 @@
 import { RequireModule } from '../common/decorators/require-module.decorator';
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
-import { RequirePermissions, SkipPermissionCheck } from '../common/decorators/permissions.decorator';
+import { RequireAnyPermission, RequirePermissions } from '../common/decorators/permissions.decorator';
+import { SEE_SALES, SET_CREDIT_LIMIT, WORK_CUSTOMERS } from '../sales/sales-access';
 import { TenantId } from '../common/decorators/tenant-id.decorator';
 import { PermissionGuard } from '../common/guards/permission.guard';
 import { TenantGuard } from '../common/guards/tenant.guard';
@@ -282,36 +283,36 @@ export class WorkspaceController {
     return this.finance.pnl(tenantId, q);
   }
 
-  // ---- Receivables (E3.5): open to everyone of the business, like the khata; profit needs cost.view ----
+  // ---- Receivables (E3.5): for people who sell, take payments or keep the books, like the khata (audit H1/H2); profit needs cost.view ----
   /** Collections worklist and ageing: every customer who owes, biggest first. */
-  @SkipPermissionCheck()
+  @RequireAnyPermission(...SEE_SALES)
   @RequireModule('KHATA')
   @Get('receivables')
   worklist(@TenantId() tenantId: string) {
     return this.receivables.worklist(tenantId);
   }
 
-  @SkipPermissionCheck()
+  @RequireAnyPermission(...SEE_SALES)
   @Get('customers/:id')
   async customer(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string) {
     return this.receivables.customer(tenantId, id, await this.canSeeCost(user));
   }
 
-  @SkipPermissionCheck()
+  @RequireAnyPermission(...SEE_SALES)
   @RequireModule('KHATA')
   @Get('customers/:id/statement')
   statement(@TenantId() tenantId: string, @Param('id') id: string, @Query() q: StatementQueryDto) {
     return this.receivables.statement(tenantId, id, q);
   }
 
-  @SkipPermissionCheck()
+  @RequireAnyPermission(...WORK_CUSTOMERS)
   @RequireModule('KHATA')
   @Post('customers/:id/promises')
   promise(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string, @Body() dto: PromiseDto) {
     return this.receivables.addPromise(tenantId, id, dto, user.userId);
   }
 
-  @SkipPermissionCheck()
+  @RequireAnyPermission(...WORK_CUSTOMERS)
   @RequireModule('KHATA')
   @Post('promises/:id/cancel')
   @HttpCode(200)
@@ -320,7 +321,7 @@ export class WorkspaceController {
   }
 
   /** The WhatsApp reminder link; logged as a reminder sent. */
-  @SkipPermissionCheck()
+  @RequireAnyPermission(...WORK_CUSTOMERS)
   @RequireModule('KHATA')
   @Post('customers/:id/remind')
   @HttpCode(200)
@@ -328,7 +329,7 @@ export class WorkspaceController {
     return this.receivables.remind(tenantId, id, dto, user.userId);
   }
 
-  @SkipPermissionCheck()
+  @RequirePermissions(SET_CREDIT_LIMIT)
   @RequireModule('KHATA')
   @Patch('customers/:id/credit-limit')
   creditLimit(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string, @Body() dto: CreditLimitDto) {

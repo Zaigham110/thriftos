@@ -119,3 +119,14 @@ export async function seedSortableLot(app: INestApplication, tenantId: string) {
   });
   return { lot, jeans, shirts, gradeA, gradeB, waste };
 }
+
+/** A logged-in user in an existing tenant with exactly these permission codes (one role made for them). */
+export async function createUserWith(app: INestApplication, tenantId: string, codes: string[]): Promise<TestTenant> {
+  const prisma = app.get(PrismaService);
+  const u = await createUserWithoutPermissions(app, tenantId);
+  const role = await prisma.role.create({ data: { tenantId, name: `Role ${randomUUID().slice(0, 8)}` } });
+  const perms = await prisma.permission.findMany({ where: { code: { in: codes } }, select: { id: true } });
+  await prisma.rolePermission.createMany({ data: perms.map((p) => ({ roleId: role.id, permissionId: p.id })) });
+  await prisma.userRole.create({ data: { userId: u.userId, roleId: role.id } });
+  return u;
+}
