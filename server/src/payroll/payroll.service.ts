@@ -235,6 +235,10 @@ export class PayrollService {
       if (!s) throw new NotFoundException('Pay sheet not found');
       if (s.status !== PaySheetStatus.DRAFT) throw new ConflictException('This pay sheet is already paid');
       await this.assertCashOpen(tx, tenantId, today);
+      // Claim it first: of two requests at the same moment (a double tap on a slow line) only one changes the
+      // row; the other waits on it, changes nothing and stops here, so there is never a second expense.
+      const claimed = await tx.paySheet.updateMany({ where: { id, tenantId, status: PaySheetStatus.DRAFT }, data: { status: PaySheetStatus.PAID, paidAt: now, paidBy: userId } });
+      if (claimed.count !== 1) throw new ConflictException('This pay sheet is already paid');
       const start = ymd(s.periodStart), end = ymd(s.periodEnd);
       const total = s.lines.reduce((t, l) => t.add(l.net), ZERO);
       const expense = total.isZero()
@@ -251,7 +255,7 @@ export class PayrollService {
           await tx.labourCost.create({ data: { tenantId, paySheetLineId: line.id, ragId: p.key.ragId, containerId: p.key.containerId, amount: p.amount } });
         }
       }
-      await tx.paySheet.update({ where: { id }, data: { status: PaySheetStatus.PAID, paidAt: now, paidBy: userId, total, expenseId: expense?.id ?? null } });
+      await tx.paySheet.update({ where: { id }, data: { total, expenseId: expense?.id ?? null } });
       await tx.auditLog.create({ data: { tenantId, userId, action: 'PAY_SHEET_PAID', entityType: 'PaySheet', entityId: id, metadataJson: { total: total.toString(), expenseId: expense?.id ?? null, day: today } } });
       return id;
     });

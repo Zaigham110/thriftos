@@ -123,4 +123,17 @@ describe('Phase 8 sorter pay: workers, pay sheet, labour cost, productivity (e2e
     await api(app, b).delete(`/payroll/sheets/${sheet.id}`).expect(200);
     expect((await api(app, b).get(`/payroll/workers/${w.id}`).expect(200)).body.openAdvances).toBe('500');
   });
+  it('paid at the same moment three times (a double tap on a slow line): paid once, one Labour expense (audit M4)', async () => {
+    const day = businessDay();
+    const made = (await api(app, b).post('/payroll/sheets', { periodStart: day, periodEnd: day }).expect(201)).body;
+    const sheet = (await api(app, b).patch(`/payroll/lines/${made.lines[0].id}`, { days: 1 }).expect(200)).body;
+    expect(Number(sheet.total)).toBeGreaterThan(0);
+    const before = await prisma.expense.count({ where: { tenantId: b.tenantId, category: 'LABOUR' } });
+    const answers = await Promise.all([1, 2, 3].map(() => api(app, b).post(`/payroll/sheets/${sheet.id}/pay`)));
+    expect(answers.map((r) => r.status).sort()).toEqual([200, 409, 409]);
+    expect(await prisma.expense.count({ where: { tenantId: b.tenantId, category: 'LABOUR' } })).toBe(before + 1);
+    expect(await prisma.auditLog.count({ where: { tenantId: b.tenantId, action: 'PAY_SHEET_PAID', entityId: sheet.id } })).toBe(1);
+    const paid = (await api(app, b).get(`/payroll/sheets/${sheet.id}`).expect(200)).body;
+    expect([paid.status, Number(paid.total)]).toEqual(['PAID', Number(sheet.total)]);
+  });
 });
