@@ -6,6 +6,7 @@ import { ensureStaffRoles } from './staff';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { PasswordService } from '../auth/password.service';
+import { BillingService } from '../billing/billing.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
@@ -15,6 +16,7 @@ export class UsersService {
     private prisma: PrismaService,
     private auditService: AuditService,
     private passwordService: PasswordService,
+    private billing: BillingService,
   ) {}
 
   private userSelect = {
@@ -49,6 +51,8 @@ export class UsersService {
     if (existing) {
       throw new BadRequestException(`User with email "${dto.email}" already exists`);
     }
+    // The plan's number of logins (Phase 7).
+    await this.billing.assertCanAddUser(tenantId);
 
     // Generate temporary password if not provided
     const password = dto.password || this.passwordService.generateTemporaryPassword();
@@ -522,6 +526,7 @@ export class UsersService {
     const pinHash = await this.passwordService.hash(dto.pin);
     try {
       const user = await this.prisma.$transaction(async (tx) => {
+        await this.billing.assertCanAddUser(tenantId, tx);
         await ensureStaffRoles(tx, tenantId);
         const role = dto.roleId
           ? await tx.role.findFirst({ where: { id: dto.roleId, tenantId }, select: { id: true, name: true } })

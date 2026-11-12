@@ -2,6 +2,7 @@ import { catalogue, isModuleKey } from '../common/modules/modules';
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { TenantService } from './tenant.service';
+import { BillingService } from '../billing/billing.service';
 import { TenantGuard } from '../common/guards/tenant.guard';
 import { PermissionGuard } from '../common/guards/permission.guard';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
@@ -29,6 +30,7 @@ export class TenantController {
     private readonly setup: SetupService,
     private readonly dataExport: DataExportService,
     private readonly business: BusinessService,
+    private readonly billing: BillingService,
   ) {}
 
   /** Everything that belongs to this business as a zip of CSV files (owner only: data.export). */
@@ -54,7 +56,10 @@ export class TenantController {
   @SkipPermissionCheck()
   async getCurrentTenant(@CurrentUser() user: CurrentUserData, @Req() req: Request) {
     const tenantId = (req as any).tenantId || user.tenantId;
-    return this.tenantService.findOne(tenantId);
+    // Phase 7: the modules follow the plan as of now, and the app gets where the business stands (the banner).
+    await this.billing.apply(tenantId);
+    const [profile, billing] = await Promise.all([this.tenantService.findOne(tenantId), this.billing.banner(tenantId)]);
+    return { ...profile, billing };
   }
 
   /** Setup wizard (journey 8): where it starts from (Karachi template until done). */

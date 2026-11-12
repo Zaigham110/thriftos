@@ -99,6 +99,8 @@ test('test business: new PIN, fix the phone, sample data, audit, delete', async 
   await page.getByLabel("Owner's email").fill(`test${tag}@quick.pk`);
   await page.getByLabel("Owner's phone").fill(`0305 ${tag}`);
   await page.getByLabel(/Test business/).check();
+  // Set up by hand (Phase 7: otherwise a 14-day trial whose plan decides the modules).
+  await page.getByRole('radio', { name: /Set up by hand/ }).check();
   await page.getByRole('button', { name: 'Create business' }).click();
   await page.getByRole('link', { name: 'Open the business page' }).click();
 

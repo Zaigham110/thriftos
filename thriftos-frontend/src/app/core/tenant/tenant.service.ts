@@ -34,6 +34,8 @@ export interface TenantProfile {
   defaultLanguage?: Lang;
   /** Null until the owner finished the setup wizard. */
   setupCompletedAt?: string | null;
+  /** Phase 7: where the business stands with its plan (the banner); null for a business without one. */
+  billing?: { state: 'CUSTOM' | 'FREE' | 'TRIAL' | 'TRIAL_OVER' | 'ACTIVE' | 'GRACE' | 'READ_ONLY'; plan: string | null; daysLeft: number | null } | null;
 }
 
 /**

@@ -548,7 +548,8 @@
    "import": "Apna register laayein",
    "help": "Madad",
    "terms": "Sharait · Raazdari",
-   "advanced": "Advanced"
+   "advanced": "Advanced",
+   "billing": "Plan aur adaigi"
   },
   "hint": {
    "business": "Bill par naam, phone aur pata, currency, zaban",
@@ -559,7 +560,8 @@
    "import": "Excel se gahak, supplier aur maal",
    "help": "Har kaam ki mukhtasar rehnumai",
    "terms": "ThriftOS aap ka data kaise rakhta hai",
-   "advanced": "Qismein, grade, godown, role"
+   "advanced": "Qismein, grade, godown, role",
+   "billing": "Aap ka plan, us ki adaigi aur raseedein"
   },
   "biz": {
    "phone": "Karobar ka phone",
@@ -2295,5 +2297,70 @@
     "payment_create": "Wasooli lena"
    }
   }
+ },
+ "billing": {
+  "title": "Plan aur adaigi",
+  "yourPlan": "Aap ka plan",
+  "custom": "ThriftOS team ne set kiya",
+  "customHint": "Aap ka karobar ThriftOS team ne set kiya hai, yahan kuch ada nahi karna. Badalne ke liye un se baat karein.",
+  "state": {
+   "CUSTOM": "Haath se set, koi aakhri tareekh nahi.",
+   "FREE": "Muft plan: tayyar bale, farokht aur khata.",
+   "TRIAL": "Muft aazmaish: {n} din baqi ({date} tak).",
+   "TRIAL_OVER": "Aap ki aazmaish khatam ho gayi: ab aap muft plan par hain. Aap ka data mehfooz hai; sab kuch dobara istemal karne ke liye plan chunein.",
+   "ACTIVE": "{date} tak ada shuda ({n} din baqi).",
+   "GRACE": "Aap ka ada shuda waqt {date} ko khatam hua. Tabdeeliyan jari rakhne ke liye {n} din mein ({grace} tak) adaigi karein.",
+   "READ_ONLY": "Aap ka plan khatam ho gaya: sab kuch dekh aur export kar sakte hain, magar adaigi tak kuch badal nahi sakte."
+  },
+  "logins": "{max} mein se {n} login istemal",
+  "choose": "Plan chunein",
+  "period": "Adaigi",
+  "monthly": "Mahana",
+  "yearly": "Salana (2 mahine muft)",
+  "current": "Aap ka plan",
+  "perMonth": "mahina",
+  "perYear": "saal",
+  "upTo": "{n} login tak",
+  "unlimited": "Jitne chahein login",
+  "waiting": "Aap ki adaigi ThriftOS team ki tasdeeq ka intezar kar rahi hai (umooman usi din).",
+  "payFor": "{plan} ke liye {amount} ada karein",
+  "accountTitle": "Account ka naam",
+  "bank": "Bank",
+  "noPayTo": "ThriftOS team se poochein ke raqam kahan bhejni hai.",
+  "paidWith": "Adaigi ka zariya",
+  "method": {
+   "JAZZCASH": "JazzCash",
+   "EASYPAISA": "Easypaisa",
+   "BANK": "Bank transfer"
+  },
+  "reference": "Transaction ID",
+  "referenceHint": "Maslan TID 1234567890",
+  "screenshot": "Adaigi ka screenshot",
+  "send": "Tasdeeq ke liye bhejein",
+  "sendHint": "Pehle raqam bhejein, phir us ka screenshot lagayein (ya transaction ID likhein). Plan ThriftOS team ki tasdeeq par shuru hoga.",
+  "sent": "Bhej diya. Tasdeeq hone par yahan nazar aaye ga.",
+  "history": "Adaigiyan",
+  "until": "{date} tak",
+  "status": {
+   "PENDING": "Intezar mein",
+   "CONFIRMED": "Tasdeeq shuda",
+   "REJECTED": "Qabool nahi hui"
+  },
+  "invoice": "Raseed",
+  "invoiceTitle": "Raseed",
+  "billedTo": "Banaam",
+  "planLabel": "Plan",
+  "periodLabel": "Muddat",
+  "amount": "Raqam",
+  "print": "Print ya PDF mehfooz karein",
+  "close": "Band karein"
+ },
+ "banner": {
+  "TRIAL": "{plan} ki muft aazmaish: {n} din baqi.",
+  "TRIAL_OVER": "Aap ki aazmaish khatam ho gayi: ab aap muft plan par hain.",
+  "GRACE": "Aap ke plan ki adaigi baqi hai: {n} din reh gaye.",
+  "READ_ONLY": "Aap ka plan khatam ho gaya: adaigi tak sirf dekh aur export kar sakte hain.",
+  "choose": "Plan chunein",
+  "pay": "Abhi ada karein"
  }
 }

@@ -4,6 +4,7 @@ import { randomInt } from 'crypto';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { BillingService } from '../billing/billing.service';
 import { PasswordService } from '../auth/password.service';
 import { toE164 } from '../common/phone/phone';
 import { Language, localeOf, Texts, toLanguage } from '../common/language/language';
@@ -66,6 +67,7 @@ export class OnboardingService {
     private readonly audit: AuditService,
     private readonly bootstrap: TenantBootstrapService,
     private readonly passwords: PasswordService,
+    private readonly billing: BillingService,
   ) {}
 
   /**
@@ -109,6 +111,8 @@ export class OnboardingService {
       },
     });
     const boot = await this.bootstrap.bootstrapTenant(tenant.id, undefined, undefined, undefined, { sortingStages });
+    // A new customer tries the Workshop plan for 14 days; its modules come from the plan (Phase 7).
+    if ((dto.plan ?? 'TRIAL') === 'TRIAL') await this.billing.startTrial(tenant.id);
     const adminRole = await this.prisma.role.findFirst({ where: { tenantId: tenant.id, name: 'Admin' }, select: { id: true } });
     if (!adminRole) throw new Error('Business made without an Admin role');
 

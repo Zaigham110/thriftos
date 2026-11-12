@@ -25,6 +25,7 @@ import { HomeModule } from './home/home.module';
 import { SearchModule } from './search/search.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { ListsModule } from './lists/lists.module';
+import { BillingModule } from './billing/billing.module';
 import { RecordsModule } from './records/records.module';
 import { WorkspaceModule } from './workspace/workspace.module';
 
@@ -91,6 +92,7 @@ import { WorkspaceModule } from './workspace/workspace.module';
     SearchModule,
     ListsModule,
     RecordsModule,
+    BillingModule,
     WorkspaceModule,
   ],
 })

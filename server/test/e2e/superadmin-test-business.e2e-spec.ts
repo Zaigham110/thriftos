@@ -99,6 +99,8 @@ describe('Super admin: owners, test businesses, audit (e2e)', () => {
     const body = {
       businessName: `Loose ${tag}`, ownerName: 'L', ownerEmail: `loose${tag}@test.pk`, ownerPhone: `0308 ${tag}`, sortingStages: 1, isTest: true,
       modules: ['LOOSE_LOTS', 'KHATA', 'EXPENSES'], currency: 'USD', businessPhone: '0300 1234567', city: 'Karachi', language: 'roman',
+      // Set up by hand (no plan): the chosen modules are what it gets (Phase 7: otherwise the trial plan decides).
+      plan: 'NONE',
     };
     const made = (await api(app, superAdmin).post('/superadmin/tenants/quick', body).expect(201)).body;
     expect(made.owner.phoneLocal).toBe(`0308 ${tag}`);

@@ -38,7 +38,15 @@ export class QuickCreateTenantDto {
   @IsOptional()
   sortingStages?: number;
 
-  /** The modules it starts with (the everyday set if not given); `sortingStages` decides Sorting. */
+  /**
+   * Phase 7: 'TRIAL' (default) starts the 14-day Workshop trial, the plan deciding the modules; 'NONE' sets the
+   * business up by hand with `modules`, without a plan (no trial, never expires).
+   */
+  @IsIn(['TRIAL', 'NONE'])
+  @IsOptional()
+  plan?: 'TRIAL' | 'NONE';
+
+  /** The modules it starts with when set up by hand (plan NONE; the everyday set if not given); `sortingStages` decides Sorting. */
   @IsArray()
   @ArrayUnique()
   @IsIn(MODULE_KEYS, { each: true })

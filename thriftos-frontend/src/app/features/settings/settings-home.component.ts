@@ -2,7 +2,7 @@ import { moduleOn } from '../../core/tenant/module-on';
 import { HttpClient } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { Building2, ChevronRight, CircleHelp, Download, FileText, FileUp, KeyRound, Languages, LogOut, LucideAngularModule, SlidersHorizontal, Users } from 'lucide-angular';
+import { Building2, ChevronRight, CreditCard, CircleHelp, Download, FileText, FileUp, KeyRound, Languages, LogOut, LucideAngularModule, SlidersHorizontal, Users } from 'lucide-angular';
 import { AuthService } from '../../core/auth';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { I18N } from '../../core/i18n/t.pipe';
@@ -91,6 +91,8 @@ export class SettingsHomeComponent {
     const u = this.auth.user();
     return [
       { key: 'business', icon: Building2, path: '/settings/business', show: can('tenant.update') },
+      // Phase 7: the plan, paying and invoices (owners; a business set up by hand has nothing to pay).
+      { key: 'billing', icon: CreditCard, path: '/settings/billing', show: can('tenant.update') && !!this.tenants.tenant()?.billing && this.tenants.tenant()?.billing?.state !== 'CUSTOM' },
       { key: 'team', icon: Users, path: '/settings/team', show: can('user.read') },
       { key: 'pin', icon: KeyRound, path: '/settings/pin', show: !!u?.hasPin },
       { key: 'password', icon: KeyRound, path: '/settings/password', show: !!u?.email },

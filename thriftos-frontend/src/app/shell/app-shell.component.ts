@@ -1,3 +1,4 @@
+import { PlanBannerComponent } from '../shared/billing/plan-banner.component';
 import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import {
@@ -57,11 +58,11 @@ const NAV: NavItem[] = [
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [LangPickerComponent, LucideAngularModule, RouterLink, RouterLinkActive, RouterOutlet, TPipe, ToastComponent, WorkspaceShellComponent],
+  imports: [LangPickerComponent, LucideAngularModule, RouterLink, RouterLinkActive, RouterOutlet, TPipe, ToastComponent, WorkspaceShellComponent, PlanBannerComponent],
   template: `
     <tos-toast />
     @if (layout() === 'desktop') {
-      <ws-shell (signOut)="signOut()"><router-outlet /></ws-shell>
+      <ws-shell (signOut)="signOut()"><app-plan-banner /><router-outlet /></ws-shell>
     } @else if (layout() === 'tablet') {
       <div class="tablet">
         <aside class="rail" [attr.aria-label]="'nav.menu' | t">
@@ -73,7 +74,7 @@ const NAV: NavItem[] = [
           }
           <button type="button" class="rail-signout" (click)="signOut()" [attr.aria-label]="'nav.signOut' | t"><lucide-icon [img]="icons.LogOut" [size]="19" /></button>
         </aside>
-        <main class="content"><router-outlet /></main>
+        <main class="content"><app-plan-banner /><router-outlet /></main>
       </div>
     } @else {
       <div class="phone">
@@ -87,7 +88,7 @@ const NAV: NavItem[] = [
         } @else if (pwa.canInstall()) {
           <div class="pwa-bar" role="status"><span>{{ 'pwa.install' | t }}</span><button type="button" (click)="pwa.install()">{{ 'pwa.installButton' | t }}</button><button type="button" class="ghost" (click)="pwa.notNow()">{{ 'pwa.notNow' | t }}</button></div>
         }
-        <main class="content"><router-outlet /></main>
+        <main class="content"><app-plan-banner /><router-outlet /></main>
         @if (moreOpen()) {
           <div class="sheet-backdrop" (click)="moreOpen.set(false)">
             <section class="sheet" (click)="$event.stopPropagation()" [attr.aria-label]="'nav.more' | t">

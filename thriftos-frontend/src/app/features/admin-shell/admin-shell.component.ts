@@ -6,7 +6,7 @@
 
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { Building2, ChevronDown, LayoutDashboard, LogOut, LucideAngularModule, Moon, ScrollText, Settings2, ShieldCheck, Sun, Users } from 'lucide-angular';
+import { Building2, ChevronDown, LayoutDashboard, LogOut, LucideAngularModule, Moon, ScrollText, Settings2, ShieldCheck, Sun, Users, CreditCard } from 'lucide-angular';
 import { AuthService } from '../../core/auth';
 import { ThemeService } from '../../core/theme/theme.service';
 
@@ -21,6 +21,7 @@ const NAV: Group[] = [
     items: [
       { label: 'Businesses', path: '/admin/tenants', icon: Building2 },
       { label: 'People', path: '/admin/users', icon: Users },
+      { label: 'Billing', path: '/admin/billing', icon: CreditCard },
     ],
   },
   {

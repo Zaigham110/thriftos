@@ -259,6 +259,14 @@ model Tenant {
 
   // Relations
   users                  User[]
+  /// Phase 7 billing: the plan (null = set up by hand before plans existed: no trial, no expiry), the trial's end,
+  /// the end of the paid period, and modules the super admin added on top of the plan for this business.
+  planId                 String?
+  plan                   Plan?                   @relation(fields: [planId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  trialEndsAt            DateTime?
+  paidUntil              DateTime?
+  extraModules           String[]                @default([])
+  subscriptionPayments   SubscriptionPayment[]
   roles                  Role[]
   categories             Category[]
   rawCategories          RawCategory[]
@@ -1702,4 +1710,64 @@ model LotCharge {
 
   @@index([tenantId])
   @@index([ragId])
+}
+
+enum BillingPeriod {
+  MONTH
+  YEAR
+}
+
+enum SubscriptionPaymentStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
+/// A ThriftOS plan (Phase 7): its prices in PKR, the modules it gives and how many logins. Platform data (no tenant).
+model Plan {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  monthlyPrice Decimal  @db.Decimal(14, 2)
+  yearlyPrice  Decimal  @db.Decimal(14, 2)
+  modules      String[]
+  /// Logins allowed (owner and staff); null = no limit.
+  maxUsers     Int?
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenants  Tenant[]
+  payments SubscriptionPayment[]
+}
+
+/// A business paying for its plan by hand (JazzCash, Easypaisa or bank) with a screenshot; the super admin confirms it.
+model SubscriptionPayment {
+  id            String                    @id @default(cuid())
+  tenantId      String
+  planId        String
+  period        BillingPeriod
+  amount        Decimal                   @db.Decimal(14, 2)
+  /// JAZZCASH, EASYPAISA or BANK
+  method        String
+  reference     String?
+  screenshotKey String?
+  status        SubscriptionPaymentStatus @default(PENDING)
+  rejectReason  String?
+  /// INV-2026-0001, given when confirmed.
+  invoiceNumber String?                   @unique
+  periodStart   DateTime?
+  periodEnd     DateTime?
+  submittedBy   String
+  confirmedBy   String?
+  confirmedAt   DateTime?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  plan   Plan   @relation(fields: [planId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([tenantId])
+  @@index([status])
 }

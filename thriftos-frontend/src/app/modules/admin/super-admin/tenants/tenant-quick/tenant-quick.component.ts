@@ -127,7 +127,15 @@ const ERRORS: Record<string, string> = {
             </section>
 
             <section class="card">
-              <div class="sh"><h2>What they get</h2><p class="muted">Only what is on shows in their app; the server refuses the rest. You can change this any time on the business page.</p></div>
+              <div class="sh"><h2>Plan</h2><p class="muted">A new customer tries the Workshop plan free for 14 days, then pays or moves to the Free plan. Change it any time in Billing.</p></div>
+              <div class="plan-choice" role="radiogroup" aria-label="Plan">
+                <label><input type="radio" name="plan" value="TRIAL" [checked]="plan() === 'TRIAL'" (change)="plan.set('TRIAL')" /> <span><strong>14-day Workshop trial</strong><small class="muted">The plan decides what they get.</small></span></label>
+                <label><input type="radio" name="plan" value="NONE" [checked]="plan() === 'NONE'" (change)="plan.set('NONE')" /> <span><strong>Set up by hand</strong><small class="muted">No plan, never expires; you pick what they get below.</small></span></label>
+              </div>
+            </section>
+
+            <section class="card">
+              <div class="sh"><h2>What they get</h2><p class="muted">@if (plan() === 'TRIAL') { How the business works decides Sorting; the trial plan decides the rest. } @else { Only what is on shows in their app; the server refuses the rest. You can change this any time on the business page. }</p></div>
               <app-module-picker [(stages)]="stages" [(modules)]="modules" />
             </section>
 
@@ -153,6 +161,9 @@ const ERRORS: Record<string, string> = {
   `,
   styleUrls: ['../../console.css'],
   styles: [`
+    .plan-choice { display:grid; gap:10px; }
+    .plan-choice label { display:flex; gap:10px; align-items:flex-start; cursor:pointer; }
+    .plan-choice span { display:grid; gap:2px; }
     .head { display:grid; gap:4px; }
     .crumbs { display:flex; gap:6px; align-items:center; margin-block-end:4px; font-size:13px; color:var(--color-text-secondary, #6b6468); }
     .crumbs a { color:inherit; text-decoration:none; } .crumbs a:hover { color:var(--color-primary, #6f3f63); text-decoration:underline; }
@@ -218,6 +229,8 @@ export class TenantQuickComponent {
   /** Starts from the server's everyday set (category and grade sorting). */
   protected readonly stages = signal(2);
   protected readonly modules = signal<string[]>([]);
+  /** Phase 7: the 14-day trial (default) or set up by hand without a plan. */
+  protected readonly plan = signal<'TRIAL' | 'NONE'>('TRIAL');
   private filled = false;
   protected readonly touched = new Set<string>();
   private submitted = false;
@@ -285,6 +298,7 @@ export class TenantQuickComponent {
       language: this.language,
       sortingStages: this.stages(),
       modules: this.modules(),
+      plan: this.plan(),
       ...(this.isTest ? { isTest: true } : {}),
     };
     this.http.post<QuickResult>(`${API_ENDPOINTS.superadmin}/tenants/quick`, body).subscribe({

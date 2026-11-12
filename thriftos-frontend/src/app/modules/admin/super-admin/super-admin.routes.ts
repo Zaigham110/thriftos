@@ -27,9 +27,13 @@ export const SUPER_ADMIN_ROUTES: Routes = [
       import('./users/global-users.component').then((m) => m.GlobalUsersComponent),
     title: 'People - ThriftOS Admin',
   },
-  // Plans and billing showed sample numbers and were never part of ThriftOS (v2 review): old links go to the overview.
-  { path: 'plans', redirectTo: 'dashboard' },
-  { path: 'billing', redirectTo: 'dashboard' },
+  // Phase 7: plans, payments to confirm, each business's plan and revenue.
+  {
+    path: 'billing',
+    loadComponent: () => import('./billing/billing-console.component').then((m) => m.BillingConsoleComponent),
+    title: 'Billing - ThriftOS Admin',
+  },
+  { path: 'plans', redirectTo: 'billing' },
   {
     path: 'audit',
     loadComponent: () =>

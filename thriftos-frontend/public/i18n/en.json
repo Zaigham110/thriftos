@@ -548,7 +548,8 @@
    "import": "Bring in your register",
    "help": "Help",
    "terms": "Terms · Privacy",
-   "advanced": "Advanced"
+   "advanced": "Advanced",
+   "billing": "Plan and billing"
   },
   "hint": {
    "business": "Name, phone and address on bills, currency, language",
@@ -559,7 +560,8 @@
    "import": "Customers, suppliers and stock from Excel",
    "help": "Short guides for each job",
    "terms": "How ThriftOS keeps your data",
-   "advanced": "Categories, grades, godowns, roles"
+   "advanced": "Categories, grades, godowns, roles",
+   "billing": "Your plan, paying for it and invoices"
   },
   "biz": {
    "phone": "Business phone",
@@ -2295,5 +2297,70 @@
     "payment_create": "Take payments"
    }
   }
+ },
+ "billing": {
+  "title": "Plan and billing",
+  "yourPlan": "Your plan",
+  "custom": "Set up by the ThriftOS team",
+  "customHint": "Your business was set up by the ThriftOS team and has nothing to pay here. Talk to them to change it.",
+  "state": {
+   "CUSTOM": "Set up by hand, with no end date.",
+   "FREE": "Free plan: ready bales, sales and credit book.",
+   "TRIAL": "Free trial: {n} days left (until {date}).",
+   "TRIAL_OVER": "Your trial has ended: you are on the Free plan now. Your data is safe; choose a plan to use everything again.",
+   "ACTIVE": "Paid until {date} ({n} days left).",
+   "GRACE": "Your paid time ended on {date}. Pay within {n} days (by {grace}) to keep making changes.",
+   "READ_ONLY": "Your plan has ended: you can see and export everything, but not change anything until you pay."
+  },
+  "logins": "{n} of {max} logins used",
+  "choose": "Choose a plan",
+  "period": "Pay for",
+  "monthly": "Monthly",
+  "yearly": "Yearly (2 months free)",
+  "current": "Your plan",
+  "perMonth": "month",
+  "perYear": "year",
+  "upTo": "Up to {n} logins",
+  "unlimited": "Any number of logins",
+  "waiting": "Your payment is waiting to be confirmed by the ThriftOS team (usually the same day).",
+  "payFor": "Pay {amount} for {plan}",
+  "accountTitle": "Account name",
+  "bank": "Bank",
+  "noPayTo": "Ask the ThriftOS team where to send the money.",
+  "paidWith": "Paid with",
+  "method": {
+   "JAZZCASH": "JazzCash",
+   "EASYPAISA": "Easypaisa",
+   "BANK": "Bank transfer"
+  },
+  "reference": "Transaction ID",
+  "referenceHint": "e.g. TID 1234567890",
+  "screenshot": "Screenshot of the payment",
+  "send": "Send for confirmation",
+  "sendHint": "Send the money first, then attach its screenshot (or type its transaction ID). The plan starts when the ThriftOS team confirms it.",
+  "sent": "Sent. You will see it here when it is confirmed.",
+  "history": "Payments",
+  "until": "until {date}",
+  "status": {
+   "PENDING": "Waiting",
+   "CONFIRMED": "Confirmed",
+   "REJECTED": "Not accepted"
+  },
+  "invoice": "Invoice",
+  "invoiceTitle": "Invoice",
+  "billedTo": "Billed to",
+  "planLabel": "Plan",
+  "periodLabel": "Period",
+  "amount": "Amount",
+  "print": "Print or save as PDF",
+  "close": "Close"
+ },
+ "banner": {
+  "TRIAL": "Free trial of {plan}: {n} days left.",
+  "TRIAL_OVER": "Your trial has ended: you are on the Free plan now.",
+  "GRACE": "Your plan is unpaid: {n} days left to pay.",
+  "READ_ONLY": "Your plan has ended: you can only view and export until it is paid.",
+  "choose": "Choose a plan",
+  "pay": "Pay now"
  }
 }

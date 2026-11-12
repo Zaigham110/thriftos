@@ -26,7 +26,7 @@ test('an owner with the v1 modules sees no reports or purchase orders (godowns a
   await expect(page).toHaveURL(/\/receive\/records\/containers$/);
 });
 
-test('the super admin console hides plans and billing unless the platform turned them on', async ({ page }) => {
+test('the super admin console: Billing is a real page (Phase 7) and the old Plans link goes to it', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/auth/login');
   await page.locator('.who .chip').nth(1).click();
@@ -35,13 +35,13 @@ test('the super admin console hides plans and billing unless the platform turned
   await page.click('button[type=submit]');
   await page.waitForURL('**/admin/**');
   await expect(page.getByRole('link', { name: 'Businesses' })).toBeVisible();
-  // Plans and Billing are gone (they showed sample numbers); old links go to the overview.
+  // The old sample "Commercial" section stays gone; Billing (Phase 7) has real plans and payments.
   await expect(page.getByText('Commercial', { exact: true })).toHaveCount(0);
-
-  for (const url of ['/admin/billing', '/admin/plans']) {
-    await page.goto(url);
-    await page.waitForURL('**/admin/dashboard');
-  }
+  await page.getByRole('link', { name: 'Billing' }).click();
+  await expect(page.getByRole('heading', { name: 'Billing', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Plans' })).toBeVisible();
+  await page.goto('/admin/plans');
+  await page.waitForURL('**/admin/billing');
 });
 
 /** v2 modules: a business that buys only loose lots never lands on the Containers page (owner's report). */

@@ -53,12 +53,12 @@ Target: the owner's existing AWS free-tier account. One EC2 micro instance (1 GB
 - Acceptance: a pilot business is onboarded from its paper register in one visit (< 1 hour), installs the app from Chrome (Add to Home screen), and prints a bale label and a bill.
 
 ## Phase 7 — Subscriptions and billing (weeks 6–7)
-- [ ] 7.1 Plans in data, not code: Free (1 device, khata + direct stock), Workshop, Importer, Export (prices editable by super admin; PKR). Plan decides `enabledModules` and limits (users, devices).
-- [ ] 7.2 14-day trial of Workshop for every new business; then Free unless paid.
-- [ ] 7.3 Payment: manual first — customer pays to the owner's JazzCash/Easypaisa/bank and uploads a screenshot; super admin confirms in one tap; invoice PDF. Design the provider interface so an online gateway (e.g. JazzCash/Easypaisa merchant API, Safepay, PayFast) can be added later.
-- [ ] 7.4 Non-payment: 7-day grace with a banner, then read-only (data never deleted, export always allowed).
-- [ ] 7.5 Super-admin revenue view: active businesses, plan, paid until, MRR in PKR.
-- Acceptance: a business moves trial → paid → expired → read-only → paid again, with correct module access at each step; tests cover it.
+- [x] 7.1 Plans in data, not code: Free (1 device, khata + direct stock), Workshop, Importer, Export (prices editable by super admin; PKR). Plan decides `enabledModules` and limits (users, devices).
+- [x] 7.2 14-day trial of Workshop for every new business; then Free unless paid.
+- [x] 7.3 Payment: manual first — customer pays to the owner's JazzCash/Easypaisa/bank and uploads a screenshot; super admin confirms in one tap; invoice PDF. Design the provider interface so an online gateway (e.g. JazzCash/Easypaisa merchant API, Safepay, PayFast) can be added later.
+- [x] 7.4 Non-payment: 7-day grace with a banner, then read-only (data never deleted, export always allowed).
+- [x] 7.5 Super-admin revenue view: active businesses, plan, paid until, MRR in PKR.
+- Acceptance: a business moves trial → paid → expired → read-only → paid again, with correct module access at each step; tests cover it. (Done 2026-11-12: server `billing.e2e-spec.ts`, browser `billing.spec.ts`.)
 
 ## Phase 8 — Sorter payroll (weeks 8–9)
 - [ ] 8.1 Workers as people without login (name, phone, rate type: per kg / per day / monthly, rate).
