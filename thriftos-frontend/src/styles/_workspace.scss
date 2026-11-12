@@ -200,6 +200,13 @@ html[data-theme='dark'] {
 // Shared workspace utilities (small, so components stay consistent).
 .ws-num { font-variant-numeric: tabular-nums; }
 .ws-visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+// A status in a table or a list row: the word in a soft coloured badge (see status-tone.ts).
+.ws-status { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding-inline: 8px; border-radius: 999px; background: var(--ws-surface-2); color: var(--ws-ink-2); font-size: var(--ws-text-xs); font-weight: 600; line-height: 1; white-space: nowrap; box-shadow: inset 0 0 0 1px var(--ws-line); }
+.ws-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.ws-status[data-tone='good'] { background: var(--ws-good-soft); color: var(--ws-good); box-shadow: none; }
+.ws-status[data-tone='warn'] { background: var(--ws-warn-soft); color: var(--ws-warn); box-shadow: none; }
+.ws-status[data-tone='bad'] { background: var(--ws-bad-soft); color: var(--ws-bad); box-shadow: none; }
+.ws-status[data-tone='info'] { background: var(--ws-info-soft); color: var(--ws-info); box-shadow: none; }
 :where(.ws) :focus-visible { outline: none; box-shadow: var(--ws-focus); border-radius: var(--ws-r-sm); }
 
 // Workspace buttons (the floor's .btn is a 52 px touch target and stays on floor screens).

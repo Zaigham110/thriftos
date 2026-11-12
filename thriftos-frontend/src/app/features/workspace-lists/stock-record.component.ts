@@ -23,6 +23,7 @@ import {
   WsTab,
   WsTabsComponent,
 } from '../../shared/ui/workspace';
+import { withTones } from '../../shared/ui/workspace/status-tone';
 
 type Money = string | null;
 /** GET /api/workspace/stock/:id (money is null without cost.view). */
@@ -332,9 +333,9 @@ export class StockRecordComponent {
     ...(this.data()?.cost ? [this.col('costChange', 'ws.counts.col.costChange', 'money', true)] : []),
   ]);
   protected readonly countRows = computed<WsRow[]>(() =>
-    (this.data()?.counts ?? []).map((c) => ({
+    (this.data()?.counts ?? []).map((c) => withTones({
       ...c, status: this.i18n.t(`ws.counts.status.${c.status}`), people: [c.requestedBy, c.decidedBy].filter(Boolean).join(' → '),
-    })) as unknown as WsRow[],
+    }, { status: c.status })) as unknown as WsRow[],
   );
 
   constructor() {

@@ -19,6 +19,7 @@ import {
   WsTab,
   WsTabsComponent,
 } from '../../shared/ui/workspace';
+import { withTones } from '../../shared/ui/workspace/status-tone';
 
 type Money = string | null;
 /** GET /api/workspace/suppliers/:id — what was bought from a supplier and how it did (money is null without cost.view). */
@@ -183,7 +184,7 @@ export class SupplierRecordComponent {
     ];
   });
   protected readonly rows = computed<WsRow[]>(() =>
-    (this.data()?.containers ?? []).map((c) => ({ ...c, status: this.i18n.t(`ws.cstatus.${c.status}`) })) as unknown as WsRow[],
+    (this.data()?.containers ?? []).map((c) => withTones({ ...c, status: this.i18n.t(`ws.cstatus.${c.status}`) }, { status: c.status })) as unknown as WsRow[],
   );
   protected readonly lotColumns = computed<WsColumn[]>(() => {
     const cost = this.data()?.totals.landed !== null;
@@ -199,7 +200,7 @@ export class SupplierRecordComponent {
     ];
   });
   protected readonly lotRows = computed<WsRow[]>(() =>
-    (this.data()?.lots ?? []).map((l) => ({ ...l, status: this.i18n.t(`ws.lotStatus.${l.status}`) })) as unknown as WsRow[],
+    (this.data()?.lots ?? []).map((l) => withTones({ ...l, status: this.i18n.t(`ws.lotStatus.${l.status}`) }, { status: l.status })) as unknown as WsRow[],
   );
 
   constructor() {

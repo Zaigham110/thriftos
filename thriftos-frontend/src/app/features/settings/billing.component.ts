@@ -109,7 +109,7 @@ const METHODS = ['JAZZCASH', 'EASYPAISA', 'BANK'] as const;
                 </span>
                 <span class="amount">
                   {{ i18n.money(p.amount) }}
-                  <small [class]="p.status.toLowerCase()">{{ ('billing.status.' + p.status) | t }}</small>
+                  <span class="ws-status" [class]="p.status.toLowerCase()" [attr.data-tone]="p.status === 'CONFIRMED' ? 'good' : p.status === 'REJECTED' ? 'bad' : 'warn'">{{ ('billing.status.' + p.status) | t }}</span>
                   @if (p.status === 'CONFIRMED') { <button type="button" class="link" (click)="openInvoice(p.id)"><lucide-icon [img]="icons.Printer" [size]="16" /> {{ 'billing.invoice' | t }}</button> }
                 </span>
               </li>

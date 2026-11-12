@@ -7,8 +7,14 @@ import { WsAreaChartComponent, straightPath } from './area-chart.component';
 import { compare } from './data-grid.component';
 import { rangeFor } from './date-range.component';
 import { sparkPoints } from './kpi-card.component';
+import { statusTone, withTones } from './status-tone';
 
 describe('workspace components (logic)', () => {
+  it('statuses get one colour everywhere; an unknown one a plain badge; an empty cell none', () => {
+    expect(['PAID', 'ISSUED', 'PARTIALLY_PAID', 'CANCELLED', 'DRAFT', 'SOMETHING_NEW'].map(statusTone)).toEqual(['good', 'warn', 'info', 'bad', 'muted', 'muted']);
+    expect(withTones({ id: '1', status: 'Paid', state: '' }, { status: 'PAID', state: '' })._tone).toEqual({ status: 'good' });
+  });
+
   it('grid sorting: numbers by value, ISO dates by time, text by language, empty last', () => {
     expect(['10', '9', '100'].sort(compare)).toEqual(['9', '10', '100']);
     expect(['2026-11-03', '2026-01-15', '2025-12-31'].sort(compare)).toEqual(['2025-12-31', '2026-01-15', '2026-11-03']);

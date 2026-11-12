@@ -20,6 +20,7 @@ import {
   WsStateComponent,
   WsStatusPipelineComponent,
 } from '../../shared/ui/workspace';
+import { withTones } from '../../shared/ui/workspace/status-tone';
 
 type Money = string | null;
 /** GET /api/workspace/sorting/:lotId (money is null without cost.view). */
@@ -183,7 +184,7 @@ export class SortingRecordComponent {
     ...(this.data()?.lot.cost !== null ? [{ key: 'cost', label: this.i18n.t('ws.cr.baleCost'), format: 'money' as const, total: true, round: true, info: this.i18n.t('ws.sortRecord.baleCostInfo') }] : []),
   ]);
   protected readonly baleRows = computed<WsRow[]>(() =>
-    (this.data()?.bales ?? []).map((b) => ({ ...b, state: this.i18n.t(b.sold ? 'ws.container.sold' : 'ws.container.inStock') })) as unknown as WsRow[],
+    (this.data()?.bales ?? []).map((b) => withTones({ ...b, state: this.i18n.t(b.sold ? 'ws.container.sold' : 'ws.container.inStock') }, { state: b.sold ? 'SOLD' : 'AVAILABLE' })) as unknown as WsRow[],
   );
   protected openBale(row: WsRow): void {
     if (row['itemId']) void this.nav.open(['/stock/items', row['itemId']]);

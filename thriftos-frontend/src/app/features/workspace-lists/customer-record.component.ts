@@ -27,6 +27,7 @@ import {
   WsTabsComponent,
 } from '../../shared/ui/workspace';
 import { AGE_KEYS } from './collections.component';
+import { withTones } from '../../shared/ui/workspace/status-tone';
 
 type Money = string | null;
 /** GET /api/workspace/customers/:id (profit is null without cost.view). */
@@ -300,7 +301,7 @@ export class CustomerRecordComponent {
   protected readonly saleRows = computed<WsRow[]>(() => {
     const d = this.data();
     if (!d) return [];
-    const rows: WsRow[] = d.sales.map((s) => ({ ...s, status: this.i18n.t(`ws.status.${s.status}`) }));
+    const rows: WsRow[] = d.sales.map((s) => withTones({ ...s, status: this.i18n.t(`ws.status.${s.status}`) }, { status: s.status }));
     // What they owed before ThriftOS: its own row, so the bills add up to the balance.
     const opening = Number(d.customer.openingBalance);
     if (opening > 0) {
@@ -325,10 +326,10 @@ export class CustomerRecordComponent {
     this.col('status', 'ws.col.status'), this.col('note', 'ws.customer.note'), this.col('by', 'ws.col.createdBy'),
   ]);
   protected readonly promiseRows = computed<WsRow[]>(() =>
-    (this.data()?.promises ?? []).map((p) => ({
+    (this.data()?.promises ?? []).map((p) => withTones({
       ...p, rawStatus: p.status, status: this.i18n.t(`ws.promise.${p.status}`), promisedFor: this.day(p.promisedFor),
       label: `${this.i18n.money(p.amount)} · ${this.day(p.promisedFor)}`,
-    })),
+    }, { status: p.status })),
   );
   protected readonly reminderColumns = computed(() => [this.col('date', 'ws.col.date', 'date'), this.col('by', 'ws.col.createdBy')]);
   protected readonly reminderRows = computed<WsRow[]>(() => (this.data()?.reminders ?? []).map((r, i) => ({ id: String(i), ...r })));

@@ -25,6 +25,7 @@ import {
   WsTab,
   WsTabsComponent,
 } from '../../shared/ui/workspace';
+import { withTones } from '../../shared/ui/workspace/status-tone';
 
 type Money = string | null;
 /** GET /api/workspace/containers/:id — the traceability overview (money is null without cost.view). */
@@ -375,7 +376,7 @@ export class ContainerRecordComponent {
     { key: 'kg', label: this.i18n.t('ws.containers.col.kg'), format: 'kg', total: true },
     ...(this.data()?.cost ? [this.money('cost', 'ws.col.cost', true)] : []),
   ]);
-  protected readonly lotRows = computed<WsRow[]>(() => (this.data()?.lots ?? []).map((l) => ({ ...l, status: this.i18n.t(`ws.lotStatus.${l.status}`) })));
+  protected readonly lotRows = computed<WsRow[]>(() => (this.data()?.lots ?? []).map((l) => withTones({ ...l, status: this.i18n.t(`ws.lotStatus.${l.status}`) }, { status: l.status })));
   protected readonly baleColumns = computed<WsColumn[]>(() => [
     { key: 'code', label: this.i18n.t('ws.container.bale') },
     { key: 'category', label: this.i18n.t('ws.container.category') },
@@ -385,7 +386,7 @@ export class ContainerRecordComponent {
     ...(this.data()?.cost ? [this.money('costFromHere', 'ws.cr.baleCost', true, 'ws.cr.info.baleCost')] : []),
   ]);
   protected readonly baleRows = computed<WsRow[]>(() =>
-    (this.data()?.bales ?? []).map((b) => ({ ...b, state: this.i18n.t(b.sold ? 'ws.container.sold' : 'ws.container.inStock') })),
+    (this.data()?.bales ?? []).map((b) => withTones({ ...b, state: this.i18n.t(b.sold ? 'ws.container.sold' : 'ws.container.inStock') }, { state: b.sold ? 'SOLD' : 'AVAILABLE' })),
   );
   protected readonly saleColumns = computed<WsColumn[]>(() => [
     { key: 'number', label: this.i18n.t('ws.col.number') },

@@ -9,6 +9,7 @@ import { TPipe } from '../../core/i18n/t.pipe';
 import { ToastService } from '../../shared/floor/toast.service';
 import { WsColumn, WsDataGridComponent, WsPageHeaderComponent, WsRow, WsSideSheetComponent, WsStateComponent } from '../../shared/ui/workspace';
 import { BookLine, lineDetails } from './finance-book.component';
+import { withTones } from '../../shared/ui/workspace/status-tone';
 
 /** GET /api/workspace/finance/close */
 export interface CloseView {
@@ -251,7 +252,7 @@ export class CashCloseComponent {
     { key: 'difference', label: this.i18n.t('ws.close.difference'), format: 'money', total: true },
   ]);
   protected readonly recentRows = computed<WsRow[]>(() =>
-    (this.data()?.recent ?? []).map((r) => ({ ...r, date: r.day + 'T12:00:00Z', status: this.i18n.t(r.closed ? 'ws.close.closedShort' : 'ws.close.notClosed') })),
+    (this.data()?.recent ?? []).map((r) => withTones({ ...r, date: r.day + 'T12:00:00Z', status: this.i18n.t(r.closed ? 'ws.close.closedShort' : 'ws.close.notClosed') }, { status: r.closed ? 'DONE' : 'OPEN_DAY' })),
   );
 
   constructor() {

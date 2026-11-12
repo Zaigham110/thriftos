@@ -23,6 +23,7 @@ import {
 } from '../../shared/ui/workspace';
 import { FirstWeekComponent } from '../home/first-week.component';
 import { CashTodayComponent } from '../home/cash-today.component';
+import { withTones } from '../../shared/ui/workspace/status-tone';
 
 type Money = string | null;
 const AGES = ['0-30', '31-60', '61-90', '90+'] as const;
@@ -187,7 +188,7 @@ export class DashboardComponent {
     ...(this.data()?.containers.list.some((c) => c.profit !== null) ? [{ key: 'profit', label: this.i18n.t('ws.containers.col.profit'), format: 'money' as const }] : []),
     { key: 'yield', label: this.i18n.t('ws.containers.col.yield'), format: 'percent' },
   ]);
-  protected readonly containerRows = computed<WsRow[]>(() => (this.data()?.containers.list ?? []).map((c) => ({ ...c, status: this.i18n.t(`ws.cstatus.${c.status}`) })) as unknown as WsRow[]);
+  protected readonly containerRows = computed<WsRow[]>(() => (this.data()?.containers.list ?? []).map((c) => withTones({ ...c, status: this.i18n.t(`ws.cstatus.${c.status}`) }, { status: c.status })) as unknown as WsRow[]);
 
   constructor() {
     effect(() => {

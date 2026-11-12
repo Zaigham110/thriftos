@@ -86,7 +86,7 @@ export type WsRow = Record<string, unknown> & { id: string };
                 @if (selectable()) {
                   <td class="check" (click)="$event.stopPropagation()"><input type="checkbox" [checked]="isSelected(r)" (change)="toggle(r)" [attr.aria-label]="'ws.grid.selectRow' | t" /></td>
                 }
-                @for (c of columns(); track c.key) { <td [class.end]="isNumeric(c)" [class.ws-num]="isNumeric(c)" [class.neg]="c.tone === 'sign' && isNeg(r[c.key])" (click)="clickable() && cellClick.emit({ row: r, key: c.key })">{{ c.blankZero && isZero(r[c.key]) ? '' : cell(r[c.key], c.format, c.round, c.decimals) }}</td> }
+                @for (c of columns(); track c.key) { <td [class.end]="isNumeric(c)" [class.ws-num]="isNumeric(c)" [class.neg]="c.tone === 'sign' && isNeg(r[c.key])" (click)="clickable() && cellClick.emit({ row: r, key: c.key })">@if (tone(r, c.key); as tn) {<span class="ws-status" [attr.data-tone]="tn">{{ cell(r[c.key], c.format, c.round, c.decimals) }}</span>} @else {<ng-container>{{ c.blankZero && isZero(r[c.key]) ? '' : cell(r[c.key], c.format, c.round, c.decimals) }}</ng-container>}</td> }
                 @if (rowActions().length) {
                   <td class="acts" (click)="$event.stopPropagation()">
                     @for (a of rowActions(); track a.id) {
@@ -192,6 +192,13 @@ export class WsDataGridComponent {
   protected offers(r: WsRow, id: string): boolean {
     const list = r['_actions'] as string[] | undefined;
     return !list || list.includes(id);
+  }
+
+  /** A status cell (rows built with withTones): drawn as a coloured badge. */
+  protected tone(r: WsRow, key: string): string | null {
+    const v = r[key];
+    if (v === null || v === undefined || v === '') return null;
+    return (r['_tone'] as Record<string, string> | undefined)?.[key] ?? null;
   }
 
   protected isNeg(v: unknown): boolean {

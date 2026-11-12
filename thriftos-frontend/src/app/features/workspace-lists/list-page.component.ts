@@ -30,6 +30,7 @@ import {
 } from '../../shared/ui/workspace';
 import { BoardComponent } from './board.component';
 import type { ListConfig } from './list-config';
+import { withTones } from '../../shared/ui/workspace/status-tone';
 
 type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
 
@@ -337,8 +338,12 @@ export class ListPageComponent {
     const enums = this.list().columns.filter((c) => c.enumPrefix);
     return (this.result()?.rows ?? []).map((r) => {
       const row: Record<string, unknown> = { ...r };
-      for (const c of enums) if (row[c.key] !== null && row[c.key] !== undefined) row[c.key] = this.i18n.t(`${c.enumPrefix}${row[c.key]}`);
-      return row as WsRow;
+      const tones: Record<string, unknown> = {};
+      for (const c of enums) if (row[c.key] !== null && row[c.key] !== undefined) {
+        if (/status\.$/i.test(c.enumPrefix!)) tones[c.key] = row[c.key];
+        row[c.key] = this.i18n.t(`${c.enumPrefix}${row[c.key]}`);
+      }
+      return withTones(row, tones) as unknown as WsRow;
     });
   });
   protected readonly totals = computed(() => this.result()?.totals ?? null);

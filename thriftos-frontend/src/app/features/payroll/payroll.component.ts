@@ -104,7 +104,7 @@ const ymd = (d: Date) => new Date(d.getTime() + 5 * 3_600_000).toISOString().sli
           <ul class="list">
             @for (s of sheets(); track s.id) {
               <li><button type="button" class="row" (click)="openSheet(s.id)">
-                <span><strong>{{ day(s.periodStart) }} – {{ day(s.periodEnd) }}</strong><small>{{ 'pay.workersN' | t: { n: s.workers } }} · {{ (s.status === 'PAID' ? 'pay.paid' : 'pay.draft') | t }}</small></span>
+                <span><strong>{{ day(s.periodStart) }} – {{ day(s.periodEnd) }}</strong><small>{{ 'pay.workersN' | t: { n: s.workers } }} <span class="ws-status" [attr.data-tone]="s.status === 'PAID' ? 'good' : 'warn'">{{ (s.status === 'PAID' ? 'pay.paid' : 'pay.draft') | t }}</span></small></span>
                 <span class="amount">{{ i18n.money(s.total) }}</span>
               </button></li>
             } @empty { <li class="notice">{{ 'pay.noSheets' | t }}</li> }
