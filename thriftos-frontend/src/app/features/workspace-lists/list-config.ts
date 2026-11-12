@@ -47,6 +47,8 @@ export interface BoardConfig {
 
 /** Everything a workspace list screen needs; screens are configured, not written (enterprise plan E2/E3). */
 export interface ListConfig {
+  /** The Export menu also offers the bale list sheet (Bale no, Item, Category, Grade, … one row a bale). */
+  baleListExport?: boolean;
   /** Server list name (/api/lists/:resource) and saved-view key. */
   resource: string;
   title: string;

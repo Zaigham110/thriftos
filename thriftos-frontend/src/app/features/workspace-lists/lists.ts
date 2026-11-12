@@ -174,6 +174,7 @@ export const STOCK_TABS = [
 
 export const STOCK_LIST: ListConfig = {
   resource: 'stock',
+  baleListExport: true,
   help: 'stock',
   title: 'ws.stock.title',
   count: 'ws.stock.count',

@@ -1394,6 +1394,7 @@
    "yesterday": "Yesterday"
   },
   "export": {
+   "baleList": "Bale list (Excel)",
    "csv": "CSV (any spreadsheet)",
    "label": "Export",
    "xlsx": "Excel"

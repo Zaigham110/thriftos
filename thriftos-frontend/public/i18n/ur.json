@@ -1394,6 +1394,7 @@
    "yesterday": "کل"
   },
   "export": {
+   "baleList": "گانٹھوں کی فہرست (Excel)",
    "csv": "CSV (کوئی بھی اسپریڈ شیٹ)",
    "label": "ایکسپورٹ",
    "xlsx": "Excel"

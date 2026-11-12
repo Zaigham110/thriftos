@@ -146,6 +146,7 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
               <div class="menu end" role="menu">
                 <button type="button" role="menuitem" (click)="export('xlsx')">{{ 'ws.export.xlsx' | t }}</button>
                 <button type="button" role="menuitem" (click)="export('csv')">{{ 'ws.export.csv' | t }}</button>
+                @if (c.baleListExport) { <button type="button" role="menuitem" (click)="export('xlsx', 'bale-list')">{{ 'ws.export.baleList' | t }}</button> }
               </div>
             }
           </div>
@@ -569,10 +570,10 @@ export class ListPageComponent {
     void this.nav.open(this.list().rowLink(id));
   }
 
-  protected export(format: 'csv' | 'xlsx'): void {
+  protected export(format: 'csv' | 'xlsx', layout?: 'bale-list'): void {
     this.menu.set(null);
     this.exporting.set(true);
-    this.lists.export(this.list().resource, this.state(), format, this.i18n.lang(), this.visible()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.lists.export(this.list().resource, this.state(), format, this.i18n.lang(), this.visible(), layout).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => this.exporting.set(false),
       error: () => { this.exporting.set(false); this.toast.show(this.i18n.t('common.couldNotLoad')); },
     });
