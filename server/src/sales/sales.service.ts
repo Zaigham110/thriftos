@@ -1,3 +1,4 @@
+import { Workbook } from 'exceljs';
 import { businessContact } from '../tenant/business';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { tracePayments } from './khata';
@@ -275,6 +276,8 @@ export class SalesService {
       return {
         code: i.repackUnit?.unitCode ?? null,
         item: name(i),
+        category: i.category?.name ?? null,
+        grade: i.grade?.name ?? null,
         unit: l.unit,
         quantity: l.quantity,
         kg: l.unit === 'KG' ? l.quantity : i.weightKg ? i.weightKg.mul(share).toDecimalPlaces(2) : null,
@@ -317,6 +320,24 @@ export class SalesService {
       totals: { lines: packing.length, bales: packing.filter((p) => p.unit === 'BALE').reduce((t, p) => t + Number(p.quantity), 0), kg: sum((r) => r.kg), pieces: sum((r) => r.pieces).toNumber(), amount: sale.totalAmount },
       records,
     };
+  }
+
+  /**
+   * The packing list as the bale list sheet buyers upload (owner's sample, 2026-11-13): one sheet "Bale list",
+   * one row a packed line, these eleven columns in this order. It goes to the buyer, so "Cost" is what the buyer
+   * pays for that line, never what it cost us. Brand, Bale sale price, Piece price and Notes are the buyer's to fill.
+   */
+  async exportPackSheet(tenantId: string, id: string): Promise<{ file: string; body: Buffer }> {
+    const pack = await this.exportPack(tenantId, id);
+    const wb = new Workbook();
+    wb.creator = 'ThriftOS';
+    const ws = wb.addWorksheet('Bale list');
+    const widths: Array<[string, number]> = [['Bale no', 14], ['Item', 14], ['Category', 14], ['Grade', 14], ['Brand', 14], ['Weight kg', 14], ['Pieces', 14], ['Cost', 14], ['Bale sale price', 19], ['Piece price', 15], ['Notes', 14]];
+    ws.columns = widths.map(([header, width]) => ({ header, width }));
+    ws.getRow(1).font = { bold: true };
+    const n = (v: Prisma.Decimal | number | null) => (v === null ? null : Number(v.toString()));
+    for (const r of pack.packing) ws.addRow([r.code, r.item, r.category, r.grade, null, n(r.kg), r.pieces, n(r.total), null, null, null]);
+    return { file: `bale-list-${pack.sale.number}.xlsx`, body: Buffer.from(await wb.xlsx.writeBuffer()) };
   }
 
   /** Price to suggest: this customer's last price for the same kind of stock, else anyone's, else the item's sale price. */

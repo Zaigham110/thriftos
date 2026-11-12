@@ -1,7 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Workbook } from 'exceljs';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { api, createTenantWithOwner, createTestApp, createUserWithoutPermissions, seedSortableLot, TestTenant } from './fixtures';
 
@@ -82,33 +81,6 @@ describe('Workspace inventory: stock list, lineage, ageing, counts with approval
     expect(row).not.toHaveProperty('value');
     expect((await api(app, viewer).get(`/workspace/stock/${ids.bale}`).expect(200)).body.cost).toBeNull();
     await api(app, await createUserWithoutPermissions(app, a.tenantId)).get('/lists/stock').expect(403);
-  });
-
-  it('bale list export: the eleven columns of the owner\'s sample, cost only with cost.view, only this business', async () => {
-    const sheetOf = async (who: TestTenant, query = '') => {
-      const res = await api(app, who).get(`/lists/stock/export?format=xlsx&layout=bale-list${query}`).buffer(true).parse((r, cb) => {
-        const chunks: Buffer[] = [];
-        r.on('data', (c: Buffer) => chunks.push(c));
-        r.on('end', () => cb(null, Buffer.concat(chunks)));
-      }).expect(200);
-      expect(res.headers['content-disposition']).toMatch(/^attachment; filename="bale-list-\d{4}-\d{2}-\d{2}\.xlsx"$/);
-      const wb = new Workbook();
-      await wb.xlsx.load(res.body as never);
-      return wb.worksheets[0];
-    };
-    const sheet = await sheetOf(a, `&q=${ids.baleCode}`);
-    expect(sheet.name).toBe('Bale list');
-    expect((sheet.getRow(1).values as unknown[]).slice(1)).toEqual(['Bale no', 'Item', 'Category', 'Grade', 'Brand', 'Weight kg', 'Pieces', 'Cost', 'Bale sale price', 'Piece price', 'Notes']);
-    expect(sheet.getRow(1).font?.bold).toBe(true);
-    expect(sheet.rowCount).toBe(2);
-    const row = sheet.getRow(2);
-    expect([row.getCell(1).value, row.getCell(3).value, row.getCell(4).value, row.getCell(8).value]).toEqual([ids.baleCode, 'Jeans', 'A', 50000]);
-    expect([row.getCell(5).value, row.getCell(10).value, row.getCell(11).value]).toEqual([null, null, null]);
-
-    const viewer = await userWith(['INVENTORY_VIEW']);
-    expect((await sheetOf(viewer, `&q=${ids.baleCode}`)).getRow(2).getCell(8).value).toBeNull();
-    expect((await sheetOf(b)).rowCount).toBe(1);
-    await api(app, a).get('/lists/sales/export?format=xlsx&layout=bale-list').expect(400);
   });
 
   it('stock record: lineage back to container and lot, sales, QR; ageing and valuation', async () => {

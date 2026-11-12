@@ -39,6 +39,10 @@ test('export pack: export sale with shipment, packing list, invoice and bale rec
     await page.getByRole('button', { name: 'Save shipment' }).click();
     await expect(page.getByText('Shipment saved')).toBeVisible();
 
+    // The packing list as an Excel bale list (the owner's sample format).
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Packing list (Excel)' }).click();
+    expect((await download).suggestedFilename()).toMatch(/^bale-list-.+\.xlsx$/);
     await page.getByRole('button', { name: 'Packing list', exact: true }).click();
     const paper = page.getByRole('dialog', { name: 'Packing list' });
     await expect(paper).toContainText(code);

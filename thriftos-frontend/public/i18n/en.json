@@ -1394,7 +1394,6 @@
    "yesterday": "Yesterday"
   },
   "export": {
-   "baleList": "Bale list (Excel)",
    "csv": "CSV (any spreadsheet)",
    "label": "Export",
    "xlsx": "Excel"
@@ -2520,7 +2519,7 @@
   "packingList": "Packing list",
   "invoice": "Commercial invoice",
   "records": "Bale sorting records",
-  "csv": "Packing list (Excel/CSV)",
+  "csv": "Packing list (Excel)",
   "attachHint": "Attach fumigation and other certificates under Activity on this sale.",
   "buyer": "Buyer",
   "code": "Bale code",

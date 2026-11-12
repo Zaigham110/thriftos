@@ -85,10 +85,9 @@ export class ListClient {
   }
 
   /** Downloads the whole filtered list as CSV or Excel (the browser saves it). */
-  export(name: string, state: ListState, format: 'csv' | 'xlsx', lang: Lang, columns: string[], layout?: 'bale-list'): Observable<void> {
+  export(name: string, state: ListState, format: 'csv' | 'xlsx', lang: Lang, columns: string[]): Observable<void> {
     let params = listParams(state, { paging: false, groups: false }).set('format', format).set('lang', lang);
-    if (layout) params = params.set('layout', layout);
-    else if (columns.length) params = params.set('columns', columns.join(','));
+    if (columns.length) params = params.set('columns', columns.join(','));
     return new Observable<void>((sub) => {
       const s = this.http.get(`/api/lists/${name}/export`, { params, observe: 'response', responseType: 'blob' }).subscribe({
         next: (res) => {

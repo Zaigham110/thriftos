@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Headers, Param, Patch, Post, Query, SetMetadata, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Patch, Post, Query, Res, SetMetadata, UseGuards } from '@nestjs/common';
+import { Response } from 'express';
 import { ModuleGuard, REQUIRED_MODULE_KEY } from '../common/guards/module.guard';
 import { CurrentUser, CurrentUserData, Public, TenantId } from '../common/decorators';
 import { TenantGuard } from '../common/guards/tenant.guard';
@@ -74,6 +75,18 @@ export class SalesController {
   @SetMetadata(REQUIRED_MODULE_KEY, 'EXPORT')
   exportPack(@TenantId() tenantId: string, @Param('id') id: string) {
     return this.sales.exportPack(tenantId, id);
+  }
+
+  /** The packing list as an Excel bale list (Bale no, Item, Category, Grade, … one row a packed line). */
+  @Get(':id/export-pack/bale-list')
+  @UseGuards(ModuleGuard)
+  @SetMetadata(REQUIRED_MODULE_KEY, 'EXPORT')
+  async exportPackSheet(@TenantId() tenantId: string, @Param('id') id: string, @Res() res: Response) {
+    const { file, body } = await this.sales.exportPackSheet(tenantId, id);
+    res.setHeader('Content-Disposition', `attachment; filename="${file}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(body);
   }
 
   @Post(':id/fulfill')

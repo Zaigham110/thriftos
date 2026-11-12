@@ -62,7 +62,7 @@ const FIELDS = ['destinationCountry', 'portOfLoading', 'portOfDischarge', 'vesse
         <button type="button" class="ws-btn" (click)="open('packing')"><lucide-icon [img]="icons.Printer" [size]="16" /> {{ 'xp.packingList' | t }}</button>
         <button type="button" class="ws-btn" (click)="open('invoice')"><lucide-icon [img]="icons.Printer" [size]="16" /> {{ 'xp.invoice' | t }}</button>
         <button type="button" class="ws-btn" (click)="open('records')"><lucide-icon [img]="icons.Printer" [size]="16" /> {{ 'xp.records' | t }}</button>
-        <button type="button" class="ws-btn" (click)="csv(p)"><lucide-icon [img]="icons.Download" [size]="16" /> {{ 'xp.csv' | t }}</button>
+        <button type="button" class="ws-btn" (click)="sheet(p)"><lucide-icon [img]="icons.Download" [size]="16" /> {{ 'xp.csv' | t }}</button>
       </div>
       <p class="hint">{{ 'xp.attachHint' | t }}</p>
 
@@ -212,16 +212,18 @@ export class ExportPackComponent {
     });
   }
 
-  /** The packing list as CSV (opens in Excel). */
-  protected csv(p: Pack): void {
-    const q = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const rows = [['No', 'Bale code', 'Item', 'Kg', 'Pieces'], ...p.packing.map((r, i) => [i + 1, r.code, r.item, r.kg, r.pieces])];
-    const blob = new Blob([rows.map((r) => r.map(q).join(',')).join('\r\n')], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `packing-list-${p.sale.number}.csv`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  /** The packing list as an Excel bale list: Bale no, Item, Category, Grade, Brand, Weight kg, Pieces, Cost… */
+  protected sheet(p: Pack): void {
+    this.http.get(`/api/sales/${p.sale.id}/export-pack/bale-list`, { responseType: 'blob' }).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `bale-list-${p.sale.number}.xlsx`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      },
+      error: () => this.toast.error(this.i18n.t('common.couldNotLoad')),
+    });
   }
 }

@@ -1394,7 +1394,6 @@
    "yesterday": "Kal"
   },
   "export": {
-   "baleList": "Bale list (Excel)",
    "csv": "CSV (har spreadsheet)",
    "label": "Export",
    "xlsx": "Excel"
@@ -2520,7 +2519,7 @@
   "packingList": "Packing list",
   "invoice": "Commercial invoice",
   "records": "Gaanthon ka chhantai record",
-  "csv": "Packing list (Excel/CSV)",
+  "csv": "Packing list (Excel)",
   "attachHint": "Fumigation aur doosre certificate is farokht ki sargarmi mein lagayein.",
   "buyer": "Khareedar",
   "code": "Gaanth code",

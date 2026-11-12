@@ -1,4 +1,5 @@
 import { INestApplication } from '@nestjs/common';
+import { Workbook } from 'exceljs';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { api, createTenantWithOwner, createTestApp, seedSortableLot, TestTenant } from './fixtures';
 
@@ -54,6 +55,25 @@ describe('Phase 9.2 export pack: shipment, packing list, commercial invoice, bal
     expect(pack.records).toHaveLength(2);
     expect(pack.records[0].from[0]).toMatchObject({ lot: lot.ragCode, container: container.containerNumber, supplier: 'Texas Recyclers', origin: 'USA', category: 'Jeans', grade: 'A', sortedBy: 'Akram' });
     expect(pack.records[0].from[0].sortedAt).toBeTruthy();
+
+    // The packing list as the bale list sheet: the sample's eleven columns; "Cost" is what the buyer pays, never our cost.
+    const sheetOf = async (who: TestTenant, saleId: string, status = 200) => api(app, who).get(`/sales/${saleId}/export-pack/bale-list`).buffer(true).parse((r, cb) => {
+      const chunks: Buffer[] = [];
+      r.on('data', (c: Buffer) => chunks.push(c));
+      r.on('end', () => cb(null, Buffer.concat(chunks)));
+    }).expect(status);
+    const file = await sheetOf(a, sale.id);
+    expect(file.headers['content-disposition']).toBe(`attachment; filename="bale-list-${sale.saleNumber}.xlsx"`);
+    const wb = new Workbook();
+    await wb.xlsx.load(file.body as never);
+    const ws = wb.worksheets[0];
+    expect(ws.name).toBe('Bale list');
+    expect((ws.getRow(1).values as unknown[]).slice(1)).toEqual(['Bale no', 'Item', 'Category', 'Grade', 'Brand', 'Weight kg', 'Pieces', 'Cost', 'Bale sale price', 'Piece price', 'Notes']);
+    expect(ws.getRow(1).font?.bold).toBe(true);
+    expect(ws.rowCount).toBe(3);
+    expect((ws.getRow(2).values as unknown[]).slice(1, 9)).toEqual([items[0].repackUnit!.unitCode, 'Jeans · A', 'Jeans', 'A', null, 45, null, 30000].map((v) => v ?? undefined));
+    expect([9, 10, 11].map((c) => ws.getRow(2).getCell(c).value)).toEqual([null, null, null]);
+    await sheetOf(b, sale.id, 404);
 
     // The shipment can be filled in later.
     const after = (await api(app, a).patch(`/sales/${sale.id}/shipment`, { vesselName: 'MSC Bella', billOfLadingNumber: '' }).expect(200)).body;
