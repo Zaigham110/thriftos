@@ -32,6 +32,8 @@ interface TodayCash { expected: string; close: unknown | null; openDays: number 
   `,
   styles: [`
     :host { display:block; }
+    /* Nothing to show: take no room (no empty band on the laptop Home). */
+    :host(:empty) { display:none; }
     .cash-today { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border:1px solid var(--ws-line, var(--tos-line, #e3dde0)); border-radius:12px; background:var(--ws-surface, var(--tos-surface, #fff)); color:inherit; text-decoration:none; }
     .text { display:grid; gap:2px; }
     small { color:var(--ws-ink-2, var(--tos-ink-soft, #6b6468)); font-size:14px; font-weight:700; }

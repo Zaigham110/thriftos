@@ -1307,14 +1307,18 @@
     "udhaarAge": "What customers owe, split by how old the unpaid sale is. Debts older than 60 days are shown in red: ask for these first."
    },
    "noContainers": "No containers in progress",
-   "owing": "{n} customers owe · {broken} broken promises",
    "period": "{from} – {to}",
    "revenue": "Sales",
    "stockHint": "{kg} in {n} items",
    "title": "Dashboard",
    "today": "Today: {sales} sales, {revenue} · {collected} received",
    "trendDay": "Sales and gross profit by day",
-   "trendMonth": "Sales and gross profit by month"
+   "trendMonth": "Sales and gross profit by month",
+   "todayOne": "Today: {sales} sale, {revenue} · {collected} received",
+   "owingN": "{n} customers owe",
+   "owingOne": "{n} customer owes",
+   "brokenN": "{n} broken promises",
+   "brokenOne": "{n} broken promise"
   },
   "density": {
    "comfortable": "Comfortable rows",

@@ -34,6 +34,8 @@ export class PwaService {
       this.updates.versionUpdates
         .pipe(filter((e) => e.type === 'VERSION_READY'))
         .subscribe(() => this.updateReady.set(true));
+      // The cached version cannot be served any more (its files are gone): load the new one.
+      this.updates.unrecoverable.subscribe(() => document.location.reload());
     }
   }
 

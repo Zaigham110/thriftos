@@ -3,7 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { WsBarChartComponent, niceMax } from './bar-chart.component';
-import { WsAreaChartComponent, smoothPath } from './area-chart.component';
+import { WsAreaChartComponent, straightPath } from './area-chart.component';
 import { compare } from './data-grid.component';
 import { rangeFor } from './date-range.component';
 import { sparkPoints } from './kpi-card.component';
@@ -71,12 +71,8 @@ describe('workspace components (logic)', () => {
     expect(Number(bars[1].getAttribute('data-bottom'))).toBeCloseTo(zeroY, 5);
   });
 
-  it('area chart: the curve never dips below zero between a no-sale day and a sale day, and totals sit in the legend', () => {
-    // A monotone curve: every control point stays between its two neighbours' heights.
-    const d = smoothPath([[0, 200], [100, 200], [200, 40], [300, 200]]);
-    const ys = [...d.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map((m) => Number(m[2]));
-    expect(Math.max(...ys)).toBeLessThanOrEqual(200);
-    expect(Math.min(...ys)).toBeGreaterThanOrEqual(40);
+  it('area chart: straight lines from day to day (a sales day does not spill onto the days around it), and totals sit in the legend', () => {
+    expect(straightPath([[0, 200], [100, 200], [200, 40], [300, 200]])).toBe('M0,200L100,200L200,40L300,200');
 
     TestBed.configureTestingModule({ imports: [WsAreaChartComponent], providers: [provideHttpClient(), provideHttpClientTesting()] });
     const f = TestBed.createComponent(WsAreaChartComponent);

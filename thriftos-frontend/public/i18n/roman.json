@@ -1307,14 +1307,18 @@
     "udhaarAge": "Customer ka udhaar, is hisaab se ke sale kitni purani hai. 60 din se purana udhaar laal mein: pehle yeh mangein."
    },
    "noContainers": "Koi container nahi chal raha",
-   "owing": "{n} customers ka udhaar · {broken} toote waade",
    "period": "{from} – {to}",
    "revenue": "Sale",
    "stockHint": "{n} items mein {kg}",
    "title": "Dashboard",
    "today": "Aaj: {sales} sale, {revenue} · {collected} wasool",
    "trendDay": "Roz ki sale aur gross munafa",
-   "trendMonth": "Mahine ki sale aur gross munafa"
+   "trendMonth": "Mahine ki sale aur gross munafa",
+   "todayOne": "Aaj: {sales} sale, {revenue} · {collected} wasool",
+   "owingN": "{n} customers ka udhaar",
+   "owingOne": "{n} customer ka udhaar",
+   "brokenN": "{n} toote waade",
+   "brokenOne": "{n} toota waada"
   },
   "density": {
    "comfortable": "Khuli lines",

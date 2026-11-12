@@ -8,8 +8,8 @@ import { WsSeries, niceMax } from './bar-chart.component';
 let uid = 0;
 
 /**
- * A trend over time: smooth curves (monotone, so a curve never overshoots below zero between two days) with a
- * soft fill under each, the period total of each series in its legend pill, a dashed recessive grid on even
+ * A trend over time: straight lines from day to day (a curve made one sales day look like sales on the days
+ * around it), a dot on each day that has a figure, a soft fill under each line, the period total of each series in its legend pill, a dashed recessive grid on even
  * steps, and on hover a guide line with a dot per series and a dark tooltip card. "Show as table" gives the same
  * numbers (the accessible view). The first series wears the brand plum, the second gold.
  */
@@ -80,8 +80,11 @@ let uid = 0;
               @for (s of series(); track s.label; let si = $index) {
                 <circle class="dot" [attr.cx]="x(ci)" [attr.cy]="y(s.values[ci])" r="4" [attr.stroke]="color(si)" />
               }
-            } @else if (categories().length) {
-              <circle class="end-dot" [attr.cx]="x(categories().length - 1)" [attr.cy]="y(series()[0]?.values?.[categories().length - 1] ?? 0)" r="3.5" [attr.fill]="color(0)" />
+            } @else {
+              <!-- A dot on each day with a figure, so the day it happened is plain. -->
+              @for (v of series()[0]?.values ?? []; track $index; let ci = $index) {
+                @if (v) { <circle class="end-dot" [attr.cx]="x(ci)" [attr.cy]="y(v)" r="3.5" [attr.fill]="color(0)" /> }
+              }
             }
           </svg>
           <div class="hits">
@@ -240,7 +243,7 @@ export class WsAreaChartComponent {
     return n > 1 && ci === 0 ? 'start' : n > 1 && ci === n - 1 ? 'end' : 'middle';
   }
   protected linePath(vs: number[]): string {
-    return smoothPath(this.categories().map((_, i) => [this.x(i), this.y(vs[i])] as [number, number]));
+    return straightPath(this.categories().map((_, i) => [this.x(i), this.y(vs[i])] as [number, number]));
   }
   protected areaPath(vs: number[]): string {
     const n = this.categories().length;
@@ -289,28 +292,10 @@ export class WsAreaChartComponent {
   }
 }
 
-/**
- * Monotone cubic curve through the points (Fritsch–Carlson): smooth, but it never bends above or below its two
- * neighbours, so a flat day stays flat and a curve never dips under zero between two sales days.
- */
-export function smoothPath(p: [number, number][]): string {
-  const n = p.length;
-  if (!n) return '';
-  if (n === 1) return `M${p[0][0] - 1},${p[0][1]}L${p[0][0] + 1},${p[0][1]}`;
-  const d: number[] = [];
-  const m: number[] = [];
-  for (let i = 0; i < n - 1; i++) d.push((p[i + 1][1] - p[i][1]) / (p[i + 1][0] - p[i][0]));
-  m.push(d[0]);
-  for (let i = 1; i < n - 1; i++) m.push(d[i - 1] * d[i] <= 0 ? 0 : harmonic(d[i - 1], d[i]));
-  m.push(d[n - 2]);
-  let s = `M${p[0][0]},${p[0][1]}`;
-  for (let i = 0; i < n - 1; i++) {
-    const h = (p[i + 1][0] - p[i][0]) / 3;
-    s += `C${p[i][0] + h},${p[i][1] + m[i] * h} ${p[i + 1][0] - h},${p[i + 1][1] - m[i + 1] * h} ${p[i + 1][0]},${p[i + 1][1]}`;
-  }
-  return s;
-}
-
-function harmonic(a: number, b: number): number {
-  return (2 * a * b) / (a + b);
+/** Straight lines from day to day: each day's figure sits on its own day, nothing is drawn between days that
+ * was not there. */
+export function straightPath(p: [number, number][]): string {
+  if (!p.length) return '';
+  if (p.length === 1) return `M${p[0][0] - 1},${p[0][1]}L${p[0][0] + 1},${p[0][1]}`;
+  return 'M' + p.map(([x, y]) => `${x},${y}`).join('L');
 }

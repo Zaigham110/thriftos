@@ -1307,14 +1307,18 @@
     "udhaarAge": "گاہکوں کا بقایا، اس حساب سے کہ ادھار کی سیل کتنی پرانی ہے۔ 60 دن سے پرانا ادھار لال رنگ میں ہے: یہ پہلے مانگیں۔"
    },
    "noContainers": "کوئی کنٹینر جاری نہیں",
-   "owing": "{n} گاہکوں پر باقی · {broken} ٹوٹے وعدے",
    "period": "{from} – {to}",
    "revenue": "بکری",
    "stockHint": "{n} آئٹم میں {kg}",
    "title": "ڈیش بورڈ",
    "today": "آج: {sales} بکری، {revenue} · {collected} وصول",
    "trendDay": "دن وار بکری اور مجموعی منافع",
-   "trendMonth": "مہینہ وار بکری اور مجموعی منافع"
+   "trendMonth": "مہینہ وار بکری اور مجموعی منافع",
+   "todayOne": "آج: {sales} بکری، {revenue} · {collected} وصول",
+   "owingN": "{n} گاہکوں پر باقی",
+   "owingOne": "{n} گاہک پر باقی",
+   "brokenN": "{n} ٹوٹے وعدے",
+   "brokenOne": "{n} ٹوٹا وعدہ"
   },
   "density": {
    "comfortable": "کھلی قطاریں",

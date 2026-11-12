@@ -8,6 +8,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
 import {
   WsAreaChartComponent,
+  WsBarChartComponent,
   WsColumn,
   WsCommandBarComponent,
   WsDataGridComponent,
@@ -51,7 +52,7 @@ const change = (now: string | number | null, before: string | number | null): nu
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [RouterLink, TPipe, CashTodayComponent, FirstWeekComponent, WsAreaChartComponent, WsCommandBarComponent, WsDataGridComponent, WsDateRangeComponent, WsInfoComponent, WsKpiCardComponent, WsPageHeaderComponent, WsStateComponent],
+  imports: [RouterLink, TPipe, CashTodayComponent, FirstWeekComponent, WsAreaChartComponent, WsBarChartComponent, WsCommandBarComponent, WsDataGridComponent, WsDateRangeComponent, WsInfoComponent, WsKpiCardComponent, WsPageHeaderComponent, WsStateComponent],
   template: `
     <div class="page">
       <ws-page-header [heading]="'ws.dash.title' | t" [subtitle]="subtitle()" />
@@ -59,7 +60,7 @@ const change = (now: string | number | null, before: string | number | null): nu
       @if (on('CASH_CLOSE')) { <app-cash-today /> }
       <ws-command-bar>
         <p start class="today">
-          @if (data(); as d) { {{ 'ws.dash.today' | t: { sales: i18n.num(d.today.sales), revenue: i18n.money(d.today.revenue), collected: i18n.money(d.today.collected) } }} }
+          @if (data(); as d) { {{ (d.today.sales === 1 ? 'ws.dash.todayOne' : 'ws.dash.today') | t: { sales: i18n.num(d.today.sales), revenue: i18n.money(d.today.revenue), collected: i18n.money(d.today.collected) } }} }
         </p>
         <ws-date-range end [value]="range()" (valueChange)="range.set($event)" />
       </ws-command-bar>
@@ -73,7 +74,7 @@ const change = (now: string | number | null, before: string | number | null): nu
           }
           <ws-kpi-card [label]="'ws.dash.collected' | t" [value]="rs(d.cash.collected)" [delta]="delta(d.cash.collected, d.cash.previousCollected)" [hint]="methods()" [link]="on(['CASH_CLOSE', 'EXPENSES']) ? '/finance/book' : null" [info]="'ws.dash.info.collected' | t" />
           @if (on('KHATA')) {
-          <ws-kpi-card [label]="'ws.collections.owed' | t" [value]="rs(d.udhaar.owed)" [higherIsBetter]="false" [hint]="'ws.dash.owing' | t: { n: i18n.num(d.udhaar.customers), broken: i18n.num(d.udhaar.brokenPromises) }" link="/khata/records" [info]="'ws.dash.info.owed' | t" />
+          <ws-kpi-card [label]="'ws.collections.owed' | t" [value]="rs(d.udhaar.owed)" [higherIsBetter]="false" [hint]="owing(d.udhaar.customers, d.udhaar.brokenPromises)" link="/khata/records" [info]="'ws.dash.info.owed' | t" />
           }
           @if (d.stock.value !== null) {
             <ws-kpi-card [label]="'ws.stock.col.value' | t" [value]="rs(d.stock.value)" [hint]="'ws.dash.stockHint' | t: { kg: i18n.kg(d.stock.kg), n: i18n.num(d.stock.items) }" link="/stock/value" [info]="'ws.dash.info.stock' | t" />
@@ -83,7 +84,13 @@ const change = (now: string | number | null, before: string | number | null): nu
           }
         </section>
 
-        <ws-area-chart [heading]="(d.sales.trend.by === 'day' ? 'ws.dash.trendDay' : 'ws.dash.trendMonth') | t" [categories]="trendLabels()" [series]="trendSeries()" format="money" [info]="'ws.dash.info.trend' | t" />
+        <!-- By day: bars, so a day's sales stand on that day alone (a line between days made one sales day look
+             like sales on the days around it); by month: the trend line. -->
+        @if (d.sales.trend.by === 'day') {
+          <ws-bar-chart [heading]="'ws.dash.trendDay' | t" [categories]="trendLabels()" [series]="trendSeries()" format="money" [info]="'ws.dash.info.trend' | t" />
+        } @else {
+          <ws-area-chart [heading]="'ws.dash.trendMonth' | t" [categories]="trendLabels()" [series]="trendSeries()" format="money" [info]="'ws.dash.info.trend' | t" />
+        }
 
         <div class="two">
           @if (on('KHATA')) {
@@ -91,7 +98,7 @@ const change = (now: string | number | null, before: string | number | null): nu
             <div class="ph"><h2><a routerLink="/khata/records">{{ 'ws.collections.ageing' | t }}</a></h2><ws-info [title]="'ws.collections.ageing' | t" [text]="'ws.dash.info.udhaarAge' | t" /></div>
             <ol class="bars">
               @for (k of ages; track k) {
-                <li [class.hot]="k === '61-90' || k === '90+'"><span>{{ 'ws.stockValue.age.' + k | t }}</span><i [style.width.%]="share(d.udhaar.buckets[k], d.udhaar.owed)"></i><strong>{{ i18n.money(d.udhaar.buckets[k]) }}</strong></li>
+                <li [class.hot]="k === '61-90' || k === '90+'"><span>{{ 'ws.stockValue.age.' + k | t }}</span><i [style.width.%]="share(d.udhaar.buckets[k], d.udhaar.owed)"></i><strong>{{ rs(d.udhaar.buckets[k]) }}</strong></li>
               }
             </ol>
           </section>
@@ -100,7 +107,7 @@ const change = (now: string | number | null, before: string | number | null): nu
             <div class="ph"><h2><a routerLink="/stock/value">{{ 'ws.stockValue.ageing' | t }}</a></h2><ws-info [title]="'ws.stockValue.ageing' | t" [text]="'ws.dash.info.stockAge' | t" /></div>
             <ol class="bars">
               @for (a of d.stock.ageing; track a.bucket) {
-                <li [class.hot]="a.bucket === '61-90' || a.bucket === '90+'"><span>{{ 'ws.stockValue.age.' + a.bucket | t }}</span><i [style.width.%]="share(a.value ?? a.kg, d.stock.value ?? d.stock.kg)"></i><strong>{{ a.value !== null ? i18n.money(a.value) : i18n.kg(a.kg) }}</strong></li>
+                <li [class.hot]="a.bucket === '61-90' || a.bucket === '90+'"><span>{{ 'ws.stockValue.age.' + a.bucket | t }}</span><i [style.width.%]="share(a.value ?? a.kg, d.stock.value ?? d.stock.kg)"></i><strong>{{ a.value !== null ? rs(a.value) : i18n.kg(a.kg) }}</strong></li>
               }
             </ol>
           </section>
@@ -121,6 +128,8 @@ const change = (now: string | number | null, before: string | number | null): nu
     .page { display:grid; grid-template-columns:minmax(0, 1fr); gap:var(--ws-4); max-width:var(--ws-content-max); margin-inline:auto; font-family:var(--ws-font); color:var(--ws-ink); }
     .today { margin:0; color:var(--ws-ink-2); font-size:var(--ws-text-sm); }
     .kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:var(--ws-3); }
+    /* Five or six cards: three to a row on a laptop, so the second row is not left half empty. */
+    @media (min-width: 900px) { .kpis:has(> :nth-child(5)) { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
     .two { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:var(--ws-4); align-items:start; }
     .panel { display:grid; gap:var(--ws-3); padding:var(--ws-4); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); }
     h2 { margin:0; font-size:var(--ws-text-md); font-weight:600; }
@@ -188,6 +197,13 @@ export class DashboardComponent {
   }
 
   /** Headline tiles show whole rupees (the lists keep paisa). */
+  /** "1 customer owes · 1 broken promise": singular for one. */
+  protected owing(customers: number, broken: number): string {
+    const c = this.i18n.t(customers === 1 ? 'ws.dash.owingOne' : 'ws.dash.owingN', { n: this.i18n.num(customers) });
+    const b = this.i18n.t(broken === 1 ? 'ws.dash.brokenOne' : 'ws.dash.brokenN', { n: this.i18n.num(broken) });
+    return `${c} · ${b}`;
+  }
+
   protected rs(v: string | null): string {
     return this.i18n.money(Math.round(Number(v ?? 0)));
   }

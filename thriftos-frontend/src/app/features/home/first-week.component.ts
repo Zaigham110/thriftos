@@ -74,6 +74,8 @@ interface Step { key: StepKey; text: string; link: string | null; help: string }
   `,
   styles: [`
     :host { display:block; }
+    /* Nothing to show (done or hidden): take no room, so the page has no empty band above Today. */
+    :host(:empty) { display:none; }
     .tos-fw { display:grid; gap:10px; padding:16px; border:1px solid var(--ws-line, var(--tos-line, #e4dde1)); border-radius:16px; background:var(--ws-surface, var(--tos-card, #fff)); color:var(--ws-ink, var(--tos-ink)); }
     .tos-fw header { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
     .tos-fw h2 { margin:0; font-size:18px; }
