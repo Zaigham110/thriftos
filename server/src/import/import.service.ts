@@ -1,3 +1,4 @@
+import { defaultGodownId } from '../common/godown/default-godown';
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { InventoryStatus, MovementType, Prisma, StockSource, StockUnit } from '@prisma/client';
 import { Workbook } from 'exceljs';
@@ -381,6 +382,7 @@ export class ImportService {
     const item = await tx.inventoryItem.create({
       data: {
         tenantId,
+        warehouseId: await defaultGodownId(tx, tenantId),
         source: StockSource.PURCHASED,
         name: v.item,
         categoryId: v.categoryId,

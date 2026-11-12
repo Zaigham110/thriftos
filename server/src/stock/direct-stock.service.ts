@@ -1,3 +1,4 @@
+import { defaultGodownId } from '../common/godown/default-godown';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InventoryStatus, MovementType, Prisma, StockSource, StockUnit } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -45,7 +46,7 @@ export class DirectStockService {
           categoryId: dto.categoryId ?? null,
           gradeId: dto.gradeId ?? null,
           vendorId: dto.vendorId ?? null,
-          warehouseId: dto.warehouseId ?? null,
+          warehouseId: dto.warehouseId ?? (await defaultGodownId(tx, tenantId)),
           unit: dto.unit,
           quantity,
           totalCost,

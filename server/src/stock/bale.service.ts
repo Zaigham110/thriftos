@@ -1,3 +1,4 @@
+import { defaultGodownId } from '../common/godown/default-godown';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   AllocationMode,
@@ -247,7 +248,7 @@ export class BaleService {
           weightKg: weightKg.isZero() ? null : weightKg,
           pcsCount: sealed.pcsCount,
           avgCost: money(costPerKg(totalCost, weightKg)),
-          warehouseId: dto.warehouseId ?? null,
+          warehouseId: dto.warehouseId ?? (await defaultGodownId(tx, tenantId)),
           status: InventoryStatus.AVAILABLE,
           containerId: sealed.containerId,
           ragId: sealed.ragId,

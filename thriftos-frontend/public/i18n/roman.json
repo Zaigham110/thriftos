@@ -1573,7 +1573,8 @@
    "stockValue": "Stock ki qeemat",
    "suppliers": "Supplier",
    "yield": "Chhantai ka nateeja",
-   "payroll": "Chhantai walon ki tankhwah"
+   "payroll": "Chhantai walon ki tankhwah",
+   "moveStock": "Godamon mein muntaqli"
   },
   "new": {
    "bale": "Gaanth banayein",
@@ -2461,7 +2462,12 @@
   "notFound": "{code} stock mein gaanth nahi",
   "done": "{n} gaanthein {godown} mein muntaqil",
   "doneSome": "{n} {godown} mein muntaqil; {there} pehle se wahin thin",
-  "button": "Muntaqil"
+  "button": "Muntaqil",
+  "oneGodown": "Sara stock {name} mein hai. Gaanthein muntaqil karne ke liye doosra godam shamil karein.",
+  "addGodown": "Godam shamil karein",
+  "newGodown": "Naya godam",
+  "godownName": "Godam ka naam",
+  "godownAdded": "{name} shamil"
  },
  "xp": {
   "tab": "Export pack",

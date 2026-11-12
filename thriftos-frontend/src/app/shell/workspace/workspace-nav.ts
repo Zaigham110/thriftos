@@ -1,4 +1,5 @@
 import {
+  ArrowLeftRight,
   BarChart3,
   BookOpen,
   Coins,
@@ -57,6 +58,7 @@ export const WS_NAV: WsNavGroup[] = [
       { label: 'ws.nav.yield', path: '/sort/yield', icon: Gauge, module: 'SORT', keywords: 'yield waste chhantai percent supplier' },
       { label: 'ws.nav.inventory', path: '/stock/by-item', also: ['/stock/items'], icon: PackageSearch, module: 'STOCK', keywords: 'stock bale inventory maal' },
       { label: 'ws.nav.stockValue', path: '/stock/value', icon: Coins, module: 'STOCK', keywords: 'stock value ageing purana maal valuation count' },
+      { label: 'ws.nav.moveStock', path: '/stock/move', icon: ArrowLeftRight, module: 'WAREHOUSES', permission: 'INVENTORY_ADJUST', keywords: 'godown warehouse move transfer shift scan' },
     ],
   },
   {

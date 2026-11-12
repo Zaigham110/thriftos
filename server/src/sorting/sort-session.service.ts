@@ -1,3 +1,4 @@
+import { defaultGodownId } from '../common/godown/default-godown';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ContainerStatus, GradingOutputStatus, InventoryStatus, MeasurementType, MovementType, Prisma, RagStatus, SortStatus, StockSource, StockUnit, WasteStage } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -606,6 +607,7 @@ export class SortSessionService {
     const item = await tx.inventoryItem.create({
       data: {
         tenantId,
+        warehouseId: await defaultGodownId(tx, tenantId),
         source: StockSource.KAT,
         name: `${type?.name ?? 'Kat'} · ${session.rag.ragCode}`,
         unit,

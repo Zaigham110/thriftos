@@ -3,6 +3,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowLeft, LucideAngularModule, ScanLine, X } from 'lucide-angular';
+import { AuthService } from '../../core/auth';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { I18N } from '../../core/i18n/t.pipe';
 import { ScanSheetComponent } from '../../shared/floor/scan-sheet.component';
@@ -30,8 +31,19 @@ interface Picked { id: string; code: string | null; name: string | null; unit: '
       <div class="chips" role="radiogroup" aria-labelledby="to-godown">
         @for (g of godowns(); track g.id) {
           <button type="button" class="chip" role="radio" [class.on]="to() === g.id" [attr.aria-checked]="to() === g.id" (click)="to.set(g.id)">{{ g.name }}</button>
-        } @empty { <p class="notice">{{ 'move.noGodowns' | t }}</p> }
+        }
+        @if (canAddGodown()) { <button type="button" class="chip add-g" (click)="adding.set(!adding())">+ {{ 'move.newGodown' | t }}</button> }
       </div>
+      @if (godowns().length === 1 && !adding()) {
+        <p class="notice">{{ 'move.oneGodown' | t: { name: godowns()[0].name } }}</p>
+      }
+      @if (adding()) {
+        <!-- A new godown right here (also in Settings → Advanced → Godowns). -->
+        <form class="card typed" (ngSubmit)="addGodown()">
+          <label class="field">{{ 'move.godownName' | t }}<input name="gname" maxlength="80" [(ngModel)]="newGodown" [placeholder]="'ws.names.warehouses.placeholder' | t" /></label>
+          <button type="submit" class="btn primary" [disabled]="!newGodown.trim() || busy()">{{ 'move.addGodown' | t }}</button>
+        </form>
+      }
 
       <div class="card add">
         <button type="button" class="btn primary block" (click)="scanning.set(true)"><lucide-icon [img]="icons.ScanLine" [size]="20" /> {{ 'move.scan' | t }}</button>
@@ -76,13 +88,50 @@ export class MoveStockComponent {
   protected readonly scanning = signal(false);
   protected readonly busy = signal(false);
   protected code = '';
+  protected newGodown = '';
+  protected readonly adding = signal(false);
+  private readonly auth = inject(AuthService);
+  protected readonly canAddGodown = computed(() => {
+    this.auth.permissions();
+    return this.auth.hasPermission('warehouse.create');
+  });
   protected readonly toName = computed(() => this.godowns().find((g) => g.id === this.to())?.name ?? '');
   protected readonly totalKg = computed(() => this.picked().reduce((t, p) => t + Number(p.kg ?? 0), 0));
 
   constructor() {
+    this.loadGodowns();
+  }
+
+  private loadGodowns(pick?: string): void {
     this.http.get<Godown[]>('/api/tenant/warehouses').subscribe({
-      next: (g) => this.godowns.set(g.filter((x) => x.isActive !== false)),
+      next: (g) => {
+        this.godowns.set(g.filter((x) => x.isActive !== false));
+        if (pick) this.to.set(pick);
+      },
       error: () => this.toast.error(this.i18n.t('common.couldNotLoad')),
+    });
+  }
+
+  /** A new godown from the move screen; it becomes where the bales go. */
+  protected addGodown(): void {
+    const name = this.newGodown.trim();
+    if (!name) return;
+    const taken = new Set(this.godowns().map((g) => (g as Godown & { code?: string }).code ?? ''));
+    let code = name.replace(/[^A-Za-z0-9]/g, '').slice(0, 6).toUpperCase() || 'G';
+    for (let n = 2; taken.has(code); n++) code = `${code.slice(0, 5)}${n}`;
+    this.busy.set(true);
+    this.http.post<Godown>('/api/admin/warehouses', { name, code }).subscribe({
+      next: (g) => {
+        this.busy.set(false);
+        this.newGodown = '';
+        this.adding.set(false);
+        this.toast.show(this.i18n.t('move.godownAdded', { name: g.name }));
+        this.loadGodowns(g.id);
+      },
+      error: (e: HttpErrorResponse) => {
+        this.busy.set(false);
+        this.toast.error(e.error?.message ?? this.i18n.t('common.couldNotSave'));
+      },
     });
   }
 

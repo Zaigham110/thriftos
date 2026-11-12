@@ -1573,7 +1573,8 @@
    "stockValue": "Stock value",
    "suppliers": "Suppliers",
    "yield": "Yield",
-   "payroll": "Sorter pay"
+   "payroll": "Sorter pay",
+   "moveStock": "Move between godowns"
   },
   "new": {
    "bale": "Make a bale",
@@ -2461,7 +2462,12 @@
   "notFound": "{code} is not a bale in stock",
   "done": "{n} bales moved to {godown}",
   "doneSome": "{n} moved to {godown}; {there} were already there",
-  "button": "Move"
+  "button": "Move",
+  "oneGodown": "All stock is in {name}. Add another godown to move bales there.",
+  "addGodown": "Add a godown",
+  "newGodown": "New godown",
+  "godownName": "Godown name",
+  "godownAdded": "{name} added"
  },
  "xp": {
   "tab": "Export pack",
