@@ -1,5 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { ExpenseCategory } from '@prisma/client';
+import { EXPENSE_SECTIONS } from '../../src/workspace/finance';
 import { businessDay } from '../../src/workspace/receivables.service';
 import { api, createTenantWithOwner, createTestApp, TestTenant } from './fixtures';
 
@@ -74,9 +76,39 @@ describe('Profit and loss review (e2e)', () => {
     expect(d.expenses.netProfit).toBe(now.netProfit);
   });
 
+  it('expenses fall into sections; buying and the owner\'s cash are shown apart and do not change profit (owner, 2026-11-12)', async () => {
+    // Every kind of expense is in exactly one section.
+    const inSections = Object.values(EXPENSE_SECTIONS).flat();
+    expect([...inSections].sort()).toEqual(Object.values(ExpenseCategory).sort());
+
+    const t = await createTenantWithOwner(app);
+    const c = (await api(app, t).post('/customers', { name: 'Section Buyer', phone: '0300 4445566' }).expect(201)).body;
+    const item = (await api(app, t).post('/stock/items', { name: 'Shirts bale', unit: 'BALE', quantity: 2, totalCost: 12000 }).expect(201)).body;
+    await api(app, t).post('/sales', { customerId: c.id, paymentMode: 'CASH', paidAmount: 20000, paymentMethod: 'CASH', lines: [{ inventoryItemId: item.id, unit: 'BALE', quantity: 1, unitPrice: 20000 }] }).expect(201);
+    await api(app, t).post('/workspace/expenses', { category: 'SALARY', amount: 3000 }).expect(201);
+    await api(app, t).post('/workspace/expenses', { category: 'LABOUR', amount: 1000 }).expect(201);
+    await api(app, t).post('/workspace/expenses', { category: 'RENT', amount: 2000, method: 'BANK' }).expect(201);
+    await api(app, t).post('/workspace/expenses', { category: 'TEA_FOOD', amount: 300 }).expect(201);
+    await api(app, t).post('/workspace/expenses', { category: 'OTHER', amount: 200 }).expect(201);
+    const before = (await api(app, t).get('/workspace/finance/pnl?months=1').expect(200)).body.months[0];
+    // The owner takes cash home and pays some into the bank: neither is a loss.
+    await api(app, t).post('/workspace/finance/cash-moves', { direction: 'OUT', kind: 'OWNER', amount: 5000 }).expect(201);
+    await api(app, t).post('/workspace/finance/cash-moves', { direction: 'OUT', kind: 'BANK', amount: 4000 }).expect(201);
+
+    const p = (await api(app, t).get('/workspace/finance/pnl?months=1').expect(200)).body;
+    const now = p.months[0];
+    expect(now.sections).toEqual({ employee: '4000', running: '2000', petty: '500' });
+    expect(now.expenseTotal).toBe('6500');
+    expect(now.bought).toBe('12000');
+    expect(now.notInProfit).toEqual({ ownerOut: '5000', ownerIn: '0', bankOut: '4000', bankIn: '0' });
+    // Gross 20,000 − 6,000 = 14,000; net 14,000 − 6,500 = 7,500, the same before and after the cash moved.
+    expect([now.grossProfit, now.netProfit, before.netProfit]).toEqual(['14000', '7500', '7500']);
+    expect(p.totals).toMatchObject({ sections: { employee: '4000', running: '2000', petty: '500' }, bought: '12000', notInProfit: { ownerOut: '5000', bankOut: '4000' } });
+  });
+
   it('another business sees nothing', async () => {
     const p = (await api(app, b).get('/workspace/finance/pnl?months=6').expect(200)).body;
-    expect(p.totals).toMatchObject({ revenue: '0', expenseTotal: '0', netProfit: '0' });
+    expect(p.totals).toMatchObject({ revenue: '0', expenseTotal: '0', netProfit: '0', bought: '0', sections: { employee: '0', running: '0', petty: '0' }, notInProfit: { ownerOut: '0', ownerIn: '0', bankOut: '0', bankIn: '0' } });
     expect(p.previous).toBeNull();
     expect(p.months).toHaveLength(1);
     expect(await prisma.expense.count({ where: { tenantId: b.tenantId } })).toBe(0);

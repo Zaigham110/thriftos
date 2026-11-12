@@ -6,10 +6,18 @@ import { Router } from '@angular/router';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
 import { WsBarChartComponent, WsColumn, WsDataGridComponent, WsKpiCardComponent, WsPageHeaderComponent, WsReportActionsComponent, WsRow, WsStateComponent } from '../../shared/ui/workspace';
-import { EXPENSE_CATEGORIES } from './lists';
+import { EXPENSE_SECTIONS, EXPENSE_SECTION_KEYS } from './lists';
 
 type Money = string;
-interface Totals { revenue: Money; cost: Money; grossProfit: Money; marginPercent: number | null; writeOffs: Money; cashDifference: Money; expenses: Record<string, Money>; expenseTotal: Money; netProfit: Money }
+type Apart = 'ownerOut' | 'ownerIn' | 'bankOut' | 'bankIn';
+interface Totals {
+  revenue: Money; cost: Money; grossProfit: Money; marginPercent: number | null; writeOffs: Money; cashDifference: Money;
+  expenses: Record<string, Money>; expenseTotal: Money; netProfit: Money;
+  /** Expenses by section: employee costs, running expenses, petty cash. */
+  sections: Record<(typeof EXPENSE_SECTION_KEYS)[number], Money>;
+  /** Stock bought in the month, and cash moved that is not a cost: shown apart, not in profit. */
+  bought: Money; notInProfit: Record<Apart, Money>;
+}
 interface Month extends Totals { month: string; cashDays: string[] }
 /** GET /api/workspace/finance/pnl */
 export interface Pnl {
@@ -22,7 +30,7 @@ export interface Pnl {
 }
 
 /** One line of the statement: what it shows per month, and whether it is a deduction (shown with a minus). */
-interface Line { id: string; label: string; pick: (m: Totals) => string; negate?: boolean; strong?: boolean; sub?: boolean }
+interface Line { id: string; label: string; pick: (m: Totals) => string; negate?: boolean; strong?: boolean; sub?: boolean; apart?: boolean }
 
 const change = (now: string, before: string | undefined): number | null => {
   if (before === undefined) return null;
@@ -72,7 +80,7 @@ const lastDay = (month: string) => {
         <ws-bar-chart [heading]="'ws.pnl.chart' | t" [categories]="labels()" [series]="series()" format="money" />
         <div class="desk">
           <ws-data-grid [caption]="'ws.pnl.title' | t" [columns]="columns()" [rows]="rows()" [clickable]="true" (cellClick)="open($event.row['id'] + '', $event.key)" />
-          <p class="tip">{{ 'ws.pnl.tapTip' | t }}</p>
+          <p class="tip">{{ 'ws.pnl.tapTip' | t }}@if (hasApart()) { {{ 'ws.pnl.apartNote' | t }} }</p>
         </div>
         <section class="phone" [attr.aria-label]="'ws.pnl.title' | t">
           <div class="chips" role="radiogroup" [attr.aria-label]="'ws.pnl.month' | t">
@@ -83,7 +91,7 @@ const lastDay = (month: string) => {
           @if (pickedMonth(); as m) {
             <ul class="lines">
               @for (l of lines(); track l.id) {
-                <li [class.strong]="l.strong" [class.sub]="l.sub">
+                <li [class.strong]="l.strong" [class.sub]="l.sub" [class.apart]="l.apart">
                   <button type="button" (click)="open(l.id, m.month)" [disabled]="l.id === 'net'">
                     <span class="name">{{ l.label }}</span>
                     <span class="amt ws-num" [class.neg]="l.id === 'net' && +l.pick(m) < 0">{{ rs(value(l, m)) }}</span>
@@ -92,6 +100,7 @@ const lastDay = (month: string) => {
                 </li>
               }
             </ul>
+            @if (hasApart()) { <p class="tip">{{ 'ws.pnl.apartNote' | t }}</p> }
           }
         </section>
       } @else {
@@ -120,6 +129,7 @@ const lastDay = (month: string) => {
     .lines .was { grid-column:1 / -1; color:var(--ws-ink-2); font-size:var(--ws-text-xs, 12px); text-align:end; }
     .lines li.strong { font-weight:700; background:var(--ws-surface-2, transparent); }
     .lines li.sub .name { padding-inline-start:var(--ws-4); color:var(--ws-ink-2); }
+    .lines li.apart { color:var(--ws-ink-2); font-style:italic; }
     .neg { color:var(--ws-bad); }
     @media (max-width: 640px) {
       .kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:var(--ws-2); }
@@ -168,17 +178,27 @@ export class PnlComponent {
     if (!p) return [];
     const any = (pick: (m: Totals) => string) => p.months.some((m) => Number(pick(m)) !== 0);
     const t = (k: string) => this.i18n.t(k);
+    const apart: Apart[] = ['ownerOut', 'ownerIn', 'bankOut', 'bankIn'];
     return [
       { id: 'revenue', label: t('ws.pnl.revenue'), pick: (m) => m.revenue },
-      { id: 'cost', label: t('ws.pnl.cost'), pick: (m) => m.cost, negate: true },
+      // Buying: what the goods sold had cost (their price, transport and labour).
+      { id: 'cost', label: t('ws.pnl.section.buying'), pick: (m) => m.cost, negate: true },
       { id: 'gross', label: t('ws.pnl.gross'), pick: (m) => m.grossProfit, strong: true },
-      { id: 'expenses', label: t('ws.pnl.expenses'), pick: (m) => m.expenseTotal, negate: true, strong: true },
-      ...EXPENSE_CATEGORIES.filter((c) => any((m) => m.expenses[c] ?? '0')).map((c): Line => ({ id: `exp-${c}`, label: t(`ws.expenseCategory.${c}`), pick: (m) => m.expenses[c] ?? '0', negate: true, sub: true })),
+      // Expenses in three sections, each with its kinds under it (only those the period has).
+      ...EXPENSE_SECTION_KEYS.filter((k) => any((m) => m.sections[k])).flatMap((k): Line[] => [
+        { id: `sec-${k}`, label: t(`ws.pnl.section.${k}`), pick: (m) => m.sections[k], negate: true, strong: true },
+        ...EXPENSE_SECTIONS[k].filter((c) => any((m) => m.expenses[c] ?? '0')).map((c): Line => ({ id: `exp-${c}`, label: t(`ws.expenseCategory.${c}`), pick: (m) => m.expenses[c] ?? '0', negate: true, sub: true })),
+      ]),
+      { id: 'expenses', label: t('ws.pnl.allExpenses'), pick: (m) => m.expenseTotal, negate: true, strong: true },
+      ...(any((m) => m.cashDifference) ? [{ id: 'cash', label: t('ws.pnl.section.drawer'), pick: (m: Totals) => m.cashDifference }] : []),
       ...(any((m) => m.writeOffs) ? [{ id: 'writeOffs', label: t('ws.pnl.writeOffs'), pick: (m: Totals) => m.writeOffs }] : []),
-      ...(any((m) => m.cashDifference) ? [{ id: 'cash', label: t('ws.pnl.cashDifference'), pick: (m: Totals) => m.cashDifference }] : []),
       { id: 'net', label: t('ws.pnl.net'), pick: (m) => m.netProfit, strong: true },
+      // Not in profit: money that moved but is neither earned nor spent, and stock bought (a cost when it is sold).
+      ...apart.filter((k) => any((m) => m.notInProfit[k])).map((k): Line => ({ id: `apart-${k}`, label: t(`ws.pnl.apart.${k}`), pick: (m) => m.notInProfit[k], apart: true })),
+      ...(any((m) => m.bought) ? [{ id: 'apart-bought', label: t('ws.pnl.apart.bought'), pick: (m: Totals) => m.bought, apart: true }] : []),
     ];
   });
+  protected readonly hasApart = computed(() => this.lines().some((l) => l.apart));
   protected value(l: Line, m: Totals): string {
     const v = l.pick(m);
     return l.negate ? String(-Number(v)) : v;
@@ -194,7 +214,7 @@ export class PnlComponent {
     const p = this.data();
     if (!p) return [];
     return this.lines().map((l) => ({
-      id: l.id, line: l.label, _strong: !!l.strong, _sub: !!l.sub,
+      id: l.id, line: l.apart ? this.i18n.t('ws.pnl.apart.prefix', { what: l.label }) : l.label, _strong: !!l.strong, _sub: !!l.sub,
       ...Object.fromEntries(p.months.map((m) => [m.month, this.value(l, m)])),
       total: this.value(l, p.totals),
     }));
@@ -242,6 +262,9 @@ export class PnlComponent {
     const list = (path: string, filters: object[]) => void this.router.navigate([path], { queryParams: { v: JSON.stringify({ filters, datePreset: 'custom' }) } });
     if (line === 'revenue' || line === 'cost' || line === 'gross') return list('/sell/records', [between]);
     if (line === 'expenses') return list('/finance/expenses', [{ field: 'cancelled', op: 'isnull' }, between]);
+    if (line.startsWith('sec-')) return list('/finance/expenses', [{ field: 'cancelled', op: 'isnull' }, { field: 'category', op: 'in', value: EXPENSE_SECTIONS[line.slice(4) as (typeof EXPENSE_SECTION_KEYS)[number]].join('|') }, between]);
+    if (line === 'apart-bought') return void this.router.navigate(['/receive/records']);
+    if (line.startsWith('apart-')) return void this.router.navigate(['/finance/book'], { queryParams: line.includes('bank') ? { method: 'BANK' } : {} });
     if (line.startsWith('exp-')) return list('/finance/expenses', [{ field: 'cancelled', op: 'isnull' }, { field: 'category', op: 'eq', value: line.slice(4) }, between]);
     if (line === 'writeOffs') return void this.router.navigate(['/stock/items/counts']);
     if (line === 'cash') {

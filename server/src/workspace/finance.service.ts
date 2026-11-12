@@ -1,11 +1,12 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { CashMoveDirection, CashMoveKind, ExpenseCategory, PaymentMethod, Prisma, StockAdjustmentStatus } from '@prisma/client';
+import { CashMoveDirection, CashMoveKind, ExpenseCategory, PaymentMethod, Prisma, StockAdjustmentStatus, StockSource } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { localDayStart } from '../common/list/list-engine';
 import { PrismaService } from '../prisma/prisma.service';
 import { KHATA_SALE_STATUSES } from '../sales/khata.service';
 import { businessDay } from './receivables.service';
+import { EXPENSE_SECTIONS, EXPENSE_SECTION_KEYS, ExpenseSection } from './finance';
 
 const ZERO = new Prisma.Decimal(0);
 const DAY = 86_400_000;
@@ -372,7 +373,7 @@ export class FinanceService {
     const all = Array.from({ length: count * 2 }, (_, i) => new Date(Date.UTC(y, m - count * 2 + i, 1)).toISOString().slice(0, 7));
     const start = localDayStart(all[0] + '-01');
     const firstDay = dayDate(all[0] + '-01');
-    const [sales, expenses, adjustments, closes] = await Promise.all([
+    const [sales, expenses, adjustments, closes, moves, lots, containers, readyStock] = await Promise.all([
       this.prisma.sale.findMany({
         where: { tenantId, status: { in: KHATA_SALE_STATUSES }, OR: [{ issuedAt: { gte: start } }, { issuedAt: null, createdAt: { gte: start } }] },
         select: { totalAmount: true, totalCost: true, issuedAt: true, createdAt: true },
@@ -380,9 +381,16 @@ export class FinanceService {
       this.prisma.expense.findMany({ where: { tenantId, cancelledAt: null, day: { gte: firstDay } }, select: { day: true, category: true, amount: true } }),
       this.prisma.stockAdjustment.findMany({ where: { tenantId, status: StockAdjustmentStatus.APPROVED, decidedAt: { gte: start } }, select: { decidedAt: true, costChange: true } }),
       this.prisma.cashClose.findMany({ where: { tenantId, day: { gte: firstDay } }, select: { day: true, difference: true }, orderBy: { day: 'asc' } }),
+      // Not in profit, shown apart: cash the owner took out or put in, and cash to or from the bank.
+      this.prisma.cashMove.findMany({ where: { tenantId, cancelledAt: null, kind: { in: [CashMoveKind.OWNER, CashMoveKind.BANK] }, day: { gte: firstDay } }, select: { day: true, kind: true, direction: true, amount: true } }),
+      // Stock bought in the month (information: it becomes a cost when it is sold): loose lots, containers, ready stock.
+      this.prisma.rag.findMany({ where: { tenantId, containerId: null, createdAt: { gte: start } }, select: { createdAt: true, allocatedCost: true } }),
+      this.prisma.container.findMany({ where: { tenantId, createdAt: { gte: start } }, select: { createdAt: true, landedCostPKR: true } }),
+      this.prisma.inventoryItem.findMany({ where: { tenantId, source: StockSource.PURCHASED, createdAt: { gte: start } }, select: { createdAt: true, totalCost: true } }),
     ]);
     const blank = () => ({
       revenue: ZERO, cost: ZERO, writeOffs: ZERO, cashDifference: ZERO, cashDays: [] as string[], active: false,
+      bought: ZERO, ownerOut: ZERO, ownerIn: ZERO, bankOut: ZERO, bankIn: ZERO,
       expenses: Object.fromEntries(Object.values(ExpenseCategory).map((c) => [c, ZERO])) as Record<ExpenseCategory, Prisma.Decimal>,
     });
     const rows = new Map(all.map((mm) => [mm, blank()]));
@@ -406,6 +414,19 @@ export class FinanceService {
       if (!c.difference.isZero()) r.cashDays.push(dayOf(c.day));
       r.active = true;
     }
+    for (const mv of moves) {
+      const r = rows.get(dayOf(mv.day).slice(0, 7));
+      if (!r) continue;
+      const out = mv.direction === CashMoveDirection.OUT;
+      const key = mv.kind === CashMoveKind.OWNER ? (out ? 'ownerOut' : 'ownerIn') : out ? 'bankOut' : 'bankIn';
+      r[key] = r[key].add(mv.amount);
+    }
+    for (const b of [...lots.map((l) => ({ at: l.createdAt, cost: l.allocatedCost })), ...containers.map((c) => ({ at: c.createdAt, cost: c.landedCostPKR })), ...readyStock.map((i) => ({ at: i.createdAt, cost: i.totalCost }))]) {
+      const r = at(b.at);
+      if (r && b.cost) r.bought = r.bought.add(b.cost);
+    }
+    const sectionsOf = (expenses: Record<ExpenseCategory, Prisma.Decimal>) =>
+      Object.fromEntries(EXPENSE_SECTION_KEYS.map((k) => [k, (EXPENSE_SECTIONS[k] as readonly ExpenseCategory[]).reduce((t, c) => t.add(expenses[c]), ZERO)])) as Record<ExpenseSection, Prisma.Decimal>;
     const line = (month: string) => {
       const r = rows.get(month)!;
       const gross = r.revenue.sub(r.cost);
@@ -414,6 +435,8 @@ export class FinanceService {
         month, revenue: r.revenue, cost: r.cost, grossProfit: gross,
         marginPercent: r.revenue.isZero() ? null : gross.div(r.revenue).mul(100).toDecimalPlaces(1).toNumber(),
         writeOffs: r.writeOffs, cashDifference: r.cashDifference, cashDays: r.cashDays, expenses: r.expenses, expenseTotal,
+        sections: sectionsOf(r.expenses), bought: r.bought,
+        notInProfit: { ownerOut: r.ownerOut, ownerIn: r.ownerIn, bankOut: r.bankOut, bankIn: r.bankIn },
         netProfit: netProfit({ grossProfit: gross, writeOffs: r.writeOffs, cashDifference: r.cashDifference, expenseTotal }),
       };
     };
@@ -426,6 +449,9 @@ export class FinanceService {
         expenseTotal: sum('expenseTotal'), netProfit: sum('netProfit'),
         marginPercent: revenue.isZero() ? null : grossProfit.div(revenue).mul(100).toDecimalPlaces(1).toNumber(),
         expenses: Object.fromEntries(Object.values(ExpenseCategory).map((c) => [c, list.reduce((t, r) => t.add(r.expenses[c]), ZERO)])),
+        sections: Object.fromEntries(EXPENSE_SECTION_KEYS.map((k) => [k, list.reduce((t, r) => t.add(r.sections[k]), ZERO)])) as Record<ExpenseSection, Prisma.Decimal>,
+        bought: list.reduce((t, r) => t.add(r.bought), ZERO),
+        notInProfit: Object.fromEntries((['ownerOut', 'ownerIn', 'bankOut', 'bankIn'] as const).map((k) => [k, list.reduce((t, r) => t.add(r.notInProfit[k]), ZERO)])) as Record<'ownerOut' | 'ownerIn' | 'bankOut' | 'bankIn', Prisma.Decimal>,
       };
     };
     const window = all.slice(count);

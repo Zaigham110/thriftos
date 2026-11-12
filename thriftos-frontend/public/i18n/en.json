@@ -1641,7 +1641,24 @@
    "tapTip": "Click an amount to see what is behind it.",
    "month": "Month",
    "soFar": "{month} (so far)",
-   "was": "{month}: {amount}"
+   "was": "{month}: {amount}",
+   "section": {
+    "buying": "Buying: cost of goods sold",
+    "employee": "Employee costs",
+    "running": "Running expenses",
+    "petty": "Petty cash",
+    "drawer": "Cash drawer: short / over"
+   },
+   "allExpenses": "All expenses",
+   "apart": {
+    "prefix": "Not in profit: {what}",
+    "ownerOut": "Owner took out",
+    "ownerIn": "Owner put in",
+    "bankOut": "Paid into the bank",
+    "bankIn": "Drawn from the bank",
+    "bought": "Stock bought"
+   },
+   "apartNote": "\"Not in profit\" lines are money that moved but was neither earned nor spent: cash the owner took out or put in, cash to or from the bank, and stock bought (it becomes a cost when it is sold)."
   },
   "prices": {
    "addGroup": "Add",

@@ -13,7 +13,7 @@ import { TPipe } from '../../core/i18n/t.pipe';
 import { DEFAULT_LIST_STATE, ListClient } from '../../core/list/list-client';
 import { ToastService } from '../../shared/floor/toast.service';
 import { WsPageHeaderComponent, WsRecordActivityComponent, WsSideSheetComponent, WsStateComponent } from '../../shared/ui/workspace';
-import { EXPENSE_CATEGORIES, PAYMENT_METHODS } from './lists';
+import { EXPENSE_CATEGORIES, EXPENSE_SECTIONS, PAYMENT_METHODS } from './lists';
 
 /** GET /api/workspace/expenses/:id */
 export interface Expense {
@@ -45,11 +45,15 @@ const ERROR_CODES = ['CASH_CLOSED', 'FUTURE_DAY', 'ALREADY_CANCELLED'];
         </label>
         <fieldset>
           <legend>{{ 'ws.container.category' | t }}</legend>
-          <div class="chips">
-            @for (c of categories; track c) {
-              <label class="chip" [class.on]="category === c"><input type="radio" name="category" [value]="c" [(ngModel)]="category" />{{ 'ws.expenseCategory.' + c | t }}</label>
-            }
-          </div>
+          <!-- Grouped as Profit and loss shows them: employee costs, running expenses, petty cash. -->
+          @for (g of groups; track g.key) {
+            <p class="group">{{ 'ws.pnl.section.' + g.key | t }}</p>
+            <div class="chips">
+              @for (c of g.categories; track c) {
+                <label class="chip" [class.on]="category === c"><input type="radio" name="category" [value]="c" [(ngModel)]="category" />{{ 'ws.expenseCategory.' + c | t }}</label>
+              }
+            </div>
+          }
         </fieldset>
         <fieldset>
           <legend>{{ 'ws.col.date' | t }}</legend>
@@ -153,6 +157,7 @@ const ERROR_CODES = ['CASH_CLOSED', 'FUTURE_DAY', 'ALREADY_CANCELLED'];
     }
   `,
   styles: [`
+    .group { margin:var(--ws-2) 0 4px; color:var(--ws-ink-2); font-size:var(--ws-text-xs, 12px); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
     .page, .record { max-width:var(--ws-content-max); margin-inline:auto; font-family:var(--ws-font); color:var(--ws-ink); }
     .page { display:grid; gap:var(--ws-4); }
     .narrow { max-width:640px; }
@@ -220,6 +225,8 @@ export class ExpenseComponent implements HasUnsavedChanges, AfterViewInit {
     if (d && id) this.nav.setName(id, this.i18n.t('ws.expenseCategory.' + d.category) + ' · ' + this.i18n.money(d.amount));
   });
   protected readonly categories = EXPENSE_CATEGORIES;
+  /** Petty cash first (the small daily costs), then running expenses, then employee costs; each most-used first. */
+  protected readonly groups = (['petty', 'running', 'employee'] as const).map((key) => ({ key, categories: EXPENSE_CATEGORIES.filter((c) => (EXPENSE_SECTIONS[key] as readonly string[]).includes(c)) }));
   protected readonly methods = PAYMENT_METHODS;
   protected readonly maxDay = dayAgo(0);
   protected readonly data = signal<Expense | null>(null);

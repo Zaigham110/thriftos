@@ -1641,7 +1641,24 @@
    "tapTip": "Kisi raqam par click karein, us ki tafseel khul jayegi.",
    "month": "Mahina",
    "soFar": "{month} (ab tak)",
-   "was": "{month}: {amount}"
+   "was": "{month}: {amount}",
+   "section": {
+    "buying": "Khareedari: bikay hue maal ki laagat",
+    "employee": "Mulazimeen ka kharcha",
+    "running": "Chalane ke akhrajaat",
+    "petty": "Chhota naqd kharcha",
+    "drawer": "Galla: kami / ziyadti"
+   },
+   "allExpenses": "Kul akhrajaat",
+   "apart": {
+    "prefix": "Munafay mein shamil nahi: {what}",
+    "ownerOut": "Maalik ne nikaale",
+    "ownerIn": "Maalik ne daale",
+    "bankOut": "Bank mein jama karaye",
+    "bankIn": "Bank se nikaale",
+    "bought": "Khareeda gaya maal"
+   },
+   "apartNote": "\"Munafay mein shamil nahi\" woh raqam hai jo sirf muntaqil hui, na kamai gayi na kharch: maalik ke nikaale ya daale paise, bank mein jama ya bank se nikaale paise, aur khareeda gaya maal (bikne par laagat banta hai)."
   },
   "prices": {
    "addGroup": "Daalein",

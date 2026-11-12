@@ -296,6 +296,13 @@ export const LOTS_LIST: ListConfig = {
 
 /** Most used first (v2 review): the small daily cash costs, then the monthly bills; Other last. */
 export const EXPENSE_CATEGORIES = ['TEA_FOOD', 'LABOUR', 'LOADING', 'TRANSPORT', 'FUEL', 'PACKING', 'RENT', 'ELECTRICITY', 'SALARY', 'PHONE', 'REPAIRS', 'CUSTOMS', 'OTHER'] as const;
+/** Where each expense sits in Profit and loss (the server's EXPENSE_SECTIONS; the expense form groups them the same way). */
+export const EXPENSE_SECTIONS = {
+  employee: ['SALARY', 'LABOUR'],
+  running: ['RENT', 'ELECTRICITY', 'TRANSPORT', 'FUEL', 'LOADING', 'PACKING', 'PHONE', 'REPAIRS', 'CUSTOMS'],
+  petty: ['TEA_FOOD', 'OTHER'],
+} as const;
+export const EXPENSE_SECTION_KEYS = ['employee', 'running', 'petty'] as const;
 export const PAYMENT_METHODS = ['CASH', 'JAZZCASH', 'EASYPAISA', 'RAAST', 'BANK', 'OTHER'] as const;
 
 /** Expenses (E3.6); a fresh list hides cancelled ones. */
