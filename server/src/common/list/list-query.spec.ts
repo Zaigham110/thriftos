@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { ListField, condition, localDayStart } from './list-engine';
+import { ListField, ListResource, buildWhere, condition, localDayStart } from './list-engine';
 import { parseListQuery } from './list-query';
 
 describe('list query', () => {
@@ -51,5 +51,15 @@ describe('list filter conditions', () => {
     expect(condition(date, { field: 'date', op: 'lte', values: ['2026-11-03'] })).toEqual({ lt: new Date('2026-11-03T19:00:00Z') });
     expect(condition(date, { field: 'date', op: 'gt', values: ['2026-11-03'] })).toEqual({ gte: new Date('2026-11-03T19:00:00Z') });
     expect(() => condition(date, { field: 'date', op: 'eq', values: ['03/11/2026'] })).toThrow(BadRequestException);
+  });
+
+  it('"has no grade" on a related field filters the missing record, not its name (an item with no grade opens)', () => {
+    const grade = { key: 'grade', label: 'Grade', type: 'string', path: ['grade', 'name'], filterable: true } as ListField;
+    const status = { key: 'status', label: 'Status', type: 'enum', path: ['status'], filterable: true } as ListField;
+    const res = { fields: [grade, status], scope: (t: string) => ({ tenantId: t }) } as unknown as ListResource;
+    const q = (f: string[]) => parseListQuery({ f });
+    expect(buildWhere(res, [grade, status], 't1', q(['grade:isnull']))).toEqual({ AND: [{ tenantId: 't1' }, { grade: { is: null } }] });
+    expect(buildWhere(res, [grade, status], 't1', q(['grade:notnull']))).toEqual({ AND: [{ tenantId: 't1' }, { grade: { isNot: null } }] });
+    expect(buildWhere(res, [grade, status], 't1', q(['status:isnull']))).toEqual({ AND: [{ tenantId: 't1' }, { status: null }] });
   });
 });

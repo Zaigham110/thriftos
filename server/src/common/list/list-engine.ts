@@ -98,6 +98,16 @@ function nest(path: string[], leaf: unknown): Record<string, unknown> {
   return path.reduceRight<Record<string, unknown>>((acc, key, i) => ({ [key]: i === path.length - 1 ? leaf : acc }), {});
 }
 
+/**
+ * "Has no grade": on a field of a related record (grade → name) it is the related record that is missing, which
+ * Prisma writes as `grade: { is: null }` (`grade: { name: null }` is refused). A field of the record itself is
+ * plain null.
+ */
+function nullCondition(path: string[], isNull: boolean): Record<string, unknown> {
+  if (path.length === 1) return { [path[0]]: isNull ? null : { not: null } };
+  return nest(path.slice(0, -1), isNull ? { is: null } : { isNot: null });
+}
+
 function scalar(f: ListField, v: string): unknown {
   switch (f.type) {
     case 'number': {
@@ -151,7 +161,7 @@ export function buildWhere(resource: ListResource, fields: ListField[], tenantId
   const and: unknown[] = [resource.scope(tenantId)];
   for (const filter of query.filters) {
     const f = field(resource, fields, filter.field, 'filterable');
-    and.push(nest(f.path, condition(f, filter)));
+    and.push(filter.op === 'isnull' || filter.op === 'notnull' ? nullCondition(f.path, filter.op === 'isnull') : nest(f.path, condition(f, filter)));
   }
   if (query.q) {
     const searchable = fields.filter((f) => f.searchable && f.type === 'string');
