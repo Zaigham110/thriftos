@@ -10,6 +10,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { PasswordService } from './password.service';
 import { JwtStrategy } from './jwt.strategy';
+import { jwtSecret } from './jwt-secret';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AuditModule } from '../audit/audit.module';
 import { CommonModule } from '../common/common.module';
@@ -20,7 +21,7 @@ import { CommonModule } from '../common/common.module';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'thriftOSerp',
+        secret: jwtSecret(configService),
         signOptions: {
           expiresIn: configService.get<string>('JWT_ACCESS_EXPIRES_IN') || '900s',
         },
