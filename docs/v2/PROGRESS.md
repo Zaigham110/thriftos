@@ -406,6 +406,7 @@
   - Rehearsed here on the copy of live data: dump → restore into `thriftos_restore_test` → 2 businesses, 3 users, 3 sales, 3 payments → both checks 0 rows → dropped.
   - **Missing:** the server's role (`tradebrain-ec2`) may not write to the bucket yet. The grant (inline policy `thriftos-backups`: list the bucket, put and get its objects, nothing else) was stopped by the session's permission system and waits for the owner. Until then the nightly run fails and nothing is backed up.
   - Not built: an alert when a night is missed (no mail or alert channel is set up on the server; `deploy/backup.sh --check` is the manual check).
+- 2026-11-13 — Release v1.8.1 (owner: "release it once the check passes"). What is in it: audit H1–H5 and M4 (sales, customers and khata by permission; cost hidden without cost.view; the server refuses to start in production with a weak sign-in secret, the live one was checked first; pay sheet, expense, advance and cash move saved once; record history by permission; package upgrades; nightly backups) and the Profit and loss in sections. The server's role got the inline policy `thriftos-backups` (list, put, get on the backup bucket only). Checks: server 398/398; web build with no warnings after the first-load warning limit went from 528 kB to 536 kB (the Angular 20.3.35 security upgrade added 4 kB; hard limit stays 600 kB); browser tests 64 passed, 4 skipped, 2 failed in the full run (Slow 3G and the keyboard test) and both passed when run alone, 7/7. The first full run was spoiled by the Mac sleeping mid-run (five timeouts in one suite, which passes alone).
 
 ## Decisions
 - Sorting (6.6): bales made while a lot is open are costed at the lot's cost per kg and re-costed at close; sold ones keep their sale cost (logged adjustment). Kat goes to stock at zero cost, so a kat sale is pure extra profit and bale costs are right whether or not kat sells.
@@ -431,5 +432,5 @@
 - **Own domain later** (5.5): add it to the CloudFront distribution with an ACM certificate (us-east-1), then update `CORS_ORIGIN` and `PUBLIC_APP_URL` in `/opt/thriftos/.env.prod`.
 
 ## Blockers
-- 5.3 backups: scripts and bucket are ready (2026-11-13); the server's role still needs the grant to write to the bucket (owner's go-ahead), then one restore test on the server.
+- 5.3 backups: scripts, bucket and the server's permission are ready (granted 2026-11-13, owner: "Yes, grant it"); the first backup and one restore test on the server remain, after v1.8.1 installs the timer.
 - None for 5.0. AWS steps wait for `aws login`.
