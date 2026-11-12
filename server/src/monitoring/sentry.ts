@@ -13,7 +13,8 @@ export function initSentry(env: NodeJS.ProcessEnv = process.env): boolean {
     dsn: env.SENTRY_DSN,
     environment: env.NODE_ENV || 'development',
     release: env.THRIFTOS_TAG,
-    sendDefaultPii: false,
+    // Sentry 11 collects user info, cookies, headers, bodies and query strings unless told not to: all off.
+    dataCollection: { userInfo: false, cookies: false, httpHeaders: false, httpBodies: [], urlQueryParams: false },
     tracesSampleRate: 0,
     beforeSend(event) {
       if (event.request) {
