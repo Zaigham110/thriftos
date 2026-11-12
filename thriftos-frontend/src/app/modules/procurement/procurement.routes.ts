@@ -9,7 +9,9 @@
  * /procurement/containers
  */
 
+import { HttpClient } from '@angular/common/http';
 import { Router, Routes } from '@angular/router';
+import { catchError, firstValueFrom, of } from 'rxjs';
 import { inject } from '@angular/core';
 import { permissionGuard } from '../../core/guards/permission-guard';
 import { unsavedChangesGuard } from '../../core/nav/unsaved-changes.guard';
@@ -17,14 +19,24 @@ import { moduleGuard } from '../../core/guards/module.guard';
 import { TenantService } from '../../core/tenant/tenant.service';
 import { CONTAINERS_LIST, PURCHASE_LOTS_LIST, PURCHASING_TABS, SUPPLIERS_LIST } from '../../features/workspace-lists/lists';
 
-/** Purchasing opens on the tab used last (containers by default), among the tabs whose module is on. */
-function lastPurchasingTab() {
+/**
+ * Purchasing opens on the tab used last, among the tabs whose module is on. The first time, it opens the tab
+ * that has something in it (a business that only buys loose lots does not land on an empty Containers list).
+ */
+async function lastPurchasingTab() {
   const tenants = inject(TenantService);
+  const router = inject(Router);
+  const http = inject(HttpClient);
   const tabs = PURCHASING_TABS.filter((t) => tenants.isModuleEnabled(t.module));
+  if (!tabs.length) return router.parseUrl('/receive/records/suppliers');
   let last: string | null = null;
   try { last = localStorage.getItem(`thriftos.tab.${PURCHASING_TABS[0].link}`); } catch { /* private window */ }
-  const go = tabs.find((t) => t.link === last) ?? tabs[0];
-  return inject(Router).parseUrl(go ? go.link : '/receive/records/suppliers');
+  const remembered = tabs.find((t) => t.link === last);
+  if (remembered || tabs.length === 1) return router.parseUrl((remembered ?? tabs[0]).link);
+  const containers = await firstValueFrom(
+    http.get<{ total: number }>('/api/lists/containers', { params: { pageSize: '1' } }).pipe(catchError(() => of({ total: 1 }))),
+  );
+  return router.parseUrl(containers.total ? tabs[0].link : tabs[1].link);
 }
 
 export const PROCUREMENT_ROUTES: Routes = [

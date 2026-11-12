@@ -524,7 +524,7 @@ test('purchasing: containers and loose lots as two tabs, each with its own butto
   await expect(page).toHaveURL(/\/receive\/records\/lots$/);
   await expect(page.getByRole('heading', { name: 'Loose lots', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Buy a loose lot' })).toHaveAttribute('href', '/receive/records/lots/new');
-  await expect(page.locator('.nav-item.also')).toContainText('Purchasing');
+  await expect(page.locator('.nav-item.active')).toHaveText(/Purchasing/);
 
   // Purchasing opens on the tab used last; the old lots address opens this tab instead of a blank page.
   await page.goto('/receive/records');
@@ -716,7 +716,8 @@ test('sorting: a half-sorted lot shows what is left, one row per category, and t
   await expect(row).toContainText('60.0 kg'); // left to sort, not "waste"
   await row.click();
 
-  await expect(page.getByRole('progressbar')).toContainText('40% sorted');
+  // How far sorting has got is on the cards (the line repeating them is gone).
+  await expect(page.locator('ws-smart-button').filter({ hasText: 'Sorted %' })).toContainText('40%');
   await expect(page.locator('ws-data-grid').filter({ hasText: 'Category' }).locator('tbody tr')).toHaveCount(1);
   await page.getByRole('link', { name: 'Continue sorting' }).click();
   await expect(page).toHaveURL(new RegExp(`/sort/${lot.id}$`));

@@ -55,6 +55,8 @@ export interface ListConfig {
   searchPlaceholder: string;
   emptyHeading: string;
   emptyMessage: string;
+  /** Shown instead when nothing is searched or filtered: the list is empty because nothing was added yet. */
+  emptyNew?: { heading: string; message: string };
   /** Help screen offered when the list is empty (v2 6.4), e.g. `sale` opens /help/sale. */
   help?: string;
   columns: ListColumnConfig[];

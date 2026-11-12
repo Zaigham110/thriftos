@@ -129,11 +129,13 @@ export class I18nService {
   /**
    * "Rs 12,500" or "Rs 11,947.30" in the business's currency ("$12,500" for USD, "AED 12,500"): whole amounts
    * without decimals, otherwise always two, kept left-to-right inside Urdu text (Unicode isolate), so it never
-   * reads "12,500 Rs".
+   * reads "12,500 Rs". `decimals` fixes the decimals (a column of rates per kg all with two: Rs 165.00 beside
+   * Rs 143.37).
    */
-  money(value: number | string | null | undefined): string {
+  money(value: number | string | null | undefined, decimals?: number): string {
     const n = typeof value === 'string' ? Number(value) : value;
-    const s = n === null || n === undefined || Number.isNaN(n) ? '' : this.num(n, Number.isInteger(Math.round(n * 100) / 100) ? 0 : 2);
+    const d = decimals ?? (n !== null && n !== undefined && Number.isInteger(Math.round(n * 100) / 100) ? 0 : 2);
+    const s = n === null || n === undefined || Number.isNaN(n) ? '' : this.num(n, d);
     if (s === '') return '';
     const code = this.currency();
     const key = code === 'PKR' ? 'unit.rs' : lookup(this.dicts().en, `unit.fmt.${code}`) ? `unit.fmt.${code}` : null;

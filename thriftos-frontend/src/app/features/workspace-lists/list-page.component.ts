@@ -161,7 +161,7 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
       } @else if (cardMode() && c.cards; as cards) {
         <!-- Phone (v2 review): one card per row, the amount on the right; tap opens the record. -->
         @if (loading() && !rows().length) { <ws-state kind="loading" /> }
-        @else if (!rows().length) { <ws-state kind="empty" [heading]="c.emptyHeading | t" [message]="c.emptyMessage | t" /> }
+        @else if (!rows().length) { <ws-state kind="empty" [heading]="empty().heading | t" [message]="empty().message | t" /> }
         @else {
           <ul class="cards" [attr.aria-label]="c.title | t">
             @for (r of rows(); track r.id) {
@@ -177,7 +177,7 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
       } @else {
         <ws-data-grid [caption]="c.title | t" [columns]="columns()" [rows]="rows()" [loading]="loading()" [clickable]="true" [serverSort]="true"
           [sort]="gridSort()" (sortChange)="setSort($event)" [serverTotals]="totals()" (rowClick)="open($event)"
-          [emptyHeading]="c.emptyHeading | t" [emptyMessage]="c.emptyMessage | t">
+          [emptyHeading]="empty().heading | t" [emptyMessage]="empty().message | t">
           @if (c.help) { <app-help-link empty [topic]="c.help" /> }
         </ws-data-grid>
         <ws-pager [page]="state().page" (pageChange)="patch({ page: $event })" [pageSize]="state().pageSize" (pageSizeChange)="patch({ pageSize: $event, page: 1 })" [total]="result()?.total ?? 0" />
@@ -237,6 +237,13 @@ export class ListPageComponent {
   protected readonly icons = { ChevronDown, Download, LayoutGrid, Plus, Rows3, SlidersHorizontal };
 
   protected readonly state = signal<ListState & Extra>({ ...DEFAULT_LIST_STATE });
+  /** "No containers yet" when nothing is searched or filtered; "No containers match" when a search or filter hides them. */
+  protected readonly empty = computed(() => {
+    const c = this.list();
+    const s = this.state();
+    const narrowed = !!s.q?.trim() || s.filters.length > (c.defaultFilters?.length ?? 0);
+    return !narrowed && c.emptyNew ? c.emptyNew : { heading: c.emptyHeading, message: c.emptyMessage };
+  });
   protected readonly query = signal('');
   /** "1 lot", not "1 lots": a list can give a countOne next to its count. */
   protected readonly countKey = computed(() => {
@@ -323,7 +330,7 @@ export class ListPageComponent {
   protected readonly columns = computed<WsColumn[]>(() =>
     this.visible().filter((key) => !this.emptyColumns().has(key)).map((key) => {
       const c = this.list().columns.find((x) => x.key === key)!;
-      return { key, label: this.i18n.t(c.label), sortable: !c.computed, format: c.format ?? 'text', total: c.total, width: c.width, round: c.format === 'money' && !c.exact, info: c.info ? this.i18n.t(c.info) : undefined, tone: c.tone };
+      return { key, label: this.i18n.t(c.label), sortable: !c.computed, format: c.format ?? 'text', total: c.total, width: c.width, round: c.format === 'money' && !c.exact, decimals: c.format === 'money' && c.exact ? 2 : undefined, info: c.info ? this.i18n.t(c.info) : undefined, tone: c.tone };
     }),
   );
   protected readonly rows = computed<WsRow[]>(() => {

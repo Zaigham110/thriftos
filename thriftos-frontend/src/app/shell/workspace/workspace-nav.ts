@@ -52,7 +52,7 @@ export const WS_NAV: WsNavGroup[] = [
   {
     label: 'ws.group.operations',
     items: [
-      { label: 'ws.nav.purchasing', path: '/receive/records/containers', also: ['/receive/records/lots'], ifOff: { module: 'CONTAINERS', path: '/receive/records/lots' }, icon: Truck, module: ['CONTAINERS', 'LOOSE_LOTS'], keywords: 'receive maal aya container lot gaari purchase kharidari' },
+      { label: 'ws.nav.purchasing', path: '/receive/records', also: ['/receive/records/containers', '/receive/records/lots'], ifOff: { module: 'CONTAINERS', path: '/receive/records/lots' }, icon: Truck, module: ['CONTAINERS', 'LOOSE_LOTS'], keywords: 'receive maal aya container lot gaari purchase kharidari' },
       { label: 'ws.nav.suppliers', path: '/receive/records/suppliers', icon: Factory, module: 'RECEIVE', keywords: 'supplier vendor scorecard' },
       { label: 'ws.nav.sorting', path: '/sort/records', icon: Layers3, module: 'SORT', keywords: 'chhantai sort grade lots' },
       { label: 'ws.nav.yield', path: '/sort/yield', icon: Gauge, module: 'SORT', keywords: 'yield waste chhantai percent supplier' },

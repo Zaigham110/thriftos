@@ -91,12 +91,6 @@ const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
               <p class="hint">{{ 'ws.sortRecord.papersHint' | t }}</p>
             </section>
           }
-          @if (d.lot.status !== 'SORTED') {
-            <div class="progress" role="progressbar" [attr.aria-label]="'ws.sortRecord.progress' | t" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="d.totals.progressPercent ?? 0">
-              <i [style.width.%]="d.totals.progressPercent ?? 0"></i>
-              <span>{{ 'ws.sortRecord.progressText' | t: { pct: i18n.num(d.totals.progressPercent ?? 0, 0), sorted: amount(d.totals.sortedPieces, d.totals.sortedKg), left: amount(d.totals.piecesLeft, d.totals.leftKg) } }}</span>
-            </div>
-          }
 
           @if (d.categories.length) {
             <div class="two">
@@ -132,9 +126,6 @@ const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
     .paid .total { padding-top:6px; border-top:1px solid var(--ws-line); font-weight:700; }
     .paid .hint { margin:var(--ws-2) 0 0; color:var(--ws-muted); font-size:12px; }
     .smart { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:var(--ws-3); }
-    .progress { position:relative; height:28px; border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface); overflow:hidden; }
-    .progress i { position:absolute; inset-block:0; inset-inline-start:0; background:var(--ws-brand-soft); }
-    .progress span { position:relative; display:flex; align-items:center; height:100%; padding-inline:var(--ws-3); font-size:var(--ws-text-sm); color:var(--ws-ink); font-variant-numeric:tabular-nums; }
     /* Side by side only when each half fits its whole table (v2 sorting review: cost per kg was cut off). */
     .two { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap:var(--ws-4); align-items:start; }
     @media (max-width: 1199px) { .record { grid-template-columns:minmax(0, 1fr); } .side { position:static; } }

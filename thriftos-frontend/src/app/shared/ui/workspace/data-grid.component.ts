@@ -18,6 +18,8 @@ export interface WsColumn {
   total?: boolean;
   /** Money in whole rupees (lists); without it paisa show when there are any. */
   round?: boolean;
+  /** Fixed decimals for money (rates per kg: Rs 165.00 beside Rs 143.37, so the column lines up). */
+  decimals?: number;
   /** What the column means, behind an "i" next to its name. */
   info?: string;
   /** 'sign': a value below zero shows red (a loss). */
@@ -84,7 +86,7 @@ export type WsRow = Record<string, unknown> & { id: string };
                 @if (selectable()) {
                   <td class="check" (click)="$event.stopPropagation()"><input type="checkbox" [checked]="isSelected(r)" (change)="toggle(r)" [attr.aria-label]="'ws.grid.selectRow' | t" /></td>
                 }
-                @for (c of columns(); track c.key) { <td [class.end]="isNumeric(c)" [class.ws-num]="isNumeric(c)" [class.neg]="c.tone === 'sign' && isNeg(r[c.key])" (click)="clickable() && cellClick.emit({ row: r, key: c.key })">{{ c.blankZero && isZero(r[c.key]) ? '' : cell(r[c.key], c.format, c.round) }}</td> }
+                @for (c of columns(); track c.key) { <td [class.end]="isNumeric(c)" [class.ws-num]="isNumeric(c)" [class.neg]="c.tone === 'sign' && isNeg(r[c.key])" (click)="clickable() && cellClick.emit({ row: r, key: c.key })">{{ c.blankZero && isZero(r[c.key]) ? '' : cell(r[c.key], c.format, c.round, c.decimals) }}</td> }
                 @if (rowActions().length) {
                   <td class="acts" (click)="$event.stopPropagation()">
                     @for (a of rowActions(); track a.id) {
@@ -121,7 +123,8 @@ export type WsRow = Record<string, unknown> & { id: string };
     .wrap { overflow:auto; border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); }
     table { width:100%; border-collapse:separate; border-spacing:0; font-size:var(--ws-text-sm); }
     th, td { height:var(--ws-row-h); padding-inline:var(--ws-cell-px); border-block-end:1px solid var(--ws-line); text-align:start; white-space:nowrap; }
-    thead th { position:sticky; top:0; z-index:1; background:var(--ws-surface-2); color:var(--ws-ink-2); font-size:var(--ws-text-xs); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+    /* A long heading ("Cost per kg") may take two lines, so a laptop shows every column without sideways scrolling. */
+    thead th { white-space:normal; position:sticky; top:0; z-index:1; background:var(--ws-surface-2); color:var(--ws-ink-2); font-size:var(--ws-text-xs); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
     .th { display:inline-flex; align-items:center; gap:6px; }
     th button { display:inline-flex; align-items:center; gap:var(--ws-1); padding:0; border:0; background:transparent; color:inherit; font:inherit; text-transform:inherit; letter-spacing:inherit; cursor:pointer; }
     th button lucide-icon { color:var(--ws-ink-3); }
@@ -195,10 +198,10 @@ export class WsDataGridComponent {
     return v !== null && v !== undefined && v !== '' && Number(v) < 0;
   }
 
-  protected cell(v: unknown, format: WsCellFormat = 'text', round = false): string {
+  protected cell(v: unknown, format: WsCellFormat = 'text', round = false, decimals?: number): string {
     if (v === null || v === undefined || v === '') return '—';
     switch (format) {
-      case 'money': return this.i18n.money(round ? Math.round(Number(v)) : (v as number | string));
+      case 'money': return this.i18n.money(round ? Math.round(Number(v)) : (v as number | string), decimals);
       case 'kg': return this.i18n.kg(v as number | string);
       case 'number': return this.i18n.num(v as number | string);
       case 'percent': return `${this.i18n.num(v as number | string, 0)}%`;

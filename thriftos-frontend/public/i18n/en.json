@@ -1185,7 +1185,9 @@
     "yield": "Kg sorted into categories so far, as a part of the container's net kg. Leftovers and kg still to sort are not counted."
    },
    "search": "Search container number, supplier or country",
-   "title": "Containers"
+   "title": "Containers",
+   "emptyNewHeading": "No containers yet",
+   "emptyNewMessage": "When a container arrives, receive it here with its weight and costs."
   },
   "counts": {
    "col": {
@@ -1515,7 +1517,9 @@
     "CONTAINER": "Container",
     "LOOSE_BALE": "Loose lot"
    },
-   "title": "Sorting"
+   "title": "Sorting",
+   "emptyNewHeading": "No lots yet",
+   "emptyNewMessage": "Lots show here once you buy a container or a loose lot."
   },
   "mb": {
    "hint": "Pick what to bale, how many and the kg per bale. Each bale gets its sticker.",
@@ -1664,7 +1668,7 @@
   "purchaseLots": {
    "col": {
     "cost": "Price paid",
-    "costPerKg": "Price per kg",
+    "costPerKg": "Cost per kg",
     "date": "Bought",
     "maal": "Raw type",
     "sorted": "Sorted %"
@@ -1675,7 +1679,7 @@
    "emptyMessage": "When you buy a loose lot, add it here with its weight and price.",
    "info": {
     "cost": "What you paid for the lot.",
-    "costPerKg": "Price paid divided by the kg bought. Use it to compare lots and suppliers.",
+    "costPerKg": "What the lot cost (price, transport and labour) divided by the kg bought. Use it to compare lots and suppliers.",
     "sorted": "How much of the lot's kg is sorted so far. It shows 100% once sorting is finished."
    },
    "search": "Search lot, supplier or raw type",
@@ -1834,7 +1838,9 @@
    "emptyHeading": "No sales match",
    "emptyMessage": "Try other words, a wider period, or clear the filters.",
    "search": "Search sale number, customer or city",
-   "title": "Sales"
+   "title": "Sales",
+   "emptyNewHeading": "No sales yet",
+   "emptyNewMessage": "Your sales show here once you make the first one."
   },
   "salesAn": {
    "avgPerKg": "average {amount} per kg",
@@ -1927,7 +1933,7 @@
    "start": "Start sorting",
    "time": "Time taken",
    "waste": "Waste",
-   "boughtPerKg": "Bought per kg",
+   "boughtPerKg": "Cost per kg",
    "sortedCostPerKg": "Cost per sorted kg",
    "paid": "What was paid",
    "papersHint": "Bills and papers are under Activity.",
@@ -2038,7 +2044,9 @@
     "BALE": "Bales",
     "KG": "kg",
     "PIECE": "Pieces"
-   }
+   },
+   "emptyNewHeading": "No stock yet",
+   "emptyNewMessage": "Bales and items show here once you make bales or add stock."
   },
   "stockItem": {
    "approve": "Approve",
@@ -2109,7 +2117,9 @@
    "emptyHeading": "No suppliers match",
    "emptyMessage": "Try other words or clear the filters.",
    "search": "Search supplier, country or phone",
-   "title": "Suppliers"
+   "title": "Suppliers",
+   "emptyNewHeading": "No suppliers yet",
+   "emptyNewMessage": "Add the people you buy from, then pick them when you buy."
   },
   "switchLanguage": "Switch language (English, Urdu, Roman Urdu)",
   "theme": {

@@ -1185,7 +1185,9 @@
     "yield": "Ab tak categories mein chhanta kg, container ke saaf kg ke hisse ke tor par. Kat aur baqi kg nahi gine jate."
    },
    "search": "Container number, supplier ya mulk dhoondein",
-   "title": "Container"
+   "title": "Container",
+   "emptyNewHeading": "Abhi koi container nahi",
+   "emptyNewMessage": "Jab container aaye to us ka wazan aur kharcha likh kar yahan wasool karein."
   },
   "counts": {
    "col": {
@@ -1515,7 +1517,9 @@
     "CONTAINER": "Container",
     "LOOSE_BALE": "Khula lot"
    },
-   "title": "Chhantai"
+   "title": "Chhantai",
+   "emptyNewHeading": "Abhi koi lot nahi",
+   "emptyNewMessage": "Container ya khula maal khareedne par lot yahan nazar aayenge."
   },
   "mb": {
    "hint": "Kya gaanth banani hai, kitni aur fi gaanth kg chunein. Har gaanth ka sticker banta hai.",
@@ -1664,7 +1668,7 @@
   "purchaseLots": {
    "col": {
     "cost": "Kitne ka liya",
-    "costPerKg": "Rate fi kg",
+    "costPerKg": "Laagat fi kg",
     "date": "Kab liya",
     "maal": "Maal",
     "sorted": "Chhantai %"
@@ -1675,7 +1679,7 @@
    "emptyMessage": "Jab gaari ya khula lot lein, yahan uska wazan aur qeemat likhein.",
    "info": {
     "cost": "Gaari ya lot ke kitne paise diye.",
-    "costPerKg": "Di gayi qeemat ko kg se taqseem kiya. Gaariyon aur supplier ka muqabla karein.",
+    "costPerKg": "Lot ki kul laagat (qeemat, kiraya aur mazdoori) ko khareede gaye kg se taqseem kiya. Is se lots aur supplier ka muqabla karein.",
     "sorted": "Lot ka kitna kg chhant liya. Chhantai poori ho to 100%."
    },
    "search": "Lot, supplier ya maal dhoondein",
@@ -1834,7 +1838,9 @@
    "emptyHeading": "Koi sale nahi mili",
    "emptyMessage": "Doosre lafz, lambi muddat aazmayein, ya filter saaf karein.",
    "search": "Sale number, customer ya shehar dhoondein",
-   "title": "Bikri"
+   "title": "Bikri",
+   "emptyNewHeading": "Abhi koi sale nahi",
+   "emptyNewMessage": "Pehli sale karte hi aap ki sales yahan nazar aayengi."
   },
   "salesAn": {
    "avgPerKg": "average {amount} fi kg",
@@ -1927,7 +1933,7 @@
    "start": "Chhantai shuru karein",
    "time": "Kitna waqt laga",
    "waste": "Waste",
-   "boughtPerKg": "Khareed fi kilo",
+   "boughtPerKg": "Laagat fi kg",
    "sortedCostPerKg": "Chhante hue kilo ki laagat",
    "paid": "Kitna ada kiya",
    "papersHint": "Bill aur kaghazaat Kaam ki tafseel mein hain.",
@@ -2038,7 +2044,9 @@
     "BALE": "Gaanthein",
     "KG": "kg",
     "PIECE": "Piece"
-   }
+   },
+   "emptyNewHeading": "Abhi koi stock nahi",
+   "emptyNewMessage": "Gathein banane ya stock shamil karne par yahan nazar aayega."
   },
   "stockItem": {
    "approve": "Manzoor karein",
@@ -2109,7 +2117,9 @@
    "emptyHeading": "Koi supplier nahi mila",
    "emptyMessage": "Doosre lafz aazmayein ya filter saaf karein.",
    "search": "Supplier, mulk ya phone dhoondein",
-   "title": "Supplier"
+   "title": "Supplier",
+   "emptyNewHeading": "Abhi koi supplier nahi",
+   "emptyNewMessage": "Jin se aap maal khareedte hain unhein shamil karein, phir khareedari mein chunein."
   },
   "switchLanguage": "Zabaan badlein (English, Urdu, Roman Urdu)",
   "theme": {

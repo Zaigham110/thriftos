@@ -10,6 +10,7 @@ export const SALES_LIST: ListConfig = {
   searchPlaceholder: 'ws.sales.search',
   emptyHeading: 'ws.sales.emptyHeading',
   emptyMessage: 'ws.sales.emptyMessage',
+  emptyNew: { heading: 'ws.sales.emptyNewHeading', message: 'ws.sales.emptyNewMessage' },
   columns: [
     { key: 'number', label: 'ws.col.number', width: '130px' },
     { key: 'date', label: 'ws.col.date', format: 'date' },
@@ -57,6 +58,7 @@ export const CONTAINERS_LIST: ListConfig = {
   searchPlaceholder: 'ws.containers.search',
   emptyHeading: 'ws.containers.emptyHeading',
   emptyMessage: 'ws.containers.emptyMessage',
+  emptyNew: { heading: 'ws.containers.emptyNewHeading', message: 'ws.containers.emptyNewMessage' },
   columns: [
     { key: 'number', label: 'ws.containers.col.number', width: '140px' },
     { key: 'date', label: 'ws.containers.col.date', format: 'date' },
@@ -106,7 +108,7 @@ export const PURCHASE_LOTS_LIST: ListConfig = {
   emptyHeading: 'ws.purchaseLots.emptyHeading',
   emptyMessage: 'ws.purchaseLots.emptyMessage',
   columns: [
-    { key: 'code', label: 'ws.container.lot', width: '140px' },
+    { key: 'code', label: 'ws.container.lot' },
     { key: 'date', label: 'ws.purchaseLots.col.date', format: 'date' },
     { key: 'supplier', label: 'ws.containers.col.supplier' },
     { key: 'rawCategory', label: 'ws.purchaseLots.col.maal' },
@@ -138,6 +140,7 @@ export const SUPPLIERS_LIST: ListConfig = {
   searchPlaceholder: 'ws.suppliers.search',
   emptyHeading: 'ws.suppliers.emptyHeading',
   emptyMessage: 'ws.suppliers.emptyMessage',
+  emptyNew: { heading: 'ws.suppliers.emptyNewHeading', message: 'ws.suppliers.emptyNewMessage' },
   columns: [
     { key: 'name', label: 'ws.suppliers.col.name' },
     { key: 'origin', label: 'ws.containers.col.origin' },
@@ -177,6 +180,7 @@ export const STOCK_LIST: ListConfig = {
   searchPlaceholder: 'ws.stock.search',
   emptyHeading: 'ws.stock.emptyHeading',
   emptyMessage: 'ws.stock.emptyMessage',
+  emptyNew: { heading: 'ws.stock.emptyNewHeading', message: 'ws.stock.emptyNewMessage' },
   columns: [
     { key: 'code', label: 'ws.stock.col.code', width: '120px' },
     { key: 'name', label: 'ws.stock.col.name' },
@@ -256,6 +260,7 @@ export const LOTS_LIST: ListConfig = {
   searchPlaceholder: 'ws.lots.search',
   emptyHeading: 'ws.lots.emptyHeading',
   emptyMessage: 'ws.lots.emptyMessage',
+  emptyNew: { heading: 'ws.lots.emptyNewHeading', message: 'ws.lots.emptyNewMessage' },
   columns: [
     { key: 'code', label: 'ws.container.lot', width: '130px' },
     { key: 'date', label: 'ws.containers.col.date', format: 'date' },
