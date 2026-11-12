@@ -28,28 +28,28 @@ export class RecordsController {
 
   @Get('records/attachments/:attachmentId')
   @SkipPermissionCheck()
-  async download(@TenantId() tenantId: string, @Param('attachmentId') attachmentId: string) {
-    const f = await this.records.download(tenantId, attachmentId);
+  async download(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('attachmentId') attachmentId: string) {
+    const f = await this.records.download(tenantId, attachmentId, user);
     return new StreamableFile(f.data, { type: f.type, disposition: `attachment; filename="${encodeURIComponent(f.fileName)}"` });
   }
 
   @Get('records/:type/:id/activity')
   @SkipPermissionCheck()
-  activity(@TenantId() tenantId: string, @Param('type') type: string, @Param('id') id: string) {
-    return this.records.activity(tenantId, type, id);
+  activity(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('type') type: string, @Param('id') id: string) {
+    return this.records.activity(tenantId, type, id, user);
   }
 
   @Post('records/:type/:id/notes')
   @SkipPermissionCheck()
   note(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('type') type: string, @Param('id') id: string, @Body() dto: NoteDto) {
-    return this.records.addNote(tenantId, type, id, user.userId, dto.text, dto.mentions);
+    return this.records.addNote(tenantId, type, id, user, dto.text, dto.mentions);
   }
 
   @Post('records/:type/:id/attachments')
   @SkipPermissionCheck()
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: ATTACHMENT_MAX_BYTES + 1 } }))
   attach(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('type') type: string, @Param('id') id: string, @UploadedFile() file: UploadedFileLike | undefined) {
-    return this.records.attach(tenantId, type, id, user.userId, file);
+    return this.records.attach(tenantId, type, id, user, file);
   }
 
   @Get('notifications')

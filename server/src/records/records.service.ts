@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { FileStorageService } from '../common/storage/file-storage.service';
@@ -27,6 +27,9 @@ export interface ActivityItem {
 type Delegate = { findFirst(args: object): Promise<Record<string, unknown> | null> };
 
 /** Activity panel data for any record (enterprise plan E2.4): history, notes, attachments, mentions. */
+/** The signed-in person, as far as record access needs. */
+export interface Actor { userId: string; isSuperAdmin: boolean }
+
 @Injectable()
 export class RecordsService {
   constructor(
@@ -41,6 +44,18 @@ export class RecordsService {
   }
 
   /** The record, if it belongs to this business (404 otherwise, so ids from other businesses tell nothing). */
+  /**
+   * A record's activity, notes and files are for people who may open the record itself (audit 2026-11): a sale's
+   * for people who sell, take payments or keep the books; a container's for people who see containers; and so on.
+   */
+  async assertMay(user: Actor, type: string, doing: 'read' | 'write'): Promise<void> {
+    const t = this.type(type);
+    if (user.isSuperAdmin) return;
+    const anyOf = doing === 'write' ? (t.write ?? t.read) : t.read;
+    const held = await this.prisma.rolePermission.count({ where: { role: { userRoles: { some: { userId: user.userId } } }, permission: { code: { in: [...anyOf] } } } });
+    if (!held) throw new ForbiddenException(`Missing required permissions: one of ${anyOf.join(', ')}`);
+  }
+
   private async record(tenantId: string, type: string, id: string): Promise<{ t: RecordType; label: string }> {
     const t = this.type(type);
     const r = await (this.prisma[t.model] as unknown as Delegate).findFirst({ where: { id, tenantId }, select: { id: true, [t.labelField]: true } });
@@ -48,7 +63,8 @@ export class RecordsService {
     return { t, label: String(r[t.labelField] ?? '') };
   }
 
-  async activity(tenantId: string, type: string, id: string): Promise<ActivityItem[]> {
+  async activity(tenantId: string, type: string, id: string, user: Actor): Promise<ActivityItem[]> {
+    await this.assertMay(user, type, 'read');
     const { t } = await this.record(tenantId, type, id);
     const [audit, notes, attachments] = await Promise.all([
       this.prisma.auditLog.findMany({ where: { tenantId, OR: [{ entityType: { in: t.auditEntities }, entityId: id }, ...(await this.lotSteps(tenantId, type, id))] }, orderBy: { createdAt: 'desc' }, take: 100 }),
@@ -92,7 +108,9 @@ export class RecordsService {
     });
   }
 
-  async addNote(tenantId: string, type: string, id: string, authorId: string, text: string, mentions: string[] = []) {
+  async addNote(tenantId: string, type: string, id: string, user: Actor, text: string, mentions: string[] = []) {
+    await this.assertMay(user, type, 'write');
+    const authorId = user.userId;
     const { t, label } = await this.record(tenantId, type, id);
     const clean = text.trim();
     if (!clean) throw new BadRequestException('Write something first');
@@ -111,7 +129,9 @@ export class RecordsService {
     });
   }
 
-  async attach(tenantId: string, type: string, id: string, uploadedBy: string, file: UploadedFileLike | undefined) {
+  async attach(tenantId: string, type: string, id: string, user: Actor, file: UploadedFileLike | undefined) {
+    await this.assertMay(user, type, 'write');
+    const uploadedBy = user.userId;
     await this.record(tenantId, type, id);
     if (!file) throw new BadRequestException('Choose a file');
     const ext = ATTACHMENT_TYPES[file.mimetype];
@@ -122,9 +142,10 @@ export class RecordsService {
     return this.prisma.attachment.create({ data: { tenantId, recordType: type, recordId: id, uploadedBy, fileName, contentType: file.mimetype, size: file.size, storageKey } });
   }
 
-  async download(tenantId: string, attachmentId: string) {
+  async download(tenantId: string, attachmentId: string, user: Actor) {
     const a = await this.prisma.attachment.findFirst({ where: { id: attachmentId, tenantId } });
     if (!a) throw new NotFoundException('File not found');
+    await this.assertMay(user, a.recordType, 'read');
     return { data: await this.files.read(a.storageKey), type: a.contentType, fileName: a.fileName };
   }
 

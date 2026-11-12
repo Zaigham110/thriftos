@@ -1,4 +1,5 @@
 import { INestApplication } from '@nestjs/common';
+import * as request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { STAFF_PERMISSIONS } from '../../src/users/staff';
 import { api, createTenantWithOwner, createTestApp, createUserWith, TestTenant } from './fixtures';
@@ -121,5 +122,36 @@ describe('Who may open sales, customers and the khata (audit H1/H2) (e2e)', () =
 
     expect((await api(app, owner).get(`/sales/${saleId}`).expect(200)).body).toMatchObject({ totalCost: '1000', totalProfit: '1500' });
     expect((await api(app, owner).get('/search/global?q=Hidden').expect(200)).body.length).toBeGreaterThan(0);
+  });
+  it('a record\'s history, notes and files follow the record: a Sorter gets none of a sale\'s, but adds a receipt to an expense', async () => {
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+    const upload = (who: TestTenant, type: string, id: string) =>
+      request(app.getHttpServer()).post(`/api/records/${type}/${id}/attachments`).set('Authorization', `Bearer ${who.token}`).attach('file', png, { filename: 'bill.png', contentType: 'image/png' });
+    await api(app, owner).post(`/records/sale/${saleId}/notes`, { text: 'He pays on Friday' }).expect(201);
+    const file = (await upload(owner, 'sale', saleId).expect(201)).body;
+
+    for (const [type, id] of [['sale', saleId], ['customer', customerId], ['payment', paymentId]]) {
+      await api(app, sorter).get(`/records/${type}/${id}/activity`).expect(403);
+      await api(app, sorter).post(`/records/${type}/${id}/notes`, { text: 'hello' }).expect(403);
+      await upload(sorter, type, id).expect(403);
+    }
+    await api(app, sorter).get(`/records/attachments/${file.id}`).expect(403);
+    expect(await prisma.recordNote.count({ where: { tenantId: owner.tenantId } })).toBe(1);
+
+    // The people who work with sales read and add as before.
+    expect((await api(app, salesman).get(`/records/sale/${saleId}/activity`).expect(200)).body.length).toBeGreaterThan(0);
+    await api(app, salesman).get(`/records/attachments/${file.id}`).expect(200);
+    await api(app, cashier).post(`/records/sale/${saleId}/notes`, { text: 'Paid part' }).expect(201);
+
+    // An expense: whoever records it adds its receipt, but its history is for people who see the books.
+    const t = await prisma.tenant.findUniqueOrThrow({ where: { id: owner.tenantId }, select: { enabledModules: true } });
+    await prisma.tenant.update({ where: { id: owner.tenantId }, data: { enabledModules: [...new Set([...t.enabledModules, 'EXPENSES'])] } });
+    const expense = (await api(app, sorter).post('/workspace/expenses', { category: 'TEA_FOOD', amount: 200 }).expect(201)).body;
+    await upload(sorter, 'expense', expense.id).expect(201);
+    await api(app, sorter).get(`/records/expense/${expense.id}/activity`).expect(403);
+    await api(app, cashier).get(`/records/expense/${expense.id}/activity`).expect(200);
+    // Stock and lots stay open to the floor.
+    await api(app, sorter).get('/records/lot/none/activity').expect(404);
+    await api(app, salesman).get('/records/lot/none/activity').expect(403);
   });
 });
