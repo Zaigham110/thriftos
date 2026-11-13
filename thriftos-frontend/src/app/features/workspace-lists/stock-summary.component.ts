@@ -48,16 +48,17 @@ export interface StockSummary {
           <!-- Sorted kg not in bales yet is stock too (v2 review); the line under says how much of it there is. -->
           <ws-kpi-card [label]="'ws.stockItem.kgLeft' | t" [value]="i18n.kg(d.total.kg)" [hint]="d.sorted ? ('ws.si.sortedHint' | t: { kg: i18n.kg(d.sorted.kg) }) : ''" />
           @if (d.total.value !== null) { <ws-kpi-card [label]="'ws.stock.col.value' | t" [value]="i18n.money(round(d.total.value))" [hint]="d.sorted?.value ? ('ws.si.sortedValueHint' | t: { value: i18n.money(round(d.sorted!.value)) }) : ''" /> }
-          <ws-kpi-card [label]="'ws.stockValue.old' | t" [value]="i18n.kg(old())" [hint]="'ws.stockValue.oldHint' | t" />
+          <ws-kpi-card [label]="'ws.stockValue.old' | t" [value]="i18n.kg(old())" [hint]="old() > 0 ? ('ws.stockValue.oldHint' | t) : ''" />
         </section>
         <div class="two">
           <ws-bar-chart [heading]="'ws.stockValue.ageing' | t" [categories]="ageLabels()" [series]="ageSeries()" [format]="d.total.value !== null ? 'money' : 'kg'" />
-          <ws-data-grid [caption]="'ws.stockValue.ageing' | t" [columns]="ageColumns()" [rows]="ageRows()" />
+          <section class="block"><h2>{{ 'ws.stockValue.ageing' | t }}</h2><ws-data-grid [caption]="'ws.stockValue.ageing' | t" [columns]="ageColumns()" [rows]="ageRows()" /></section>
         </div>
-        <ws-data-grid [caption]="'ws.stockValue.matrix' | t" [columns]="matrixColumns()" [rows]="matrixRows()" />
+        <!-- Every table says what it is (v2 review). -->
+        <section class="block"><h2>{{ 'ws.stockValue.matrix' | t }}</h2><ws-data-grid [caption]="'ws.stockValue.matrix' | t" [columns]="matrixColumns()" [rows]="matrixRows()" /></section>
         <div class="two">
-          <ws-data-grid [caption]="'ws.stockValue.byCategory' | t" [columns]="categoryColumns()" [rows]="categoryRows()" />
-          <ws-data-grid [caption]="'ws.stockValue.byGodown' | t" [columns]="godownColumns()" [rows]="godownRows()" />
+          <section class="block"><h2>{{ 'ws.stockValue.byCategory' | t }}</h2><ws-data-grid [caption]="'ws.stockValue.byCategory' | t" [columns]="categoryColumns()" [rows]="categoryRows()" /></section>
+          <section class="block"><h2>{{ 'ws.stockValue.byGodown' | t }}</h2><ws-data-grid [caption]="'ws.stockValue.byGodown' | t" [columns]="godownColumns()" [rows]="godownRows()" /></section>
         </div>
       </div>
     } @else {
@@ -67,6 +68,8 @@ export interface StockSummary {
   styles: [`
     .page { display:grid; grid-template-columns:minmax(0, 1fr); gap:var(--ws-4); max-width:var(--ws-content-max); margin-inline:auto; font-family:var(--ws-font); color:var(--ws-ink); }
     .kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:var(--ws-3); }
+    .block { display:grid; grid-template-columns:minmax(0, 1fr); gap:var(--ws-2); }
+    .block h2 { margin:0; font-size:var(--ws-text-md, 15px); font-weight:600; }
     .two { display:grid; grid-template-columns:repeat(auto-fit, minmax(380px, 1fr)); gap:var(--ws-4); align-items:start; }
   `],
 })
@@ -91,7 +94,7 @@ export class StockSummaryComponent {
   /** Kg older than 60 days, bales and sorted kg alike (items alone missed old sorted stock). */
   protected readonly old = computed(() => (this.data()?.ageing ?? []).filter((a) => a.bucket === '61-90' || a.bucket === '90+').reduce((s, a) => s + Number(a.kg), 0));
   protected readonly ageColumns = computed<WsColumn[]>(() => this.groupColumns('ws.stockValue.ageCol'));
-  protected readonly ageRows = computed<WsRow[]>(() => (this.data()?.ageing ?? []).map((a) => ({ id: a.bucket, name: this.i18n.t(`ws.stockValue.age.${a.bucket}`), items: a.items, kg: a.kg, value: a.value })));
+  protected readonly ageRows = computed<WsRow[]>(() => (this.data()?.ageing ?? []).map((a) => ({ id: a.bucket, name: this.i18n.t(`ws.stockValue.age.${a.bucket}`), items: a.items || null, kg: a.kg, value: a.value })));
 
   /** Category × age: value left (or kg without cost permission); old stock to clear first. */
   protected readonly matrixColumns = computed<WsColumn[]>(() => {
@@ -127,7 +130,8 @@ export class StockSummaryComponent {
   }
 
   protected rows(list: (Bucket & { name: string })[]): WsRow[] {
-    return list.map((x, i) => ({ id: String(i), ...x, name: x.name || this.i18n.t('ws.stockValue.none') }));
+    // Sorted kg that is not baled is no bale or item: its count reads "—", not 0.
+    return list.map((x, i) => ({ id: String(i), ...x, items: x.items || null, name: x.name || this.i18n.t('ws.stockValue.none') }));
   }
 
   protected load(): void {

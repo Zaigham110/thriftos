@@ -173,7 +173,7 @@ export class StockRecordsService {
     const items = await this.prisma.inventoryItem.findMany({
       where: { tenantId, status: { not: InventoryStatus.SOLD } },
       select: {
-        quantity: true, usedQuantity: true, totalCost: true, unit: true, weightKg: true, createdAt: true,
+        quantity: true, usedQuantity: true, totalCost: true, unit: true, weightKg: true, createdAt: true, source: true, name: true,
         category: { select: { name: true } }, warehouse: { select: { name: true } },
       },
     });
@@ -194,7 +194,8 @@ export class StockRecordsService {
       const age = ageDays(i.createdAt, now);
       const bucket = AGE_BUCKETS.findIndex((b) => age <= b.max);
       add(ageing[bucket], kg, value);
-      const cat = i.category?.name ?? '';
+      // Waste kept from sorting has no category: it goes by its own name ("Waste/Katran"), not "Not set" (v2 review).
+      const cat = i.category?.name ?? (i.source === StockSource.KAT ? (i.name ?? '').split(' · ')[0] : '');
       const row = ageByCategory.get(cat) ?? Object.fromEntries(AGE_BUCKETS.map((b) => [b.key, { kg: ZERO, value: ZERO }]));
       row[AGE_BUCKETS[bucket].key] = { kg: row[AGE_BUCKETS[bucket].key].kg.add(kg), value: row[AGE_BUCKETS[bucket].key].value.add(value) };
       ageByCategory.set(cat, row);
@@ -207,6 +208,8 @@ export class StockRecordsService {
     }
     // Sorted kg not in bales yet is stock too (v2 review): it was missing from every stock screen.
     let sorted = { kg: ZERO, value: ZERO };
+    // Sorted kg sits where new stock goes: the business's main godown (its first active one), not in "Not set".
+    const main = (await this.prisma.warehouse.findFirst({ where: { tenantId, isActive: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { name: true } }))?.name ?? '';
     for (const r of await this.bales.sortedStock(tenantId)) {
       const age = ageDays(r.since, now);
       const bucket = AGE_BUCKETS.findIndex((b) => age <= b.max);
@@ -220,14 +223,15 @@ export class StockRecordsService {
       const c = byCategory.get(cat)!;
       c.kg = c.kg.add(r.kg);
       c.value = c.value.add(r.value);
-      if (!byGodown.has('')) byGodown.set('', { name: '', items: 0, kg: ZERO, value: ZERO });
-      const g = byGodown.get('')!;
+      if (!byGodown.has(main)) byGodown.set(main, { name: main, items: 0, kg: ZERO, value: ZERO });
+      const g = byGodown.get(main)!;
       g.kg = g.kg.add(r.kg);
       g.value = g.value.add(r.value);
       sorted = { kg: sorted.kg.add(r.kg), value: sorted.value.add(r.value) };
       total = { ...total, kg: total.kg.add(r.kg), value: total.value.add(r.value) };
     }
     const hide = <T extends { value: Prisma.Decimal }>(r: T) => ({ ...r, value: money(canSeeCost, r.value) });
+    const sum = (b: Record<string, { kg: Prisma.Decimal; value: Prisma.Decimal }>) => Object.values(b).reduce((t, v) => t.add(v.value).add(v.kg.div(1_000_000)), ZERO);
     const pendingCounts = await this.prisma.stockAdjustment.count({ where: { tenantId, status: StockAdjustmentStatus.PENDING } });
     return {
       total: hide(total),
@@ -237,7 +241,10 @@ export class StockRecordsService {
       byCategory: [...byCategory.values()].sort((a, b) => b.value.comparedTo(a.value) || b.kg.comparedTo(a.kg)).map(hide),
       byGodown: [...byGodown.values()].sort((a, b) => b.value.comparedTo(a.value) || b.kg.comparedTo(a.kg)).map(hide),
       pendingCounts,
-      ageByCategory: [...ageByCategory.entries()].map(([name, b]) => ({
+      // Most value first, so a row of zeros (waste, which carries no cost) is not on top.
+      ageByCategory: [...ageByCategory.entries()]
+        .sort(([an, a], [bn, b]) => sum(b).comparedTo(sum(a)) || an.localeCompare(bn))
+        .map(([name, b]) => ({
         name,
         buckets: Object.fromEntries(Object.entries(b).map(([k, v]) => [k, { kg: v.kg, value: money(canSeeCost, v.value) }])),
       })),

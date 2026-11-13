@@ -70,6 +70,16 @@ describe('Suppliers review: loose lots on the supplier page, add and edit (e2e)'
     expect((await api(app, a).get(`/workspace/sorting/${lot.id}`).expect(200)).body.totals.notBaledKg).toBe('6');
     await api(app, b).get(`/workspace/sorting/${lot.id}`).expect(404);
 
+    // Stock value (v2 review): sorted kg not in a bale sits in the main godown, not in a godown called "Not set".
+    const value = (await api(app, a).get('/workspace/stock/summary').expect(200)).body;
+    const godowns = await prisma.warehouse.findMany({ where: { tenantId: a.tenantId, isActive: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] });
+    if (godowns.length) {
+      expect(value.byGodown.map((g: { name: string }) => g.name)).not.toContain('');
+      expect(Number(value.byGodown.find((g: { name: string }) => g.name === godowns[0].name).kg)).toBeGreaterThanOrEqual(6);
+    }
+    expect(Number(value.sorted.kg)).toBe(6);
+    expect((await api(app, b).get('/workspace/stock/summary').expect(200)).body.total.kg).toBe('0');
+
     // Inventory (v2 review): a sold bale says who bought it, when and for how much, and has nothing left, no
     // value left, no age and no godown; its name is written "Jeans · A"; its page names the loose lot's supplier and grade.
     const soldRow = (await api(app, a).get(`/lists/stock?filters=${encodeURIComponent(JSON.stringify([{ field: 'status', op: 'eq', value: 'SOLD' }]))}`).expect(200)).body.rows.find((r: { id: string }) => r.id === items[0].id);
