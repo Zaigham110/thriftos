@@ -1,11 +1,11 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { InventoryStatus, MovementType, Prisma, StockAdjustmentStatus, StockUnit } from '@prisma/client';
+import { InventoryStatus, MovementType, Prisma, StockAdjustmentStatus, StockUnit, StockSource } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 import { takeCost } from '../costing/costing';
 import { PrismaService } from '../prisma/prisma.service';
 import { KHATA_SALE_STATUSES } from '../sales/khata.service';
-import { ageDays, stockLeft } from '../stock/stock.lists';
+import { ageDays, itemName, stockLeft } from '../stock/stock.lists';
 import { BaleService } from '../stock/bale.service';
 
 const ZERO = new Prisma.Decimal(0);
@@ -105,7 +105,7 @@ export class StockRecordsService {
             select: {
               amountUsed: true, measurementType: true, allocatedCost: true, containerId: true, ragBaleId: true,
               gradingOutput: { select: { grade: { select: { name: true } }, gradeBucket: { select: { gradeSession: { select: { categoryOutput: { select: { category: { select: { name: true } } } } } } } } } },
-              categoryOutput: { select: { category: { select: { name: true } } } },
+              categoryOutput: { select: { category: { select: { name: true } }, grade: { select: { name: true } } } },
             },
           })
         : Promise.resolve([]),
@@ -122,7 +122,7 @@ export class StockRecordsService {
     const ragIds = [...new Set(allocations.map((a) => a.ragBaleId).filter((x): x is string => !!x))];
     const [containers, rags] = await Promise.all([
       this.prisma.container.findMany({ where: { tenantId, id: { in: containerIds } }, select: { id: true, containerNumber: true, vendor: { select: { id: true, name: true } } } }),
-      this.prisma.rag.findMany({ where: { tenantId, id: { in: ragIds } }, select: { id: true, ragCode: true } }),
+      this.prisma.rag.findMany({ where: { tenantId, id: { in: ragIds } }, select: { id: true, ragCode: true, vendor: { select: { id: true, name: true } } } }),
     ]);
     const containerOf = new Map(containers.map((c) => [c.id, c]));
     const ragOf = new Map(rags.map((r) => [r.id, r]));
@@ -130,7 +130,7 @@ export class StockRecordsService {
 
     return {
       item: {
-        id: i.id, code: i.repackUnit?.unitCode ?? null, name: i.name ?? ([i.category?.name, i.grade?.name].filter(Boolean).join(' ') || null),
+        id: i.id, code: i.repackUnit?.unitCode ?? null, name: itemName(i),
         category: i.category, grade: i.grade, source: i.source, unit: i.unit, status: i.status, quantity: i.quantity, used: i.usedQuantity, left,
         weightKg: i.weightKg, leftKg, pcsCount: i.pcsCount, salePrice: i.salePrice, priceTier: i.priceTier, createdAt: i.createdAt, ageDays: ageDays(i.createdAt),
         godown: i.warehouse, supplier: i.vendor, parent: i.parentItem ? { id: i.parentItem.id, name: i.parentItem.repackUnit?.unitCode ?? i.parentItem.name } : null,
@@ -142,10 +142,12 @@ export class StockRecordsService {
         const category = a.gradingOutput?.gradeBucket.gradeSession.categoryOutput.category.name ?? a.categoryOutput?.category.name ?? null;
         return {
           container: c ? { id: c.id, number: c.containerNumber } : null,
-          supplier: c?.vendor ?? null,
+          // A loose lot's supplier is on the lot itself (v2 review: it showed "—").
+          supplier: c?.vendor ?? (a.ragBaleId ? ragOf.get(a.ragBaleId)?.vendor ?? null : null),
           lot: a.ragBaleId && ragOf.get(a.ragBaleId) ? { id: a.ragBaleId, code: ragOf.get(a.ragBaleId)!.ragCode } : null,
           category,
-          grade: a.gradingOutput?.grade.name ?? null,
+          // Graded afterwards, graded while sorting, or the bale's own grade.
+          grade: a.gradingOutput?.grade.name ?? a.categoryOutput?.grade?.name ?? i.grade?.name ?? null,
           amount: a.amountUsed,
           measure: a.measurementType,
           cost: money(canSeeCost, a.allocatedCost),
@@ -250,22 +252,25 @@ export class StockRecordsService {
     const items = await this.prisma.inventoryItem.findMany({
       where: { tenantId, status: { not: InventoryStatus.SOLD } },
       select: {
-        quantity: true, usedQuantity: true, totalCost: true, unit: true, weightKg: true, name: true, categoryId: true, gradeId: true,
+        quantity: true, usedQuantity: true, totalCost: true, unit: true, weightKg: true, name: true, categoryId: true, gradeId: true, source: true,
         category: { select: { name: true } }, grade: { select: { name: true } },
       },
     });
-    type Row = { key: string; name: string; categoryName: string | null; gradeName: string | null; categoryId: string | null; gradeId: string | null; bales: Prisma.Decimal; pieces: Prisma.Decimal; looseKg: Prisma.Decimal; stockKg: Prisma.Decimal; stockValue: Prisma.Decimal; sortedKg: Prisma.Decimal; sortedValue: Prisma.Decimal };
+    type Row = { key: string; name: string; waste?: boolean; categoryName: string | null; gradeName: string | null; categoryId: string | null; gradeId: string | null; bales: Prisma.Decimal; pieces: Prisma.Decimal; looseKg: Prisma.Decimal; stockKg: Prisma.Decimal; stockValue: Prisma.Decimal; sortedKg: Prisma.Decimal; sortedValue: Prisma.Decimal };
     const rows = new Map<string, Row>();
     const row = (key: string, name: string, categoryId: string | null, gradeId: string | null, categoryName: string | null = null, gradeName: string | null = null) =>
       rows.get(key) ?? rows.set(key, { key, name, categoryName, gradeName, categoryId, gradeId, bales: ZERO, pieces: ZERO, looseKg: ZERO, stockKg: ZERO, stockValue: ZERO, sortedKg: ZERO, sortedValue: ZERO }).get(key)!;
     for (const i of items) {
       const { left, value, leftKg } = stockLeft(i);
       if (left.lessThanOrEqualTo(0)) continue;
-      const name = i.category ? [i.category.name, i.grade?.name].filter(Boolean).join(' · ') : i.name ?? '';
+      // Waste kept from sorting is one item (v2 review: it was one row per lot, "Waste/Katran · LOT-2026-002").
+      const waste = i.source === StockSource.KAT && !i.category;
+      const name = i.category ? [i.category.name, i.grade?.name].filter(Boolean).join(' · ') : waste ? (i.name ?? '').split(' · ')[0] : i.name ?? '';
       const r = row(i.categoryId ? `${i.categoryId}:${i.gradeId ?? ''}` : `name:${name}`, name, i.categoryId, i.gradeId, i.category?.name ?? null, i.grade?.name ?? null);
       if (i.unit === StockUnit.BALE) r.bales = r.bales.add(left);
       else if (i.unit === StockUnit.PIECE) r.pieces = r.pieces.add(left);
       else r.looseKg = r.looseKg.add(left);
+      if (waste) r.waste = true;
       r.stockKg = r.stockKg.add(leftKg ?? ZERO);
       r.stockValue = r.stockValue.add(value);
     }
@@ -277,6 +282,8 @@ export class StockRecordsService {
     const list = [...rows.values()].sort((a, b) => b.stockValue.add(b.sortedValue).comparedTo(a.stockValue.add(a.sortedValue)) || a.name.localeCompare(b.name));
     return list.map((r) => ({
       ...r, kg: r.stockKg.add(r.sortedKg),
+      // Kg in bales (and pieces) apart from stock kept loose by the kg (waste, kat): loose kg is not "in bales".
+      baleKg: r.stockKg.sub(r.looseKg),
       stockValue: money(canSeeCost, r.stockValue), sortedValue: money(canSeeCost, r.sortedValue), value: money(canSeeCost, r.stockValue.add(r.sortedValue)),
     }));
   }

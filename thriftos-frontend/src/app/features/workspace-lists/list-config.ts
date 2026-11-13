@@ -57,6 +57,8 @@ export interface ListConfig {
   emptyMessage: string;
   /** Shown instead when nothing is searched or filtered: the list is empty because nothing was added yet. */
   emptyNew?: { heading: string; message: string };
+  /** Dictionary key of a line under the table: what this list leaves out and where it is. */
+  footnote?: string;
   /** Help screen offered when the list is empty (v2 6.4), e.g. `sale` opens /help/sale. */
   help?: string;
   columns: ListColumnConfig[];

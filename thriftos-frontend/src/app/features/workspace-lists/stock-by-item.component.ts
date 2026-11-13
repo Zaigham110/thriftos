@@ -15,7 +15,7 @@ import { STOCK_TABS } from './lists';
 /** GET /api/workspace/stock/by-item (values are null without cost.view). */
 interface ByItem {
   key: string; name: string; categoryName: string | null; gradeName: string | null; categoryId: string | null; gradeId: string | null;
-  bales: string; pieces: string; looseKg: string; stockKg: string; sortedKg: string; kg: string;
+  bales: string; pieces: string; looseKg: string; stockKg: string; baleKg: string; waste?: boolean; sortedKg: string; kg: string;
   stockValue: string | null; sortedValue: string | null; value: string | null;
 }
 
@@ -102,8 +102,10 @@ export class StockByItemComponent {
     return [
       { key: 'name', label: t('ws.stock.col.name') },
       { key: 'bales', label: t('ws.stock.unit.BALE'), format: 'number', total: true },
-      { key: 'stockKg', label: t('ws.si.inBales'), format: 'kg', total: true, info: t('ws.si.info.inBales') },
+      { key: 'baleKg', label: t('ws.si.inBales'), format: 'kg', total: true, info: t('ws.si.info.inBales') },
       { key: 'sortedKg', label: t('ws.si.sorted'), format: 'kg', total: true, info: t('ws.si.info.sorted') },
+      // Stock kept loose by the kg (waste): its own column, only when there is some.
+      ...((this.data() ?? []).some((r) => Number(r.looseKg) > 0) ? [{ key: 'looseKg', label: t('ws.si.loose'), format: 'kg' as const, total: true, info: t('ws.si.info.loose') }] : []),
       { key: 'kg', label: t('ws.si.totalKg'), format: 'kg', total: true },
       ...(this.canSeeCost() ? [{ key: 'value', label: t('ws.stock.col.value'), format: 'money' as const, total: true, round: true }] : []),
     ];
@@ -130,7 +132,7 @@ export class StockByItemComponent {
     // By name, so the list shows readable chips ("Category: Jeans", "Grade: A").
     const filters = r.categoryName
       ? [{ field: 'category', op: 'eq', value: r.categoryName }, r.gradeName ? { field: 'grade', op: 'eq', value: r.gradeName } : { field: 'grade', op: 'isnull' }]
-      : [{ field: 'name', op: 'eq', value: r.name }];
+      : r.waste ? [{ field: 'source', op: 'eq', value: 'KAT' }] : [{ field: 'name', op: 'eq', value: r.name }];
     void this.nav.open(['/stock/items'], { queryParams: { v: JSON.stringify({ filters: [{ field: 'status', op: 'ne', value: 'SOLD' }, ...filters] }) } });
   }
 

@@ -13,6 +13,22 @@ export function stockLeft(i: { quantity: Prisma.Decimal; usedQuantity: Prisma.De
   return { left, value, leftKg };
 }
 
+/**
+ * The name an item shows everywhere (v2 review): "Jeans · A" for stock named after its category and grade, the
+ * same way the lot page and Inventory by item write it; a name somebody typed is kept as it is.
+ */
+export function itemName(i: { name: string | null; category?: { name: string } | null; grade?: { name: string } | null }): string | null {
+  const auto = [i.category?.name, i.grade?.name].filter(Boolean);
+  if (auto.length && (!i.name || i.name === auto.join(' '))) return auto.join(' · ');
+  return i.name ?? null;
+}
+
+/** Kg now: what is left of an item in stock; for a sold item, what it weighed. */
+function kgNow(i: { quantity: Prisma.Decimal; usedQuantity: Prisma.Decimal; totalCost: Prisma.Decimal; unit: StockUnit; weightKg: Prisma.Decimal | null; status?: InventoryStatus }): Prisma.Decimal {
+  const left = stockLeft(i).leftKg ?? ZERO;
+  return left.greaterThan(0) ? left : i.unit === StockUnit.KG ? i.quantity : i.weightKg ?? ZERO;
+}
+
 export const ageDays = (createdAt: Date, now = new Date()): number => Math.max(0, Math.floor((now.getTime() - createdAt.getTime()) / DAY));
 
 export const STOCK_LABELS: Record<string, { en: string; ur: string }> = {
@@ -33,6 +49,10 @@ export const STOCK_LABELS: Record<string, { en: string; ur: string }> = {
   date: { en: 'Received on', ur: 'وصولی' },
   age: { en: 'Age (days)', ur: 'عمر (دن)' },
   godown: { en: 'Godown', ur: 'گودام' },
+  kgNow: { en: 'Kg', ur: 'کلو' },
+  soldAt: { en: 'Sold on', ur: 'فروخت کی تاریخ' },
+  soldTo: { en: 'Sold to', ur: 'خریدار' },
+  soldFor: { en: 'Sold for (Rs)', ur: 'فروخت کی رقم (روپے)' },
   supplier: { en: 'Supplier', ur: 'سپلائر' },
 };
 
@@ -47,6 +67,8 @@ export const STOCK_LIST: ListResource = {
   fields: [
     { key: 'code', type: 'string', path: ['repackUnit', 'unitCode'], sortable: true, filterable: true, searchable: true },
     { key: 'name', type: 'string', path: ['name'], sortable: true, filterable: true, searchable: true },
+    // The name as it is stored ("Jeans A"): the sale screen keeps matching what people type against it.
+    { key: 'plainName', type: 'string', path: ['name'], hidden: true },
     { key: 'category', type: 'string', path: ['category', 'name'], sortable: true, filterable: true, searchable: true },
     { key: 'categoryId', type: 'string', path: ['categoryId'], filterable: true, groupable: true, hidden: true },
     { key: 'grade', type: 'string', path: ['grade', 'name'], sortable: true, filterable: true, searchable: true },
@@ -58,6 +80,12 @@ export const STOCK_LIST: ListResource = {
     { key: 'left', type: 'number', path: ['_computed'], computed: true },
     { key: 'pieces', type: 'number', path: ['_computed'], computed: true },
     { key: 'kg', type: 'number', path: ['weightKg'], sortable: true, filterable: true, sum: true },
+    // Kg now: what is left of an item in stock; what a sold item weighed.
+    { key: 'kgNow', type: 'number', path: ['_computed'], computed: true },
+    // The sale of a sold item (v2 review: the Sold list said nothing about the sale). For the people who sell.
+    { key: 'soldAt', type: 'date', path: ['_computed'], computed: true },
+    { key: 'soldTo', type: 'string', path: ['_computed'], computed: true, permission: 'sale.create' },
+    { key: 'soldFor', type: 'number', path: ['_computed'], computed: true, permission: 'sale.create' },
     { key: 'cost', type: 'number', path: ['totalCost'], sortable: true, filterable: true, sum: true, permission: 'cost.view' },
     { key: 'value', type: 'number', path: ['_computed'], computed: true, permission: 'cost.view' },
     { key: 'salePrice', type: 'number', path: ['salePrice'], sortable: true, filterable: true },
@@ -81,19 +109,43 @@ export const STOCK_LIST: ListResource = {
       where: where as Prisma.InventoryItemWhereInput,
       select: { quantity: true, usedQuantity: true, totalCost: true, unit: true, weightKg: true },
     });
-    return { value: items.reduce((t, i) => t.add(stockLeft(i).value), ZERO).toString() };
+    return {
+      value: items.reduce((t, i) => t.add(stockLeft(i).value), ZERO).toString(),
+      kgNow: items.reduce((t, i) => t.add(kgNow(i)), ZERO).toString(),
+    };
   },
   toRow: (x) => {
     const i = x as unknown as Item;
     const { left, value } = stockLeft(i);
-    const name = i.name ?? ([i.category?.name, i.grade?.name].filter(Boolean).join(' ') || null);
+    const name = itemName(i);
+    // A sold item is no longer in a godown and has nothing left, no value left and no age: those read "—".
+    const sold = i.status === InventoryStatus.SOLD;
     return {
-      id: i.id, code: i.repackUnit?.unitCode ?? null, name, category: i.category?.name ?? null, categoryId: i.categoryId, grade: i.grade?.name ?? null,
-      gradeId: i.gradeId, source: i.source, unit: i.unit, status: i.status, quantity: i.quantity, left, kg: i.weightKg, cost: i.totalCost, value,
+      id: i.id, code: i.repackUnit?.unitCode ?? null, name, plainName: i.name ?? ([i.category?.name, i.grade?.name].filter(Boolean).join(' ') || null), category: i.category?.name ?? null, categoryId: i.categoryId, grade: i.grade?.name ?? null,
+      gradeId: i.gradeId, source: i.source, unit: i.unit, status: i.status, quantity: i.quantity, left: sold ? null : left, kg: i.weightKg, kgNow: kgNow(i), cost: i.totalCost, value: sold ? null : value,
+      soldAt: null, soldTo: null, soldFor: null,
       // Bales made of a number of pieces: the pieces left (they can be sold by the piece).
       pieces: i.unit === StockUnit.BALE && i.pcsCount && !i.quantity.isZero() ? left.mul(i.pcsCount).div(i.quantity).toDecimalPlaces(0).toNumber() : null,
-      salePrice: i.salePrice, date: i.createdAt, age: ageDays(i.createdAt), godown: i.warehouse?.name ?? null, godownId: i.warehouseId, supplier: i.vendor?.name ?? null,
+      salePrice: i.salePrice, date: i.createdAt, age: sold ? null : ageDays(i.createdAt), godown: sold ? null : i.warehouse?.name ?? null, godownId: i.warehouseId, supplier: i.vendor?.name ?? null,
     };
+  },
+  enrich: async (prisma, tenantId, rows) => {
+    const sold = rows.filter((r) => r['status'] === InventoryStatus.SOLD).map((r) => r.id);
+    if (!sold.length) return rows;
+    const lines = await (prisma as PrismaClient).saleLine.findMany({
+      where: { inventoryItemId: { in: sold }, sale: { tenantId, status: { notIn: ['CANCELLED', 'DRAFT'] } } },
+      orderBy: { createdAt: 'asc' },
+      select: { inventoryItemId: true, lineTotal: true, sale: { select: { createdAt: true, customer: { select: { name: true } } } } },
+    });
+    return rows.map((r) => {
+      const mine = lines.filter((l) => l.inventoryItemId === r.id);
+      if (!mine.length) return r;
+      const buyers = [...new Set(mine.map((l) => l.sale.customer.name))];
+      return {
+        ...r, soldAt: mine[mine.length - 1].sale.createdAt, soldTo: buyers.length > 1 ? `${buyers[0]} +${buyers.length - 1}` : buyers[0],
+        soldFor: mine.reduce((t, l) => t.add(l.lineTotal), ZERO),
+      };
+    });
   },
   groupLabels: async (prisma, tenantId, field, keys) => {
     const db = prisma as PrismaClient;

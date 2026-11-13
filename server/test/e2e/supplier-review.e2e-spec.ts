@@ -70,6 +70,19 @@ describe('Suppliers review: loose lots on the supplier page, add and edit (e2e)'
     expect((await api(app, a).get(`/workspace/sorting/${lot.id}`).expect(200)).body.totals.notBaledKg).toBe('6');
     await api(app, b).get(`/workspace/sorting/${lot.id}`).expect(404);
 
+    // Inventory (v2 review): a sold bale says who bought it, when and for how much, and has nothing left, no
+    // value left, no age and no godown; its name is written "Jeans · A"; its page names the loose lot's supplier and grade.
+    const soldRow = (await api(app, a).get(`/lists/stock?filters=${encodeURIComponent(JSON.stringify([{ field: 'status', op: 'eq', value: 'SOLD' }]))}`).expect(200)).body.rows.find((r: { id: string }) => r.id === items[0].id);
+    expect(soldRow).toMatchObject({ name: 'Jeans · A', soldTo: 'Bale Buyer', soldFor: '9000', kgNow: '45', left: null, value: null, age: null, godown: null });
+    expect(soldRow.soldAt).toBeTruthy();
+    const inStock = (await api(app, a).get('/lists/stock').expect(200)).body.rows.find((r: { id: string }) => r.id === items[1].id);
+    expect(inStock).toMatchObject({ name: 'Jeans · A', soldTo: null, soldFor: null, kgNow: '45', left: '1' });
+    const balePage = (await api(app, a).get(`/workspace/stock/${items[0].id}`).expect(200)).body;
+    expect(balePage.item.name).toBe('Jeans · A');
+    expect(balePage.lineage[0]).toMatchObject({ supplier: { name: 'Gaari Wala' }, grade: 'A', container: null });
+    expect((await api(app, b).get('/lists/stock').expect(200)).body.rows).toEqual([]);
+    await api(app, b).get(`/workspace/stock/${items[0].id}`).expect(404);
+
     // The Suppliers list says the same; a supplier nothing was bought from has no profit to show.
     const rows = (await api(app, a).get('/lists/suppliers').expect(200)).body.rows as { name: string; profit: string | null; profitPerKg: string | null; yield: number | null; topGrade: number | null; lots: number }[];
     expect(rows.find((r) => r.name === 'Gaari Wala')).toMatchObject({ lots: 1, profit, yield: 96, topGrade: 100 });

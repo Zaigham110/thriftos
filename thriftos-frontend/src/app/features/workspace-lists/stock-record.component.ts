@@ -105,11 +105,19 @@ const UNIT_KEYS: Record<string, string> = { KG: 'ws.stock.unit.KG', BALE: 'ws.st
           }
 
           <section class="smart">
-            <ws-smart-button [label]="'ws.stock.col.left' | t" [value]="qty(d.item.left) + ' / ' + qty(d.item.quantity)" [icon]="icons.Package" [link]="[]" />
-            @if (d.item.leftKg !== null) { <ws-smart-button [label]="'ws.stockItem.kgLeft' | t" [value]="i18n.kg(d.item.leftKg)" [icon]="icons.Scale" [link]="[]" /> }
-            @if (d.cost) { <ws-smart-button [label]="'ws.stock.col.value' | t" [value]="i18n.money(round(d.cost.valueLeft))" [icon]="icons.Coins" [link]="[]" /> }
-            @if (d.item.salePrice) { <ws-smart-button [label]="'ws.stock.col.price' | t" [value]="i18n.money(d.item.salePrice)" [icon]="icons.Tag" [link]="[]" /> }
-            <ws-smart-button [label]="'ws.stock.col.age' | t" [value]="i18n.num(d.item.ageDays)" [icon]="icons.Clock" [tone]="d.item.ageDays > 90 ? 'bad' : 'plain'" [link]="[]" />
+            @if (sold(); as so) {
+              <!-- A sold item (v2 review): what it sold for and earned, not what is left of it in a godown. -->
+              <ws-smart-button [label]="'ws.stockItem.soldFor' | t" [value]="i18n.money(round(so.total))" [icon]="icons.Coins" [link]="[]" [query]="{ tab: 'sales' }" />
+              @if (so.profit !== null) { <ws-smart-button [label]="'ws.containers.col.profit' | t" [value]="i18n.money(round(so.profit))" [icon]="icons.Coins" [tone]="so.profit < 0 ? 'bad' : 'plain'" [link]="[]" [query]="{ tab: 'sales' }" /> }
+              @if (d.item.weightKg !== null) { <ws-smart-button [label]="'ws.containers.col.kg' | t" [value]="i18n.kg(d.item.weightKg)" [icon]="icons.Scale" [link]="[]" /> }
+              @if (d.cost) { <ws-smart-button [label]="'ws.col.cost' | t" [value]="i18n.money(round(d.cost.total))" [icon]="icons.Coins" [link]="[]" /> }
+            } @else {
+              <ws-smart-button [label]="'ws.stock.col.left' | t" [value]="qty(d.item.left) + ' / ' + qty(d.item.quantity)" [icon]="icons.Package" [link]="[]" />
+              @if (d.item.leftKg !== null) { <ws-smart-button [label]="'ws.stockItem.kgLeft' | t" [value]="i18n.kg(d.item.leftKg)" [icon]="icons.Scale" [link]="[]" /> }
+              @if (d.cost) { <ws-smart-button [label]="'ws.stock.col.value' | t" [value]="i18n.money(round(d.cost.valueLeft))" [icon]="icons.Coins" [link]="[]" /> }
+              @if (d.item.salePrice) { <ws-smart-button [label]="'ws.stock.col.price' | t" [value]="i18n.money(d.item.salePrice)" [icon]="icons.Tag" [link]="[]" /> }
+              <ws-smart-button [label]="'ws.stock.col.age' | t" [value]="i18n.num(d.item.ageDays)" [icon]="icons.Clock" [tone]="d.item.ageDays > 90 ? 'bad' : 'plain'" [link]="[]" />
+            }
             <ws-smart-button [label]="'ws.container.tab.sales' | t" [value]="i18n.num(d.sales.length)" [icon]="icons.Coins" [link]="[]" [query]="{ tab: 'sales' }" />
           </section>
 
@@ -250,7 +258,25 @@ export class StockRecordComponent {
     const i = this.data()?.item;
     if (!i) return '';
     const date = new Date(i.createdAt).toLocaleDateString(this.i18n.lang() === 'ur' ? 'ur-PK' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric', numberingSystem: 'latn' });
-    return [this.i18n.t(`ws.stock.status.${i.status}`), i.category?.name, i.grade?.name, date, i.godown?.name].filter(Boolean).join(' · ');
+    // A sold item says who bought it and when, not which godown it was in.
+    const so = this.sold();
+    const where = so
+      ? this.i18n.t('ws.stockItem.soldTo', { name: so.customer, date: new Date(so.date).toLocaleDateString(this.i18n.lang() === 'ur' ? 'ur-PK' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric', numberingSystem: 'latn' }) })
+      : i.godown?.name;
+    return [this.i18n.t(`ws.stock.status.${i.status}`), this.i18n.t('ws.stockItem.madeOn', { date }), where].filter(Boolean).join(' · ');
+  });
+  /** The sale of an item that is sold out: total, profit (with cost.view), the buyer and the day. */
+  protected readonly sold = computed(() => {
+    const d = this.data();
+    if (!d || d.item.status !== 'SOLD' || !d.sales.length) return null;
+    const last = d.sales[0];
+    const buyers = [...new Set(d.sales.map((x) => x.customer))];
+    return {
+      total: d.sales.reduce((t, x) => t + Number(x.total), 0),
+      profit: d.sales.every((x) => x.profit !== null) ? d.sales.reduce((t, x) => t + Number(x.profit), 0) : null,
+      customer: buyers.length > 1 ? `${buyers[0]} +${buyers.length - 1}` : buyers[0],
+      date: last.date,
+    };
   });
   protected readonly unitLabel = computed(() => this.i18n.t(UNIT_KEYS[this.data()?.item.unit ?? 'KG']));
   protected readonly pending = computed(() => this.data()?.counts.find((c) => c.status === 'PENDING') ?? null);
@@ -276,7 +302,8 @@ export class StockRecordComponent {
     return { key, label: this.i18n.t(label), format, total };
   }
   protected readonly lineageColumns = computed<WsColumn[]>(() => [
-    this.col('container', 'ws.containers.col.number'),
+    // No container behind any source (loose lots only): the column is left out.
+    ...((this.data()?.lineage ?? []).some((l) => l.container) ? [this.col('container', 'ws.containers.col.number')] : []),
     this.col('supplier', 'ws.containers.col.supplier'),
     this.col('lot', 'ws.container.lot'),
     this.col('category', 'ws.container.category'),

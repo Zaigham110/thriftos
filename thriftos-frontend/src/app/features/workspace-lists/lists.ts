@@ -192,18 +192,25 @@ export const STOCK_LIST: ListConfig = {
     { key: 'unit', label: 'ws.stock.col.unit', enumPrefix: 'ws.stock.unit.' },
     { key: 'status', label: 'ws.col.status', enumPrefix: 'ws.stock.status.' },
     { key: 'quantity', label: 'ws.stock.col.quantity', format: 'number' },
-    { key: 'left', label: 'ws.stock.col.left', format: 'number', computed: true },
-    { key: 'kg', label: 'ws.containers.col.kg', format: 'kg', total: true },
+    { key: 'left', label: 'ws.stock.col.left', format: 'number', computed: true, hideIfEmpty: true },
+    // Kg now (v2 review): what is left of an item in stock, what a sold one weighed; its total is what the rows show.
+    { key: 'kgNow', label: 'ws.containers.col.kg', format: 'kg', computed: true, total: true, info: 'ws.stock.col.kgNowInfo' },
+    { key: 'kg', label: 'ws.sortRecord.input', format: 'kg', total: true },
     { key: 'cost', label: 'ws.col.cost', format: 'money', total: true },
-    { key: 'value', label: 'ws.stock.col.value', format: 'money', computed: true, total: true },
+    { key: 'value', label: 'ws.stock.col.value', format: 'money', computed: true, total: true, hideIfEmpty: true },
     { key: 'salePrice', label: 'ws.stock.col.price', format: 'money', info: 'ws.si.info.price' },
     { key: 'date', label: 'ws.containers.col.date', format: 'date' },
-    { key: 'age', label: 'ws.stock.col.age', format: 'number', computed: true },
+    { key: 'age', label: 'ws.stock.col.age', format: 'number', computed: true, hideIfEmpty: true },
     { key: 'godown', label: 'ws.stock.col.godown', hideIfEmpty: true },
     { key: 'supplier', label: 'ws.containers.col.supplier' },
+    // The sale of a sold item: shown on Sold and All, left out while nothing on the page is sold.
+    { key: 'soldAt', label: 'ws.stock.col.soldAt', format: 'date', computed: true, hideIfEmpty: true },
+    { key: 'soldTo', label: 'ws.stock.col.soldTo', computed: true, hideIfEmpty: true },
+    { key: 'soldFor', label: 'ws.stock.col.soldFor', format: 'money', computed: true, hideIfEmpty: true },
   ],
-  // "Item" already says "Jeans A": category and grade are in the View menu for whoever wants them.
-  defaultColumns: ['code', 'name', 'status', 'left', 'kg', 'value', 'salePrice', 'age', 'godown'],
+  // "Item" already says "Jeans · A": category and grade are in the View menu for whoever wants them.
+  defaultColumns: ['code', 'name', 'status', 'kgNow', 'value', 'salePrice', 'age', 'godown', 'soldAt', 'soldTo', 'soldFor'],
+  footnote: 'ws.stock.footnote',
   tabs: STOCK_TABS,
   switch: {
     field: 'status',

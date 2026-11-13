@@ -182,10 +182,12 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
           @if (c.help) { <app-help-link empty [topic]="c.help" /> }
         </ws-data-grid>
         <ws-pager [page]="state().page" (pageChange)="patch({ page: $event })" [pageSize]="state().pageSize" (pageSizeChange)="patch({ pageSize: $event, page: 1 })" [total]="result()?.total ?? 0" />
+        @if (c.footnote) { <p class="footnote">{{ c.footnote | t }}</p> }
       }
     </div>
   `,
   styles: [`
+    .footnote { margin:0; color:var(--ws-ink-3, var(--ws-ink-2)); font-size:var(--ws-text-sm); }
     .switch { display:inline-flex; gap:2px; padding:2px; border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface-2); }
     .switch button { padding:4px var(--ws-3); border:0; border-radius:calc(var(--ws-r-md) - 2px); background:transparent; color:var(--ws-ink-2); font:inherit; font-size:var(--ws-text-sm); cursor:pointer; }
     .switch button.on { background:var(--ws-surface); color:var(--ws-ink); font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08); }

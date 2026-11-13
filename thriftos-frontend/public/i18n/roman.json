@@ -1907,10 +1907,12 @@
   },
   "shortcuts": "Keyboard shortcuts",
   "si": {
+   "loose": "Khula kg",
    "caption": "Qism ke hisaab se stock",
    "hint": "Gaanthein dekhne ke liye line par click karein. Chhanta hua kg abhi gaanth mein nahi: Gaanth banayein se banti hain.",
    "inBales": "Gaanthon mein kg",
    "info": {
+    "loose": "Woh maal jo kg ke hisaab se rakha hai aur bales mein nahi, jaise chhantai ka katran.",
     "inBales": "Gaanthon aur items mein kg jo abhi stock mein hain (bike nahi).",
     "price": "Jis qeemat par yeh item bechte hain. Item par lagayein, ya Stock › Qism ke hisaab se mein ek qism ki sab gaanthon ke liye.",
     "sorted": "Is qism aur grade mein chhanta kg jo abhi gaanth mein nahi. Yeh stock hai aur apni laagat rakhta hai; Gaanth banayein se gaanthein banti hain."
@@ -2058,7 +2060,12 @@
    "PARTIALLY_PAID": "Kuch ada"
   },
   "stock": {
+   "footnote": "Jo kg chhanta ja chuka magar abhi bale mein nahi woh yahan nahi; woh By item par hai.",
    "col": {
+    "soldAt": "Kab bika",
+    "soldTo": "Kis ko bika",
+    "soldFor": "Kitne ka bika",
+    "kgNowInfo": "Maal mein se jo baqi hai. Bike hue maal ke liye: us ka wazan.",
     "age": "Umar (din)",
     "code": "Code",
     "godown": "Godown",
@@ -2095,6 +2102,9 @@
    "emptyNewMessage": "Gathein banane ya stock shamil karne par yahan nazar aayega."
   },
   "stockItem": {
+   "soldFor": "Kitne ka bika",
+   "soldTo": "{date} ko {name} ko becha",
+   "madeOn": "{date} ko bana",
    "approve": "Manzoor karein",
    "approved": "Ginti manzoor — kitaab update ho gayi",
    "change": "Farq",

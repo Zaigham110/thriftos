@@ -1907,10 +1907,12 @@
   },
   "shortcuts": "Keyboard shortcuts",
   "si": {
+   "loose": "Loose kg",
    "caption": "Stock by item",
    "hint": "Click a row to see its bales. Sorted kg is sorted but not in bales yet: Make a bale turns it into bales.",
    "inBales": "Kg in bales",
    "info": {
+    "loose": "Stock kept by the kg and not in bales, such as waste kept from sorting.",
     "inBales": "Kg in bales and items still in stock (not sold).",
     "price": "The price you sell this item for. Set it on the item, or for every bale of a kind in Inventory › By item.",
     "sorted": "Kg sorted into this category and grade that is not in a bale yet. It is stock and keeps its cost; Make a bale turns it into bales."
@@ -2058,7 +2060,12 @@
    "PARTIALLY_PAID": "Part paid"
   },
   "stock": {
+   "footnote": "Kg that is sorted but not in a bale yet is not listed here; it is on By item.",
    "col": {
+    "soldAt": "Sold on",
+    "soldTo": "Sold to",
+    "soldFor": "Sold for",
+    "kgNowInfo": "What is left of the item. For a sold item: what it weighed.",
     "age": "Age (days)",
     "code": "Code",
     "godown": "Godown",
@@ -2095,6 +2102,9 @@
    "emptyNewMessage": "Bales and items show here once you make bales or add stock."
   },
   "stockItem": {
+   "soldFor": "Sold for",
+   "soldTo": "Sold to {name} on {date}",
+   "madeOn": "Made {date}",
    "approve": "Approve",
    "approved": "Count approved — the books are updated",
    "change": "Change",

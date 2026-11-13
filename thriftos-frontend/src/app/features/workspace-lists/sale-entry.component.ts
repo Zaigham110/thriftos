@@ -29,6 +29,14 @@ const optionLabel = (s: StockOption) => [s.code, s.name].filter(Boolean).join(' 
 /** Bales of the same category and grade are one kind; anything else stands alone. */
 const kindKey = (s: StockOption) => (s.unit === 'BALE' && s.categoryId ? `${s.categoryId}|${s.gradeId ?? ''}` : `item|${s.id}`);
 const byCode = (a: StockOption, b: StockOption) => (a.code ?? '').localeCompare(b.code ?? '', undefined, { numeric: true });
+/**
+ * Stock rows as the sale screen names them: the stored name ("Jeans A"), which is what people type and what the
+ * choices are matched against. Inventory writes the same item "Jeans · A".
+ */
+function stockRows(rows: unknown): StockOption[] {
+  return (rows as Array<StockOption & { plainName?: string | null }>).map((r) => ({ ...r, name: r.plainName ?? r.name }));
+}
+
 function toPicks(rows: StockOption[]): Pick[] {
   const map = new Map<string, Pick>();
   for (const r of rows) {
@@ -277,7 +285,7 @@ export class SaleEntryComponent implements HasUnsavedChanges {
         takeUntilDestroyed(),
       )
       .subscribe((r) => {
-        this.stock.set(r.rows as unknown as StockOption[]);
+        this.stock.set(stockRows(r.rows));
         for (const p of this.picks()) this.seen.set(p.label, p);
       });
   }
@@ -431,7 +439,7 @@ export class SaleEntryComponent implements HasUnsavedChanges {
       .get<ListResult>('/api/lists/stock', { params: new HttpParams().set('q', text).set('pageSize', '50').append('f', 'status:ne:SOLD') })
       .subscribe({
         next: (r) => {
-          const rows = r.rows as unknown as StockOption[];
+          const rows = stockRows(r.rows);
           const hit = rows.find((x) => x.code?.toLowerCase() === text.toLowerCase() || optionLabel(x) === text) ?? (rows.length === 1 ? rows[0] : undefined);
           if (hit) this.addStock(hit);
           else this.toast.show(this.i18n.t('ws.saleEntry.notFound'));
@@ -450,7 +458,7 @@ export class SaleEntryComponent implements HasUnsavedChanges {
     let params = new HttpParams().set('pageSize', '200').append('f', 'status:ne:SOLD').append('f', `categoryId:eq:${categoryId}`);
     if (gradeId) params = params.append('f', `gradeId:eq:${gradeId}`);
     this.http.get<ListResult>('/api/lists/stock', { params }).pipe(catchError(() => of({ rows: [] } as unknown as ListResult))).subscribe((r) => {
-      const all = (r.rows as unknown as StockOption[]).filter((x) => kindKey(x) === p.key && Number(x.left) > 0);
+      const all = stockRows(r.rows).filter((x) => kindKey(x) === p.key && Number(x.left) > 0);
       // Bales already on another line (scanned one by one) are not taken twice.
       const taken = new Set(this.lines().filter((l) => !l.members).map((l) => l.item.id));
       const members = (all.length ? all : p.members).filter((m) => !taken.has(m.id)).sort(byCode);
