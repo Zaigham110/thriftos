@@ -1,7 +1,7 @@
 import { Type } from 'class-transformer';
 import { LotChargeDto } from './lot-charge.dto';
 import { IsString, IsNotEmpty, IsNumber, Min, MaxLength, IsOptional, IsEnum, IsDateString, IsArray, ArrayMaxSize, ValidateNested, IsInt } from 'class-validator';
-import { RagBaleType } from '@prisma/client';
+import { PaymentMethod, RagBaleType } from '@prisma/client';
 
 export class CreateRagDto {
   @IsString()
@@ -32,6 +32,17 @@ export class CreateRagDto {
   @IsString()
   @IsOptional()
   vendorId?: string;
+
+  /** Supplier khata: money handed to the supplier on the spot (the rest of the price stays owed). */
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @IsOptional()
+  paidNow?: number;
+
+  /** How it was paid (cash when left out). */
+  @IsEnum(PaymentMethod)
+  @IsOptional()
+  paidMethod?: PaymentMethod;
 
   @IsString()
   @IsOptional()

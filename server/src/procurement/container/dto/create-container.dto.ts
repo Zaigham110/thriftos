@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { ArrayMaxSize, IsArray, IsBoolean, IsEnum, IsIn, IsString, IsOptional, IsNumber, IsDateString, Min, MaxLength, Length, IsPositive, ValidateNested } from 'class-validator';
-import { ChargeType } from '@prisma/client';
+import { ChargeType, PaymentMethod } from '@prisma/client';
 
 /** A charge saved with the container (Journey 1: duty, clearing, freight... in PKR). */
 export class ContainerChargeLineDto {
@@ -17,6 +17,17 @@ export class CreateContainerDto {
   @IsString()
   @IsOptional()
   vendorId?: string;
+
+  /** Supplier khata: money handed to the supplier on the spot (the rest of the price stays owed). */
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @IsOptional()
+  paidNow?: number;
+
+  /** How it was paid (cash when left out). */
+  @IsEnum(PaymentMethod)
+  @IsOptional()
+  paidMethod?: PaymentMethod;
 
   @IsString()
   @IsOptional()

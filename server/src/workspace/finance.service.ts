@@ -91,7 +91,7 @@ export class PnlQueryDto {
 }
 
 /** One book line. MOVE: cash out of / into the drawer (ref = OUT:BANK, IN:OWNER, …; party = the note). */
-type BookLine = { at: Date; day: string; kind: 'RECEIPT' | 'EXPENSE' | 'MOVE' | 'CLOSE'; id: string; ref: string | null; party: string | null; in: Prisma.Decimal; out: Prisma.Decimal; createdAt?: Date };
+type BookLine = { at: Date; day: string; kind: 'RECEIPT' | 'EXPENSE' | 'MOVE' | 'CLOSE' | 'SUPPLIER'; id: string; ref: string | null; party: string | null; in: Prisma.Decimal; out: Prisma.Decimal; createdAt?: Date };
 
 const ymd = (s: string) => s.slice(0, 10);
 const dayDate = (s: string) => new Date(ymd(s) + 'T00:00:00Z');
@@ -187,7 +187,7 @@ export class FinanceService {
   }
 
   private async lines(tenantId: string, method: PaymentMethod, until?: Date): Promise<BookLine[]> {
-    const [payments, expenses, closes, moves] = await Promise.all([
+    const [payments, expenses, closes, moves, supplierPayments] = await Promise.all([
       this.prisma.payment.findMany({
         where: { tenantId, method, ...(until ? { receivedAt: { lt: until } } : {}) },
         select: { id: true, amount: true, receivedAt: true, createdAt: true, reference: true, customer: { select: { name: true } }, sale: { select: { saleNumber: true } } },
@@ -198,6 +198,8 @@ export class FinanceService {
       method === PaymentMethod.CASH || method === PaymentMethod.BANK
         ? this.prisma.cashMove.findMany({ where: { tenantId, cancelledAt: null, ...(method === PaymentMethod.BANK ? { kind: CashMoveKind.BANK } : {}) } })
         : Promise.resolve([]),
+      // Supplier khata: money paid to suppliers leaves the book it was paid from.
+      this.prisma.supplierPayment.findMany({ where: { tenantId, method, cancelledAt: null }, select: { id: true, day: true, amount: true, note: true, vendor: { select: { name: true } } } }),
     ]);
     // An expense day / close day sits at the end of that business day for ordering (after the day's receipts).
     const endOf = (d: Date) => new Date(localDayStart(dayOf(d)).getTime() + DAY - 1);
@@ -209,6 +211,7 @@ export class FinanceService {
         return { at: new Date(endOf(m.day).getTime() - 1), day: dayOf(m.day), kind: 'MOVE' as const, id: m.id, ref: `${m.direction}:${m.kind}`, party: m.note, in: intoBook ? m.amount : ZERO, out: intoBook ? ZERO : m.amount };
       }),
       ...expenses.map((e) => ({ at: new Date(endOf(e.day).getTime() - 1), day: dayOf(e.day), kind: 'EXPENSE' as const, id: e.id, ref: e.category, party: e.paidTo, in: ZERO, out: e.amount })),
+      ...supplierPayments.map((p) => ({ at: new Date(endOf(p.day).getTime() - 1), day: dayOf(p.day), kind: 'SUPPLIER' as const, id: p.id, ref: p.note, party: p.vendor.name, in: ZERO, out: p.amount })),
       ...closes.map((c) => ({ at: endOf(c.day), day: dayOf(c.day), kind: 'CLOSE' as const, id: c.id, ref: null, party: null, in: c.difference.isPositive() ? c.difference : ZERO, out: c.difference.isNegative() ? c.difference.neg() : ZERO })),
     ];
     return out.filter((l) => !until || l.at < until).sort((a, b) => a.at.getTime() - b.at.getTime() || a.kind.localeCompare(b.kind));

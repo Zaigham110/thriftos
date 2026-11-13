@@ -13,7 +13,7 @@ import { WsPageHeaderComponent, WsStateComponent } from '../../shared/ui/workspa
 /** GET /api/admin/vendors/:id (the fields this form uses). */
 interface SupplierRow {
   id: string; name: string; originCountry: string | null; country: string | null; physicalAddress: string | null;
-  contactPhone: string | null; contactPerson: string | null; notes: string | null; isActive: boolean;
+  contactPhone: string | null; contactPerson: string | null; notes: string | null; isActive: boolean; openingBalance?: string | null;
 }
 
 /**
@@ -39,6 +39,7 @@ interface SupplierRow {
             <label>{{ 'common.city' | t }} · {{ 'common.optional' | t }}<input name="city" maxlength="200" [(ngModel)]="city" autocomplete="off" /></label>
             <label>{{ 'common.phone' | t }} · {{ 'common.optional' | t }}<input name="phone" type="tel" maxlength="30" [(ngModel)]="phone" class="ltr" [placeholder]="'common.phonePlaceholder' | t" /></label>
             <label>{{ 'import.field.contactPerson' | t }} · {{ 'common.optional' | t }}<input name="person" maxlength="100" [(ngModel)]="person" autocomplete="off" /></label>
+            <label class="span2">{{ 'ws.sp.opening' | t }} · {{ 'common.optional' | t }}<input name="opening" type="number" step="0.01" [(ngModel)]="opening" /><small>{{ 'ws.sp.openingHint' | t }}</small></label>
             <label class="span2">{{ 'ws.customer.note' | t }} · {{ 'common.optional' | t }}<textarea name="notes" rows="2" maxlength="1000" [(ngModel)]="notes"></textarea></label>
             @if (id()) {
               <label class="check span2"><input type="checkbox" name="active" [(ngModel)]="active" />{{ 'ws.sp.active' | t }}</label>
@@ -59,6 +60,7 @@ interface SupplierRow {
     .card { display:grid; gap:var(--ws-4); padding:var(--ws-4); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); }
     .grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:var(--ws-3); }
     .span2 { grid-column:1 / -1; }
+    label small { color:var(--ws-ink-2); font-size:var(--ws-text-xs); }
     label { display:grid; gap:4px; color:var(--ws-ink-2); font-size:var(--ws-text-sm); }
     input:not([type=checkbox]), textarea { box-sizing:border-box; width:100%; min-height:var(--ws-control-h); padding:var(--ws-2); border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface); color:var(--ws-ink); font:inherit; font-size:var(--ws-text-md); }
     .check { display:flex; align-items:center; gap:var(--ws-2); color:var(--ws-ink); font-size:var(--ws-text-md); }
@@ -87,6 +89,8 @@ export class SupplierFormComponent implements OnInit, HasUnsavedChanges {
   protected phone = '';
   protected person = '';
   protected notes = '';
+  /** Supplier khata: what was already owed to them (empty = nothing). */
+  protected opening: number | null = null;
   protected active = true;
 
   ngOnInit(): void {
@@ -114,6 +118,7 @@ export class SupplierFormComponent implements OnInit, HasUnsavedChanges {
         this.phone = s.contactPhone ?? '';
         this.person = s.contactPerson ?? '';
         this.notes = s.notes ?? '';
+        this.opening = Number(s.openingBalance ?? 0) || null;
         this.active = s.isActive;
         this.loading.set(false);
       },
@@ -137,6 +142,7 @@ export class SupplierFormComponent implements OnInit, HasUnsavedChanges {
       contactPhone: this.phone.trim(),
       contactPerson: this.person.trim(),
       notes: this.notes.trim(),
+      ...(this.id() || this.opening ? { openingBalance: Number(this.opening ?? 0) } : {}),
       ...(this.id() ? { isActive: this.active } : {}),
     };
     this.busy.set(true);

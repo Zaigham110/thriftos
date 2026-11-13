@@ -4,6 +4,7 @@ import { BUSINESS_UTC_OFFSET_MINUTES, localDayStart } from '../common/list/list-
 import { toE164 } from '../common/phone/phone';
 import { PrismaService } from '../prisma/prisma.service';
 import { grossPay, netPay, periodDays, shareBy } from './payroll';
+import { topGrade as topGradeOf } from '../sorting/top-grade';
 
 type Tx = Prisma.TransactionClient;
 const ZERO = new Prisma.Decimal(0);
@@ -274,7 +275,7 @@ export class PayrollService {
         where: { tenantId, workerId: { not: null }, createdAt: { gte: localDayStart(start), lt: new Date(localDayStart(end).getTime() + DAY) } },
         select: { workerId: true, weightKg: true, count: true, createdAt: true, grade: { select: { rank: true } } },
       }),
-      this.prisma.grade.findFirst({ where: { tenantId, isActive: true }, orderBy: { rank: 'asc' }, select: { rank: true, name: true } }),
+      topGradeOf(this.prisma, tenantId),
     ]);
     const stats = new Map<string, { kg: Prisma.Decimal; pieces: number; days: Set<string>; graded: Prisma.Decimal; best: Prisma.Decimal }>();
     for (const r of rows) {

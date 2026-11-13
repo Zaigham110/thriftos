@@ -102,6 +102,7 @@
   "total": "Total",
   "undo": "Undo",
   "weight": "Weight",
+  "gradeNamed": "Grade {name}",
   "topGrade": "Top grade",
   "showAllN": "Show all {n}"
  },
@@ -913,6 +914,7 @@
    "notAllowed": "That move is not allowed from here"
   },
   "book": {
+   "supplier": "Paid to supplier {party} {ref}",
    "closing": "Closing",
    "empty": "Nothing in this period",
    "in": "In",
@@ -1181,7 +1183,7 @@
     "landedCost": "What the container cost you in all: its price in {money} plus every charge added, such as freight, duty, clearing and transport.",
     "profit": "Sales so far minus what the sold goods cost (their share of the container's total cost).",
     "revenue": "Sales so far of everything that came out of this container.",
-    "topGrade": "Of the kg that was graded, the part that came out in your best grade ({topGrade}, number 1 in your grade list).",
+    "topGrade": "Of the kg that was graded, the part that came out in your best grade ({topGrade}: the highest grade in your list that you actually use).",
     "yield": "Kg sorted into categories so far, as a part of the container's net kg. Leftovers and kg still to sort are not counted."
    },
    "search": "Search container number, supplier or country",
@@ -1437,6 +1439,8 @@
    "unsaved": "You have changes that are not saved. Leave this page and lose them?"
   },
   "lf": {
+   "paidNow": "Paid now",
+   "paidNowHint": "The rest of the price stays owed to the supplier.",
    "containerLot": "This lot came in a container. Change it from its container.",
    "date": "Bought on",
    "dateInfo": "The day you bought the lot. Lists and reports use this day.",
@@ -1959,6 +1963,20 @@
    "gradingNow": "grading"
   },
   "sp": {
+   "owe": "You owe",
+   "paidAhead": "Paid ahead",
+   "oweLine": "Bought {bought} · paid {paid}",
+   "oweInfo": "What you still owe this supplier: the price of what you bought from them since you started keeping it here, plus anything you already owed, minus what you paid. Transport and labour are not counted; you pay those to others.",
+   "pay": "Pay supplier",
+   "payAmount": "Amount paid",
+   "paySaved": "Payment saved",
+   "payments": "Payments",
+   "noPayments": "No payments to this supplier yet",
+   "payCancel": "Cancel payment",
+   "payCancelAsk": "Cancel this payment of {amount}? It will count nowhere.",
+   "payCancelled": "Cancelled",
+   "opening": "You already owe them",
+   "openingHint": "What you owed this supplier before you started keeping it here. Leave empty if nothing.",
    "call": "Call",
    "whatsapp": "WhatsApp",
    "active": "Still buying from this supplier (shown when receiving)",
@@ -2126,6 +2144,7 @@
   },
   "suppliers": {
    "col": {
+    "owed": "You owe",
     "containers": "Containers",
     "kg": "Kg bought",
     "name": "Supplier",

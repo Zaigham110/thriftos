@@ -6,6 +6,7 @@ import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateWarehouseDto, UpdateWarehouseDto } from './dto/warehouse.dto';
 import { UpdateTenantSettingsDto } from './dto/tenant-settings.dto';
 import { getCurrencyMeta, isSupportedCurrencyCode } from '../common/currency/currency';
+import { topGrade as topGradeOf } from '../sorting/top-grade';
 
 @Injectable()
 export class TenantService {
@@ -77,7 +78,7 @@ export class TenantService {
 
     const currencyMeta = getCurrencyMeta(tenant.currency);
     // The best grade (number 1 in the list): "Cream %" / "A %" on the screens that measure it (v2).
-    const topGrade = await this.prisma.grade.findFirst({ where: { tenantId: id, isActive: true }, orderBy: { rank: 'asc' }, select: { name: true } });
+    const topGrade = await topGradeOf(this.prisma, id);
 
     return {
       ...tenant,

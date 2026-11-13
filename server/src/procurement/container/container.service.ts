@@ -10,6 +10,7 @@ import { CreateContainerChargeDto, UpdateContainerChargeDto } from './dto/create
 import { ContainerStatus, PurchaseOrderType, PurchaseOrderStatus, RagBaleType, RagSourceType, SequenceScope, Prisma } from '@prisma/client';
 import { defaultRawCategoryId } from '../shared/default-raw-category';
 import { TenantSequenceService } from '../shared/tenant-sequence.service';
+import { recordSupplierPayment } from '../supplier-khata';
 
 @Injectable()
 export class ContainerService {
@@ -163,6 +164,8 @@ export class ContainerService {
           tareWeight: tare,
           netWeight: net,
           purchaseCost: new Prisma.Decimal(dto.purchaseCost ?? 0),
+          // Supplier khata: the container's price is owed to its supplier until paid.
+          onKhata: !!vendor?.id,
           purchaseCurrency,
           fxRate: new Prisma.Decimal(purchaseCurrency === home ? 1 : dto.fxRate!),
           billOfLadingNumber: dto.billOfLadingNumber,
@@ -204,6 +207,10 @@ export class ContainerService {
         });
       }
       await this.costing.recalculateContainerTx(tx, tenantId, created.id, userId);
+      if (dto.paidNow) {
+        if (!created.vendorId) throw new BadRequestException('Pick the supplier you paid');
+        await recordSupplierPayment(tx, { tenantId, vendorId: created.vendorId, amount: dto.paidNow, method: dto.paidMethod, note: containerNumber, userId });
+      }
       return created;
     });
 

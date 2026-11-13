@@ -149,13 +149,14 @@ export const SUPPLIERS_LIST: ListConfig = {
     { key: 'containers', label: 'ws.suppliers.col.containers', format: 'number', computed: true },
     { key: 'lots', label: 'ws.purchasing.lots', format: 'number', computed: true },
     { key: 'kg', label: 'ws.suppliers.col.kg', format: 'kg', computed: true, info: 'ws.sp.info.kg' },
+    { key: 'owed', label: 'ws.suppliers.col.owed', format: 'money', computed: true, info: 'ws.sp.oweInfo' },
     { key: 'profit', label: 'ws.containers.col.profit', format: 'money', computed: true, info: 'ws.sp.info.profit' },
     { key: 'profitPerKg', label: 'ws.suppliers.col.profitPerKg', format: 'money', computed: true, exact: true, info: 'ws.sp.info.profitPerKg' },
     { key: 'yield', label: 'ws.containers.col.yield', format: 'percent', computed: true, info: 'ws.sp.info.sorted' },
     { key: 'topGrade', label: 'ws.containers.col.topGrade', format: 'percent', computed: true, info: 'ws.containers.info.topGrade' },
   ],
   // Phone before origin (v2 review): a local buyer's suppliers are all from one country; Origin stays in Columns.
-  defaultColumns: ['name', 'phone', 'containers', 'lots', 'kg', 'profit', 'profitPerKg', 'yield', 'topGrade'],
+  defaultColumns: ['name', 'phone', 'containers', 'lots', 'kg', 'owed', 'profit', 'profitPerKg', 'yield', 'topGrade'],
   create: { label: 'common.newSupplier', link: '/receive/records/suppliers/new' },
   // The ranking with a period lives in the Supplier scorecard report.
   related: { label: 'ws.sp.scorecard', link: '/receive/scorecard' },

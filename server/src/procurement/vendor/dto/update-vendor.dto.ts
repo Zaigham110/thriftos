@@ -1,4 +1,4 @@
-import { IsString, IsOptional, MaxLength, IsEnum, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, MaxLength, IsEnum, IsNumber, IsBoolean } from 'class-validator';
 import { VendorType } from '@prisma/client';
 
 export class UpdateVendorDto {
@@ -80,4 +80,9 @@ export class UpdateVendorDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  /** Supplier khata: what you already owed this supplier when you started tracking (negative = paid ahead). */
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsOptional()
+  openingBalance?: number;
 }

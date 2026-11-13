@@ -2,6 +2,7 @@ import { ContainerStatus, Prisma, PrismaClient, RagSourceType, RagStatus, Vendor
 import type { ListResource } from '../common/list/list-engine';
 import { combine, containerEconomics, lotEconomics, topPercent, yieldPercent } from '../home/container-economics';
 import { percent } from '../home/home';
+import { supplierBalances } from './supplier-khata';
 
 type Row = Record<string, unknown> & { id: string };
 
@@ -95,6 +96,7 @@ export const SUPPLIERS_LIST: ListResource = {
     { key: 'containers', type: 'number', path: ['_computed'], computed: true },
     { key: 'lots', type: 'number', path: ['_computed'], computed: true },
     { key: 'kg', type: 'number', path: ['_computed'], computed: true },
+    { key: 'owed', type: 'number', path: ['_computed'], computed: true, permission: 'cost.view' },
     { key: 'profit', type: 'number', path: ['_computed'], computed: true, permission: 'cost.view' },
     { key: 'profitPerKg', type: 'number', path: ['_computed'], computed: true, permission: 'cost.view' },
     { key: 'yield', type: 'number', path: ['_computed'], computed: true },
@@ -113,7 +115,7 @@ export const SUPPLIERS_LIST: ListResource = {
     const containers = await db.container.findMany({ where: { tenantId, vendorId: { in: ids } }, select: { id: true, vendorId: true, netWeight: true } });
     // Loose lots are bought from suppliers too (v2 review): kg bought = containers' invoice kg + loose lots' kg.
     const lots = await db.rag.findMany({ where: { tenantId, vendorId: { in: ids }, sourceType: 'LOOSE_BALE' }, select: { id: true, vendorId: true } });
-    const [econ, lotEcon] = await Promise.all([containerEconomics(db, tenantId, containers.map((c) => c.id)), lotEconomics(db, tenantId, lots.map((l) => l.id))]);
+    const [econ, lotEcon, khata] = await Promise.all([containerEconomics(db, tenantId, containers.map((c) => c.id)), lotEconomics(db, tenantId, lots.map((l) => l.id)), supplierBalances(db, tenantId, ids)]);
     return rows.map((r) => {
       const own = containers.filter((c) => c.vendorId === r.id);
       const loose = lots.filter((l) => l.vendorId === r.id).map((l) => lotEcon.get(l.id)!);
@@ -122,7 +124,7 @@ export const SUPPLIERS_LIST: ListResource = {
       const kg = own.reduce((s, c) => s.add(c.netWeight), new Prisma.Decimal(0)).add(loose.reduce((s, e) => s.add(e.kg), new Prisma.Decimal(0)));
       // Nothing bought yet: no profit to show (a dash, not Rs 0).
       const bought = own.length + loose.length > 0;
-      return { ...r, containers: own.length, lots: loose.length, kg, profit: bought ? t.profit : null, profitPerKg: bought ? t.profitPerKg : null, yield: t.yieldPercent, topGrade: t.topGradePercent } as Row;
+      return { ...r, containers: own.length, lots: loose.length, kg, owed: khata.get(r.id)?.owed ?? null, profit: bought ? t.profit : null, profitPerKg: bought ? t.profitPerKg : null, yield: t.yieldPercent, topGrade: t.topGradePercent } as Row;
     });
   },
 };

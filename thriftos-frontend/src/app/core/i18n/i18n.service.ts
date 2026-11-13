@@ -83,6 +83,14 @@ export class I18nService {
     });
   }
 
+  /** A grade called just "1" reads "Grade 1" in a label ("Grade 1 %"), so the number is not taken for a figure. */
+  private gradeWord(name: string | null | undefined, lang: string): string | null {
+    if (!name) return null;
+    if (!/^\d+$/.test(name)) return name;
+    const word = lookup(this.dicts()[lang as Lang], 'common.gradeNamed');
+    return (word ?? 'Grade {name}').replace('{name}', name);
+  }
+
   /** `t('sell.save')`, `t('khata.owes', { amount: 'Rs 1,500' })`. A missing key shows the key, never blank. */
   t(key: string, params?: Record<string, string | number>): string {
     const lang = this.lang();
@@ -91,7 +99,7 @@ export class I18nService {
     // Words every screen may use: {topGrade} is this business's best grade ("Cream", "A"), or "Top grade" when none;
     // {money} is the business's currency as a word ("Rs", "$", "AED"), for labels such as "Price per bale ({money})".
     const all: Record<string, string | number> = {
-      topGrade: this.globals()['topGrade'] ?? lookup(this.dicts()[lang], 'common.topGrade') ?? 'Top grade',
+      topGrade: this.gradeWord(this.globals()['topGrade'], lang) ?? lookup(this.dicts()[lang], 'common.topGrade') ?? 'Top grade',
       money: this.currencyWord(),
       ...params,
     };

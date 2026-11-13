@@ -1,8 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { PaymentMethod, Prisma } from '@prisma/client';
+import { Type } from 'class-transformer';
+import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 import { combine, containerEconomics, lotEconomics, topPercent, yieldPercent } from '../home/container-economics';
 import { KHATA_SALE_STATUSES } from '../sales/khata.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { recordSupplierPayment, supplierBalances, SUPPLIER_CASH_CLOSED } from '../procurement/supplier-khata';
 
 const ZERO = new Prisma.Decimal(0);
 
@@ -15,6 +18,15 @@ function money<T>(allowed: boolean, value: T): T | null {
  * Record pages for the workspace (enterprise plan E3.1). The container overview is the traceability page:
  * landed cost → lots → sorting by category and grade → bales → sales → profit, all for one business.
  */
+/** Supplier khata: a payment to a supplier. */
+export class SupplierPaymentDto {
+  /** YYYY-MM-DD business day; today when absent. */
+  @IsOptional() @IsDateString() day?: string;
+  @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(1) amount!: number;
+  @IsOptional() @IsEnum(PaymentMethod) method?: PaymentMethod;
+  @IsOptional() @IsString() @MaxLength(300) note?: string;
+}
+
 @Injectable()
 export class WorkspaceRecordsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -156,7 +168,7 @@ export class WorkspaceRecordsService {
   async supplier(tenantId: string, id: string, canSeeCost: boolean) {
     const v = await this.prisma.vendor.findFirst({
       where: { id, tenantId },
-      select: { id: true, name: true, originCountry: true, country: true, contactPerson: true, contactPhone: true, contactEmail: true, physicalAddress: true, notes: true, isActive: true, createdAt: true },
+      select: { id: true, name: true, originCountry: true, country: true, contactPerson: true, contactPhone: true, contactEmail: true, physicalAddress: true, notes: true, isActive: true, createdAt: true, openingBalance: true },
     });
     if (!v) throw new NotFoundException('Supplier not found');
     // Loose lots (a gaari or bales bought without a container) are bought from suppliers too (v2 review).
@@ -173,12 +185,21 @@ export class WorkspaceRecordsService {
     const [econ, lotEcon] = await Promise.all([containerEconomics(this.prisma, tenantId, containers.map((c) => c.id)), lotEconomics(this.prisma, tenantId, lots.map((l) => l.id))]);
     // Sold, profit, sorted % and top grade count the loose lots too (v2 review): many businesses never buy a container.
     const t = combine([...containers.map((c) => econ.get(c.id)!), ...lots.map((l) => lotEcon.get(l.id)!)]);
+    // Supplier khata: what is owed and every payment (money, so only for those who may see costs).
+    const [balance, payments] = canSeeCost
+      ? await Promise.all([
+          supplierBalances(this.prisma, tenantId, [id]).then((m) => m.get(id)!),
+          this.prisma.supplierPayment.findMany({ where: { tenantId, vendorId: id }, orderBy: [{ day: 'desc' }, { createdAt: 'desc' }], select: { id: true, day: true, amount: true, method: true, note: true, cancelledAt: true } }),
+        ])
+      : [null, []];
     const landed = containers.reduce((s, c) => s.add(c.landedCostPKR), ZERO);
     const containerKg = containers.reduce((s, c) => s.add(c.netWeight), ZERO);
     const lotKg = lots.reduce((s, l) => s.add(l.weightKg), ZERO);
     const lotCost = lots.reduce((s, l) => s.add(l.allocatedCost), ZERO);
     return {
-      supplier: v,
+      supplier: { ...v, openingBalance: canSeeCost ? v.openingBalance : null },
+      khata: balance,
+      payments: payments.map((p) => ({ id: p.id, day: p.day.toISOString().slice(0, 10), amount: p.amount, method: p.method, note: p.note, cancelled: !!p.cancelledAt })),
       totals: {
         containers: containers.length,
         lots: lots.length,
@@ -210,5 +231,23 @@ export class WorkspaceRecordsService {
         };
       }),
     };
+  }
+
+  /** Supplier khata: money paid to a supplier (out of the cash or bank book, off what is owed). */
+  async paySupplier(tenantId: string, id: string, dto: SupplierPaymentDto, userId: string) {
+    return this.prisma.$transaction((tx) => recordSupplierPayment(tx, { tenantId, vendorId: id, amount: dto.amount, method: dto.method, day: dto.day, note: dto.note, userId }));
+  }
+
+  /** A payment typed by mistake: it stays for the record and counts nowhere. Not once that day's cash is closed. */
+  async cancelSupplierPayment(tenantId: string, id: string, paymentId: string, userId: string) {
+    const p = await this.prisma.supplierPayment.findFirst({ where: { id: paymentId, tenantId, vendorId: id } });
+    if (!p) throw new NotFoundException('Not found');
+    if (p.cancelledAt) throw new ConflictException({ code: 'ALREADY_CANCELLED', message: 'This is already cancelled' });
+    if (p.method === PaymentMethod.CASH && (await this.prisma.cashClose.findFirst({ where: { tenantId, day: p.day }, select: { id: true } }))) throw new ConflictException(SUPPLIER_CASH_CLOSED);
+    await this.prisma.$transaction([
+      this.prisma.supplierPayment.update({ where: { id: p.id }, data: { cancelledAt: new Date(), cancelledBy: userId } }),
+      this.prisma.auditLog.create({ data: { tenantId, userId, action: 'SUPPLIER_PAYMENT_CANCELLED', entityType: 'Vendor', entityId: id, metadataJson: { paymentId: p.id, amount: p.amount.toString(), method: p.method } } }),
+    ]);
+    return { id: p.id, cancelled: true };
   }
 }

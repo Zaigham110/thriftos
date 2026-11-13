@@ -785,12 +785,15 @@ model Vendor {
   physicalAddress   String?
   notes             String?
   isActive          Boolean    @default(true)
+  /// Supplier khata: what the business already owed this supplier when tracking started (0 = nothing).
+  openingBalance    Decimal    @default(0) @db.Decimal(14, 2)
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 
   // Relations
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   purchaseOrders PurchaseOrder[]
+  payments       SupplierPayment[]
   containers     Container[]
   rags           Rag[]
   stockItems     InventoryItem[]
@@ -862,6 +865,8 @@ model Container {
   varianceAlertStatus    String?
   /// Purchase price in purchaseCurrency (not a charge). Landed cost = purchaseCost × fxRate (if not PKR) + charges.
   purchaseCost           Decimal  @default(0) @db.Decimal(14, 2)
+  /// Supplier khata: this container's price is owed to its supplier until paid. False for those bought before the khata.
+  onKhata                Boolean  @default(false)
   purchaseCurrency       String   @default("PKR")
   fxRate                 Decimal  @default(1.0000) @db.Decimal(10, 4)
   /// Stored by the costing engine.
@@ -918,6 +923,8 @@ model Rag {
   weightKg      Decimal     @db.Decimal(10, 2)
   /// Price paid for a loose lot bought without a container (null for container lots).
   purchaseCost  Decimal?    @db.Decimal(14, 2)
+  /// Supplier khata: this lot's price is owed to its supplier until paid. False for lots bought before the khata.
+  onKhata       Boolean     @default(false)
   /// The rate per kg typed for a loose lot (purchaseCost = kg × rate); null when the total was typed.
   ratePerKg     Decimal?    @db.Decimal(14, 2)
   /// Pieces in a loose lot bought by the piece (bedsheets, blankets…); null when bought by weight.
@@ -1644,6 +1651,28 @@ model CashMove {
   cancelledBy String?
   createdAt   DateTime          @default(now())
 
+  @@index([tenantId, day])
+}
+
+/// Supplier khata: money paid to a supplier. Money out of the cash or bank book; never an expense (the goods'
+/// cost is already in cost of goods). Cancelled payments stay for the record and count nowhere.
+model SupplierPayment {
+  id          String        @id @default(cuid())
+  tenantId    String
+  vendorId    String
+  /// The business day (Pakistan).
+  day         DateTime      @db.Date
+  amount      Decimal       @db.Decimal(14, 2)
+  method      PaymentMethod @default(CASH)
+  note        String?
+  createdBy   String
+  cancelledAt DateTime?
+  cancelledBy String?
+  createdAt   DateTime      @default(now())
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([tenantId, vendorId])
   @@index([tenantId, day])
 }
 

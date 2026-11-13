@@ -102,6 +102,7 @@
   "total": "Kul",
   "undo": "Wapas karein",
   "weight": "Wazan",
+  "gradeNamed": "Grade {name}",
   "topGrade": "Behtareen grade",
   "showAllN": "Sab {n} dikhayen"
  },
@@ -913,6 +914,7 @@
    "notAllowed": "Yahan se yeh tabdeeli nahi ho sakti"
   },
   "book": {
+   "supplier": "Supplier {party} ko adaigi {ref}",
    "closing": "Aakhri baqaya",
    "empty": "Is muddat mein kuch nahi",
    "in": "Aaya",
@@ -1181,7 +1183,7 @@
     "landedCost": "Container aap ko kul kitne ka para: {money} mein qeemat aur har kharcha, jaise freight, duty, clearing aur transport.",
     "profit": "Ab tak ki sale minus bike maal ki laagat (container ki kul laagat mein us ka hissa).",
     "revenue": "Is container se nikle har maal ki ab tak ki sale.",
-    "topGrade": "Jitna kg grade hua, us mein se aap ke sab se ache grade ({topGrade}, grade list mein number 1) ka hissa.",
+    "topGrade": "Jitna kg grade hua, us mein se aap ke sab se ache grade ({topGrade}: aap ki list ka sab se oopar wala grade jo aap waqai istemal karte hain) ka hissa.",
     "yield": "Ab tak categories mein chhanta kg, container ke saaf kg ke hisse ke tor par. Kat aur baqi kg nahi gine jate."
    },
    "search": "Container number, supplier ya mulk dhoondein",
@@ -1437,6 +1439,8 @@
    "unsaved": "Aap ki tabdeeliyan save nahi huin. Yeh safha chhor kar unhein khatam kar dein?"
   },
   "lf": {
+   "paidNow": "Abhi ada kiya",
+   "paidNowHint": "Baqi qeemat supplier ke khate mein aap ke zimme rahegi.",
    "containerLot": "Yeh lot container mein aaya. Isay container se badlein.",
    "date": "Kharid ka din",
    "dateInfo": "Jis din lot khareeda. Listein aur report yehi din leti hain.",
@@ -1959,6 +1963,20 @@
    "gradingNow": "grading jaari"
   },
   "sp": {
+   "owe": "Aap ke zimme",
+   "paidAhead": "Peshgi ada",
+   "oweLine": "Khareedari {bought} · ada {paid}",
+   "oweInfo": "Is supplier ke aap par baqi paise: jab se yahan hisaab rakha hai us se khareede maal ki qeemat, jama pehle ka baqi, minus jo aap ne ada kiya. Kiraya aur mazdoori shamil nahi; woh doosron ko diye jate hain.",
+   "pay": "Supplier ko adaigi",
+   "payAmount": "Ada ki gayi raqam",
+   "paySaved": "Adaigi mehfooz ho gayi",
+   "payments": "Adaigiyan",
+   "noPayments": "Is supplier ko abhi koi adaigi nahi",
+   "payCancel": "Adaigi cancel karein",
+   "payCancelAsk": "{amount} ki yeh adaigi cancel karein? Yeh kahin shumar nahi hogi.",
+   "payCancelled": "Cancel shuda",
+   "opening": "Pehle se baqi raqam",
+   "openingHint": "Yahan hisaab rakhne se pehle is supplier ke aap par jo paise the. Kuch nahi to khali chhor dein.",
    "call": "Call",
    "whatsapp": "WhatsApp",
    "active": "Ab bhi is supplier se kharid (maal aane par dikhayein)",
@@ -2126,6 +2144,7 @@
   },
   "suppliers": {
    "col": {
+    "owed": "Aap ke zimme",
     "containers": "Container",
     "kg": "Khareeda kg",
     "name": "Supplier",

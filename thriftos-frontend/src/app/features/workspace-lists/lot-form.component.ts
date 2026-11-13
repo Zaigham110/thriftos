@@ -9,6 +9,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
 import { COUNTRIES } from '../../shared/countries';
 import { ToastService } from '../../shared/floor/toast.service';
+import { PAYMENT_METHODS } from './lists';
 import { WsInfoComponent, WsPageHeaderComponent, WsStateComponent } from '../../shared/ui/workspace';
 
 interface Option { id: string; name: string; originCountry?: string | null; country?: string | null; rawType?: string }
@@ -113,6 +114,15 @@ const day = (v: string) => new Date(new Date(v).getTime() + 5 * 3_600_000).toISO
                     <label>{{ 'ws.lf.pricePaid' | t }}<input name="cost" type="number" min="0" step="0.01" required [ngModel]="cost()" (ngModelChange)="cost.set($event)" /></label>
                   }
                 </div>
+                @if (!id() && vendorId) {
+                  <!-- Supplier khata: the price is owed to the supplier; money handed over now comes off it. -->
+                  <label>{{ 'ws.lf.paidNow' | t }} · {{ 'common.optional' | t }}<input name="paidNow" type="number" min="0" step="0.01" [(ngModel)]="paidNow" /><small>{{ 'ws.lf.paidNowHint' | t }}</small></label>
+                  @if (paidNow) {
+                    <label>{{ 'ws.expenses.paidBy' | t }}
+                      <select name="paidMethod" [(ngModel)]="paidMethod">@for (m of methods; track m) { <option [value]="m">{{ 'method.' + m | t }}</option> }</select>
+                    </label>
+                  }
+                }
                 <label class="span2">{{ 'ws.customer.note' | t }} · {{ 'common.optional' | t }}<input name="notes" maxlength="500" [(ngModel)]="notes" [placeholder]="'ws.lf.noteHint' | t" /></label>
               </div>
             </section>
@@ -254,6 +264,10 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
 
   protected code = '';
   protected vendorId = '';
+  /** Supplier khata: money handed to the supplier on the spot (new lots only). */
+  protected paidNow: number | null = null;
+  protected paidMethod: string = 'CASH';
+  protected readonly methods = PAYMENT_METHODS;
   protected rawCategoryId = '';
   protected date = today();
   protected notes = '';
@@ -437,7 +451,7 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
         this.nav.back(['/sort/records', id]);
         return;
       } else {
-        const r = await firstValueFrom(this.http.post<{ id: string; ragCode: string }>('/api/procurement/rags', { ragBaleType: 'BALE', ...body, notes: body.notes || undefined }));
+        const r = await firstValueFrom(this.http.post<{ id: string; ragCode: string }>('/api/procurement/rags', { ragBaleType: 'BALE', ...body, notes: body.notes || undefined, ...(this.vendorId && Number(this.paidNow) > 0 ? { paidNow: Number(this.paidNow), paidMethod: this.paidMethod } : {}) }));
         id = r.id;
         await this.upload(r.id);
         this.toast.show(this.i18n.t('receive.lotSaved', { code: r.ragCode }));

@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, MaxLength, IsEnum } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, MaxLength, IsEnum, IsNumber } from 'class-validator';
 import { VendorType } from '@prisma/client';
 
 export class CreateVendorDto {
@@ -76,4 +76,9 @@ export class CreateVendorDto {
   @IsOptional()
   @MaxLength(1000)
   notes?: string;
+
+  /** Supplier khata: what you already owed this supplier when you started tracking (negative = paid ahead). */
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsOptional()
+  openingBalance?: number;
 }

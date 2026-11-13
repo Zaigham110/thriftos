@@ -675,6 +675,55 @@ test('suppliers: add one, change its phone, buy from it with the supplier alread
   await expect(page.getByLabel('From country')).toHaveValue('Italy');
 });
 
+test('supplier khata: a lot bought with part paid now is owed, a payment brings it down, a cancelled one puts it back', async ({ page, request }) => {
+  const api = await apiAs(request);
+  const tag = Date.now().toString().slice(-6);
+  const supplier = await api.post('/procurement/vendors', { name: `Khata Rags ${tag}` });
+
+  await signIn(page);
+  await page.goto(`/receive/records/suppliers/${supplier.id}`);
+  const owe = page.locator('ol.story li').filter({ hasText: 'You owe' }).locator('strong');
+  await expect(owe).toHaveText(/Rs 0/);
+
+  // Buy a loose lot from them: Rs 160,000, Rs 60,000 handed over now.
+  await page.getByRole('link', { name: 'Buy a loose lot' }).click();
+  await page.getByLabel(/^Lot weight/).fill('800');
+  await page.getByLabel(/^Price paid/).fill('160000');
+  await page.getByLabel(/^Paid now/).fill('60000');
+  // Through the bank: another test may already have closed today's cash, and cash cannot be paid on a closed day.
+  await page.getByLabel('Paid by').selectOption('BANK');
+  await page.getByRole('button', { name: 'Save lot' }).click();
+  await expect(page).toHaveURL(/\/sort\/records\/(?!new)[^/]+$/);
+
+  await page.goto(`/receive/records/suppliers/${supplier.id}`);
+  await expect(owe).toHaveText(/Rs 100,000/);
+  await expect(page.locator('ol.story li').filter({ hasText: 'You owe' })).toContainText(/Bought .?Rs 160,000.? · paid .?Rs 60,000/);
+
+  // Pay supplier: what is owed is already typed in; pay Rs 40,000 through the bank.
+  await page.getByRole('button', { name: 'Pay supplier' }).click();
+  await expect(page.getByLabel('Amount paid')).toHaveValue('100000');
+  await page.getByLabel('Amount paid').fill('40000');
+  await page.getByLabel('Paid by').selectOption('BANK');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(owe).toHaveText(/Rs 60,000/);
+  await expect(page.locator('table.pays tbody tr')).toHaveCount(2);
+
+  // The Suppliers list shows the same; the bank book shows the money that went out.
+  await page.goto('/receive/records/suppliers');
+  await page.getByPlaceholder('Search supplier, country or phone').fill(`Khata Rags ${tag}`);
+  await expect(page.locator('ws-data-grid tbody tr').filter({ hasText: `Khata Rags ${tag}` })).toContainText('Rs 60,000');
+  await page.goto('/finance/book');
+  await page.getByRole('group', { name: 'Paid by' }).or(page.locator('.methods')).first().getByRole('button', { name: 'Bank', exact: true }).click();
+  await expect(page.locator('main')).toContainText(`Paid to supplier Khata Rags ${tag}`);
+
+  // A payment typed by mistake is cancelled and counts nowhere.
+  await page.goto(`/receive/records/suppliers/${supplier.id}?tab=payments`);
+  page.once('dialog', (d) => void d.accept());
+  await page.locator('table.pays tbody tr').filter({ hasText: 'Rs 40,000' }).getByRole('button', { name: 'Cancel payment' }).click();
+  await expect(owe).toHaveText(/Rs 100,000/);
+  await expect(page.locator('table.pays tbody tr').filter({ hasText: 'Rs 40,000' })).toContainText('Cancelled');
+});
+
 test('breadcrumbs: none on menu pages; a record opened from another keeps the way back', async ({ page, request }) => {
   const api = await apiAs(request);
   const tag = Date.now().toString().slice(-6);

@@ -1,6 +1,7 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { KHATA_SALE_STATUSES } from '../sales/khata.service';
 import { byContainer, LineSource, percent, topGradePercent } from './home';
+import { topGrade as topGradeOf } from '../sorting/top-grade';
 
 const ZERO = new Prisma.Decimal(0);
 
@@ -61,7 +62,7 @@ async function economics(prisma: PrismaClient | Prisma.TransactionClient, tenant
       where: { tenantId, gradeBucket: { gradeSession: { categoryOutput: own } } },
       select: { weightKg: true, grade: { select: { rank: true } }, gradeBucket: { select: { gradeSession: { select: { categoryOutput: { select: { containerId: true, ragId: true } } } } } } },
     }),
-    prisma.grade.findFirst({ where: { tenantId, isActive: true }, orderBy: { rank: 'asc' }, select: { rank: true } }),
+    topGradeOf(prisma, tenantId),
     // Profit = sales − landed cost − labour (Phase 8.4).
     prisma.labourCost.findMany({ where: { tenantId, ...own }, select: { containerId: true, ragId: true, amount: true } }),
   ]);

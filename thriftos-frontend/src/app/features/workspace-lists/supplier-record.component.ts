@@ -1,13 +1,16 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { LucideAngularModule, Pencil, Plus } from 'lucide-angular';
+import { Banknote, LucideAngularModule, Pencil, Plus } from 'lucide-angular';
 import { catchError, map, of, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
 import { NavService } from '../../core/nav/nav.service';
+import { ToastService } from '../../shared/floor/toast.service';
+import { PAYMENT_METHODS } from './lists';
 import {
   WsColumn,
   WsDataGridComponent,
@@ -28,6 +31,9 @@ export interface SupplierScorecard {
     id: string; name: string; originCountry: string | null; country: string | null; contactPerson: string | null; contactPhone: string | null;
     contactEmail: string | null; physicalAddress: string | null; notes: string | null; isActive: boolean;
   };
+  /** Supplier khata: what is owed (null without cost.view) and the payments made. */
+  khata: { opening: string; bought: string; paid: string; owed: string } | null;
+  payments: { id: string; day: string; amount: string; method: string; note: string | null; cancelled: boolean }[];
   totals: { containers: number; lots: number; kg: string; landed: Money; revenue: string; profit: Money; profitPerKg: Money; yieldPercent: number | null; topGradePercent: number | null };
   containers: { id: string; number: string; date: string; status: string; origin: string | null; kg: string; landedCost: Money; costPerKg: Money; revenue: string; profit: Money; yield: number | null; topGrade: number | null }[];
   lots: { id: string; code: string; date: string; status: string; rawType: string | null; kg: string; cost: Money; costPerKg: Money; revenue: string; profit: Money; sortedPercent: number | null }[];
@@ -40,7 +46,7 @@ export interface SupplierScorecard {
 @Component({
   selector: 'app-supplier-record',
   standalone: true,
-  imports: [RouterLink, LucideAngularModule, TPipe, WsDataGridComponent, WsInfoComponent, WsPageHeaderComponent, WsRecordActivityComponent, WsStateComponent, WsTabsComponent],
+  imports: [FormsModule, RouterLink, LucideAngularModule, TPipe, WsDataGridComponent, WsInfoComponent, WsPageHeaderComponent, WsRecordActivityComponent, WsStateComponent, WsTabsComponent],
   template: `
     @if (failed()) {
       <ws-state kind="error" [heading]="'ws.supplier.notFound' | t" (retry)="reload()" />
@@ -50,6 +56,9 @@ export interface SupplierScorecard {
           <ws-page-header [heading]="d.supplier.name" [subtitle]="subtitle()">
             @if (phone(); as ph) { <a actions class="ws-btn" [href]="'tel:' + ph">{{ 'ws.sp.call' | t }}</a> }
             @if (whatsapp(); as wa) { <a actions class="ws-btn" [href]="'https://wa.me/' + wa" target="_blank" rel="noopener">{{ 'ws.sp.whatsapp' | t }}</a> }
+            @if (d.khata && can('expense.create')) {
+              <button actions type="button" class="ws-btn primary" (click)="startPay()"><lucide-icon [img]="icons.Banknote" [size]="16" aria-hidden="true" />{{ 'ws.sp.pay' | t }}</button>
+            }
             @if (can('vendor.update')) {
               <a actions class="ws-btn" [routerLink]="['/receive/records/suppliers', d.supplier.id, 'edit']" [state]="nav.trailState()"><lucide-icon [img]="icons.Pencil" [size]="16" aria-hidden="true" />{{ 'ws.container.edit' | t }}</a>
             }
@@ -62,6 +71,21 @@ export interface SupplierScorecard {
           </ws-page-header>
           @if (d.supplier.notes) { <p class="note">{{ d.supplier.notes }}</p> }
 
+          @if (paying()) {
+            <form class="pay" (ngSubmit)="pay()">
+              <label>{{ 'ws.sp.payAmount' | t }}<input name="amount" type="number" min="1" step="0.01" required [(ngModel)]="payAmount" /></label>
+              <label>{{ 'common.date' | t }}<input name="day" type="date" required [max]="today" [(ngModel)]="payDay" /></label>
+              <label>{{ 'ws.expenses.paidBy' | t }}
+                <select name="method" [(ngModel)]="payMethod">@for (m of methods; track m) { <option [value]="m">{{ 'method.' + m | t }}</option> }</select>
+              </label>
+              <label class="wide">{{ 'ws.customer.note' | t }} · {{ 'common.optional' | t }}<input name="note" maxlength="300" [(ngModel)]="payNote" /></label>
+              <div class="pay-actions">
+                <button type="button" class="ws-btn" (click)="paying.set(false)">{{ 'common.cancel' | t }}</button>
+                <button type="submit" class="ws-btn primary" [disabled]="!(payAmount! > 0) || !payDay || busy()">{{ (busy() ? 'common.saving' : 'common.save') | t }}</button>
+              </div>
+            </form>
+          }
+
           <ol class="story" [attr.aria-label]="'ws.sp.story' | t">
             <li>
               <span class="lbl">{{ 'ws.suppliers.col.kg' | t }} <ws-info [title]="'ws.suppliers.col.kg' | t" [text]="'ws.sp.info.kg' | t" /></span>
@@ -71,6 +95,13 @@ export interface SupplierScorecard {
               <li>
                 <span class="lbl">{{ 'ws.containers.col.landedCost' | t }} <ws-info [title]="'ws.containers.col.landedCost' | t" [text]="'ws.sp.info.cost' | t" /></span>
                 <strong>{{ rs(d.totals.landed) }}</strong>
+              </li>
+            }
+            @if (d.khata; as k) {
+              <li>
+                <span class="lbl">{{ (owes() ? 'ws.sp.owe' : +k.owed < 0 ? 'ws.sp.paidAhead' : 'ws.sp.owe') | t }} <ws-info [title]="'ws.sp.owe' | t" [text]="'ws.sp.oweInfo' | t" /></span>
+                <strong [class.bad]="owes()">{{ rs(+k.owed < 0 ? -k.owed : k.owed) }}</strong>
+                <small>{{ 'ws.sp.oweLine' | t: { bought: rs(+k.bought + +k.opening), paid: rs(k.paid) } }}</small>
               </li>
             }
             <li>
@@ -92,7 +123,24 @@ export interface SupplierScorecard {
 
           <ws-tabs [tabs]="tabs()" [active]="tab()" (activeChange)="pickTab($event)" [label]="d.supplier.name" />
           <div role="tabpanel" [id]="'ws-panel-' + tab()" [attr.aria-labelledby]="'ws-tab-' + tab()">
-            @if (tab() === 'lots') {
+            @if (tab() === 'payments') {
+              @if (d.payments.length) {
+                <table class="pays">
+                  <thead><tr><th>{{ 'common.date' | t }}</th><th class="num">{{ 'ws.sp.payAmount' | t }}</th><th>{{ 'ws.expenses.paidBy' | t }}</th><th>{{ 'ws.customer.note' | t }}</th><th></th></tr></thead>
+                  <tbody>
+                    @for (p of d.payments; track p.id) {
+                      <tr [class.off]="p.cancelled">
+                        <td>{{ day(p.day) }}</td><td class="num">{{ i18n.money(p.amount) }}</td><td>{{ 'method.' + p.method | t }}</td><td>{{ p.note ?? '—' }}</td>
+                        <td class="end">
+                          @if (p.cancelled) { <span class="ws-status" data-tone="muted">{{ 'ws.sp.payCancelled' | t }}</span> }
+                          @else if (can('expense.create') && can('finance.view')) { <button type="button" class="ws-btn" [disabled]="busy()" (click)="cancelPay(p.id, p.amount)">{{ 'ws.sp.payCancel' | t }}</button> }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              } @else { <ws-state kind="empty" [heading]="'ws.sp.noPayments' | t" /> }
+            } @else if (tab() === 'lots') {
               <ws-data-grid [caption]="'ws.purchasing.lots' | t" [columns]="lotColumns()" [rows]="lotRows()" [clickable]="true" (rowClick)="openLot($event)" [emptyHeading]="'ws.sp.noLots' | t" />
             } @else {
               <ws-data-grid [caption]="'ws.containers.title' | t" [columns]="columns()" [rows]="rows()" [clickable]="true" (rowClick)="open($event)" [emptyHeading]="'ws.supplier.noContainers' | t" />
@@ -117,6 +165,18 @@ export interface SupplierScorecard {
     .story strong { font-size:var(--ws-text-lg); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-variant-numeric:tabular-nums; }
     .story strong.good { color:var(--ws-good); }
     .story strong.bad { color:var(--ws-bad); }
+    .pay { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:var(--ws-3); padding:var(--ws-4); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); }
+    .pay label { display:grid; gap:4px; color:var(--ws-ink-2); font-size:var(--ws-text-sm); }
+    .pay .wide { grid-column:1 / -1; }
+    .pay input, .pay select { box-sizing:border-box; width:100%; min-height:var(--ws-control-h); padding:var(--ws-2); border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface); color:var(--ws-ink); font:inherit; }
+    .pay-actions { grid-column:1 / -1; display:flex; justify-content:flex-end; gap:var(--ws-2); }
+    .pays { width:100%; border-collapse:collapse; border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); font-size:var(--ws-text-sm); }
+    .pays th { text-align:start; padding:var(--ws-2) var(--ws-3); color:var(--ws-ink-2); font-size:var(--ws-text-xs); font-weight:600; text-transform:uppercase; border-block-end:1px solid var(--ws-line); }
+    .pays td { padding:var(--ws-2) var(--ws-3); border-block-end:1px solid var(--ws-line); }
+    .pays .num { text-align:end; font-variant-numeric:tabular-nums; }
+    .pays .end { text-align:end; }
+    .pays tr.off td:not(.end) { color:var(--ws-ink-2); text-decoration:line-through; }
+    @media (max-width: 640px) { .pay { grid-template-columns:minmax(0, 1fr); } }
     .story small { color:var(--ws-ink-2); font-size:var(--ws-text-xs); }
     @media (max-width: 1199px) { .record { grid-template-columns:minmax(0, 1fr); } .side { position:static; } .story { grid-auto-flow:row; } .story li + li { border-inline-start:0; border-block-start:1px solid var(--ws-line); } }
   `],
@@ -133,7 +193,20 @@ export class SupplierRecordComponent {
   /** ?tab= (containers or lots), kept in the address so Back opens the same tab. */
   readonly tabParam = input<string | undefined>(undefined, { alias: 'tab' });
 
-  protected readonly icons = { Pencil, Plus };
+  protected readonly icons = { Banknote, Pencil, Plus };
+  private readonly toast = inject(ToastService);
+  protected readonly methods = PAYMENT_METHODS;
+  /** Today in Pakistan (UTC+5), as yyyy-mm-dd. */
+  protected readonly today = new Date(Date.now() + 5 * 3_600_000).toISOString().slice(0, 10);
+  // Pay supplier (supplier khata): a small form under the header.
+  protected readonly paying = signal(false);
+  protected readonly busy = signal(false);
+  protected payAmount: number | null = null;
+  protected payDay = this.today;
+  protected payMethod: string = 'CASH';
+  protected payNote = '';
+  private payKey = crypto.randomUUID();
+  protected readonly owes = computed(() => Number(this.data()?.khata?.owed ?? 0) > 0);
   protected readonly data = signal<SupplierScorecard | null>(null);
   protected readonly failed = signal(false);
   private readonly reloads = signal(0);
@@ -150,13 +223,14 @@ export class SupplierRecordComponent {
       ? [
           { id: 'containers', label: this.i18n.t('ws.purchasing.containers'), count: d.containers.length },
           { id: 'lots', label: this.i18n.t('ws.purchasing.lots'), count: d.lots.length },
+          ...(d.khata ? [{ id: 'payments', label: this.i18n.t('ws.sp.payments'), count: d.payments.filter((p) => !p.cancelled).length }] : []),
         ]
       : [];
   });
   /** Opens on loose lots when the supplier sold you only loose lots. */
   protected readonly tab = computed(() => {
     const want = this.tabParam();
-    if (want === 'lots' || want === 'containers') return want;
+    if (want === 'lots' || want === 'containers' || want === 'payments') return want;
     const d = this.data();
     return d && !d.containers.length && d.lots.length ? 'lots' : 'containers';
   });
@@ -248,6 +322,51 @@ export class SupplierRecordComponent {
   /** Whole rupees for totals (per-kg prices keep paisa). */
   protected rs(v: string | number | null | undefined): string {
     return v === null || v === undefined || v === '' ? '—' : this.i18n.money(Math.round(Number(v)));
+  }
+
+  protected day(v: string): string {
+    return new Date(`${v}T00:00:00`).toLocaleDateString(this.i18n.lang() === 'ur' ? 'ur-PK' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric', numberingSystem: 'latn' });
+  }
+
+  /** Opens the payment form with what is owed already typed in. */
+  protected startPay(): void {
+    const owed = Number(this.data()?.khata?.owed ?? 0);
+    this.payAmount = owed > 0 ? owed : null;
+    this.payDay = this.today;
+    this.payNote = '';
+    this.paying.set(true);
+  }
+
+  protected pay(): void {
+    if (!(Number(this.payAmount) > 0) || this.busy()) return;
+    this.busy.set(true);
+    const body = { amount: Number(this.payAmount), day: this.payDay, method: this.payMethod, ...(this.payNote.trim() ? { note: this.payNote.trim() } : {}) };
+    this.http.post(`/api/workspace/suppliers/${this.id()}/payments`, body, { headers: new HttpHeaders({ 'Idempotency-Key': this.payKey }) }).subscribe({
+      next: () => {
+        this.payKey = crypto.randomUUID();
+        this.busy.set(false);
+        this.paying.set(false);
+        this.toast.show(this.i18n.t('ws.sp.paySaved'));
+        this.pickTab('payments');
+        this.reload();
+      },
+      error: (e: HttpErrorResponse) => {
+        this.busy.set(false);
+        this.toast.error(e.error?.code === 'CASH_CLOSED' ? this.i18n.t('ws.expenses.err.CASH_CLOSED') : e.error?.message ?? this.i18n.t('common.couldNotSave'));
+      },
+    });
+  }
+
+  protected cancelPay(paymentId: string, amount: string): void {
+    if (!confirm(this.i18n.t('ws.sp.payCancelAsk', { amount: this.i18n.money(amount) }))) return;
+    this.busy.set(true);
+    this.http.post(`/api/workspace/suppliers/${this.id()}/payments/${paymentId}/cancel`, {}).subscribe({
+      next: () => { this.busy.set(false); this.reload(); },
+      error: (e: HttpErrorResponse) => {
+        this.busy.set(false);
+        this.toast.error(e.error?.code === 'CASH_CLOSED' ? this.i18n.t('ws.expenses.err.CASH_CLOSED') : e.error?.message ?? this.i18n.t('common.couldNotSave'));
+      },
+    });
   }
 
   protected pickTab(tab: string): void {

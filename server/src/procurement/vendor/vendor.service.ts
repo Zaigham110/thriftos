@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../audit/audit.service';
@@ -38,6 +39,7 @@ export class VendorService {
         remittanceAccount: dto.remittanceAccount,
         physicalAddress: dto.physicalAddress,
         notes: dto.notes,
+        ...(dto.openingBalance !== undefined && { openingBalance: new Prisma.Decimal(dto.openingBalance) }),
       },
     });
 
@@ -106,6 +108,7 @@ export class VendorService {
         ...(dto.remittanceAccount !== undefined && { remittanceAccount: dto.remittanceAccount }),
         ...(dto.physicalAddress !== undefined && { physicalAddress: dto.physicalAddress }),
         ...(dto.notes !== undefined && { notes: dto.notes }),
+        ...(dto.openingBalance !== undefined && { openingBalance: new Prisma.Decimal(dto.openingBalance) }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
       },
     });

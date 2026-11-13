@@ -8,7 +8,7 @@ import { TenantId } from '../common/decorators/tenant-id.decorator';
 import { PermissionGuard } from '../common/guards/permission.guard';
 import { TenantGuard } from '../common/guards/tenant.guard';
 import { ListsService } from '../lists/lists.service';
-import { WorkspaceRecordsService } from './records.service';
+import { SupplierPaymentDto, WorkspaceRecordsService } from './records.service';
 import { CreditLimitDto, PromiseDto, ReceivablesService, ReminderDto, StatementQueryDto } from './receivables.service';
 import { SortingRecordsService, YieldQueryDto } from './sorting-records.service';
 import { AnalyticsService, PeriodDto, SalesAnalyticsQueryDto, ScorecardQueryDto } from './analytics.service';
@@ -46,6 +46,21 @@ export class WorkspaceController {
   @RequirePermissions('vendor.read')
   async supplier(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string) {
     return this.records.supplier(tenantId, id, await this.canSeeCost(user));
+  }
+
+  /** Supplier khata: pay a supplier. Whoever records expenses pays suppliers; cancelling needs Finance as well. */
+  @Idempotent('SUPPLIER_PAYMENT_CREATE')
+  @Post('suppliers/:id/payments')
+  @RequirePermissions('expense.create')
+  paySupplier(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string, @Body() dto: SupplierPaymentDto) {
+    return this.records.paySupplier(tenantId, id, dto, user.userId);
+  }
+
+  @Post('suppliers/:id/payments/:paymentId/cancel')
+  @HttpCode(200)
+  @RequirePermissions('expense.create', 'finance.view')
+  cancelSupplierPayment(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string, @Param('paymentId') paymentId: string) {
+    return this.records.cancelSupplierPayment(tenantId, id, paymentId, user.userId);
   }
 
   // ---- Inventory (E3.3) ----

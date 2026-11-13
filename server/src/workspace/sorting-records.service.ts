@@ -4,6 +4,7 @@ import { IsDateString, IsIn, IsOptional } from 'class-validator';
 import { localDayStart } from '../common/list/list-engine';
 import { percent, topGradePercent } from '../home/home';
 import { PrismaService } from '../prisma/prisma.service';
+import { topGrade as topGradeOf } from '../sorting/top-grade';
 
 const ZERO = new Prisma.Decimal(0);
 const DAY = 86_400_000;
@@ -78,7 +79,7 @@ export class SortingRecordsService {
         },
       }),
     ]);
-    const topRank = (await this.prisma.grade.findFirst({ where: { tenantId, isActive: true }, orderBy: { rank: 'asc' }, select: { rank: true } }))?.rank ?? null;
+    const topRank = (await topGradeOf(this.prisma, tenantId))?.rank ?? null;
     // Graded kg: grades given while sorting ("Jeans · A") plus a separate grading afterwards. An entry that was
     // graded again afterwards counts once, by that grading.
     const allGraded = [
@@ -180,7 +181,7 @@ export class SortingRecordsService {
         where: { tenantId, gradeBucket: { gradeSession: { categoryOutput: { ragId: { in: ragIds } } } } },
         select: { weightKg: true, count: true, grade: { select: { name: true, rank: true } }, gradeBucket: { select: { gradeSession: { select: { categoryOutput: { select: { ragId: true } } } } } } },
       }),
-      this.prisma.grade.findFirst({ where: { tenantId, isActive: true }, orderBy: { rank: 'asc' }, select: { rank: true } }),
+      topGradeOf(this.prisma, tenantId),
       this.prisma.wasteLineItem.findMany({ where: { tenantId, ragId: { in: ragIds }, unitType: WasteUnitType.KG }, select: { stage: true, amount: true, estimatedValue: true, wasteCategory: { select: { name: true } } } }),
     ]);
     const keyOf = (s: (typeof sessions)[number]): string => {

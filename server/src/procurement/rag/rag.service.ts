@@ -8,6 +8,7 @@ import { CreateRagDto, UpdateRagDto } from './dto';
 import { ContainerStatus, RagStatus, RagSourceType, SequenceScope } from '@prisma/client';
 import { defaultRawCategoryId } from '../shared/default-raw-category';
 import { TenantSequenceService } from '../shared/tenant-sequence.service';
+import { recordSupplierPayment } from '../supplier-khata';
 
 const CHARGE_SELECT = { id: true, kind: true, amount: true, note: true } as const;
 
@@ -145,6 +146,8 @@ export class RagService {
           originCountry,
           weightKg,
           purchaseCost,
+          // Supplier khata: a loose lot bought from a supplier is owed to them until paid.
+          onKhata: !container && !!vendorId,
           ratePerKg: !container && dto.ratePerKg !== undefined ? new Prisma.Decimal(dto.ratePerKg) : null,
           pieces: !container && dto.pieces !== undefined ? dto.pieces : null,
           ratePerPiece: !container && dto.ratePerPiece !== undefined && dto.purchaseCost === undefined ? new Prisma.Decimal(dto.ratePerPiece) : null,
@@ -156,6 +159,10 @@ export class RagService {
       });
       // A container lot takes its share of the landed cost; the other lots are re-split too.
       if (container) await this.costing.recalculateContainerTx(tx, tenantId, container.id, userId);
+      if (!container && dto.paidNow) {
+        if (!vendorId) throw new BadRequestException('Pick the supplier you paid');
+        await recordSupplierPayment(tx, { tenantId, vendorId, amount: dto.paidNow, method: dto.paidMethod, note: ragCode, userId });
+      }
       return tx.rag.findUniqueOrThrow({
         where: { id: created.id },
         include: {
