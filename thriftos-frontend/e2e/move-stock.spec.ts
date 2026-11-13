@@ -25,17 +25,30 @@ test('move between godowns: pick a godown, add a bale by its code, move it', asy
     await expect(page.getByRole('heading', { name: 'Move between godowns' })).toBeVisible();
     await page.getByRole('radio', { name: `Shop ${tag}` }).click();
     await page.getByLabel('Bale code').fill(code);
-    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await page.locator('form.typed').getByRole('button', { name: 'Add', exact: true }).click();
     await expect(page.getByRole('list', { name: 'Bales to move' })).toContainText(code);
     // The same code twice is added once.
     await page.getByLabel('Bale code').fill(code);
-    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await page.locator('form.typed').getByRole('button', { name: 'Add', exact: true }).click();
     await expect(page.getByRole('list', { name: 'Bales to move' }).locator('li.row')).toHaveCount(1);
     await page.getByRole('button', { name: `Move to Shop ${tag}` }).click();
-    await expect(page.getByText(`1 bales moved to Shop ${tag}`)).toBeVisible();
+    await expect(page.getByText(`1 moved to Shop ${tag}`)).toBeVisible();
+    // A wrong code is refused and cleared, so the next one typed is not added to it.
+    await page.getByLabel('Bale code').fill('NO-SUCH');
+    await page.locator('form.typed').getByRole('button', { name: 'Add', exact: true }).click();
+    await expect(page.getByText('NO-SUCH is not a bale in stock')).toBeVisible();
+    await expect(page.getByLabel('Bale code')).toHaveValue('');
+    // Pick from stock (a laptop has no camera): the bale is found by its code and moved back.
+    const main = ((await api.get('/tenant/warehouses')) as Array<{ id: string; name: string }>).find((g) => g.id !== godown.id)!;
+    await page.getByRole('radio', { name: main.name }).click();
+    await page.locator('.pick input').fill(code);
+    const option = page.getByRole('list', { name: 'Or pick from stock' }).locator('li.row').filter({ hasText: code });
+    await option.getByRole('button', { name: 'Add' }).click();
+    await page.getByRole('button', { name: `Move to ${main.name}` }).click();
+    await expect(page.getByText(`1 moved to ${main.name}`)).toBeVisible();
     const items = await api.get(`/lists/stock?pageSize=200&f=status:ne:SOLD`);
     const row = (items.rows as Array<{ code: string | null; godown: string | null }>).find((r) => r.code === code);
-    expect(row?.godown).toBe(`Shop ${tag}`);
+    expect(row?.godown).toBe(main.name);
     expect(godown.id).toBeTruthy();
   } finally {
     await undo();

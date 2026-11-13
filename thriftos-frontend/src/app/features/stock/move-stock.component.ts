@@ -27,10 +27,12 @@ interface Picked { id: string; code: string | null; name: string | null; unit: '
         <h1>{{ 'move.title' | t }}</h1>
       </header>
 
-      <span class="field-label" id="to-godown">{{ 'move.to' | t }}</span>
+      <span class="field-label" id="to-godown" [hidden]="godowns().length < 2">{{ 'move.to' | t }}</span>
       <div class="chips" role="radiogroup" aria-labelledby="to-godown">
-        @for (g of godowns(); track g.id) {
-          <button type="button" class="chip" role="radio" [class.on]="to() === g.id" [attr.aria-checked]="to() === g.id" (click)="to.set(g.id)">{{ g.name }}</button>
+        @if (godowns().length >= 2) {
+          @for (g of godowns(); track g.id) {
+            <button type="button" class="chip" role="radio" [class.on]="to() === g.id" [attr.aria-checked]="to() === g.id" (click)="to.set(g.id)">{{ g.name }}</button>
+          }
         }
         @if (canAddGodown()) { <button type="button" class="chip add-g" (click)="adding.set(!adding())">+ {{ 'move.newGodown' | t }}</button> }
       </div>
@@ -45,28 +47,44 @@ interface Picked { id: string; code: string | null; name: string | null; unit: '
         </form>
       }
 
-      <div class="card add">
-        <button type="button" class="btn primary block" (click)="scanning.set(true)"><lucide-icon [img]="icons.ScanLine" [size]="20" /> {{ 'move.scan' | t }}</button>
-        <form class="typed" (ngSubmit)="add(code)">
-          <label class="field">{{ 'stock.code' | t }}<input name="code" [(ngModel)]="code" autocomplete="off" autocapitalize="characters" class="ltr" placeholder="B-0001" /></label>
-          <button type="submit" class="btn" [disabled]="!code.trim() || busy()">{{ 'move.add' | t }}</button>
-        </form>
-      </div>
-      @if (scanning()) { <tos-scan-sheet (scanned)="scanned($event)" (closed)="scanning.set(false)" /> }
+      @if (godowns().length >= 2) {
+        <div class="card add">
+          <button type="button" class="btn primary block scan" (click)="scanning.set(true)"><lucide-icon [img]="icons.ScanLine" [size]="20" /> {{ 'move.scan' | t }}</button>
+          <form class="typed" (ngSubmit)="add(code)">
+            <label class="field">{{ 'stock.code' | t }}<input name="code" [(ngModel)]="code" autocomplete="off" autocapitalize="characters" class="ltr" placeholder="B-0001" /></label>
+            <button type="submit" class="btn" [disabled]="!code.trim() || busy()">{{ 'move.add' | t }}</button>
+          </form>
+        </div>
+        @if (scanning()) { <tos-scan-sheet (scanned)="scanned($event)" (closed)="scanning.set(false)" /> }
 
-      <ul class="list" [attr.aria-label]="'move.list' | t">
-        @for (p of picked(); track p.id) {
-          <li class="row">
-            <span><strong>{{ p.name ?? '—' }}</strong><small><span class="ltr">{{ p.code }}</span> · {{ p.godown?.name ?? ('move.noGodown' | t) }}@if (p.godown?.id === to()) { · {{ 'move.alreadyThere' | t }} }</small></span>
-            <span class="amount">@if (p.kg) { {{ i18n.kg(p.kg) }} }<button type="button" class="icon-btn" [attr.aria-label]="'move.remove' | t" (click)="remove(p.id)"><lucide-icon [img]="icons.X" [size]="18" /></button></span>
-          </li>
-        } @empty { <li class="notice">{{ 'move.empty' | t }}</li> }
-      </ul>
+        <!-- Pick from what is in stock (v2 review): a laptop has no camera to scan with, and loose stock has no code. -->
+        <div class="card pick">
+          <label class="field">{{ 'move.pick' | t }}<input name="find" [ngModel]="find()" (ngModelChange)="search($event)" autocomplete="off" [placeholder]="'move.pickHint' | t" /></label>
+          <ul class="options" [attr.aria-label]="'move.pick' | t">
+            @for (o of options(); track o.id) {
+              <li class="row">
+                <span><strong>{{ o.name ?? '—' }}</strong><small>@if (o.code) { <span class="ltr">{{ o.code }}</span> · }{{ o.godown?.name ?? ('move.noGodown' | t) }}@if (o.kg) { · {{ i18n.kg(o.kg) }} }</small></span>
+                <button type="button" class="btn" (click)="pick(o)">{{ 'move.add' | t }}</button>
+              </li>
+            } @empty { <li class="muted">{{ 'move.nothingToPick' | t }}</li> }
+          </ul>
+          <small class="muted">{{ 'move.sortedNote' | t }}</small>
+        </div>
 
-      <footer class="action-bar">
-        <div class="summary"><small>{{ 'move.count' | t: { n: picked().length } }}</small>@if (totalKg()) { <strong>{{ i18n.kg(totalKg()) }}</strong> }</div>
-        <button type="button" class="btn primary" [disabled]="!to() || !picked().length || busy()" (click)="move()">{{ (busy() ? 'common.saving' : 'move.moveTo') | t: { godown: toName() } }}</button>
-      </footer>
+        <ul class="list" [attr.aria-label]="'move.list' | t">
+          @for (p of picked(); track p.id) {
+            <li class="row">
+              <span><strong>{{ p.name ?? '—' }}</strong><small><span class="ltr">{{ p.code }}</span> · {{ p.godown?.name ?? ('move.noGodown' | t) }}@if (p.godown?.id === to()) { · {{ 'move.alreadyThere' | t }} }</small></span>
+              <span class="amount">@if (p.kg) { {{ i18n.kg(p.kg) }} }<button type="button" class="icon-btn" [attr.aria-label]="'move.remove' | t" (click)="remove(p.id)"><lucide-icon [img]="icons.X" [size]="18" /></button></span>
+            </li>
+          } @empty { <li class="muted">{{ 'move.empty' | t }}</li> }
+        </ul>
+
+        <footer class="action-bar">
+          <div class="summary"><small>{{ 'move.count' | t: { n: picked().length } }}</small>@if (totalKg()) { <strong>{{ i18n.kg(totalKg()) }}</strong> }</div>
+          <button type="button" class="btn primary" [disabled]="!to() || !picked().length || busy()" (click)="move()">{{ busy() ? ('common.saving' | t) : to() ? ('move.moveTo' | t: { godown: toName() }) : ('move.pickGodown' | t) }}</button>
+        </footer>
+      }
     </section>
   `,
   styles: [`
@@ -75,6 +93,13 @@ interface Picked { id: string; code: string | null; name: string | null; unit: '
     .typed { display:flex; gap:8px; align-items:flex-end; }
     .typed .field { flex:1; }
     .amount { display:inline-flex; align-items:center; gap:6px; }
+    .pick { display:grid; gap:8px; margin-bottom:12px; }
+    .options { list-style:none; margin:0; padding:0; max-height:260px; overflow:auto; }
+    .options .row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 0; border-bottom:1px solid var(--line, #e5e5e5); }
+    .options .row span { display:grid; }
+    .muted { color:var(--muted, #6b6b6b); font-size:14px; list-style:none; }
+    /* In the workspace (a laptop) the menu is the way back and there is no camera to scan with. */
+    @media (min-width: 1024px) { .back, .scan { display:none; } }
   `],
 })
 export class MoveStockComponent {
@@ -88,6 +113,11 @@ export class MoveStockComponent {
   protected readonly scanning = signal(false);
   protected readonly busy = signal(false);
   protected code = '';
+  /** Pick from stock: what is typed, and the matching items still in stock. */
+  protected readonly find = signal('');
+  private readonly found = signal<Picked[]>([]);
+  /** Not yet on the list, and not already in the godown they would move to. */
+  protected readonly options = computed(() => this.found().filter((o) => !this.picked().some((p) => p.id === o.id) && (!this.to() || o.godown?.id !== this.to())));
   protected newGodown = '';
   protected readonly adding = signal(false);
   private readonly auth = inject(AuthService);
@@ -100,6 +130,24 @@ export class MoveStockComponent {
 
   constructor() {
     this.loadGodowns();
+    this.search('');
+  }
+
+  /** Stock still in hand, by code, item, category or grade (the Inventory list, 50 at a time). */
+  protected search(text: string): void {
+    this.find.set(text);
+    type Row = { id: string; code: string | null; name: string | null; unit: Picked['unit']; left: string | null; kgNow: string | null; godown: string | null; godownId: string | null };
+    this.http.get<{ rows: Row[] }>('/api/lists/stock', { params: { q: text.trim(), pageSize: '50', f: 'status:eq:AVAILABLE' } }).subscribe({
+      next: (r) => {
+        if (this.find() !== text) return;
+        this.found.set(r.rows.filter((x) => Number(x.left) > 0).map((x) => ({ id: x.id, code: x.code, name: x.name, unit: x.unit, left: x.left ?? '0', kg: x.kgNow, godown: x.godownId ? { id: x.godownId, name: x.godown ?? '' } : null })));
+      },
+      error: () => this.found.set([]),
+    });
+  }
+
+  protected pick(o: Picked): void {
+    this.picked.update((list) => [o, ...list]);
   }
 
   private loadGodowns(pick?: string): void {
@@ -155,6 +203,8 @@ export class MoveStockComponent {
       },
       error: () => {
         this.busy.set(false);
+        // The wrong code is cleared: the next one typed or scanned must not be added to it.
+        this.code = '';
         this.toast.error(this.i18n.t('move.notFound', { code }));
       },
     });
@@ -172,6 +222,7 @@ export class MoveStockComponent {
       next: (r) => {
         this.busy.set(false);
         this.picked.set([]);
+        this.search(this.find());
         this.toast.show(this.i18n.t(r.alreadyThere ? 'move.doneSome' : 'move.done', { n: r.moved, godown: r.godown.name, there: r.alreadyThere }));
       },
       error: (e: HttpErrorResponse) => {
