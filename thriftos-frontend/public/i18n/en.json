@@ -1692,7 +1692,7 @@
     "costPerKg": "Cost per kg",
     "date": "Bought",
     "maal": "Raw type",
-    "sorted": "Sorted %"
+    "sorted": "Sorting done %"
    },
    "count": "{n} lots",
    "countOne": "{n} lot",
@@ -1701,7 +1701,7 @@
    "info": {
     "cost": "The lot's price plus the transport and labour put on it.",
     "costPerKg": "What the lot cost (price, transport and labour) divided by the kg bought. Use it to compare lots and suppliers.",
-    "sorted": "How much of the lot's kg is sorted so far. It shows 100% once sorting is finished."
+    "sorted": "How far sorting has got: the part of the lot's kg already sorted. It shows 100% once sorting is finished. (On Sorting, \"Sorted %\" is the part that came out sellable.)"
    },
    "search": "Search lot, supplier or raw type",
    "title": "Loose lots"
@@ -1933,6 +1933,14 @@
   },
   "skip": "Skip to content",
   "sortRecord": {
+   "boughtOn": "Bought {date}",
+   "receivedOn": "Received {date}",
+   "sortedOn": "Sorted {date}",
+   "notBaled": "Sorted but not in bales yet: {kg}. It is still in stock.",
+   "baleCount": "Bales",
+   "showBales": "Show all {n} bales",
+   "hideBales": "Hide the bale list",
+   "soldInfo": "Sales so far of the bales and stock that came out of this lot.",
    "amount": "Amount",
    "baleCostInfo": "The part of this lot's cost in the bale: its kg from this lot at the lot's cost per kg.",
    "bales": "Bales made from this lot",

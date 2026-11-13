@@ -1081,6 +1081,19 @@ test('loose lot cycle: what was paid, grade it from the lot page, finish grading
   await baleCountAndWeight(page, page.locator('.entry'), 1, 50);
   await page.locator('.entry').getByRole('button', { name: /^Save bales/ }).click();
   await expect(ready).toContainText(loose('100.0 kg sorted, not baled yet'));
+
+  // The lot page (v2 review, Sorting): bales are one row per item with the full list on demand, the kg not in
+  // bales yet is said, every table has its title and the header says when the lot was bought.
+  await page.goto(`/sort/records/${lot.id}`);
+  await expect(page.locator('ws-page-header')).toContainText('Bought ');
+  const balesBlock = page.locator('section.block').filter({ hasText: 'Bales made from this lot' });
+  await expect(balesBlock.locator('.note')).toContainText('Sorted but not in bales yet');
+  await expect(balesBlock.getByRole('row', { name: /^T-Shirts · Grade A/ })).toContainText('1');
+  await expect(balesBlock.locator('ws-data-grid')).toHaveCount(1);
+  await balesBlock.getByRole('button', { name: /^Show all \d+ bales?/ }).click();
+  await expect(balesBlock.locator('ws-data-grid')).toHaveCount(2);
+  for (const title of ['By grade', 'Waste']) await expect(page.locator('section.block h2', { hasText: title })).toBeVisible();
+  await expect(page.locator('.smart')).not.toContainText('Time taken');
 });
 
 test('pieces through the cycle: a lot bought by the piece is sorted in pieces and baled by pieces (owner, 2026-11-11)', async ({ page, request }) => {

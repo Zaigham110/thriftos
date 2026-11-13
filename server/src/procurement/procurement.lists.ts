@@ -137,7 +137,7 @@ export const PURCHASE_LOT_LABELS: Record<string, { en: string; ur: string }> = {
   kg: { en: 'Kg', ur: 'کلو' },
   cost: { en: 'Total cost (Rs)', ur: 'کل لاگت (روپے)' },
   costPerKg: { en: 'Cost per kg (Rs)', ur: 'فی کلو لاگت (روپے)' },
-  sortedPercent: { en: 'Sorted %', ur: 'چھانٹی %' },
+  sortedPercent: { en: 'Sorting done %', ur: 'چھانٹی مکمل %' },
 };
 
 type PurchaseLot = Prisma.RagGetPayload<{ include: { vendor: { select: { name: true } }; rawCategory: { select: { name: true } }; sortSession: { select: { totalOutputWeight: true } } } }>;

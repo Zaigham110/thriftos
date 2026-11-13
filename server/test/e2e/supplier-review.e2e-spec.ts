@@ -62,15 +62,23 @@ describe('Suppliers review: loose lots on the supplier page, add and edit (e2e)'
     expect(page.totals).toMatchObject({ containers: 0, lots: 1, kg: '100', revenue: '9000', profit, profitPerKg: String(Number(profit) / 100), yieldPercent: 90, topGradePercent: 100 });
     expect(page.lots[0]).toMatchObject({ revenue: '9000', profit });
 
+    // The lot's own page says what it earned; sorted kg that is in no bale yet is counted (v2 review, Sorting).
+    const lotPage = (await api(app, a).get(`/workspace/sorting/${lot.id}`).expect(200)).body;
+    expect(lotPage.sold).toEqual({ revenue: '9000', profit });
+    expect(lotPage.totals.notBaledKg).toBe('0');
+    await api(app, a).post('/sorting/stage-1/allocate', { sessionId: session.id, categoryId: jeans.id, gradeId: gradeA.id, amountKg: 6 }).expect(200);
+    expect((await api(app, a).get(`/workspace/sorting/${lot.id}`).expect(200)).body.totals.notBaledKg).toBe('6');
+    await api(app, b).get(`/workspace/sorting/${lot.id}`).expect(404);
+
     // The Suppliers list says the same; a supplier nothing was bought from has no profit to show.
     const rows = (await api(app, a).get('/lists/suppliers').expect(200)).body.rows as { name: string; profit: string | null; profitPerKg: string | null; yield: number | null; topGrade: number | null; lots: number }[];
-    expect(rows.find((r) => r.name === 'Gaari Wala')).toMatchObject({ lots: 1, profit, yield: 90, topGrade: 100 });
+    expect(rows.find((r) => r.name === 'Gaari Wala')).toMatchObject({ lots: 1, profit, yield: 96, topGrade: 100 });
     expect(rows.find((r) => r.name === 'Never Bought')).toMatchObject({ lots: 0, profit: null, profitPerKg: null, yield: null });
     expect(idle.id).toBeTruthy();
 
     // The scorecard ranks loose-lot suppliers too, by supplier and by origin.
     const card = (await api(app, a).get('/workspace/analytics/suppliers').expect(200)).body;
-    expect(card.rows.find((r: { key: string }) => r.key === 'Gaari Wala')).toMatchObject({ containers: 0, lots: 1, kg: '100', landed: '10000', costPerKg: '100', revenue: '9000', profit, yieldPercent: 90, topGradePercent: 100 });
+    expect(card.rows.find((r: { key: string }) => r.key === 'Gaari Wala')).toMatchObject({ containers: 0, lots: 1, kg: '100', landed: '10000', costPerKg: '100', revenue: '9000', profit, yieldPercent: 96, topGradePercent: 100 });
     expect(card.totals.lots).toBeGreaterThanOrEqual(1);
     const byOrigin = (await api(app, a).get('/workspace/analytics/suppliers?by=origin').expect(200)).body;
     expect(byOrigin.rows.find((r: { key: string }) => r.key === 'Pakistan').lots).toBeGreaterThanOrEqual(1);

@@ -266,7 +266,8 @@ export const LOTS_LIST: ListConfig = {
   columns: [
     { key: 'code', label: 'ws.container.lot', width: '130px' },
     { key: 'date', label: 'ws.containers.col.date', format: 'date' },
-    { key: 'container', label: 'ws.containers.col.number' },
+    // No container on any row (a business that buys loose lots only): the column is left out.
+    { key: 'container', label: 'ws.containers.col.number', hideIfEmpty: true },
     { key: 'supplier', label: 'ws.containers.col.supplier', computed: true },
     { key: 'origin', label: 'ws.containers.col.origin' },
     { key: 'rawCategory', label: 'ws.lots.col.raw' },

@@ -32,7 +32,9 @@ export interface SortingRecord {
   categories: { id: string; name: string; kg: string; pieces: number; cost: Money; costPerKg: Money; sharePercent: number | null; usedKg: string; grading: { id: string; status: string; worker: string } | null; gradeTarget: string | null; gradedKg: string; gradedAs: { name: string; kg: string }[]; gradedWhileSorting: boolean; wasteKg: string }[];
   grades: { name: string; kg: string; pieces: number; sharePercent: number | null; cost: Money }[];
   waste: { stage: string; category: string; amount: string; unit: string; value: Money }[];
-  totals: { sortedKg: string; stage1WasteKg: string; stage2WasteKg: string; yieldPercent: number | null; topGradePercent: number | null; minutes: number | null; leftKg: string; progressPercent: number | null; sortedPieces?: number | null; piecesLeft?: number | null };
+  totals: { sortedKg: string; stage1WasteKg: string; stage2WasteKg: string; yieldPercent: number | null; topGradePercent: number | null; minutes: number | null; notBaledKg?: string | null; leftKg: string; progressPercent: number | null; sortedPieces?: number | null; piecesLeft?: number | null };
+  /** What the lot has earned so far (profit only with cost.view). */
+  sold?: { revenue: string; profit: Money };
   bales: { id: string; itemId: string | null; code: string; category: string | null; grade: string | null; kg: string; sold: boolean; cost: Money }[];
 }
 
@@ -71,11 +73,15 @@ const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
               <ws-smart-button [label]="'ws.lots.col.left' | t" [value]="amount(d.totals.piecesLeft, d.totals.leftKg)" [icon]="icons.Scale" [link]="[]" />
             }
             <!-- While sorting: how far it has got; once sorted: the yield (v2 cycle review: it showed "—" while sorting). -->
-            <ws-smart-button [label]="'ws.containers.col.yield' | t" [value]="pct(d.totals.yieldPercent ?? d.totals.progressPercent)" [icon]="icons.Percent" [tone]="d.lot.status === 'SORTED' && (d.totals.yieldPercent ?? 100) < 80 ? 'bad' : 'plain'" [link]="[]" />
+            <ws-smart-button [label]="'ws.containers.col.yield' | t" [value]="d.lot.status === 'NOT_STARTED' ? '—' : pct(d.totals.yieldPercent ?? d.totals.progressPercent)" [icon]="icons.Percent" [tone]="d.lot.status === 'SORTED' && (d.totals.yieldPercent ?? 100) < 80 ? 'bad' : 'plain'" [link]="[]" />
             <ws-smart-button [label]="'ws.containers.col.topGrade' | t" [value]="pct(d.totals.topGradePercent)" [icon]="icons.Percent" [link]="[]" />
             @if (d.lot.costPerKg !== null) { <ws-smart-button [label]="'ws.sortRecord.boughtPerKg' | t" [value]="i18n.money(d.lot.costPerKg)" [icon]="icons.Coins" [link]="[]" /> }
             @if (sortedCostPerKg(); as c) { <ws-smart-button [label]="'ws.sortRecord.sortedCostPerKg' | t" [value]="i18n.money(c)" [icon]="icons.Coins" [link]="[]" /> }
-            @if (d.totals.minutes !== null) { <ws-smart-button [label]="'ws.sortRecord.time' | t" [value]="'ws.sortRecord.minutes' | t: { n: d.totals.minutes }" [icon]="icons.Clock" [link]="[]" /> }
+            <!-- What the lot earned (v2 review). "Time taken" is gone: it was the minutes between Start and Close on the screen. -->
+            @if (d.sold && d.bales.length) {
+              <ws-smart-button [label]="'ws.containers.col.revenue' | t" [value]="rs(d.sold.revenue)" [icon]="icons.Coins" [link]="[]" />
+              @if (d.sold.profit !== null) { <ws-smart-button [label]="'ws.containers.col.profit' | t" [value]="rs(d.sold.profit)" [icon]="icons.Coins" [tone]="+d.sold.profit < 0 ? 'bad' : 'plain'" [link]="[]" /> }
+            }
           </section>
           @if (d.purchase; as p) {
             <section class="paid" [attr.aria-label]="'ws.sortRecord.paid' | t">
@@ -99,10 +105,21 @@ const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
               <ws-data-grid [caption]="'ws.container.categories' | t" [columns]="categoryColumns()" [rows]="categoryRows()" [clickable]="true" (rowClick)="grade($event)" />
             </div>
             <div class="two">
-              <ws-data-grid [caption]="'ws.container.grades' | t" [columns]="gradeColumns()" [rows]="gradeRows()" [emptyHeading]="'ws.container.notGraded' | t" />
-              <ws-data-grid [caption]="'ws.sortRecord.waste' | t" [columns]="wasteColumns()" [rows]="wasteRows()" [emptyHeading]="'ws.sortRecord.noWaste' | t" />
+              <section class="block"><h2>{{ 'ws.container.grades' | t }}</h2><ws-data-grid [caption]="'ws.container.grades' | t" [columns]="gradeColumns()" [rows]="gradeRows()" [emptyHeading]="'ws.container.notGraded' | t" /></section>
+              <section class="block"><h2>{{ 'ws.sortRecord.waste' | t }}</h2><ws-data-grid [caption]="'ws.sortRecord.waste' | t" [columns]="wasteColumns()" [rows]="wasteRows()" [emptyHeading]="'ws.sortRecord.noWaste' | t" /></section>
             </div>
-            <ws-data-grid [caption]="'ws.sortRecord.bales' | t" [columns]="baleColumns()" [rows]="baleRows()" [clickable]="stockOn()" (rowClick)="openBale($event)" [emptyHeading]="'ws.container.noBales' | t" />
+            <section class="block">
+              <h2>{{ 'ws.sortRecord.bales' | t }}</h2>
+              @if (d.totals.notBaledKg && +d.totals.notBaledKg >= 0.05) { <p class="note">{{ 'ws.sortRecord.notBaled' | t: { kg: i18n.kg(d.totals.notBaledKg) } }}</p> }
+              <!-- One row per item (v2 review: 41 bales were 41 rows); the full list opens on demand. -->
+              <ws-data-grid [caption]="'ws.sortRecord.bales' | t" [columns]="baleSummaryColumns()" [rows]="baleSummaryRows()" [emptyHeading]="'ws.container.noBales' | t" />
+              @if (d.bales.length) {
+                <button type="button" class="ws-btn more" [attr.aria-expanded]="allBales()" (click)="allBales.set(!allBales())">{{ (allBales() ? 'ws.sortRecord.hideBales' : 'ws.sortRecord.showBales') | t: { n: i18n.num(d.bales.length) } }}</button>
+              }
+              @if (allBales()) {
+                <ws-data-grid [caption]="'ws.sortRecord.bales' | t" [columns]="baleColumns()" [rows]="baleRows()" [clickable]="stockOn()" (rowClick)="openBale($event)" />
+              }
+            </section>
           } @else {
             <ws-state kind="empty" [heading]="'ws.container.notSorted' | t" />
           }
@@ -126,6 +143,10 @@ const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
     .paid dd { margin:0; font-variant-numeric:tabular-nums; }
     .paid .total { padding-top:6px; border-top:1px solid var(--ws-line); font-weight:700; }
     .paid .hint { margin:var(--ws-2) 0 0; color:var(--ws-muted); font-size:12px; }
+    .block { display:grid; grid-template-columns:minmax(0, 1fr); gap:var(--ws-2); }
+    .block h2 { margin:0; font-size:var(--ws-text-md, 15px); font-weight:600; }
+    .block .note { margin:0; color:var(--ws-ink-2); font-size:var(--ws-text-sm); }
+    .block .more { justify-self:start; }
     .smart { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:var(--ws-3); }
     /* Side by side only when each half fits its whole table (v2 sorting review: cost per kg was cut off). */
     .two { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap:var(--ws-4); align-items:start; }
@@ -159,7 +180,10 @@ export class SortingRecordComponent {
     const d = this.data();
     if (!d) return '';
     const s = d.session;
-    return [d.lot.container?.number, d.lot.origin, d.lot.rawCategory, s ? this.i18n.t('ws.sortRecord.by', { name: s.worker }) : null, s?.endTime ? this.date(s.endTime) : null].filter(Boolean).join(' · ');
+    // Each date says what it is (v2 review): when the lot was bought (or received in its container) and when it was sorted.
+    const got = this.i18n.t(d.lot.container ? 'ws.sortRecord.receivedOn' : 'ws.sortRecord.boughtOn', { date: this.date(d.lot.createdAt) });
+    const sorted = s?.endTime ? `${this.i18n.t('ws.sortRecord.sortedOn', { date: this.date(s.endTime) })} ${this.i18n.t('ws.sortRecord.by', { name: s.worker })}` : s ? this.i18n.t('ws.sortRecord.by', { name: s.worker }) : null;
+    return [d.lot.container?.number, d.lot.origin, d.lot.rawCategory, got, sorted].filter(Boolean).join(' · ');
   });
   protected readonly wasteTotal = computed(() => {
     const t = this.data()?.totals;
@@ -186,6 +210,34 @@ export class SortingRecordComponent {
   protected readonly baleRows = computed<WsRow[]>(() =>
     (this.data()?.bales ?? []).map((b) => withTones({ ...b, state: this.i18n.t(b.sold ? 'ws.container.sold' : 'ws.container.inStock') }, { state: b.sold ? 'SOLD' : 'AVAILABLE' })) as unknown as WsRow[],
   );
+  /** The full bale list is closed until asked for. */
+  protected readonly allBales = signal(false);
+  protected readonly baleSummaryColumns = computed<WsColumn[]>(() => [
+    { key: 'name', label: this.i18n.t('bill.item') },
+    { key: 'bales', label: this.i18n.t('ws.sortRecord.baleCount'), format: 'number', total: true },
+    { key: 'kg', label: this.i18n.t('ws.containers.col.kg'), format: 'kg', total: true },
+    { key: 'sold', label: this.i18n.t('ws.container.sold'), format: 'number', total: true },
+    { key: 'inStock', label: this.i18n.t('ws.container.inStock'), format: 'number', total: true },
+    ...(this.data()?.lot.cost !== null ? [{ key: 'cost', label: this.i18n.t('ws.cr.baleCost'), format: 'money' as const, total: true, round: true, info: this.i18n.t('ws.sortRecord.baleCostInfo') }] : []),
+  ]);
+  /** Bales of one category and grade are one row: how many, their kg, how many sold and still in stock. */
+  protected readonly baleSummaryRows = computed<WsRow[]>(() => {
+    const by = new Map<string, { id: string; name: string; bales: number; kg: number; sold: number; inStock: number; cost: number }>();
+    for (const b of this.data()?.bales ?? []) {
+      const name = [b.category, b.grade].filter(Boolean).join(' · ') || '—';
+      const r = by.get(name) ?? { id: name, name, bales: 0, kg: 0, sold: 0, inStock: 0, cost: 0 };
+      r.bales += 1;
+      r.kg += Number(b.kg);
+      r.sold += b.sold ? 1 : 0;
+      r.inStock += b.sold ? 0 : 1;
+      r.cost += Number(b.cost ?? 0);
+      by.set(name, r);
+    }
+    return [...by.values()].sort((a, b) => b.kg - a.kg) as unknown as WsRow[];
+  });
+  protected rs(v: string | number | null | undefined): string {
+    return v === null || v === undefined || v === '' ? '—' : this.i18n.money(Math.round(Number(v)));
+  }
   protected openBale(row: WsRow): void {
     if (row['itemId']) void this.nav.open(['/stock/items', row['itemId']]);
   }

@@ -5,6 +5,7 @@ import { localDayStart } from '../common/list/list-engine';
 import { percent, topGradePercent } from '../home/home';
 import { PrismaService } from '../prisma/prisma.service';
 import { topGrade as topGradeOf } from '../sorting/top-grade';
+import { lotEconomics } from '../home/container-economics';
 
 const ZERO = new Prisma.Decimal(0);
 const DAY = 86_400_000;
@@ -80,6 +81,8 @@ export class SortingRecordsService {
       }),
     ]);
     const topRank = (await topGradeOf(this.prisma, tenantId))?.rank ?? null;
+    // What the lot has earned so far (v2 review): the sale lines of its bales and loose stock, less sorter pay.
+    const earned = (await lotEconomics(this.prisma, tenantId, [ragId])).get(ragId)!;
     // Graded kg: grades given while sorting ("Jeans · A") plus a separate grading afterwards. An entry that was
     // graded again afterwards counts once, by that grading.
     const allGraded = [
@@ -135,6 +138,7 @@ export class SortingRecordsService {
         };
       }),
       bales: baleRows(allocations, canSeeCost),
+      sold: { revenue: earned.revenue, profit: money(canSeeCost, earned.profit) },
       grades: aggregateGrades(allGraded, canSeeCost),
       waste: waste.map((w) => ({ stage: w.stage, category: w.wasteCategory.name, amount: w.amount, unit: w.unitType, value: money(canSeeCost, w.estimatedValue) })),
       totals: {
@@ -148,6 +152,8 @@ export class SortingRecordsService {
           ? Math.min(100, percent(new Prisma.Decimal(sortedPieces), new Prisma.Decimal(lotPieces)) ?? 0)
           : r.weightKg.isZero() ? null : Math.min(100, percent(sortedKg, r.weightKg) ?? 0),
         topGradePercent: topRank === null ? null : topGradePercent(allGraded.map((g) => ({ rank: g.grade.rank, kg: lotPieces ? new Prisma.Decimal(g.count ?? 0) : g.weightKg })), topRank),
+        // Sorted kg that is in no bale yet (v2 review): it is stock too, and the bales table alone does not add up to the sorted kg.
+        notBaledKg: lotPieces ? null : Prisma.Decimal.max(ZERO, sortedKg.sub(allocations.reduce((t, a) => t.add(a.amountUsed), ZERO)).sub(wasteKg(WasteStage.STAGE_2))),
         minutes: s?.endTime ? Math.round((s.endTime.getTime() - s.startTime.getTime()) / 60_000) : null,
       },
     };

@@ -1692,7 +1692,7 @@
     "costPerKg": "Laagat fi kg",
     "date": "Kab liya",
     "maal": "Maal",
-    "sorted": "Chhantai %"
+    "sorted": "Chhantai mukammal %"
    },
    "count": "{n} lot",
    "countOne": "{n} lot",
@@ -1701,7 +1701,7 @@
    "info": {
     "cost": "Lot ki qeemat aur us par laga kiraya aur mazdoori.",
     "costPerKg": "Lot ki kul laagat (qeemat, kiraya aur mazdoori) ko khareede gaye kg se taqseem kiya. Is se lots aur supplier ka muqabla karein.",
-    "sorted": "Lot ka kitna kg chhant liya. Chhantai poori ho to 100%."
+    "sorted": "Chhantai kahan tak pohanchi: lot ke kg ka woh hissa jo chhanta ja chuka. Chhantai khatam hone par 100%. (Sorting screen par \"Sorted %\" woh hissa hai jo bikne ke qabil nikla.)"
    },
    "search": "Lot, supplier ya maal dhoondein",
    "title": "Gaari aur lot"
@@ -1933,6 +1933,14 @@
   },
   "skip": "Asal hisse par jayein",
   "sortRecord": {
+   "boughtOn": "Khareedari {date}",
+   "receivedOn": "Wasooli {date}",
+   "sortedOn": "Chhantai {date}",
+   "notBaled": "Chhanta hua magar abhi bales mein nahi: {kg}. Yeh abhi stock mein hai.",
+   "baleCount": "Bales",
+   "showBales": "Tamam {n} bales dikhayein",
+   "hideBales": "Bales ki list chhupayein",
+   "soldInfo": "Is lot se nikle bales aur maal ki ab tak ki sale.",
    "amount": "Raqam",
    "baleCostInfo": "Gaanth mein is lot ki laagat ka hissa: is lot ke kg, lot ki fi kg laagat par.",
    "bales": "Is lot se bani gaanthein",
