@@ -9,7 +9,7 @@ import { WsBarChartComponent, WsColumn, WsDataGridComponent, WsKpiCardComponent,
 import { EXPENSE_SECTIONS, EXPENSE_SECTION_KEYS } from './lists';
 
 type Money = string;
-type Apart = 'ownerOut' | 'ownerIn' | 'bankOut' | 'bankIn';
+type Apart = 'ownerOut' | 'ownerIn' | 'bankOut' | 'bankIn' | 'otherOut' | 'otherIn';
 interface Totals {
   revenue: Money; cost: Money; grossProfit: Money; marginPercent: number | null; writeOffs: Money; cashDifference: Money;
   expenses: Record<string, Money>; expenseTotal: Money; netProfit: Money;
@@ -151,7 +151,7 @@ export class PnlComponent {
   protected readonly pick = signal<string | null>(null);
 
   protected monthName(m: string): string {
-    return new Date(m + '-15T00:00:00Z').toLocaleDateString(this.i18n.lang() === 'ur' ? 'ur-PK' : 'en-GB', { month: 'short', year: '2-digit', numberingSystem: 'latn' });
+    return new Date(m + '-15T00:00:00Z').toLocaleDateString(this.i18n.lang() === 'ur' ? 'ur-PK' : 'en-GB', { month: 'short', year: 'numeric', numberingSystem: 'latn' }); // "Nov 2026": "Nov 26" read like the 26th
   }
   /** "Nov 26 (so far)" for the month not yet over. */
   protected monthLabel(m: string): string {
@@ -178,18 +178,25 @@ export class PnlComponent {
     if (!p) return [];
     const any = (pick: (m: Totals) => string) => p.months.some((m) => Number(pick(m)) !== 0);
     const t = (k: string) => this.i18n.t(k);
-    const apart: Apart[] = ['ownerOut', 'ownerIn', 'bankOut', 'bankIn'];
+    const apart: Apart[] = ['ownerOut', 'ownerIn', 'bankOut', 'bankIn', 'otherOut', 'otherIn'];
+    const sections = EXPENSE_SECTION_KEYS.filter((k) => any((m) => m.sections[k]));
     return [
       { id: 'revenue', label: t('ws.pnl.revenue'), pick: (m) => m.revenue },
       // Buying: what the goods sold had cost (their price, transport and labour).
       { id: 'cost', label: t('ws.pnl.section.buying'), pick: (m) => m.cost, negate: true },
       { id: 'gross', label: t('ws.pnl.gross'), pick: (m) => m.grossProfit, strong: true },
       // Expenses in three sections, each with its kinds under it (only those the period has).
-      ...EXPENSE_SECTION_KEYS.filter((k) => any((m) => m.sections[k])).flatMap((k): Line[] => [
-        { id: `sec-${k}`, label: t(`ws.pnl.section.${k}`), pick: (m) => m.sections[k], negate: true, strong: true },
-        ...EXPENSE_SECTIONS[k].filter((c) => any((m) => m.expenses[c] ?? '0')).map((c): Line => ({ id: `exp-${c}`, label: t(`ws.expenseCategory.${c}`), pick: (m) => m.expenses[c] ?? '0', negate: true, sub: true })),
-      ]),
-      { id: 'expenses', label: t('ws.pnl.allExpenses'), pick: (m) => m.expenseTotal, negate: true, strong: true },
+      ...sections.flatMap((k): Line[] => {
+        const kinds = EXPENSE_SECTIONS[k].filter((c) => any((m) => m.expenses[c] ?? '0'));
+        // One kind in a section is one row ("Employee costs · Salaries"), not a heading and the same figure under it (v2 review).
+        if (kinds.length === 1) return [{ id: `exp-${kinds[0]}`, label: `${t(`ws.pnl.section.${k}`)} · ${t(`ws.expenseCategory.${kinds[0]}`)}`, pick: (m) => m.expenses[kinds[0]] ?? '0', negate: true, strong: true }];
+        return [
+          { id: `sec-${k}`, label: t(`ws.pnl.section.${k}`), pick: (m) => m.sections[k], negate: true, strong: true },
+          ...kinds.map((c): Line => ({ id: `exp-${c}`, label: t(`ws.expenseCategory.${c}`), pick: (m) => m.expenses[c] ?? '0', negate: true, sub: true })),
+        ];
+      }),
+      // "All expenses" only when it adds something up: with one section it would repeat that section's figure.
+      ...(sections.length > 1 ? [{ id: 'expenses', label: t('ws.pnl.allExpenses'), pick: (m: Totals) => m.expenseTotal, negate: true, strong: true }] : []),
       ...(any((m) => m.cashDifference) ? [{ id: 'cash', label: t('ws.pnl.section.drawer'), pick: (m: Totals) => m.cashDifference }] : []),
       ...(any((m) => m.writeOffs) ? [{ id: 'writeOffs', label: t('ws.pnl.writeOffs'), pick: (m: Totals) => m.writeOffs }] : []),
       { id: 'net', label: t('ws.pnl.net'), pick: (m) => m.netProfit, strong: true },
@@ -208,13 +215,15 @@ export class PnlComponent {
   protected readonly columns = computed<WsColumn[]>(() => [
     { key: 'line', label: this.i18n.t('ws.pnl.line') },
     ...(this.data()?.months ?? []).map((m) => ({ key: m.month, label: this.monthLabel(m.month), format: 'money' as const, round: true })),
-    { key: 'total', label: this.i18n.t('ws.grid.total'), format: 'money' as const, round: true },
+    // With one month the total would repeat it.
+    ...((this.data()?.months.length ?? 0) > 1 ? [{ key: 'total', label: this.i18n.t('ws.grid.total'), format: 'money' as const, round: true }] : []),
   ]);
   protected readonly rows = computed<WsRow[]>(() => {
     const p = this.data();
     if (!p) return [];
     return this.lines().map((l) => ({
-      id: l.id, line: l.apart ? this.i18n.t('ws.pnl.apart.prefix', { what: l.label }) : l.label, _strong: !!l.strong, _sub: !!l.sub,
+      // Net profit opens nothing (it is the sum of the page), so its row is not shown as clickable.
+      id: l.id, line: l.apart ? this.i18n.t('ws.pnl.apart.prefix', { what: l.label }) : l.label, _strong: !!l.strong, _sub: !!l.sub, _plain: l.id === 'net',
       ...Object.fromEntries(p.months.map((m) => [m.month, this.value(l, m)])),
       total: this.value(l, p.totals),
     }));

@@ -94,13 +94,15 @@ describe('Profit and loss review (e2e)', () => {
     // The owner takes cash home and pays some into the bank: neither is a loss.
     await api(app, t).post('/workspace/finance/cash-moves', { direction: 'OUT', kind: 'OWNER', amount: 5000 }).expect(201);
     await api(app, t).post('/workspace/finance/cash-moves', { direction: 'OUT', kind: 'BANK', amount: 4000 }).expect(201);
+    // Other cash taken out (setting the drawer right) is shown apart too, and is no loss either.
+    await api(app, t).post('/workspace/finance/cash-moves', { direction: 'OUT', kind: 'OTHER', amount: 300, note: 'Drawer set right' }).expect(201);
 
     const p = (await api(app, t).get('/workspace/finance/pnl?months=1').expect(200)).body;
     const now = p.months[0];
     expect(now.sections).toEqual({ employee: '4000', running: '2000', petty: '500' });
     expect(now.expenseTotal).toBe('6500');
     expect(now.bought).toBe('12000');
-    expect(now.notInProfit).toEqual({ ownerOut: '5000', ownerIn: '0', bankOut: '4000', bankIn: '0' });
+    expect(now.notInProfit).toEqual({ ownerOut: '5000', ownerIn: '0', bankOut: '4000', bankIn: '0', otherOut: '300', otherIn: '0' });
     // Gross 20,000 − 6,000 = 14,000; net 14,000 − 6,500 = 7,500, the same before and after the cash moved.
     expect([now.grossProfit, now.netProfit, before.netProfit]).toEqual(['14000', '7500', '7500']);
     expect(p.totals).toMatchObject({ sections: { employee: '4000', running: '2000', petty: '500' }, bought: '12000', notInProfit: { ownerOut: '5000', bankOut: '4000' } });

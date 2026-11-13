@@ -1686,6 +1686,8 @@
    },
    "allExpenses": "All expenses",
    "apart": {
+    "otherOut": "Other cash taken out",
+    "otherIn": "Other cash put in",
     "prefix": "Not in profit: {what}",
     "ownerOut": "Owner took out",
     "ownerIn": "Owner put in",
@@ -1693,7 +1695,7 @@
     "bankIn": "Drawn from the bank",
     "bought": "Stock bought"
    },
-   "apartNote": "\"Not in profit\" lines are money that moved but was neither earned nor spent: cash the owner took out or put in, cash to or from the bank, and stock bought (it becomes a cost when it is sold)."
+   "apartNote": "\"Not in profit\" lines are money that moved but was neither earned nor spent: cash the owner took out or put in, cash to or from the bank, other cash taken out or put in (setting the drawer right, for one), and stock bought (it becomes a cost when it is sold)."
   },
   "prices": {
    "pricesN": "{n} prices",

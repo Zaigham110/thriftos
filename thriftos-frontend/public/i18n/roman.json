@@ -1686,6 +1686,8 @@
    },
    "allExpenses": "Kul akhrajaat",
    "apart": {
+    "otherOut": "Deegar cash nikala",
+    "otherIn": "Deegar cash dala",
     "prefix": "Munafay mein shamil nahi: {what}",
     "ownerOut": "Maalik ne nikaale",
     "ownerIn": "Maalik ne daale",

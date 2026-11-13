@@ -82,7 +82,7 @@ export type WsRow = Record<string, unknown> & { id: string };
         <tbody>
           @if (!loading()) {
             @for (r of sorted(); track r.id) {
-              <tr [class.selected]="isSelected(r)" [class.clickable]="clickable()" [class.sub]="r['_sub']" [class.strong]="r['_strong']" (click)="clickable() && rowClick.emit(r)">
+              <tr [class.selected]="isSelected(r)" [class.clickable]="clickable() && !r['_plain']" [class.sub]="r['_sub']" [class.strong]="r['_strong']" (click)="clickable() && rowClick.emit(r)">
                 @if (selectable()) {
                   <td class="check" (click)="$event.stopPropagation()"><input type="checkbox" [checked]="isSelected(r)" (change)="toggle(r)" [attr.aria-label]="'ws.grid.selectRow' | t" /></td>
                 }

@@ -385,7 +385,10 @@ test('finance: record an expense, close the day, cash book and profit and loss',
   // P&L in sections (owner, 2026-11-12): buying, running expenses with their kinds, the total, and an amount opens what is behind it.
   await expect(page.locator('ws-data-grid tbody tr').filter({ hasText: 'Buying: cost of goods sold' })).toBeVisible();
   await expect(page.locator('ws-data-grid tbody tr.strong').filter({ hasText: 'Running expenses' })).toBeVisible();
-  await expect(page.locator('ws-data-grid tbody tr.strong').filter({ hasText: 'All expenses' })).toBeVisible();
+  // "All expenses" shows only when more than one section has something to add up (v2 review); net profit is not a link.
+  const sections = await page.locator('ws-data-grid tbody tr.strong').filter({ hasText: /^(Employee costs|Running expenses|Petty cash)/ }).count();
+  await expect(page.locator('ws-data-grid tbody tr.strong').filter({ hasText: 'All expenses' })).toHaveCount(sections > 1 ? 1 : 0);
+  await expect(page.locator('ws-data-grid tbody tr').filter({ hasText: 'Net profit' })).not.toHaveClass(/clickable/);
   await page.locator('ws-data-grid tbody tr').filter({ hasText: 'Transport' }).locator('td').last().click();
   await expect(page).toHaveURL(/\/finance\/expenses\?v=.*TRANSPORT/);
 });
