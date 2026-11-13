@@ -1,0 +1,561 @@
+// ThriftOS Shop POS. A shop imports a shipment's bale list, then sells whole bales or pieces from opened bales.
+// Money is Decimal only. Every row carries tenantId (the business) and every query is scoped by it.
+// A business has one or more branches; stock, tills, shifts and bills belong to a branch.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OWNER // everything, every branch
+  MANAGER // one branch: returns, cancelling, shifts, expenses, reports
+  CASHIER // sells and sees stock
+}
+
+enum BaleStatus {
+  IN_STOCK // closed bale on the shelf
+  OPENED // being sold piece by piece
+  SOLD // sold as a whole bale
+  FINISHED // opened bale with nothing left to sell
+  IN_TRANSIT // sent to another branch, not received yet
+  WRITTEN_OFF // lost or damaged
+}
+
+enum SaleStatus {
+  COMPLETED
+  CANCELLED
+}
+
+enum PayMethod {
+  CASH
+  BANK
+  WALLET // Easypaisa, JazzCash
+}
+
+enum RefundTo {
+  CASH
+  BANK
+  WALLET
+  KHATA // taken off what the customer owes
+}
+
+enum LineKind {
+  BALE
+  PIECE
+  ITEM // something that is not a bale: a bag, delivery
+}
+
+enum KhataKind {
+  OPENING
+  SALE
+  PAYMENT
+  RETURN
+  CANCEL
+  ADJUST
+}
+
+enum CashKind {
+  IN
+  OUT
+  DROP // taken to the bank or the owner
+}
+
+enum TransferStatus {
+  SENT
+  RECEIVED
+  CANCELLED
+}
+
+/// The business (tenant).
+model Shop {
+  id                    String   @id @default(cuid())
+  name                  String
+  phone                 String?
+  city                  String?
+  address               String?
+  currency              String   @default("PKR")
+  billFooter            String?
+  taxName               String   @default("Sales tax")
+  taxRate               Decimal  @default(0) @db.Decimal(5, 2) // percent; 0 = no tax on bills
+  taxInclusive          Boolean  @default(true) // prices already include the tax
+  ntn                   String?
+  strn                  String?
+  cashierMaxDiscountPct Int      @default(10)
+  managerSeesCost       Boolean  @default(false)
+  shipmentSeq           Int      @default(0)
+  baleSeq               Int      @default(0)
+  returnSeq             Int      @default(0)
+  transferSeq           Int      @default(0)
+  tillSeq               Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  users     User[]
+  branches  Branch[]
+  suppliers Supplier[]
+  shipments Shipment[]
+  bales     Bale[]
+  sales     Sale[]
+  customers Customer[]
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  phone     String?
+  city      String?
+  address   String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  shop  Shop   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tills Till[]
+  users User[]
+
+  @@unique([tenantId, name])
+}
+
+/// One counter. Bills are numbered per till (T1-000147) so a till can number its own bills while offline.
+model Till {
+  id        String   @id @default(cuid())
+  tenantId  String
+  branchId  String
+  code      String // T1
+  name      String
+  billSeq   Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@index([tenantId, branchId])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String
+  branchId     String? // empty for the owner: every branch
+  name         String
+  phone        String   @unique // digits only; the sign-in name
+  passwordHash String
+  pinHash      String? // 4 to 6 digits, to unlock a shared till quickly
+  role         UserRole
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  shop   Shop    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  sales  Sale[]
+
+  @@index([tenantId])
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  country   String?
+  phone     String?
+  createdAt DateTime @default(now())
+
+  shop      Shop       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  shipments Shipment[]
+
+  @@unique([tenantId, name])
+}
+
+/// One import: the shipment's papers and costs, typed once, with its bale list.
+model Shipment {
+  id             String    @id @default(cuid())
+  tenantId       String
+  branchId       String // the branch that received it
+  code           String // S-0001
+  supplierId     String
+  originCountry  String?
+  containerNo    String?
+  billOfLadingNo String?
+  invoiceNo      String?
+  vessel         String?
+  portOfLoading  String?
+  portOfArrival  String?
+  shippedOn      DateTime? @db.Date
+  arrivedOn      DateTime  @db.Date
+  goodsCost      Decimal   @default(0) @db.Decimal(14, 2) // what the bales cost, before charges
+  freight        Decimal   @default(0) @db.Decimal(14, 2)
+  customsDuty    Decimal   @default(0) @db.Decimal(14, 2)
+  clearing       Decimal   @default(0) @db.Decimal(14, 2)
+  transport      Decimal   @default(0) @db.Decimal(14, 2)
+  otherCharges   Decimal   @default(0) @db.Decimal(14, 2)
+  landedCost     Decimal   @default(0) @db.Decimal(14, 2) // goods + all charges
+  baleCount      Int       @default(0)
+  totalWeightKg  Decimal?  @db.Decimal(14, 2)
+  fileName       String?
+  notes          String?
+  createdById    String
+  createdAt      DateTime  @default(now())
+
+  shop     Shop     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  bales    Bale[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, arrivedOn])
+}
+
+model Bale {
+  id             String     @id @default(cuid())
+  tenantId       String
+  branchId       String // where the bale is now
+  shipmentId     String
+  code           String // B-00001, the shop's own number, on the sticker
+  baleNo         String? // the supplier's number from the bale list
+  item           String
+  category       String?
+  grade          String?
+  brand          String?
+  weightKg       Decimal?   @db.Decimal(14, 2)
+  pieces         Int? // from the list; confirmed when the bale is opened
+  cost           Decimal    @default(0) @db.Decimal(14, 2) // purchase cost of this bale
+  landedCost     Decimal    @default(0) @db.Decimal(14, 2) // cost + its share of the shipment's charges
+  salePrice      Decimal?   @db.Decimal(14, 2) // price of the whole bale
+  piecePrice     Decimal?   @db.Decimal(14, 2) // usual price of one piece
+  pieceCost      Decimal?   @db.Decimal(14, 4) // landedCost / pieces, set when opened
+  piecesSold     Int        @default(0)
+  status         BaleStatus @default(IN_STOCK)
+  openedAt       DateTime?
+  closedAt       DateTime? // sold whole, finished or written off
+  writeOffReason String?
+  notes          String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  shop     Shop       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  shipment Shipment   @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  lines    SaleLine[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, branchId, status])
+  @@index([tenantId, shipmentId])
+}
+
+model Customer {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  phone       String?
+  address     String?
+  creditLimit Decimal? @db.Decimal(14, 2) // empty = no limit
+  balance     Decimal  @default(0) @db.Decimal(14, 2) // what the customer owes the shop
+  notes       String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  shop    Shop            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entries CustomerEntry[]
+  sales   Sale[]
+
+  @@index([tenantId, name])
+  @@index([tenantId, phone])
+}
+
+/// The khata: every line that changed what a customer owes. amount > 0 = owes more.
+model CustomerEntry {
+  id           String     @id @default(cuid())
+  tenantId     String
+  customerId   String
+  branchId     String
+  kind         KhataKind
+  amount       Decimal    @db.Decimal(14, 2)
+  balanceAfter Decimal    @db.Decimal(14, 2)
+  method       PayMethod? // how a payment was received
+  saleId       String?
+  shiftId      String?
+  note         String?
+  userId       String
+  createdAt    DateTime   @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, customerId, createdAt])
+  @@index([tenantId, shiftId])
+}
+
+model Sale {
+  id            String     @id @default(cuid())
+  tenantId      String
+  branchId      String
+  tillId        String?
+  shiftId       String?
+  code          String // T1-000147
+  clientKey     String? // made by the screen, so a double tap or a resend saves one sale
+  customerId    String?
+  customerName  String?
+  customerPhone String?
+  subtotal      Decimal    @db.Decimal(14, 2) // lines after their own discounts
+  discount      Decimal    @default(0) @db.Decimal(14, 2) // on the whole bill
+  taxName       String?
+  taxRate       Decimal    @default(0) @db.Decimal(5, 2)
+  taxInclusive  Boolean    @default(true)
+  taxAmount     Decimal    @default(0) @db.Decimal(14, 2)
+  total         Decimal    @db.Decimal(14, 2)
+  costTotal     Decimal    @db.Decimal(14, 2)
+  paidTotal     Decimal    @default(0) @db.Decimal(14, 2) // received now, after change
+  changeGiven   Decimal    @default(0) @db.Decimal(14, 2)
+  creditAmount  Decimal    @default(0) @db.Decimal(14, 2) // put on the customer's khata
+  returnedTotal Decimal    @default(0) @db.Decimal(14, 2)
+  returnedCost  Decimal    @default(0) @db.Decimal(14, 2)
+  note          String?
+  status        SaleStatus @default(COMPLETED)
+  cancelledAt   DateTime?
+  cancelReason  String?
+  madeOffline   Boolean    @default(false)
+  needsReview   Boolean    @default(false) // an offline bill that did not fit the stock or the rules
+  reviewNote    String?
+  userId        String
+  soldAt        DateTime   @default(now()) // when the customer paid (an offline bill is saved later)
+  createdAt     DateTime   @default(now())
+
+  shop     Shop          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  customer Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  lines    SaleLine[]
+  payments SalePayment[]
+  returns  SaleReturn[]
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, clientKey])
+  @@index([tenantId, branchId, soldAt])
+  @@index([tenantId, shiftId])
+}
+
+model SaleLine {
+  id          String   @id @default(cuid())
+  tenantId    String
+  saleId      String
+  baleId      String? // empty for a quick item
+  kind        LineKind
+  description String
+  quantity    Int
+  unitPrice   Decimal  @db.Decimal(14, 2)
+  discount    Decimal  @default(0) @db.Decimal(14, 2) // on this line
+  lineTotal   Decimal  @db.Decimal(14, 2) // quantity x unitPrice - discount
+  unitCost    Decimal  @db.Decimal(14, 4)
+  costTotal   Decimal  @db.Decimal(14, 2)
+  returnedQty Int      @default(0)
+  conflict    Boolean  @default(false) // offline bill: the stock was already gone, nothing was taken
+
+  sale Sale  @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  bale Bale? @relation(fields: [baleId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId])
+  @@index([saleId])
+  @@index([baleId])
+}
+
+model SalePayment {
+  id        String    @id @default(cuid())
+  tenantId  String
+  saleId    String
+  method    PayMethod
+  amount    Decimal   @db.Decimal(14, 2) // kept by the shop (cash is after change)
+  reference String?
+
+  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([saleId])
+}
+
+model SaleReturn {
+  id        String   @id @default(cuid())
+  tenantId  String
+  branchId  String
+  shiftId   String?
+  code      String // R-00001
+  saleId    String
+  total     Decimal  @db.Decimal(14, 2)
+  costBack  Decimal  @default(0) @db.Decimal(14, 2) // cost of what went back on the shelf
+  refundTo  RefundTo
+  reason    String?
+  userId    String
+  createdAt DateTime @default(now())
+
+  sale  Sale         @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  lines ReturnLine[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, branchId, createdAt])
+  @@index([tenantId, shiftId])
+}
+
+model ReturnLine {
+  id         String  @id @default(cuid())
+  tenantId   String
+  returnId   String
+  saleLineId String
+  quantity   Int
+  amount     Decimal @db.Decimal(14, 2)
+  restock    Boolean @default(true)
+
+  ret SaleReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([returnId])
+}
+
+/// A bill put aside to finish later; any till of the branch can take it back.
+model HeldBill {
+  id        String   @id @default(cuid())
+  tenantId  String
+  branchId  String
+  label     String
+  total     Decimal  @db.Decimal(14, 2)
+  payload   Json
+  userId    String
+  userName  String
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, branchId])
+}
+
+/// One sitting of a cash drawer: opened with a float, closed by counting.
+model Shift {
+  id           String    @id @default(cuid())
+  tenantId     String
+  branchId     String
+  tillId       String
+  openedById   String
+  openedByName String
+  openedAt     DateTime  @default(now())
+  openingFloat Decimal   @db.Decimal(14, 2)
+  closedById   String?
+  closedByName String?
+  closedAt     DateTime?
+  expectedCash Decimal?  @db.Decimal(14, 2)
+  countedCash  Decimal?  @db.Decimal(14, 2)
+  difference   Decimal?  @db.Decimal(14, 2)
+  note         String?
+
+  moves CashMovement[]
+
+  @@index([tenantId, branchId, openedAt])
+  @@index([tenantId, tillId, closedAt])
+}
+
+model CashMovement {
+  id        String   @id @default(cuid())
+  tenantId  String
+  shiftId   String
+  kind      CashKind
+  amount    Decimal  @db.Decimal(14, 2)
+  reason    String
+  clientKey String?
+  userId    String
+  userName  String
+  createdAt DateTime @default(now())
+
+  shift Shift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, clientKey])
+  @@index([tenantId, shiftId])
+}
+
+model Expense {
+  id        String    @id @default(cuid())
+  tenantId  String
+  branchId  String
+  shiftId   String? // set when cash was taken from that drawer
+  category  String
+  amount    Decimal   @db.Decimal(14, 2)
+  method    PayMethod
+  note      String?
+  spentOn   DateTime  @db.Date
+  userId    String
+  userName  String
+  createdAt DateTime  @default(now())
+
+  @@index([tenantId, branchId, spentOn])
+  @@index([tenantId, shiftId])
+}
+
+model StockTransfer {
+  id             String         @id @default(cuid())
+  tenantId       String
+  code           String // TR-0001
+  fromBranchId   String
+  toBranchId     String
+  status         TransferStatus @default(SENT)
+  note           String?
+  sentByName     String
+  sentAt         DateTime       @default(now())
+  receivedByName String?
+  receivedAt     DateTime?
+
+  lines TransferLine[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, status])
+}
+
+model TransferLine {
+  id         String  @id @default(cuid())
+  tenantId   String
+  transferId String
+  baleId     String
+  wasOpened  Boolean @default(false)
+
+  transfer StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([transferId])
+}
+
+/// Counting the shelf: scan every bale that is really there, then see what is missing.
+model StockCheck {
+  id            String    @id @default(cuid())
+  tenantId      String
+  branchId      String
+  startedByName String
+  startedAt     DateTime  @default(now())
+  finishedAt    DateTime?
+  expected      Int       @default(0)
+  found         Int       @default(0)
+
+  scans StockCheckScan[]
+
+  @@index([tenantId, branchId, startedAt])
+}
+
+model StockCheckScan {
+  id       String @id @default(cuid())
+  tenantId String
+  checkId  String
+  baleId   String
+
+  check StockCheck @relation(fields: [checkId], references: [id], onDelete: Cascade)
+
+  @@unique([checkId, baleId])
+  @@index([tenantId])
+}
+
+/// Who did the things an owner wants to know about: cancels, returns, price changes, drawer opened.
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  branchId  String?
+  userId    String
+  userName  String
+  action    String
+  detail    String
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+}

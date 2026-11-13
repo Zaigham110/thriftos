@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    height: 100%;
+  }
+  body {
+    @apply h-full bg-paper font-sans text-stone-900 antialiased;
+    overscroll-behavior: none;
+  }
+  h1 {
+    @apply text-xl font-bold tracking-tight;
+  }
+  h2 {
+    @apply text-base font-semibold;
+  }
+  button {
+    touch-action: manipulation;
+  }
+}
+
+@layer components {
+  /* Buttons: at least 48px tall, for fingers. */
+  .btn {
+    @apply inline-flex min-h-[48px] select-none items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition
+      active:scale-[.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2
+      disabled:cursor-not-allowed disabled:opacity-45 disabled:active:scale-100;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800;
+  }
+  .btn-pay {
+    @apply btn min-h-[60px] w-full bg-pay-600 text-lg text-white shadow-sm hover:bg-pay-700 active:bg-pay-700;
+  }
+  .btn-big {
+    @apply btn-primary min-h-[56px] w-full text-base;
+  }
+  .btn-soft {
+    @apply btn border border-stone-300 bg-white text-stone-800 hover:bg-stone-50;
+  }
+  .btn-quiet {
+    @apply btn bg-stone-100 text-stone-800 hover:bg-stone-200;
+  }
+  .btn-danger {
+    @apply btn border border-red-200 bg-white text-red-700 hover:bg-red-50;
+  }
+  .icon-btn {
+    @apply inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-stone-600 transition hover:bg-stone-100 active:scale-95
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600;
+  }
+  .input {
+    @apply block min-h-[48px] w-full rounded-xl border border-stone-300 bg-white px-3.5 text-base text-stone-900
+      placeholder:text-stone-400 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-200;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-stone-700;
+  }
+  .hint {
+    @apply mt-1 text-xs text-stone-500;
+  }
+  .card {
+    @apply rounded-2xl border border-stone-200/80 bg-white shadow-tile;
+  }
+  .chip {
+    @apply inline-flex min-h-[40px] shrink-0 select-none items-center gap-1.5 rounded-full border border-stone-300 bg-white px-4 text-sm font-medium text-stone-700 transition active:scale-95;
+  }
+  .chip-on {
+    @apply border-brand-700 bg-brand-700 text-white;
+  }
+  .tag {
+    @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold;
+  }
+  .num {
+    @apply whitespace-nowrap tabular-nums;
+  }
+  .th {
+    @apply whitespace-nowrap px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-stone-500;
+  }
+  .td {
+    @apply px-3 py-2.5 text-sm;
+  }
+  /* A page that is not the till: comfortable reading width, room for the phone's bottom bar. */
+  .screen {
+    @apply mx-auto w-full max-w-5xl px-4 pb-28 pt-5 md:px-6 md:pb-10;
+  }
+  .stat {
+    @apply card p-4;
+  }
+  .stat-label {
+    @apply text-xs font-medium text-stone-500;
+  }
+  .stat-value {
+    @apply num mt-1 text-xl font-bold tracking-tight xl:text-2xl;
+  }
+  /* One row in a list people tap. */
+  .row {
+    @apply flex min-h-[64px] w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-stone-50 active:bg-stone-100;
+  }
+  /* A row that scrolls sideways by itself. min-width 0 so it can never push its parent wider than the screen. */
+  .scroll-x {
+    @apply -mx-4 flex min-w-0 gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0;
+    scrollbar-width: none;
+  }
+  .scroll-x::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Printing: only what the print host draws goes to the printer. */
+.print-only {
+  display: none;
+}
+@media print {
+  html,
+  body {
+    background: #fff;
+    height: auto;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block;
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pos",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd pos/server && WEB_DIR=../web/dist/pos-web/browser node dist/main.js"],
+      "port": 3100
+    }
+  ]
+}

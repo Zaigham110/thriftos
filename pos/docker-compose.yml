@@ -1,0 +1,60 @@
+# ThriftOS Shop POS: its own database and one app container (API + screens).
+# Development: `docker compose up -d db`, then run the server and the web with npm.
+# A shop computer or a server: `docker compose --profile app up -d --build`.
+# With https (needed for USB / Bluetooth printers, the camera and offline use on the shop's other devices):
+# `docker compose --profile app --profile https up -d --build` after setting POS_DOMAIN in .env.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: thriftos-pos-db
+    restart: always
+    environment:
+      POSTGRES_USER: pos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in pos/.env}
+      POSTGRES_DB: thriftos_pos
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - pos_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pos -d thriftos_pos"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    profiles: ["app"]
+    build: .
+    container_name: thriftos-pos
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3100
+      DATABASE_URL: postgresql://pos:${POSTGRES_PASSWORD}@db:5432/thriftos_pos?schema=public
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in pos/.env}
+      WEB_DIR: /app/web
+    ports:
+      - "${POS_PORT:-8080}:3100"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # https in front of the app. A public name (shop.example.com) gets a real certificate by itself. A name that only
+  # exists on the shop network needs POS_HTTPS_FLAGS=--internal-certs, and each device must trust Caddy's certificate.
+  https:
+    profiles: ["https"]
+    image: caddy:2-alpine
+    container_name: thriftos-pos-https
+    restart: always
+    command: caddy reverse-proxy --from ${POS_DOMAIN:-localhost} --to app:3100 ${POS_HTTPS_FLAGS:-}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+    depends_on:
+      - app
+
+volumes:
+  pos_data:
+  caddy_data:
