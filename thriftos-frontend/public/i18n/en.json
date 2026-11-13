@@ -872,6 +872,24 @@
    "title": "Business setup"
   },
   "audit": {
+   "PRICE_GROUP_CHANGED": "changed the price list",
+   "PRICE_GROUP_RENAMED": "renamed a price list",
+   "PRICE_GROUP_REMOVED": "removed a price list",
+   "CREDIT_LIMIT_CHANGED": "changed the credit limit",
+   "KHATA_REMINDER_SENT": "sent a reminder",
+   "PAYMENT_PROMISED": "noted a promise to pay",
+   "PAYMENT_PROMISE_CANCELLED": "cancelled a promise to pay",
+   "SUPPLIER_PAID": "paid the supplier",
+   "SUPPLIER_PAYMENT_CANCELLED": "cancelled a payment to the supplier",
+   "STOCK_TRANSFERRED": "moved it to another godown",
+   "STOCK_TRANSFERRED_MANY": "moved stock to this godown",
+   "STOCK_COUNT_ENTERED": "entered a stock count",
+   "STOCK_OPENED": "opened the bale",
+   "STOCK_RECEIVED": "added the stock",
+   "SORT_OUTPUT_ADDED": "added a sorting entry",
+   "SORT_OUTPUT_REMOVED": "took back a sorting entry",
+   "KAT_THROWN_AWAY": "threw away waste",
+   "PURCHASE_ORDER_CREATED": "made the purchase order",
    "SALE_MADE_EXPORT": "made it an export sale",
    "SALE_SHIPMENT_SET": "changed the shipment details",
    "BALE_MADE": "made the bale",
@@ -1745,6 +1763,7 @@
    "year": "This year"
   },
   "rc": {
+   "balanceAhead": "Still due on bills and opening balance {due}, less {advance} paid in advance: the customer has paid {ahead} ahead.",
    "actions": "Actions",
    "active": "Still a customer (shown when selling)",
    "address": "Address",

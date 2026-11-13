@@ -872,6 +872,24 @@
    "title": "Karobar ki setting"
   },
   "audit": {
+   "PRICE_GROUP_CHANGED": "price list badli",
+   "PRICE_GROUP_RENAMED": "price list ka naam badla",
+   "PRICE_GROUP_REMOVED": "price list hatayi",
+   "CREDIT_LIMIT_CHANGED": "udhaar ki had badli",
+   "KHATA_REMINDER_SENT": "yaad dehani bheji",
+   "PAYMENT_PROMISED": "adaigi ka waada darj kiya",
+   "PAYMENT_PROMISE_CANCELLED": "adaigi ka waada cancel kiya",
+   "SUPPLIER_PAID": "supplier ko adaigi ki",
+   "SUPPLIER_PAYMENT_CANCELLED": "supplier ki adaigi cancel ki",
+   "STOCK_TRANSFERRED": "doosre godown mein move kiya",
+   "STOCK_TRANSFERRED_MANY": "maal is godown mein move kiya",
+   "STOCK_COUNT_ENTERED": "stock ki ginti darj ki",
+   "STOCK_OPENED": "bale kholi",
+   "STOCK_RECEIVED": "maal shamil kiya",
+   "SORT_OUTPUT_ADDED": "chhantai ka indraj kiya",
+   "SORT_OUTPUT_REMOVED": "chhantai ka indraj wapas liya",
+   "KAT_THROWN_AWAY": "katran phenka",
+   "PURCHASE_ORDER_CREATED": "purchase order banaya",
    "SALE_MADE_EXPORT": "ise export sale banaya",
    "SALE_SHIPMENT_SET": "shipment ki tafseel badli",
    "BALE_MADE": "ne gaanth banayi",
@@ -1745,6 +1763,7 @@
    "year": "Yeh saal"
   },
   "rc": {
+   "balanceAhead": "Bills aur purane khate ka baqi {due}, minus {advance} advance: gahak ne {ahead} pehle se diye hue hain.",
    "actions": "Actions",
    "active": "Abhi bhi gahak hai (bechte waqt dikhega)",
    "address": "Pata",

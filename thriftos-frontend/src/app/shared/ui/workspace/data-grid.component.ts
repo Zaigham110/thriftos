@@ -208,6 +208,8 @@ export class WsDataGridComponent {
 
   protected cell(v: unknown, format: WsCellFormat = 'text', round = false, decimals?: number): string {
     if (v === null || v === undefined || v === '') return '—';
+    // Words in a figures column ("Paid ahead Rs 1,310" under Balance) are shown as they are.
+    if (format !== 'text' && format !== 'date' && typeof v === 'string' && Number.isNaN(Number(v))) return v;
     switch (format) {
       case 'money': return this.i18n.money(round ? Math.round(Number(v)) : (v as number | string), decimals);
       case 'kg': return this.i18n.kg(v as number | string);

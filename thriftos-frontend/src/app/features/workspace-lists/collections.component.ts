@@ -65,7 +65,7 @@ interface SettledRow { id: string; name: string; phone: string | null; city: str
         </ws-page-header>
         <section class="kpis">
           <ws-kpi-card [label]="'ws.collections.owed' | t" [value]="i18n.money(d.totals.owed)" />
-          <ws-kpi-card [label]="'ws.collections.over90' | t" [value]="i18n.money(d.totals.buckets['90+'])" [hint]="'ws.collections.over90Hint' | t" />
+          <ws-kpi-card [label]="'ws.collections.over90' | t" [value]="i18n.money(d.totals.buckets['90+'])" [hint]="+d.totals.buckets['90+'] > 0 ? ('ws.collections.over90Hint' | t) : ''" />
           <ws-kpi-card [label]="'ws.rc.advance' | t" [value]="i18n.money(d.totals.advance)" [hint]="'ws.rc.advanceHint' | t" />
         </section>
 
@@ -240,9 +240,10 @@ export class CollectionsComponent {
     if (this.view() !== 'everyone') return owing;
     const q = this.query().trim().toLowerCase();
     const settled: WsRow[] = (this.data()?.settled ?? []).filter((c) => this.found(c, q)).map((c) => ({
-      id: c.id, name: c.isActive ? c.name : `${c.name} · ${this.i18n.t('ws.rc.inactive')}`, city: c.city, balance: '0',
+      // Money paid ahead is their balance, said in words (v2 review: it sat under Promise beside a balance of Rs 0).
+      id: c.id, name: c.isActive ? c.name : `${c.name} · ${this.i18n.t('ws.rc.inactive')}`, city: c.city, balance: +c.advance > 0 ? this.i18n.t('ws.rc.paidAhead', { amount: this.i18n.money(c.advance) }) : '0',
       ...Object.fromEntries(AGE_KEYS.map((k) => [`age${k}`, '0'])),
-      promise: +c.advance > 0 ? this.i18n.t('ws.rc.paidAhead', { amount: this.i18n.money(c.advance) }) : null,
+      promise: null,
       lastPayment: c.lastPayment ? `${this.i18n.money(c.lastPayment.amount)} · ${this.date(c.lastPayment.date)}` : null,
       lastReminder: null,
       _actions: ['receive'],

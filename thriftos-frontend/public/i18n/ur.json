@@ -872,6 +872,24 @@
    "title": "کاروبار کی ترتیب"
   },
   "audit": {
+   "PRICE_GROUP_CHANGED": "قیمت کی فہرست بدلی",
+   "PRICE_GROUP_RENAMED": "قیمت کی فہرست کا نام بدلا",
+   "PRICE_GROUP_REMOVED": "قیمت کی فہرست ہٹائی",
+   "CREDIT_LIMIT_CHANGED": "ادھار کی حد بدلی",
+   "KHATA_REMINDER_SENT": "یاد دہانی بھیجی",
+   "PAYMENT_PROMISED": "ادائیگی کا وعدہ درج کیا",
+   "PAYMENT_PROMISE_CANCELLED": "ادائیگی کا وعدہ منسوخ کیا",
+   "SUPPLIER_PAID": "سپلائر کو ادائیگی کی",
+   "SUPPLIER_PAYMENT_CANCELLED": "سپلائر کی ادائیگی منسوخ کی",
+   "STOCK_TRANSFERRED": "دوسرے گودام میں منتقل کیا",
+   "STOCK_TRANSFERRED_MANY": "مال اس گودام میں منتقل کیا",
+   "STOCK_COUNT_ENTERED": "اسٹاک کی گنتی درج کی",
+   "STOCK_OPENED": "گانٹھ کھولی",
+   "STOCK_RECEIVED": "مال شامل کیا",
+   "SORT_OUTPUT_ADDED": "چھانٹی کا اندراج کیا",
+   "SORT_OUTPUT_REMOVED": "چھانٹی کا اندراج واپس لیا",
+   "KAT_THROWN_AWAY": "کترن پھینکا",
+   "PURCHASE_ORDER_CREATED": "خریداری کا آرڈر بنایا",
    "SALE_MADE_EXPORT": "اسے ایکسپورٹ سیل بنایا",
    "SALE_SHIPMENT_SET": "شپمنٹ کی تفصیل بدلی",
    "BALE_MADE": "نے گانٹھ بنائی",
@@ -1745,6 +1763,7 @@
    "year": "اس سال"
   },
   "rc": {
+   "balanceAhead": "بلوں اور پرانے کھاتے کا باقی {due}، منفی {advance} ایڈوانس: گاہک نے {ahead} پہلے سے دیے ہوئے ہیں۔",
    "actions": "کارروائی",
    "active": "ابھی بھی گاہک ہے (بیچتے وقت دکھے گا)",
    "address": "پتہ",

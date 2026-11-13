@@ -79,7 +79,7 @@ const METHODS: readonly PaymentMethod[] = ['CASH', 'JAZZCASH', 'EASYPAISA', 'RAA
               }
               <button type="button" class="ws-btn" (click)="sheet.set('promise')"><lucide-icon [img]="icons.CalendarCheck" [size]="16" aria-hidden="true" />{{ 'ws.customer.promise' | t }}</button>
               @if (can('price.manage')) {
-                <button type="button" class="ws-btn" (click)="openGroup()"><lucide-icon [img]="icons.Tags" [size]="16" aria-hidden="true" />{{ d.customer.priceGroup ?? ('ws.customer.priceList' | t) }}</button>
+                <button type="button" class="ws-btn" (click)="openGroup()"><lucide-icon [img]="icons.Tags" [size]="16" aria-hidden="true" />{{ d.customer.priceGroup ? ('ws.saleEntry.list' | t: { group: d.customer.priceGroup }) : ('ws.customer.priceList' | t) }}</button>
               }
               <button type="button" class="ws-btn" (click)="go('statement')"><lucide-icon [img]="icons.FileText" [size]="16" aria-hidden="true" />{{ 'ws.customer.statement' | t }}</button>
               <button type="button" class="ws-btn" (click)="go('edit')"><lucide-icon [img]="icons.Pencil" [size]="16" aria-hidden="true" />{{ 'ws.crumb.edit' | t }}</button>
@@ -91,8 +91,8 @@ const METHODS: readonly PaymentMethod[] = ['CASH', 'JAZZCASH', 'EASYPAISA', 'RAA
           }
 
           <section class="smart">
-            <ws-smart-button [label]="'ws.collections.balance' | t" [value]="i18n.money(d.account.balance)" [icon]="icons.BookOpen" [tone]="+d.account.balance > 0 ? 'bad' : 'good'" [link]="[]" [query]="{ tab: 'sales' }" />
-            <ws-smart-button [label]="'ws.customer.overdue' | t" [value]="'ws.customer.days' | t: { n: d.account.overdueDays }" [icon]="icons.Clock" [tone]="d.account.overdueDays > 60 ? 'bad' : 'plain'" [link]="[]" [query]="{ tab: 'sales' }" />
+            <ws-smart-button [label]="(+d.account.balance < 0 ? 'ws.sale.advance' : 'ws.collections.balance') | t" [value]="i18n.money(abs(d.account.balance))" [icon]="icons.BookOpen" [tone]="+d.account.balance > 0 ? 'bad' : 'good'" [link]="[]" [query]="{ tab: 'sales' }" />
+            <ws-smart-button [label]="'ws.customer.overdue' | t" [value]="+d.account.balance > 0 ? ('ws.customer.days' | t: { n: d.account.overdueDays }) : '—'" [icon]="icons.Clock" [tone]="d.account.overdueDays > 60 ? 'bad' : 'plain'" [link]="[]" [query]="{ tab: 'sales' }" />
             <ws-smart-button [label]="'ws.customer.creditLimit' | t" [value]="d.customer.creditLimit ? i18n.money(d.customer.creditLimit) + ' · ' + d.account.limitUsedPercent + '%' : ('ws.customer.noLimit' | t)" [icon]="icons.Gauge" [tone]="d.account.overLimit ? 'bad' : 'plain'" [link]="[]" (click)="openLimit()" />
             <ws-smart-button [label]="'ws.customer.sold' | t" [value]="i18n.money(d.totals.sold)" [icon]="icons.Receipt" [link]="[]" [query]="{ tab: 'sales' }" />
             <ws-smart-button [label]="'ws.customer.received' | t" [value]="i18n.money(d.totals.received)" [icon]="icons.Wallet" tone="good" [link]="[]" [query]="{ tab: 'payments' }" />
@@ -314,8 +314,14 @@ export class CustomerRecordComponent {
     if (!d) return '';
     const due = d.sales.reduce((t, s) => t + Number(s.due), 0) + Number(d.account.openingDue);
     const advance = Number(d.account.advance);
+    const balance = Number(d.account.balance);
+    // Paid more than is due: said as money paid ahead, not as a balance below zero (v2 review).
+    if (balance < 0) return this.i18n.t('ws.rc.balanceAhead', { due: this.i18n.money(due), advance: this.i18n.money(advance), ahead: this.i18n.money(-balance) });
     return this.i18n.t(advance > 0 ? 'ws.rc.balanceAdvance' : 'ws.rc.balanceLine', { due: this.i18n.money(due), advance: this.i18n.money(advance), balance: this.i18n.money(d.account.balance) });
   });
+  protected abs(v: string | number): number {
+    return Math.abs(Number(v));
+  }
   protected readonly paymentColumns = computed(() => [
     this.col('date', 'ws.col.date', 'date'), this.col('method', 'ws.sale.method'), this.col('reference', 'ws.sale.reference'), this.col('sale', 'ws.col.number'),
     this.col('amount', 'ws.sale.amount', 'money', true),
