@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { CashKind, KhataKind, PayMethod, Prisma, RefundTo, SaleStatus, Shift } from '@prisma/client';
 import { audit, openShift } from '../common/audit';
-import { Actor, ManagerUp, Me } from '../common/auth.guard';
+import { Actor, isManager, ManagerUp, Me } from '../common/auth.guard';
 import { PrismaService } from '../common/prisma.service';
 import { amount, D, day, Dec, fail, optText, range, text, ZERO } from '../common/util';
 
@@ -129,8 +129,9 @@ export class DrawerController {
   /** One shift with its full report (the Z report). The person who ran it may see it; others need a manager. */
   @Get('shifts/:id')
   async one(@Me() me: Actor, @Param('id') id: string) {
-    const shift = await this.prisma.shift.findFirst({ where: { id, tenantId: me.tenantId } });
+    const shift = await this.prisma.shift.findFirst({ where: { id, tenantId: me.tenantId, branchId: me.branchId } });
     if (!shift) fail('NOT_FOUND', 'This shift was not found.', 404);
+    if (!isManager(me) && shift.openedById !== me.id && shift.closedById !== me.id) fail('MANAGER_ONLY', 'Only a manager or the owner can see another person\'s shift.', 403);
     const till = await this.prisma.till.findFirst({ where: { id: shift.tillId }, select: { code: true, name: true } });
     return { ...shift, till, summary: await this.summary(shift) };
   }

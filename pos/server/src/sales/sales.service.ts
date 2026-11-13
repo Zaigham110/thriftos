@@ -97,7 +97,17 @@ export class SalesService {
     if (billDiscount.greaterThan(subtotal)) fail('DISCOUNT_TOO_BIG', 'The discount is more than the bill.');
     const net = subtotal.minus(billDiscount);
     if (me.role === UserRole.CASHIER && gross.greaterThan(0)) {
-      const pct = gross.minus(net).times(100).dividedBy(gross);
+      // A price typed below the bale's own price is a discount too, so it counts towards the cashier's limit.
+      const listed = await this.prisma.bale.findMany({
+        where: { tenantId, id: { in: lines.filter((l) => l.baleId).map((l) => l.baleId!) } },
+        select: { id: true, salePrice: true, piecePrice: true },
+      });
+      const full = lines.reduce((sum, l) => {
+        const bale = listed.find((b) => b.id === l.baleId);
+        const list = (l.kind === LineKind.BALE ? bale?.salePrice : l.kind === LineKind.PIECE ? bale?.piecePrice : null) ?? l.unitPrice;
+        return sum.plus((list.greaterThan(l.unitPrice) ? list : l.unitPrice).times(l.quantity));
+      }, ZERO);
+      const pct = full.minus(net).times(100).dividedBy(full);
       if (pct.greaterThan(shop.cashierMaxDiscountPct)) {
         refuse('DISCOUNT_LIMIT', `A cashier can give ${shop.cashierMaxDiscountPct}% discount at most. Ask a manager to make this bill.`, 403);
       }

@@ -19,6 +19,11 @@ export function shopView(shop: Shop) {
   return { id, name, phone, city, address, currency, billFooter, taxName, taxRate, taxInclusive, ntn, strn, cashierMaxDiscountPct, managerSeesCost };
 }
 
+/** Wrong PIN tries per person. A 4-digit PIN must not be guessable from a signed-in till. */
+const PIN_TRIES = 5;
+const PIN_LOCK_MS = 10 * 60_000;
+const pinFails = new Map<string, { count: number; until: number }>();
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -103,8 +108,17 @@ export class AuthController {
     const user = await this.prisma.user.findFirst({
       where: { id: String(body.userId ?? ''), tenantId: me.tenantId, active: true, OR: [{ branchId: me.branchId }, { branchId: null }] },
     });
+    const key = String(body.userId ?? '');
+    const state = pinFails.get(key);
+    if (state && state.until > Date.now()) fail('PIN_LOCKED', 'Too many wrong tries. This PIN is locked for 10 minutes; sign in with the phone number and password instead.', 429);
     const ok = user?.pinHash && (await bcrypt.compare(String(body.pin ?? ''), user.pinHash));
-    if (!ok) fail('WRONG_PIN', 'That PIN is not right.', 401);
+    if (!ok) {
+      const count = (state && state.until === 0 ? state.count : 0) + 1;
+      pinFails.set(key, count >= PIN_TRIES ? { count: 0, until: Date.now() + PIN_LOCK_MS } : { count, until: 0 });
+      if (pinFails.size > 5000) pinFails.clear();
+      fail('WRONG_PIN', 'That PIN is not right.', 401);
+    }
+    pinFails.delete(key);
     return this.session(user.id);
   }
 

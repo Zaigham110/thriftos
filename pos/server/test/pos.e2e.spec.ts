@@ -223,10 +223,13 @@ describe('Shop POS', () => {
     expect((await sell(cashier, { lines: [one], payments: [{ method: 'BANK', amount: '20000' }] }).expect(400)).body.code).toBe('OVERPAID');
     expect((await sell(cashier, { lines: [{ ...one, unitPrice: '-5' }] }).expect(400)).body.code).toBe('BAD_NUMBER');
     expect((await sell(cashier, { lines: [{ ...one, discount: '3000' }] }).expect(403)).body.code).toBe('DISCOUNT_LIMIT');
+    // Lowering the price instead of typing a discount is held to the same limit (the bale's own price is 15,000).
+    expect((await sell(cashier, { lines: [{ ...one, unitPrice: '10000' }] }).expect(403)).body.code).toBe('DISCOUNT_LIMIT');
     expect((await bale('B-00003')).status).toBe('IN_STOCK');
   });
 
   let haji = '';
+  let shiftId = '';
   let creditSale = '';
   it('keeps a customer khata: credit sales, the limit, and money received', async () => {
     const c = (await api().post('/api/customers').set(as(cashier)).send({ name: 'Haji Rafiq', phone: '0333 1234567', creditLimit: '10000', openingBalance: '2000' }).expect(201)).body;
@@ -289,7 +292,11 @@ describe('Shop POS', () => {
     const closed = (await api().post('/api/shifts/close').set(as(cashier)).send({ tillId: till, countedCash: '5900' }).expect(201)).body;
     expect(closed).toMatchObject({ expectedCash: '5950', countedCash: '5900', difference: '-50', closedByName: 'Bilal' });
     await api().post('/api/shifts/close').set(as(cashier)).send({ tillId: till, countedCash: '1' }).expect(409);
-    expect((await api().get('/api/shifts').set(as(manager)).expect(200)).body).toHaveLength(1);
+    const shifts = (await api().get('/api/shifts').set(as(manager)).expect(200)).body;
+    expect(shifts).toHaveLength(1);
+    // The cashier who ran it may read its report; in another branch it does not exist.
+    await api().get(`/api/shifts/${shifts[0].id}`).set(as(cashier)).expect(200);
+    shiftId = shifts[0].id;
   });
 
   it('takes a bale back onto the shelf, and will not cancel a bill that has a return', async () => {
@@ -335,6 +342,7 @@ describe('Shop POS', () => {
     await api().post('/api/shop/branches').set(as(owner)).send({ name: 'saddar' }).expect(409);
     expect((await api().get('/api/bales').set(inSaddar())).body.total).toBe(0);
     expect((await api().get('/api/sales').set(inSaddar())).body.sales).toHaveLength(0);
+    await api().get(`/api/shifts/${shiftId}`).set(inSaddar()).expect(404);
 
     const b1 = await bale('B-00001');
     await api().post('/api/transfers').set(as(cashier)).send({ toBranchId: saddar, baleIds: [b1.id] }).expect(403);
@@ -427,6 +435,10 @@ describe('Shop POS', () => {
   it('lets another person take over a signed-in till with a PIN', async () => {
     expect((await api().get('/api/auth/people').set(as(cashier)).expect(200)).body).toEqual([expect.objectContaining({ name: 'Sana', role: 'MANAGER' })]);
     await api().post('/api/auth/pin').set(as(cashier)).send({ userId: managerId, pin: '0000' }).expect(401);
+    // Five wrong tries lock the PIN, even for the right one, so it cannot be guessed from a signed-in till.
+    const victim = (await api().post('/api/shop/staff').set(as(owner)).send({ name: 'Guess Me', phone: '0303 1110000', password: '4321', pin: '2468' }).expect(201)).body;
+    for (let i = 0; i < 5; i++) await api().post('/api/auth/pin').set(as(cashier)).send({ userId: victim.id, pin: '0000' }).expect(401);
+    expect((await api().post('/api/auth/pin').set(as(cashier)).send({ userId: victim.id, pin: '2468' }).expect(429)).body.code).toBe('PIN_LOCKED');
     const session = (await api().post('/api/auth/pin').set(as(cashier)).send({ userId: managerId, pin: '1234' }).expect(201)).body;
     expect(session.user).toMatchObject({ name: 'Sana', role: 'MANAGER', hasPin: true });
     await api().get('/api/shifts').set(as(session.token)).expect(200);
