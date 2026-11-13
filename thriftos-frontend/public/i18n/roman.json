@@ -1009,6 +1009,9 @@
    "showTable": "Table dikhayein"
   },
   "close": {
+   "earlierOpen": "Pehle ke din band nahi hue: {days}. Agar in mein se kisi ki ginti ki thi to sab se purana pehle band karein. Agar yeh din band karenge to woh din \"Ginti nahi hui\" ho jayenge aur baad mein band nahi ho sakenge.",
+   "notCounted": "Ginti nahi hui",
+   "nothingButMoves": "Is din cash mein koi sale ya kharcha nahi",
    "afterClose": "Galla band hone ke baad wusool: {amount}. Yeh kal ke galle mein gina jayega.",
    "afterCloseShort": "band hone ke baad",
    "amount": "Raqam",

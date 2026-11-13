@@ -1009,6 +1009,9 @@
    "showTable": "Show as table"
   },
   "close": {
+   "earlierOpen": "Earlier days are not closed: {days}. If you counted one, close the oldest first. If you close this day instead, those days will be marked \"Not counted\" and cannot be closed later.",
+   "notCounted": "Not counted",
+   "nothingButMoves": "No sales or expenses in cash this day",
    "afterClose": "Received after closing: {amount}. It counts in tomorrow's drawer.",
    "afterCloseShort": "after closing",
    "amount": "Amount",

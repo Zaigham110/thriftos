@@ -86,6 +86,10 @@ describe('Cash close review (e2e)', () => {
     const c = await customer(a, '0300 1110003');
     await pay(a, c, 2000, { receivedAt: noon(dayOffset(-3)) }).expect(201);
     await pay(a, c, 1000, { receivedAt: noon(dayOffset(-2)) }).expect(201);
+    // Before closing: the older open day is named, so it can be closed first (v2 review); it counts as an open day.
+    const before = (await api(app, a).get(`/workspace/finance/close?day=${dayOffset(-2)}`).expect(200)).body;
+    expect(before.earlierOpen).toEqual([dayOffset(-3)]);
+    expect(before.recent.find((r: { day: string }) => r.day === dayOffset(-3))).toMatchObject({ closed: false, skipped: false });
     expect((await api(app, a).post('/workspace/finance/close', { day: dayOffset(-2), counted: 2900 }).expect(400)).body.code).toBe('REASON_NEEDED');
     expect((await api(app, a).post('/workspace/finance/close', { day: dayOffset(-2), counted: 2900, note: ' ' }).expect(400)).body.code).toBe('REASON_NEEDED');
     await api(app, a).post('/workspace/finance/close', { day: dayOffset(-2), counted: 2900, note: 'Rs 100 change' }).expect(201);
@@ -93,10 +97,13 @@ describe('Cash close review (e2e)', () => {
     expect((await api(app, a).post('/workspace/finance/close', { day: dayOffset(-2), counted: 2900, note: 'Again' }).expect(409)).body.code).toBe('CLOSED_ALREADY');
     expect((await api(app, a).post('/workspace/finance/close', { day: dayOffset(1), counted: 0 }).expect(400)).body.code).toBe('NOT_STARTED');
 
-    // The last 14 days: the day that was skipped shows as not closed.
+    // The last 14 days: the day that was passed over can no longer be closed, so it reads "not counted" and is
+    // not one of the open days the Home reminder counts.
     const v = (await api(app, a).get('/workspace/finance/close').expect(200)).body;
     expect(v.recent.map((r: { day: string; closed: boolean }) => [r.day, r.closed])).toEqual([[dayOffset(-2), true], [dayOffset(-3), false]]);
-    expect(v.openDays).toBe(1);
+    expect(v.recent.find((r: { day: string }) => r.day === dayOffset(-3)).skipped).toBe(true);
+    expect(v.openDays).toBe(0);
+    expect(v.earlierOpen).toEqual([]);
     expect(v.laterClosed).toBe(false);
     expect((await api(app, a).get(`/workspace/finance/close?day=${dayOffset(-3)}`).expect(200)).body).toMatchObject({ laterClosed: true, canReopen: false });
   });

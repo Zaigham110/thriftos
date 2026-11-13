@@ -270,22 +270,27 @@ export class FinanceService {
     const people = close ? await this.prisma.user.findFirst({ where: { id: close.closedBy, tenantId }, select: { name: true } }) : null;
     // The last 14 days up to today: closed ones with their figures, open ones that had cash.
     const byDay = new Map(closes.map((c) => [dayOf(c.day), c]));
+    const latestClosed = closes[0] ? dayOf(closes[0].day) : null;
     const busy = new Set(all.filter((l) => l.kind !== 'CLOSE').map((l) => l.day));
     const recent = [];
     for (let i = 0; i < 14; i++) {
       const d = new Date(localDayStart(today).getTime() - i * DAY + 12 * 3_600_000).toISOString().slice(0, 10);
       const c = byDay.get(d);
-      if (c) recent.push({ id: c.id, day: d, closed: true, expected: c.expected, counted: c.counted, difference: c.difference });
-      else if (busy.has(d)) recent.push({ id: d, day: d, closed: false, expected: null, counted: null, difference: null });
+      if (c) recent.push({ id: c.id, day: d, closed: true, skipped: false, expected: c.expected, counted: c.counted, difference: c.difference });
+      // An open day before the latest close can no longer be closed (days close in order): it was not counted.
+      else if (busy.has(d)) recent.push({ id: d, day: d, closed: false, skipped: !!latestClosed && d < latestClosed, expected: null, counted: null, difference: null });
     }
-    const latest = closes[0] ? dayOf(closes[0].day) : null;
+    const latest = latestClosed;
+    // Days with cash before this one that are still open and could be closed first (v2 review).
+    const earlierOpen = [...busy].filter((d) => d < day && !byDay.has(d) && (!latest || d > latest)).sort();
     return {
       day, opening, in: cashIn, out: cashOut, movedIn, movedOut, expected,
       lines: dayLines,
       afterClose, afterCloseTotal: sum(afterClose, 'in'),
       close: close ? { ...close, day: dayOf(close.day), closedByName: people?.name ?? null } : null,
       /** Days before today that had cash and were never closed (for the Home reminder). */
-      openDays: recent.filter((r) => !r.closed && r.day < today).length,
+      openDays: recent.filter((r) => !r.closed && !r.skipped && r.day < today).length,
+      earlierOpen,
       laterClosed: !!latest && latest > day,
       canReopen: !!close && latest === day,
       recent,

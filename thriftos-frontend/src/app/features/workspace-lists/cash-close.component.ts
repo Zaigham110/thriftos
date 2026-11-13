@@ -2,7 +2,7 @@ import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../core/auth';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
@@ -17,7 +17,9 @@ export interface CloseView {
   lines: BookLine[]; afterClose: BookLine[]; afterCloseTotal: string;
   close: { id: string; day: string; expected: string; counted: string; difference: string; note: string | null; closedByName: string | null; createdAt: string } | null;
   openDays: number; laterClosed: boolean; canReopen: boolean;
-  recent: { id: string; day: string; closed: boolean; expected: string | null; counted: string | null; difference: string | null }[];
+  /** Days with cash before this one that are still open and could be closed first. */
+  earlierOpen?: string[];
+  recent: { id: string; day: string; closed: boolean; skipped?: boolean; expected: string | null; counted: string | null; difference: string | null }[];
 }
 
 const today = () => new Date(Date.now() + 5 * 3_600_000).toISOString().slice(0, 10);
@@ -71,6 +73,10 @@ type MoveKind = 'BANK' | 'OWNER' | 'OTHER';
           @if (v.laterClosed) {
             <p class="note-line" role="note">{{ 'ws.close.laterClosed' | t }}</p>
           } @else {
+            @if (v.earlierOpen?.length) {
+              <!-- Days close in order: say so before an older open day is locked out for good (v2 review). -->
+              <p class="note-line" role="note">{{ 'ws.close.earlierOpen' | t: { days: dayList(v.earlierOpen!) } }}</p>
+            }
             <form class="count" (ngSubmit)="close()">
               <div class="count-row">
                 <label>{{ 'ws.close.counted' | t }}<input name="counted" type="number" inputmode="numeric" min="0" step="1" required [(ngModel)]="counted" (ngModelChange)="notesUsed.set(false)" /></label>
@@ -115,8 +121,8 @@ type MoveKind = 'BANK' | 'OWNER' | 'OTHER';
         }
 
         <div class="two">
-          <ws-data-grid [caption]="'ws.close.today' | t" [columns]="lineColumns()" [rows]="lineRows()" [emptyHeading]="'ws.close.nothing' | t" />
-          <ws-data-grid [caption]="'ws.close.recent' | t" [columns]="recentColumns()" [rows]="recentRows()" [emptyHeading]="'ws.close.noneYet' | t" [clickable]="true" (rowClick)="day.set($any($event)['day'])" />
+          <section class="block"><h2>{{ 'ws.close.today' | t }}</h2><ws-data-grid [caption]="'ws.close.today' | t" [columns]="lineColumns()" [rows]="lineRows()" [emptyHeading]="(moves().length ? 'ws.close.nothingButMoves' : 'ws.close.nothing') | t" /></section>
+          <section class="block"><h2>{{ 'ws.close.recent' | t }}</h2><ws-data-grid [caption]="'ws.close.recent' | t" [columns]="recentColumns()" [rows]="recentRows()" [emptyHeading]="'ws.close.noneYet' | t" [clickable]="true" (rowClick)="day.set($any($event)['day'])" /></section>
         </div>
 
         <ws-side-sheet [open]="reopening()" [heading]="'ws.close.reopenTitle' | t" (close)="reopening.set(false)">
@@ -159,7 +165,10 @@ type MoveKind = 'BANK' | 'OWNER' | 'OTHER';
     .page { display:grid; grid-template-columns:minmax(0, 1fr); gap:var(--ws-4); max-width:var(--ws-content-max); margin-inline:auto; font-family:var(--ws-font); color:var(--ws-ink); }
     .day { display:grid; gap:4px; color:var(--ws-ink-2); font-size:var(--ws-text-sm); }
     input { box-sizing:border-box; height:var(--ws-control-h); padding-inline:var(--ws-2); border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface); color:var(--ws-ink); font:inherit; }
-    .sum { display:grid; gap:6px; max-width:520px; padding:var(--ws-4); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); }
+    .block { display:grid; grid-template-columns:minmax(0, 1fr); gap:var(--ws-2); }
+    .block h2 { margin:0; font-size:var(--ws-text-md, 15px); font-weight:600; }
+    .note-line { max-width:720px; box-sizing:border-box; }
+    .sum { display:grid; gap:6px; max-width:720px; box-sizing:border-box; padding:var(--ws-4); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); }
     .sum .row { display:flex; justify-content:space-between; gap:var(--ws-3); color:var(--ws-ink-2); font-variant-numeric:tabular-nums; }
     .sum .row span:last-child { color:var(--ws-ink); }
     .sum .total { margin-top:4px; padding-top:8px; border-top:1px solid var(--ws-line); color:var(--ws-ink); font-weight:600; }
@@ -249,20 +258,31 @@ export class CashCloseComponent {
     { key: 'date', label: this.i18n.t('ws.col.date'), format: 'date' },
     { key: 'status', label: this.i18n.t('ws.close.status') },
     { key: 'counted', label: this.i18n.t('ws.close.counted'), format: 'money' },
-    { key: 'difference', label: this.i18n.t('ws.close.difference'), format: 'money', total: true },
+    // A total only once a day has been closed (it read "Total Rs 0" over a list of open days).
+    { key: 'difference', label: this.i18n.t('ws.close.difference'), format: 'money', total: (this.data()?.recent ?? []).some((r) => r.closed) },
   ]);
   protected readonly recentRows = computed<WsRow[]>(() =>
-    (this.data()?.recent ?? []).map((r) => withTones({ ...r, date: r.day + 'T12:00:00Z', status: this.i18n.t(r.closed ? 'ws.close.closedShort' : 'ws.close.notClosed') }, { status: r.closed ? 'DONE' : 'OPEN_DAY' })),
+    (this.data()?.recent ?? []).map((r) => withTones({ ...r, date: r.day + 'T12:00:00Z', status: this.i18n.t(r.closed ? 'ws.close.closedShort' : r.skipped ? 'ws.close.notCounted' : 'ws.close.notClosed') }, { status: r.closed ? 'DONE' : r.skipped ? 'CLOSED' : 'OPEN_DAY' })),
   );
+
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   constructor() {
     effect(() => {
-      this.day();
+      const day = this.day();
       untracked(() => {
+        // The day is kept in the address, so a refresh or Back returns to it (today has no ?day=).
+        void this.router.navigate([], { relativeTo: this.route, queryParams: { day: day === this.maxDay ? null : day }, queryParamsHandling: 'merge', replaceUrl: true });
         this.resetCount();
         this.load();
       });
     });
+  }
+
+  /** "11 Nov, 13 Nov" for the note about earlier open days. */
+  protected dayList(days: string[]): string {
+    return days.map((d) => new Date(`${d}T12:00:00Z`).toLocaleDateString(this.i18n.lang() === 'ur' ? 'ur-PK' : 'en-GB', { day: 'numeric', month: 'short', numberingSystem: 'latn' })).join(', ');
   }
 
   /** An empty count: nothing typed, no notes. */
