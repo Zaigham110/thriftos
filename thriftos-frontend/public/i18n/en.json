@@ -2528,6 +2528,7 @@
   },
   "active": "Still working here",
   "inactive": "left",
+  "needWorkers": "Add a worker first: a pay sheet needs somebody to pay.",
   "noWorkers": "No workers yet. Add the people who sort; then the sorting screen asks who sorted each entry.",
   "edit": "Edit",
   "advance": "Advance",

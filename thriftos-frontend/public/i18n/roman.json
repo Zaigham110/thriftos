@@ -2528,6 +2528,7 @@
   },
   "active": "Abhi yahin kaam karta hai",
   "inactive": "chhor gaya",
+  "needWorkers": "Pehle worker shamil karein: pay sheet ke liye koi hona chahiye.",
   "noWorkers": "Abhi koi mazdoor nahi. Chhantai walon ko shamil karein; phir chhantai ki screen har entry par poochay gi ke kis ne chhanta.",
   "edit": "Badlein",
   "advance": "Advance",

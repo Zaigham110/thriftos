@@ -1,3 +1,4 @@
+import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -23,6 +24,8 @@ const ymd = (d: Date) => new Date(d.getTime() + 5 * 3_600_000).toISOString().sli
  * Sorter pay (Phase 8), for owners: workers without a login (paid per kg, piece, day or month), advances, pay
  * sheets for a week or a month (paid in cash as one Labour expense; each payslip to WhatsApp), and productivity.
  */
+const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
+
 @Component({
   selector: 'app-payroll',
   standalone: true,
@@ -42,7 +45,7 @@ const ymd = (d: Date) => new Date(d.getTime() + 5 * 3_600_000).toISOString().sli
         @if (form(); as f) {
           <form class="card form" (ngSubmit)="saveWorker()">
             <label class="field">{{ 'pay.name' | t }}<input name="name" maxlength="80" required [(ngModel)]="f.name" /></label>
-            <label class="field">{{ 'pay.phone' | t }} <small>· {{ 'common.optional' | t }}</small><input name="phone" inputmode="tel" maxlength="30" dir="ltr" [(ngModel)]="f.phone" placeholder="0300 1234567" /></label>
+            <label class="field">{{ 'pay.phone' | t }} · {{ 'common.optional' | t }}<input name="phone" inputmode="tel" maxlength="30" dir="ltr" [(ngModel)]="f.phone" placeholder="0300 1234567" /></label>
             <span class="field-label">{{ 'pay.paidBy' | t }}</span>
             <div class="chips" role="group" [attr.aria-label]="'pay.paidBy' | t">
               @for (p of payTypes; track p) { <button type="button" class="chip" [class.on]="f.payType === p" [attr.aria-pressed]="f.payType === p" (click)="f.payType = p">{{ ('pay.type.' + p) | t }}</button> }
@@ -55,7 +58,7 @@ const ymd = (d: Date) => new Date(d.getTime() + 5 * 3_600_000).toISOString().sli
             </div>
           </form>
         }
-        @if (!workers().length && !form()) { <p class="notice">{{ 'pay.noWorkers' | t }}</p> }
+        @if (!workers().length && !form()) { <p class="notice empty">{{ 'pay.noWorkers' | t }}</p> }
         <ul class="list">
           @for (w of workers(); track w.id) {
             <li class="row worker" [class.off]="!w.isActive">
@@ -72,7 +75,7 @@ const ymd = (d: Date) => new Date(d.getTime() + 5 * 3_600_000).toISOString().sli
               <li>
                 <form class="card form" (ngSubmit)="giveAdvance(w)">
                   <label class="field">{{ 'pay.advanceAmount' | t: { name: w.name } }}<input name="amount" type="number" min="1" step="1" required [(ngModel)]="advance" /></label>
-                  <label class="field">{{ 'pay.note' | t }} <small>· {{ 'common.optional' | t }}</small><input name="anote" maxlength="200" [(ngModel)]="advanceNote" /></label>
+                  <label class="field">{{ 'pay.note' | t }} · {{ 'common.optional' | t }}<input name="anote" maxlength="200" [(ngModel)]="advanceNote" /></label>
                   <small class="hint">{{ 'pay.advanceHint' | t }}</small>
                   <div class="row-btns">
                     <button type="button" class="btn" (click)="advanceFor.set(null)">{{ 'common.cancel' | t }}</button>
@@ -99,7 +102,8 @@ const ymd = (d: Date) => new Date(d.getTime() + 5 * 3_600_000).toISOString().sli
               <label class="field">{{ 'pay.from' | t }}<input name="from" type="date" required [(ngModel)]="from" /></label>
               <label class="field">{{ 'pay.to' | t }}<input name="to" type="date" required [(ngModel)]="to" /></label>
             </div>
-            <button type="submit" class="btn primary" [disabled]="busy() || !from || !to">{{ 'pay.makeSheet' | t }}</button>
+            <button type="submit" class="btn primary" [disabled]="busy() || !from || !to || !hasWorkers()">{{ 'pay.makeSheet' | t }}</button>
+            @if (!hasWorkers()) { <p class="hint">{{ 'pay.needWorkers' | t }}</p> }
           </form>
           <ul class="list">
             @for (s of sheets(); track s.id) {
@@ -107,7 +111,7 @@ const ymd = (d: Date) => new Date(d.getTime() + 5 * 3_600_000).toISOString().sli
                 <span><strong>{{ day(s.periodStart) }} – {{ day(s.periodEnd) }}</strong><small>{{ 'pay.workersN' | t: { n: s.workers } }} <span class="ws-status" [attr.data-tone]="s.status === 'PAID' ? 'good' : 'warn'">{{ (s.status === 'PAID' ? 'pay.paid' : 'pay.draft') | t }}</span></small></span>
                 <span class="amount">{{ i18n.money(s.total) }}</span>
               </button></li>
-            } @empty { <li class="notice">{{ 'pay.noSheets' | t }}</li> }
+            } @empty { <li class="notice empty">{{ 'pay.noSheets' | t }}</li> }
           </ul>
         } @else {
           @let s = sheet()!;
@@ -156,11 +160,11 @@ const ymd = (d: Date) => new Date(d.getTime() + 5 * 3_600_000).toISOString().sli
         @if (prod(); as p) {
           <table class="table">
             <caption class="sr-only">{{ 'pay.tab.productivity' | t }}</caption>
-            <thead><tr><th scope="col">{{ 'pay.name' | t }}</th><th scope="col" class="num">{{ 'pay.kgPerDay' | t }}</th><th scope="col" class="num">{{ 'pay.sortedKg' | t }}</th><th scope="col" class="num">{{ 'pay.daysWorked' | t }}</th><th scope="col" class="num">{{ 'pay.topShare' | t: { topGrade: p.topGrade ?? '' } }}</th></tr></thead>
+            <thead><tr><th scope="col">{{ 'pay.name' | t }}</th><th scope="col" class="num">{{ 'pay.kgPerDay' | t }}</th><th scope="col" class="num">{{ 'pay.sortedKg' | t }}</th><th scope="col" class="num">{{ 'pay.daysWorked' | t }}</th><th scope="col" class="num">{{ 'pay.topShare' | t }}</th></tr></thead>
             <tbody>
               @for (w of p.workers; track w.id) {
                 <tr><td>{{ w.name }}</td><td class="num">{{ i18n.kg(w.kgPerDay) }}@if (w.piecesPerDay) { <small>{{ 'ws.lf.piecesN' | t: { n: i18n.num(w.piecesPerDay) } }}</small> }</td><td class="num">{{ i18n.kg(w.kg) }}</td><td class="num">{{ w.days }}</td><td class="num">{{ w.topGradePercent === null ? '—' : w.topGradePercent + '%' }}</td></tr>
-              } @empty { <tr><td colspan="5" class="notice">{{ 'pay.noWork' | t }}</td></tr> }
+              } @empty { <tr><td colspan="5" class="notice empty">{{ 'pay.noWork' | t }}</td></tr> }
             </tbody>
           </table>
         }
@@ -168,6 +172,10 @@ const ymd = (d: Date) => new Date(d.getTime() + 5 * 3_600_000).toISOString().sli
     </section>
   `,
   styles: [`
+    /* On a laptop the screen uses the page, not a phone-width column (v2 review). */
+    @media (min-width: 1024px) { .floor.payroll { max-width:960px; } .payroll .btn.primary.add, .payroll form .btn.primary { justify-self:start; width:auto; padding-inline:20px; } }
+    /* An empty list is a quiet line, not a green success box. */
+    .notice.empty { padding-inline:0; background:transparent; color:var(--tos-ink-soft); font-weight:500; }
     .payroll .tabs { display:inline-flex; border:1px solid var(--tos-line); border-radius:12px; overflow:hidden; margin-bottom:12px; }
     .payroll .tabs button { min-height:44px; padding:0 14px; border:0; background:var(--tos-card); font:inherit; font-weight:700; cursor:pointer; }
     .payroll .tabs button.on { background:var(--tos-primary); color:#fff; }
@@ -201,9 +209,14 @@ export class PayrollComponent {
   private readonly toast = inject(ToastService);
   private readonly tenants = inject(TenantService);
   protected readonly icons = { MessageCircle, Plus };
-  protected readonly tabs: Tab[] = ['workers', 'sheets', 'productivity'];
+  protected readonly tabs: Tab[] = TABS;
   protected readonly payTypes = PAY_TYPES;
-  protected readonly tab = signal<Tab>('workers');
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  /** ?tab= keeps the tab over a refresh or Back. */
+  protected readonly tab = signal<Tab>(((t) => (TABS.includes(t as Tab) ? (t as Tab) : 'workers'))(this.route.snapshot.queryParamMap.get('tab')));
+  /** A pay sheet needs somebody to pay. */
+  protected readonly hasWorkers = computed(() => this.workers().some((w) => w.isActive !== false));
   protected readonly workers = signal<Worker[]>([]);
   protected readonly sheets = signal<SheetRow[]>([]);
   protected readonly sheet = signal<Sheet | null>(null);
@@ -223,10 +236,13 @@ export class PayrollComponent {
   constructor() {
     this.loadWorkers();
     this.period('lastWeek');
+    if (this.tab() === 'sheets') this.loadSheets();
+    if (this.tab() === 'productivity') this.loadProd();
   }
 
   protected open(t: Tab): void {
     this.tab.set(t);
+    void this.router.navigate([], { relativeTo: this.route, queryParams: { tab: t === 'workers' ? null : t }, queryParamsHandling: 'merge', replaceUrl: true });
     this.error.set(null);
     if (t === 'sheets') this.loadSheets();
     if (t === 'productivity') this.loadProd();
