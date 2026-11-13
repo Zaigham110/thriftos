@@ -14,9 +14,12 @@ export interface PriceLists {
   entries: { id: string; group: string; categoryId: string; category: string; gradeId: string | null; grade: string | null; unit: string; price: string }[];
   categories: { id: string; name: string }[];
   grades: { id: string; name: string }[];
+  /** Every customer with the group they are in (null: none). */
+  customers?: { id: string; name: string; city: string | null; group: string | null }[];
 }
 
 const UNITS = ['BALE', 'KG', 'PIECE'] as const;
+const UNIT_WORDS: Record<string, string> = { BALE: 'unit.bale', KG: 'unit.kgShort', PIECE: 'unit.piece' };
 
 /**
  * Price lists by customer group (enterprise plan E3.4): one price per category (and grade, or any grade) and
@@ -42,7 +45,7 @@ const UNITS = ['BALE', 'KG', 'PIECE'] as const;
           <nav class="groups" [attr.aria-label]="'ws.prices.groups' | t">
             @for (g of groupNames(); track g) {
               <button type="button" class="group" [class.on]="group() === g" [attr.aria-pressed]="group() === g" (click)="group.set(g)">
-                <strong>{{ g }}</strong><small>{{ 'ws.prices.groupInfo' | t: { prices: count(g, 'prices'), customers: count(g, 'customers') } }}</small>
+                <strong>{{ g }}</strong><small>{{ info(g) }}</small>
                 @if (!count(g, 'customers')) { <small class="warn">{{ 'ws.sp2.noCustomers' | t }}</small> }
               </button>
             }
@@ -53,7 +56,11 @@ const UNITS = ['BALE', 'KG', 'PIECE'] as const;
           </nav>
           <section class="prices">
             @if (group(); as g) {
-              <h2>{{ g }}</h2>
+              <div class="head">
+                <h2>{{ g }}</h2>
+                <button type="button" class="ws-btn" [disabled]="busy()" (click)="rename(g)">{{ 'ws.prices.rename' | t }}</button>
+                <button type="button" class="ws-btn" [disabled]="busy()" (click)="removeGroup(g)">{{ 'ws.prices.removeGroup' | t }}</button>
+              </div>
               <table>
                 <caption class="sr-only">{{ g }}</caption>
                 <thead><tr><th scope="col">{{ 'ws.container.category' | t }}</th><th scope="col">{{ 'ws.container.grade' | t }}</th><th scope="col">{{ 'ws.stock.col.unit' | t }}</th><th scope="col" class="num">{{ 'ws.stock.col.price' | t }}</th><th scope="col"><span class="sr-only">{{ 'ws.saleEntry.remove' | t }}</span></th></tr></thead>
@@ -79,9 +86,24 @@ const UNITS = ['BALE', 'KG', 'PIECE'] as const;
                 <label>{{ 'ws.stock.col.unit' | t }}
                   <select name="unit" [(ngModel)]="unit">@for (u of units; track u) { <option [value]="u">{{ 'ws.stock.unit.' + u | t }}</option> }</select>
                 </label>
-                <label>{{ 'ws.stock.col.price' | t }}<input name="price" type="number" min="0" step="1" required [(ngModel)]="price" /></label>
+                <label>{{ 'ws.si.pricePer' | t: { unit: unitWord() } }}<input name="price" type="number" min="0" step="1" required [(ngModel)]="price" /></label>
                 <button type="submit" class="ws-btn primary" [disabled]="busy() || !categoryId || price === null">{{ 'ws.prices.setPrice' | t }}</button>
               </form>
+              <!-- Who gets these prices (v2 review: the page only showed a count). -->
+              <section class="members" [attr.aria-label]="'ws.prices.members' | t">
+                <h3>{{ 'ws.prices.members' | t }}</h3>
+                <ul>
+                  @for (c of members(); track c.id) {
+                    <li><span>{{ c.name }}@if (c.city) { <small> · {{ c.city }}</small> }</span><button type="button" class="ws-btn" [disabled]="busy()" (click)="setMember(c.id, null)">{{ 'ws.prices.removeMember' | t }}</button></li>
+                  } @empty { <li class="empty">{{ 'ws.prices.noMembers' | t }}</li> }
+                </ul>
+                <form class="add" (ngSubmit)="setMember(memberId, g)">
+                  <label>{{ 'ws.prices.addMember' | t }}
+                    <select name="member" [(ngModel)]="memberId"><option value="" disabled>{{ 'ws.prices.pickCustomer' | t }}</option>@for (c of others(); track c.id) { <option [value]="c.id">{{ c.group ? ('ws.prices.inGroup' | t: { name: c.name, group: c.group }) : c.name }}</option> }</select>
+                  </label>
+                  <button type="submit" class="ws-btn" [disabled]="busy() || !memberId">{{ 'ws.prices.addGroup' | t }}</button>
+                </form>
+              </section>
             } @else {
               <ws-state kind="empty" [heading]="'ws.prices.start' | t" />
             }
@@ -101,6 +123,13 @@ const UNITS = ['BALE', 'KG', 'PIECE'] as const;
     .group small { color:var(--ws-ink-2); font-size:var(--ws-text-xs); }
     .newgroup, .add { display:flex; flex-wrap:wrap; align-items:end; gap:var(--ws-2); }
     .prices { display:grid; gap:var(--ws-3); padding:var(--ws-4); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg); background:var(--ws-surface); }
+    .head { display:flex; align-items:center; gap:var(--ws-2); }
+    .head h2 { flex:1; }
+    .members { display:grid; gap:var(--ws-2); margin-top:var(--ws-4); }
+    .members h3 { margin:0; font-size:var(--ws-text-md, 15px); }
+    .members ul { list-style:none; margin:0; padding:0; }
+    .members li { display:flex; align-items:center; justify-content:space-between; gap:var(--ws-2); padding:var(--ws-2) 0; border-bottom:1px solid var(--ws-line); }
+    .members li.empty { color:var(--ws-ink-2); font-size:var(--ws-text-sm); }
     h2 { margin:0; font-size:var(--ws-text-lg, 1.125rem); }
     label { display:grid; gap:4px; color:var(--ws-ink-2); font-size:var(--ws-text-sm); }
     input, select { height:var(--ws-control-h); padding-inline:var(--ws-2); border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface); color:var(--ws-ink); font:inherit; }
@@ -137,12 +166,58 @@ export class PriceListsComponent {
   protected gradeId = '';
   protected unit: (typeof UNITS)[number] = 'BALE';
   protected price: number | null = null;
+  protected memberId = '';
+  protected readonly members = computed(() => (this.data()?.customers ?? []).filter((c) => c.group === this.group()));
+  protected readonly others = computed(() => (this.data()?.customers ?? []).filter((c) => c.group !== this.group()));
 
   protected readonly groupNames = computed(() => [...new Set([...(this.data()?.groups ?? []).map((g) => g.name), ...this.drafts()])].sort());
   protected readonly entries = computed(() => (this.data()?.entries ?? []).filter((e) => e.group === this.group()));
 
   constructor() {
     this.load();
+  }
+
+  /** "2 prices · 1 customer": each word in the singular for one. */
+  protected info(g: string): string {
+    const p = this.count(g, 'prices');
+    const c = this.count(g, 'customers');
+    return `${this.i18n.t(p === 1 ? 'ws.prices.priceOne' : 'ws.prices.pricesN', { n: p })} · ${this.i18n.t(c === 1 ? 'ws.prices.customerOne' : 'ws.prices.customersN', { n: c })}`;
+  }
+  protected unitWord(): string {
+    return this.i18n.t(UNIT_WORDS[this.unit]);
+  }
+
+  /** Puts a customer in this group, or (group null) takes them out. */
+  protected setMember(customerId: string, group: string | null): void {
+    if (!customerId) return;
+    this.busy.set(true);
+    this.http.patch(`/api/workspace/customers/${customerId}/price-group`, { group }).subscribe({
+      next: () => { this.busy.set(false); this.memberId = ''; if (group) this.drafts.set(this.drafts().filter((d) => d !== group)); this.toast.show(this.i18n.t('ws.prices.memberSaved')); this.load(); },
+      error: () => { this.busy.set(false); this.toast.show(this.i18n.t('common.couldNotSave')); },
+    });
+  }
+
+  /** A new name for the group: its prices and customers keep it. A group not saved yet is renamed here only. */
+  protected rename(g: string): void {
+    const name = (prompt(this.i18n.t('ws.prices.renameAsk'), g) ?? '').trim();
+    if (!name || name === g) return;
+    if (this.groupNames().includes(name)) { this.toast.show(this.i18n.t('ws.prices.nameTaken')); return; }
+    if (this.drafts().includes(g)) { this.drafts.set(this.drafts().map((d) => (d === g ? name : d))); this.group.set(name); return; }
+    this.busy.set(true);
+    this.http.patch(`/api/workspace/price-lists/groups/${encodeURIComponent(g)}`, { name }).subscribe({
+      next: () => { this.busy.set(false); this.group.set(name); this.toast.show(this.i18n.t('ws.prices.renamed')); this.load(); },
+      error: (e: { status?: number }) => { this.busy.set(false); this.toast.show(this.i18n.t(e.status === 409 ? 'ws.prices.nameTaken' : 'common.couldNotSave')); },
+    });
+  }
+
+  protected removeGroup(g: string): void {
+    if (this.drafts().includes(g)) { this.drafts.set(this.drafts().filter((d) => d !== g)); this.group.set(this.groupNames()[0] ?? null); return; }
+    if (!confirm(this.i18n.t('ws.prices.removeAsk', { name: g }))) return;
+    this.busy.set(true);
+    this.http.delete(`/api/workspace/price-lists/groups/${encodeURIComponent(g)}`).subscribe({
+      next: () => { this.busy.set(false); this.group.set(null); this.toast.show(this.i18n.t('ws.prices.groupRemoved')); this.load(); },
+      error: () => { this.busy.set(false); this.toast.show(this.i18n.t('common.couldNotSave')); },
+    });
   }
 
   protected count(g: string, what: 'prices' | 'customers'): number {

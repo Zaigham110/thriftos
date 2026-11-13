@@ -107,7 +107,7 @@ describe('Sales (e2e)', () => {
     await api(app, a).post('/sales', { customerId: ali.id, paymentMode: 'CASH', lines: [{ inventoryItemId: kg.id, quantity: 1, unitPrice: 250 }] }).expect(409);
   });
 
-  it('suggests the last price: this customer, then any customer, then the item price', async () => {
+  it('suggests a price: the item\'s own price first, else what this customer paid last, else what anyone paid', async () => {
     const own = await api(app, a).get(`/sales/last-price?customerId=${ali.id}&inventoryItemId=${kg.id}`).expect(200);
     expect(own.body).toEqual({ unit: 'KG', unitPrice: '250', from: 'CUSTOMER' });
     const another = (await api(app, a).post('/stock/items', { name: 'Mixed tops', unit: 'KG', quantity: 100, totalCost: 20000 }).expect(201)).body;
@@ -117,6 +117,9 @@ describe('Sales (e2e)', () => {
     const fresh = (await api(app, a).post('/stock/items', { name: 'Shoes', unit: 'PIECE', quantity: 10, totalCost: 1000, salePrice: 300 }).expect(201)).body;
     const fromItem = await api(app, a).get(`/sales/last-price?customerId=${ali.id}&inventoryItemId=${fresh.id}`).expect(200);
     expect(fromItem.body).toEqual({ unit: 'PIECE', unitPrice: '300', from: 'ITEM' });
+    // Sold once at another price: the price set on the item still comes first.
+    await api(app, a).post('/sales', { customerId: ali.id, paymentMode: 'CASH', lines: [{ inventoryItemId: fresh.id, quantity: 1, unitPrice: 280 }] }).expect(201);
+    expect((await api(app, a).get(`/sales/last-price?customerId=${ali.id}&inventoryItemId=${fresh.id}`).expect(200)).body).toEqual({ unit: 'PIECE', unitPrice: '300', from: 'ITEM' });
   });
 
   it('creates one sale when the same Idempotency-Key is sent twice', async () => {

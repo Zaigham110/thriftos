@@ -48,8 +48,9 @@ describe('Workspace sales extras: sales by month, price lists by customer group 
   });
 
   it('price lists: the group price is suggested first, exact grade before any grade', async () => {
-    // Before any list: the last price anyone paid.
-    expect((await api(app, a).get(`/sales/last-price?customerId=${ids.wholesale}&inventoryItemId=${ids.itemA}`).expect(200)).body).toMatchObject({ unitPrice: '26000', from: 'ANY_CUSTOMER' });
+    // Before any list: the item's own price, set in Inventory, beats what was paid before (v2 review);
+    // an item without one falls back to the last price paid.
+    expect((await api(app, a).get(`/sales/last-price?customerId=${ids.wholesale}&inventoryItemId=${ids.itemA}`).expect(200)).body).toMatchObject({ unitPrice: '30000', from: 'ITEM' });
 
     await api(app, a).put('/workspace/price-lists/entries', { group: 'Wholesale', categoryId: ids.jeans, unit: 'BALE', price: 20000 }).expect(200);
     const exact = (await api(app, a).put('/workspace/price-lists/entries', { group: 'Wholesale', categoryId: ids.jeans, gradeId: ids.gradeA, unit: 'BALE', price: 24000 }).expect(200)).body;
@@ -60,19 +61,34 @@ describe('Workspace sales extras: sales by month, price lists by customer group 
     expect((await api(app, a).get(`/sales/last-price?customerId=${ids.wholesale}&inventoryItemId=${ids.itemA}`).expect(200)).body).toMatchObject({ unitPrice: '24500', from: 'PRICE_LIST', group: 'Wholesale' });
     expect((await api(app, a).get(`/sales/last-price?customerId=${ids.wholesale}&inventoryItemId=${ids.itemB}`).expect(200)).body).toMatchObject({ unitPrice: '20000', from: 'PRICE_LIST' });
     // Not in the group: unchanged.
-    expect((await api(app, a).get(`/sales/last-price?customerId=${ids.walkin}&inventoryItemId=${ids.itemA}`).expect(200)).body).toMatchObject({ unitPrice: '26000', from: 'CUSTOMER' });
+    expect((await api(app, a).get(`/sales/last-price?customerId=${ids.walkin}&inventoryItemId=${ids.itemA}`).expect(200)).body).toMatchObject({ unitPrice: '30000', from: 'ITEM' });
     // By kg there is no list price: falls back.
     expect((await api(app, a).get(`/sales/last-price?customerId=${ids.wholesale}&inventoryItemId=${ids.itemA}&unit=KG`).expect(200)).body.from).not.toBe('PRICE_LIST');
 
     const o = (await api(app, a).get('/workspace/price-lists').expect(200)).body;
     expect(o.groups).toEqual([{ name: 'Wholesale', customers: 1, prices: 2 }]);
+    // Who is in the group, and who could be added.
+    expect(o.customers).toEqual(expect.arrayContaining([expect.objectContaining({ id: ids.wholesale, group: 'Wholesale' }), expect.objectContaining({ id: ids.walkin, group: null })]));
+
+    // Rename: prices and customers move with the name; not onto another group's name; not another business's group.
+    await api(app, b).patch('/workspace/price-lists/groups/Wholesale', { name: 'Taken' }).expect(404);
+    await api(app, a).patch('/workspace/price-lists/groups/Wholesale', { name: 'Big buyers' }).expect(200);
+    await api(app, a).patch('/workspace/price-lists/groups/Wholesale', { name: 'Again' }).expect(404);
+    const renamed = (await api(app, a).get('/workspace/price-lists').expect(200)).body;
+    expect(renamed.groups).toEqual([{ name: 'Big buyers', customers: 1, prices: 2 }]);
+    await api(app, a).put('/workspace/price-lists/entries', { group: 'Retail', categoryId: ids.jeans, unit: 'BALE', price: 31000 }).expect(200);
+    await api(app, a).patch('/workspace/price-lists/groups/Retail', { name: 'Big buyers' }).expect(409);
+    // Remove: the group's prices go, its customers are in no group; another business cannot.
+    await api(app, b).delete('/workspace/price-lists/groups/Retail').expect(404);
+    expect((await api(app, a).delete('/workspace/price-lists/groups/Retail').expect(200)).body).toMatchObject({ removed: true, prices: 1, customers: 0 });
+    await api(app, a).patch('/workspace/price-lists/groups/Big%20buyers', { name: 'Wholesale' }).expect(200);
     expect(o.entries).toEqual(expect.arrayContaining([expect.objectContaining({ category: 'Jeans', grade: 'A', price: '24500' }), expect.objectContaining({ grade: null, price: '20000' })]));
     expect((await api(app, a).get(`/workspace/customers/${ids.wholesale}`).expect(200)).body.customer.priceGroup).toBe('Wholesale');
 
     await api(app, a).delete(`/workspace/price-lists/entries/${exact.id}`).expect(200);
     expect((await api(app, a).get(`/sales/last-price?customerId=${ids.wholesale}&inventoryItemId=${ids.itemA}`).expect(200)).body).toMatchObject({ unitPrice: '20000', from: 'PRICE_LIST' });
     await api(app, a).patch(`/workspace/customers/${ids.wholesale}/price-group`, { group: null }).expect(200);
-    expect((await api(app, a).get(`/sales/last-price?customerId=${ids.wholesale}&inventoryItemId=${ids.itemA}`).expect(200)).body.from).toBe('ANY_CUSTOMER');
+    expect((await api(app, a).get(`/sales/last-price?customerId=${ids.wholesale}&inventoryItemId=${ids.itemA}`).expect(200)).body.from).toBe('ITEM');
   });
 
   it('price lists need price.manage; another business sees and changes nothing', async () => {

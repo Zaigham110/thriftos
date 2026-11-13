@@ -348,9 +348,11 @@ export class SalesService {
     const customer = await this.prisma.customer.findFirst({ where: { id: query.customerId, tenantId }, select: { id: true, priceGroup: true } });
     if (!customer) throw new NotFoundException('Customer not found');
     const unit = query.unit ?? item.unit;
-    // An agreed group price comes first (enterprise E3.4), then what this customer paid last.
+    // The order the Price lists page states (v2 review): the agreed group price, then the item's own price set in
+    // Inventory, then what this customer paid last, then what anyone paid last. A price set on purpose beats an old sale.
     const listed = await priceListPrice(this.prisma, tenantId, customer.priceGroup, item, unit);
     if (listed) return { unit, unitPrice: listed.price, from: 'PRICE_LIST' as const, group: customer.priceGroup };
+    if (item.salePrice && unit === item.unit) return { unit, unitPrice: item.salePrice, from: 'ITEM' as const };
     const sameKind: Prisma.SaleLineWhereInput = {
       unit,
       sale: { tenantId, status: { in: KHATA_SALE_STATUSES } },
@@ -363,7 +365,6 @@ export class SalesService {
     if (own) return { unit, unitPrice: own.unitPrice, from: 'CUSTOMER' as const };
     const any = await last(sameKind);
     if (any) return { unit, unitPrice: any.unitPrice, from: 'ANY_CUSTOMER' as const };
-    if (item.salePrice && unit === item.unit) return { unit, unitPrice: item.salePrice, from: 'ITEM' as const };
     return { unit, unitPrice: null, from: null };
   }
 

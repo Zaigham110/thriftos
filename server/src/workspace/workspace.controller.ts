@@ -12,7 +12,7 @@ import { SupplierPaymentDto, WorkspaceRecordsService } from './records.service';
 import { CreditLimitDto, PromiseDto, ReceivablesService, ReminderDto, StatementQueryDto } from './receivables.service';
 import { SortingRecordsService, YieldQueryDto } from './sorting-records.service';
 import { AnalyticsService, PeriodDto, SalesAnalyticsQueryDto, ScorecardQueryDto } from './analytics.service';
-import { PriceEntryDto, PriceGroupDto, PriceListsService } from './price-lists.service';
+import { PriceEntryDto, PriceGroupDto, PriceGroupRenameDto, PriceListsService } from './price-lists.service';
 import { BookQueryDto, CancelExpenseDto, CashMoveDto, CloseDto, CloseQueryDto, ExpenseDto, ExpenseUpdateDto, FinanceService, PnlQueryDto, ReopenDto } from './finance.service';
 import { StockCountDto, StockDecisionDto, StockRecordsService, StockTransferDto, StockTransferManyDto, StockPriceDto, StockKindPriceDto } from './stock-records.service';
 
@@ -204,6 +204,21 @@ export class WorkspaceController {
   @RequirePermissions('price.manage')
   removePrice(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('id') id: string) {
     return this.prices.removePrice(tenantId, id, user.userId);
+  }
+
+  /** Rename or remove a price group (v2 review): its prices and customers follow, or are let go. */
+  @RequireModule('PRICE_LISTS')
+  @Patch('price-lists/groups/:name')
+  @RequirePermissions('price.manage')
+  renamePriceGroup(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('name') name: string, @Body() dto: PriceGroupRenameDto) {
+    return this.prices.renameGroup(tenantId, name, dto, user.userId);
+  }
+
+  @RequireModule('PRICE_LISTS')
+  @Delete('price-lists/groups/:name')
+  @RequirePermissions('price.manage')
+  removePriceGroup(@TenantId() tenantId: string, @CurrentUser() user: CurrentUserData, @Param('name') name: string) {
+    return this.prices.removeGroup(tenantId, name, user.userId);
   }
 
   @RequireModule('PRICE_LISTS')

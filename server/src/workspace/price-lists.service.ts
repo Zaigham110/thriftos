@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, StockUnit } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { IsEnum, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
@@ -20,6 +20,11 @@ export class PriceGroupDto {
   group!: string | null;
 }
 
+/** A group's new name. */
+export class PriceGroupRenameDto {
+  @IsString() @MinLength(1) @MaxLength(40) name!: string;
+}
+
 /** The group's price for a category (exact grade first, then "any grade"), or null. */
 export async function priceListPrice(db: PrismaService | Prisma.TransactionClient, tenantId: string, group: string | null, item: { categoryId: string | null; gradeId: string | null }, unit: StockUnit) {
   if (!group || !item.categoryId) return null;
@@ -29,18 +34,20 @@ export async function priceListPrice(db: PrismaService | Prisma.TransactionClien
 
 /**
  * Price lists by customer group (enterprise plan E3.4): e.g. "Wholesale" pays Rs 180/kg for Jeans A. The sale
- * screen suggests the customer's group price first, then their last price, then anyone's, then the item's.
+ * screen suggests the customer's group price first, then the item's own price, then their last price, then anyone's.
  */
 @Injectable()
 export class PriceListsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async overview(tenantId: string) {
-    const [entries, customers, categories, grades] = await Promise.all([
+    const [entries, customers, categories, grades, people] = await Promise.all([
       this.prisma.priceListEntry.findMany({ where: { tenantId }, orderBy: [{ group: 'asc' }, { createdAt: 'asc' }] }),
       this.prisma.customer.groupBy({ by: ['priceGroup'], where: { tenantId, priceGroup: { not: null } }, _count: { _all: true } }),
       this.prisma.category.findMany({ where: { tenantId }, select: { id: true, name: true }, orderBy: { name: 'asc' } }),
       this.prisma.grade.findMany({ where: { tenantId, isActive: true }, select: { id: true, name: true }, orderBy: { rank: 'asc' } }),
+      // Who is in which group, and who could be added (v2 review: the page only showed a count).
+      this.prisma.customer.findMany({ where: { tenantId }, select: { id: true, name: true, city: true, priceGroup: true }, orderBy: { name: 'asc' } }),
     ]);
     const cat = new Map(categories.map((c) => [c.id, c.name]));
     const gr = new Map(grades.map((g) => [g.id, g.name]));
@@ -51,6 +58,7 @@ export class PriceListsService {
       entries: entries.map((e) => ({ id: e.id, group: e.group, categoryId: e.categoryId, category: cat.get(e.categoryId) ?? '', gradeId: e.gradeId, grade: e.gradeId ? gr.get(e.gradeId) ?? '' : null, unit: e.unit, price: e.price, updatedAt: e.updatedAt })),
       categories,
       grades,
+      customers: people.map((c) => ({ id: c.id, name: c.name, city: c.city, group: c.priceGroup })),
     };
   }
 
@@ -95,5 +103,40 @@ export class PriceListsService {
       this.prisma.auditLog.create({ data: { tenantId, userId, action: 'PRICE_GROUP_CHANGED', entityType: 'Customer', entityId: c.id, metadataJson: { from: c.priceGroup, to: group } } }),
     ]);
     return { id: c.id, priceGroup: group };
+  }
+
+  /** A group's new name: its prices and its customers move with it. The new name must not be another group's. */
+  async renameGroup(tenantId: string, from: string, dto: PriceGroupRenameDto, userId: string) {
+    const to = dto.name.trim();
+    if (!to) throw new BadRequestException('Name the group');
+    if (to === from) return { name: to };
+    const [exists, taken] = await Promise.all([this.groupExists(tenantId, from), this.groupExists(tenantId, to)]);
+    if (!exists) throw new NotFoundException('Group not found');
+    if (taken) throw new ConflictException('There is already a group with that name');
+    await this.prisma.$transaction([
+      this.prisma.priceListEntry.updateMany({ where: { tenantId, group: from }, data: { group: to } }),
+      this.prisma.customer.updateMany({ where: { tenantId, priceGroup: from }, data: { priceGroup: to } }),
+      this.prisma.auditLog.create({ data: { tenantId, userId, action: 'PRICE_GROUP_RENAMED', entityType: 'PriceGroup', entityId: to, metadataJson: { from, to } } }),
+    ]);
+    return { name: to };
+  }
+
+  /** Removes a group: its prices go and its customers are in no group (their own prices and old sales stay). */
+  async removeGroup(tenantId: string, name: string, userId: string) {
+    if (!(await this.groupExists(tenantId, name))) throw new NotFoundException('Group not found');
+    const [prices, customers] = await this.prisma.$transaction([
+      this.prisma.priceListEntry.deleteMany({ where: { tenantId, group: name } }),
+      this.prisma.customer.updateMany({ where: { tenantId, priceGroup: name }, data: { priceGroup: null } }),
+      this.prisma.auditLog.create({ data: { tenantId, userId, action: 'PRICE_GROUP_REMOVED', entityType: 'PriceGroup', entityId: name, metadataJson: { name } } }),
+    ]);
+    return { name, removed: true, prices: prices.count, customers: customers.count };
+  }
+
+  private async groupExists(tenantId: string, name: string): Promise<boolean> {
+    const [entry, customer] = await Promise.all([
+      this.prisma.priceListEntry.findFirst({ where: { tenantId, group: name }, select: { id: true } }),
+      this.prisma.customer.findFirst({ where: { tenantId, priceGroup: name }, select: { id: true } }),
+    ]);
+    return !!entry || !!customer;
   }
 }
