@@ -1684,7 +1684,7 @@
   },
   "purchaseLots": {
    "col": {
-    "cost": "Price paid",
+    "cost": "Total cost",
     "costPerKg": "Cost per kg",
     "date": "Bought",
     "maal": "Raw type",
@@ -1695,7 +1695,7 @@
    "emptyHeading": "No loose lots bought yet",
    "emptyMessage": "When you buy a loose lot, add it here with its weight and price.",
    "info": {
-    "cost": "What you paid for the lot.",
+    "cost": "The lot's price plus the transport and labour put on it.",
     "costPerKg": "What the lot cost (price, transport and labour) divided by the kg bought. Use it to compare lots and suppliers.",
     "sorted": "How much of the lot's kg is sorted so far. It shows 100% once sorting is finished."
    },
@@ -1882,9 +1882,10 @@
    "top": "Top customers"
   },
   "score": {
+   "bought": "Bought",
    "chartProfit": "Profit per kg",
    "chartYield": "Sorted % and {topGrade} %",
-   "empty": "No containers in this period",
+   "empty": "Nothing bought in this period",
    "profitSoFar": "{amount} profit so far",
    "rank": "Rank",
    "subtitle": "Who gives the most profit per kg bought, sorted % and {topGrade} % — ranked",
@@ -1958,6 +1959,8 @@
    "gradingNow": "grading"
   },
   "sp": {
+   "call": "Call",
+   "whatsapp": "WhatsApp",
    "active": "Still buying from this supplier (shown when receiving)",
    "allSuppliers": "All suppliers",
    "bought": "Containers {c} · loose lots {l}",
@@ -1966,10 +1969,10 @@
    "info": {
     "cost": "Everything you paid for what came from this supplier: containers (price and charges) and loose lots.",
     "kg": "Kg bought from this supplier: the containers' invoice kg plus the loose lots' kg.",
-    "profit": "Sold so far minus what those goods cost, for this supplier's containers. Below it: profit for each kg bought.",
-    "profitPerKg": "Profit so far divided by the kg bought in this supplier's containers. Use it to compare suppliers.",
-    "sold": "Sales so far of everything that came out of this supplier's containers.",
-    "sorted": "Of the kg sorted from this supplier's containers, the part that came out as sellable categories."
+    "profit": "Sold so far minus what those goods cost, for everything bought from this supplier (containers and loose lots). Below it: profit for each kg bought.",
+    "profitPerKg": "Profit so far divided by the kg bought from this supplier. Use it to compare suppliers.",
+    "sold": "Sales so far of everything that came from this supplier (containers and loose lots).",
+    "sorted": "Of the kg bought from this supplier, the part sorted into sellable categories so far."
    },
    "noLots": "No loose lots from this supplier yet",
    "saved": "Supplier saved",

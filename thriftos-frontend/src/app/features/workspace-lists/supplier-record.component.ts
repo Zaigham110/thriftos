@@ -30,7 +30,7 @@ export interface SupplierScorecard {
   };
   totals: { containers: number; lots: number; kg: string; landed: Money; revenue: string; profit: Money; profitPerKg: Money; yieldPercent: number | null; topGradePercent: number | null };
   containers: { id: string; number: string; date: string; status: string; origin: string | null; kg: string; landedCost: Money; costPerKg: Money; revenue: string; profit: Money; yield: number | null; topGrade: number | null }[];
-  lots: { id: string; code: string; date: string; status: string; rawType: string | null; kg: string; cost: Money; costPerKg: Money; sortedPercent: number | null }[];
+  lots: { id: string; code: string; date: string; status: string; rawType: string | null; kg: string; cost: Money; costPerKg: Money; revenue: string; profit: Money; sortedPercent: number | null }[];
 }
 
 /**
@@ -48,6 +48,8 @@ export interface SupplierScorecard {
       <div class="record">
         <div class="main">
           <ws-page-header [heading]="d.supplier.name" [subtitle]="subtitle()">
+            @if (phone(); as ph) { <a actions class="ws-btn" [href]="'tel:' + ph">{{ 'ws.sp.call' | t }}</a> }
+            @if (whatsapp(); as wa) { <a actions class="ws-btn" [href]="'https://wa.me/' + wa" target="_blank" rel="noopener">{{ 'ws.sp.whatsapp' | t }}</a> }
             @if (can('vendor.update')) {
               <a actions class="ws-btn" [routerLink]="['/receive/records/suppliers', d.supplier.id, 'edit']" [state]="nav.trailState()"><lucide-icon [img]="icons.Pencil" [size]="16" aria-hidden="true" />{{ 'ws.container.edit' | t }}</a>
             }
@@ -77,13 +79,13 @@ export interface SupplierScorecard {
             </li>
             <li>
               <span class="lbl">{{ 'ws.containers.col.revenue' | t }} <ws-info [title]="'ws.containers.col.revenue' | t" [text]="'ws.sp.info.sold' | t" /></span>
-              <strong>{{ rs(d.totals.revenue) }}</strong>
+              <strong>{{ bought() ? rs(d.totals.revenue) : '—' }}</strong>
             </li>
             @if (d.totals.profit !== null) {
               <li>
                 <span class="lbl">{{ 'ws.containers.col.profit' | t }} <ws-info [title]="'ws.containers.col.profit' | t" [text]="'ws.sp.info.profit' | t" /></span>
-                <strong [class]="profitTone()">{{ rs(d.totals.profit) }}</strong>
-                @if (d.totals.profitPerKg !== null) { <small>{{ 'ws.cr.perKgBought' | t: { amount: i18n.money(d.totals.profitPerKg) } }}</small> }
+                <strong [class]="bought() ? profitTone() : ''">{{ bought() ? rs(d.totals.profit) : '—' }}</strong>
+                @if (bought() && d.totals.profitPerKg !== null) { <small>{{ 'ws.cr.perKgBought' | t: { amount: i18n.money(d.totals.profitPerKg) } }}</small> }
               </li>
             }
           </ol>
@@ -158,6 +160,19 @@ export class SupplierRecordComponent {
     const d = this.data();
     return d && !d.containers.length && d.lots.length ? 'lots' : 'containers';
   });
+  /** Nothing bought yet: sold and profit read "—", not Rs 0. */
+  protected readonly bought = computed(() => (this.data()?.totals.containers ?? 0) + (this.data()?.totals.lots ?? 0) > 0);
+  /** The saved number with its country code (digits and a leading +), for the Call and WhatsApp buttons. */
+  protected readonly phone = computed(() => {
+    const raw = (this.data()?.supplier.contactPhone ?? '').replace(/[^\d+]/g, '');
+    return raw.replace(/\D/g, '').length >= 7 ? raw : null;
+  });
+  /** WhatsApp needs the country code: a number saved the local way (0300 1234567) is a Pakistan mobile. */
+  protected readonly whatsapp = computed(() => {
+    const digits = (this.phone() ?? '').replace(/\D/g, '');
+    if (!digits) return null;
+    return /^03\d{9}$/.test(digits) ? `92${digits.slice(1)}` : digits.replace(/^00/, '');
+  });
   protected readonly profitTone = computed(() => (Number(this.data()?.totals.profit ?? 0) < 0 ? 'bad' : 'good'));
 
   /** Country · city · WhatsApp · contact person · email (no internal codes). */
@@ -192,10 +207,11 @@ export class SupplierRecordComponent {
     return [
       { key: 'code', label: t('ws.container.lot') },
       { key: 'date', label: t('ws.purchaseLots.col.date'), format: 'date' },
-      { key: 'rawType', label: t('ws.lots.col.raw') },
       { key: 'status', label: t('ws.col.status') },
       { key: 'kg', label: t('ws.containers.col.kg'), format: 'kg', total: true },
       ...(cost ? [this.money('cost', 'ws.purchaseLots.col.cost'), this.money('costPerKg', 'ws.purchaseLots.col.costPerKg', true)] : []),
+      // Profit per lot; raw type and "Sold so far" are on the lot's own page, so the table fits a laptop beside the activity panel.
+      ...(cost ? [this.money('profit', 'ws.containers.col.profit')] : []),
       { key: 'sortedPercent', label: t('ws.purchaseLots.col.sorted'), format: 'percent' },
     ];
   });

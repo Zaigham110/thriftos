@@ -1684,7 +1684,7 @@
   },
   "purchaseLots": {
    "col": {
-    "cost": "Kitne ka liya",
+    "cost": "Kul laagat",
     "costPerKg": "Laagat fi kg",
     "date": "Kab liya",
     "maal": "Maal",
@@ -1695,7 +1695,7 @@
    "emptyHeading": "Abhi koi gaari ya lot nahi liya",
    "emptyMessage": "Jab gaari ya khula lot lein, yahan uska wazan aur qeemat likhein.",
    "info": {
-    "cost": "Gaari ya lot ke kitne paise diye.",
+    "cost": "Lot ki qeemat aur us par laga kiraya aur mazdoori.",
     "costPerKg": "Lot ki kul laagat (qeemat, kiraya aur mazdoori) ko khareede gaye kg se taqseem kiya. Is se lots aur supplier ka muqabla karein.",
     "sorted": "Lot ka kitna kg chhant liya. Chhantai poori ho to 100%."
    },
@@ -1882,9 +1882,10 @@
    "top": "Sab se bare customer"
   },
   "score": {
+   "bought": "Khareedari",
    "chartProfit": "Fi kg munafa",
    "chartYield": "Chhantai % aur {topGrade} %",
-   "empty": "Is muddat mein koi container nahi",
+   "empty": "Is muddat mein kuch nahi khareeda gaya",
    "profitSoFar": "Ab tak {amount} munafa",
    "rank": "Darja",
    "subtitle": "Kaun khareede gaye fi kg par sab se zyada munafa, chhantai % aur {topGrade} % deta hai — darja ba darja",
@@ -1958,6 +1959,8 @@
    "gradingNow": "grading jaari"
   },
   "sp": {
+   "call": "Call",
+   "whatsapp": "WhatsApp",
    "active": "Ab bhi is supplier se kharid (maal aane par dikhayein)",
    "allSuppliers": "Sab supplier",
    "bought": "Container {c} · khule lot {l}",
@@ -1966,10 +1969,10 @@
    "info": {
     "cost": "Is supplier ke maal ki kul adaigi: container (qeemat aur kharche) aur khule lot.",
     "kg": "Is supplier se khareede kg: containers ke invoice kg aur khule lot ke kg.",
-    "profit": "Is supplier ke containers ki ab tak ki sale minus us maal ki laagat. Neeche: khareede har kg par munafa.",
-    "profitPerKg": "Ab tak ka munafa taqseem is supplier ke containers ke khareede kg. Suppliers ka muqabla karne ke liye.",
-    "sold": "Is supplier ke containers se nikle maal ki ab tak ki sale.",
-    "sorted": "Is supplier ke containers se chhante kg mein se bikne wali categories ka hissa."
+    "profit": "Is supplier se khareede tamam maal (container aur khule lot) ki ab tak ki sale minus us maal ki laagat. Neeche: khareede har kg par munafa.",
+    "profitPerKg": "Ab tak ka munafa taqseem is supplier se khareede kg. Suppliers ka muqabla karne ke liye.",
+    "sold": "Is supplier ke maal (container aur khule lot) ki ab tak ki sale.",
+    "sorted": "Is supplier se khareede kg mein se jo hissa ab tak chhant kar bikne wali categories mein gaya."
    },
    "noLots": "Is supplier se abhi koi khula lot nahi",
    "saved": "Supplier save ho gaya",

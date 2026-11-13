@@ -664,6 +664,10 @@ test('suppliers: add one, change its phone, buy from it with the supplier alread
   await page.getByLabel(/^WhatsApp number/).fill('0300 1234567');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.locator('ws-page-header p').first()).toContainText('0300 1234567');
+  // With a number saved: one tap to call or WhatsApp. Nothing bought yet: sold and profit read "—", not Rs 0.
+  await expect(page.getByRole('link', { name: 'Call', exact: true })).toHaveAttribute('href', 'tel:03001234567');
+  await expect(page.getByRole('link', { name: 'WhatsApp', exact: true })).toHaveAttribute('href', 'https://wa.me/923001234567');
+  for (const label of ['Sold so far', 'Profit so far']) await expect(page.locator('ol.story li').filter({ hasText: label }).locator('strong')).toHaveText('—');
 
   await page.getByRole('link', { name: 'Receive a container' }).click();
   await expect(page).toHaveURL(/\/receive\/records\/containers\/new\?supplier=/);

@@ -83,14 +83,14 @@ describe('Workspace dashboards and analytics (e2e)', () => {
 
   it('supplier & origin scorecard: ranked by profit per kg, with sorted % and A grade', async () => {
     const s = await timed('/workspace/analytics/suppliers');
-    expect(s.rows.map((r: { key: string; rank: number }) => [r.rank, r.key])).toEqual([[1, 'Global Textile Recyclers'], [2, 'Atlantic Rags']]);
+    expect(s.rows.map((r: { key: string; rank: number }) => [r.rank, r.key])).toEqual([[1, 'Global Textile Recyclers'], [2, 'Atlantic Rags'], [3, '']]); // last: the loose lot bought without a supplier
     // Bales are made first-in first-out, so both sold bales came from the first (USA) container.
     expect(s.rows[0]).toMatchObject({ containers: 1, yieldPercent: 90, topGradePercent: 100, revenue: '48000' });
     expect(s.rows[1]).toMatchObject({ yieldPercent: 70, revenue: '0' });
     const supplier = (await api(app, a).get(`/workspace/suppliers/${s.rows[0].id}`).expect(200)).body;
     expect(s.rows[0].profitPerKg).toBe(supplier.totals.profitPerKg);
     const byOrigin = await timed('/workspace/analytics/suppliers?by=origin');
-    expect(byOrigin.rows.map((r: { key: string }) => r.key)).toEqual(['USA', 'Canada']);
+    expect(byOrigin.rows.map((r: { key: string }) => r.key)).toEqual(['USA', 'Canada', '']);
     expect((await timed('/workspace/analytics/suppliers?from=2020-01-01&to=2020-12-31')).rows).toEqual([]);
   });
 

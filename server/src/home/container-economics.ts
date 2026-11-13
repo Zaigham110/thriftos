@@ -25,59 +25,79 @@ export const yieldPercent = (e: ContainerEconomics): number | null => (e.outputK
 export const topPercent = (e: ContainerEconomics): number | null => (e.topRank === null ? null : topGradePercent(e.graded, e.topRank));
 
 /** One batch of queries for any number of containers of one business. */
-export async function containerEconomics(prisma: PrismaClient | Prisma.TransactionClient, tenantId: string, ids: string[]): Promise<Map<string, ContainerEconomics>> {
+export const containerEconomics = (prisma: PrismaClient | Prisma.TransactionClient, tenantId: string, ids: string[]): Promise<Map<string, ContainerEconomics>> => economics(prisma, tenantId, ids, false);
+
+/**
+ * The same figures for loose lots (a gaari or bales bought without a container), keyed by lot id, so a supplier
+ * who only ever sold loose lots still shows what their stock sold for, earned and how it sorted (v2 review).
+ */
+export const lotEconomics = (prisma: PrismaClient | Prisma.TransactionClient, tenantId: string, ids: string[]): Promise<Map<string, ContainerEconomics>> => economics(prisma, tenantId, ids, true);
+
+async function economics(prisma: PrismaClient | Prisma.TransactionClient, tenantId: string, ids: string[], byLot: boolean): Promise<Map<string, ContainerEconomics>> {
   const out = new Map<string, ContainerEconomics>();
   if (!ids.length) return out;
-  const [lots, lines, outputs, graded, sortGraded, topGrade, labour] = await Promise.all([
-    prisma.rag.groupBy({ by: ['containerId'], where: { tenantId, containerId: { in: ids } }, _sum: { weightKg: true } }),
+  const among = { in: ids };
+  // Where a row came from: its container, or (for loose lots) its lot.
+  const own = byLot ? { ragId: among } : { containerId: among };
+  const [lots, lines, outputs, graded, topGrade, labour] = await Promise.all([
+    prisma.rag.findMany({ where: { tenantId, ...(byLot ? { id: among } : { containerId: among }) }, select: { id: true, containerId: true, weightKg: true } }),
     prisma.saleLine.findMany({
       where: {
         sale: { tenantId, status: { in: KHATA_SALE_STATUSES } },
-        inventoryItem: { tenantId, OR: [{ containerId: { in: ids } }, { repackUnit: { inputAllocations: { some: { containerId: { in: ids } } } } }] },
+        inventoryItem: { tenantId, OR: [own, { repackUnit: { inputAllocations: { some: byLot ? { ragBaleId: among } : { containerId: among } } } }] },
       },
       select: {
         profit: true,
         lineTotal: true,
-        inventoryItem: { select: { containerId: true, repackUnit: { select: { inputAllocations: { select: { containerId: true, allocatedCost: true } } } } } },
+        inventoryItem: { select: { containerId: true, ragId: true, repackUnit: { select: { inputAllocations: { select: { containerId: true, ragBaleId: true, allocatedCost: true } } } } } },
       },
     }),
-    prisma.categoryOutput.groupBy({ by: ['containerId'], where: { tenantId, containerId: { in: ids } }, _sum: { weightKg: true } }),
-    prisma.gradeOutput.findMany({
-      where: { tenantId, gradeBucket: { gradeSession: { categoryOutput: { containerId: { in: ids } } } } },
-      select: { weightKg: true, grade: { select: { rank: true } }, gradeBucket: { select: { gradeSession: { select: { categoryOutput: { select: { containerId: true } } } } } } },
-    }),
-    // Grades given while sorting ("Jeans · A"), unless that kg was graded again afterwards.
+    // Sorted kg, with the grade given while sorting ("Jeans · A") unless that kg was graded again afterwards.
     prisma.categoryOutput.findMany({
-      where: { tenantId, containerId: { in: ids }, gradeId: { not: null }, gradeSessions: { none: {} } },
-      select: { containerId: true, weightKg: true, grade: { select: { rank: true } } },
+      where: { tenantId, ...own },
+      select: { containerId: true, ragId: true, weightKg: true, grade: { select: { rank: true } }, _count: { select: { gradeSessions: true } } },
+    }),
+    prisma.gradeOutput.findMany({
+      where: { tenantId, gradeBucket: { gradeSession: { categoryOutput: own } } },
+      select: { weightKg: true, grade: { select: { rank: true } }, gradeBucket: { select: { gradeSession: { select: { categoryOutput: { select: { containerId: true, ragId: true } } } } } } },
     }),
     prisma.grade.findFirst({ where: { tenantId, isActive: true }, orderBy: { rank: 'asc' }, select: { rank: true } }),
-    // Container profit = sales − landed cost − labour (Phase 8.4).
-    prisma.labourCost.groupBy({ by: ['containerId'], where: { tenantId, containerId: { in: ids } }, _sum: { amount: true } }),
+    // Profit = sales − landed cost − labour (Phase 8.4).
+    prisma.labourCost.findMany({ where: { tenantId, ...own }, select: { containerId: true, ragId: true, amount: true } }),
   ]);
 
+  const keyOf = (r: { containerId: string | null; ragId: string | null }) => (byLot ? r.ragId : r.containerId);
   const sources: LineSource[] = lines.map((l) => {
     const allocations = l.inventoryItem.repackUnit?.inputAllocations ?? [];
     return {
       profit: l.profit,
       revenue: l.lineTotal,
-      shares: allocations.length ? allocations.map((a) => ({ containerId: a.containerId, weight: a.allocatedCost })) : [{ containerId: l.inventoryItem.containerId, weight: 1 }],
+      shares: allocations.length
+        ? allocations.map((a) => ({ containerId: byLot ? a.ragBaleId : a.containerId, weight: a.allocatedCost }))
+        : [{ containerId: keyOf(l.inventoryItem), weight: 1 }],
     };
   });
   const money = byContainer(sources);
-  const kg = new Map(lots.map((l) => [l.containerId, l._sum.weightKg ?? ZERO]));
-  const sorted = new Map(outputs.map((o) => [o.containerId, o._sum.weightKg ?? ZERO]));
-  const wages = new Map(labour.map((l) => [l.containerId, l._sum.amount ?? ZERO]));
-  for (const id of ids) {
-    const lab = wages.get(id) ?? ZERO;
-    out.set(id, { kg: kg.get(id) ?? ZERO, revenue: money.get(id)?.revenue ?? ZERO, profit: (money.get(id)?.profit ?? ZERO).sub(lab), outputKg: sorted.get(id) ?? ZERO, graded: [], topRank: topGrade?.rank ?? null, labour: lab });
+  for (const id of ids) out.set(id, { kg: ZERO, revenue: money.get(id)?.revenue ?? ZERO, profit: money.get(id)?.profit ?? ZERO, outputKg: ZERO, graded: [], topRank: topGrade?.rank ?? null, labour: ZERO });
+  for (const l of lots) {
+    const e = out.get((byLot ? l.id : l.containerId) ?? '');
+    if (e) e.kg = e.kg.add(l.weightKg);
+  }
+  for (const o of outputs) {
+    const e = out.get(keyOf(o) ?? '');
+    if (!e) continue;
+    e.outputKg = e.outputKg.add(o.weightKg);
+    if (o.grade && !o._count.gradeSessions) e.graded.push({ rank: o.grade.rank, kg: o.weightKg });
   }
   for (const g of graded) {
-    const cid = g.gradeBucket.gradeSession.categoryOutput.containerId;
-    if (cid && out.has(cid)) out.get(cid)!.graded.push({ rank: g.grade.rank, kg: g.weightKg });
+    const e = out.get(keyOf(g.gradeBucket.gradeSession.categoryOutput) ?? '');
+    if (e) e.graded.push({ rank: g.grade.rank, kg: g.weightKg });
   }
-  for (const o of sortGraded) {
-    if (o.containerId && o.grade && out.has(o.containerId)) out.get(o.containerId)!.graded.push({ rank: o.grade.rank, kg: o.weightKg });
+  for (const l of labour) {
+    const e = out.get(keyOf(l) ?? '');
+    if (!e) continue;
+    e.labour = e.labour.add(l.amount);
+    e.profit = e.profit.sub(l.amount);
   }
   return out;
 }

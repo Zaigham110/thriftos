@@ -1,6 +1,6 @@
 import { ContainerStatus, Prisma, PrismaClient, RagSourceType, RagStatus, VendorType } from '@prisma/client';
 import type { ListResource } from '../common/list/list-engine';
-import { combine, containerEconomics, topPercent, yieldPercent } from '../home/container-economics';
+import { combine, containerEconomics, lotEconomics, topPercent, yieldPercent } from '../home/container-economics';
 import { percent } from '../home/home';
 
 type Row = Record<string, unknown> & { id: string };
@@ -19,7 +19,7 @@ export const CONTAINER_LABELS: Record<string, { en: string; ur: string }> = {
   revenue: { en: 'Sold so far (Rs)', ur: 'اب تک بکری (روپے)' },
   profit: { en: 'Profit so far (Rs)', ur: 'اب تک منافع (روپے)' },
   yield: { en: 'Sorted %', ur: 'چھانٹی %' },
-  topGrade: { en: 'A grade %', ur: 'اے گریڈ %' },
+  topGrade: { en: 'Top grade %', ur: 'بہترین گریڈ %' },
 };
 
 export const SUPPLIER_LABELS: Record<string, { en: string; ur: string }> = {
@@ -33,7 +33,7 @@ export const SUPPLIER_LABELS: Record<string, { en: string; ur: string }> = {
   profit: { en: 'Profit so far (Rs)', ur: 'اب تک منافع (روپے)' },
   profitPerKg: { en: 'Profit per kg (Rs)', ur: 'فی کلو منافع (روپے)' },
   yield: { en: 'Sorted %', ur: 'چھانٹی %' },
-  topGrade: { en: 'A grade %', ur: 'اے گریڈ %' },
+  topGrade: { en: 'Top grade %', ur: 'بہترین گریڈ %' },
 };
 
 /** Containers in the workspace (enterprise plan E3.1); profit and yield are worked out for each page. */
@@ -112,18 +112,20 @@ export const SUPPLIERS_LIST: ListResource = {
     const ids = rows.map((r) => r.id);
     const containers = await db.container.findMany({ where: { tenantId, vendorId: { in: ids } }, select: { id: true, vendorId: true, netWeight: true } });
     // Loose lots are bought from suppliers too (v2 review): kg bought = containers' invoice kg + loose lots' kg.
-    const lots = await db.rag.groupBy({ by: ['vendorId'], where: { tenantId, vendorId: { in: ids }, sourceType: 'LOOSE_BALE' }, _sum: { weightKg: true }, _count: { _all: true } });
-    const econ = await containerEconomics(db, tenantId, containers.map((c) => c.id));
+    const lots = await db.rag.findMany({ where: { tenantId, vendorId: { in: ids }, sourceType: 'LOOSE_BALE' }, select: { id: true, vendorId: true } });
+    const [econ, lotEcon] = await Promise.all([containerEconomics(db, tenantId, containers.map((c) => c.id)), lotEconomics(db, tenantId, lots.map((l) => l.id))]);
     return rows.map((r) => {
       const own = containers.filter((c) => c.vendorId === r.id);
-      const t = combine(own.map((c) => econ.get(c.id)!));
-      const l = lots.find((x) => x.vendorId === r.id);
-      const kg = own.reduce((s, c) => s.add(c.netWeight), new Prisma.Decimal(0)).add(l?._sum.weightKg ?? 0);
-      return { ...r, containers: own.length, lots: l?._count._all ?? 0, kg, profit: t.profit, profitPerKg: t.profitPerKg, yield: t.yieldPercent, topGrade: t.topGradePercent } as Row;
+      const loose = lots.filter((l) => l.vendorId === r.id).map((l) => lotEcon.get(l.id)!);
+      // Sold, profit, sorted % and top grade count the loose lots too: many businesses never buy a container.
+      const t = combine([...own.map((c) => econ.get(c.id)!), ...loose]);
+      const kg = own.reduce((s, c) => s.add(c.netWeight), new Prisma.Decimal(0)).add(loose.reduce((s, e) => s.add(e.kg), new Prisma.Decimal(0)));
+      // Nothing bought yet: no profit to show (a dash, not Rs 0).
+      const bought = own.length + loose.length > 0;
+      return { ...r, containers: own.length, lots: loose.length, kg, profit: bought ? t.profit : null, profitPerKg: bought ? t.profitPerKg : null, yield: t.yieldPercent, topGrade: t.topGradePercent } as Row;
     });
   },
 };
-
 export const PURCHASE_LOT_LABELS: Record<string, { en: string; ur: string }> = {
   code: { en: 'Lot', ur: 'لاٹ' },
   date: { en: 'Bought', ur: 'خریداری' },
@@ -131,8 +133,8 @@ export const PURCHASE_LOT_LABELS: Record<string, { en: string; ur: string }> = {
   rawCategory: { en: 'Raw type', ur: 'مال' },
   status: { en: 'Status', ur: 'حالت' },
   kg: { en: 'Kg', ur: 'کلو' },
-  cost: { en: 'Price paid (Rs)', ur: 'ادا کی گئی قیمت (روپے)' },
-  costPerKg: { en: 'Price per kg (Rs)', ur: 'فی کلو قیمت (روپے)' },
+  cost: { en: 'Total cost (Rs)', ur: 'کل لاگت (روپے)' },
+  costPerKg: { en: 'Cost per kg (Rs)', ur: 'فی کلو لاگت (روپے)' },
   sortedPercent: { en: 'Sorted %', ur: 'چھانٹی %' },
 };
 

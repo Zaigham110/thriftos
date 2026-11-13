@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { ContainerStatus, PaymentMethod, Prisma, StockUnit } from '@prisma/client';
 import { IsDateString, IsIn, IsOptional } from 'class-validator';
 import { BUSINESS_UTC_OFFSET_MINUTES, localDayStart } from '../common/list/list-engine';
-import { combine, containerEconomics, topPercent, yieldPercent } from '../home/container-economics';
+import { combine, containerEconomics, lotEconomics, topPercent, yieldPercent } from '../home/container-economics';
 import { percent } from '../home/home';
 import { PrismaService } from '../prisma/prisma.service';
 import { RECORD_TYPES } from '../records/record-types';
@@ -147,7 +147,7 @@ export class AnalyticsService {
     };
   }
 
-  /** E4.2 Supplier and origin scorecard: containers received in the period, ranked by profit per kg. */
+  /** E4.2 Supplier and origin scorecard: containers and loose lots bought in the period, ranked by profit per kg. */
   async scorecard(tenantId: string, q: ScorecardQueryDto, canSeeCost: boolean, now = new Date()) {
     const by = q.by ?? 'supplier';
     const p = q.from || q.to ? period(q, now) : null;
@@ -155,20 +155,34 @@ export class AnalyticsService {
       where: { tenantId, ...(p ? { createdAt: { gte: p.from, lt: p.to } } : {}) },
       select: { id: true, originCountry: true, netWeight: true, landedCostPKR: true, vendor: { select: { id: true, name: true } } },
     });
-    const econ = await containerEconomics(this.prisma, tenantId, containers.map((c) => c.id));
-    const groups = new Map<string, { key: string; id: string | null; ids: string[]; landed: Prisma.Decimal; netKg: Prisma.Decimal }>();
+    // Loose lots (a gaari, bales bought without a container) are bought from suppliers too (v2 review).
+    const lots = await this.prisma.rag.findMany({
+      where: { tenantId, sourceType: 'LOOSE_BALE', ...(p ? { createdAt: { gte: p.from, lt: p.to } } : {}) },
+      select: { id: true, weightKg: true, allocatedCost: true, vendor: { select: { id: true, name: true, originCountry: true } } },
+    });
+    const [econ, lotEcon] = await Promise.all([containerEconomics(this.prisma, tenantId, containers.map((c) => c.id)), lotEconomics(this.prisma, tenantId, lots.map((l) => l.id))]);
+    const groups = new Map<string, { key: string; id: string | null; ids: string[]; lotIds: string[]; landed: Prisma.Decimal; netKg: Prisma.Decimal }>();
+    const group = (key: string, id: string | null) => {
+      const g = groups.get(key) ?? { key, id: by === 'supplier' ? id : null, ids: [], lotIds: [], landed: ZERO, netKg: ZERO };
+      groups.set(key, g);
+      return g;
+    };
     for (const c of containers) {
-      const key = by === 'origin' ? c.originCountry ?? '' : c.vendor?.name ?? '';
-      const g = groups.get(key) ?? { key, id: by === 'supplier' ? c.vendor?.id ?? null : null, ids: [], landed: ZERO, netKg: ZERO };
+      const g = group(by === 'origin' ? c.originCountry ?? '' : c.vendor?.name ?? '', c.vendor?.id ?? null);
       g.ids.push(c.id);
       g.landed = g.landed.add(c.landedCostPKR);
       g.netKg = g.netKg.add(c.netWeight);
-      groups.set(key, g);
+    }
+    for (const l of lots) {
+      const g = group(by === 'origin' ? l.vendor?.originCountry ?? '' : l.vendor?.name ?? '', l.vendor?.id ?? null);
+      g.lotIds.push(l.id);
+      g.landed = g.landed.add(l.allocatedCost);
+      g.netKg = g.netKg.add(l.weightKg);
     }
     const rows = [...groups.values()].map((g) => {
-      const t = combine(g.ids.map((id) => econ.get(id)!));
+      const t = combine([...g.ids.map((id) => econ.get(id)!), ...g.lotIds.map((id) => lotEcon.get(id)!)]);
       return {
-        key: g.key, id: g.id, containers: g.ids.length, kg: t.kg, landed: money(canSeeCost, g.landed),
+        key: g.key, id: g.id, containers: g.ids.length, lots: g.lotIds.length, kg: t.kg, landed: money(canSeeCost, g.landed),
         costPerKg: money(canSeeCost, g.netKg.isZero() ? ZERO : g.landed.div(g.netKg).toDecimalPlaces(2)),
         revenue: t.revenue, profit: money(canSeeCost, t.profit), profitPerKg: money(canSeeCost, t.profitPerKg),
         yieldPercent: t.yieldPercent, topGradePercent: t.topGradePercent,
@@ -176,10 +190,10 @@ export class AnalyticsService {
     });
     // Ranked by profit per kg (what a kg bought from them earned), then sorted %.
     rows.sort((a, b) => (canSeeCost ? new Prisma.Decimal(b.profitPerKg ?? 0).comparedTo(a.profitPerKg ?? 0) : 0) || (b.yieldPercent ?? -1) - (a.yieldPercent ?? -1) || a.key.localeCompare(b.key));
-    const all = combine(containers.map((c) => econ.get(c.id)!));
+    const all = combine([...containers.map((c) => econ.get(c.id)!), ...lots.map((l) => lotEcon.get(l.id)!)]);
     return {
       by, from: p?.fromDay ?? null, to: p?.toDay ?? null,
-      totals: { containers: containers.length, kg: all.kg, revenue: all.revenue, profit: money(canSeeCost, all.profit), profitPerKg: money(canSeeCost, all.profitPerKg), yieldPercent: all.yieldPercent, topGradePercent: all.topGradePercent },
+      totals: { containers: containers.length, lots: lots.length, kg: all.kg, revenue: all.revenue, profit: money(canSeeCost, all.profit), profitPerKg: money(canSeeCost, all.profitPerKg), yieldPercent: all.yieldPercent, topGradePercent: all.topGradePercent },
       rows: rows.map((r, i) => ({ rank: i + 1, ...r })),
     };
   }

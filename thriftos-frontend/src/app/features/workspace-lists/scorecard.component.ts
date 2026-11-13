@@ -24,13 +24,13 @@ import {
 } from '../../shared/ui/workspace';
 
 type Money = string | null;
-interface Row { rank: number; key: string; id: string | null; containers: number; kg: string; landed: Money; costPerKg: Money; revenue: string; profit: Money; profitPerKg: Money; yieldPercent: number | null; topGradePercent: number | null }
+interface Row { rank: number; key: string; id: string | null; containers: number; lots: number; kg: string; landed: Money; costPerKg: Money; revenue: string; profit: Money; profitPerKg: Money; yieldPercent: number | null; topGradePercent: number | null }
 /** GET /api/workspace/analytics/suppliers */
-export interface Scorecard { by: 'supplier' | 'origin'; totals: { containers: number; kg: string; revenue: string; profit: Money; profitPerKg: Money; yieldPercent: number | null; topGradePercent: number | null }; rows: Row[] }
+export interface Scorecard { by: 'supplier' | 'origin'; totals: { containers: number; lots: number; kg: string; revenue: string; profit: Money; profitPerKg: Money; yieldPercent: number | null; topGradePercent: number | null }; rows: Row[] }
 
 /**
  * Supplier and origin scorecard (enterprise plan E4.2): which supplier or country gives the most profit per kg
- * bought, how much of it sorts into sellable stock and how much is A grade — ranked, for containers received in
+ * bought, how much of it sorts into sellable stock and how much is top grade — ranked, for containers and loose lots bought in
  * the period.
  */
 @Component({
@@ -53,7 +53,7 @@ export interface Scorecard { by: 'supplier' | 'origin'; totals: { containers: nu
         <ws-state kind="error" (retry)="load()" />
       } @else if (data(); as d) {
         <section class="kpis">
-          <ws-kpi-card [label]="'ws.suppliers.col.containers' | t" [value]="i18n.num(d.totals.containers)" [hint]="i18n.kg(d.totals.kg)" />
+          <ws-kpi-card [label]="'ws.score.bought' | t" [value]="i18n.kg(d.totals.kg)" [hint]="'ws.sp.bought' | t: { c: i18n.num(d.totals.containers), l: i18n.num(d.totals.lots) }" />
           @if (d.totals.profitPerKg !== null) { <ws-kpi-card [label]="'ws.suppliers.col.profitPerKg' | t" [value]="i18n.money(d.totals.profitPerKg)" [hint]="'ws.score.profitSoFar' | t: { amount: i18n.money(d.totals.profit) }" /> }
           <ws-kpi-card [label]="'ws.containers.col.yield' | t" [value]="pct(d.totals.yieldPercent)" />
           <ws-kpi-card [label]="'ws.containers.col.topGrade' | t" [value]="pct(d.totals.topGradePercent)" />
@@ -106,6 +106,7 @@ export class ScorecardComponent {
       { key: 'rank', label: t('ws.score.rank'), format: 'number', width: '64px' },
       { key: 'name', label: t(`ws.yield.group.${this.by()}`) },
       { key: 'containers', label: t('ws.suppliers.col.containers'), format: 'number', total: true },
+      { key: 'lots', label: t('ws.purchasing.lots'), format: 'number', total: true },
       { key: 'kg', label: t('ws.suppliers.col.kg'), format: 'kg', total: true },
       ...(cost ? [{ key: 'costPerKg', label: t('ws.containers.col.costPerKg'), format: 'money' as const }] : []),
       { key: 'revenue', label: t('ws.containers.col.revenue'), format: 'money', total: true },

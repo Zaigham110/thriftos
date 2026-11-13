@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { combine, containerEconomics, topPercent, yieldPercent } from '../home/container-economics';
+import { combine, containerEconomics, lotEconomics, topPercent, yieldPercent } from '../home/container-economics';
 import { KHATA_SALE_STATUSES } from '../sales/khata.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -170,8 +170,9 @@ export class WorkspaceRecordsService {
       orderBy: { createdAt: 'desc' },
       select: { id: true, containerNumber: true, createdAt: true, status: true, netWeight: true, landedCostPKR: true, landedCostPerKg: true, originCountry: true },
     });
-    const econ = await containerEconomics(this.prisma, tenantId, containers.map((c) => c.id));
-    const t = combine(containers.map((c) => econ.get(c.id)!));
+    const [econ, lotEcon] = await Promise.all([containerEconomics(this.prisma, tenantId, containers.map((c) => c.id)), lotEconomics(this.prisma, tenantId, lots.map((l) => l.id))]);
+    // Sold, profit, sorted % and top grade count the loose lots too (v2 review): many businesses never buy a container.
+    const t = combine([...containers.map((c) => econ.get(c.id)!), ...lots.map((l) => lotEcon.get(l.id)!)]);
     const landed = containers.reduce((s, c) => s.add(c.landedCostPKR), ZERO);
     const containerKg = containers.reduce((s, c) => s.add(c.netWeight), ZERO);
     const lotKg = lots.reduce((s, l) => s.add(l.weightKg), ZERO);
@@ -202,7 +203,9 @@ export class WorkspaceRecordsService {
         const sorted = l.status === 'SORTED' ? 100 : l.weightKg.isZero() ? null : Math.min(100, Math.round(Number(l.sortSession?.totalOutputWeight ?? 0) / Number(l.weightKg) * 100));
         return {
           id: l.id, code: l.ragCode, date: l.createdAt, status: l.status, rawType: l.rawCategory?.name ?? null, kg: l.weightKg,
+          // Total cost: the lot's price plus the transport and labour put on it.
           cost: money(canSeeCost, l.allocatedCost), costPerKg: money(canSeeCost, l.weightKg.isZero() ? ZERO : l.allocatedCost.div(l.weightKg).toDecimalPlaces(2)),
+          revenue: lotEcon.get(l.id)!.revenue, profit: money(canSeeCost, lotEcon.get(l.id)!.profit),
           sortedPercent: sorted,
         };
       }),

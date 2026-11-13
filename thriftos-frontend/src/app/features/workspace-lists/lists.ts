@@ -154,7 +154,8 @@ export const SUPPLIERS_LIST: ListConfig = {
     { key: 'yield', label: 'ws.containers.col.yield', format: 'percent', computed: true, info: 'ws.sp.info.sorted' },
     { key: 'topGrade', label: 'ws.containers.col.topGrade', format: 'percent', computed: true, info: 'ws.containers.info.topGrade' },
   ],
-  defaultColumns: ['name', 'origin', 'containers', 'lots', 'kg', 'profit', 'profitPerKg', 'yield', 'topGrade'],
+  // Phone before origin (v2 review): a local buyer's suppliers are all from one country; Origin stays in Columns.
+  defaultColumns: ['name', 'phone', 'containers', 'lots', 'kg', 'profit', 'profitPerKg', 'yield', 'topGrade'],
   create: { label: 'common.newSupplier', link: '/receive/records/suppliers/new' },
   // The ranking with a period lives in the Supplier scorecard report.
   related: { label: 'ws.sp.scorecard', link: '/receive/scorecard' },
