@@ -73,7 +73,8 @@ test('keyboard: Ctrl+K jumps to a screen, / and ? open the palette and the short
   await expect(page).toHaveURL(/\/khata\/records$/);
   await expect(page.locator('.nav-item.active')).toContainText('Receivables');
 
-  await page.locator('#ws-main').click({ position: { x: 5, y: 5 } });
+  // Leave whatever has focus without clicking: on a long Receivables list the click sometimes never landed and the test timed out.
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.keyboard.press('/');
   await expect(page.getByRole('dialog', { name: 'Search or jump to…' })).toBeVisible();
   await page.locator('[role=dialog] input').fill('new sale');

@@ -193,6 +193,9 @@ const MENU_CRUMBS: Array<{ prefix: string; crumbs: Crumb[] }> = [
   { prefix: '/sort/yield', crumbs: [{ label: 'ws.nav.yield', path: '/sort/yield' }] },
 ];
 
+/** First segments that are a menu heading, not a page of their own. */
+const HEADING_SEGMENTS = new Set(['finance']);
+
 export function crumbsFor(url: string, names: Record<string, string> = {}): Crumb[] {
   const path = url.split(/[?#]/)[0];
   // The sorting screen of a lot sits under the lot's page: Sorting › LOT-2026-011 › Sorting now.
@@ -214,7 +217,8 @@ export function crumbsFor(url: string, names: Record<string, string> = {}): Crum
     const path = '/' + segments.slice(0, i + 1).join('/');
     const name = names[decodeURIComponent(segment)];
     if (name) crumbs.push({ label: name, path, raw: true });
-    else if (WS_CRUMBS[segment]) crumbs.push({ label: WS_CRUMBS[segment], path });
+    // A menu heading that is not a page (Finance) gets no crumb: its link only opened the first page under it (v2 review).
+    else if (WS_CRUMBS[segment] && !HEADING_SEGMENTS.has(segment)) crumbs.push({ label: WS_CRUMBS[segment], path });
   });
   return crumbs;
 }

@@ -198,6 +198,8 @@ type Extra = { datePreset?: WsDateRange['preset']; layout?: 'table' | 'board' };
     .switch .ws-btn:first-child { border-start-end-radius:0; border-end-end-radius:0; }
     .switch .ws-btn:last-child { border-start-start-radius:0; border-end-start-radius:0; margin-inline-start:-1px; }
     .switch .ws-btn.on { border-color:var(--ws-brand); background:var(--ws-brand-soft); color:var(--ws-brand); z-index:1; }
+    /* A quick filter is as wide as a short word, not its longest option, so the bar stays on one line on a laptop (v2 review). */
+    select.quick { max-width:132px; text-overflow:ellipsis; }
     select { height:var(--ws-control-h); padding-inline:var(--ws-2); border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface); color:var(--ws-ink); font:inherit; }
     .menu-wrap { position:relative; }
     .ws-btn.on { border-color:var(--ws-brand); color:var(--ws-brand); }
