@@ -239,7 +239,7 @@
   "topOwing": "Owe you the most",
   "udhaar": "Owed to you",
   "yield": "{topGrade} {n}%",
-  "yieldShort": "Yield {n}%"
+  "yieldShort": "Sorted {n}%"
  },
  "import": {
   "add": "Add {n} rows",
@@ -715,7 +715,7 @@
   "tooMuch": "Weight is more than the lot left ({kg}). Enter {kg} or less.",
   "tooMuchReady": "Only {kg} is sorted and not baled. Make fewer or lighter bales.",
   "waste": "Waste / Katran",
-  "yield": "Yield",
+  "yield": "Result",
   "lotKg": "Lot",
   "leftHint": "still to sort",
   "balesLabel": "Bales made",
@@ -1584,7 +1584,7 @@
    "sorting": "Sorting",
    "stockValue": "Stock value",
    "suppliers": "Suppliers",
-   "yield": "Yield",
+   "yield": "Sorting results",
    "payroll": "Sorter pay",
    "moveStock": "Move between godowns"
   },
@@ -1796,7 +1796,7 @@
     },
     "yield": {
      "hint": "Sorted % and waste by supplier, origin or month",
-     "name": "Sorting yield"
+     "name": "Sorting results"
     }
    },
    "section": {
@@ -2205,7 +2205,7 @@
    },
    "lots": "Lots sorted",
    "subtitle": "How much of what you bought came out as sellable stock",
-   "title": "Yield analysis",
+   "title": "Sorting results",
    "trend": "Sorted % by month",
    "waste": "Waste by type",
    "wasteHint": "{kg} waste"

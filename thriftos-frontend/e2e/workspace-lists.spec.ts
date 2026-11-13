@@ -274,7 +274,10 @@ test('sorting: lots list and board, a lot record, yield analysis', async ({ page
   }
 
   await page.goto('/sort/yield');
-  await expect(page.getByRole('heading', { name: 'Yield analysis' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Sorting results' })).toBeVisible();
+  // Its own menu item is the one lit; every table has its title.
+  await expect(page.locator('nav a[aria-current=page]')).toHaveText(/Sorting results/);
+  for (const title of ['Waste by type', 'By category', 'By grade']) await expect(page.locator('section.block h2', { hasText: title })).toBeVisible();
   await page.locator('ws-command-bar select').first().selectOption({ label: 'Month' });
   await expect(page.locator('ws-kpi-card').filter({ hasText: 'Lots sorted' })).toBeVisible();
 });

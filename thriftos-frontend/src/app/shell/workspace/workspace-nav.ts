@@ -187,7 +187,8 @@ export function isMenuPage(url: string): boolean {
 const MENU_CRUMBS: Array<{ prefix: string; crumbs: Crumb[] }> = [
   { prefix: '/receive/records/suppliers', crumbs: [{ label: 'ws.nav.suppliers', path: '/receive/records/suppliers' }] },
   { prefix: '/receive/scorecard', crumbs: [{ label: 'ws.nav.reports', path: '/insights' }, { label: 'ws.nav.scorecard', path: '/receive/scorecard' }] },
-  { prefix: '/sort/yield', crumbs: [{ label: 'ws.nav.sorting', path: '/sort/records' }, { label: 'ws.nav.yield', path: '/sort/yield' }] },
+  // Its own menu item (v2 review): no Sorting crumb before it, so the menu lights Sorting results, not Sorting.
+  { prefix: '/sort/yield', crumbs: [{ label: 'ws.nav.yield', path: '/sort/yield' }] },
 ];
 
 export function crumbsFor(url: string, names: Record<string, string> = {}): Crumb[] {
