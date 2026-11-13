@@ -59,6 +59,8 @@ describe('Workspace finance: expenses, books, cash close, profit and loss (e2e)'
 
   it('books: money in from payments, out for expenses, per method', async () => {
     const cash = (await api(app, a).get('/workspace/finance/book?method=CASH').expect(200)).body;
+    // A receipt's line carries what a click opens: its bill, or the customer for money on account.
+    for (const l of cash.lines.filter((x: { kind: string }) => x.kind === 'RECEIPT')) expect(['sale', 'customer']).toContain(l.link.type);
     expect(cash).toMatchObject({ opening: '0', in: '10000', out: '4000', closing: '6000' });
     expect(cash.lines.map((l: { kind: string }) => l.kind)).toEqual(['RECEIPT', 'EXPENSE', 'EXPENSE']);
     expect(cash.lines[0]).toMatchObject({ party: 'Imran Landa Centre', balance: '10000' });

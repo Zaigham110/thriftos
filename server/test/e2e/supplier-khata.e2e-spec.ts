@@ -49,6 +49,8 @@ describe('Supplier khata: owed, paid now, payments, cash book (e2e)', () => {
     // The books: cash out 60,000, bank out 25,000, each named after the supplier.
     const cash = (await api(app, a).get('/workspace/finance/book?method=CASH').expect(200)).body;
     expect(cash.lines.filter((l: { kind: string }) => l.kind === 'SUPPLIER')).toEqual([expect.objectContaining({ party: 'Khata Wala', out: '60000', in: '0' })]);
+    // A click on the book's line opens the supplier (v2 review, Cash and bank).
+    expect(cash.lines.find((l: { kind: string }) => l.kind === 'SUPPLIER').link).toEqual({ type: 'supplier', id: s.id });
     const bank = (await api(app, a).get('/workspace/finance/book?method=BANK').expect(200)).body;
     expect(bank.lines.filter((l: { kind: string }) => l.kind === 'SUPPLIER')).toEqual([expect.objectContaining({ party: 'Khata Wala', out: '25000' })]);
 

@@ -934,6 +934,14 @@
    "notAllowed": "That move is not allowed from here"
   },
   "book": {
+   "setDrawer": "Set the drawer right",
+   "bookSays": "The book says {amount} should be in the cash drawer.",
+   "really": "Cash really in the drawer now",
+   "willOut": "{amount} will be taken off the book as \"Taken out (other)\". It is not an expense and not a loss. Use this once, for cash that left before you kept this book, such as money paid for stock.",
+   "willIn": "{amount} will be added to the book as \"Put in (other)\". It is not a sale and not a profit.",
+   "matches": "The book already matches the drawer.",
+   "drawerNote": "Drawer set right",
+   "drawerSaved": "The book now matches the drawer",
    "supplier": "Paid to supplier {party} {ref}",
    "closing": "Closing",
    "empty": "Nothing in this period",

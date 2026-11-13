@@ -934,6 +934,14 @@
    "notAllowed": "Yahan se yeh tabdeeli nahi ho sakti"
   },
   "book": {
+   "setDrawer": "Daraz ka hisaab durust karein",
+   "bookSays": "Khate ke mutabiq daraz mein {amount} hone chahiyen.",
+   "really": "Daraz mein is waqt asal cash",
+   "willOut": "{amount} khate se \"Nikala (other)\" ke taur par kam hoga. Yeh na kharcha hai na nuqsan. Ise aik baar istemal karein, us cash ke liye jo khata rakhne se pehle nikla, jaise maal ki adaigi.",
+   "willIn": "{amount} khate mein \"Dala (other)\" ke taur par shamil hoga. Yeh na sale hai na munafa.",
+   "matches": "Khata pehle hi daraz ke barabar hai.",
+   "drawerNote": "Daraz ka hisaab durust kiya",
+   "drawerSaved": "Khata ab daraz ke barabar hai",
    "supplier": "Supplier {party} ko adaigi {ref}",
    "closing": "Aakhri baqaya",
    "empty": "Is muddat mein kuch nahi",
