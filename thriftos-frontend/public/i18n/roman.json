@@ -872,6 +872,8 @@
    "title": "Karobar ki setting"
   },
   "audit": {
+   "SALE_MADE_EXPORT": "ise export sale banaya",
+   "SALE_SHIPMENT_SET": "shipment ki tafseel badli",
    "BALE_MADE": "ne gaanth banayi",
    "CASH_CLOSED": "Din band kiya",
    "CASH_MOVED": "Cash muntaqil kiya",
@@ -1810,6 +1812,13 @@
    "title": "Report"
   },
   "sale": {
+   "typeLOCAL": "Local",
+   "typeEXPORT": "Export",
+   "type": "Sale ki qisam",
+   "advance": "Customer ka advance",
+   "showEach": "Har line dikhayein ({n})",
+   "showKinds": "Har maal ki aik line dikhayein",
+   "export": "Export",
    "amount": "Raqam",
    "balance": "Customer ka baqaya",
    "bill": "Bill kholein",
@@ -2008,6 +2017,8 @@
    "story": "Kharid se munafe tak"
   },
   "sp2": {
+   "advance": "Advance {balance}",
+   "forBill": "Baad mein, isi bill ke liye",
    "applied": "Is bill mein laga",
    "belowCost": "Lagat se kam ({cost})",
    "billPage": "Bill ka safha",

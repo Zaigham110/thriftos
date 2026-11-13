@@ -20,6 +20,8 @@ export interface ListColumnConfig {
   info?: string;
   /** Left out while every row on the page is empty (Godown before any godown exists). */
   hideIfEmpty?: boolean;
+  /** Offered only while this module is on (the sale type, for a business that exports). */
+  module?: string;
   /** 'sign': below zero shows red (a loss). */
   tone?: 'sign';
 }

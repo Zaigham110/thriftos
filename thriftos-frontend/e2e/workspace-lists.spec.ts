@@ -804,7 +804,9 @@ test('inventory by item: bales and sorted kg per item, open its bales, price eve
   await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible();
   // Sorted kg not baled is stock too.
   await expect(page.locator('ws-data-grid thead')).toContainText('Sorted, not baled');
-  const row = page.locator('ws-data-grid tbody tr').filter({ hasText: new RegExp(`^${cats[0].name}`) }).first();
+  // The ungraded bale made above: the row named exactly after the category (a graded row of the same category may
+  // hold only sorted kg, which cannot be priced, and made this test fail in long runs).
+  const row = page.locator('ws-data-grid tbody tr').filter({ has: page.getByRole('cell', { name: cats[0].name, exact: true }) }).first();
   await expect(row).toBeVisible();
 
   const name = (await row.locator('td').first().innerText()).trim();

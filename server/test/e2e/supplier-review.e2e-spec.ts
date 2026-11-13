@@ -87,6 +87,12 @@ describe('Suppliers review: loose lots on the supplier page, add and edit (e2e)'
     expect(soldRow.soldAt).toBeTruthy();
     const inStock = (await api(app, a).get('/lists/stock').expect(200)).body.rows.find((r: { id: string }) => r.id === items[1].id);
     expect(inStock).toMatchObject({ name: 'Jeans · A', soldTo: null, soldFor: null, kgNow: '45', left: '1' });
+    // The bill's page (v2 review, Sales): each line carries the item as Inventory writes it and the bale's code apart,
+    // so the page shows one row per kind; the description stays as bills print it.
+    const bill = (await api(app, a).get(`/sales/${sale.id}`).expect(200)).body;
+    expect(bill.lines[0]).toMatchObject({ item: 'Jeans · A', description: expect.stringContaining('Jeans A') });
+    expect(bill.lines[0].code).toBeTruthy();
+    await api(app, b).get(`/sales/${sale.id}`).expect(404);
     const balePage = (await api(app, a).get(`/workspace/stock/${items[0].id}`).expect(200)).body;
     expect(balePage.item.name).toBe('Jeans · A');
     expect(balePage.lineage[0]).toMatchObject({ supplier: { name: 'Gaari Wala' }, grade: 'A', container: null });

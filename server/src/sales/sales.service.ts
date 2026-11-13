@@ -15,6 +15,7 @@ import { CreateSaleDto, LastPriceQueryDto, SetShipmentDto } from './dto';
 import { KHATA_SALE_STATUSES, KhataService } from './khata.service';
 import { SaleLineError, saleTake } from './sale-lines';
 import { billMessage, language, whatsappLink } from './whatsapp';
+import { itemName } from '../stock/stock.lists';
 
 type Tx = Prisma.TransactionClient;
 
@@ -496,7 +497,9 @@ export class SalesService {
       ...sale,
       payments: sale.payments.map((p) => this.khata.publicPayment(p)),
       paidBy: traced.map((t) => ({ ...this.khata.publicPayment(t.payment), applied: t.amount, withSale: t.withSale })),
-      lines: sale.lines.map((l) => ({ ...l, description: describeItem(l.inventoryItem) })),
+      // `item` is the name as Inventory writes it ("Jeans · A") and `code` the bale's number, so the page can show
+      // one row per kind; `description` stays as bills print it.
+      lines: sale.lines.map((l) => ({ ...l, description: describeItem(l.inventoryItem), item: itemName(l.inventoryItem) ?? describeItem(l.inventoryItem), code: l.inventoryItem.repackUnit?.unitCode ?? null })),
       paid: own?.paid ?? new Prisma.Decimal(0),
       due: own?.due ?? new Prisma.Decimal(0),
       customerBalance: applied.balance,

@@ -15,9 +15,11 @@ export const SALES_LIST: ListConfig = {
     { key: 'number', label: 'ws.col.number', width: '130px' },
     { key: 'date', label: 'ws.col.date', format: 'date' },
     { key: 'customer', label: 'ws.col.customer' },
-    { key: 'city', label: 'ws.col.city' },
+    { key: 'city', label: 'ws.col.city', hideIfEmpty: true },
     { key: 'status', label: 'ws.col.status', enumPrefix: 'ws.status.' },
     { key: 'paymentMode', label: 'ws.col.paymentMode', enumPrefix: 'ws.mode.' },
+    // Local or export (v2 review): only for a business that exports.
+    { key: 'type', label: 'ws.sale.type', enumPrefix: 'ws.sale.type', module: 'EXPORT' },
     { key: 'total', label: 'ws.col.total', format: 'money', total: true },
     { key: 'paid', label: 'ws.sale.paid', format: 'money', total: true, computed: true },
     { key: 'due', label: 'ws.sale.due', format: 'money', total: true, computed: true, info: 'ws.sp2.dueInfo' },
@@ -26,7 +28,7 @@ export const SALES_LIST: ListConfig = {
     { key: 'createdBy', label: 'ws.col.createdBy', computed: true },
   ],
   // One status (Paid / Part paid / On credit) and the money behind it; how it was sold is in the View menu.
-  defaultColumns: ['number', 'date', 'customer', 'city', 'status', 'total', 'paid', 'due', 'profit'],
+  defaultColumns: ['number', 'date', 'customer', 'city', 'type', 'status', 'total', 'paid', 'due', 'profit'],
   dateField: 'date',
   groupBy: [
     { key: 'status', label: 'ws.col.status', enumPrefix: 'ws.status.' },

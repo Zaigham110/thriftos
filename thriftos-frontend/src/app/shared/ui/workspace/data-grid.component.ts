@@ -115,7 +115,8 @@ export type WsRow = Record<string, unknown> & { id: string };
     </div>
   `,
   styles: [`
-    td.neg { color:var(--ws-bad); font-weight:600; }
+    /* A loss is red in every table. !important: the cell colour set further down had the same weight and won, so losses were bold but black (v2 review). */
+    td.neg { color:var(--ws-bad) !important; font-weight:600; }
     .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
     td.acts { white-space:nowrap; text-align:end; }
     .act { height:28px; margin-inline-start:4px; padding-inline:10px; border:1px solid var(--ws-line); border-radius:var(--ws-r-md); background:var(--ws-surface); color:var(--ws-ink); font:inherit; font-size:var(--ws-text-sm); cursor:pointer; }

@@ -872,6 +872,8 @@
    "title": "Business setup"
   },
   "audit": {
+   "SALE_MADE_EXPORT": "made it an export sale",
+   "SALE_SHIPMENT_SET": "changed the shipment details",
    "BALE_MADE": "made the bale",
    "CASH_CLOSED": "Day closed",
    "CASH_MOVED": "Cash moved",
@@ -1810,6 +1812,13 @@
    "title": "Reports"
   },
   "sale": {
+   "typeLOCAL": "Local",
+   "typeEXPORT": "Export",
+   "type": "Sale type",
+   "advance": "Customer paid ahead",
+   "showEach": "Show each line ({n})",
+   "showKinds": "Show one row per item",
+   "export": "Export",
    "amount": "Amount",
    "balance": "Customer balance",
    "bill": "Open bill",
@@ -2008,6 +2017,8 @@
    "story": "From buying to profit"
   },
   "sp2": {
+   "advance": "Paid ahead {balance}",
+   "forBill": "Later, for this bill",
    "applied": "Paid off this bill",
    "belowCost": "Below cost ({cost})",
    "billPage": "Bill page",

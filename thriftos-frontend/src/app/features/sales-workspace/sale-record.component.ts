@@ -84,13 +84,16 @@ const UNIT_KEYS: Record<string, string> = { KG: 'unit.kgShort', BALE: 'unit.bale
             <ws-smart-button [label]="'ws.sale.paid' | t" [value]="i18n.money(round(s.paid))" [icon]="icons.Wallet" tone="good" [link]="[]" [query]="{ tab: 'payments' }" />
             <ws-smart-button [label]="'ws.sale.due' | t" [value]="i18n.money(round(s.due))" [icon]="icons.Coins" [tone]="+s.due > 0 ? 'bad' : 'plain'" [link]="[]" [query]="{ tab: 'payments' }" />
             @if (canSeeCost()) { <ws-smart-button [label]="'ws.col.profit' | t" [value]="i18n.money(round(s.totalProfit ?? 0))" [icon]="icons.Coins" [tone]="+(s.totalProfit ?? 0) >= 0 ? 'good' : 'bad'" [link]="[]" /> }
-            <ws-smart-button [label]="'ws.sale.balance' | t" [value]="i18n.money(round(s.customerBalance))" [icon]="icons.BookOpen" [link]="['/khata/records', s.customerId]" />
+            <ws-smart-button [label]="(+s.customerBalance < 0 ? 'ws.sale.advance' : 'ws.sale.balance') | t" [value]="i18n.money(abs(round(s.customerBalance)))" [icon]="icons.BookOpen" [link]="['/khata/records', s.customerId]" />
           </section>
 
           <ws-tabs [tabs]="tabs()" [active]="tab()" (activeChange)="pickTab($event)" [label]="s.saleNumber" />
           <div role="tabpanel" [id]="'ws-panel-' + tab()" [attr.aria-labelledby]="'ws-tab-' + tab()">
             @if (tab() === 'lines') {
               <ws-data-grid [caption]="'ws.sale.lines' | t" [columns]="lineColumns()" [rows]="lineRows()" />
+              @if (grouped() || eachLine()) {
+                <button type="button" class="ws-btn more" [attr.aria-pressed]="eachLine()" (click)="eachLine.set(!eachLine())">{{ (eachLine() ? 'ws.sale.showKinds' : 'ws.sale.showEach') | t: { n: i18n.num(s.lines.length) } }}</button>
+              }
             } @else if (tab() === 'export' && canExport()) {
               <app-export-pack [saleId]="s.id" [local]="!isExport()" (madeExport)="reload()" />
             } @else {
@@ -123,6 +126,7 @@ const UNIT_KEYS: Record<string, string> = { KG: 'unit.kgShort', BALE: 'unit.bale
     @if (printJob(); as job) { <app-print-sheet [tickets]="job.tickets" [kind]="job.kind" [title]="job.title" (closed)="printJob.set(null)" /> }
   `,
   styles: [`
+    .more { margin-top:var(--ws-2); }
     .record { display:grid; grid-template-columns:minmax(0, 1fr) 340px; gap:var(--ws-5); max-width:var(--ws-content-max); margin-inline:auto; align-items:start; font-family:var(--ws-font); color:var(--ws-ink); }
     .main { display:grid; grid-template-columns:minmax(0, 1fr); gap:var(--ws-4); }
     .side { position:sticky; top:calc(var(--ws-topbar-h) + var(--ws-4)); }
@@ -179,7 +183,9 @@ export class SaleRecordComponent {
     if (!s) return '';
     const date = new Date(s.createdAt).toLocaleDateString(this.i18n.lang() === 'ur' ? 'ur-PK' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric', numberingSystem: 'latn' });
     // Who made it is in the activity panel (the sale only carries the user id).
-    return [date, this.i18n.t(`ws.mode.${s.paymentMode}`)].join(' · ');
+    // How it was first entered (Credit, Part paid) says nothing once the bill is paid (v2 review); export sales say so.
+    const mode = s.status === 'PAID' && s.paymentMode !== 'CASH' ? null : this.i18n.t(`ws.mode.${s.paymentMode}`);
+    return [date, (s as { type?: string }).type === 'EXPORT' ? this.i18n.t('ws.sale.export') : null, mode].filter(Boolean).join(' · ');
   });
   protected readonly tabs = computed<WsTab[]>(() => [
     { id: 'lines', label: this.i18n.t('ws.sale.lines'), count: this.sale()?.lines.length ?? 0 },
@@ -191,7 +197,7 @@ export class SaleRecordComponent {
   protected readonly isExport = computed(() => (this.sale() as { type?: string } | null)?.type === 'EXPORT' && this.on('EXPORT'));
   protected readonly canExport = computed(() => this.isExport() || (this.on('EXPORT') && !!this.sale() && this.sale()!.status !== 'CANCELLED'));
   protected readonly lineColumns = computed<WsColumn[]>(() => [
-    { key: 'description', label: this.i18n.t('ws.sale.item') },
+    { key: 'item', label: this.i18n.t('ws.sale.item') },
     { key: 'unit', label: this.i18n.t('ws.sale.unit') },
     { key: 'quantity', label: this.i18n.t('ws.sale.quantity'), format: 'number' },
     { key: 'unitPrice', label: this.i18n.t('ws.sale.unitPrice'), format: 'money' },
@@ -203,9 +209,30 @@ export class SaleRecordComponent {
         ]
       : []),
   ]);
-  protected readonly lineRows = computed<WsRow[]>(() =>
-    (this.sale()?.lines ?? []).map((l) => ({ ...l, unit: this.i18n.t(UNIT_KEYS[l.unit] ?? '') || l.unit }) as unknown as WsRow),
-  );
+  /** One row per line (each bale), instead of one per kind of item at one price. */
+  protected readonly eachLine = signal(false);
+  protected readonly lineRows = computed<WsRow[]>(() => {
+    type L = { id: string; item?: string; code?: string | null; description: string; unit: string; quantity: string; unitPrice: string; lineTotal: string; lineCost?: string | null; profit?: string | null };
+    const lines = (this.sale()?.lines ?? []) as unknown as L[];
+    const unit = (u: string) => this.i18n.t(UNIT_KEYS[u] ?? '') || u;
+    if (this.eachLine()) return lines.map((l) => ({ ...l, item: [l.item ?? l.description, l.code].filter(Boolean).join(' · '), unit: unit(l.unit) }) as unknown as WsRow);
+    // 44 bales of 6 kinds are 6 rows (v2 review): same item, unit and price together.
+    const by = new Map<string, { id: string; item: string; unit: string; quantity: number; unitPrice: string; lineTotal: number; lineCost: number | null; profit: number | null }>();
+    for (const l of lines) {
+      const key = `${l.item ?? l.description}|${l.unit}|${l.unitPrice}`;
+      const r = by.get(key) ?? { id: key, item: l.item ?? l.description, unit: unit(l.unit), quantity: 0, unitPrice: l.unitPrice, lineTotal: 0, lineCost: l.lineCost == null ? null : 0, profit: l.profit == null ? null : 0 };
+      r.quantity += Number(l.quantity);
+      r.lineTotal += Number(l.lineTotal);
+      if (r.lineCost !== null) r.lineCost += Number(l.lineCost ?? 0);
+      if (r.profit !== null) r.profit += Number(l.profit ?? 0);
+      by.set(key, r);
+    }
+    return [...by.values()] as unknown as WsRow[];
+  });
+  protected readonly grouped = computed(() => !this.eachLine() && this.lineRows().length < (this.sale()?.lines.length ?? 0));
+  protected abs(v: number | null): number {
+    return Math.abs(v ?? 0);
+  }
   /** Every payment that paid this bill: made with it, or a khata payment that cleared it (oldest bills first). */
   protected readonly paymentColumns = computed<WsColumn[]>(() => [
     { key: 'receivedAt', label: this.i18n.t('ws.col.date'), format: 'date' },
@@ -218,9 +245,16 @@ export class SaleRecordComponent {
   protected readonly paymentRows = computed<WsRow[]>(() =>
     (this.sale()?.paidBy ?? []).map((p, i) => ({
       id: `${p.id}-${i}`, receivedAt: p.receivedAt, method: this.i18n.t(`method.${p.method}`), reference: p.reference ?? null,
-      how: this.i18n.t(p.withSale ? 'ws.sp2.withSale' : 'ws.sp2.onAccount'), payment: p.amount, applied: p.applied,
+      // "With the sale" only for money taken the day of the sale; a later payment for this bill says so (v2 review).
+      how: this.i18n.t(!p.withSale ? 'ws.sp2.onAccount' : this.sameDay(p.receivedAt, this.sale()!.createdAt) ? 'ws.sp2.withSale' : 'ws.sp2.forBill'), payment: p.amount, applied: p.applied,
     }) as unknown as WsRow),
   );
+
+  /** The same business day in Pakistan (UTC+5). */
+  private sameDay(a: string, b: string): boolean {
+    const day = (v: string) => new Date(new Date(v).getTime() + 5 * 3_600_000).toISOString().slice(0, 10);
+    return day(a) === day(b);
+  }
 
   constructor() {
     // A smart button that opens ?tab=payments wins over the tab picked earlier.

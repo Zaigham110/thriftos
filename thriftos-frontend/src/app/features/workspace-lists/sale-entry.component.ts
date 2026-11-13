@@ -88,7 +88,7 @@ function kindItem(p: Pick): StockOption {
             <p class="chip">{{ c.priceGroup ? ('ws.saleEntry.list' | t: { group: c.priceGroup }) : ('ws.saleEntry.noList' | t) }}</p>
             @if (account(); as a) {
               <!-- What they owe and their limit, before selling more on credit (v2 review). -->
-              <p class="chip" [class.warn]="overLimit()">{{ 'ws.sp2.owes' | t: { balance: i18n.money(round(a.balance)) } }}@if (a.creditLimit && +a.creditLimit > 0) { · {{ 'ws.sp2.limit' | t: { limit: i18n.money(round(a.creditLimit)) } }} }</p>
+              <p class="chip" [class.warn]="overLimit()">{{ (+a.balance < 0 ? 'ws.sp2.advance' : 'ws.sp2.owes') | t: { balance: i18n.money(abs(round(a.balance))) } }}@if (a.creditLimit && +a.creditLimit > 0) { · {{ 'ws.sp2.limit' | t: { limit: i18n.money(round(a.creditLimit)) } }} }</p>
             }
           } @else {
             <button type="button" class="ws-btn" (click)="openNewCustomer()">+ {{ 'sell.newCustomer' | t }}</button>
@@ -333,6 +333,9 @@ export class SaleEntryComponent implements HasUnsavedChanges {
     return Number(a.balance) + credit > Number(a.creditLimit);
   });
 
+  protected abs(v: number): number {
+    return Math.abs(v);
+  }
   protected round(v: string | number | null | undefined): number {
     return Math.round(Number(v ?? 0));
   }

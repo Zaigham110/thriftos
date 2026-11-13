@@ -302,9 +302,10 @@ export class ListPageComponent {
   /** Columns the server lets this person see (fields behind a permission are not sent). */
   protected readonly availableColumns = computed(() => {
     const fields = this.result()?.fields;
-    if (!fields) return this.list().columns;
+    const on = (c: { module?: string }) => !c.module || this.tenants.isModuleEnabled(c.module as never, this.tenants.tenant());
+    if (!fields) return this.list().columns.filter(on);
     const keys = new Set(fields.filter((f) => !f.hidden).map((f) => f.key));
-    return this.list().columns.filter((c) => keys.has(c.key));
+    return this.list().columns.filter((c) => keys.has(c.key) && on(c));
   });
   protected readonly visible = computed(() => {
     const allowed = new Set(this.availableColumns().map((c) => c.key));
