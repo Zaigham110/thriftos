@@ -53,6 +53,8 @@ const ADVANCED = ['role.read', 'category.read', 'grade.read', 'warehouse.read', 
     </section>
   `,
   styles: [`
+    /* On a laptop the page uses the width, not a phone column (v2 review). */
+    @media (min-width: 1024px) { .floor { max-width:960px; } }
     button.row { width:100%; border:0; background:transparent; font:inherit; cursor:pointer; text-align:start; }
     .item { display:flex !important; align-items:center; gap:12px; min-width:0; }
     .item > span { display:grid; gap:2px; min-width:0; }

@@ -5,7 +5,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { Observable } from 'rxjs';
+import { Observable, forkJoin } from 'rxjs';
 import { AuthService } from '../../core/auth';
 import { API_BASE_URL } from '../../core/config/api.config';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -143,9 +143,11 @@ const KINDS: Record<NamesKind, Kind> = {
           @if (canEdit()) {
             <span class="btns">
               @if (r.isActive !== false) {
+                @if (kind().order && canMove(r, -1)) { <button type="button" class="ws-btn" [disabled]="busy()" [attr.aria-label]="('ws.names.moveUp' | t) + ': ' + r.name" [title]="'ws.names.moveUp' | t" (click)="move(r, -1)">↑</button> }
+                @if (kind().order && canMove(r, 1)) { <button type="button" class="ws-btn" [disabled]="busy()" [attr.aria-label]="('ws.names.moveDown' | t) + ': ' + r.name" [title]="'ws.names.moveDown' | t" (click)="move(r, 1)">↓</button> }
                 <button type="button" class="ws-btn" (click)="edit(r)">{{ 'ws.names.change' | t }}</button>
                 @if (kindKey() === 'warehouses' && !r.isDefault) { <button type="button" class="ws-btn" (click)="makeMain(r)">{{ 'ws.names.makeMain' | t }}</button> }
-                @if (!r.isSystemGenerated && !r.isDefault) { <button type="button" class="ws-btn" (click)="turnOff(r)">{{ (kind().remove === 'delete' ? 'ws.names.remove' : 'ws.names.turnOff') | t }}</button> }
+                @if (canTurnOff(r)) { <button type="button" class="ws-btn" (click)="turnOff(r)">{{ (kind().remove === 'delete' ? 'ws.names.remove' : 'ws.names.turnOff') | t }}</button> }
               } @else {
                 <button type="button" class="ws-btn" (click)="turnOn(r)">{{ 'ws.names.turnOn' | t }}</button>
               }
@@ -244,6 +246,42 @@ export class NamesListComponent implements OnInit {
       this.editing.set(null);
       this.toast.show(this.i18n.t('ws.names.saved'));
     });
+  }
+
+  /**
+   * A waste type made with a category can be turned off too (v2 review: nine of them could not), as long as one
+   * waste type stays on; anything else that is not the main one or system-made can be turned off or removed.
+   */
+  protected canTurnOff(r: Row): boolean {
+    if (r.isDefault) return false;
+    if (this.kindKey() === 'waste') return this.rows().filter((x) => x.isActive !== false).length > 1;
+    return !r.isSystemGenerated;
+  }
+
+  /** The rows that are on, in their order: what the arrows move within. */
+  private ordered(): Row[] {
+    const order = this.kind().order!;
+    return this.rows().filter((x) => x.isActive !== false).sort(order);
+  }
+  protected canMove(r: Row, by: -1 | 1): boolean {
+    const list = this.ordered();
+    const i = list.findIndex((x) => x.id === r.id);
+    return i >= 0 && i + by >= 0 && i + by < list.length;
+  }
+  /**
+   * Moves a name up or down (v2 review: "best first" could not be arranged). The list is numbered again from the
+   * top, so old ties go too; only rows whose number changed are saved.
+   */
+  protected move(r: Row, by: -1 | 1): void {
+    const list = this.ordered();
+    const i = list.findIndex((x) => x.id === r.id);
+    if (i < 0 || !this.canMove(r, by)) return;
+    [list[i], list[i + by]] = [list[i + by], list[i]];
+    const field = this.kindKey() === 'grades' ? 'rank' : 'sortOrder';
+    const first = this.kindKey() === 'grades' ? 1 : 0;
+    const changed = list.map((x, n) => ({ x, value: n + first })).filter(({ x, value }) => Number(x[field] ?? -1) !== value);
+    const verb = this.kind().update.toUpperCase();
+    this.run(forkJoin(changed.map(({ x, value }) => this.http.request(verb, `${this.url()}/${x.id}`, { body: this.kindKey() === 'raw' ? { name: x.name, rawType: x['rawType'], [field]: value } : { [field]: value } }))), () => this.toast.show(this.i18n.t('ws.names.orderSaved')));
   }
 
   protected turnOff(r: Row): void {

@@ -157,6 +157,8 @@ export const WS_CRUMBS: Record<string, string> = {
   counts: 'ws.counts.title',
   today: 'ws.crumb.today',
   team: 'settings.team',
+  business: 'settings.business',
+  billing: 'billing.title',
   password: 'settings.password',
   admin: 'settings.advanced',
   'ui-gallery': 'ws.crumb.gallery',

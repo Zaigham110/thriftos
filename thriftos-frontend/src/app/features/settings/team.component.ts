@@ -153,6 +153,9 @@ const CODES = ['PHONE_INVALID', 'PHONE_TAKEN', 'PHONE_NEEDED', 'EMAIL_TAKEN', 'S
     </section>
   `,
   styles: [`
+    .you { margin-inline-start:6px; }
+    /* On a laptop the page uses the width, not a phone column (v2 review). */
+    @media (min-width: 1024px) { .floor { max-width:960px; } }
     .member .head { width:100%; border:0; background:transparent; font:inherit; text-align:start; cursor:pointer; }
     .member small { display:block; }
     .member .you { display:inline; color:var(--tos-ink-soft); font-weight:600; }

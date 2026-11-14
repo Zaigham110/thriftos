@@ -85,7 +85,7 @@ function parts(code: string): { obj: string; verb: string } {
           <ul class="rows">
             @for (r of roles(); track r.id) {
               <li>
-                <span class="what"><strong>{{ name(r.name) }}</strong><small>{{ 'ws.roles.people' | t: { n: r._count?.userRoles ?? 0 } }}</small></span>
+                <span class="what"><strong>{{ name(r.name) }}</strong><small>{{ ((r._count?.userRoles ?? 0) === 1 ? 'ws.roles.peopleOne' : 'ws.roles.people') | t: { n: r._count?.userRoles ?? 0 } }}</small></span>
                 <span class="btns">
                   <a class="ws-btn" [routerLink]="['/settings/admin/roles', r.id]">{{ 'ws.roles.whatCan' | t }}</a>
                   @if (canDelete() && !builtIn(r.name) && !(r._count?.userRoles)) { <button type="button" class="ws-btn" (click)="remove(r)">{{ 'ws.names.remove' | t }}</button> }

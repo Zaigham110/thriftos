@@ -40,7 +40,9 @@ const METHODS = ['JAZZCASH', 'EASYPAISA', 'BANK'] as const;
         <div class="card now" [class.warn]="st.state === 'GRACE' || st.state === 'TRIAL_OVER'" [class.bad]="st.state === 'READ_ONLY'" aria-live="polite">
           <small>{{ 'billing.yourPlan' | t }}</small>
           <strong>{{ st.plan?.name ?? ('billing.custom' | t) }}</strong>
-          <p>{{ ('billing.state.' + st.state) | t: { n: st.daysLeft ?? 0, date: day(st.paidUntil ?? st.trialEndsAt), grace: day(st.graceEndsAt) } }}</p>
+          <p>{{ ('billing.state.' + st.state + (st.daysLeft === 1 && oneDay.includes(st.state) ? 'One' : '')) | t: { n: st.daysLeft ?? 0, date: day(st.paidUntil ?? st.trialEndsAt), grace: day(st.graceEndsAt) } }}</p>
+          <!-- What the business has beyond its plan (v2 review: this page and Business disagreed). -->
+          @if (extras(st.plan); as more) { <p class="more">{{ 'billing.alsoHas' | t: { list: more } }}</p> }
           @if (st.plan?.maxUsers; as max) { <small>{{ 'billing.logins' | t: { n: st.users, max: max } }}</small> }
         </div>
 
@@ -86,7 +88,7 @@ const METHODS = ['JAZZCASH', 'EASYPAISA', 'BANK'] as const;
                   <button type="button" class="chip" [class.on]="method === m" [attr.aria-pressed]="method === m" (click)="method = m">{{ ('billing.method.' + m) | t }}</button>
                 }
               </div>
-              <label class="field">{{ 'billing.reference' | t }} <small>· {{ 'common.optional' | t }}</small><input name="reference" maxlength="100" [(ngModel)]="reference" [placeholder]="'billing.referenceHint' | t" /></label>
+              <label class="field">{{ 'billing.reference' | t }} · {{ 'common.optional' | t }}<input name="reference" maxlength="100" [(ngModel)]="reference" [placeholder]="'billing.referenceHint' | t" /></label>
               <label class="field">{{ 'billing.screenshot' | t }}<input name="shot" type="file" accept="image/*,application/pdf" (change)="pick($event)" /></label>
               @if (error(); as e) { <p class="notice error" role="alert">{{ e }}</p> }
               <button type="submit" class="btn primary block" [disabled]="busy() || (!shot && !reference.trim())">{{ (busy() ? 'common.saving' : 'billing.send') | t }}</button>
@@ -141,6 +143,8 @@ const METHODS = ['JAZZCASH', 'EASYPAISA', 'BANK'] as const;
     </section>
   `,
   styles: [`
+    @media (min-width: 1024px) { .floor { max-width:960px; } }
+    .now .more { margin:6px 0 0; color:var(--tos-ink-soft); font-size:14px; }
     .billing h2 { font-size:17px; margin:18px 0 8px; }
     .now { display:grid; gap:4px; }
     .now strong { font-size:22px; }
@@ -243,6 +247,14 @@ export class BillingComponent {
 
   protected price(p: Plan): string {
     return this.period() === 'YEAR' ? p.yearlyPrice : p.monthlyPrice;
+  }
+
+  protected readonly oneDay = ['TRIAL', 'ACTIVE', 'GRACE'];
+  /** Named things the business has that its plan does not include (ThriftOS turned them on by hand). */
+  protected extras(p: Plan | null): string {
+    if (!p) return '';
+    const has = (this.tenants.tenant() as { enabledModules?: string[] } | null)?.enabledModules ?? [];
+    return has.filter((m) => !p.modules.includes(m)).map((m) => this.names[m] ?? '').filter(Boolean).join(' · ');
   }
 
   protected moduleNames(p: Plan): string {

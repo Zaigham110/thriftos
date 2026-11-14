@@ -16,7 +16,7 @@ import { TenantService } from '../../core/tenant/tenant.service';
   template: `
     @if (shown(); as b) {
       <div class="plan-banner" [class.bad]="b.state === 'READ_ONLY'" [class.warn]="b.state === 'GRACE' || b.state === 'TRIAL_OVER'" role="status">
-        <span>{{ ('banner.' + b.state) | t: { n: b.daysLeft ?? 0, plan: b.plan ?? '' } }}</span>
+        <span>{{ ('banner.' + b.state + (b.daysLeft === 1 && (b.state === 'TRIAL' || b.state === 'GRACE') ? 'One' : '')) | t: { n: b.daysLeft ?? 0, plan: b.plan ?? '' } }}</span>
         @if (owner()) { <a routerLink="/settings/billing">{{ (b.state === 'TRIAL' ? 'banner.choose' : 'banner.pay') | t }}</a> }
       </div>
     }

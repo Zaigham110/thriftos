@@ -83,6 +83,8 @@ interface Business {
     </section>
   `,
   styles: [`
+    /* On a laptop the page uses the width, not a phone column (v2 review). */
+    @media (min-width: 1024px) { .floor { max-width:960px; } }
     .card { display:grid; gap:12px; }
     .has { display:grid; gap:10px; }
     .has h2 { margin:0; font-size:17px; }

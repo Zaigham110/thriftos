@@ -573,7 +573,7 @@
    "currencyLocked": "fixed once money is recorded",
    "language": "Language of bills and WhatsApp messages",
    "languageHint": "Each person still picks their own screen language.",
-   "count": "{n} in use",
+   "count": "{n} set up",
    "saved": "Business saved.",
    "err": {
     "PHONE_INVALID": "Enter a valid phone number, e.g. 0300 1234567.",
@@ -2290,6 +2290,9 @@
    "wasteHint": "{kg} waste"
   },
   "names": {
+   "moveUp": "Move up",
+   "moveDown": "Move down",
+   "orderSaved": "Order saved",
    "name": "Name",
    "add": "Add",
    "empty": "Nothing here yet. Add the first one above.",
@@ -2351,6 +2354,7 @@
    }
   },
   "roles": {
+   "peopleOne": "{n} person",
    "title": "Roles",
    "hint": "What each kind of person may do. People get their role on Team.",
    "newName": "New role name",
@@ -2441,11 +2445,15 @@
   }
  },
  "billing": {
+  "alsoHas": "Your business also has: {list}. ThriftOS added these for you; they are not part of the plan.",
   "title": "Plan and billing",
   "yourPlan": "Your plan",
   "custom": "Set up by the ThriftOS team",
   "customHint": "Your business was set up by the ThriftOS team and has nothing to pay here. Talk to them to change it.",
   "state": {
+   "TRIALOne": "Free trial: 1 day left (until {date}).",
+   "ACTIVEOne": "Paid until {date} (1 day left).",
+   "GRACEOne": "Your paid time ended on {date}. Pay within 1 day (by {grace}) to keep making changes.",
    "CUSTOM": "Set up by hand, with no end date.",
    "FREE": "Free plan: ready bales, sales and credit book.",
    "TRIAL": "Free trial: {n} days left (until {date}).",
@@ -2498,6 +2506,8 @@
   "close": "Close"
  },
  "banner": {
+  "TRIALOne": "Free trial of {plan}: 1 day left.",
+  "GRACEOne": "Your plan is unpaid: 1 day left to pay.",
   "TRIAL": "Free trial of {plan}: {n} days left.",
   "TRIAL_OVER": "Your trial has ended: you are on the Free plan now.",
   "GRACE": "Your plan is unpaid: {n} days left to pay.",

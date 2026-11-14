@@ -573,7 +573,7 @@
    "currencyLocked": "raqam darj hone ke baad nahi badalti",
    "language": "Bill aur WhatsApp message ki zaban",
    "languageHint": "Har shakhs apni screen ki zaban khud chunta hai.",
-   "count": "{n} istemal mein",
+   "count": "{n} bane hue",
    "saved": "Karobar ki maloomat mehfooz.",
    "err": {
     "PHONE_INVALID": "Durust phone number likhein, maslan 0300 1234567.",
@@ -2290,6 +2290,9 @@
    "wasteHint": "{kg} waste"
   },
   "names": {
+   "moveUp": "Oopar karein",
+   "moveDown": "Neeche karein",
+   "orderSaved": "Tarteeb mehfooz ho gayi",
    "name": "Naam",
    "add": "Shamil karein",
    "empty": "Abhi kuch nahi. Upar se pehla shamil karein.",
@@ -2351,6 +2354,7 @@
    }
   },
   "roles": {
+   "peopleOne": "{n} fard",
    "title": "Role",
    "hint": "Har qisam ka shakhs kya kar sakta hai. Logon ko role Team mein milta hai.",
    "newName": "Naye role ka naam",
@@ -2441,11 +2445,15 @@
   }
  },
  "billing": {
+  "alsoHas": "Aap ke karobar ke paas yeh bhi hai: {list}. Yeh ThriftOS ne aap ke liye shamil kiye; yeh plan ka hissa nahi.",
   "title": "Plan aur adaigi",
   "yourPlan": "Aap ka plan",
   "custom": "ThriftOS team ne set kiya",
   "customHint": "Aap ka karobar ThriftOS team ne set kiya hai, yahan kuch ada nahi karna. Badalne ke liye un se baat karein.",
   "state": {
+   "TRIALOne": "Free trial: 1 din baqi ({date} tak).",
+   "ACTIVEOne": "{date} tak ada shuda (1 din baqi).",
+   "GRACEOne": "Aap ka ada shuda waqt {date} ko khatam hua. Tabdeeliyan jari rakhne ke liye 1 din ke andar ({grace} tak) adaigi karein.",
    "CUSTOM": "Haath se set, koi aakhri tareekh nahi.",
    "FREE": "Muft plan: tayyar bale, farokht aur khata.",
    "TRIAL": "Muft aazmaish: {n} din baqi ({date} tak).",
@@ -2498,6 +2506,8 @@
   "close": "Band karein"
  },
  "banner": {
+  "TRIALOne": "{plan} ka free trial: 1 din baqi.",
+  "GRACEOne": "Aap ka plan ada nahi hua: adaigi ke liye 1 din baqi.",
   "TRIAL": "{plan} ki muft aazmaish: {n} din baqi.",
   "TRIAL_OVER": "Aap ki aazmaish khatam ho gayi: ab aap muft plan par hain.",
   "GRACE": "Aap ke plan ki adaigi baqi hai: {n} din reh gaye.",
