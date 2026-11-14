@@ -61,16 +61,16 @@ export const short = (s: string, n = 14): string => (s.length > n ? s.slice(0, n
       } @else if (data(); as d) {
         <section class="kpis">
           <ws-kpi-card [label]="'ws.dash.revenue' | t" [value]="i18n.money(d.totals.revenue)" [hint]="'ws.salesAn.salesCount' | t: { n: i18n.num(d.totals.sales) }" link="/sell/records" />
-          @if (d.totals.profit !== null) { <ws-kpi-card [label]="'ws.pnl.gross' | t" [value]="i18n.money(d.totals.profit)" [hint]="margin()" /> }
+          @if (d.totals.profit !== null) { <ws-kpi-card [label]="'ws.pnl.gross' | t" [value]="i18n.money(round(d.totals.profit))" [hint]="margin()" /> }
           <ws-kpi-card [label]="'ws.salesAn.kgSold' | t" [value]="i18n.kg(d.totals.kg)" [hint]="perKg()" />
         </section>
         @if (d.rows.length) {
           <ws-bar-chart [heading]="'ws.salesAn.chart' | t: { by: ('ws.salesAn.group.' + d.by | t) }" [categories]="labels()" [series]="series()" format="money" />
         }
-        <ws-data-grid [caption]="'ws.salesAn.title' | t" [columns]="columns()" [rows]="rows()" [clickable]="by() === 'customer'" (rowClick)="open($event)" [emptyHeading]="'ws.salesAn.empty' | t" />
+        <ws-data-grid [caption]="'ws.salesAn.title' | t" [columns]="columns()" [rows]="rows()" [serverTotals]="totals()" [clickable]="by() === 'customer'" (rowClick)="open($event)" [emptyHeading]="'ws.salesAn.empty' | t" />
         <div class="two">
-          <ws-data-grid [caption]="'ws.salesAn.top' | t" [columns]="topColumns()" [rows]="topRows()" [clickable]="true" (rowClick)="open($event)" />
-          <ws-data-grid [caption]="'ws.salesAn.priceTrend' | t" [columns]="trendColumns()" [rows]="trendRows()" [emptyHeading]="'ws.salesAn.noTrend' | t" />
+          <section class="block"><h2>{{ 'ws.salesAn.top' | t }}</h2><ws-data-grid [caption]="'ws.salesAn.top' | t" [columns]="topColumns()" [rows]="topRows()" [clickable]="true" (rowClick)="open($event)" /></section>
+          <section class="block"><h2>{{ 'ws.salesAn.priceTrend' | t }}</h2><ws-data-grid [caption]="'ws.salesAn.priceTrend' | t" [columns]="trendColumns()" [rows]="trendRows()" [emptyHeading]="'ws.salesAn.noTrend' | t" /></section>
         </div>
       } @else {
         <ws-state kind="loading" />
@@ -78,6 +78,8 @@ export const short = (s: string, n = 14): string => (s.length > n ? s.slice(0, n
     </div>
   `,
   styles: [`
+    .block { display:grid; grid-template-columns:minmax(0, 1fr); gap:var(--ws-2); }
+    .block h2 { margin:0; font-size:var(--ws-text-md, 15px); font-weight:600; }
     .page { display:grid; grid-template-columns:minmax(0, 1fr); gap:var(--ws-4); max-width:var(--ws-content-max); margin-inline:auto; font-family:var(--ws-font); color:var(--ws-ink); }
     .kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:var(--ws-3); }
     .two { display:grid; grid-template-columns:repeat(auto-fit, minmax(380px, 1fr)); gap:var(--ws-4); align-items:start; }
@@ -120,6 +122,14 @@ export class SalesAnalyticsComponent {
       ...(rows.some((r) => r.profit !== null) ? [{ label: this.i18n.t('ws.pnl.gross'), values: rows.map((r) => Number(r.profit ?? 0)) }] : []),
     ];
   });
+  /** The Total row from the report's own totals: a bill with several categories is one bill, not one per row. */
+  protected readonly totals = computed<Record<string, string> | null>(() => {
+    const t = this.data()?.totals;
+    return t ? ({ sales: String(t.sales), revenue: t.revenue, kg: t.kg, profit: t.profit } as unknown as Record<string, string>) : null;
+  });
+  protected round(v: string | number | null): number {
+    return Math.round(Number(v ?? 0));
+  }
   protected readonly columns = computed<WsColumn[]>(() => {
     const t = (k: string) => this.i18n.t(k);
     const cost = this.data()?.totals.profit !== null;
@@ -130,7 +140,8 @@ export class SalesAnalyticsComponent {
       { key: 'sharePercent', label: t('ws.sortRecord.share'), format: 'percent' },
       { key: 'kg', label: t('ws.salesAn.kgSold'), format: 'kg', total: true },
       { key: 'perKg', label: t('ws.salesAn.perKg'), format: 'money' },
-      ...(cost ? [{ key: 'profit', label: t('ws.pnl.gross'), format: 'money' as const, total: true }, { key: 'marginPercent', label: t('ws.salesAn.margin'), format: 'percent' as const }] : []),
+      // Whole rupees as on every other screen; a loss is red.
+      ...(cost ? [{ key: 'profit', label: t('ws.pnl.gross'), format: 'money' as const, total: true, round: true, tone: 'sign' as const }, { key: 'marginPercent', label: t('ws.salesAn.margin'), format: 'percent' as const, tone: 'sign' as const }] : []),
     ];
   });
   protected readonly rows = computed<WsRow[]>(() => (this.data()?.rows ?? []).map((r, i) => ({ ...r, id: r.id ?? `${i}:${r.key}`, name: this.name(r.key) })) as unknown as WsRow[]);

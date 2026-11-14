@@ -444,6 +444,8 @@
 
 - 2026-11-14 — Screen review 16, Sorter pay (owner: "Fix all 6"). "Make pay sheet" is off until there is an active worker, with a line saying so. The Productivity column for the top grade uses the app-wide name ("Grade 1 %"). The tab is kept in the address (?tab=). "· optional" stays on the label's line. Empty lists are quiet lines, not green boxes. On a laptop the screen is 960 px wide, not a phone column. No server change. Tests: payroll and workspace browser specs, Karma 35, i18n 2199 keys; checked on the local copy (no workers there).
 
+- 2026-11-14 — Screen review 17, Reports and Sales analytics (owner: "Fix all 6"). Sales analytics: the Total row comes from the report's own totals (a bill with several categories is one bill, not one per row); waste sold goes by its own name under category and grade, not "Not set"; gross profit is in whole rupees and a loss and a negative margin are red; the top customers and price per kg tables have titles. Reports list: "What you owe suppliers" and "Sorter productivity" (the latter only with the Payroll module); a report can carry a query and a module. Tests: analytics server spec 5, browser lists and workspace 33, Karma 35, i18n 2203 keys.
+
 ## Decisions
 - Sorting (6.6): bales made while a lot is open are costed at the lot's cost per kg and re-costed at close; sold ones keep their sale cost (logged adjustment). Kat goes to stock at zero cost, so a kat sale is pure extra profit and bale costs are right whether or not kat sells.
 - 6.2 Play Store app dropped by the owner (2026-11-05): the installable web app (PWA, "Add to Home screen" in Chrome) is how ThriftOS goes on phones; no Play Console account, store listing or Android package. Phase 6 is complete.

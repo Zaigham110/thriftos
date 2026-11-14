@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { ContainerStatus, PaymentMethod, Prisma, StockUnit } from '@prisma/client';
+import { ContainerStatus, PaymentMethod, Prisma, StockUnit, StockSource } from '@prisma/client';
 import { IsDateString, IsIn, IsOptional } from 'class-validator';
 import { BUSINESS_UTC_OFFSET_MINUTES, localDayStart } from '../common/list/list-engine';
 import { combine, containerEconomics, lotEconomics, topPercent, yieldPercent } from '../home/container-economics';
@@ -207,9 +207,11 @@ export class AnalyticsService {
       select: {
         unit: true, quantity: true, unitPrice: true, lineTotal: true, lineCost: true, profit: true,
         sale: { select: { id: true, createdAt: true, customer: { select: { id: true, name: true, city: true } } } },
-        inventoryItem: { select: { unit: true, quantity: true, weightKg: true, category: { select: { name: true } }, grade: { select: { name: true } } } },
+        inventoryItem: { select: { unit: true, quantity: true, weightKg: true, source: true, name: true, category: { select: { name: true } }, grade: { select: { name: true } } } },
       },
     });
+    // Waste kept from sorting has no category or grade: it goes by its own name ("Waste/Katran"), not "Not set" (v2 review).
+    const waste = (i: (typeof lines)[number]['inventoryItem']) => (i.source === StockSource.KAT && !i.category ? (i.name ?? '').split(' · ')[0] : '');
     const kgOf = (l: (typeof lines)[number]) => {
       if (l.unit === StockUnit.KG) return l.quantity;
       const i = l.inventoryItem;
@@ -217,8 +219,8 @@ export class AnalyticsService {
     };
     const keyOf = (l: (typeof lines)[number]) => {
       switch (by) {
-        case 'category': return l.inventoryItem.category?.name ?? '';
-        case 'grade': return l.inventoryItem.grade?.name ?? '';
+        case 'category': return l.inventoryItem.category?.name ?? waste(l.inventoryItem);
+        case 'grade': return l.inventoryItem.grade?.name ?? waste(l.inventoryItem);
         case 'city': return l.sale.customer.city ?? '';
         case 'month': return month(l.sale.createdAt);
         default: return l.sale.customer.name;

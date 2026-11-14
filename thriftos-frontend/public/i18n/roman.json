@@ -1830,6 +1830,14 @@
      "hint": "Mahine ke hisaab se, laagat, khatam stock aur kharchon ke baad",
      "name": "Munafa nuqsan"
     },
+    "suppliersOwed": {
+     "hint": "Har supplier ka baqi, khareedari aur adaigi",
+     "name": "Suppliers ka baqi"
+    },
+    "productivity": {
+     "hint": "Har worker ke rozana kg aur behtareen grade ka hissa",
+     "name": "Workers ki karkardagi"
+    },
     "salesAnalytics": {
      "hint": "Customer, category, grade, shehar ya mahine ke hisaab se",
      "name": "Bikri ka hisaab"

@@ -1830,6 +1830,14 @@
      "hint": "By month, after cost, write-offs and expenses",
      "name": "Profit and loss"
     },
+    "suppliersOwed": {
+     "hint": "Balance with each supplier, and what was bought and paid",
+     "name": "What you owe suppliers"
+    },
+    "productivity": {
+     "hint": "Kg a day and top grade share per sorter",
+     "name": "Sorter productivity"
+    },
     "salesAnalytics": {
      "hint": "By customer, category, grade, city or month",
      "name": "Sales analytics"
