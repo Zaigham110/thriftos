@@ -92,6 +92,10 @@ export function loose(text: string): RegExp {
  */
 export async function pickTile(page: Page, searchPlaceholder: string, text: string): Promise<void> {
   await page.locator('tos-tiles .tile').first().waitFor();
+  // On a slow network the "+ new" tile is there before the list has come: wait for the wanted tile or the
+  // search box (more than 8 tiles), whichever the loaded list gives, before deciding to search.
+  const wanted = page.locator('.tiles').getByRole('button').filter({ hasText: text });
+  await wanted.or(page.locator('tos-tiles input[type=search]')).first().waitFor({ timeout: 30_000 }).catch(() => undefined);
   const search = page.getByPlaceholder(searchPlaceholder);
   // A search box shows its words only once the language's dictionary has loaded (before that it reads
   // "sell.searchCustomer", or the other language while the app switches), so give it a moment.
