@@ -14,7 +14,7 @@ import { STOCK_TABS } from './lists';
 
 /** GET /api/workspace/stock/by-item (values are null without cost.view). */
 interface ByItem {
-  key: string; name: string; categoryName: string | null; gradeName: string | null; categoryId: string | null; gradeId: string | null;
+  key: string; name: string; code?: string | null; categoryName: string | null; gradeName: string | null; categoryId: string | null; gradeId: string | null;
   bales: string; pieces: string; looseKg: string; stockKg: string; baleKg: string; waste?: boolean; sortedKg: string; kg: string;
   stockValue: string | null; sortedValue: string | null; value: string | null;
 }
@@ -90,7 +90,11 @@ export class StockByItemComponent {
   protected price: number | null = null;
 
   protected readonly canSeeCost = computed(() => (this.data() ?? []).some((r) => r.value !== null));
-  protected readonly priceable = computed(() => (this.data() ?? []).filter((r) => r.categoryId && Number(r.bales) > 0));
+  /** A price is set for every bale of a category and grade, whatever its weight: one choice per name, not per code. */
+  protected readonly priceable = computed(() => {
+    const seen = new Set<string>();
+    return (this.data() ?? []).filter((r) => r.categoryId && Number(r.bales) > 0 && !seen.has(`${r.categoryId}|${r.gradeId ?? ''}`) && !!seen.add(`${r.categoryId}|${r.gradeId ?? ''}`));
+  });
   protected readonly subtitle = computed(() => {
     const d = this.data() ?? [];
     const kg = d.reduce((t, r) => t + Number(r.kg), 0);
@@ -100,6 +104,8 @@ export class StockByItemComponent {
   protected readonly columns = computed<WsColumn[]>(() => {
     const t = (k: string) => this.i18n.t(k);
     return [
+      // The code bales of one kind share (JEANS-1-45): its row counts them.
+      ...((this.data() ?? []).some((r) => r.code) ? [{ key: 'code', label: t('ws.stock.col.code'), width: '150px' }] : []),
       { key: 'name', label: t('ws.stock.col.name') },
       { key: 'bales', label: t('ws.stock.unit.BALE'), format: 'number', total: true },
       { key: 'baleKg', label: t('ws.si.inBales'), format: 'kg', total: true, info: t('ws.si.info.inBales') },
@@ -130,7 +136,9 @@ export class StockByItemComponent {
     const r = (this.data() ?? []).find((x) => x.key === row.id);
     if (!r) return;
     // By name, so the list shows readable chips ("Category: Jeans", "Grade: A").
-    const filters = r.categoryName
+    const filters = r.code
+      ? [{ field: 'code', op: 'eq', value: r.code }]
+      : r.categoryName
       ? [{ field: 'category', op: 'eq', value: r.categoryName }, r.gradeName ? { field: 'grade', op: 'eq', value: r.gradeName } : { field: 'grade', op: 'isnull' }]
       : r.waste ? [{ field: 'source', op: 'eq', value: 'KAT' }] : [{ field: 'name', op: 'eq', value: r.name }];
     void this.nav.open(['/stock/items'], { queryParams: { v: JSON.stringify({ filters: [{ field: 'status', op: 'ne', value: 'SOLD' }, ...filters] }) } });

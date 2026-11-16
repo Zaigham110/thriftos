@@ -1,4 +1,5 @@
 import { Page, expect, test } from '@playwright/test';
+import { keypad, pickTile } from './floor';
 import { apiAs, signIn } from './helpers';
 
 /** A camera that films one image (the bale's QR), so scanning runs end to end in a headless browser. */
@@ -28,19 +29,22 @@ async function makeBale(request: Parameters<typeof apiAs>[0]) {
   await api.post('/sorting/stage-1/allocate', { sessionId: s.session.id, categoryId: jackets.id, amountKg: 500 });
   const login = await (await request.post('/api/auth/login', { data: { email: 'admin@demo.thriftos.com', password: 'admin123' } })).json();
   await request.patch(`/api/sorting/stage-1/${s.session.id}/seal`, { headers: { Authorization: `Bearer ${login.accessToken}` }, data: {} });
-  const bale = await api.post('/stock/bales', { categoryId: jackets.id, weightKg: 55, pieces: 80 });
+  // A weight of its own, so this bale is the only one of its kind (bales of one kind share a code).
+  const bale = await api.post('/stock/bales', { categoryId: jackets.id, weightKg: 50 + (Date.now() % 1000) / 100, pieces: 80 });
   const [label] = await api.get(`/stock/bales/labels?ids=${bale.id}`);
   return { api, bale, label };
 }
 
 test('Task 3.5: labels print as 50×30 mm stickers or an A4 sheet of 3×8', async ({ page, request }) => {
   const { bale, label: data } = await makeBale(request);
+  // The code on the sticker is the one its kind shares: category, kg and pieces (its own number stays behind).
+  expect(bale.code).toMatch(/^JACKETS-5\d(\.\d+)?-80P$/);
   expect(bale.unitCode).toMatch(/^B-\d{4}$/);
   expect(data.origin).toBeTruthy();
   await signIn(page);
   await page.goto(`/stock/label/${bale.id}`);
   const label = page.locator('.label').first();
-  await expect(label).toContainText(bale.unitCode);
+  await expect(label).toContainText(bale.code);
   await expect(label).toContainText('Jackets');
   await expect(label).toContainText(data.origin);
   await expect(label).toContainText('Demo Thrift Company');
@@ -76,12 +80,12 @@ test('Task 3.5: scanning a bale QR adds it to a sale; typing the code opens the 
 
   await page.goto('/sell/new');
   await page.getByRole('button', { name: 'Scan bale' }).click();
-  await expect(page.locator('.line').filter({ hasText: bale.unitCode })).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.line').filter({ hasText: bale.code })).toBeVisible({ timeout: 15_000 });
 
   // No camera needed: the code printed on the sticker can be typed.
   await page.goto('/stock');
   await page.getByRole('button', { name: 'Scan QR' }).click();
-  await page.getByLabel('Bale code').fill(bale.unitCode.toLowerCase());
+  await page.getByLabel('Bale code').fill(bale.code.toLowerCase());
   await page.getByRole('dialog').getByRole('button', { name: 'OK' }).click();
   await expect(page).toHaveURL(new RegExp(`/stock/label/${bale.id}$`));
 
@@ -90,4 +94,52 @@ test('Task 3.5: scanning a bale QR adds it to a sale; typing the code opens the 
   await page.getByLabel('Bale code').fill('B-9999');
   await page.getByRole('dialog').getByRole('button', { name: 'OK' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'This QR is not in your stock.' })).toBeVisible();
+});
+
+test('bales of one kind share a code: the phone sells a quantity of it and Inventory counts it (owner, 2026-11-16)', async ({ page, request }) => {
+  const api = await apiAs(request);
+  const tag = Date.now().toString().slice(-6);
+  // Three bales of the same category and weight (a weight of their own, so the count is exactly three).
+  const kg = 30 + (Date.now() % 1000) / 100;
+  const cats = (await api.get('/tenant/categories')) as Array<{ id: string; name: string }>;
+  const jeans = cats.find((c) => c.name === 'Jeans') ?? cats[0];
+  const lot = await api.post('/procurement/rags', { ragBaleType: 'BALE', weightKg: 200, purchaseCost: 20000 });
+  const s = await api.post('/sorting/stage-1/start', { ragId: lot.id });
+  const sessionId = s.session?.id ?? (await api.get(`/sorting/stage-1/summary?ragId=${lot.id}`)).session.id;
+  const made = await api.post('/sorting/stage-1/allocate', { sessionId, categoryId: jeans.id, bales: 3, baleWeightKg: kg });
+  const labels = (await api.get(`/stock/bales/labels?ids=${made.baleIds.join(',')}`)) as Array<{ code: string; qr: string }>;
+  const code = labels[0].code;
+  expect(new Set(labels.map((l) => l.code)).size).toBe(1);
+  expect(new Set(labels.map((l) => l.qr)).size).toBe(1);
+  const customer = await api.post('/customers', { name: `Kind Buyer ${tag}`, phone: `0305${tag}3` });
+
+  await signIn(page);
+  await page.goto('/sell/new');
+  await pickTile(page, 'Search name or phone', customer.name);
+  // One tile for the kind, with how many there are.
+  const search = page.getByPlaceholder('Search stock');
+  if (await search.count()) await search.fill(code);
+  const tile = page.locator('.tiles').getByRole('button').filter({ hasText: code });
+  await expect(tile).toHaveCount(1);
+  await expect(tile).toContainText('3 bale');
+  await tile.click();
+  await expect(page.locator('.line')).toContainText('3 left');
+  // More than there are cannot be saved; two can.
+  await keypad(page, /^Price/, 9000);
+  await keypad(page, /^Quantity/, 4);
+  await expect(page.getByRole('button', { name: 'Save sale' })).toBeDisabled();
+  await keypad(page, /^Quantity/, 2);
+  await page.getByRole('button', { name: 'Save sale' }).click();
+  await expect(page.getByRole('button', { name: 'Share bill on WhatsApp' })).toBeVisible({ timeout: 20_000 });
+
+  // The two oldest went out on one bill; Inventory by item counts the one left under the code.
+  const sales = (await api.get(`/lists/sales?q=${encodeURIComponent(customer.name)}`)) as { rows: Array<{ id: string }> };
+  const bill = await api.get(`/sales/${sales.rows[0].id}/print`);
+  expect(bill.lines.map((l: { quantity: string; lineTotal: string }) => [l.quantity, l.lineTotal])).toEqual([['2', '18000']]);
+  expect(bill.lines[0].description).toContain(code);
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.goto('/stock/by-item');
+  const row = page.getByRole('row').filter({ hasText: code });
+  await expect(row).toHaveCount(1);
+  await expect(row.getByRole('cell').nth(2)).toHaveText('1');
 });

@@ -16,7 +16,7 @@ test('move between godowns: pick a godown, add a bale by its code, move it', asy
     const sessionId = s.session?.id ?? (await api.get(`/sorting/stage-1/summary?ragId=${lot.id}`)).session.id;
     const made = await api.post('/sorting/stage-1/allocate', { sessionId, categoryId: cats[0].id, bales: 1, baleWeightKg: 40 });
     const bale = await api.get(`/stock/bales/${made.baleIds[0]}`);
-    const code = bale.unitCode as string;
+    const code = bale.code as string;
 
     await page.setViewportSize({ width: 390, height: 860 });
     await signIn(page);

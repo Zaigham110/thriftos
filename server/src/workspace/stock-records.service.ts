@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { KHATA_SALE_STATUSES } from '../sales/khata.service';
 import { ageDays, itemName, stockLeft } from '../stock/stock.lists';
 import { BaleService } from '../stock/bale.service';
+import { kindCodeOf } from '../stock/bale-kind';
 
 const ZERO = new Prisma.Decimal(0);
 
@@ -91,6 +92,7 @@ export class StockRecordsService {
         parentItem: { select: { id: true, name: true, repackUnit: { select: { unitCode: true } } } },
         pieces: { select: { id: true, name: true, priceTier: true, quantity: true, usedQuantity: true, totalCost: true, salePrice: true }, orderBy: { createdAt: 'asc' } },
         repackUnit: { select: { id: true, unitCode: true, createdAt: true, qrLabel: { select: { qrCode: true } } } },
+        baleKind: { select: { id: true, code: true } },
         stockMovements: { orderBy: { createdAt: 'desc' }, take: 200, select: { id: true, movementType: true, quantityKg: true, quantityPcs: true, createdAt: true, metadataJson: true } },
       },
     });
@@ -130,7 +132,8 @@ export class StockRecordsService {
 
     return {
       item: {
-        id: i.id, code: i.repackUnit?.unitCode ?? null, name: itemName(i),
+        // `code` is the one its kind shares; `number` this bale's own (for tracing one bale).
+        id: i.id, code: i.baleKind?.code ?? i.repackUnit?.unitCode ?? null, number: i.repackUnit?.unitCode ?? null, kindId: i.baleKind?.id ?? null, name: itemName(i),
         category: i.category, grade: i.grade, source: i.source, unit: i.unit, status: i.status, quantity: i.quantity, used: i.usedQuantity, left,
         weightKg: i.weightKg, leftKg, pcsCount: i.pcsCount, salePrice: i.salePrice, priceTier: i.priceTier, createdAt: i.createdAt, ageDays: ageDays(i.createdAt),
         godown: i.warehouse, supplier: i.vendor, parent: i.parentItem ? { id: i.parentItem.id, name: i.parentItem.repackUnit?.unitCode ?? i.parentItem.name } : null,
@@ -260,10 +263,10 @@ export class StockRecordsService {
       where: { tenantId, status: { not: InventoryStatus.SOLD } },
       select: {
         quantity: true, usedQuantity: true, totalCost: true, unit: true, weightKg: true, name: true, categoryId: true, gradeId: true, source: true,
-        category: { select: { name: true } }, grade: { select: { name: true } },
+        category: { select: { name: true } }, grade: { select: { name: true } }, baleKind: { select: { id: true, code: true } },
       },
     });
-    type Row = { key: string; name: string; waste?: boolean; categoryName: string | null; gradeName: string | null; categoryId: string | null; gradeId: string | null; bales: Prisma.Decimal; pieces: Prisma.Decimal; looseKg: Prisma.Decimal; stockKg: Prisma.Decimal; stockValue: Prisma.Decimal; sortedKg: Prisma.Decimal; sortedValue: Prisma.Decimal };
+    type Row = { key: string; name: string; code?: string | null; kindId?: string | null; waste?: boolean; categoryName: string | null; gradeName: string | null; categoryId: string | null; gradeId: string | null; bales: Prisma.Decimal; pieces: Prisma.Decimal; looseKg: Prisma.Decimal; stockKg: Prisma.Decimal; stockValue: Prisma.Decimal; sortedKg: Prisma.Decimal; sortedValue: Prisma.Decimal };
     const rows = new Map<string, Row>();
     const row = (key: string, name: string, categoryId: string | null, gradeId: string | null, categoryName: string | null = null, gradeName: string | null = null) =>
       rows.get(key) ?? rows.set(key, { key, name, categoryName, gradeName, categoryId, gradeId, bales: ZERO, pieces: ZERO, looseKg: ZERO, stockKg: ZERO, stockValue: ZERO, sortedKg: ZERO, sortedValue: ZERO }).get(key)!;
@@ -273,7 +276,10 @@ export class StockRecordsService {
       // Waste kept from sorting is one item (v2 review: it was one row per lot, "Waste/Katran · LOT-2026-002").
       const waste = i.source === StockSource.KAT && !i.category;
       const name = i.category ? [i.category.name, i.grade?.name].filter(Boolean).join(' · ') : waste ? (i.name ?? '').split(' · ')[0] : i.name ?? '';
-      const r = row(i.categoryId ? `${i.categoryId}:${i.gradeId ?? ''}` : `name:${name}`, name, i.categoryId, i.gradeId, i.category?.name ?? null, i.grade?.name ?? null);
+      // Bales of one kind (same category, grade and weight/pieces) are one row with their shared code and count.
+      const kind = i.unit === StockUnit.BALE ? i.baleKind : null;
+      const r = row(kind ? `kind:${kind.id}` : i.categoryId ? `${i.categoryId}:${i.gradeId ?? ''}` : `name:${name}`, name, i.categoryId, i.gradeId, i.category?.name ?? null, i.grade?.name ?? null);
+      if (kind) Object.assign(r, { code: kind.code, kindId: kind.id });
       if (i.unit === StockUnit.BALE) r.bales = r.bales.add(left);
       else if (i.unit === StockUnit.PIECE) r.pieces = r.pieces.add(left);
       else r.looseKg = r.looseKg.add(left);
@@ -286,7 +292,10 @@ export class StockRecordsService {
       r.sortedKg = r.sortedKg.add(s.kg);
       r.sortedValue = r.sortedValue.add(s.value);
     }
-    const list = [...rows.values()].sort((a, b) => b.stockValue.add(b.sortedValue).comparedTo(a.stockValue.add(a.sortedValue)) || a.name.localeCompare(b.name));
+    // The most valuable item first, as before; the kinds of one category and grade stay together, by code.
+    const worth = new Map<string, Prisma.Decimal>();
+    for (const r of rows.values()) worth.set(r.name, (worth.get(r.name) ?? ZERO).add(r.stockValue).add(r.sortedValue));
+    const list = [...rows.values()].sort((a, b) => worth.get(b.name)!.comparedTo(worth.get(a.name)!) || a.name.localeCompare(b.name) || (a.code ?? '').localeCompare(b.code ?? '', undefined, { numeric: true }));
     return list.map((r) => ({
       ...r, kg: r.stockKg.add(r.sortedKg),
       // Kg in bales (and pieces) apart from stock kept loose by the kg (waste, kat): loose kg is not "in bales".
@@ -431,14 +440,19 @@ export class StockRecordsService {
    */
   async scanForMove(tenantId: string, code: string) {
     const c = code.trim();
+    // A shared code finds the oldest bale of its kind; a sticker from before shared codes its own bale.
+    const kind = await this.prisma.baleKind.findFirst({ where: { tenantId, code: kindCodeOf(c) }, select: { id: true } });
     const i = await this.prisma.inventoryItem.findFirst({
-      where: { tenantId, status: InventoryStatus.AVAILABLE, OR: [{ repackUnit: { unitCode: c } }, { repackUnit: { qrLabel: { qrCode: c } } }] },
-      include: { warehouse: { select: { id: true, name: true } }, repackUnit: { select: { unitCode: true } }, category: { select: { name: true } }, grade: { select: { name: true } } },
+      where: kind
+        ? { tenantId, status: InventoryStatus.AVAILABLE, baleKindId: kind.id }
+        : { tenantId, status: InventoryStatus.AVAILABLE, OR: [{ repackUnit: { unitCode: c } }, { repackUnit: { qrLabel: { qrCode: c } } }] },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      include: { warehouse: { select: { id: true, name: true } }, repackUnit: { select: { unitCode: true } }, baleKind: { select: { code: true } }, category: { select: { name: true } }, grade: { select: { name: true } } },
     });
     if (!i) throw new NotFoundException('This code is not a bale in stock');
     const { left, leftKg } = stockLeft(i);
     return {
-      id: i.id, code: i.repackUnit?.unitCode ?? null, name: i.name ?? ([i.category?.name, i.grade?.name].filter(Boolean).join(' ') || null),
+      id: i.id, code: i.baleKind?.code ?? i.repackUnit?.unitCode ?? null, name: i.name ?? ([i.category?.name, i.grade?.name].filter(Boolean).join(' ') || null),
       unit: i.unit, left, kg: leftKg, godown: i.warehouse,
     };
   }

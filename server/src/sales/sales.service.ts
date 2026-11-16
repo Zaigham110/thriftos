@@ -2,7 +2,7 @@ import { Workbook } from 'exceljs';
 import { businessContact } from '../tenant/business';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { tracePayments } from './khata';
-import { InventoryStatus, MovementType, PaymentMode, Prisma, SaleStatus, SaleType, SequenceScope } from '@prisma/client';
+import { InventoryStatus, MovementType, PaymentMode, Prisma, SaleStatus, SaleType, SequenceScope, StockUnit } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { IdempotencyService } from '../common/idempotency/idempotency.service';
 import { money, saleProfit, sum, takeCost } from '../costing/costing';
@@ -16,6 +16,7 @@ import { KHATA_SALE_STATUSES, KhataService } from './khata.service';
 import { SaleLineError, saleTake } from './sale-lines';
 import { billMessage, language, whatsappLink } from './whatsapp';
 import { itemName } from '../stock/stock.lists';
+import { kindCodeOf } from '../stock/bale-kind';
 
 type Tx = Prisma.TransactionClient;
 
@@ -29,6 +30,7 @@ const itemSummary = {
     category: { select: { id: true, name: true } },
     grade: { select: { id: true, name: true } },
     repackUnit: { select: { unitCode: true, qrLabel: { select: { qrCode: true } } } },
+    baleKind: { select: { id: true, code: true } },
   },
 } satisfies Prisma.InventoryItemDefaultArgs;
 
@@ -48,10 +50,32 @@ export function describeItem(item: {
   category: { name: string } | null;
   grade: { name: string } | null;
   repackUnit: { unitCode: string } | null;
+  baleKind?: { code: string } | null;
 }): string {
   const kind = item.name || [item.category?.name, item.grade?.name].filter(Boolean).join(' ') || 'Stock';
   const tier = item.priceTier ? ` (${item.priceTier})` : '';
-  return item.repackUnit ? `${kind}${tier} · ${item.repackUnit.unitCode}` : `${kind}${tier}`;
+  // A bale reads with the code its kind shares (its own number is for tracing, not for bills).
+  const code = item.baleKind?.code ?? item.repackUnit?.unitCode;
+  return code ? `${kind}${tier} · ${code}` : `${kind}${tier}`;
+}
+
+/**
+ * Lines of the same kind of bale at the same price read as one row with a quantity (owner, 2026-11-16): on the
+ * bill, the sale page and the export list. Other lines stay as they are.
+ */
+export function groupByKind<T extends { unit: string; quantity: Prisma.Decimal; unitPrice: Prisma.Decimal; lineTotal: Prisma.Decimal; inventoryItem: { baleKind?: { id: string } | null } }>(lines: T[]): Array<{ first: T; lines: T[]; quantity: Prisma.Decimal; lineTotal: Prisma.Decimal }> {
+  const out = new Map<string, { first: T; lines: T[]; quantity: Prisma.Decimal; lineTotal: Prisma.Decimal }>();
+  lines.forEach((l, i) => {
+    const kind = l.inventoryItem.baleKind?.id;
+    const key = kind && l.unit === 'BALE' ? `${kind}|${l.unitPrice.toString()}` : `line|${i}`;
+    const g = out.get(key);
+    if (g) {
+      g.lines.push(l);
+      g.quantity = g.quantity.add(l.quantity);
+      g.lineTotal = g.lineTotal.add(l.lineTotal);
+    } else out.set(key, { first: l, lines: [l], quantity: l.quantity, lineTotal: l.lineTotal });
+  });
+  return [...out.values()];
 }
 
 /**
@@ -76,7 +100,7 @@ export class SalesService {
 
   /** Safe to repeat with the same Idempotency-Key: one sale, same response. */
   async create(tenantId: string, dto: CreateSaleDto, userId: string, idempotencyKey?: string) {
-    const ids = dto.lines.map((l) => l.inventoryItemId);
+    const ids = dto.lines.filter((l) => !l.baleKindId).map((l) => l.inventoryItemId);
     if (new Set(ids).size !== ids.length) throw new BadRequestException('Each stock item can be on a sale only once');
 
     return this.idempotency.run(tenantId, 'sale.create', idempotencyKey, async (tx) => {
@@ -113,7 +137,7 @@ export class SalesService {
       });
 
       const lines = [];
-      for (const line of dto.lines) {
+      for (const line of await this.withKindLines(tx, tenantId, dto.lines)) {
         const item = await tx.inventoryItem.findFirst({ where: { id: line.inventoryItemId, tenantId } });
         if (!item) throw new BadRequestException('Stock item not found');
         if (item.status !== InventoryStatus.AVAILABLE) throw new ConflictException('This stock is already sold');
@@ -186,6 +210,37 @@ export class SalesService {
     });
   }
 
+  /**
+   * A line that names a kind of bale and a quantity becomes one line per bale, the oldest whole bales first, so
+   * each bale keeps its own cost and where it came from. Fewer in stock than asked: nothing is sold.
+   */
+  private async withKindLines(tx: Prisma.TransactionClient, tenantId: string, lines: CreateSaleDto['lines']): Promise<Array<{ inventoryItemId: string; unit?: StockUnit; quantity: number; unitPrice: number }>> {
+    const out: Array<{ inventoryItemId: string; unit?: StockUnit; quantity: number; unitPrice: number }> = [];
+    const taken = new Set(lines.filter((l) => !l.baleKindId).map((l) => l.inventoryItemId!));
+    for (const line of lines) {
+      if (!line.baleKindId) {
+        out.push({ inventoryItemId: line.inventoryItemId!, unit: line.unit, quantity: line.quantity, unitPrice: line.unitPrice });
+        continue;
+      }
+      if (!Number.isInteger(line.quantity)) throw new BadRequestException('Bales of a kind are sold whole: enter how many');
+      if (line.unit && line.unit !== StockUnit.BALE) throw new BadRequestException('Bales of a kind are priced per bale');
+      const kind = await tx.baleKind.findFirst({ where: { id: line.baleKindId, tenantId }, select: { id: true, code: true } });
+      if (!kind) throw new BadRequestException('Stock item not found');
+      const bales = await tx.inventoryItem.findMany({
+        where: { tenantId, baleKindId: kind.id, unit: StockUnit.BALE, status: InventoryStatus.AVAILABLE, usedQuantity: 0, id: { notIn: [...taken] } },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        take: line.quantity,
+        select: { id: true },
+      });
+      if (bales.length < line.quantity) throw new ConflictException(`Only ${bales.length} of ${kind.code} in stock`);
+      for (const b of bales) {
+        taken.add(b.id);
+        out.push({ inventoryItemId: b.id, unit: StockUnit.BALE, quantity: 1, unitPrice: line.unitPrice });
+      }
+    }
+    return out;
+  }
+
   /** The latest 200 sales, each with what is paid and still due. */
   async list(tenantId: string) {
     const sales = await this.prisma.sale.findMany({
@@ -248,7 +303,7 @@ export class SalesService {
             inventoryItem: {
               select: {
                 id: true, name: true, unit: true, quantity: true, weightKg: true, pcsCount: true, createdAt: true,
-                category: { select: { name: true } }, grade: { select: { name: true } },
+                category: { select: { name: true } }, grade: { select: { name: true } }, baleKind: { select: { id: true, code: true } },
                 repackUnit: {
                   select: {
                     unitCode: true, createdAt: true, weightKg: true, pcsCount: true,
@@ -270,12 +325,12 @@ export class SalesService {
     if (!sale) throw new NotFoundException('Sale not found');
     if (sale.type !== SaleType.EXPORT) throw new BadRequestException('Only an export sale has an export pack');
     const name = (i: { name: string | null; category: { name: string } | null; grade: { name: string } | null }) => i.name ?? ([i.category?.name, i.grade?.name].filter(Boolean).join(' · ') || null);
-    const packing = sale.lines.map((l) => {
+    const perLine = (l: (typeof sale.lines)[number]) => {
       const i = l.inventoryItem;
       // The kg and pieces this line takes: whole bales by their weight and count, part of a bale by its share.
       const share = i.quantity.isZero() ? new Prisma.Decimal(0) : (l.unit === i.unit ? l.quantity : l.unit === 'KG' && i.weightKg ? l.quantity.div(i.weightKg).mul(i.quantity) : l.unit === 'PIECE' && i.pcsCount ? l.quantity.div(i.pcsCount).mul(i.quantity) : l.quantity).div(i.quantity);
       return {
-        code: i.repackUnit?.unitCode ?? null,
+        code: i.baleKind?.code ?? i.repackUnit?.unitCode ?? null,
         item: name(i),
         category: i.category?.name ?? null,
         grade: i.grade?.name ?? null,
@@ -286,6 +341,12 @@ export class SalesService {
         unitPrice: l.unitPrice,
         total: l.lineTotal,
       };
+    };
+    // Bales of one kind at one price are one row with a quantity; its kg and pieces are those of all of them.
+    const packing = groupByKind(sale.lines).map((g) => {
+      const rows = g.lines.map(perLine);
+      const add = (f: (r: (typeof rows)[number]) => Prisma.Decimal | number | null) => (rows.every((r) => f(r) === null) ? null : rows.reduce((t, r) => t.add(f(r) ?? 0), new Prisma.Decimal(0)));
+      return { ...rows[0], quantity: g.quantity, kg: add((r) => r.kg), pieces: add((r) => r.pieces)?.toNumber() ?? null, total: g.lineTotal };
     });
     const records = sale.lines
       .filter((l) => l.inventoryItem.repackUnit)
@@ -309,7 +370,8 @@ export class SalesService {
             measure: a.measurementType,
           };
         });
-        return { code: u.unitCode, item: name(l.inventoryItem), madeAt: u.createdAt, kg: u.weightKg.isZero() ? null : u.weightKg, pieces: u.pcsCount || null, from };
+        // `code` is the kind's shared code as on the packing list; `number` the bale's own, for tracing one bale.
+        return { code: l.inventoryItem.baleKind?.code ?? u.unitCode, number: u.unitCode, item: name(l.inventoryItem), madeAt: u.createdAt, kg: u.weightKg.isZero() ? null : u.weightKg, pieces: u.pcsCount || null, from };
       });
     const sum = (f: (r: (typeof packing)[number]) => Prisma.Decimal | number | null) => packing.reduce((t, r) => t.add(f(r) ?? 0), new Prisma.Decimal(0));
     return {
@@ -325,7 +387,7 @@ export class SalesService {
 
   /**
    * The packing list as the bale list sheet buyers upload (owner's sample, 2026-11-13): one sheet "Bale list",
-   * one row a packed line, these eleven columns in this order. It goes to the buyer, so "Cost" is what the buyer
+   * one row a packed line (bales of one kind are one row with their Qty, owner 2026-11-16), these columns in this order. It goes to the buyer, so "Cost" is what the buyer
    * pays for that line, never what it cost us. Brand, Bale sale price, Piece price and Notes are the buyer's to fill.
    */
   async exportPackSheet(tenantId: string, id: string): Promise<{ file: string; body: Buffer }> {
@@ -333,11 +395,11 @@ export class SalesService {
     const wb = new Workbook();
     wb.creator = 'ThriftOS';
     const ws = wb.addWorksheet('Bale list');
-    const widths: Array<[string, number]> = [['Bale no', 14], ['Item', 14], ['Category', 14], ['Grade', 14], ['Brand', 14], ['Weight kg', 14], ['Pieces', 14], ['Cost', 14], ['Bale sale price', 19], ['Piece price', 15], ['Notes', 14]];
+    const widths: Array<[string, number]> = [['Bale no', 16], ['Qty', 8], ['Item', 14], ['Category', 14], ['Grade', 14], ['Brand', 14], ['Weight kg', 14], ['Pieces', 14], ['Cost', 14], ['Bale sale price', 19], ['Piece price', 15], ['Notes', 14]];
     ws.columns = widths.map(([header, width]) => ({ header, width }));
     ws.getRow(1).font = { bold: true };
     const n = (v: Prisma.Decimal | number | null) => (v === null ? null : Number(v.toString()));
-    for (const r of pack.packing) ws.addRow([r.code, r.item, r.category, r.grade, null, n(r.kg), r.pieces, n(r.total), null, null, null]);
+    for (const r of pack.packing) ws.addRow([r.code, n(r.quantity), r.item, r.category, r.grade, null, n(r.kg), r.pieces, n(r.total), null, null, null]);
     return { file: `bale-list-${pack.sale.number}.xlsx`, body: Buffer.from(await wb.xlsx.writeBuffer()) };
   }
 
@@ -423,12 +485,12 @@ export class SalesService {
       date: sale.issuedAt ?? sale.createdAt,
       customer: sale.customer.name,
       currency: sale.currencyCode,
-      lines: sale.lines.map((l) => ({
-        description: describeItem(l.inventoryItem),
-        unit: l.unit,
-        quantity: l.quantity,
-        unitPrice: l.unitPrice,
-        lineTotal: l.lineTotal,
+      lines: groupByKind(sale.lines).map((g) => ({
+        description: describeItem(g.first.inventoryItem),
+        unit: g.first.unit,
+        quantity: g.quantity,
+        unitPrice: g.first.unitPrice,
+        lineTotal: g.lineTotal,
       })),
       total: sale.totalAmount,
       paid: own.paid,
@@ -459,20 +521,29 @@ export class SalesService {
 
   /** QR scan: the stock item behind a bale code, if it can still be sold. */
   async scan(tenantId: string, code: string) {
-    const item = await this.prisma.inventoryItem.findFirst({
-      where: {
-        tenantId,
-        status: InventoryStatus.AVAILABLE,
-        OR: [{ repackUnit: { unitCode: code } }, { repackUnit: { qrLabel: { qrCode: code } } }],
-      },
-      include: {
-        category: { select: { id: true, name: true } },
-        grade: { select: { id: true, name: true } },
-        repackUnit: { select: { unitCode: true, qrLabel: { select: { qrCode: true } } } },
-      },
-    });
+    const include = {
+      category: { select: { id: true, name: true } },
+      grade: { select: { id: true, name: true } },
+      repackUnit: { select: { unitCode: true, qrLabel: { select: { qrCode: true } } } },
+      baleKind: { select: { id: true, code: true } },
+    } satisfies Prisma.InventoryItemInclude;
+    // A shared code (JEANS-1-45, typed or from its QR): the oldest whole bale of that kind, and how many there are.
+    const kind = await this.prisma.baleKind.findFirst({ where: { tenantId, code: kindCodeOf(code) }, select: { id: true } });
+    const whole = { tenantId, baleKindId: kind?.id, unit: StockUnit.BALE, status: InventoryStatus.AVAILABLE, usedQuantity: 0 };
+    const item = kind
+      ? await this.prisma.inventoryItem.findFirst({ where: whole, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], include })
+      // A sticker printed before shared codes: the bale's own number still finds it.
+      : await this.prisma.inventoryItem.findFirst({
+          where: { tenantId, status: InventoryStatus.AVAILABLE, OR: [{ repackUnit: { unitCode: code } }, { repackUnit: { qrLabel: { qrCode: code } } }] },
+          include,
+        });
     if (!item) throw new NotFoundException('This code is not a bale in stock');
-    return { ...item, remainingQuantity: item.quantity.sub(item.usedQuantity), description: describeItem(item) };
+    const inStock = kind ? await this.prisma.inventoryItem.count({ where: whole }) : 1;
+    return {
+      ...item, remainingQuantity: item.quantity.sub(item.usedQuantity), description: describeItem(item), inStock,
+      // As the phone's stock list names them.
+      kindId: item.baleKind?.id ?? null, unitCode: item.baleKind?.code ?? item.repackUnit?.unitCode ?? null,
+    };
   }
 
   /** A sale with its lines, payments made with it, and what is still due (payments applied oldest first). */
@@ -500,7 +571,7 @@ export class SalesService {
       paidBy: traced.map((t) => ({ ...this.khata.publicPayment(t.payment), applied: t.amount, withSale: t.withSale })),
       // `item` is the name as Inventory writes it ("Jeans · A") and `code` the bale's number, so the page can show
       // one row per kind; `description` stays as bills print it.
-      lines: sale.lines.map((l) => ({ ...l, description: describeItem(l.inventoryItem), item: itemName(l.inventoryItem) ?? describeItem(l.inventoryItem), code: l.inventoryItem.repackUnit?.unitCode ?? null })),
+      lines: sale.lines.map((l) => ({ ...l, description: describeItem(l.inventoryItem), item: itemName(l.inventoryItem) ?? describeItem(l.inventoryItem), code: l.inventoryItem.baleKind?.code ?? l.inventoryItem.repackUnit?.unitCode ?? null, kindId: l.inventoryItem.baleKind?.id ?? null })),
       paid: own?.paid ?? new Prisma.Decimal(0),
       due: own?.due ?? new Prisma.Decimal(0),
       customerBalance: applied.balance,

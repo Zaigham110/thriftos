@@ -444,16 +444,19 @@ test('sale entry: bales of one kind are one choice, quantity stops at what is le
   const grades = (await api.get('/tenant/grades')) as Array<{ id: string; name: string }>;
   // The test business may sort without grades: the kind is then the category alone.
   const grade = grades.length ? grades[grades.length - 1] : null;
-  const kind = grade ? `${kids.name} ${grade.name}` : kids.name;
+  // Bales of the same category, grade and weight share a code and are one kind (owner, 2026-11-16).
+  let code = '';
   const kindLeft = async () => {
     const r = await api.get(`/lists/stock?pageSize=200&f=status:ne:SOLD&f=categoryId:eq:${kids.id}`);
-    return (r.rows as Array<{ unit: string; left: string; gradeId: string | null }>).filter((x) => x.unit === 'BALE' && Number(x.left) > 0 && (x.gradeId ?? null) === (grade?.id ?? null)).length;
+    return (r.rows as Array<{ unit: string; left: string; code: string | null }>).filter((x) => x.unit === 'BALE' && Number(x.left) > 0 && x.code === code).length;
   };
   const lot = await api.post('/procurement/rags', { ragBaleType: 'BALE', weightKg: 200, purchaseCost: 40000 });
   const s = await api.post('/sorting/stage-1/start', { ragId: lot.id });
   const sessionId = s.session?.id ?? (await api.get(`/sorting/stage-1/summary?ragId=${lot.id}`)).session?.id;
   expect(sessionId, JSON.stringify(s)).toBeTruthy();
-  await api.post('/sorting/stage-1/allocate', { sessionId, categoryId: kids.id, ...(grade ? { gradeId: grade.id } : {}), bales: 3, baleWeightKg: 45 });
+  const made = await api.post('/sorting/stage-1/allocate', { sessionId, categoryId: kids.id, ...(grade ? { gradeId: grade.id } : {}), bales: 3, baleWeightKg: 45 });
+  code = (await api.get(`/stock/bales/${made.baleIds[0]}`)).code;
+  const kind = `${code} · ${grade ? `${kids.name} ${grade.name}` : kids.name}`;
   const total = await kindLeft();
   expect(total).toBeGreaterThanOrEqual(3);
   const customer = await api.post('/customers', { name: `Bale Buyer ${tag}`, phone: `0303${tag}1`, city: 'Karachi' });
@@ -799,7 +802,7 @@ test('inventory by item: bales and sorted kg per item, open its bales, price eve
   const lot = await api.post('/procurement/rags', { ragBaleType: 'BALE', weightKg: 100, purchaseCost: 20000 });
   const s = (await api.post('/sorting/stage-1/start', { ragId: lot.id })).session.id;
   await api.post('/sorting/stage-1/allocate', { sessionId: s, categoryId: cats[0].id, amountKg: 90 });
-  await api.post('/stock/bales', { categoryId: cats[0].id, weightKg: 45 });
+  const bale = await api.post('/stock/bales', { categoryId: cats[0].id, weightKg: 45 });
 
   await signIn(page);
   await page.goto('/stock');
@@ -809,10 +812,12 @@ test('inventory by item: bales and sorted kg per item, open its bales, price eve
   await expect(page.locator('ws-data-grid thead')).toContainText('Sorted, not baled');
   // The ungraded bale made above: the row named exactly after the category (a graded row of the same category may
   // hold only sorted kg, which cannot be priced, and made this test fail in long runs).
-  const row = page.locator('ws-data-grid tbody tr').filter({ has: page.getByRole('cell', { name: cats[0].name, exact: true }) }).first();
+  // Its row is the one with the code its kind shares.
+  const row = page.locator('ws-data-grid tbody tr').filter({ has: page.getByRole('cell', { name: bale.code, exact: true }) }).first();
   await expect(row).toBeVisible();
+  await expect(row).toContainText(cats[0].name);
 
-  const name = (await row.locator('td').first().innerText()).trim();
+  const name = cats[0].name;
   const price = 20000 + Number(tag.slice(-3));
   await page.getByRole('button', { name: 'Set price' }).click();
   const sheet = page.getByRole('dialog', { name: 'Set price' });
@@ -823,7 +828,7 @@ test('inventory by item: bales and sorted kg per item, open its bales, price eve
 
   await row.click();
   await expect(page).toHaveURL(/\/stock\/items\?/);
-  await expect(page.locator('.chip').filter({ hasText: cats[0].name })).toBeVisible();
+  await expect(page.locator('.chip').filter({ hasText: bale.code })).toBeVisible();
   await expect(page.locator('ws-data-grid tbody tr').first()).toContainText(price.toLocaleString('en-US'));
 });
 

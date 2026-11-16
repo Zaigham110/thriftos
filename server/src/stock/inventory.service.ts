@@ -45,6 +45,7 @@ export class InventoryService {
       where.OR = [
         { id: query },
         { name: { contains: query, mode: 'insensitive' } },
+        { baleKind: { is: { code: { contains: query, mode: 'insensitive' } } } },
         { repackUnit: { is: { unitCode: { contains: query, mode: 'insensitive' } } } },
         { repackUnit: { is: { qrLabel: { is: { qrCode: { contains: query, mode: 'insensitive' } } } } } },
       ];
@@ -67,6 +68,7 @@ export class InventoryService {
           grade: { select: { id: true, name: true } },
           vendor: { select: { id: true, name: true } },
           warehouse: { select: { id: true, name: true, code: true } },
+          baleKind: { select: { id: true, code: true } },
           repackUnit: {
             select: {
               id: true,
@@ -85,7 +87,10 @@ export class InventoryService {
     const itemsWithCodes = items.map((item: any) => ({
       ...item,
       remainingQuantity: item.quantity.sub(item.usedQuantity),
-      unitCode: item?.repackUnit?.unitCode ?? null,
+      // The code people see is the one a bale shares with its kind (JEANS-1-45); its own number is `baleNumber`.
+      unitCode: item?.baleKind?.code ?? item?.repackUnit?.unitCode ?? null,
+      kindId: item?.baleKind?.id ?? null,
+      baleNumber: item?.repackUnit?.unitCode ?? null,
       measurementType: item?.repackUnit?.measurementType ?? null,
       qrCode: item?.repackUnit?.qrLabel?.qrCode ?? null,
     }));

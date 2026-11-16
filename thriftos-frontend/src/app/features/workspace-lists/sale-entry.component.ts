@@ -16,7 +16,7 @@ import { WsPageHeaderComponent, WsSideSheetComponent } from '../../shared/ui/wor
 import { PAYMENT_METHODS } from './lists';
 
 interface CustomerOption { id: string; name: string; city: string | null; phone: string | null; priceGroup?: string | null }
-interface StockOption { id: string; code: string | null; name: string | null; unit: 'KG' | 'BALE' | 'PIECE'; left: string; salePrice: string | null; value?: string | null; kg?: string | null; categoryId?: string | null; gradeId?: string | null; pieces?: number | null }
+interface StockOption { id: string; code: string | null; kindId?: string | null; date?: string | null; name: string | null; unit: 'KG' | 'BALE' | 'PIECE'; left: string; salePrice: string | null; value?: string | null; kg?: string | null; categoryId?: string | null; gradeId?: string | null; pieces?: number | null }
 /**
  * One choice in "Add item": the bales of one kind (Jeans A, 4 bales) together, or one other item (kg, pieces).
  * `members` are the bales, oldest first; a sale of 2 takes the first 2 (or the ones scanned, which go first).
@@ -26,9 +26,13 @@ interface Line { item: StockOption; unit: 'KG' | 'BALE' | 'PIECE'; quantity: num
 type Mode = 'CASH' | 'CREDIT' | 'PARTIAL';
 
 const optionLabel = (s: StockOption) => [s.code, s.name].filter(Boolean).join(' · ');
-/** Bales of the same category and grade are one kind; anything else stands alone. */
-const kindKey = (s: StockOption) => (s.unit === 'BALE' && s.categoryId ? `${s.categoryId}|${s.gradeId ?? ''}` : `item|${s.id}`);
-const byCode = (a: StockOption, b: StockOption) => (a.code ?? '').localeCompare(b.code ?? '', undefined, { numeric: true });
+/**
+ * Bales that share a code (same category, grade and weight/pieces) are one kind; a bale from before shared codes
+ * goes by its category and grade; anything else stands alone.
+ */
+const kindKey = (s: StockOption) => (s.unit === 'BALE' && s.kindId ? `kind|${s.kindId}` : s.unit === 'BALE' && s.categoryId ? `${s.categoryId}|${s.gradeId ?? ''}` : `item|${s.id}`);
+/** Oldest first: a sale of 2 takes the 2 made first. */
+const byCode = (a: StockOption, b: StockOption) => (a.date ?? '').localeCompare(b.date ?? '') || (a.code ?? '').localeCompare(b.code ?? '', undefined, { numeric: true });
 /**
  * Stock rows as the sale screen names them: the stored name ("Jeans A"), which is what people type and what the
  * choices are matched against. Inventory writes the same item "Jeans · A".
@@ -41,7 +45,7 @@ function toPicks(rows: StockOption[]): Pick[] {
   const map = new Map<string, Pick>();
   for (const r of rows) {
     const key = kindKey(r);
-    const p = map.get(key) ?? { key, label: key.startsWith('item|') ? optionLabel(r) : r.name ?? optionLabel(r), unit: r.unit, members: [] };
+    const p = map.get(key) ?? { key, label: key.startsWith('item|') || key.startsWith('kind|') ? optionLabel(r) : r.name ?? optionLabel(r), unit: r.unit, members: [] };
     p.members.push(r);
     map.set(key, p);
   }
@@ -435,6 +439,12 @@ export class SaleEntryComponent implements HasUnsavedChanges {
     if (!text) return;
     const p = this.seen.get(text) ?? this.picks().find((x) => x.label.toLowerCase() === text.toLowerCase());
     if (p) return this.addKind(p);
+    // A shared code typed or scanned (JEANS-1-45): its kind; scanned again, one more of it.
+    const coded = this.picks().find((x) => x.key.startsWith('kind|') && x.members[0]?.code?.toLowerCase() === text.toLowerCase());
+    if (coded) return this.addKind(coded);
+    // A name typed in full ("Jeans A") when only one kind of it is in stock.
+    const named = this.picks().filter((x) => x.members[0]?.name?.toLowerCase() === text.toLowerCase());
+    if (named.length === 1) return this.addKind(named[0]);
     const s = this.stock().find((x) => optionLabel(x) === text) ?? this.stock().find((x) => x.code?.toLowerCase() === text.toLowerCase());
     if (s) return this.addStock(s);
     // A scanner (or fast typing) presses Enter before the search answers: look the code up now.
@@ -444,7 +454,10 @@ export class SaleEntryComponent implements HasUnsavedChanges {
         next: (r) => {
           const rows = stockRows(r.rows);
           const hit = rows.find((x) => x.code?.toLowerCase() === text.toLowerCase() || optionLabel(x) === text) ?? (rows.length === 1 ? rows[0] : undefined);
-          if (hit) this.addStock(hit);
+          const named = toPicks(rows.filter((x) => x.name?.toLowerCase() === text.toLowerCase()));
+          if (named.length === 1 && rows.find((x) => x.code?.toLowerCase() === text.toLowerCase()) === undefined) this.addKind(named[0]);
+          else if (hit?.kindId && hit.unit === 'BALE' && hit.code?.toLowerCase() === text.toLowerCase()) this.addKind(toPicks(rows.filter((x) => x.kindId === hit.kindId))[0]);
+          else if (hit) this.addStock(hit);
           else this.toast.show(this.i18n.t('ws.saleEntry.notFound'));
         },
         error: () => this.toast.show(this.i18n.t('ws.saleEntry.notFound')),
@@ -458,8 +471,12 @@ export class SaleEntryComponent implements HasUnsavedChanges {
     const existing = this.lines().findIndex((l) => l.item.id === `kind:${p.key}`);
     if (existing >= 0) return this.setQty(existing, this.lines()[existing].quantity + 1);
     const [categoryId, gradeId] = p.key.split('|');
-    let params = new HttpParams().set('pageSize', '200').append('f', 'status:ne:SOLD').append('f', `categoryId:eq:${categoryId}`);
-    if (gradeId) params = params.append('f', `gradeId:eq:${gradeId}`);
+    let params = new HttpParams().set('pageSize', '200').append('f', 'status:ne:SOLD');
+    if (categoryId === 'kind') params = params.append('f', `kindId:eq:${gradeId}`);
+    else {
+      params = params.append('f', `categoryId:eq:${categoryId}`);
+      if (gradeId) params = params.append('f', `gradeId:eq:${gradeId}`);
+    }
     this.http.get<ListResult>('/api/lists/stock', { params }).pipe(catchError(() => of({ rows: [] } as unknown as ListResult))).subscribe((r) => {
       const all = stockRows(r.rows).filter((x) => kindKey(x) === p.key && Number(x.left) > 0);
       // Bales already on another line (scanned one by one) are not taken twice.

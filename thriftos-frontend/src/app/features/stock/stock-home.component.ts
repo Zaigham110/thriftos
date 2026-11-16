@@ -2,7 +2,7 @@ import { moduleOn } from '../../core/tenant/module-on';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { HelpLinkComponent } from '../help/help-link.component';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { LucideAngularModule, PackagePlus, Printer, ScanLine, ArrowLeftRight } from 'lucide-angular';
 import { API_BASE_URL } from '../../core/config/api.config';
@@ -15,6 +15,8 @@ export interface StockRow {
   id: string;
   name: string | null;
   unitCode: string | null;
+  /** Bales that share a code (same category, grade and weight/pieces). */
+  kindId?: string | null;
   unit: 'KG' | 'BALE' | 'PIECE';
   remainingQuantity: string;
   weightKg: string | null;
@@ -43,7 +45,7 @@ export function stockName(i: StockRow): string {
       </header>
       @if (scanning()) { <tos-scan-sheet (scanned)="open($event)" (closed)="scanning.set(false)" /> }
       <ul class="list">
-        @for (i of items(); track i.id) {
+        @for (i of rows(); track i.id) {
           <li><a class="row" [routerLink]="i.repackUnitId ? ['/stock/label', i.repackUnitId] : null">
             <span><strong>{{ name(i) }}</strong><small class="ltr">{{ i.unitCode || '' }}</small></span>
             <span class="amount">@if (i.unit === 'KG') { {{ i.remainingQuantity | kg }} } @else { {{ i.remainingQuantity | num }} {{ (i.unit === 'BALE' ? 'unit.bales' : 'unit.pcs') | t }} }</span>
@@ -70,6 +72,16 @@ export class StockHomeComponent implements OnInit {
     return this.items().filter((i) => i.repackUnitId).slice(0, 24).map((i) => i.repackUnitId!);
   }
   protected readonly items = signal<StockRow[]>([]);
+  /** Bales of one kind are one line with how many there are (owner, 2026-11-16); anything else is its own line. */
+  protected readonly rows = computed<StockRow[]>(() => {
+    const out = new Map<string, StockRow>();
+    for (const i of this.items()) {
+      const key = i.unit === 'BALE' && i.kindId ? `kind:${i.kindId}` : i.id;
+      const seen = out.get(key);
+      out.set(key, seen ? { ...seen, remainingQuantity: String(Number(seen.remainingQuantity) + Number(i.remainingQuantity)) } : i);
+    }
+    return [...out.values()];
+  });
   protected readonly name = stockName;
 
   /** Scan (or type) a bale code → its label page. */

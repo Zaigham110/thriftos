@@ -296,6 +296,8 @@ model Tenant {
   wasteCategories WasteCategory[]
   wasteLineItems  WasteLineItem[]
 
+  baleKinds BaleKind[]
+
   @@index([companyCode])
 }
 
@@ -397,6 +399,30 @@ model Sale {
   @@index([customerId])
   @@index([status])
   @@index([createdAt])
+}
+
+/// Bales of the same category, grade and weight/pieces share one code (owner, 2026-11-16): the code on the
+/// sticker, in stock and on bills. Each bale stays its own InventoryItem, so cost and lineage stay exact.
+model BaleKind {
+  id         String   @id @default(cuid())
+  tenantId   String
+  categoryId String
+  gradeId    String?
+  weightKg   Decimal  @db.Decimal(10, 2)
+  pcsCount   Int      @default(0)
+  /// categoryId|gradeId|weightKg|pcsCount: one kind per combination (gradeId may be empty).
+  key        String
+  /// What people read and type, e.g. JEANS-1-45. Fixed once made (stickers are printed with it).
+  code       String
+  createdAt  DateTime @default(now())
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  category Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  grade    Grade?          @relation(fields: [gradeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  items    InventoryItem[]
+
+  @@unique([tenantId, key])
+  @@unique([tenantId, code])
 }
 
 model SaleLine {
@@ -699,6 +725,8 @@ model Category {
   inventoryItems      InventoryItem[]
   linkedWasteCategory WasteCategory? // Auto-generated waste category
 
+  baleKinds BaleKind[]
+
   @@unique([tenantId, name])
   @@index([tenantId])
 }
@@ -739,6 +767,8 @@ model Grade {
   categoryOutputs CategoryOutput[]
   repackUnits     RepackUnit[]
   inventoryItems  InventoryItem[]
+
+  baleKinds BaleKind[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -791,7 +821,7 @@ model Vendor {
   updatedAt         DateTime   @updatedAt
 
   // Relations
-  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  tenant         Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   purchaseOrders PurchaseOrder[]
   payments       SupplierPayment[]
   containers     Container[]
@@ -1378,6 +1408,9 @@ model InventoryItem {
   containerId String?
   ragId       String?
 
+  // The kind a bale belongs to (same category, grade and weight/pieces share one code); null for other stock.
+  baleKindId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1387,6 +1420,7 @@ model InventoryItem {
   category       Category?         @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   grade          Grade?            @relation(fields: [gradeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   vendor         Vendor?           @relation(fields: [vendorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  baleKind       BaleKind?         @relation(fields: [baleKindId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   parentItem     InventoryItem?    @relation("OpenedPieces", fields: [parentItemId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   pieces         InventoryItem[]   @relation("OpenedPieces")
   warehouse      Warehouse?        @relation(fields: [warehouseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
@@ -1404,6 +1438,7 @@ model InventoryItem {
   @@index([vendorId])
   @@index([parentItemId])
   @@index([warehouseId])
+  @@index([tenantId, baleKindId])
   @@index([status])
   @@index([ragId]) // Index for rag-level analytics
   @@index([containerId]) // Index for container-level analytics

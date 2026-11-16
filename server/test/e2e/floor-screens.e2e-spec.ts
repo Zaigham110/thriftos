@@ -143,8 +143,9 @@ describe('Floor screens API (e2e)', () => {
     expect([b1.body.unitCode, b2.body.unitCode]).toEqual(['B-0001', 'B-0002']);
 
     const labels = await api(app, t).get(`/stock/bales/labels?ids=${b2.body.id},${b1.body.id}`).expect(200);
-    expect(labels.body.map((l: any) => l.code)).toEqual(['B-0002', 'B-0001']);
-    expect(labels.body[1]).toMatchObject({ code: 'B-0001', qr: expect.stringMatching(/^REPACK:T[0-9A-F]+:B-0001$/), category: 'Jeans', grade: null, weightKg: '45', pieces: 120, origin: 'Korea' });
+    // The sticker carries the code the bale shares with its kind (category, kg, pieces), and a QR of it.
+    expect(labels.body.map((l: any) => l.code)).toEqual(['JEANS-40', 'JEANS-45-120P']);
+    expect(labels.body[1]).toMatchObject({ code: 'JEANS-45-120P', qr: expect.stringMatching(/^KIND:T[0-9A-F]+:JEANS-45-120P$/), category: 'Jeans', grade: null, weightKg: '45', pieces: 120, origin: 'Korea' });
     expect(labels.body[1].business).toMatch(/^Test /);
     expect(labels.body[1].qrSvg).toMatch(/^<svg/);
     const other = await api(app, b).get(`/stock/bales/labels?ids=${b1.body.id}`).expect(200);

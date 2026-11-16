@@ -212,15 +212,17 @@ export class SaleRecordComponent {
   /** One row per line (each bale), instead of one per kind of item at one price. */
   protected readonly eachLine = signal(false);
   protected readonly lineRows = computed<WsRow[]>(() => {
-    type L = { id: string; item?: string; code?: string | null; description: string; unit: string; quantity: string; unitPrice: string; lineTotal: string; lineCost?: string | null; profit?: string | null };
+    type L = { id: string; item?: string; code?: string | null; kindId?: string | null; description: string; unit: string; quantity: string; unitPrice: string; lineTotal: string; lineCost?: string | null; profit?: string | null };
     const lines = (this.sale()?.lines ?? []) as unknown as L[];
     const unit = (u: string) => this.i18n.t(UNIT_KEYS[u] ?? '') || u;
     if (this.eachLine()) return lines.map((l) => ({ ...l, item: [l.item ?? l.description, l.code].filter(Boolean).join(' · '), unit: unit(l.unit) }) as unknown as WsRow);
     // 44 bales of 6 kinds are 6 rows (v2 review): same item, unit and price together.
     const by = new Map<string, { id: string; item: string; unit: string; quantity: number; unitPrice: string; lineTotal: number; lineCost: number | null; profit: number | null }>();
     for (const l of lines) {
-      const key = `${l.item ?? l.description}|${l.unit}|${l.unitPrice}`;
-      const r = by.get(key) ?? { id: key, item: l.item ?? l.description, unit: unit(l.unit), quantity: 0, unitPrice: l.unitPrice, lineTotal: 0, lineCost: l.lineCost == null ? null : 0, profit: l.profit == null ? null : 0 };
+      // Bales that share a code are one row and read with it (JEANS-1-45); two weights of Jeans are two rows.
+      const name = l.kindId && l.code ? `${l.item ?? l.description} · ${l.code}` : l.item ?? l.description;
+      const key = `${name}|${l.unit}|${l.unitPrice}`;
+      const r = by.get(key) ?? { id: key, item: name, unit: unit(l.unit), quantity: 0, unitPrice: l.unitPrice, lineTotal: 0, lineCost: l.lineCost == null ? null : 0, profit: l.profit == null ? null : 0 };
       r.quantity += Number(l.quantity);
       r.lineTotal += Number(l.lineTotal);
       if (r.lineCost !== null) r.lineCost += Number(l.lineCost ?? 0);

@@ -24,6 +24,8 @@ import { stockName } from '../stock/stock-home.component';
 
 interface CartLine {
   item: InventoryItem;
+  /** Whole bales of one kind sold as a quantity (the oldest go first): how many there are in stock. */
+  kind?: { id: string; count: number };
   unit: StockUnit;
   quantity: number | null;
   unitPrice: number | null;
@@ -80,8 +82,8 @@ const MODES: PaymentMode[] = ['CASH', 'CREDIT', 'PARTIAL'];
           @for (line of cart(); track line.item.id) {
             <div class="line">
               <div class="line-head"><span><strong>{{ name(line.item) }}</strong>@if (line.item.unitCode) { <small class="ltr code"> {{ line.item.unitCode }}</small> }</span><button type="button" class="icon-btn" [attr.aria-label]="'common.remove' | t" (click)="remove(line)"><lucide-icon [img]="icons.Trash2" [size]="18" /></button></div>
-              <small class="hint">{{ 'sell.left' | t: { n: (line.item.remainingQuantity | num) } }} {{ unitKey(line.item.unit) | t }}</small>
-              @if (line.item.unit === 'BALE' && line.item.weightKg) {
+              <small class="hint">{{ 'sell.left' | t: { n: ((line.kind ? line.kind.count : line.item.remainingQuantity) | num) } }} {{ unitKey(line.item.unit) | t }}</small>
+              @if (line.item.unit === 'BALE' && line.item.weightKg && !line.kind) {
                 <div class="chips"><button type="button" class="chip" [class.on]="line.unit === 'BALE'" (click)="setUnit(line, 'BALE')">{{ 'sell.perBale' | t }}</button><button type="button" class="chip" [class.on]="line.unit === 'KG'" (click)="setUnit(line, 'KG')">{{ 'sell.perKg' | t }}</button></div>
               }
               <div class="row2">
@@ -158,13 +160,25 @@ export class SaleComponent implements OnInit {
   protected readonly customerTiles = computed<Tile[]>(() => this.customers().map((c) => ({ id: c.id, label: c.name, sub: c.city || c.phone || '', keywords: c.phone || '' })));
   protected readonly stockTiles = computed<Tile[]>(() => {
     const inCart = new Set(this.cart().map((l) => l.item.id));
-    return this.inventory()
-      .filter((i) => !inCart.has(i.id))
-      .map((i) => ({ id: i.id, label: this.name(i), sub: [i.unitCode, `${this.i18n.num(i.remainingQuantity)} ${this.i18n.t(this.unitKey(i.unit))}`].filter(Boolean).join(' · '), keywords: i.unitCode || '' }));
+    const kindsInCart = new Set(this.cart().map((l) => l.kind?.id));
+    const tiles: Tile[] = [];
+    const seen = new Set<string>();
+    for (const i of this.inventory()) {
+      // Whole bales that share a code are one tile with how many there are (owner, 2026-11-16).
+      const members = this.wholeOfKind(i);
+      if (members.length > 1) {
+        if (seen.has(i.kindId!) || kindsInCart.has(i.kindId!)) continue;
+        seen.add(i.kindId!);
+        tiles.push({ id: `kind:${i.kindId}`, label: this.name(i), sub: [i.unitCode, `${this.i18n.num(members.length)} ${this.i18n.t(this.unitKey(i.unit))}`].filter(Boolean).join(' · '), keywords: i.unitCode || '' });
+      } else if (!inCart.has(i.id)) {
+        tiles.push({ id: i.id, label: this.name(i), sub: [i.unitCode, `${this.i18n.num(i.remainingQuantity)} ${this.i18n.t(this.unitKey(i.unit))}`].filter(Boolean).join(' · '), keywords: i.unitCode || '' });
+      }
+    }
+    return tiles;
   });
   protected readonly total = computed(() => this.cart().reduce((sum, l) => sum + (l.quantity || 0) * (l.unitPrice || 0), 0));
   protected readonly canSave = computed(() => {
-    const linesOk = this.cart().length > 0 && this.cart().every((l) => (l.quantity || 0) > 0 && (l.unitPrice ?? -1) >= 0);
+    const linesOk = this.cart().length > 0 && this.cart().every((l) => (l.quantity || 0) > 0 && (l.unitPrice ?? -1) >= 0 && (!l.kind || (l.quantity || 0) <= l.kind.count));
     const paid = this.paidAmount() || 0;
     return !!this.customer() && linesOk && (this.mode() !== 'PARTIAL' || (paid > 0 && paid < this.total()));
   });
@@ -206,7 +220,26 @@ export class SaleComponent implements OnInit {
     if (c) this.setCustomer(c);
   }
 
+  /** The whole bales in stock that share this bale's code, itself included (none for other stock). */
+  private wholeOfKind(i: InventoryItem): InventoryItem[] {
+    if (i.unit !== 'BALE' || !i.kindId) return [];
+    const taken = new Set(this.cart().filter((l) => !l.kind).map((l) => l.item.id));
+    return this.inventory().filter((x) => x.kindId === i.kindId && x.unit === 'BALE' && Number(x.remainingQuantity) === Number(x.quantity) && !taken.has(x.id));
+  }
+
   protected addItem(tile: Tile): void {
+    if (tile.id.startsWith('kind:')) {
+      const kindId = tile.id.slice(5);
+      // Picked (or scanned) again: one more of it, up to what is in stock.
+      const there = this.cart().find((l) => l.kind?.id === kindId);
+      if (there) return this.setLine(there, 'quantity', Math.min((there.quantity || 0) + 1, there.kind!.count));
+      const first = this.inventory().find((i) => i.kindId === kindId);
+      const members = first ? this.wholeOfKind(first) : [];
+      if (!members.length) return;
+      const kindLine: CartLine = { item: members[0], kind: { id: kindId, count: members.length }, unit: 'BALE', quantity: 1, unitPrice: null };
+      this.cart.update((c) => [...c, kindLine]);
+      return this.suggestPrice(kindLine);
+    }
     const item = this.inventory().find((i) => i.id === tile.id);
     if (!item) return;
     const line: CartLine = { item, unit: item.unit, quantity: item.unit === 'KG' ? null : 1, unitPrice: null };
@@ -219,17 +252,24 @@ export class SaleComponent implements OnInit {
     this.scanning.set(false);
     this.http.get<InventoryItem>(`${API_BASE_URL}/sales/scan/qr/${encodeURIComponent(code)}`).subscribe({
       next: (item) => {
-        if (this.cart().some((l) => l.item.id === item.id)) return;
         if (!this.inventory().some((i) => i.id === item.id)) this.inventory.update((list) => [item, ...list]);
-        this.addItem({ id: item.id, label: this.name(item) });
+        this.addScanned(item);
       },
       error: () => {
         // Offline: match the code against the stock already on the phone.
         const local = this.inventory().find((i) => i.unitCode && (code === i.unitCode || code.endsWith(`:${i.unitCode}`)));
-        if (local) this.addItem({ id: local.id, label: this.name(local) });
+        if (local) this.addScanned(local);
         else this.toast.error(this.i18n.t('stock.notFound'));
       },
     });
+  }
+
+  /** A scanned code: the kind when several bales share it (again = one more), else that one item. */
+  private addScanned(item: InventoryItem): void {
+    const inCartKind = this.cart().some((l) => l.kind && l.kind.id === item.kindId);
+    if (inCartKind || this.wholeOfKind(item).length > 1) return this.addItem({ id: `kind:${item.kindId}`, label: this.name(item) });
+    if (this.cart().some((l) => l.item.id === item.id)) return;
+    this.addItem({ id: item.id, label: this.name(item) });
   }
 
   protected remove(line: CartLine): void {
@@ -254,7 +294,8 @@ export class SaleComponent implements OnInit {
       paymentMode: this.mode(),
       ...(this.mode() === 'PARTIAL' ? { paidAmount: this.paidAmount() } : {}),
       ...(this.mode() !== 'CREDIT' ? { paymentMethod: this.method() } : {}),
-      lines: this.cart().map((l) => ({ inventoryItemId: l.item.id, unit: l.unit, quantity: l.quantity!, unitPrice: l.unitPrice! })),
+      // Bales of a kind go by its id and a quantity: the server takes the oldest, so two phones never pick the same bale.
+      lines: this.cart().map((l) => (l.kind ? { baleKindId: l.kind.id, quantity: l.quantity!, unitPrice: l.unitPrice! } : { inventoryItemId: l.item.id, unit: l.unit, quantity: l.quantity!, unitPrice: l.unitPrice! })),
     };
     this.saving.set(true);
     try {

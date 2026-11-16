@@ -20,6 +20,8 @@ export interface InventoryItem {
   priceTier?: string | null;
   parentItemId?: string | null;
   unitCode?: string;
+  /** Bales that share a code (same category, grade and weight/pieces). */
+  kindId?: string | null;
   repackUnitId?: string | null;
   category?: { id: string; name: string } | null;
   categoryName?: string | null;

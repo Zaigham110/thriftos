@@ -1,11 +1,18 @@
 import { PaymentMethod, PaymentMode, SaleType, StockUnit } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, IsBoolean, IsIn, ArrayMinSize, IsArray, IsEnum, IsNumber, IsOptional, IsPositive, IsString, MaxLength, Min, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsBoolean, IsIn, ArrayMinSize, IsArray, IsEnum, IsNumber, IsOptional, IsPositive, IsString, MaxLength, Min, ValidateIf, ValidateNested } from 'class-validator';
 import { LANGUAGES, Language } from '../../common/language/language';
 
 export class SaleLineDto {
+  /** One stock item… */
+  @ValidateIf((l: SaleLineDto) => !l.baleKindId)
   @IsString()
-  inventoryItemId!: string;
+  inventoryItemId?: string;
+
+  /** …or whole bales of one kind (the shared code): `quantity` of them, the oldest first. */
+  @IsString()
+  @IsOptional()
+  baleKindId?: string;
 
   /** What the price is per. Defaults to the item's unit; a bale can also be sold by kg. */
   @IsEnum(StockUnit)

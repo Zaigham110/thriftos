@@ -18,11 +18,14 @@ import * as QRCode from 'qrcode';
 import { AuditService } from '../audit/audit.service';
 import { baleCost, costPerKg, fifoTake, InsufficientStockError, money, sum, takeCost } from '../costing/costing';
 import { PrismaService } from '../prisma/prisma.service';
+import { kindFor, kindQr } from './bale-kind';
 import { AvailableStockQueryDto, BaleAllocationDto, MakeBaleDto } from './stock.dto';
 
 type Tx = Prisma.TransactionClient;
 
 const ZERO = new Decimal(0);
+/** The kind of a bale (through its stock item); none for a bale made before kinds whose category is gone. */
+const kindOf = (bale: { inventoryItems: { baleKind: { code: string } | null }[] }) => bale.inventoryItems.find((i) => i.baleKind)?.baleKind ?? null;
 const OPEN_GRADE_STATUSES = [GradingOutputStatus.AVAILABLE, GradingOutputStatus.PARTIALLY_USED, GradingOutputStatus.READY_FOR_REPACK];
 
 /** A sorted output a bale can take kg from: a grade output (2 stages) or an ungraded category output (1 stage). */
@@ -233,11 +236,14 @@ export class BaleService {
         const warehouse = await tx.warehouse.findFirst({ where: { id: dto.warehouseId, tenantId }, select: { id: true } });
         if (!warehouse) throw new BadRequestException('Invalid warehouse');
       }
+      // Bales of the same category, grade and weight/pieces share one code and count as a quantity.
+      const kind = await kindFor(tx, tenantId, { categoryId: dto.categoryId, gradeId: dto.gradeId ?? null, weightKg, pieces: sealed.pcsCount });
       const item = await tx.inventoryItem.create({
         data: {
           tenantId,
           source: StockSource.PROCESSED,
           repackUnitId: sealed.id,
+          baleKindId: kind.id,
           categoryId: dto.categoryId,
           gradeId: dto.gradeId ?? null,
           unit: StockUnit.BALE,
@@ -286,6 +292,7 @@ export class BaleService {
         category: { select: { id: true, name: true } },
         grade: { select: { id: true, name: true } },
         qrLabel: { select: { qrCode: true } },
+        inventoryItems: { select: { baleKind: { select: { code: true } } } },
       },
     });
   }
@@ -297,7 +304,7 @@ export class BaleService {
         category: { select: { id: true, name: true } },
         grade: { select: { id: true, name: true } },
         qrLabel: true,
-        inventoryItems: { select: { id: true, status: true } },
+        inventoryItems: { select: { id: true, status: true, baleKind: { select: { code: true } } } },
         inputAllocations: {
           orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
           select: {
@@ -313,7 +320,8 @@ export class BaleService {
       },
     });
     if (!bale) throw new NotFoundException('Bale not found');
-    return bale;
+    // The code people see: the one its kind shares (its own number stays behind the scenes).
+    return { ...bale, code: kindOf(bale)?.code ?? bale.unitCode };
   }
 
   /** QR image (PNG data URL) and the facts printed on the sticker. */
@@ -324,11 +332,12 @@ export class BaleService {
   async labels(tenantId: string, ids: string[]) {
     const unique = [...new Set(ids)].slice(0, 96);
     const [tenant, bales] = await Promise.all([
-      this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true } }),
+      this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true, companyCode: true } }),
       this.prisma.repackUnit.findMany({
         where: { tenantId, id: { in: unique } },
         include: {
           qrLabel: { select: { qrCode: true } },
+          inventoryItems: { select: { baleKind: { select: { code: true } } } },
           category: { select: { name: true } },
           grade: { select: { name: true } },
           inputAllocations: { select: { ragBaleId: true } },
@@ -347,11 +356,13 @@ export class BaleService {
         .map((id) => byId.get(id))
         .filter((b): b is NonNullable<typeof b> => !!b)
         .map(async (b) => {
-          const qr = b.qrLabel?.qrCode ?? `REPACK:${b.unitCode}`;
+          // Every sticker of a kind is the same: the shared code and a QR of it. A bale from before kinds keeps its own.
+          const kind = kindOf(b);
+          const qr = kind && tenant ? kindQr(tenant.companyCode, kind.code) : b.qrLabel?.qrCode ?? `REPACK:${b.unitCode}`;
           const origins = [...new Set(b.inputAllocations.map((a) => (a.ragBaleId ? originOf.get(a.ragBaleId) : null)).filter((x): x is string => !!x))];
           return {
             id: b.id,
-            code: b.unitCode,
+            code: kind?.code ?? b.unitCode,
             qr,
             qrSvg: await QRCode.toString(qr, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' }),
             category: b.category?.name ?? null,
@@ -373,18 +384,23 @@ export class BaleService {
         qrLabel: true,
         category: { select: { name: true } },
         grade: { select: { name: true } },
+        inventoryItems: { select: { baleKind: { select: { code: true } } } },
+        tenant: { select: { companyCode: true } },
       },
     });
     if (!bale?.qrLabel) throw new NotFoundException('QR label not found');
+    const kind = kindOf(bale);
+    const encoded = kind ? kindQr(bale.tenant.companyCode, kind.code) : bale.qrLabel.qrCode;
     return {
       qr: {
-        encoded: bale.qrLabel.qrCode,
-        pngDataUrl: await QRCode.toDataURL(bale.qrLabel.qrCode, { margin: 1, width: 300 }),
+        encoded,
+        pngDataUrl: await QRCode.toDataURL(encoded, { margin: 1, width: 300 }),
         generatedAt: bale.qrLabel.generatedAt,
       },
       unit: {
         id: bale.id,
         unitCode: bale.unitCode,
+        code: kind?.code ?? bale.unitCode,
         unitType: bale.unitType,
         category: bale.category?.name ?? null,
         grade: bale.grade?.name ?? null,

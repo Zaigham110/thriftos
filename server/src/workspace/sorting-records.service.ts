@@ -74,7 +74,7 @@ export class SortingRecordsService {
             select: {
               id: true, unitCode: true, weightKg: true,
               category: { select: { name: true } }, grade: { select: { name: true } },
-              inventoryItems: { select: { id: true, quantity: true, usedQuantity: true } },
+              inventoryItems: { select: { id: true, quantity: true, usedQuantity: true, baleKind: { select: { code: true } } } },
             },
           },
         },
@@ -288,7 +288,7 @@ function groupOutputs(outputs: Output[]): Array<{ key: string; list: Output[] }>
 
 type Allocation = {
   amountUsed: Prisma.Decimal; allocatedCost: Prisma.Decimal;
-  repackUnit: { id: string; unitCode: string; weightKg: Prisma.Decimal; category: { name: string } | null; grade: { name: string } | null; inventoryItems: Array<{ id: string; quantity: Prisma.Decimal; usedQuantity: Prisma.Decimal }> };
+  repackUnit: { id: string; unitCode: string; weightKg: Prisma.Decimal; category: { name: string } | null; grade: { name: string } | null; inventoryItems: Array<{ id: string; quantity: Prisma.Decimal; usedQuantity: Prisma.Decimal; baleKind: { code: string } | null }> };
 };
 
 /** Bales made from a lot: code, what it is, kg from this lot, sold or in stock, and its cost from this lot. */
@@ -298,7 +298,7 @@ function baleRows(allocations: Allocation[], canSeeCost: boolean) {
     const u = a.repackUnit;
     const item = u.inventoryItems[0];
     const cur = by.get(u.id) ?? {
-      id: u.id, itemId: item?.id ?? null, code: u.unitCode, category: u.category?.name ?? null, grade: u.grade?.name ?? null,
+      id: u.id, itemId: item?.id ?? null, code: u.inventoryItems.find((x) => x.baleKind)?.baleKind?.code ?? u.unitCode, category: u.category?.name ?? null, grade: u.grade?.name ?? null,
       kg: ZERO, sold: !!item && new Prisma.Decimal(item.usedQuantity).greaterThanOrEqualTo(item.quantity), cost: ZERO,
     };
     cur.kg = cur.kg.add(a.amountUsed);

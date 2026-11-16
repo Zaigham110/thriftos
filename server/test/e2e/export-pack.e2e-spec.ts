@@ -50,13 +50,14 @@ describe('Phase 9.2 export pack: shipment, packing list, commercial invoice, bal
     const pack = (await api(app, a).get(`/sales/${sale.id}/export-pack`).expect(200)).body;
     expect(pack.buyer).toMatchObject({ name: 'Dubai Traders LLC', city: 'Dubai' });
     expect(pack.shipment).toEqual(shipment);
-    expect(pack.packing.map((p: any) => [p.code, p.item, p.unit, p.kg])).toEqual(items.map((i) => [i.repackUnit!.unitCode, 'Jeans · A', 'BALE', '45']));
-    expect(pack.totals).toMatchObject({ lines: 2, bales: 2, kg: '90', amount: '60000' });
+    // Two bales of one kind are one row with their shared code and quantity (owner, 2026-11-16).
+    expect(pack.packing.map((p: any) => [p.code, p.item, p.unit, p.quantity, p.kg])).toEqual([['JEANS-A-45', 'Jeans · A', 'BALE', '2', '90']]);
+    expect(pack.totals).toMatchObject({ lines: 1, bales: 2, kg: '90', amount: '60000' });
     expect(pack.records).toHaveLength(2);
     expect(pack.records[0].from[0]).toMatchObject({ lot: lot.ragCode, container: container.containerNumber, supplier: 'Texas Recyclers', origin: 'USA', category: 'Jeans', grade: 'A', sortedBy: 'Akram' });
     expect(pack.records[0].from[0].sortedAt).toBeTruthy();
 
-    // The packing list as the bale list sheet: the sample's eleven columns; "Cost" is what the buyer pays, never our cost.
+    // The packing list as the bale list sheet: the sample's columns with Qty; "Cost" is what the buyer pays, never our cost.
     const sheetOf = async (who: TestTenant, saleId: string, status = 200) => api(app, who).get(`/sales/${saleId}/export-pack/bale-list`).buffer(true).parse((r, cb) => {
       const chunks: Buffer[] = [];
       r.on('data', (c: Buffer) => chunks.push(c));
@@ -68,11 +69,11 @@ describe('Phase 9.2 export pack: shipment, packing list, commercial invoice, bal
     await wb.xlsx.load(file.body as never);
     const ws = wb.worksheets[0];
     expect(ws.name).toBe('Bale list');
-    expect((ws.getRow(1).values as unknown[]).slice(1)).toEqual(['Bale no', 'Item', 'Category', 'Grade', 'Brand', 'Weight kg', 'Pieces', 'Cost', 'Bale sale price', 'Piece price', 'Notes']);
+    expect((ws.getRow(1).values as unknown[]).slice(1)).toEqual(['Bale no', 'Qty', 'Item', 'Category', 'Grade', 'Brand', 'Weight kg', 'Pieces', 'Cost', 'Bale sale price', 'Piece price', 'Notes']);
     expect(ws.getRow(1).font?.bold).toBe(true);
-    expect(ws.rowCount).toBe(3);
-    expect((ws.getRow(2).values as unknown[]).slice(1, 9)).toEqual([items[0].repackUnit!.unitCode, 'Jeans · A', 'Jeans', 'A', null, 45, null, 30000].map((v) => v ?? undefined));
-    expect([9, 10, 11].map((c) => ws.getRow(2).getCell(c).value)).toEqual([null, null, null]);
+    expect(ws.rowCount).toBe(2);
+    expect((ws.getRow(2).values as unknown[]).slice(1, 10)).toEqual(['JEANS-A-45', 2, 'Jeans · A', 'Jeans', 'A', null, 90, null, 60000].map((v) => v ?? undefined));
+    expect([10, 11, 12].map((c) => ws.getRow(2).getCell(c).value)).toEqual([null, null, null]);
     await sheetOf(b, sale.id, 404);
 
     // The shipment can be filled in later.

@@ -60,7 +60,7 @@ export class WorkspaceRecordsService {
             select: {
               id: true, unitCode: true, weightKg: true, totalCost: true,
               category: { select: { name: true } }, grade: { select: { name: true } },
-              inventoryItems: { select: { id: true, status: true, quantity: true, usedQuantity: true } },
+              inventoryItems: { select: { id: true, status: true, quantity: true, usedQuantity: true, baleKind: { select: { code: true } } } },
             },
           },
         },
@@ -85,7 +85,7 @@ export class WorkspaceRecordsService {
       const u = a.repackUnit;
       const item = u.inventoryItems[0];
       const cur = bales.get(u.id) ?? {
-        id: u.id, itemId: item?.id ?? null, code: u.unitCode, category: u.category?.name ?? null, grade: u.grade?.name ?? null,
+        id: u.id, itemId: item?.id ?? null, code: u.inventoryItems.find((x) => x.baleKind)?.baleKind?.code ?? u.unitCode, category: u.category?.name ?? null, grade: u.grade?.name ?? null,
         kg: u.weightKg, sold: !!item && new Prisma.Decimal(item.usedQuantity).greaterThanOrEqualTo(item.quantity), costFromHere: ZERO, totalCost: u.totalCost,
       };
       cur.costFromHere = cur.costFromHere.add(a.allocatedCost);

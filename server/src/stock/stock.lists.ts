@@ -57,7 +57,7 @@ export const STOCK_LABELS: Record<string, { en: string; ur: string }> = {
 };
 
 type Item = Prisma.InventoryItemGetPayload<{
-  include: { repackUnit: { select: { unitCode: true } }; category: { select: { name: true } }; grade: { select: { name: true } }; warehouse: { select: { name: true } }; vendor: { select: { name: true } } };
+  include: { repackUnit: { select: { unitCode: true } }; baleKind: { select: { code: true } }; category: { select: { name: true } }; grade: { select: { name: true } }; warehouse: { select: { name: true } }; vendor: { select: { name: true } } };
 }>;
 
 /** Stock items in the workspace (enterprise plan E3.3): what is left, its value and age, per page. */
@@ -65,7 +65,10 @@ export const STOCK_LIST: ListResource = {
   name: 'stock',
   defaultSort: [{ field: 'date', dir: 'desc' }],
   fields: [
-    { key: 'code', type: 'string', path: ['repackUnit', 'unitCode'], sortable: true, filterable: true, searchable: true },
+    // The code a bale shares with the others of its kind (JEANS-1-45); its own number stays searchable.
+    { key: 'code', type: 'string', path: ['baleKind', 'code'], sortable: true, filterable: true, searchable: true },
+    { key: 'number', type: 'string', path: ['repackUnit', 'unitCode'], searchable: true, hidden: true },
+    { key: 'kindId', type: 'string', path: ['baleKindId'], filterable: true, groupable: true, hidden: true },
     { key: 'name', type: 'string', path: ['name'], sortable: true, filterable: true, searchable: true },
     // The name as it is stored ("Jeans A"): the sale screen keeps matching what people type against it.
     { key: 'plainName', type: 'string', path: ['name'], hidden: true },
@@ -100,6 +103,7 @@ export const STOCK_LIST: ListResource = {
   select: {
     id: true, name: true, categoryId: true, gradeId: true, source: true, unit: true, status: true, quantity: true, usedQuantity: true,
     weightKg: true, totalCost: true, salePrice: true, createdAt: true, warehouseId: true, priceTier: true, pcsCount: true,
+    baleKindId: true, baleKind: { select: { code: true } },
     repackUnit: { select: { unitCode: true } }, category: { select: { name: true } }, grade: { select: { name: true } },
     warehouse: { select: { name: true } }, vendor: { select: { name: true } },
   },
@@ -121,7 +125,7 @@ export const STOCK_LIST: ListResource = {
     // A sold item is no longer in a godown and has nothing left, no value left and no age: those read "—".
     const sold = i.status === InventoryStatus.SOLD;
     return {
-      id: i.id, code: i.repackUnit?.unitCode ?? null, name, plainName: i.name ?? ([i.category?.name, i.grade?.name].filter(Boolean).join(' ') || null), category: i.category?.name ?? null, categoryId: i.categoryId, grade: i.grade?.name ?? null,
+      id: i.id, code: i.baleKind?.code ?? i.repackUnit?.unitCode ?? null, number: i.repackUnit?.unitCode ?? null, kindId: i.baleKindId, name, plainName: i.name ?? ([i.category?.name, i.grade?.name].filter(Boolean).join(' ') || null), category: i.category?.name ?? null, categoryId: i.categoryId, grade: i.grade?.name ?? null,
       gradeId: i.gradeId, source: i.source, unit: i.unit, status: i.status, quantity: i.quantity, left: sold ? null : left, kg: i.weightKg, kgNow: kgNow(i), cost: i.totalCost, value: sold ? null : value,
       soldAt: null, soldTo: null, soldFor: null,
       // Bales made of a number of pieces: the pieces left (they can be sold by the piece).
@@ -187,12 +191,12 @@ export const ADJUSTMENTS_LIST: ListResource = {
   delegate: (prisma) => (prisma as PrismaClient).stockAdjustment as never,
   select: {
     id: true, createdAt: true, status: true, bookQuantity: true, countedQuantity: true, reason: true, costChange: true, inventoryItemId: true,
-    inventoryItem: { select: { name: true, unit: true, repackUnit: { select: { unitCode: true } }, category: { select: { name: true } }, grade: { select: { name: true } } } },
+    inventoryItem: { select: { name: true, unit: true, repackUnit: { select: { unitCode: true } }, baleKind: { select: { code: true } }, category: { select: { name: true } }, grade: { select: { name: true } } } },
   },
   toRow: (x) => {
-    const a = x as unknown as Prisma.StockAdjustmentGetPayload<{ include: { inventoryItem: { select: { name: true; unit: true; repackUnit: { select: { unitCode: true } }; category: { select: { name: true } }; grade: { select: { name: true } } } } } }>;
+    const a = x as unknown as Prisma.StockAdjustmentGetPayload<{ include: { inventoryItem: { select: { name: true; unit: true; repackUnit: { select: { unitCode: true } }; baleKind: { select: { code: true } }; category: { select: { name: true } }; grade: { select: { name: true } } } } } }>;
     const it = a.inventoryItem;
-    const label = it.repackUnit?.unitCode ?? it.name ?? [it.category?.name, it.grade?.name].filter(Boolean).join(' ');
+    const label = it.baleKind?.code ?? it.repackUnit?.unitCode ?? it.name ?? [it.category?.name, it.grade?.name].filter(Boolean).join(' ');
     return {
       id: a.id, date: a.createdAt, item: label, itemId: a.inventoryItemId, unit: it.unit, status: a.status, book: a.bookQuantity, counted: a.countedQuantity,
       difference: a.countedQuantity.sub(a.bookQuantity), reason: a.reason, costChange: a.costChange,

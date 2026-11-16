@@ -52,7 +52,7 @@ describe('Workspace inventory: stock list, lineage, ageing, counts with approval
     await api(app, a).patch(`/sorting/stage-2/${s2}/seal`, { wasteCategoryId: m.waste.id }).expect(200);
     const bale = await api(app, a).post('/stock/bales', { categoryId: m.jeans.id, gradeId: m.gradeA.id, weightKg: 500 }).expect(201);
     ids.bale = (await prisma.inventoryItem.findFirstOrThrow({ where: { repackUnitId: bale.body.id } })).id;
-    ids.baleCode = bale.body.unitCode;
+    ids.baleCode = bale.body.code;
     // Bought stock: 10 pieces for Rs 1,000; 3 sold.
     const tops = await api(app, a).post('/stock/items', { name: 'Ladies tops', unit: 'PIECE', quantity: 10, totalCost: 1000 }).expect(201);
     ids.tops = tops.body.id;
@@ -161,7 +161,7 @@ describe('Workspace inventory: stock list, lineage, ageing, counts with approval
     const unit = await prisma.inventoryItem.findUniqueOrThrow({ where: { id: ids.bale }, select: { repackUnit: { select: { unitCode: true } } } });
     const code = unit.repackUnit!.unitCode;
     const scanned = (await api(app, a).get(`/workspace/stock/scan/${encodeURIComponent(code)}`).expect(200)).body;
-    expect(scanned).toMatchObject({ id: ids.bale, code, godown: { name: 'Shershah shop' } });
+    expect(scanned).toMatchObject({ id: ids.bale, code: ids.baleCode, godown: { name: 'Shershah shop' } });
     await api(app, a).get('/workspace/stock/scan/NO-SUCH-CODE').expect(404);
     const main = await prisma.warehouse.findFirstOrThrow({ where: { tenantId: a.tenantId, code: 'MAIN' } });
     expect((await api(app, a).post('/workspace/stock/transfer', { godownId: main.id, itemIds: [ids.bale, ids.bale] }).expect(200)).body).toMatchObject({ moved: 1, alreadyThere: 0, godown: { name: 'Main godown' } });

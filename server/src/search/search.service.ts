@@ -60,8 +60,8 @@ export class SearchService {
         take: PER_GROUP,
       })),
       may('stock', () => this.prisma.inventoryItem.findMany({
-        where: { tenantId, OR: [{ repackUnit: { unitCode: has } }, { name: has }] },
-        select: { id: true, name: true, status: true, repackUnit: { select: { unitCode: true } }, category: { select: { name: true } } },
+        where: { tenantId, OR: [{ baleKind: { code: has } }, { repackUnit: { unitCode: has } }, { name: has }] },
+        select: { id: true, name: true, status: true, repackUnit: { select: { unitCode: true } }, baleKind: { select: { code: true } }, category: { select: { name: true } } },
         orderBy: { createdAt: 'desc' },
         take: PER_GROUP,
       })),
@@ -94,7 +94,7 @@ export class SearchService {
     return [
       ...containers.map((c) => ({ id: c.id, title: c.containerNumber, subtitle: c.vendor?.name ?? '', route: `/receive/records/containers/${c.id}`, group: 'containers', type: 'container', icon: 'truck' })),
       ...lots.map((l) => ({ id: l.id, title: l.ragCode, subtitle: l.container?.containerNumber ?? '', route: `/sort/records/${l.id}`, group: 'lots', type: 'lot', icon: 'boxes' })),
-      ...stock.map((s) => ({ id: s.id, title: s.repackUnit?.unitCode ?? s.name ?? '', subtitle: [s.category?.name, s.status].filter(Boolean).join(' · '), route: `/stock/items/${s.id}`, group: 'stock', type: 'stockItem', icon: 'package' })),
+      ...stock.map((s) => ({ id: s.id, title: s.baleKind?.code ?? s.repackUnit?.unitCode ?? s.name ?? '', subtitle: [s.category?.name, s.status].filter(Boolean).join(' · '), route: `/stock/items/${s.id}`, group: 'stock', type: 'stockItem', icon: 'package' })),
       ...customers.map((c) => ({ id: c.id, title: c.name, subtitle: [c.city, c.phone].filter(Boolean).join(' · '), route: `/khata/records/${c.id}`, group: 'customers', type: 'customer', icon: 'book' })),
       ...suppliers.map((v) => ({ id: v.id, title: v.name, subtitle: v.originCountry ?? '', route: '/settings/admin/vendors', group: 'suppliers', type: 'supplier', icon: 'truck' })),
       ...sales.map((s) => ({ id: s.id, title: s.saleNumber, subtitle: `${s.customer.name} · Rs ${s.totalAmount.toString()}`, route: `/sell/records/${s.id}`, group: 'sales', type: 'sale', icon: 'cart' })),

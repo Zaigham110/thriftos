@@ -82,11 +82,11 @@ const FIELDS = ['destinationCountry', 'portOfLoading', 'portOfDischarge', 'vesse
 
           @if (d === 'packing') {
             <table>
-              <thead><tr><th scope="col">#</th><th scope="col">{{ 'xp.code' | t }}</th><th scope="col">{{ 'xp.item' | t }}</th><th scope="col" class="num">{{ 'xp.kg' | t }}</th><th scope="col" class="num">{{ 'xp.pieces' | t }}</th></tr></thead>
+              <thead><tr><th scope="col">#</th><th scope="col">{{ 'xp.code' | t }}</th><th scope="col">{{ 'xp.item' | t }}</th><th scope="col" class="num">{{ 'xp.qty' | t }}</th><th scope="col" class="num">{{ 'xp.kg' | t }}</th><th scope="col" class="num">{{ 'xp.pieces' | t }}</th></tr></thead>
               <tbody>
-                @for (r of p.packing; track $index) { <tr><td>{{ $index + 1 }}</td><td class="ltr">{{ r.code ?? '—' }}</td><td>{{ r.item ?? '—' }}</td><td class="num">{{ r.kg ? i18n.kg(r.kg) : '—' }}</td><td class="num">{{ r.pieces ?? '—' }}</td></tr> }
+                @for (r of p.packing; track $index) { <tr><td>{{ $index + 1 }}</td><td class="ltr">{{ r.code ?? '—' }}</td><td>{{ r.item ?? '—' }}</td><td class="num">{{ i18n.num(r.quantity) }} {{ ('xp.unit.' + r.unit) | t }}</td><td class="num">{{ r.kg ? i18n.kg(r.kg) : '—' }}</td><td class="num">{{ r.pieces ?? '—' }}</td></tr> }
               </tbody>
-              <tfoot><tr><td colspan="3">{{ 'xp.totalBales' | t: { n: p.totals.bales } }}</td><td class="num">{{ i18n.kg(p.totals.kg) }}</td><td class="num">{{ p.totals.pieces || '—' }}</td></tr></tfoot>
+              <tfoot><tr><td colspan="4">{{ 'xp.totalBales' | t: { n: p.totals.bales } }}</td><td class="num">{{ i18n.kg(p.totals.kg) }}</td><td class="num">{{ p.totals.pieces || '—' }}</td></tr></tfoot>
             </table>
           } @else if (d === 'invoice') {
             <table>
@@ -99,7 +99,7 @@ const FIELDS = ['destinationCountry', 'portOfLoading', 'portOfDischarge', 'vesse
             <p class="small">{{ 'xp.invoiceNote' | t }}</p>
           } @else {
             <p class="small">{{ 'xp.recordsNote' | t }}</p>
-            @for (b of p.records; track b.code) {
+            @for (b of p.records; track $index) {
               <div class="rec">
                 <strong class="ltr">{{ b.code }}</strong> · {{ b.item ?? '—' }}@if (b.kg) { · {{ i18n.kg(b.kg) }} }@if (b.pieces) { · {{ 'ws.lf.piecesN' | t: { n: b.pieces } }} } · {{ 'xp.baled' | t: { date: day(b.madeAt) } }}
                 @for (f of b.from; track $index) {

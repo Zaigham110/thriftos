@@ -11,7 +11,7 @@ import { NumberFieldComponent } from '../../shared/floor/number-field.component'
 import { Tile, TilesComponent } from '../../shared/floor/tiles.component';
 import { ToastService } from '../../shared/floor/toast.service';
 
-interface MadeBale { id: string; unitCode: string; weightKg: string; baleIds?: string[] }
+interface MadeBale { id: string; unitCode: string; code?: string; weightKg: string; baleIds?: string[] }
 
 const kindId = (k: { categoryId: string; gradeId: string | null }) => `${k.categoryId}:${k.gradeId ?? ''}`;
 
@@ -182,9 +182,9 @@ export class MakeBaleComponent implements OnInit {
       });
       countUse('baleKind', kindId(k));
       this.count.set(1);
-      this.made.set(r.saved ? { id: r.response.id, ids: r.response.baleIds ?? [r.response.id], code: r.response.unitCode, kg } : { id: null, ids: [], code: null, kg });
+      this.made.set(r.saved ? { id: r.response.id, ids: r.response.baleIds ?? [r.response.id], code: r.response.code ?? r.response.unitCode, kg } : { id: null, ids: [], code: null, kg });
       if (r.saved) this.data.baleKinds().subscribe((list) => this.kinds.set(list));
-      this.toast.show(r.saved ? this.i18n.t('stock.baleSaved', { code: r.response.unitCode, kg: this.i18n.kg(kg) }) : this.i18n.t('sync.savedOnPhone'));
+      this.toast.show(r.saved ? this.i18n.t('stock.baleSaved', { code: r.response.code ?? r.response.unitCode, kg: this.i18n.kg(kg) }) : this.i18n.t('sync.savedOnPhone'));
       this.weightKg.set(null);
       this.pieces.set(null);
     } catch (e: any) {

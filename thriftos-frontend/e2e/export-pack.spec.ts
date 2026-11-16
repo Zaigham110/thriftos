@@ -15,7 +15,7 @@ test('export pack: export sale with shipment, packing list, invoice and bale rec
     const sessionId = s.session?.id ?? (await api.get(`/sorting/stage-1/summary?ragId=${lot.id}`)).session.id;
     const made = await api.post('/sorting/stage-1/allocate', { sessionId, categoryId: cats[0].id, bales: 1, baleWeightKg: 45 });
     const bale = await api.get(`/stock/bales/${made.baleIds[0]}`);
-    const code = bale.unitCode as string;
+    const code = bale.code as string;
     const buyer = await api.post('/customers', { name: `Dubai Buyer ${tag}`, phone: `0304${tag}1`, city: 'Dubai' });
 
     await page.setViewportSize({ width: 1280, height: 860 });

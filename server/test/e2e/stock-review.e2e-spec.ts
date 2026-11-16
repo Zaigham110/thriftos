@@ -37,7 +37,10 @@ describe('Stock review: sorted kg is stock, inventory by item, prices (e2e)', ()
     expect(value.total).toMatchObject({ items: 2, kg: '100', value: '50000' });
 
     const byItem = (await api(app, a).get('/workspace/stock/by-item').expect(200)).body;
-    expect(byItem.find((r: { name: string }) => r.name === 'Jeans')).toMatchObject({ bales: '1', stockKg: '40', sortedKg: '40', kg: '80', value: '50000' });
+    // The bale is a row with the code its kind shares; the sorted kg not baled yet is the item's own row.
+    const jeansRows = byItem.filter((r: { name: string }) => r.name === 'Jeans');
+    expect(jeansRows.find((r: { code?: string }) => r.code === 'JEANS-40')).toMatchObject({ bales: '1', stockKg: '40', sortedKg: '0', kg: '40', value: '25000' });
+    expect(jeansRows.find((r: { code?: string }) => !r.code)).toMatchObject({ bales: '0', stockKg: '0', sortedKg: '40', kg: '40', value: '25000' });
 
     // A price for every Jeans bale in stock; one bale's price can change on its own.
     await api(app, a).patch('/workspace/stock/price', { categoryId: m.jeans.id, salePrice: 30000 }).expect(200);
