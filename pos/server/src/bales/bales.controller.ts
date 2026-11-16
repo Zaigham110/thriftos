@@ -3,7 +3,7 @@ import { Bale, BaleStatus, Prisma } from '@prisma/client';
 import { audit } from '../common/audit';
 import { Actor, ManagerUp, Me } from '../common/auth.guard';
 import { PrismaService } from '../common/prisma.service';
-import { fail, optAmount, optText, text, wholeNumber } from '../common/util';
+import { D, fail, optAmount, optText, text, wholeNumber, ZERO } from '../common/util';
 
 const ON_SHELF: BaleStatus[] = [BaleStatus.IN_STOCK, BaleStatus.OPENED];
 
@@ -37,9 +37,10 @@ export class BalesController {
     }
     if (q.shipmentId) where.shipmentId = q.shipmentId;
     if (q.category) where.category = q.category;
+    if (q.kind) where.kindCode = q.kind;
     const search = (q.search ?? '').trim();
     if (search) {
-      where.OR = ['code', 'baleNo', 'item', 'category', 'grade', 'brand'].map((field) => ({ [field]: { contains: search, mode: 'insensitive' } }));
+      where.OR = ['kindCode', 'code', 'baleNo', 'item', 'category', 'grade', 'brand'].map((field) => ({ [field]: { contains: search, mode: 'insensitive' } }));
     }
     const take = Math.min(Number(q.take) || 100, 2000);
     const [bales, total, categories] = await Promise.all([
@@ -50,10 +51,55 @@ export class BalesController {
     return { total, categories: categories.map((c) => c.category), bales: bales.map((b) => this.view(me, b)) };
   }
 
-  /** The counter scans or types a sticker: an exact shop code or supplier bale no. */
+  /**
+   * Whole bales on this branch's shelf, one row per kind: the shared code, how many, their weight and (for those who
+   * may see cost) their value. Opened bales are not here; they are sold by the piece and listed one by one.
+   */
+  @Get('kinds')
+  async kinds(@Me() me: Actor, @Query() q: Record<string, string>) {
+    const where: Prisma.BaleWhereInput = { tenantId: me.tenantId, branchId: me.branchId, status: BaleStatus.IN_STOCK };
+    if (q.category) where.category = q.category;
+    const search = (q.search ?? '').trim();
+    if (search) where.OR = ['kindCode', 'code', 'baleNo', 'item', 'category', 'grade', 'brand'].map((field) => ({ [field]: { contains: search, mode: 'insensitive' } }));
+    const [bales, names] = await Promise.all([
+      this.prisma.bale.findMany({
+        where,
+        select: { code: true, kindCode: true, item: true, category: true, grade: true, weightKg: true, pieces: true, salePrice: true, landedCost: true },
+        orderBy: [{ createdAt: 'asc' }, { code: 'asc' }],
+        take: 20_000,
+      }),
+      this.prisma.baleKind.findMany({ where: { tenantId: me.tenantId }, select: { code: true, name: true } }),
+    ]);
+    const nameOf = new Map(names.map((k) => [k.code, k.name]));
+    const rows = new Map<string, { code: string; name: string; category: string | null; grade: string | null; weightKg: Prisma.Decimal | null; pieces: number | null; qty: number; kg: Prisma.Decimal; value: Prisma.Decimal; salePrice: Prisma.Decimal | null }>();
+    for (const b of bales) {
+      const code = b.kindCode ?? b.code;
+      // Oldest first, so the row's price is the price of the bale that sells next.
+      const row = rows.get(code) ?? { code, name: nameOf.get(code) ?? b.item, category: b.category, grade: b.grade, weightKg: b.weightKg, pieces: b.pieces, qty: 0, kg: ZERO, value: ZERO, salePrice: b.salePrice };
+      row.qty += 1;
+      row.kg = row.kg.plus(b.weightKg ?? new D(0));
+      row.value = row.value.plus(b.landedCost);
+      rows.set(code, row);
+    }
+    const kinds = [...rows.values()].sort((a, b) => a.code.localeCompare(b.code));
+    return { kinds: me.seesCost ? kinds : kinds.map(({ value: _v, ...rest }) => rest) };
+  }
+
+  /**
+   * The counter scans or types a sticker. A shared code means the kind: the answer is its oldest whole bale and how
+   * many are in stock. A bale's own number (stickers printed before shared codes) or the supplier's bale no. means
+   * that one bale.
+   */
   @Get('by-code/:code')
   async byCode(@Me() me: Actor, @Param('code') code: string) {
     const c = code.trim();
+    const kind = await this.prisma.baleKind.findFirst({ where: { tenantId: me.tenantId, code: { equals: c, mode: 'insensitive' } } });
+    if (kind) {
+      const where = { tenantId: me.tenantId, branchId: me.branchId, kindCode: kind.code, status: BaleStatus.IN_STOCK };
+      const [qty, oldest] = await Promise.all([this.prisma.bale.count({ where }), this.prisma.bale.findFirst({ where, orderBy: [{ createdAt: 'asc' }, { code: 'asc' }] })]);
+      if (!oldest) fail('NONE_IN_STOCK', `${kind.code} is not in stock.`, 409);
+      return { ...this.view(me, oldest), kind: { code: kind.code, name: kind.name, qty } };
+    }
     const bale =
       (await this.prisma.bale.findFirst({ where: { tenantId: me.tenantId, branchId: me.branchId, code: { equals: c, mode: 'insensitive' } } })) ??
       (await this.prisma.bale.findFirst({ where: { tenantId: me.tenantId, branchId: me.branchId, baleNo: { equals: c, mode: 'insensitive' }, status: { in: ON_SHELF } } }));

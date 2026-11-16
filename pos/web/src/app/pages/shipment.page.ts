@@ -54,7 +54,7 @@ type Detail = Shipment & { bales: Bale[]; soldAmount: string; soldCost: string }
             <tbody class="divide-y divide-stone-100">
               @for (b of s.bales; track b.id) {
                 <tr class="hover:bg-stone-50">
-                  <td class="td whitespace-nowrap"><a [routerLink]="['/stock', b.id]" class="inline-flex min-h-[40px] items-center font-semibold text-brand-700 underline">{{ b.code }}</a><div class="text-xs text-stone-500">{{ b.baleNo }}</div></td>
+                  <td class="td whitespace-nowrap"><a [routerLink]="['/stock', b.id]" class="inline-flex min-h-[40px] items-center font-semibold text-brand-700 underline">{{ b.kindCode || b.code }}</a><div class="text-xs text-stone-500">{{ b.kindCode ? b.code : '' }}{{ b.kindCode && b.baleNo ? ' · ' : '' }}{{ b.baleNo }}</div></td>
                   <td class="td"><div class="font-medium">{{ b.item }}</div><div class="text-xs text-stone-500">{{ b.category }}{{ b.category && b.grade ? ' · ' : '' }}{{ b.grade }}</div></td>
                   <td class="td num text-right">{{ b.weightKg ?? '—' }}</td>
                   <td class="td num text-right">{{ b.landedCost | money }}</td>

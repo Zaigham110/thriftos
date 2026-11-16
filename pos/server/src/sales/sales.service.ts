@@ -3,10 +3,11 @@ import { BaleStatus, KhataKind, LineKind, PayMethod, Prisma, RefundTo, SaleStatu
 import { audit, khata, openShift } from '../common/audit';
 import { Actor, isManager } from '../common/auth.guard';
 import { PrismaService } from '../common/prisma.service';
-import { amount, D, Dec, fail, moment, optText, pad, range, text, wholeNumber, ZERO } from '../common/util';
+import { amount, D, Dec, fail, moment, optText, pad, range, spread, text, wholeNumber, ZERO } from '../common/util';
 
 interface LineInput {
   baleId: string | null;
+  kindCode: string | null; // "this kind x quantity": the server picks the oldest whole bales
   kind: LineKind;
   description: string | null;
   quantity: number;
@@ -23,7 +24,7 @@ const SALE_FULL = {
   user: { select: { name: true } },
   customer: { select: { id: true, name: true, phone: true, balance: true } },
   payments: { select: { id: true, method: true, amount: true, reference: true }, orderBy: { id: 'asc' } },
-  lines: { include: { bale: { select: { code: true, baleNo: true } } }, orderBy: { id: 'asc' } },
+  lines: { include: { bale: { select: { code: true, baleNo: true, kindCode: true } } }, orderBy: { id: 'asc' } },
   returns: { include: { lines: true }, orderBy: { createdAt: 'asc' } },
 } satisfies Prisma.SaleInclude;
 
@@ -37,17 +38,19 @@ export class SalesService {
     const seen = new Set<string>();
     return raw.map((r: Record<string, unknown>) => {
       const kind = r?.kind === 'PIECE' ? LineKind.PIECE : r?.kind === 'BALE' ? LineKind.BALE : r?.kind === 'ITEM' ? LineKind.ITEM : fail('BAD_LINE', 'A line must be a bale, pieces or an item.');
-      const baleId = kind === LineKind.ITEM ? null : String(r.baleId ?? '');
-      if (kind !== LineKind.ITEM) {
+      // A whole-bale line names either one bale, or a kind (its shared code) and how many.
+      const kindCode = kind === LineKind.BALE && !r.baleId && r.kindCode ? text(r.kindCode, 'Code', 60) : null;
+      const baleId = kind === LineKind.ITEM || kindCode ? null : String(r.baleId ?? '');
+      if (kind !== LineKind.ITEM && !kindCode) {
         if (!baleId) fail('BAD_LINE', 'A line has no bale.');
         if (seen.has(baleId)) fail('BALE_TWICE', 'The same bale is on the bill twice. Change the number of pieces instead.');
         seen.add(baleId);
       }
-      const quantity = kind === LineKind.BALE ? 1 : wholeNumber(r.quantity ?? 1, kind === LineKind.PIECE ? 'Pieces' : 'Quantity');
+      const quantity = kindCode ? wholeNumber(r.quantity ?? 1, 'Quantity') : kind === LineKind.BALE ? 1 : wholeNumber(r.quantity ?? 1, kind === LineKind.PIECE ? 'Pieces' : 'Quantity');
       const unitPrice = amount(r.unitPrice, 'Price');
       const discount = amount(r.discount, 'Line discount');
       if (discount.greaterThan(unitPrice.times(quantity))) fail('DISCOUNT_TOO_BIG', 'A line discount is more than the line.');
-      return { baleId, kind, description: kind === LineKind.ITEM ? text(r.description, 'Item name', 80) : null, quantity, unitPrice, discount };
+      return { baleId, kindCode, kind, description: kind === LineKind.ITEM ? text(r.description, 'Item name', 80) : null, quantity, unitPrice, discount };
     });
   }
 
@@ -102,11 +105,25 @@ export class SalesService {
         where: { tenantId, id: { in: lines.filter((l) => l.baleId).map((l) => l.baleId!) } },
         select: { id: true, salePrice: true, piecePrice: true },
       });
-      const full = lines.reduce((sum, l) => {
+      // For a kind line: the prices of the bales that would be taken (the oldest ones).
+      let kindFull = ZERO;
+      for (const l of lines.filter((x) => x.kindCode)) {
+        const next = await this.prisma.bale.findMany({
+          where: { tenantId, branchId: me.branchId, kindCode: { equals: l.kindCode!, mode: 'insensitive' }, status: BaleStatus.IN_STOCK },
+          select: { salePrice: true },
+          orderBy: [{ createdAt: 'asc' }, { code: 'asc' }],
+          take: l.quantity,
+        });
+        for (let i = 0; i < l.quantity; i++) {
+          const list = next[i]?.salePrice ?? l.unitPrice;
+          kindFull = kindFull.plus(list.greaterThan(l.unitPrice) ? list : l.unitPrice);
+        }
+      }
+      const full = lines.filter((l) => !l.kindCode).reduce((sum, l) => {
         const bale = listed.find((b) => b.id === l.baleId);
         const list = (l.kind === LineKind.BALE ? bale?.salePrice : l.kind === LineKind.PIECE ? bale?.piecePrice : null) ?? l.unitPrice;
         return sum.plus((list.greaterThan(l.unitPrice) ? list : l.unitPrice).times(l.quantity));
-      }, ZERO);
+      }, kindFull);
       const pct = full.minus(net).times(100).dividedBy(full);
       if (pct.greaterThan(shop.cashierMaxDiscountPct)) {
         refuse('DISCOUNT_LIMIT', `A cashier can give ${shop.cashierMaxDiscountPct}% discount at most. Ask a manager to make this bill.`, 403);
@@ -137,8 +154,56 @@ export class SalesService {
 
     const saleId = await this.prisma.$transaction(async (tx) => {
       const prepared: Prisma.SaleLineCreateManySaleInput[] = [];
+      // Bales named one by one on this bill are theirs: a kind line never takes one of them.
+      const named = lines.filter((l) => l.baleId).map((l) => l.baleId!);
+      const tried: string[] = [];
       for (const line of lines) {
         const lineTotal = line.unitPrice.times(line.quantity).minus(line.discount);
+        if (line.kindCode) {
+          // "This kind x quantity": the oldest whole bales of this branch, each written as its own line with its own
+          // cost, so profit, khata, cancel and return work as for bales sold one by one.
+          const kind = await tx.baleKind.findFirst({ where: { tenantId, code: { equals: line.kindCode, mode: 'insensitive' } } });
+          if (!kind) fail('NOT_FOUND', `No bales have the code ${line.kindCode}.`, 404);
+          const got: { id: string; item: string; grade: string | null; landedCost: Dec }[] = [];
+          for (let round = 0; got.length < line.quantity && round < 5; round++) {
+            const next = await tx.bale.findMany({
+              where: { tenantId, branchId: me.branchId, kindCode: kind.code, status: BaleStatus.IN_STOCK, id: { notIn: [...named, ...tried] } },
+              select: { id: true, item: true, grade: true, landedCost: true },
+              orderBy: [{ createdAt: 'asc' }, { code: 'asc' }],
+              take: line.quantity - got.length,
+            });
+            if (!next.length) break;
+            for (const bale of next) {
+              tried.push(bale.id);
+              // The status check is in the update itself, so two counters cannot sell one bale.
+              const sold = await tx.bale.updateMany({ where: { id: bale.id, tenantId, status: BaleStatus.IN_STOCK }, data: { status: BaleStatus.SOLD, closedAt: new Date() } });
+              if (sold.count === 1) got.push(bale);
+            }
+          }
+          if (got.length < line.quantity) {
+            // Nothing is sold: leaving the transaction puts back the bales just taken.
+            if (!offline) fail('KIND_SHORT', `Only ${got.length} of ${kind.code} in stock.`, 409);
+            review.push(`Only ${got.length} of ${kind.code} were in stock, ${line.quantity} were sold.`);
+          }
+          const less = spread(line.discount, Array.from({ length: line.quantity }, () => null));
+          for (let i = 0; i < line.quantity; i++) {
+            const bale = got[i];
+            prepared.push({
+              tenantId,
+              baleId: bale?.id ?? null,
+              kind: LineKind.BALE,
+              description: bale ? [bale.item, bale.grade].filter(Boolean).join(' · ') : `${kind.code} ${kind.name}`,
+              quantity: 1,
+              unitPrice: line.unitPrice,
+              discount: less[i],
+              lineTotal: line.unitPrice.minus(less[i]),
+              unitCost: bale?.landedCost ?? ZERO,
+              costTotal: bale?.landedCost ?? ZERO,
+              conflict: !bale,
+            });
+          }
+          continue;
+        }
         if (line.kind === LineKind.ITEM) {
           prepared.push({ tenantId, kind: line.kind, description: line.description!, quantity: line.quantity, unitPrice: line.unitPrice, discount: line.discount, lineTotal, unitCost: ZERO, costTotal: ZERO });
           continue;

@@ -12,6 +12,8 @@ connection is down, and talks to the shop's receipt printer, cash drawer, sticke
 
 - Scan a sticker anywhere on the screen, tap a tile, or type. A closed bale sells whole; an opened bale sells by the
   piece. "Other item" adds things that are not a bale (bags, delivery).
+- Whole bales of the same kind share one code (`JEANS-1-45`) and one tile with a count. Scanning the code again adds
+  one more; the oldest bales are sold first. See "Shared bale codes".
 - Tap a line to change price, pieces or give a discount on it. Discount on the whole bill in rupees or percent
   (a cashier is held to the limit the owner set).
 - Pay: cash, bank / card, Easypaisa / JazzCash, mixed as needed. What is not paid goes on the chosen customer's
@@ -28,7 +30,7 @@ connection is down, and talks to the shop's receipt printer, cash drawer, sticke
 | Bills | The day's bills, search any bill, print again, **return** some lines or pieces (back on the shelf or damaged; refund by cash, bank, wallet or off the khata), cancel a bill |
 | Cash drawer | Open with the cash inside, cash in / out / to bank, count and close; expected against counted, shift report |
 | Expenses | What was spent, from the drawer or not |
-| Stock | Find any bale, open / close / finish, lost or damaged, new prices for many bales, stickers for many bales, **stock check** (scan the shelf, see what is missing) |
+| Stock | One row per code with quantity, kg and value; a row opens the bales behind it. Find any bale, open / close / finish, lost or damaged, new prices for many bales, stickers for many bales, **stock check** (scan the shelf, see what is missing) |
 | Shipments | Type the shipment once, upload its bale list (Excel / CSV), see what each shipment cost and earned |
 | Between branches | Send bales to another branch; they are "on the way" until that branch receives them |
 | Reports | Sales, profit, by day / category / grade / cashier / payment, tax, khata, expenses; stock value and age; every shipment; shifts. CSV export |
@@ -51,13 +53,34 @@ Set up once per device in **Manage → Printer and scanner**. Settings belong to
 | **Receipt printer**, network | Its address on the shop network (port 9100). The shop server sends the print | Every device, iPhone and iPad too |
 | **Receipt printer**, print window | Whatever printer the device has, 80 mm / 58 mm layout | Everywhere (shows the print window each time) |
 | **Cash drawer** | Plugged into the receipt printer; opens on cash sales, and with "Open drawer" (recorded) | With a direct or network receipt printer |
-| **Sticker printer** | Print window at the sticker size, or direct TSPL (TSC, Xprinter label models) over USB, Bluetooth, serial or network | As for receipt printers |
+| **Sticker printer** | Print window at the sticker size (barcode of the shared code), or direct TSPL (TSC, Xprinter label models) over USB, Bluetooth, serial or network | As for receipt printers |
 
 **Not yet tried on real devices.** The printer, drawer and sticker commands are written to the published ESC/POS and
 TSPL command sets and are covered by tests on the exact bytes; network printing is tested against a stand-in printer;
 the scanner detection is tested with timed key presses. No real printer, drawer, label printer, scanner or phone
 camera was available while building. Before a shop relies on it, do this once on its own hardware: print the test
 bill, open the drawer, print the test sticker and scan it at the till, all from Manage → Printer and scanner.
+
+## Shared bale codes
+
+Bales with the same category, grade, weight and pieces are one **kind** and share one code. Every bale is still its
+own record behind it, with its own number (`B-00012`), cost and shipment.
+
+- The code reads `CATEGORY-GRADE-KG`: `JEANS-1-45`. Counted in pieces it ends in P (`JEANS-1-200P`), with both
+  `JEANS-1-45-200P`, without a grade `JEANS-45`. Latin letters and digits, upper case; "Grade A" reads as A; a name
+  with no Latin letters reads as K. A bale with no category goes by its item name. 45 kg and 45.5 kg are two kinds.
+- If two different kinds would read the same, the later one ends in `-2`, `-3`… A code never changes once made, even
+  if the category is renamed. Codes are unique per business.
+- All stickers of a kind are the same: the shared code as text and barcode. A sticker printed earlier with the
+  bale's own number still scans, and means that very bale.
+- A shared code scanned or typed means the kind: the oldest whole bale of this branch, and one more each time.
+- A bill line can be "kind × quantity". The server takes the oldest bales and keeps one line per bale, so cost,
+  profit, khata, cancel and return work per bale. If fewer are in stock it sells nothing: "Only 2 of JEANS-1-45 in
+  stock". Bills and printouts show one row per kind and price (`JEANS-1-45 x 5`).
+- An opened bale carries the same sticker as its closed siblings, so a scan always means a whole bale; pieces are
+  sold by tapping the opened bale's own tile.
+- Stock check: each scan of a shared code counts the next bale of that kind.
+- Bales saved before this get their code when the server starts, by the same rule.
 
 ## Working offline
 
@@ -120,6 +143,25 @@ A public name gets a real certificate by itself. For a name that exists only on 
 
 One install is one business, with as many branches and tills as it needs.
 
+## On AWS
+
+A copy runs at `https://d18vg2xmnvrhqp.cloudfront.net` (Sydney, `ap-southeast-2`), apart from the ThriftOS server:
+
+- One `t4g.micro` server (`thriftos-pos`, Ubuntu 24.04 ARM, 16 GB disk, Elastic IP) running
+  `deploy/docker-compose.aws.yml` in `/opt/thriftos-pos`: the app, its Postgres and Caddy. Secrets were made on the
+  server (`/opt/thriftos-pos/.env`, mode 600) and are nowhere else.
+- CloudFront distribution `EQ6LWI7901EO1` gives the https address. The server's port 80 is open to CloudFront only,
+  and Caddy (`deploy/Caddyfile`) also wants CloudFront's secret header. No SSH port; reach the server with AWS
+  Systems Manager.
+- A new version: build the image for the server's chip (`docker buildx build --platform linux/arm64 -t
+  thriftos-pos:aws --load .`), `docker save thriftos-pos:aws | gzip`, upload it as `image.tar.gz` to the bucket
+  `thriftos-pos-deploy-<account>` (files there are removed after a day), then on the server load it and run
+  `docker compose -f docker-compose.aws.yml up -d`.
+- Network receipt printers (an address on the shop's own network) cannot be reached from AWS. Use a USB / Bluetooth
+  printer or the print window with this copy.
+- There is no automatic backup yet. By hand, on the server:
+  `docker exec thriftos-pos-db-1 pg_dump -U pos thriftos_pos > /opt/thriftos-pos/backups/backup.sql`.
+
 ## Work on it
 
 ```bash
@@ -130,10 +172,11 @@ cd ../web && npm install && npm start      # screens on :4300, /api goes to :310
 ```
 
 - `cd server && npm test`: reading bale lists, sharing costs, and whole shop days against a real database (setup,
-  import, bale and piece sales, split payments, khata, tax, drawer shift, returns, cancelling, held bills, branches
+  import, shared codes and selling a quantity of a kind, bale and piece sales, split payments, khata, tax, drawer shift, returns, cancelling, held bills, branches
   and transfers, offline bills, stock check, reports, network printing, PINs, roles). **They empty the database
   first**, so they refuse to run on a database whose name does not end in `_test`.
-- `cd web && npm run test:hardware`: receipt (ESC/POS) and sticker (TSPL) bytes, scanner detection.
+- `cd web && npm run test:hardware`: receipt (ESC/POS) and sticker (TSPL) bytes, scanner detection, stickers and bill rows of
+  shared codes.
 - `server/` NestJS + Prisma (PostgreSQL). Money is Prisma Decimal only; every row and query carries `tenantId`;
   stock, tills, shifts and bills also carry `branchId`.
 - `web/` Angular + Tailwind. `hardware/` printers and scanners, `offline/` the device's copy and its outbox,

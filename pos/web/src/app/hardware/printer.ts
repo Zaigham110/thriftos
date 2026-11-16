@@ -1,8 +1,8 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { Api, Bale, Sale } from '../core';
 import { drawerBytes, receiptBytes, ReceiptModel, reportBytes } from './escpos';
-import { labelData, receiptModel } from './receipt';
-import { labelBytes, LabelData } from './tspl';
+import { receiptModel } from './receipt';
+import { labelBytes, labelData, LabelData } from './tspl';
 
 /** How this device reaches a printer. `window` is the browser's own print window (any printer). */
 export type Link = 'window' | 'usb' | 'serial' | 'ble' | 'network';

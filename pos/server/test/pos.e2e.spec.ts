@@ -11,7 +11,9 @@ try {
 if (process.env.TEST_DATABASE_URL) process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
 process.env.POS_PRINT_LOOPBACK = '1';
 
+import * as bcrypt from 'bcryptjs';
 import { AppModule } from '../src/app.module';
+import { backfillKinds } from '../src/common/kinds';
 import { PrismaService } from '../src/common/prisma.service';
 
 /**
@@ -63,7 +65,7 @@ describe('Shop POS', () => {
     await app.init();
     prisma = app.get(PrismaService);
     // Children first: bills keep their bales and users, shipments keep their supplier.
-    for (const table of ['returnLine', 'saleReturn', 'salePayment', 'saleLine', 'customerEntry', 'sale', 'heldBill', 'cashMovement', 'shift', 'expense', 'transferLine', 'stockTransfer', 'stockCheckScan', 'stockCheck', 'auditLog', 'customer', 'bale', 'shipment', 'supplier', 'user', 'till', 'branch', 'shop'] as const) {
+    for (const table of ['returnLine', 'saleReturn', 'salePayment', 'saleLine', 'customerEntry', 'sale', 'heldBill', 'cashMovement', 'shift', 'expense', 'transferLine', 'stockTransfer', 'stockCheckScan', 'stockCheck', 'auditLog', 'customer', 'bale', 'baleKind', 'shipment', 'supplier', 'user', 'till', 'branch', 'shop'] as const) {
       await (prisma[table] as unknown as { deleteMany(): Promise<unknown> }).deleteMany();
     }
   });
@@ -416,6 +418,156 @@ describe('Shop POS', () => {
     expect(stock.totals).toMatchObject({ closed: 4, opened: 0 });
     expect(stock.shipments).toHaveLength(2);
     expect((await api().get('/api/reports/stock').set(as(manager))).body.shipments).toEqual([]);
+  });
+
+  // ---- Shared bale codes ----
+
+  const KINDS = [
+    'Bale no,Item,Category,Grade,Weight kg,Pieces,Cost,Bale sale price',
+    'K-1,Mens denim,Denim,1,45,,1000,2000',
+    'K-2,Ladies denim,Denim,1,45,,1100,2000',
+    'K-3,Mens denim,denim,1,45.00,,1200,2000',
+    'K-4,Mens denim,Denim,1,45.5,,1000,2000', // another weight: another kind
+    'K-5,Mens denim,Denim,Grade A,,200,1000,2000',
+    'K-6,Mens denim,Den im,1,45,,1000,2000', // reads the same as Denim-1-45, but is another kind
+    'K-7,Kapray,کپڑے,,45,,1000,2000',
+  ].join('\n');
+  const own = async (baleNo: string) => prisma.bale.findFirstOrThrow({ where: { baleNo } });
+  const denim = { kind: 'BALE', kindCode: 'DENIM-1-45', unitPrice: '2000' };
+
+  it('gives bales of the same kind one shared code, another weight another code, and a clash a suffix', async () => {
+    const res = await upload('/api/shipments', owner, { supplierName: 'Kind Traders', arrivedOn: '2026-11-15' }, KINDS).expect(201);
+    const bales = (await api().get(`/api/shipments/${res.body.id}`).set(as(owner))).body.bales;
+    expect(bales.map((b: { kindCode: string }) => b.kindCode)).toEqual(['DENIM-1-45', 'DENIM-1-45', 'DENIM-1-45', 'DENIM-1-45.5', 'DENIM-A-200P', 'DENIM-1-45-2', 'K-45']);
+    // Every bale is still its own record: own number, own cost.
+    expect(new Set(bales.map((b: { code: string }) => b.code)).size).toBe(7);
+    expect(bales.slice(0, 3).map((b: { landedCost: string }) => b.landedCost)).toEqual(['1000', '1100', '1200']);
+
+    // A later shipment of the same kind joins the code.
+    const more = await upload('/api/shipments', owner, { supplierName: 'Kind Traders', arrivedOn: '2026-11-16' }, 'Bale no,Item,Category,Grade,Weight kg,Cost,Bale sale price\nK-8,Mens denim,DENIM,1,45,1300,2000').expect(201);
+    const k8 = (await api().get(`/api/shipments/${more.body.id}`).set(as(owner))).body.bales[0];
+    expect(k8.kindCode).toBe('DENIM-1-45');
+  });
+
+  it('gives bales saved before shared codes their code by the same rule, oldest first', async () => {
+    const codes = async () => (await prisma.bale.findMany({ where: { baleNo: { startsWith: 'K-' } }, select: { baleNo: true, kindCode: true }, orderBy: { code: 'asc' } })).map((b) => [b.baleNo, b.kindCode]);
+    const before = await codes();
+    await prisma.bale.updateMany({ data: { kindCode: null } });
+    await prisma.baleKind.deleteMany();
+    expect(await backfillKinds(prisma)).toBe(await prisma.bale.count());
+    // The same codes as the import gave, the clash suffix included.
+    expect(await codes()).toEqual(before);
+    expect(before).toContainEqual(['K-6', 'DENIM-1-45-2']);
+    expect(await prisma.bale.count({ where: { kindCode: null } })).toBe(0);
+    expect(await backfillKinds(prisma)).toBe(0); // nothing left to do
+
+    // A code is fixed once given: renaming the category later does not change it.
+    const k8 = await own('K-8');
+    await api().patch(`/api/bales/${k8.id}`).set(as(owner)).send({ category: 'Jeans' }).expect(200);
+    expect((await own('K-8')).kindCode).toBe('DENIM-1-45');
+  });
+
+  it('shows stock as one row per kind with quantity, kg and value, and value only to those who see cost', async () => {
+    const rows = (await api().get('/api/bales/kinds?search=denim').set(as(owner)).expect(200)).body.kinds;
+    expect(rows.find((k: { code: string }) => k.code === 'DENIM-1-45')).toMatchObject({ name: 'Denim · 1', qty: 4, kg: '180', value: '4600', salePrice: '2000' });
+    expect(rows.find((k: { code: string }) => k.code === 'DENIM-1-45.5')).toMatchObject({ qty: 1, kg: '45.5' });
+    const seen = (await api().get('/api/bales/kinds').set(as(cashier)).expect(200)).body.kinds;
+    expect(seen.find((k: { code: string }) => k.code === 'DENIM-1-45')).toMatchObject({ qty: 4 });
+    expect(seen[0]).not.toHaveProperty('value');
+    // A row opens the bales behind it.
+    const behind = (await api().get('/api/bales?status=IN_STOCK&kind=DENIM-1-45').set(as(owner))).body;
+    expect(behind.total).toBe(4);
+  });
+
+  it('finds the kind by its shared code (oldest whole bale, how many), and one bale by its old sticker', async () => {
+    const k1 = await own('K-1');
+    const found = await bale('denim-1-45', cashier);
+    expect(found).toMatchObject({ id: k1.id, kindCode: 'DENIM-1-45', kind: { code: 'DENIM-1-45', qty: 4 } });
+    expect(found).not.toHaveProperty('landedCost');
+    // A sticker printed before shared codes carries the bale's own number, and still finds that bale.
+    const k3 = await own('K-3');
+    const old = await bale(k3.code, cashier);
+    expect(old).toMatchObject({ id: k3.id, kindCode: 'DENIM-1-45' });
+    expect(old).not.toHaveProperty('kind');
+  });
+
+  it('sells a quantity of a kind: the oldest bales, each with its own cost', async () => {
+    const sale = (await sell(manager, { lines: [{ ...denim, quantity: 2, discount: '100' }] }).expect(201)).body;
+    expect(sale).toMatchObject({ subtotal: '3900', total: '3900' });
+    const [k1, k2, k3, k8] = await Promise.all(['K-1', 'K-2', 'K-3', 'K-8'].map(own));
+    const full = (await api().get(`/api/sales/${sale.id}`).set(as(owner))).body;
+    // One line per bale behind the scenes, at the same price; the discount is shared between them.
+    expect(full.lines.map((l: { bale: { code: string; kindCode: string }; quantity: number; unitPrice: string; lineTotal: string; unitCost: string }) => [l.bale.code, l.bale.kindCode, l.quantity, l.unitPrice, l.lineTotal, l.unitCost])).toEqual([
+      [k1.code, 'DENIM-1-45', 1, '2000', '1950', '1000'],
+      [k2.code, 'DENIM-1-45', 1, '2000', '1950', '1100'],
+    ]);
+    expect(full).toMatchObject({ costTotal: '2100', profit: '1800' });
+    expect([k1.status, k2.status, k3.status, k8.status]).toEqual(['SOLD', 'SOLD', 'IN_STOCK', 'IN_STOCK']);
+
+    // Asking for more than is in stock sells nothing.
+    const short = (await sell(manager, { lines: [{ ...denim, quantity: 3 }, item('50')] }).expect(409)).body;
+    expect(short).toMatchObject({ code: 'KIND_SHORT', message: 'Only 2 of DENIM-1-45 in stock.' });
+    expect((await own('K-3')).status).toBe('IN_STOCK');
+    expect((await bale('DENIM-1-45')).kind.qty).toBe(2);
+
+    // A kind line and one of its own bales on one bill never take the same bale twice.
+    expect((await sell(manager, { lines: [{ baleId: k3.id, kind: 'BALE', unitPrice: '2000' }, { ...denim, quantity: 2 }] }).expect(409)).body.message).toBe('Only 1 of DENIM-1-45 in stock.');
+    const both = (await sell(manager, { lines: [{ ...denim, quantity: 1 }, { baleId: k3.id, kind: 'BALE', unitPrice: '2000' }] }).expect(201)).body;
+    expect(both.lines.map((l: { bale: { code: string } }) => l.bale.code)).toEqual([k8.code, k3.code]);
+    await sell(manager, { lines: [{ ...denim, quantity: 1 }] }).expect(409);
+    await sell(manager, { lines: [{ kind: 'BALE', kindCode: 'NO-SUCH-1', quantity: 1, unitPrice: '1' }] }).expect(404);
+
+    // Cancel and return work per bale, as before: the bales go back and the kind is in stock again.
+    await api().post(`/api/sales/${both.id}/cancel`).set(as(manager)).send({ reason: 'test' }).expect(201);
+    const back = (await api().post(`/api/sales/${sale.id}/returns`).set(as(manager)).send({ lines: [{ saleLineId: full.lines[0].id, quantity: 1 }], refundTo: 'CASH' }).expect(201)).body;
+    expect(back.sale.returnedTotal).toBe('1950');
+    expect((await bale('DENIM-1-45')).kind.qty).toBe(3);
+    expect((await bale('DENIM-1-45')).id).toBe(k1.id); // the oldest again
+  });
+
+  it('holds a cashier to the discount limit on a kind line too', async () => {
+    expect((await sell(cashier, { lines: [{ ...denim, quantity: 2, unitPrice: '1000' }] }).expect(403)).body.code).toBe('DISCOUNT_LIMIT');
+    expect((await bale('DENIM-1-45')).kind.qty).toBe(3);
+  });
+
+  it('keeps an offline bill of a kind that came up short, and marks it for review', async () => {
+    const sale = (await sell(manager, { lines: [{ ...denim, quantity: 4 }], offline: { code: 'T1-000900', soldAt: new Date().toISOString() } }).expect(201)).body;
+    expect(sale).toMatchObject({ code: 'T1-000900', total: '8000', needsReview: true });
+    expect(sale.reviewNote).toContain('Only 3 of DENIM-1-45 were in stock');
+    expect(sale.lines.map((l: { conflict: boolean }) => l.conflict)).toEqual([false, false, false, true]);
+    await api().post(`/api/sales/${sale.id}/cancel`).set(as(manager)).send({ reason: 'test' }).expect(201);
+    expect((await bale('DENIM-1-45')).kind.qty).toBe(3);
+  });
+
+  it('counts a kind in a stock check one scan at a time', async () => {
+    const check = (await api().post('/api/stock-checks').set(as(manager)).expect(201)).body;
+    const scan = async (code: string) => (await api().post(`/api/stock-checks/${check.id}/scan`).set(as(cashier)).send({ code })).body;
+    expect(await scan('DENIM-1-45')).toMatchObject({ again: false, kind: { counted: 1, total: 3 } });
+    expect(await scan((await own('K-3')).code)).toMatchObject({ again: false }); // an old sticker counts that very bale
+    expect(await scan('denim-1-45')).toMatchObject({ again: false, kind: { counted: 3, total: 3 } });
+    expect(await scan('DENIM-1-45')).toMatchObject({ again: true, kind: { counted: 3, total: 3 } });
+    const done = (await api().post(`/api/stock-checks/${check.id}/finish`).set(as(manager)).expect(201)).body;
+    expect(done.missing.some((b: { kindCode: string }) => b.kindCode === 'DENIM-1-45')).toBe(false);
+  });
+
+  it('keeps kinds to their own business: another one cannot see, scan or sell them', async () => {
+    const other = await prisma.shop.create({ data: { name: 'Other Shop', tillSeq: 1 } });
+    const branch = await prisma.branch.create({ data: { tenantId: other.id, name: 'Main shop' } });
+    await prisma.till.create({ data: { tenantId: other.id, branchId: branch.id, code: 'T1', name: 'Counter 1' } });
+    await prisma.user.create({ data: { tenantId: other.id, name: 'Other Owner', phone: '03009990001', passwordHash: await bcrypt.hash('other-pass', 4), role: 'OWNER' } });
+    const them = (await api().post('/api/auth/login').send({ phone: '03009990001', password: 'other-pass' }).expect(201)).body.token;
+
+    expect((await api().get('/api/bales/kinds').set(as(them)).expect(200)).body.kinds).toEqual([]);
+    await api().get('/api/bales/by-code/DENIM-1-45').set(as(them)).expect(404);
+    await api().post('/api/sales').set(as(them)).send({ lines: [{ ...denim, quantity: 1 }] }).expect(404);
+    expect((await bale('DENIM-1-45')).kind.qty).toBe(3);
+
+    // The same kind there gets the same readable code of its own (codes are unique per business, not everywhere).
+    const res = await upload('/api/shipments', them, { supplierName: 'Their supplier', arrivedOn: '2026-11-15' }, 'Item,Category,Grade,Weight kg,Cost,Bale sale price\nDenim,Denim,1,45,500,900').expect(201);
+    expect(res.body.bales).toBe(1);
+    expect(await bale('DENIM-1-45', them)).toMatchObject({ salePrice: '900', kind: { qty: 1 } });
+    expect((await api().post('/api/sales').set(as(them)).send({ lines: [{ ...denim, unitPrice: '900', quantity: 2 }] }).expect(409)).body.message).toBe('Only 1 of DENIM-1-45 in stock.');
+    expect((await bale('DENIM-1-45')).kind.qty).toBe(3);
   });
 
   it('prints to a network printer on the shop network only', async () => {

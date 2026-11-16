@@ -1,6 +1,6 @@
-import type { Bale, Sale, Shop } from '../core';
+import { billRows } from '../kinds';
+import type { Sale, Shop } from '../core';
 import type { ReceiptModel } from './escpos';
-import type { LabelData } from './tspl';
 
 const num = (v: string | number | null | undefined) => {
   const n = Number(v ?? 0);
@@ -27,10 +27,11 @@ export function receiptModel(sale: Sale, shop: Shop, branch: { name: string; add
   if (sale.customerName) meta.push(['Customer', sale.customerName]);
   if (sale.customerPhone) meta.push(['Phone', sale.customerPhone]);
 
-  const lines = (sale.lines ?? []).map((l) => {
-    const what = l.kind === 'BALE' ? 'whole bale' : `${l.quantity} x ${num(l.unitPrice)}`;
-    const less = Number(l.discount) > 0 ? `, less ${num(l.discount)}` : '';
-    return { name: l.description, detail: `${l.bale ? `${l.bale.code} ` : ''}${what}${less}`, total: num(l.lineTotal) };
+  // Whole bales of the same kind at the same price are one row with a quantity: JEANS-1-45 x 5.
+  const lines = billRows(sale.lines ?? []).map((r) => {
+    const what = r.kind === 'BALE' && !r.key ? 'whole bale' : r.kind === 'BALE' ? `x ${r.quantity} @ ${num(r.unitPrice)}` : `${r.quantity} x ${num(r.unitPrice)}`;
+    const less = r.discount > 0 ? `, less ${num(r.discount)}` : '';
+    return { name: r.name, detail: `${r.code ? `${r.code} ` : ''}${what}${less}`, total: num(r.total) };
   });
 
   const totals: ReceiptModel['totals'] = [];
@@ -50,15 +51,6 @@ export function receiptModel(sale: Sale, shop: Shop, branch: { name: string; add
   if (sale.note) notes.push(sale.note);
 
   return { title: shop.name, header, meta, lines, totals, payments, notes, footer: [shop.billFooter || 'Thank you. Come again.'], barcode: sale.code };
-}
-
-export function labelData(b: Bale): LabelData {
-  return {
-    code: b.code,
-    item: b.item,
-    detail: [b.grade ? `Grade ${b.grade}` : '', b.weightKg ? `${b.weightKg} kg` : '', b.baleNo ?? ''].filter(Boolean).join(' - '),
-    price: b.salePrice ? `Rs ${num(b.salePrice)}` : '',
-  };
 }
 
 /** The bill as plain words, for WhatsApp. */

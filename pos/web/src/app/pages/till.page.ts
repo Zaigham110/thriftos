@@ -1,7 +1,7 @@
 import { Component, computed, effect, ElementRef, HostListener, inject, input, OnDestroy, OnInit, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { Api, Bale, billMath, Customer, money, MoneyPipe, round2, typed, uid } from '../core';
+import { Api, Bale, billMath, Customer, kindName, money, MoneyPipe, oldestFirst, round2, shownCode, typed, uid } from '../core';
 import { CameraScan } from '../hardware/camera-scan';
 import { Scanner } from '../hardware/scanner';
 import { CartLine, Shelf } from '../offline/shelf';
@@ -22,7 +22,7 @@ interface Held {
   local?: boolean;
 }
 interface Parked {
-  lines: { baleId: string | null; kind: CartLine['kind']; name: string; quantity: number; price: number; discount: number }[];
+  lines: { baleId: string | null; kindCode?: string; kind: CartLine['kind']; name: string; quantity: number; price: number; discount: number }[];
   discount: { mode: 'amount' | 'percent'; value: number };
   customerId: string | null;
   note: string;
@@ -71,19 +71,21 @@ const SHOWN = 120;
 
         <div class="min-h-0 flex-1 overflow-y-auto px-3 pb-28 pt-3 md:px-4 md:pb-4">
           <div class="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-            @for (b of shown(); track b.id) {
+            @for (t of shown(); track t.id) {
+              @let b = t.bale;
               <div class="relative">
                 <button class="flex h-full min-h-[128px] w-full flex-col rounded-2xl border-2 bg-white p-3 text-left shadow-tile transition active:scale-[.97]" [class]="inCart(b) ? 'border-brand-600 ring-2 ring-brand-200' : 'border-transparent hover:border-stone-300'" (click)="add(b)">
                   <span class="flex min-h-[20px] items-center justify-between gap-2 text-[11px] font-semibold">
-                    <span class="num truncate text-stone-500">{{ b.code }}</span>
+                    <span class="truncate uppercase tracking-wide text-stone-400">{{ b.status === 'OPENED' ? 'Opened' : 'Whole bale' }}</span>
                     @if (b.status === 'OPENED') {
                       <span class="whitespace-nowrap rounded-md bg-amber-100 px-1.5 py-0.5 text-amber-900">{{ b.piecesLeft }} pcs left</span>
-                    } @else if (inCart(b)) {
-                      <span class="whitespace-nowrap rounded-md bg-brand-600 px-1.5 py-0.5 text-white">On bill</span>
+                    } @else if (onBill(b); as n) {
+                      <span class="whitespace-nowrap rounded-md bg-brand-600 px-1.5 py-0.5 text-white">{{ n }} of {{ t.qty }} on bill</span>
                     }
                   </span>
-                  <span class="mt-2 line-clamp-2 text-[15px] font-semibold leading-snug">{{ b.item }}</span>
-                  <span class="mt-0.5 truncate text-xs text-stone-500">{{ meta(b) }}</span>
+                  <span class="mt-2 line-clamp-2 text-[15px] font-semibold leading-snug">{{ b.status === 'OPENED' || apart(b) ? b.item : name(b) }}</span>
+                  <span class="num mt-0.5 truncate text-xs font-semibold text-stone-700">{{ code(b) }}</span>
+                  <span class="truncate text-xs text-stone-500">{{ meta(b, t.qty) }}</span>
                   <span class="mt-auto flex items-baseline gap-1 pt-2">
                     <span class="num text-[17px] font-bold tracking-tight sm:text-lg">{{ price(b) ? fmt(price(b)) : 'Set price' }}</span>
                     @if (b.status === 'OPENED') {
@@ -105,8 +107,8 @@ const SHOWN = 120;
                 <a routerLink="/shipments/new" class="btn-primary mt-4">Import a shipment</a>
               }
             </div>
-          } @else if (matches().length > shown().length) {
-            <p class="py-4 text-center text-sm text-stone-500">Showing {{ shown().length }} of {{ matches().length }}. Type or scan to find the rest.</p>
+          } @else if (tiles().length > shown().length) {
+            <p class="py-4 text-center text-sm text-stone-500">Showing {{ shown().length }} of {{ tiles().length }}. Type or scan to find the rest.</p>
           }
         </div>
       </section>
@@ -132,9 +134,9 @@ const SHOWN = 120;
             <div class="flex items-center gap-2 border-b border-stone-100 py-2 pl-4 pr-2">
               <button class="min-w-0 flex-1 text-left" (click)="edit(l)">
                 <span class="block truncate text-sm font-semibold">{{ l.name }}</span>
-                <span class="block truncate text-xs text-stone-500">{{ l.bale ? l.bale.code + ' · ' : '' }}{{ l.kind === 'BALE' ? 'whole bale' : l.quantity + ' × ' + fmt(l.price) }}{{ l.discount ? ' · less ' + fmt(l.discount) : '' }}</span>
+                <span class="block truncate text-xs text-stone-500">{{ l.bale ? (l.kindCode ?? code(l.bale)) + ' · ' : '' }}{{ l.kind === 'BALE' && !l.kindCode ? 'whole bale ' + l.bale!.code : l.quantity + ' × ' + fmt(l.price) }}{{ l.discount ? ' · less ' + fmt(l.discount) : '' }}</span>
               </button>
-              @if (l.kind !== 'BALE') {
+              @if (l.kind !== 'BALE' || l.kindCode) {
                 <div class="flex shrink-0 items-center rounded-xl bg-stone-100">
                   <button class="flex h-11 w-10 items-center justify-center" (click)="step(l, -1)" [attr.aria-label]="'One less of ' + l.name"><pos-icon name="minus" size="h-4 w-4" /></button>
                   <span class="num w-7 text-center text-sm font-bold">{{ l.quantity }}</span>
@@ -187,8 +189,8 @@ const SHOWN = 120;
     <!-- One line: price, quantity, discount -->
     @if (line(); as l) {
       <pos-sheet [heading]="l.name" (closed)="line.set(null)">
-        <p class="-mt-1 mb-3 text-sm text-stone-500">{{ l.bale ? l.bale.code + ' · ' : '' }}{{ l.kind === 'BALE' ? 'Whole bale' : l.kind === 'PIECE' ? l.bale!.piecesLeft + ' pieces in the bale' : 'Other item' }}</p>
-        <div class="grid grid-cols-1 gap-2" [class]="l.kind === 'BALE' ? 'grid-cols-2' : 'grid-cols-3'">
+        <p class="-mt-1 mb-3 text-sm text-stone-500">{{ l.bale ? (l.kindCode ?? code(l.bale)) + ' · ' : '' }}{{ l.kindCode ? most(l) + ' whole bales in stock' : l.kind === 'BALE' ? 'Whole bale ' + l.bale!.code : l.kind === 'PIECE' ? l.bale!.piecesLeft + ' pieces in the bale' : 'Other item' }}</p>
+        <div class="grid grid-cols-1 gap-2" [class]="fields(l).length === 2 ? 'grid-cols-2' : 'grid-cols-3'">
           @for (f of fields(l); track f.key) {
             <button class="rounded-2xl border-2 px-3 py-2 text-left" [class]="field() === f.key ? 'border-brand-600 bg-brand-50' : 'border-stone-200'" (click)="pickField(f.key)">
               <span class="block text-xs font-medium text-stone-500">{{ f.label }}</span>
@@ -281,7 +283,7 @@ const SHOWN = 120;
       <pos-open-bale [bale]="b" (closed)="opening.set(null)" (opened)="opened($event)" />
     }
     @if (camera()) {
-      <pos-camera-scan (closed)="camera.set(false)" (scanned)="camera.set(false); code($event)" />
+      <pos-camera-scan (closed)="camera.set(false)" (scanned)="camera.set(false); scan($event)" />
     }
     @if (paying()) {
       <pos-pay-sheet [lines]="cart()" [discount]="math().discount" [total]="math().total" [customer]="customer()" [note]="note()" (closed)="paying.set(false)" (finished)="paying.set(false); clear(false)" (pickCustomer)="customers.set(true)" />
@@ -295,7 +297,7 @@ export class TillPage implements OnInit, OnDestroy {
   private readonly ask = inject(Ask);
   private readonly box = viewChild.required<ElementRef<HTMLInputElement>>('box');
 
-  /** From a bale's "Sell" button: /?bale=B-00012 */
+  /** From a bale's "Sell" button: /?bale=B-00012 (that very bale) */
   readonly bale = input<string>();
 
   readonly fmt = money;
@@ -343,10 +345,28 @@ export class TillPage implements OnInit, OnDestroy {
       if (f === 'closed' && b.status !== 'IN_STOCK') return false;
       if (f === 'opened' && b.status !== 'OPENED') return false;
       if (f.startsWith('cat:') && b.category !== f.slice(4)) return false;
-      return !q || [b.code, b.baleNo, b.item, b.category, b.grade, b.brand].some((v) => (v ?? '').toLowerCase().includes(q));
+      return !q || [b.kindCode, b.code, b.baleNo, b.item, b.category, b.grade, b.brand].some((v) => (v ?? '').toLowerCase().includes(q));
     });
   });
-  readonly shown = computed(() => this.matches().slice(0, SHOWN));
+  /** One tile per kind of whole bale (with how many), and one per opened bale. */
+  readonly tiles = computed(() => {
+    const tiles: { id: string; bale: Bale; qty: number }[] = [];
+    const byKind = new Map<string, { id: string; bale: Bale; qty: number }>();
+    for (const b of this.matches()) {
+      const kind = b.status === 'IN_STOCK' && b.kindCode ? b.kindCode : '';
+      const tile = kind ? byKind.get(kind) : undefined;
+      if (tile) {
+        tile.qty += 1;
+        if (oldestFirst(b, tile.bale) < 0) tile.bale = b; // the tile shows the bale that sells next
+      } else {
+        const made = { id: kind || b.id, bale: b, qty: 1 };
+        if (kind) byKind.set(kind, made);
+        tiles.push(made);
+      }
+    }
+    return tiles;
+  });
+  readonly shown = computed(() => this.tiles().slice(0, SHOWN));
   readonly people = computed(() => {
     const q = this.who().trim().toLowerCase();
     return this.shelf.customers().filter((c) => !q || c.name.toLowerCase().includes(q) || (c.phone ?? '').includes(q)).slice(0, 60);
@@ -373,7 +393,8 @@ export class TillPage implements OnInit, OnDestroy {
     // A scan counts only when the till itself is in front, not while a sheet is open over it.
     this.stop = this.scanner.listen((code) => {
       if (this.line() || this.discounting() || this.customers() || this.itemOpen() || this.heldOpen() || this.opening() || this.ask.question()) return;
-      this.code(code);
+      this.scan(code);
+      this.query.set(''); // a scanner that typed into the search box leaves its code there
     });
     if (!this.shelf.loaded()) await this.shelf.start();
     try {
@@ -383,7 +404,7 @@ export class TillPage implements OnInit, OnDestroy {
       localStorage.removeItem(CART);
     }
     this.restored.set(true);
-    if (this.bale()) this.code(this.bale()!);
+    if (this.bale()) this.scan(this.bale()!);
   }
 
   ngOnDestroy() {
@@ -418,8 +439,10 @@ export class TillPage implements OnInit, OnDestroy {
     else if (e.key === 'F9') run(() => this.pay());
   }
 
-  meta(b: Bale) {
-    return [b.grade ? `Grade ${b.grade}` : '', b.weightKg ? `${+b.weightKg} kg` : '', b.baleNo ?? ''].filter(Boolean).join(' · ');
+  /** Under the name: a kind says how many are in stock; one bale (opened, or from before shared codes) says which it is. */
+  meta(b: Bale, qty: number) {
+    if (b.status === 'IN_STOCK' && b.kindCode) return [`${qty} in stock`, b.weightKg ? `${+b.weightKg} kg` : '', b.pieces ? `${b.pieces} pcs` : ''].filter(Boolean).join(' · ');
+    return [b.grade ? `Grade ${b.grade}` : '', b.weightKg ? `${+b.weightKg} kg` : '', b.kindCode ? `bale ${b.code}` : (b.baleNo ?? '')].filter(Boolean).join(' · ');
   }
   price(b: Bale) {
     return Number(b.status === 'OPENED' ? b.piecePrice : b.salePrice) || 0;
@@ -427,8 +450,24 @@ export class TillPage implements OnInit, OnDestroy {
   lineTotal(l: CartLine) {
     return round2(l.quantity * l.price - l.discount);
   }
+  readonly code = shownCode;
+  readonly name = kindName;
+  /** A whole bale saved before shared codes: it has only its own number and sells one at a time. */
+  apart(b: Bale) {
+    return b.status === 'IN_STOCK' && !b.kindCode;
+  }
   inCart(b: Bale) {
-    return this.cart().some((l) => l.bale?.id === b.id);
+    return this.onBill(b) > 0;
+  }
+  /** How many of this tile are on the bill: whole bales of its kind, or this very bale. */
+  onBill(b: Bale): number {
+    if (b.status === 'IN_STOCK' && b.kindCode) return this.cart().reduce((n, l) => n + (l.kindCode === b.kindCode ? l.quantity : l.kind === 'BALE' && l.bale?.kindCode === b.kindCode ? 1 : 0), 0);
+    return this.cart().some((l) => l.bale?.id === b.id) ? 1 : 0;
+  }
+  /** The most a line can hold: whole bales of the kind still free, or pieces left in the bale. */
+  most(l: CartLine): number {
+    if (l.kindCode) return this.shelf.whole(l.kindCode).length - this.cart().filter((x) => x.kind === 'BALE' && !x.kindCode && x.bale?.kindCode === l.kindCode).length;
+    return l.kind === 'PIECE' ? l.bale!.piecesLeft : 9999;
   }
 
   // ---- Finding ----
@@ -437,38 +476,60 @@ export class TillPage implements OnInit, OnDestroy {
   enter() {
     const q = this.query().trim();
     if (!q) return;
-    const exact = this.shelf.find(q);
-    const only = this.matches().length === 1 ? this.matches()[0] : undefined;
-    if (exact ?? only) {
-      if (this.add((exact ?? only)!)) this.query.set('');
+    const only = this.tiles().length === 1 ? this.tiles()[0].bale : undefined;
+    if (this.shelf.whole(q).length || this.shelf.find(q)) {
+      if (this.scan(q)) this.query.set('');
+    } else if (only) {
+      if (this.add(only)) this.query.set('');
     } else if (!this.matches().length) void this.unknown(q);
   }
 
   /** A scanned sticker (scanner or camera). */
-  code(code: string) {
+  scan(code: string): boolean {
+    // A shared code is the kind: one more whole bale, the oldest first. A bale's own number is that very bale.
+    const whole = this.shelf.whole(code);
+    if (whole.length) return this.add(whole[0]);
     const bale = this.shelf.find(code);
-    if (bale) this.add(bale);
-    else void this.unknown(code);
+    if (bale) return this.add(bale, true);
+    void this.unknown(code);
+    return false;
   }
 
   /** Not on this till's shelf: the server may know why (sold, other branch). */
   private async unknown(code: string) {
     navigator.vibrate?.([80, 60, 80]);
     try {
-      const bale = await this.api.get<Bale>(`/bales/by-code/${encodeURIComponent(code)}`);
+      const bale = await this.api.get<Bale & { kind?: { code: string; qty: number } }>(`/bales/by-code/${encodeURIComponent(code)}`);
       if (bale.status === 'IN_STOCK' || bale.status === 'OPENED') {
         this.shelf.put(bale);
-        this.add(bale);
+        this.add(bale, !bale.kind);
       } else this.api.say(`Bale ${bale.code} is ${{ SOLD: 'already sold', FINISHED: 'finished', IN_TRANSIT: 'on the way to another branch', WRITTEN_OFF: 'written off' }[bale.status as string] ?? 'not on the shelf'}.`, true);
-    } catch {
-      this.api.say(`No bale on this shelf has the number "${code}".`, true);
+    } catch (e) {
+      // The server knows the code but has none here ("JEANS-1-45 is not in stock"); otherwise nobody knows it.
+      this.api.say(this.api.unreachable(e) || !/not in stock/.test(this.api.why(e)) ? `No bale on this shelf has the number "${code}".` : this.api.why(e), true);
     }
   }
 
   // ---- The bill ----
 
-  /** A closed bale goes on whole; an opened bale as one more piece. */
-  add(bale: Bale): boolean {
+  /**
+   * A whole bale goes on as one more of its kind (the server takes the oldest); an opened bale as one more piece.
+   * `exact`: this very bale, from a sticker printed with the bale's own number.
+   */
+  add(bale: Bale, exact = false): boolean {
+    if (bale.status === 'IN_STOCK' && bale.kindCode) {
+      const kind = bale.kindCode;
+      const line = this.cart().find((l) => l.kindCode === kind);
+      const named = this.cart().filter((l) => l.kind === 'BALE' && !l.kindCode && l.bale?.kindCode === kind);
+      if (exact && named.some((l) => l.bale!.id === bale.id)) return this.no(`Bale ${bale.code} is already on the bill.`);
+      const free = this.shelf.whole(kind).length - named.length - (line?.quantity ?? 0);
+      if (free < 1) return this.no(`Only ${this.shelf.whole(kind).length} of ${kind} in stock.`);
+      if (exact) this.push({ key: uid(), kind: 'BALE', bale, name: kindName(bale), quantity: 1, price: Number(bale.salePrice) || 0, discount: 0 });
+      else if (line) this.change(line, { quantity: line.quantity + 1 });
+      else this.push({ key: uid(), kind: 'BALE', kindCode: kind, bale, name: kindName(bale), quantity: 1, price: Number(bale.salePrice) || 0, discount: 0 });
+      if (line && !exact) navigator.vibrate?.(25);
+      return true;
+    }
     const have = this.cart().find((l) => l.bale?.id === bale.id);
     if (bale.status === 'OPENED') {
       if (have) return this.step(have, 1);
@@ -493,8 +554,8 @@ export class TillPage implements OnInit, OnDestroy {
       this.remove(l);
       return true;
     }
-    const most = l.kind === 'PIECE' ? l.bale!.piecesLeft : 9999;
-    if (wanted > most) return this.no(`Bale ${l.bale!.code} has ${most} pieces left.`);
+    const most = this.most(l);
+    if (wanted > most) return this.no(l.kindCode ? `Only ${most} of ${l.kindCode} in stock.` : `Bale ${l.bale!.code} has ${most} pieces left.`);
     this.change(l, { quantity: wanted });
     return true;
   }
@@ -531,7 +592,7 @@ export class TillPage implements OnInit, OnDestroy {
   fields(l: CartLine): { key: 'price' | 'quantity' | 'discount'; label: string }[] {
     const price = { key: 'price' as const, label: l.kind === 'BALE' ? 'Bale price' : 'Price each' };
     const less = { key: 'discount' as const, label: 'Less (Rs)' };
-    return l.kind === 'BALE' ? [price, less] : [price, { key: 'quantity' as const, label: l.kind === 'PIECE' ? 'Pieces' : 'How many' }, less];
+    return l.kind === 'BALE' && !l.kindCode ? [price, less] : [price, { key: 'quantity' as const, label: l.kindCode ? 'Bales' : l.kind === 'PIECE' ? 'Pieces' : 'How many' }, less];
   }
   edit(l: CartLine) {
     this.draft.set({ price: l.price ? String(l.price) : '', quantity: String(l.quantity), discount: l.discount ? String(l.discount) : '' });
@@ -553,9 +614,10 @@ export class TillPage implements OnInit, OnDestroy {
   }
   saveLine(l: CartLine) {
     const d = this.draft();
-    const most = l.kind === 'PIECE' ? l.bale!.piecesLeft : 9999;
-    const quantity = l.kind === 'BALE' ? 1 : Math.min(Math.max(Math.floor(typed(d.quantity)), 1), most);
+    const most = this.most(l);
+    const quantity = l.kind === 'BALE' && !l.kindCode ? 1 : Math.min(Math.max(Math.floor(typed(d.quantity)), 1), most);
     const price = typed(d.price);
+    if (l.kindCode && typed(d.quantity) > most) this.api.say(`Only ${most} of ${l.kindCode} in stock.`, true);
     if (l.kind === 'PIECE' && typed(d.quantity) > most) this.api.say(`Bale ${l.bale!.code} has ${most} pieces left.`, true);
     this.change(l, { price, quantity, discount: Math.min(typed(d.discount), price * quantity) });
     this.line.set(null);
@@ -629,7 +691,7 @@ export class TillPage implements OnInit, OnDestroy {
   }
 
   private park(): Parked {
-    return { lines: this.cart().map((l) => ({ baleId: l.bale?.id ?? null, kind: l.kind, name: l.name, quantity: l.quantity, price: l.price, discount: l.discount })), discount: this.discount(), customerId: this.customer()?.id ?? null, note: this.note() };
+    return { lines: this.cart().map((l) => ({ baleId: l.kindCode ? null : (l.bale?.id ?? null), kindCode: l.kindCode, kind: l.kind, name: l.name, quantity: l.quantity, price: l.price, discount: l.discount })), discount: this.discount(), customerId: this.customer()?.id ?? null, note: this.note() };
   }
 
   /** Puts a parked bill back on the till. Bales that were sold meanwhile are left off, and said. */
@@ -637,6 +699,14 @@ export class TillPage implements OnInit, OnDestroy {
     const gone: string[] = [];
     const lines: CartLine[] = [];
     for (const l of p.lines) {
+      if (l.kindCode) {
+        // Whole bales by kind: as many as are still free on the shelf.
+        const whole = this.shelf.whole(l.kindCode);
+        const free = whole.length - lines.reduce((n, x) => n + (x.kindCode === l.kindCode ? x.quantity : x.kind === 'BALE' && x.bale?.kindCode === l.kindCode ? 1 : 0), 0);
+        if (free < 1) gone.push(l.name);
+        else lines.push({ key: uid(), kind: 'BALE', kindCode: l.kindCode, bale: whole[0], name: l.name, quantity: Math.min(l.quantity, free), price: l.price, discount: l.discount });
+        continue;
+      }
       const bale = l.baleId ? (this.shelf.bales().find((b) => b.id === l.baleId) ?? null) : null;
       if (l.baleId && (!bale || (l.kind === 'BALE' && bale.status !== 'IN_STOCK') || (l.kind === 'PIECE' && bale.status !== 'OPENED'))) gone.push(l.name);
       else lines.push({ key: uid(), kind: l.kind, bale, name: l.name, quantity: l.kind === 'PIECE' ? Math.min(l.quantity, bale!.piecesLeft) : l.quantity, price: l.price, discount: l.discount });

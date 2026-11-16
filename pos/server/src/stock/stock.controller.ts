@@ -6,7 +6,7 @@ import { PrismaService } from '../common/prisma.service';
 import { fail, optText, pad, text } from '../common/util';
 
 const ON_SHELF: BaleStatus[] = [BaleStatus.IN_STOCK, BaleStatus.OPENED];
-const BALE = { id: true, code: true, baleNo: true, item: true, category: true, grade: true, weightKg: true, status: true, pieces: true, piecesSold: true } as const;
+const BALE = { id: true, code: true, kindCode: true, baleNo: true, item: true, category: true, grade: true, weightKg: true, status: true, pieces: true, piecesSold: true } as const;
 
 /** Moving bales between branches, and counting the shelf. */
 @Controller()
@@ -136,7 +136,20 @@ export class StockController {
   async scan(@Me() me: Actor, @Param('id') id: string, @Body() body: Record<string, unknown>) {
     const check = await this.prisma.stockCheck.findFirst({ where: { id, tenantId: me.tenantId, branchId: me.branchId, finishedAt: null } });
     if (!check) fail('NOT_FOUND', 'This stock check is finished.', 404);
-    const code = text(body.code, 'Bale number', 40);
+    const code = text(body.code, 'Bale number', 60);
+    const found = () => this.prisma.stockCheckScan.count({ where: { checkId: id } });
+    // A shared code cannot say which bale of the kind this is, so each scan counts the next one not counted yet.
+    const kind = await this.prisma.baleKind.findFirst({ where: { tenantId: me.tenantId, code: { equals: code, mode: 'insensitive' } } });
+    if (kind) {
+      const onShelf = { tenantId: me.tenantId, branchId: me.branchId, kindCode: kind.code, status: { in: ON_SHELF } };
+      const counted = (await this.prisma.stockCheckScan.findMany({ where: { checkId: id, tenantId: me.tenantId }, select: { baleId: true } })).map((s) => s.baleId);
+      const all = await this.prisma.bale.findMany({ where: onShelf, select: BALE, orderBy: [{ createdAt: 'asc' }, { code: 'asc' }] });
+      if (!all.length) fail('NOT_ON_SHELF', `${kind.code} is on the shelf but the system has none in this branch. Tell the owner.`, 409);
+      const next = all.find((b) => !counted.includes(b.id));
+      if (next) await this.prisma.stockCheckScan.create({ data: { tenantId: me.tenantId, checkId: id, baleId: next.id } });
+      const done = all.filter((b) => counted.includes(b.id)).length + (next ? 1 : 0);
+      return { bale: next ?? all[0], again: !next, kind: { code: kind.code, counted: done, total: all.length }, found: await found(), expected: check.expected };
+    }
     const bale =
       (await this.prisma.bale.findFirst({ where: { tenantId: me.tenantId, code: { equals: code, mode: 'insensitive' } }, select: { ...BALE, branchId: true } })) ??
       (await this.prisma.bale.findFirst({ where: { tenantId: me.tenantId, branchId: me.branchId, baleNo: { equals: code, mode: 'insensitive' }, status: { in: ON_SHELF } }, select: { ...BALE, branchId: true } }));
