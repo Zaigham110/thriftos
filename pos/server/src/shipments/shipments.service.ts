@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Actor } from '../common/auth.guard';
+import { kindCodes } from '../common/kinds';
 import { PrismaService } from '../common/prisma.service';
 import { amount, D, day, Dec, fail, optDay, optText, pad, spread, text, ZERO } from '../common/util';
 import { BaleRow, readBaleFile } from './bale-file';
@@ -155,12 +156,15 @@ export class ShipmentsService {
             createdById: me.id,
           },
         });
+        // Bales of the same kind share one code; each bale also keeps its own number.
+        const kinds = await kindCodes(tx, tenantId, plan.bales.map(({ row }) => row));
         await tx.bale.createMany({
           data: plan.bales.map(({ row, cost, landedCost }, i) => ({
             tenantId,
             branchId: me.branchId,
             shipmentId: shipment.id,
             code: `B-${pad(firstBale + i, 5)}`,
+            kindCode: kinds[i],
             ...this.baleFields(row),
             cost,
             landedCost,

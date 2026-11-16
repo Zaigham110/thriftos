@@ -42,7 +42,7 @@ import { Printer } from '../hardware/printer';
             }
           </div>
         } @else if (job.kind === 'labels') {
-          @for (l of job.labels; track l.code) {
+          @for (l of job.labels; track $index) {
             <div class="flex flex-col justify-between overflow-hidden px-[2mm] py-[1.5mm] font-sans" style="break-after: page" [style.height.mm]="job.heightMm">
               <div>
                 <div class="truncate text-[11px] font-bold leading-tight">{{ l.item }}</div>

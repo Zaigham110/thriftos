@@ -20,7 +20,7 @@ type Detail = Bale & { sales: { id: string; kind: string; quantity: number; line
           <h1>{{ b.item }}</h1>
           <span class="tag" [class]="tone[b.status]">{{ label[b.status] }}</span>
         </div>
-        <p class="text-sm text-stone-600">{{ b.code }}{{ b.baleNo ? ' · supplier no. ' + b.baleNo : '' }}</p>
+        <p class="text-sm text-stone-600">@if (b.kindCode) { <b class="num text-stone-900">{{ b.kindCode }}</b> · bale }{{ ' ' + b.code }}{{ b.baleNo ? ' · supplier no. ' + b.baleNo : '' }}</p>
 
         <div class="mt-4 flex flex-wrap gap-2">
           @if (b.status === 'IN_STOCK') {

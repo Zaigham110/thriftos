@@ -46,7 +46,7 @@ export class DeviceController {
     const [bales, customers, shift, held, review, today, incoming] = await Promise.all([
       this.prisma.bale.findMany({
         where: { tenantId, branchId: me.branchId, status: { in: [BaleStatus.IN_STOCK, BaleStatus.OPENED] } },
-        select: { id: true, code: true, baleNo: true, item: true, category: true, grade: true, brand: true, weightKg: true, pieces: true, piecesSold: true, salePrice: true, piecePrice: true, status: true },
+        select: { id: true, code: true, kindCode: true, createdAt: true, baleNo: true, item: true, category: true, grade: true, brand: true, weightKg: true, pieces: true, piecesSold: true, salePrice: true, piecePrice: true, status: true },
         orderBy: [{ status: 'desc' }, { code: 'desc' }],
         take: 20_000,
       }),

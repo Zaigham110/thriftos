@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { Api, methodLabel, money, MoneyPipe, round2, Sale, SaleLine, whatsapp } from '../core';
+import { Api, billRows, methodLabel, money, MoneyPipe, round2, Sale, SaleLine, shownCode, whatsapp } from '../core';
 import { Printer } from '../hardware/printer';
 import { receiptModel, receiptText } from '../hardware/receipt';
 import { Shelf } from '../offline/shelf';
@@ -40,15 +40,17 @@ import { Sheet } from '../ui/sheet';
 
         <div class="card mt-4 overflow-hidden">
           <div class="divide-y divide-stone-100">
-            @for (l of s.lines; track l.id) {
+            <!-- Whole bales of one kind at one price are one row with a quantity; the bales behind it are named below. -->
+            @for (r of rows(s); track $index) {
               <div class="flex items-start justify-between gap-3 px-4 py-3">
                 <div class="min-w-0">
-                  <div class="font-semibold">{{ l.description }}</div>
-                  <div class="text-xs text-stone-500">{{ l.bale ? l.bale.code + ' · ' : '' }}{{ l.kind === 'BALE' ? 'whole bale' : l.quantity + ' × ' + fmt(l.unitPrice) }}{{ +l.discount ? ' · less ' + fmt(l.discount) : '' }}</div>
-                  @if (l.returnedQty) { <div class="mt-0.5 text-xs font-semibold text-amber-800">{{ l.kind === 'BALE' ? 'Returned' : l.returnedQty + ' returned' }}</div> }
-                  @if (l.conflict) { <div class="mt-0.5 text-xs font-semibold text-red-700">Stock was already gone: nothing was taken off the shelf</div> }
+                  <div class="font-semibold">{{ r.name }}</div>
+                  <div class="text-xs text-stone-500">{{ r.code ? r.code + ' · ' : '' }}{{ r.kind === 'BALE' && !r.key ? 'whole bale' : r.kind === 'BALE' ? '× ' + r.quantity + ' at ' + fmt(r.unitPrice) : r.quantity + ' × ' + fmt(r.unitPrice) }}{{ r.discount ? ' · less ' + fmt(r.discount) : '' }}</div>
+                  @if (r.key && own(r.lines)) { <div class="num mt-0.5 truncate text-xs text-stone-400">{{ own(r.lines) }}</div> }
+                  @if (returned(r.lines); as n) { <div class="mt-0.5 text-xs font-semibold text-amber-800">{{ r.kind === 'BALE' && r.quantity === 1 ? 'Returned' : n + ' returned' }}</div> }
+                  @if (missing(r.lines); as n) { <div class="mt-0.5 text-xs font-semibold text-red-700">{{ r.lines.length === 1 ? 'Stock was already gone: nothing was taken off the shelf' : n + ' were not in stock: nothing was taken off the shelf for them' }}</div> }
                 </div>
-                <div class="num font-semibold">{{ l.lineTotal | money }}</div>
+                <div class="num font-semibold">{{ r.total | money }}</div>
               </div>
             }
           </div>
@@ -91,7 +93,7 @@ import { Sheet } from '../ui/sheet';
           @for (l of returnable(s); track l.id) {
             <div class="px-5 py-3">
               <div class="flex items-center justify-between gap-3">
-                <div class="min-w-0"><div class="truncate font-semibold">{{ l.description }}</div><div class="text-xs text-stone-500">{{ l.bale?.code }} · {{ l.quantity - l.returnedQty }} can come back</div></div>
+                <div class="min-w-0"><div class="truncate font-semibold">{{ l.description }}</div><div class="num text-xs text-stone-500">{{ l.bale ? code(l.bale) + (l.bale.kindCode ? ' · bale ' + l.bale.code : '') + ' · ' : '' }}{{ l.quantity - l.returnedQty }} can come back</div></div>
                 <div class="flex shrink-0 items-center rounded-xl bg-stone-100">
                   <button class="flex h-11 w-10 items-center justify-center" (click)="qty(l, -1)" [attr.aria-label]="'One less of ' + l.description"><pos-icon name="minus" size="h-4 w-4" /></button>
                   <span class="num w-8 text-center font-bold">{{ back()[l.id] || 0 }}</span>
@@ -118,6 +120,20 @@ import { Sheet } from '../ui/sheet';
   `,
 })
 export class BillPage implements OnInit {
+  readonly code = shownCode;
+  rows(s: Sale) {
+    return billRows(s.lines ?? []);
+  }
+  /** The bales behind a row, by their own numbers. */
+  own(lines: SaleLine[]) {
+    return lines.map((l) => (l.bale && l.bale.code !== l.bale.kindCode ? l.bale.code : '')).filter(Boolean).join(', ');
+  }
+  returned(lines: SaleLine[]) {
+    return lines.reduce((n, l) => n + l.returnedQty, 0);
+  }
+  missing(lines: SaleLine[]) {
+    return lines.filter((l) => l.conflict).length;
+  }
   readonly api = inject(Api);
   private readonly shelf = inject(Shelf);
   private readonly printer = inject(Printer);

@@ -101,6 +101,7 @@ model Shop {
   suppliers Supplier[]
   shipments Shipment[]
   bales     Bale[]
+  kinds     BaleKind[]
   sales     Sale[]
   customers Customer[]
 }
@@ -215,7 +216,8 @@ model Bale {
   tenantId       String
   branchId       String // where the bale is now
   shipmentId     String
-  code           String // B-00001, the shop's own number, on the sticker
+  code           String // B-00001, this bale's own number (stickers printed before shared codes carry it)
+  kindCode       String? // JEANS-1-45: shared by every bale of the same kind, on the sticker; fixed once given
   baleNo         String? // the supplier's number from the bale list
   item           String
   category       String?
@@ -244,6 +246,27 @@ model Bale {
   @@unique([tenantId, code])
   @@index([tenantId, branchId, status])
   @@index([tenantId, shipmentId])
+  @@index([tenantId, kindCode, branchId, status])
+}
+
+/// Bales of the same category, grade, weight and pieces are one kind and share one code. Every bale stays its own
+/// record (own number, cost, shipment); the kind only says what people see, scan and type.
+model BaleKind {
+  id        String   @id @default(cuid())
+  tenantId  String
+  code      String // CATEGORY-GRADE-KG(-PIECESP); never changes, stickers are printed with it
+  key       String // category|grade|kg|pieces in lower case: what makes two bales the same kind
+  name      String
+  category  String // the bale's category, or its item name when it has no category
+  grade     String?
+  weightKg  Decimal? @db.Decimal(14, 2)
+  pieces    Int?
+  createdAt DateTime @default(now())
+
+  shop Shop @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, key])
 }
 
 model Customer {

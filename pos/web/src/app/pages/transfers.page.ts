@@ -49,7 +49,7 @@ const LABEL = { SENT: 'On the way', RECEIVED: 'Received', CANCELLED: 'Cancelled'
         <p class="-mt-1 text-sm text-stone-500">Sent by {{ t.sentByName }}, {{ t.sentAt | date: 'd MMM, h:mm a' }}{{ t.note ? ' · ' + t.note : '' }}{{ t.receivedByName ? ' · received by ' + t.receivedByName : '' }}</p>
         <div class="-mx-5 mt-3 max-h-[46dvh] divide-y divide-stone-100 overflow-y-auto">
           @for (b of t.bales; track b.id) {
-            <div class="px-5 py-2.5"><div class="font-semibold">{{ b.item }}</div><div class="num text-xs text-stone-500">{{ b.code }}{{ b.baleNo ? ' · ' + b.baleNo : '' }}{{ b.grade ? ' · Grade ' + b.grade : '' }}</div></div>
+            <div class="px-5 py-2.5"><div class="font-semibold">{{ b.item }}</div><div class="num text-xs text-stone-500">{{ b.kindCode ? b.kindCode + ' · ' : '' }}{{ b.code }}{{ b.baleNo ? ' · ' + b.baleNo : '' }}</div></div>
           }
         </div>
         @if (t.status === 'SENT') {

@@ -4,6 +4,8 @@ import * as express from 'express';
 import { existsSync } from 'fs';
 import { join, resolve } from 'path';
 import { AppModule } from './app.module';
+import { backfillKinds } from './common/kinds';
+import { PrismaService } from './common/prisma.service';
 
 // Development reads pos/server/.env; in Docker the values come from the environment.
 try {
@@ -36,6 +38,10 @@ async function bootstrap() {
       res.sendFile(join(webDir, 'index.html'));
     });
   }
+
+  // Bales saved before shared codes existed get theirs now (nothing to do after the first time).
+  const coded = await backfillKinds(app.get(PrismaService));
+  if (coded) console.log(`Gave ${coded} bales their shared code`);
 
   const port = Number(process.env.PORT) || 3100;
   await app.listen(port, '0.0.0.0');

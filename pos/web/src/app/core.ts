@@ -48,7 +48,9 @@ export interface Session {
 export type BaleStatus = 'IN_STOCK' | 'OPENED' | 'SOLD' | 'FINISHED' | 'IN_TRANSIT' | 'WRITTEN_OFF';
 export interface Bale {
   id: string;
-  code: string;
+  code: string; // this bale's own number
+  kindCode?: string | null; // shared by every bale of the same kind; on the sticker
+  createdAt?: string;
   baleNo: string | null;
   item: string;
   category: string | null;
@@ -90,7 +92,7 @@ export interface SaleLine {
   lineTotal: string;
   returnedQty: number;
   conflict?: boolean;
-  bale: { code: string; baleNo: string | null } | null;
+  bale: { code: string; baleNo: string | null; kindCode?: string | null } | null;
 }
 export interface Sale {
   id: string;
@@ -356,3 +358,5 @@ export function whatsapp(phone: string | null | undefined, text: string): string
 export function uid(): string {
   return typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
+
+export { billRows, kindName, oldestFirst, shownCode } from './kinds';

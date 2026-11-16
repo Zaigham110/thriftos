@@ -34,7 +34,7 @@ interface Check {
         </div>
         @if (!c.finishedAt) {
           <form class="mt-3 flex gap-2" (ngSubmit)="scan(code)">
-            <input #box class="input" name="code" [(ngModel)]="code" placeholder="Scan a sticker, or type the bale number" aria-label="Bale number" autocomplete="off" data-scan-through />
+            <input #box class="input" name="code" [(ngModel)]="code" placeholder="Scan a sticker, or type its code" aria-label="Bale number" autocomplete="off" data-scan-through />
             <button type="button" class="icon-btn border border-stone-300 bg-white" (click)="camera.set(true)" aria-label="Scan with the camera"><pos-icon name="camera" /></button>
           </form>
           @if (lastScan(); as l) {
@@ -45,7 +45,7 @@ interface Check {
         <h2 class="mb-2 mt-6">{{ c.finishedAt ? 'Missing' : 'Not scanned yet' }} ({{ c.missing.length }})</h2>
         <div class="card divide-y divide-stone-100">
           @for (b of c.missing; track b.id) {
-            <a [routerLink]="['/stock', b.id]" class="row"><span class="min-w-0 flex-1"><span class="block truncate font-semibold">{{ b.item }}</span><span class="num block text-xs text-stone-500">{{ b.code }}{{ b.baleNo ? ' · ' + b.baleNo : '' }}{{ b.grade ? ' · Grade ' + b.grade : '' }}</span></span><pos-icon name="right" class="text-stone-300" /></a>
+            <a [routerLink]="['/stock', b.id]" class="row"><span class="min-w-0 flex-1"><span class="block truncate font-semibold">{{ b.item }}</span><span class="num block text-xs text-stone-500">{{ b.kindCode ? b.kindCode + ' · ' : '' }}{{ b.code }}{{ b.baleNo ? ' · ' + b.baleNo : '' }}</span></span><pos-icon name="right" class="text-stone-300" /></a>
           } @empty {
             <p class="px-4 py-8 text-center text-sm font-semibold text-pay-700">Every bale is accounted for.</p>
           }
@@ -111,8 +111,10 @@ export class StockCheckPage implements OnInit, OnDestroy {
     if (!c || c.finishedAt || !code.trim()) return;
     this.code = '';
     try {
-      const res = await this.api.post<{ bale: Bale; again: boolean; found: number }>(`/stock-checks/${c.id}/scan`, { code: code.trim() });
-      this.lastScan.set({ text: res.again ? `${res.bale.code} was already scanned.` : `${res.bale.code} · ${res.bale.item}`, bad: false });
+      const res = await this.api.post<{ bale: Bale; again: boolean; found: number; kind?: { code: string; counted: number; total: number } }>(`/stock-checks/${c.id}/scan`, { code: code.trim() });
+      // A shared code counts one more bale of its kind each time it is scanned.
+      if (res.kind) this.lastScan.set({ text: res.again ? `All ${res.kind.total} of ${res.kind.code} are already counted.` : `${res.kind.code} · ${res.kind.counted} of ${res.kind.total} counted`, bad: res.again });
+      else this.lastScan.set({ text: res.again ? `${res.bale.code} was already scanned.` : `${res.bale.code} · ${res.bale.item}`, bad: false });
       this.check.update((x) => (x ? { ...x, found: res.found, missing: x.missing.filter((b) => b.id !== res.bale.id) } : x));
     } catch (e) {
       navigator.vibrate?.([80, 60, 80]);

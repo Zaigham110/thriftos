@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { drawerBytes, EscPos, plain, receiptBytes, type ReceiptModel } from './escpos.ts';
 import { ScanDetector } from './scan-detector.ts';
-import { labelText } from './tspl.ts';
+import { billRows } from '../kinds.ts';
+import { labelData, labelText } from './tspl.ts';
 
 const ascii = (bytes: Uint8Array) => String.fromCharCode(...bytes);
 
@@ -88,4 +89,42 @@ test('scanner: typing followed by a scan gives only the scanned code', () => {
   for (const key of 'jea') d.key(key, (t += 200));
   assert.equal(feed(d, 'B-00002', 8, t + 500), 'B-00002');
   assert.equal(feed(d, 'TX-3', 8, t + 5000), 'TX-3');
+});
+
+test('Shared codes: every sticker of one kind is the same, and carries the shared code', () => {
+  const kind = { kindCode: 'JEANS-1-45', category: 'Jeans', grade: '1', weightKg: '45', salePrice: '40000' };
+  const first = labelData({ ...kind, code: 'B-00001', item: 'Mens jeans', baleNo: 'TX-1' });
+  const second = labelData({ ...kind, code: 'B-00002', item: 'Ladies jeans', baleNo: 'TX-9' });
+  assert.deepEqual(first, second);
+  assert.deepEqual(first, { code: 'JEANS-1-45', item: 'Jeans', detail: 'Grade 1 - 45 kg', price: 'Rs 40,000' });
+  const size = { widthMm: 50, heightMm: 30, gapMm: 2 };
+  assert.equal(labelText([first], size), labelText([second], size));
+  assert.ok(labelText([first], size).includes('BARCODE 16,64,"128",90,1,0,2,2,"JEANS-1-45"'));
+  // A bale saved before shared codes keeps its own number on the sticker.
+  assert.equal(labelData({ code: 'B-00007', item: 'Old bale', category: null, grade: null, weightKg: null, baleNo: null, salePrice: null }).code, 'B-00007');
+});
+
+test('Shared codes: a long code gets thin bars, and a QR code when even those do not fit', () => {
+  const size = { widthMm: 50, heightMm: 30, gapMm: 2 };
+  const label = (code: string) => labelText([{ code, item: 'x', detail: '', price: '' }], size);
+  assert.ok(label('HOUSEHOLD-A-60-90P').includes(',1,0,1,1,"HOUSEHOLD-A-60-90P"'));
+  const long = label('HOUSEHOLDX-GRADEA-1234.5-12345P');
+  assert.ok(long.includes('QRCODE 16,64,M,3,A,0,"HOUSEHOLDX-GRADEA-1234.5-12345P"'));
+  assert.ok(!long.includes('BARCODE'));
+});
+
+test('Shared codes: bill lines of one kind at one price read as one row with a quantity', () => {
+  const line = (code: string, kindCode: string | null, unitPrice: string, extra = {}) => ({ kind: 'BALE', description: 'Mens jeans', quantity: 1, unitPrice, discount: '0', lineTotal: unitPrice, bale: { code, baleNo: null, kindCode }, ...extra });
+  const rows = billRows([
+    line('B-00001', 'JEANS-1-45', '40000'),
+    line('B-00002', 'JEANS-1-45', '40000'),
+    line('B-00003', 'JEANS-1-45', '38000'), // another price: its own row
+    line('B-00009', null, '40000'), // a bale from before shared codes
+    { kind: 'PIECE', description: 'Tops', quantity: 3, unitPrice: '200', discount: '0', lineTotal: '600', bale: { code: 'B-00004', baleNo: null, kindCode: 'TOPS-A-40' } },
+    line('B-00005', 'JEANS-1-45', '40000', { discount: '500', lineTotal: '39500' }),
+    { kind: 'ITEM', description: 'Bags', quantity: 2, unitPrice: '50', discount: '0', lineTotal: '100', bale: null },
+  ]);
+  assert.deepEqual(rows.map((r) => [r.code, r.quantity, r.total]), [['JEANS-1-45', 3, 119500], ['JEANS-1-45', 1, 38000], ['B-00009', 1, 40000], ['TOPS-A-40', 3, 600], ['', 2, 100]]);
+  assert.equal(rows[0].discount, 500);
+  assert.deepEqual(rows[0].lines.map((l) => l.bale?.code), ['B-00001', 'B-00002', 'B-00005']); // the bales behind the row
 });

@@ -1,14 +1,24 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { Api, Bale, Branch, money, MoneyPipe, STATUS_LABEL, STATUS_TONE, typed } from '../core';
+import { Api, Bale, Branch, money, MoneyPipe, shownCode, STATUS_LABEL, STATUS_TONE, typed } from '../core';
 import { Printer } from '../hardware/printer';
 import { Shelf } from '../offline/shelf';
 import { Icon } from '../ui/icon';
 import { Sheet } from '../ui/sheet';
 
+interface KindRow {
+  code: string;
+  name: string;
+  qty: number;
+  kg: string;
+  value?: string;
+  salePrice: string | null;
+}
+
 const SHELVES = [
-  { key: 'shelf', label: 'On the shelf' },
+  { key: 'kinds', label: 'By code' },
+  { key: 'shelf', label: 'Bale by bale' },
   { key: 'IN_STOCK', label: 'Whole bales' },
   { key: 'OPENED', label: 'Opened' },
   { key: 'SOLD', label: 'Sold' },
@@ -17,25 +27,34 @@ const SHELVES = [
   { key: 'WRITTEN_OFF', label: 'Written off' },
 ];
 
-/** Everything this branch has: find a bale, pick several to print stickers, change prices or send to another branch. */
+/**
+ * Everything this branch has. Whole bales of the same kind share one code and are one row with a quantity; a row
+ * opens the bales behind it. Opened bales are listed one by one.
+ * Find a bale, pick several to print stickers, change prices or send to another branch. */
 @Component({
   imports: [FormsModule, RouterLink, MoneyPipe, Icon, Sheet],
   template: `
     <div class="screen">
       <div class="flex flex-wrap items-center justify-between gap-3">
-        <div><h1>Stock</h1><p class="text-sm text-stone-500">{{ total() }} {{ total() === 1 ? 'bale' : 'bales' }} · {{ api.branch()?.name }}</p></div>
+        <div><h1>Stock</h1><p class="text-sm text-stone-500">{{ status() === 'kinds' ? wholeCount() + ' whole · ' + total() + ' opened' : total() + (total() === 1 ? ' bale' : ' bales') }} · {{ api.branch()?.name }}</p></div>
         <div class="flex gap-2">
           @if (api.isManager()) { <a routerLink="/stock-check" class="btn-soft"><pos-icon name="count" /> Stock check</a> }
-          <button class="btn-soft" (click)="picking.set(!picking()); picked.set({})">{{ picking() ? 'Done choosing' : 'Choose bales' }}</button>
+          <button class="btn-soft" (click)="choose()">{{ picking() ? 'Done choosing' : 'Choose bales' }}</button>
         </div>
       </div>
 
       <input class="input mt-3" type="search" [ngModel]="search()" (ngModelChange)="search.set($event); later()" placeholder="Search item, bale no., category, grade, brand" aria-label="Search stock" />
       <div class="scroll-x mt-2.5">
         @for (s of shelves; track s.key) {
-          <button class="chip" [class.chip-on]="status() === s.key" (click)="status.set(s.key); load()">{{ s.label }}</button>
+          <button class="chip" [class.chip-on]="status() === s.key" (click)="show(s.key)">{{ s.label }}</button>
         }
       </div>
+      @if (kind()) {
+        <div class="mt-2.5 flex items-center justify-between gap-2 rounded-xl bg-brand-50 px-3 py-2 text-sm">
+          <span class="min-w-0 truncate">Bales behind <b class="num">{{ kind() }}</b></span>
+          <button class="shrink-0 font-semibold text-brand-700 underline" (click)="show('kinds')">Back to codes</button>
+        </div>
+      }
       @if (categories().length) {
         <div class="scroll-x mt-2">
           <button class="chip" [class.chip-on]="!category()" (click)="category.set(''); load()">Every category</button>
@@ -45,17 +64,43 @@ const SHELVES = [
         </div>
       }
 
+      @if (status() === 'kinds') {
+        <div class="card mt-3 overflow-hidden">
+          <div class="flex items-center gap-3 border-b border-stone-200 bg-stone-50 px-3.5 py-2 text-xs font-semibold uppercase tracking-wide text-stone-500">
+            <span class="min-w-0 flex-1">Code · name</span><span class="w-10 text-right">Qty</span><span class="hidden w-16 text-right sm:block">Kg</span>
+            @if (api.seesCost()) { <span class="w-24 text-right">Value</span> }
+          </div>
+          @for (k of kinds(); track k.code) {
+            <button class="flex min-h-[56px] w-full items-center gap-3 border-b border-stone-100 px-3.5 py-2 text-left last:border-0 hover:bg-stone-50" (click)="behind(k)">
+              <span class="min-w-0 flex-1"><span class="num block truncate font-semibold">{{ k.code }}</span><span class="block truncate text-xs text-stone-500">{{ k.name }}{{ k.salePrice ? ' · ' + fmt(k.salePrice) + ' a bale' : '' }}</span></span>
+              <span class="num w-10 text-right text-lg font-bold">{{ k.qty }}</span>
+              <span class="num hidden w-16 text-right text-sm text-stone-600 sm:block">{{ +k.kg ? +k.kg : '—' }}</span>
+              @if (api.seesCost()) { <span class="num w-24 text-right text-sm font-semibold">{{ k.value | money }}</span> }
+            </button>
+          } @empty {
+            <p class="px-3.5 py-10 text-center text-sm text-stone-500">{{ loaded() ? 'No whole bales here.' : 'Loading…' }}</p>
+          }
+          @if (kinds().length > 1) {
+            <div class="flex items-center gap-3 border-t border-stone-200 bg-stone-50 px-3.5 py-2.5 text-sm font-bold">
+              <span class="min-w-0 flex-1">Total</span><span class="num w-10 text-right">{{ wholeCount() }}</span><span class="num hidden w-16 text-right sm:block">{{ wholeKg() }}</span>
+              @if (api.seesCost()) { <span class="num w-24 text-right">{{ wholeValue() | money }}</span> }
+            </div>
+          }
+        </div>
+        @if (bales().length) { <h2 class="mb-1 mt-5">Opened bales</h2> }
+      }
+
       <div class="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
         @for (b of bales(); track b.id) {
           @if (picking()) {
             <button class="card flex items-start gap-3 p-3.5 text-left" [class]="picked()[b.id] ? 'border-brand-600 ring-2 ring-brand-200' : ''" (click)="toggle(b)" [attr.aria-pressed]="!!picked()[b.id]">
               <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2" [class]="picked()[b.id] ? 'border-brand-600 bg-brand-600 text-white' : 'border-stone-300'">@if (picked()[b.id]) { <pos-icon name="check" size="h-4 w-4" /> }</span>
-              <span class="min-w-0 flex-1"><span class="block truncate font-semibold">{{ b.item }}</span><span class="num block text-xs text-stone-500">{{ b.code }}{{ b.grade ? ' · Grade ' + b.grade : '' }}</span></span>
+              <span class="min-w-0 flex-1"><span class="block truncate font-semibold">{{ b.item }}</span><span class="num block text-xs text-stone-500">{{ code(b) }} · {{ b.code }}</span></span>
               <span class="num text-sm font-bold">{{ b.salePrice | money }}</span>
             </button>
           } @else {
             <a [routerLink]="['/stock', b.id]" class="card flex flex-col p-3.5 transition hover:border-stone-300">
-              <span class="flex items-center justify-between gap-2"><span class="num text-xs font-semibold text-stone-500">{{ b.code }}{{ b.baleNo ? ' · ' + b.baleNo : '' }}</span><span class="tag" [class]="tone[b.status]">{{ b.status === 'OPENED' ? b.piecesLeft + ' pcs left' : label[b.status] }}</span></span>
+              <span class="flex items-center justify-between gap-2"><span class="num min-w-0 truncate text-xs font-semibold text-stone-500">{{ code(b) }}{{ b.kindCode ? ' · ' + b.code : '' }}{{ b.baleNo ? ' · ' + b.baleNo : '' }}</span><span class="tag" [class]="tone[b.status]">{{ b.status === 'OPENED' ? b.piecesLeft + ' pcs left' : label[b.status] }}</span></span>
               <span class="mt-1 truncate text-[15px] font-semibold">{{ b.item }}</span>
               <span class="truncate text-xs text-stone-500">{{ meta(b) }}</span>
               <span class="mt-2 flex items-baseline justify-between gap-2">
@@ -65,7 +110,7 @@ const SHELVES = [
             </a>
           }
         } @empty {
-          <p class="col-span-full py-12 text-center text-sm text-stone-500">{{ loaded() ? 'Nothing here.' : 'Loading…' }}</p>
+          @if (status() !== 'kinds') { <p class="col-span-full py-12 text-center text-sm text-stone-500">{{ loaded() ? 'Nothing here.' : 'Loading…' }}</p> }
         }
       </div>
       @if (bales().length < total()) {
@@ -120,7 +165,14 @@ export class StockPage implements OnInit {
   readonly categories = signal<string[]>([]);
   readonly loaded = signal(false);
   readonly search = signal('');
-  readonly status = signal('shelf');
+  readonly status = signal('kinds');
+  readonly kinds = signal<KindRow[]>([]);
+  /** The shared code whose bales are being shown. */
+  readonly kind = signal('');
+  readonly wholeCount = computed(() => this.kinds().reduce((n, k) => n + k.qty, 0));
+  readonly wholeKg = computed(() => Math.round(this.kinds().reduce((n, k) => n + Number(k.kg), 0) * 100) / 100);
+  readonly wholeValue = computed(() => this.kinds().reduce((n, k) => n + Number(k.value ?? 0), 0));
+  readonly code = shownCode;
   readonly category = signal('');
   readonly picking = signal(false);
   readonly picked = signal<Record<string, Bale>>({});
@@ -146,9 +198,30 @@ export class StockPage implements OnInit {
     return [b.category, b.grade ? `Grade ${b.grade}` : '', b.weightKg ? `${+b.weightKg} kg` : '', b.shipment?.code].filter(Boolean).join(' · ');
   }
 
+  show(status: string) {
+    this.kind.set('');
+    this.status.set(status);
+    void this.load();
+  }
+  /** The bales behind one code. */
+  behind(k: KindRow) {
+    this.status.set('IN_STOCK');
+    this.kind.set(k.code);
+    void this.load();
+  }
+  /** Stickers, prices and sending are chosen bale by bale. */
+  choose() {
+    this.picked.set({});
+    this.picking.set(!this.picking());
+    if (this.picking() && this.status() === 'kinds') this.show('shelf');
+  }
+
   async load() {
     try {
-      const res = await this.api.get<{ total: number; categories: string[]; bales: Bale[] }>('/bales', { status: this.status(), search: this.search().trim(), category: this.category(), take: '300' });
+      const byCode = this.status() === 'kinds';
+      const filter = { search: this.search().trim(), category: this.category() };
+      if (byCode) this.kinds.set((await this.api.get<{ kinds: KindRow[] }>('/bales/kinds', filter)).kinds);
+      const res = await this.api.get<{ total: number; categories: string[]; bales: Bale[] }>('/bales', { status: byCode ? 'OPENED' : this.status(), ...filter, kind: this.kind(), take: '300' });
       this.bales.set(res.bales);
       this.total.set(res.total);
       this.categories.set(res.categories);

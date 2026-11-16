@@ -1,5 +1,5 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { Api, Bale, billMath, Branch, Customer, dayStart, Method, round2, Sale, Shop, Till, today, uid } from '../core';
+import { Api, Bale, billMath, Branch, Customer, dayStart, Method, oldestFirst, round2, Sale, Shop, Till, today, uid } from '../core';
 import { deviceDb, Waiting } from './db';
 
 export interface Snapshot {
@@ -21,6 +21,8 @@ export interface CartLine {
   key: string;
   kind: 'BALE' | 'PIECE' | 'ITEM';
   bale: Bale | null;
+  /** Whole bales by their shared code: "this kind x quantity". The oldest bales are taken. */
+  kindCode?: string;
   name: string;
   quantity: number;
   price: number;
@@ -118,6 +120,13 @@ export class Shelf {
     return next;
   }
 
+  /** Whole bales of a kind on this shelf, oldest first. A shared code scanned or typed means these. */
+  whole(kindCode: string): Bale[] {
+    const c = kindCode.trim().toLowerCase();
+    return this.bales().filter((b) => b.status === 'IN_STOCK' && (b.kindCode ?? '').toLowerCase() === c).sort(oldestFirst);
+  }
+
+  /** One bale by its own number (stickers printed before shared codes) or the supplier's bale no. */
   find(code: string): Bale | undefined {
     const c = code.trim().toLowerCase();
     return this.bales().find((b) => b.code.toLowerCase() === c) ?? this.bales().find((b) => (b.baleNo ?? '').toLowerCase() === c);
@@ -131,8 +140,14 @@ export class Shelf {
 
   private takeOff(payload: SalePayload) {
     const sold = new Map(payload.lines.filter((l) => l.baleId).map((l) => [l.baleId!, l]));
+    // A kind line takes the oldest whole bales, as the server does; bales named one by one are not taken twice.
+    const gone = new Set<string>();
+    for (const l of payload.lines.filter((x) => x.kindCode)) {
+      for (const b of this.whole(l.kindCode!).filter((x) => !sold.has(x.id) && !gone.has(x.id)).slice(0, l.quantity)) gone.add(b.id);
+    }
     this.bales.update((list) =>
       list.flatMap((b) => {
+        if (gone.has(b.id)) return [];
         const line = sold.get(b.id);
         if (!line) return [b];
         if (line.kind === 'BALE') return [];
@@ -153,7 +168,7 @@ export class Shelf {
     const payload: SalePayload = {
       clientKey: uid(),
       tillId: till?.id ?? '',
-      lines: checkout.lines.map((l) => ({ baleId: l.bale?.id ?? null, kind: l.kind, description: l.name, quantity: l.quantity, unitPrice: l.price, discount: l.discount })),
+      lines: checkout.lines.map((l) => ({ baleId: l.kindCode ? null : (l.bale?.id ?? null), kindCode: l.kindCode ?? null, kind: l.kind, description: l.name, quantity: l.quantity, unitPrice: l.price, discount: l.discount })),
       discount: math.discount,
       customerId: checkout.customer?.id ?? null,
       note: checkout.note,
@@ -210,7 +225,7 @@ export class Shelf {
           discount: String(l.discount),
           lineTotal: String(round2(l.quantity * l.price - l.discount)),
           returnedQty: 0,
-          bale: l.bale ? { code: l.bale.code, baleNo: l.bale.baleNo } : null,
+          bale: l.bale ? { code: l.kindCode ?? l.bale.code, baleNo: l.kindCode ? null : l.bale.baleNo, kindCode: l.kindCode ?? l.bale.kindCode } : null,
         })),
         payments: payload.payments.map((t) => ({ method: t.method, amount: String(t.method === 'CASH' ? round2(t.amount - change) : t.amount), reference: t.reference })),
         waiting: true,
@@ -280,7 +295,7 @@ export class Shelf {
 interface SalePayload {
   clientKey: string;
   tillId: string;
-  lines: { baleId: string | null; kind: 'BALE' | 'PIECE' | 'ITEM'; description: string; quantity: number; unitPrice: number; discount: number }[];
+  lines: { baleId: string | null; kindCode?: string | null; kind: 'BALE' | 'PIECE' | 'ITEM'; description: string; quantity: number; unitPrice: number; discount: number }[];
   discount: number;
   customerId: string | null;
   note: string;
