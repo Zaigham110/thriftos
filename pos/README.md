@@ -143,6 +143,25 @@ A public name gets a real certificate by itself. For a name that exists only on 
 
 One install is one business, with as many branches and tills as it needs.
 
+## On AWS
+
+A copy runs at `https://d18vg2xmnvrhqp.cloudfront.net` (Sydney, `ap-southeast-2`), apart from the ThriftOS server:
+
+- One `t4g.micro` server (`thriftos-pos`, Ubuntu 24.04 ARM, 16 GB disk, Elastic IP) running
+  `deploy/docker-compose.aws.yml` in `/opt/thriftos-pos`: the app, its Postgres and Caddy. Secrets were made on the
+  server (`/opt/thriftos-pos/.env`, mode 600) and are nowhere else.
+- CloudFront distribution `EQ6LWI7901EO1` gives the https address. The server's port 80 is open to CloudFront only,
+  and Caddy (`deploy/Caddyfile`) also wants CloudFront's secret header. No SSH port; reach the server with AWS
+  Systems Manager.
+- A new version: build the image for the server's chip (`docker buildx build --platform linux/arm64 -t
+  thriftos-pos:aws --load .`), `docker save thriftos-pos:aws | gzip`, upload it as `image.tar.gz` to the bucket
+  `thriftos-pos-deploy-<account>` (files there are removed after a day), then on the server load it and run
+  `docker compose -f docker-compose.aws.yml up -d`.
+- Network receipt printers (an address on the shop's own network) cannot be reached from AWS. Use a USB / Bluetooth
+  printer or the print window with this copy.
+- There is no automatic backup yet. By hand, on the server:
+  `docker exec thriftos-pos-db-1 pg_dump -U pos thriftos_pos > /opt/thriftos-pos/backups/backup.sql`.
+
 ## Work on it
 
 ```bash

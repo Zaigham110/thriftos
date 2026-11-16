@@ -1,0 +1,72 @@
+# Shop POS on its own small AWS server (t4g.micro, ARM64), behind CloudFront, which gives it its https address.
+# Nothing is built on the server: the image is built elsewhere (linux/arm64), loaded with `docker load` and tagged
+# thriftos-pos:aws. /opt/thriftos-pos holds this file, Caddyfile and .env (secrets, made on the server, mode 600).
+#   docker compose -f docker-compose.aws.yml up -d
+name: thriftos-pos
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      POSTGRES_DB: thriftos_pos
+    # Small on purpose: the server has 1 GB of memory.
+    command: >-
+      postgres
+      -c shared_buffers=64MB
+      -c max_connections=20
+      -c effective_cache_size=256MB
+      -c work_mem=2MB
+      -c maintenance_work_mem=32MB
+    volumes:
+      - pos_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pos -d thriftos_pos"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    mem_limit: 200m
+    logging: &logging
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    # No published port: only the app reaches the database.
+
+  app:
+    image: thriftos-pos:aws
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3100
+      NODE_OPTIONS: --max-old-space-size=256
+      DATABASE_URL: postgresql://pos:${POSTGRES_PASSWORD}@db:5432/thriftos_pos?schema=public&connection_limit=8
+      JWT_SECRET: ${JWT_SECRET:?set in .env}
+      WEB_DIR: /app/web
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3100/api/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 60s
+    mem_limit: 384m
+    logging: *logging
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      ORIGIN_SECRET: ${ORIGIN_SECRET:?set in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - app
+    mem_limit: 48m
+    logging: *logging
+
+volumes:
+  pos_data:

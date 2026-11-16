@@ -1,0 +1,20 @@
+# Origin proxy for Shop POS on AWS. CloudFront ends https and forwards here over http on port 80; the security
+# group lets only CloudFront reach port 80, and CloudFront sends a secret header (ORIGIN_SECRET), so other
+# CloudFront distributions are refused too.
+{
+	auto_https off
+	admin off
+}
+
+:80 {
+	header -Server
+	route {
+		@not_cloudfront not header X-Origin-Verify {$ORIGIN_SECRET}
+		respond @not_cloudfront 403
+		reverse_proxy app:3100
+	}
+	log {
+		output stdout
+		format json
+	}
+}
