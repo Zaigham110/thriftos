@@ -1,7 +1,8 @@
 import { Idempotent } from '../common/idempotency/idempotent.interceptor';
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { WorkerPayType } from '@prisma/client';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { AttendanceStatus, WorkerPayType } from '@prisma/client';
 import { Type } from 'class-transformer';
+import { ArrayMaxSize, ArrayMinSize, IsArray, Matches, ValidateNested } from 'class-validator';
 import { IsBoolean, IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
@@ -50,9 +51,26 @@ export class PeriodDto {
   @IsDateString() periodEnd!: string;
 }
 export class LineDto {
-  @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(31) days?: number;
+  /** Whole or half days. */
+  @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 1 }) @Min(0) @Max(31) days?: number;
   @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) deductions?: number;
   @IsOptional() @IsString() @MaxLength(200) note?: string;
+}
+export class AttendanceMarkDto {
+  @IsString() workerId!: string;
+  /** null clears the mark. */
+  @ValidateIf((_o, v) => v !== null) @IsEnum(AttendanceStatus) status!: AttendanceStatus | null;
+  @IsOptional() @IsString() @MaxLength(120) note?: string | null;
+}
+export class AttendanceDto {
+  @IsDateString() day!: string;
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(500) @ValidateNested({ each: true }) @Type(() => AttendanceMarkDto) marks!: AttendanceMarkDto[];
+}
+export class DayQuery {
+  @IsDateString() day!: string;
+}
+export class MonthQuery {
+  @Matches(/^\d{4}-\d{2}$/) month!: string;
 }
 export class RangeQuery {
   @IsDateString() from!: string;
@@ -145,6 +163,25 @@ export class PayrollController {
   @RequirePermissions('tenant.update')
   deleteSheet(@TenantId() tenantId: string, @Param('id') id: string, @CurrentUser() user: CurrentUserData) {
     return this.payroll.deleteSheet(tenantId, id, user.userId);
+  }
+
+  /** Attendance (owner, 2026-11-17): one day's marks, marking, and a month at a glance. */
+  @Get('attendance')
+  @RequirePermissions('tenant.update')
+  attendanceDay(@TenantId() tenantId: string, @Query() q: DayQuery) {
+    return this.payroll.attendanceDay(tenantId, q.day);
+  }
+
+  @Put('attendance')
+  @RequirePermissions('tenant.update')
+  markAttendance(@TenantId() tenantId: string, @Body() dto: AttendanceDto, @CurrentUser() user: CurrentUserData) {
+    return this.payroll.markAttendance(tenantId, dto, user.userId);
+  }
+
+  @Get('attendance/month')
+  @RequirePermissions('tenant.update')
+  attendanceMonth(@TenantId() tenantId: string, @Query() q: MonthQuery) {
+    return this.payroll.attendanceMonth(tenantId, q.month);
   }
 
   @Get('productivity')

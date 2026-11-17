@@ -20,6 +20,7 @@ import {
   Vault,
   Wallet,
   Users,
+  CalendarCheck,
   Scale,
   ReceiptText,
 } from 'lucide-angular';
@@ -94,6 +95,7 @@ export const WS_NAV: WsNavGroup[] = [
     label: 'ws.group.people',
     items: [
       { label: 'ws.nav.payroll', path: '/people', icon: Users, module: 'PAYROLL', permission: 'tenant.update', keywords: 'employees staff mulazim workers sorter cnic' },
+      { label: 'ws.nav.attendance', path: '/people/attendance', icon: CalendarCheck, module: 'PAYROLL', permission: 'tenant.update', keywords: 'attendance haazri present absent leave chhutti' },
       { label: 'ws.nav.pay', path: '/people/pay', icon: HandCoins, module: 'PAYROLL', permission: 'tenant.update', keywords: 'tankhwah mazdoori payroll wages salary advance pay sheet slip' },
     ],
   },
@@ -166,6 +168,7 @@ export const WS_CRUMBS: Record<string, string> = {
   payroll: 'ws.nav.payroll',
   people: 'ws.nav.payroll',
   pay: 'ws.nav.pay',
+  attendance: 'ws.nav.attendance',
   expenses: 'ws.nav.expenses',
   book: 'ws.nav.book',
   close: 'ws.nav.close',

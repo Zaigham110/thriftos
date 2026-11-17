@@ -205,6 +205,7 @@ export const routes: Routes = [
       // Employees (owner, 2026-11-17) took the place of Sorter pay; its old address still opens it.
       { path: 'people', canActivate: [moduleGuard], data: { module: 'PAYROLL' }, loadComponent: () => import('./features/payroll/payroll.component').then((m) => m.PayrollComponent), title: 'ThriftOS' },
       { path: 'people/pay', canActivate: [moduleGuard], data: { module: 'PAYROLL', tab: 'sheets' }, loadComponent: () => import('./features/payroll/payroll.component').then((m) => m.PayrollComponent), title: 'ThriftOS' },
+      { path: 'people/attendance', canActivate: [moduleGuard], data: { module: 'PAYROLL' }, loadComponent: () => import('./features/payroll/attendance.component').then((m) => m.AttendanceComponent), title: 'ThriftOS' },
       { path: 'payroll', redirectTo: 'people' },
       {
         path: 'khata',

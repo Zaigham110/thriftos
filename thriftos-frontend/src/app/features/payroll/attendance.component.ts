@@ -1,0 +1,181 @@
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Component, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { I18N } from '../../core/i18n/t.pipe';
+import { ToastService } from '../../shared/floor/toast.service';
+
+type Status = 'PRESENT' | 'ABSENT' | 'HALF_DAY' | 'LEAVE' | 'HOLIDAY';
+interface DayRow { id: string; name: string; jobTitle: string | null; status: Status | null; note: string | null }
+interface MonthRow { id: string; name: string; jobTitle: string | null; counts: Record<Status, number> }
+type View = 'day' | 'month';
+
+const STATUSES: Status[] = ['PRESENT', 'ABSENT', 'HALF_DAY', 'LEAVE', 'HOLIDAY'];
+/** Today in Pakistan, YYYY-MM-DD. */
+const today = () => new Date(Date.now() + 5 * 3_600_000).toISOString().slice(0, 10);
+const shift = (day: string, by: number) => new Date(Date.parse(`${day}T00:00:00Z`) + by * 86_400_000).toISOString().slice(0, 10);
+
+/**
+ * Attendance (owner, 2026-11-17: Employee Management): one day with every employee and one tap each (or "All
+ * present" for those not marked yet), and the month's counts. Days present pay staff paid by the day; absences
+ * show beside a monthly salary on the pay sheet.
+ */
+@Component({
+  selector: 'app-attendance',
+  standalone: true,
+  imports: [FormsModule, RouterLink, I18N],
+  template: `
+    <section class="floor att">
+      <header class="floor-head"><h1>{{ 'pay.att.title' | t }}</h1></header>
+      <div class="bar">
+        <div class="seg" role="tablist">
+          <button type="button" role="tab" [class.on]="view() === 'day'" [attr.aria-selected]="view() === 'day'" (click)="show('day')">{{ 'pay.att.day' | t }}</button>
+          <button type="button" role="tab" [class.on]="view() === 'month'" [attr.aria-selected]="view() === 'month'" (click)="show('month')">{{ 'pay.att.month' | t }}</button>
+        </div>
+        <div class="when">
+          <button type="button" class="btn" [attr.aria-label]="'pay.att.before' | t" (click)="move(-1)">‹</button>
+          <input type="date" [attr.aria-label]="'ws.col.date' | t" [max]="max" [ngModel]="day()" (ngModelChange)="pick($event)" />
+          <button type="button" class="btn" [attr.aria-label]="'pay.att.after' | t" [disabled]="day() >= max" (click)="move(1)">›</button>
+        </div>
+      </div>
+      @if (error(); as e) { <p class="notice error" role="alert">{{ e }}</p> }
+
+      @if (view() === 'day') {
+        @if (rows(); as list) {
+          @if (!list.length) {
+            <p class="notice empty">{{ 'pay.att.none' | t }} <a routerLink="/people">{{ 'pay.title' | t }}</a></p>
+          } @else {
+            <p class="sum" aria-live="polite">{{ summary() }}</p>
+            @if (unmarked() > 0) { <button type="button" class="btn primary all" [disabled]="busy()" (click)="allPresent()">{{ 'pay.att.allPresent' | t: { n: unmarked() } }}</button> }
+            <ul class="list">
+              @for (r of list; track r.id) {
+                <li class="row emp">
+                  <span class="who"><strong>{{ r.name }}</strong>@if (r.jobTitle) { <small>{{ r.jobTitle }}</small> }</span>
+                  <span class="chips" role="radiogroup" [attr.aria-label]="r.name">
+                    @for (s of statuses; track s) {
+                      <button type="button" class="chip" role="radio" [class.on]="r.status === s" [attr.data-s]="s" [attr.aria-checked]="r.status === s" [disabled]="busy()" (click)="mark(r, r.status === s ? null : s)">{{ ('pay.att.s.' + s) | t }}</button>
+                    }
+                  </span>
+                </li>
+              }
+            </ul>
+          }
+        }
+      } @else if (month(); as m) {
+        <table class="table">
+          <caption class="sr-only">{{ 'pay.att.month' | t }}</caption>
+          <thead><tr><th scope="col">{{ 'pay.name' | t }}</th>@for (s of statuses; track s) { <th scope="col" class="num">{{ ('pay.att.s.' + s) | t }}</th> }</tr></thead>
+          <tbody>
+            @for (r of m; track r.id) {
+              <tr><td>{{ r.name }}@if (r.jobTitle) { <small> · {{ r.jobTitle }}</small> }</td>@for (s of statuses; track s) { <td class="num">{{ r.counts[s] || '' }}</td> }</tr>
+            } @empty { <tr><td [attr.colspan]="statuses.length + 1" class="notice empty">{{ 'pay.att.none' | t }}</td></tr> }
+          </tbody>
+        </table>
+      }
+    </section>
+  `,
+  styles: [`
+    @media (min-width: 1024px) { .floor.att { max-width:960px; } .att .btn.primary.all { justify-self:start; width:auto; padding-inline:20px; } }
+    .bar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; margin-bottom:12px; }
+    .seg { display:inline-flex; border:1px solid var(--tos-line); border-radius:12px; overflow:hidden; }
+    .seg button { min-height:44px; padding:0 14px; border:0; background:var(--tos-card); font:inherit; font-weight:700; cursor:pointer; }
+    .seg button.on { background:var(--tos-primary); color:#fff; }
+    .when { display:flex; gap:6px; align-items:center; }
+    .when input { min-height:44px; padding:0 10px; border:1px solid var(--tos-line); border-radius:10px; background:var(--tos-card); font:inherit; }
+    .when .btn { min-width:44px; padding:0; }
+    .sum { margin:0 0 8px; color:var(--tos-ink-soft); font-weight:600; }
+    .all { margin-bottom:10px; }
+    .emp { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; }
+    .who { display:grid; min-width:120px; }
+    .who small { color:var(--tos-ink-soft); }
+    .chips { display:flex; flex-wrap:wrap; gap:6px; }
+    .chip.on[data-s='ABSENT'] { background:var(--tos-danger, #b3261e); border-color:var(--tos-danger, #b3261e); color:#fff; }
+    .notice.empty { padding-inline:0; background:transparent; color:var(--tos-ink-soft); font-weight:500; }
+    .table { width:100%; border-collapse:collapse; background:var(--tos-card); border:1px solid var(--tos-line); border-radius:12px; }
+    .table th, .table td { padding:10px 12px; border-bottom:1px solid var(--tos-line); text-align:start; }
+    .table .num { text-align:end; font-variant-numeric:tabular-nums; }
+    .table small { color:var(--tos-ink-soft); }
+  `],
+})
+export class AttendanceComponent {
+  private readonly http = inject(HttpClient);
+  private readonly i18n = inject(I18nService);
+  private readonly toast = inject(ToastService);
+  protected readonly statuses = STATUSES;
+  protected readonly max = today();
+  protected readonly view = signal<View>('day');
+  protected readonly day = signal(today());
+  protected readonly rows = signal<DayRow[] | null>(null);
+  protected readonly month = signal<MonthRow[] | null>(null);
+  protected readonly busy = signal(false);
+  protected readonly error = signal<string | null>(null);
+  protected readonly unmarked = computed(() => (this.rows() ?? []).filter((r) => !r.status).length);
+  /** "6 present · 1 absent · 2 not marked". */
+  protected readonly summary = computed(() => {
+    const list = this.rows() ?? [];
+    const parts = STATUSES.map((s) => ({ s, n: list.filter((r) => r.status === s).length })).filter((p) => p.n).map((p) => `${this.i18n.num(p.n)} ${this.i18n.t(`pay.att.s.${p.s}`).toLowerCase()}`);
+    if (this.unmarked()) parts.push(this.i18n.t('pay.att.notMarked', { n: this.i18n.num(this.unmarked()) }));
+    return parts.join(' · ');
+  });
+
+  constructor() {
+    this.load();
+  }
+
+  protected show(v: View): void {
+    this.view.set(v);
+    this.load();
+  }
+
+  protected pick(day: string): void {
+    if (!day || day > this.max) return;
+    this.day.set(day);
+    this.load();
+  }
+
+  /** A day back or forward; in the month view, a month. */
+  protected move(by: number): void {
+    if (this.view() === 'day') return this.pick(shift(this.day(), by));
+    const d = new Date(`${this.day().slice(0, 7)}-01T00:00:00Z`);
+    d.setUTCMonth(d.getUTCMonth() + by);
+    const next = d.toISOString().slice(0, 10);
+    this.pick(next > this.max ? this.max : next);
+  }
+
+  private fail(e: HttpErrorResponse): void {
+    this.busy.set(false);
+    const m = e.error?.message;
+    this.error.set(Array.isArray(m) ? m.join(', ') : m ?? this.i18n.t('common.couldNotSave'));
+  }
+
+  protected load(): void {
+    this.error.set(null);
+    if (this.view() === 'day') {
+      this.http.get<{ employees: DayRow[] }>('/api/payroll/attendance', { params: { day: this.day() } }).subscribe({ next: (r) => this.rows.set(r.employees), error: (e) => this.fail(e) });
+    } else {
+      this.http.get<{ employees: MonthRow[] }>('/api/payroll/attendance/month', { params: { month: this.day().slice(0, 7) } }).subscribe({ next: (r) => this.month.set(r.employees), error: (e) => this.fail(e) });
+    }
+  }
+
+  private save(marks: { workerId: string; status: Status | null }[]): void {
+    this.busy.set(true);
+    this.error.set(null);
+    this.http.put<{ employees: DayRow[] }>('/api/payroll/attendance', { day: this.day(), marks }).subscribe({
+      next: (r) => { this.busy.set(false); this.rows.set(r.employees); },
+      error: (e) => this.fail(e),
+    });
+  }
+
+  /** One tap marks; the same tap again clears. */
+  protected mark(r: DayRow, status: Status | null): void {
+    this.save([{ workerId: r.id, status }]);
+  }
+
+  /** Everybody not marked yet is present; those already marked keep their mark. */
+  protected allPresent(): void {
+    const marks = (this.rows() ?? []).filter((r) => !r.status).map((r) => ({ workerId: r.id, status: 'PRESENT' as const }));
+    if (marks.length) this.save(marks);
+    this.toast.show(this.i18n.t('pay.saved'));
+  }
+}

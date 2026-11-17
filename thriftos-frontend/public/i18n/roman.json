@@ -1673,7 +1673,8 @@
    "customers": "Customer",
    "trading": "Kharid farokht",
    "costs": "Chalane ke kharche",
-   "pay": "Tankhwah"
+   "pay": "Tankhwah",
+   "attendance": "Haazri"
   },
   "new": {
    "bale": "Gaanth banayein",
@@ -2769,7 +2770,25 @@
   "since": "{date} se",
   "left": "{date} ko chhora",
   "countSorting": "Har chhantai wale ka kaam ginein",
-  "countSortingHint": "Sirf tab agar aap fi kg ya fi piece ujrat dete hain. Phir chhantai har dher par poochti hai ke kis ne chhanta, aur ujrat usi se banti hai."
+  "countSortingHint": "Sirf tab agar aap fi kg ya fi piece ujrat dete hain. Phir chhantai har dher par poochti hai ke kis ne chhanta, aur ujrat usi se banti hai.",
+  "att": {
+   "title": "Haazri",
+   "day": "Din",
+   "month": "Mahina",
+   "before": "Pehle",
+   "after": "Baad",
+   "none": "Haazri ke liye koi mulazim nahi. Pehle shamil karein:",
+   "allPresent": "Baqi {n} ko haazir lagayein",
+   "notMarked": "{n} ki haazri nahi lagi",
+   "s": {
+    "PRESENT": "Haazir",
+    "ABSENT": "Ghair haazir",
+    "HALF_DAY": "Aadha din",
+    "LEAVE": "Chhutti",
+    "HOLIDAY": "Taateel"
+   }
+  },
+  "absentN": "{n} din ghair haazir"
  },
  "move": {
   "pick": "Ya stock se chunein",

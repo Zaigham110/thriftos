@@ -1903,14 +1903,42 @@ model Worker {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
-  outputs  CategoryOutput[]
-  advances WorkerAdvance[]
-  lines    PaySheetLine[]
+  outputs    CategoryOutput[]
+  advances   WorkerAdvance[]
+  attendance Attendance[]
+  lines      PaySheetLine[]
 
   @@index([tenantId])
 }
 
 /// Money given to a worker before pay day (a cash Labour expense when given), taken off their next pay sheet.
+/// One employee's day (owner, 2026-11-17: Employee Management): present, absent, half day, on leave or a holiday.
+/// Days present feed the pay of staff paid by the day; absences show beside a monthly salary.
+model Attendance {
+  id        String           @id @default(cuid())
+  tenantId  String
+  workerId  String
+  day       DateTime         @db.Date
+  status    AttendanceStatus
+  note      String?
+  markedBy  String
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  worker Worker @relation(fields: [workerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([workerId, day])
+  @@index([tenantId, day])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  LEAVE
+  HOLIDAY
+}
+
 model WorkerAdvance {
   id             String   @id @default(cuid())
   tenantId       String
@@ -1959,7 +1987,10 @@ model PaySheetLine {
   rate       Decimal       @db.Decimal(14, 2)
   kg         Decimal       @default(0) @db.Decimal(12, 2)
   pieces     Int           @default(0)
-  days       Int           @default(0)
+  /// Days paid for: whole and half days (attendance), or days with sorting entries.
+  days       Decimal       @default(0) @db.Decimal(5, 1)
+  /// Days marked absent in the period (half day = 0.5), for the owner to see beside a monthly salary.
+  absentDays Decimal       @default(0) @db.Decimal(5, 1)
   gross      Decimal       @db.Decimal(14, 2)
   advances   Decimal       @default(0) @db.Decimal(14, 2)
   deductions Decimal       @default(0) @db.Decimal(14, 2)

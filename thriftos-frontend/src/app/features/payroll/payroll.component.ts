@@ -1,4 +1,4 @@
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -16,7 +16,7 @@ interface Worker {
 }
 interface WorkerForm { id: string | null; name: string; phone: string; payType: PayType; rate: number | null; isActive: boolean; jobTitle: string; cnic: string; joinedOn: string; leftOn: string; address: string; emergencyContact: string; note: string }
 interface SheetRow { id: string; periodStart: string; periodEnd: string; status: 'DRAFT' | 'PAID'; total: string; workers: number }
-interface Line { id: string; workerId: string; payType: PayType; rate: string; kg: string; pieces: number; days: number; gross: string; advances: string; deductions: string; net: string; note: string | null; worker: { id: string; name: string; phone: string | null } }
+interface Line { id: string; workerId: string; payType: PayType; rate: string; kg: string; pieces: number; days: string | number; absentDays?: string; gross: string; advances: string; deductions: string; net: string; note: string | null; worker: { id: string; name: string; phone: string | null } }
 interface Sheet { id: string; periodStart: string; periodEnd: string; status: 'DRAFT' | 'PAID'; total: string; paidAt: string | null; lines: Line[] }
 interface Prod { from: string; to: string; topGrade: string | null; workers: { id: string; name: string; kg: string; pieces: number; days: number; kgPerDay: string; piecesPerDay: number; topGradePercent: number | null }[] }
 type Tab = 'workers' | 'sheets' | 'productivity';
@@ -35,7 +35,7 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
 @Component({
   selector: 'app-payroll',
   standalone: true,
-  imports: [FormsModule, LucideAngularModule, I18N],
+  imports: [FormsModule, RouterLink, LucideAngularModule, I18N],
   template: `
     <section class="floor payroll">
       <header class="floor-head"><h1>{{ 'pay.title' | t }}</h1></header>
@@ -104,6 +104,7 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
             }
           }
         </ul>
+        <a class="btn att" routerLink="/people/attendance">{{ 'pay.att.title' | t }}</a>
         <label class="check count"><input type="checkbox" [checked]="counting()" [disabled]="busy()" (change)="setCounting($any($event.target).checked)" /> <span>{{ 'pay.countSorting' | t }}<small>{{ 'pay.countSortingHint' | t }}</small></span></label>
       }
 
@@ -146,10 +147,10 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
                     <strong>{{ l.worker.name }}</strong>
                     <span class="amount">{{ i18n.money(l.net) }}</span>
                   </div>
-                  <small>{{ workText(l) }} = {{ i18n.money(l.gross) }}@if (+l.advances) { · {{ 'pay.lessAdvance' | t: { rs: i18n.money(l.advances) } }} }@if (+l.deductions) { · {{ 'pay.lessDeduction' | t: { rs: i18n.money(l.deductions) } }} }@if (l.note) { · {{ l.note }} }</small>
+                  <small>{{ workText(l) }} = {{ i18n.money(l.gross) }}@if (l.absentDays && +l.absentDays) { · {{ 'pay.absentN' | t: { n: +l.absentDays } }} }@if (+l.advances) { · {{ 'pay.lessAdvance' | t: { rs: i18n.money(l.advances) } }} }@if (+l.deductions) { · {{ 'pay.lessDeduction' | t: { rs: i18n.money(l.deductions) } }} }@if (l.note) { · {{ l.note }} }</small>
                   @if (s.status === 'DRAFT') {
                     <div class="edit">
-                      @if (l.payType === 'DAY') { <label>{{ 'pay.days' | t }}<input type="number" min="0" max="31" [value]="l.days" (change)="saveLine(l, { days: +$any($event.target).value })" /></label> }
+                      @if (l.payType === 'DAY') { <label>{{ 'pay.days' | t }}<input type="number" min="0" max="31" step="0.5" [value]="+l.days" (change)="saveLine(l, { days: +$any($event.target).value })" /></label> }
                       <label>{{ 'pay.deduction' | t }}<input type="number" min="0" [value]="+l.deductions || ''" (change)="saveLine(l, { deductions: +$any($event.target).value || 0 })" /></label>
                       <label>{{ 'pay.note' | t }}<input maxlength="200" [value]="l.note ?? ''" (change)="saveLine(l, { note: $any($event.target).value })" /></label>
                     </div>
@@ -203,6 +204,7 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
     .two { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; }
     .row-btns { display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; }
     .check { display:flex; gap:8px; align-items:center; font-weight:600; }
+    .btn.att { justify-self:start; margin-top:10px; }
     .check.count { align-items:flex-start; margin-top:14px; }
     .check.count span { display:grid; gap:2px; }
     .check.count small { color:var(--tos-ink-soft); font-weight:500; }
@@ -416,7 +418,7 @@ export class PayrollComponent {
     switch (l.payType) {
       case 'KG': return `${this.i18n.kg(l.kg)} × ${rate}`;
       case 'PIECE': return `${this.i18n.t('ws.lf.piecesN', { n: this.i18n.num(l.pieces) })} × ${rate}`;
-      case 'DAY': return `${this.i18n.t('pay.daysN', { n: l.days })} × ${rate}`;
+      case 'DAY': return `${this.i18n.t('pay.daysN', { n: this.i18n.num(Number(l.days), 1).replace(/\.0$/, '') })} × ${rate}`;
       default: return this.i18n.t('pay.monthly', { rs: rate });
     }
   }

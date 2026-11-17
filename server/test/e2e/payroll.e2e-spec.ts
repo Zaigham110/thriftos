@@ -88,7 +88,7 @@ describe('Phase 8 sorter pay: workers, pay sheet, labour cost, productivity (e2e
     const line = (n: string) => sheet.lines.find((l: any) => l.worker.name === n);
     expect([line('Akram').kg, Number(line('Akram').gross), Number(line('Akram').advances), Number(line('Akram').net)]).toEqual(['300', 3000, 1000, 2000]);
     expect([line('Bilal').pieces, Number(line('Bilal').net)]).toEqual([40, 200]);
-    expect([line('Chacha').days, Number(line('Chacha').net)]).toEqual([1, 1500]);
+    expect([Number(line('Chacha').days), Number(line('Chacha').net)]).toEqual([1, 1500]);
     expect(Number(line('Munshi').net)).toBe(1000);
     expect(Number(sheet.total)).toBe(4700);
     await api(app, a).post('/payroll/sheets', { periodStart: day, periodEnd: day }).expect(409);

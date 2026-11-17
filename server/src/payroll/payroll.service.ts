@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { ExpenseCategory, PaySheetStatus, PaymentMethod, Prisma, WorkerPayType } from '@prisma/client';
+import { AttendanceStatus, ExpenseCategory, PaySheetStatus, PaymentMethod, Prisma, WorkerPayType } from '@prisma/client';
 import { BUSINESS_UTC_OFFSET_MINUTES, localDayStart } from '../common/list/list-engine';
 import { toE164 } from '../common/phone/phone';
 import { PrismaService } from '../prisma/prisma.service';
@@ -178,9 +178,10 @@ export class PayrollService {
     if (overlap) throw new ConflictException(`There is already a pay sheet for ${ymd(overlap.periodStart)} – ${ymd(overlap.periodEnd)}`);
 
     return this.prisma.$transaction(async (tx) => {
-      const [workers, work, advances] = await Promise.all([
+      const [workers, work, attendance, advances] = await Promise.all([
         tx.worker.findMany({ where: { tenantId, isActive: true }, orderBy: { name: 'asc' } }),
         this.work(tx, tenantId, start, end),
+        this.attended(tx, tenantId, start, end),
         tx.workerAdvance.findMany({ where: { tenantId, paySheetLineId: null, day: { lte: dayDate(end) } }, select: { id: true, workerId: true, amount: true } }),
       ]);
       const sheet = await tx.paySheet.create({ data: { tenantId, periodStart: dayDate(start), periodEnd: dayDate(end), createdBy: userId } });
@@ -190,11 +191,14 @@ export class PayrollService {
         const mine = advances.filter((a) => a.workerId === w.id);
         const adv = mine.reduce((t, a) => t.add(a.amount), ZERO);
         if (!did && !mine.length && w.payType !== WorkerPayType.MONTH && w.payType !== WorkerPayType.DAY) continue;
-        const facts = { kg: did?.kg ?? ZERO, pieces: did?.pieces ?? 0, days: did?.days.size ?? 0 };
+        // Days paid for: from attendance when the person was marked in the period (a half day counts half), else
+        // the days they have sorting entries on, as before.
+        const marked = attendance.get(w.id);
+        const facts = { kg: did?.kg ?? ZERO, pieces: did?.pieces ?? 0, days: marked ? marked.worked : did?.days.size ?? 0 };
         const gross = grossPay(w.payType, w.rate, facts, start, end);
         const net = netPay(gross, adv, ZERO);
         const line = await tx.paySheetLine.create({
-          data: { tenantId, paySheetId: sheet.id, workerId: w.id, payType: w.payType, rate: w.rate, kg: facts.kg, pieces: facts.pieces, days: facts.days, gross, advances: adv, net },
+          data: { tenantId, paySheetId: sheet.id, workerId: w.id, payType: w.payType, rate: w.rate, kg: facts.kg, pieces: facts.pieces, days: facts.days, absentDays: marked?.absent ?? 0, gross, advances: adv, net },
         });
         if (mine.length) await tx.workerAdvance.updateMany({ where: { id: { in: mine.map((a) => a.id) }, paySheetLineId: null }, data: { paySheetLineId: line.id } });
         total = total.add(net);
@@ -221,7 +225,7 @@ export class PayrollService {
     if (line.sheet.status !== PaySheetStatus.DRAFT) throw new ConflictException('This pay sheet is paid; it cannot change');
     if (dto.days !== undefined && (dto.days < 0 || dto.days > periodDays(ymd(line.sheet.periodStart), ymd(line.sheet.periodEnd)))) throw new BadRequestException('More days than the period has');
     if (dto.deductions !== undefined && dto.deductions < 0) throw new BadRequestException('A deduction cannot be below zero');
-    const days = dto.days ?? line.days;
+    const days = dto.days ?? line.days.toNumber();
     const deductions = dto.deductions !== undefined ? new Prisma.Decimal(dto.deductions) : line.deductions;
     const gross = line.payType === WorkerPayType.DAY ? line.rate.mul(days).toDecimalPlaces(2) : line.gross;
     const net = netPay(gross, line.advances, deductions);
@@ -284,6 +288,79 @@ export class PayrollService {
       return id;
     });
     return this.sheet(tenantId, result);
+  }
+
+  // ── Attendance ────────────────────────────────────────────────────────────
+
+  /** Days worked and days absent per employee in a period, from attendance (a half day is half of each). */
+  private async attended(db: Tx | PrismaService, tenantId: string, start: string, end: string) {
+    const rows = await db.attendance.findMany({ where: { tenantId, day: { gte: dayDate(start), lte: dayDate(end) } }, select: { workerId: true, status: true } });
+    const by = new Map<string, { worked: number; absent: number }>();
+    for (const r of rows) {
+      const a = by.get(r.workerId) ?? { worked: 0, absent: 0 };
+      if (r.status === AttendanceStatus.PRESENT) a.worked += 1;
+      else if (r.status === AttendanceStatus.HALF_DAY) { a.worked += 0.5; a.absent += 0.5; }
+      else if (r.status === AttendanceStatus.ABSENT) a.absent += 1;
+      by.set(r.workerId, a);
+    }
+    return by;
+  }
+
+  /** One day: every employee who was working here that day, with how they are marked (null = not marked yet). */
+  async attendanceDay(tenantId: string, day: string) {
+    const d = day.slice(0, 10);
+    const [workers, marks] = await Promise.all([
+      this.prisma.worker.findMany({
+        where: { tenantId, OR: [{ isActive: true }, { leftOn: { gte: dayDate(d) } }], AND: [{ OR: [{ joinedOn: null }, { joinedOn: { lte: dayDate(d) } }] }] },
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true, jobTitle: true, payType: true },
+      }),
+      this.prisma.attendance.findMany({ where: { tenantId, day: dayDate(d) }, select: { workerId: true, status: true, note: true } }),
+    ]);
+    const of = new Map(marks.map((m) => [m.workerId, m]));
+    return { day: d, employees: workers.map((w) => ({ ...w, status: of.get(w.id)?.status ?? null, note: of.get(w.id)?.note ?? null })) };
+  }
+
+  /** Marks (or clears, with status null) employees for one day. Not for a day that has not come. */
+  async markAttendance(tenantId: string, dto: { day: string; marks: { workerId: string; status: AttendanceStatus | null; note?: string | null }[] }, userId: string, now = new Date()) {
+    const d = dto.day.slice(0, 10);
+    if (d > businessDay(now)) throw new BadRequestException({ statusCode: 400, code: 'FUTURE_DAY', message: 'Attendance cannot be marked for a day that has not come' });
+    const ids = [...new Set(dto.marks.map((m) => m.workerId))];
+    const mine = await this.prisma.worker.count({ where: { tenantId, id: { in: ids } } });
+    if (mine !== ids.length) throw new NotFoundException('Employee not found');
+    await this.prisma.$transaction(async (tx) => {
+      for (const m of dto.marks) {
+        const key = { workerId_day: { workerId: m.workerId, day: dayDate(d) } };
+        if (m.status === null) await tx.attendance.deleteMany({ where: { tenantId, workerId: m.workerId, day: dayDate(d) } });
+        else await tx.attendance.upsert({ where: key, create: { tenantId, workerId: m.workerId, day: dayDate(d), status: m.status, note: m.note?.trim() || null, markedBy: userId }, update: { status: m.status, note: m.note?.trim() || null, markedBy: userId } });
+      }
+      await tx.auditLog.create({ data: { tenantId, userId, action: 'ATTENDANCE_MARKED', entityType: 'Attendance', entityId: d, metadataJson: { day: d, marks: dto.marks.length } } });
+    });
+    return this.attendanceDay(tenantId, d);
+  }
+
+  /** A month at a glance: per employee, how many days of each kind, and each day's mark. */
+  async attendanceMonth(tenantId: string, month: string) {
+    const start = `${month.slice(0, 7)}-01`;
+    const s = dayDate(start);
+    const end = new Date(Date.UTC(s.getUTCFullYear(), s.getUTCMonth() + 1, 0));
+    const [workers, marks] = await Promise.all([
+      this.prisma.worker.findMany({ where: { tenantId }, orderBy: { name: 'asc' }, select: { id: true, name: true, jobTitle: true, isActive: true } }),
+      this.prisma.attendance.findMany({ where: { tenantId, day: { gte: s, lte: end } }, select: { workerId: true, day: true, status: true } }),
+    ]);
+    const blank = () => ({ PRESENT: 0, ABSENT: 0, HALF_DAY: 0, LEAVE: 0, HOLIDAY: 0 });
+    const by = new Map<string, { counts: ReturnType<typeof blank>; days: Record<string, AttendanceStatus> }>();
+    for (const m of marks) {
+      const a = by.get(m.workerId) ?? { counts: blank(), days: {} };
+      a.counts[m.status] += 1;
+      a.days[ymd(m.day)] = m.status;
+      by.set(m.workerId, a);
+    }
+    return {
+      month: month.slice(0, 7), days: end.getUTCDate(),
+      // Everybody working now, and anybody else who was marked that month.
+      employees: workers.filter((w) => w.isActive || by.has(w.id)).map((w) => ({ id: w.id, name: w.name, jobTitle: w.jobTitle, counts: by.get(w.id)?.counts ?? blank(), days: by.get(w.id)?.days ?? {} })),
+    };
   }
 
   // ── Productivity (owner) ──────────────────────────────────────────────────────────────────────────

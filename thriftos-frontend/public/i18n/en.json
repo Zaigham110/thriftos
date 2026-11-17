@@ -1673,7 +1673,8 @@
    "customers": "Customers",
    "trading": "Trading",
    "costs": "Running costs",
-   "pay": "Pay"
+   "pay": "Pay",
+   "attendance": "Attendance"
   },
   "new": {
    "bale": "Make a bale",
@@ -2769,7 +2770,25 @@
   "since": "since {date}",
   "left": "left {date}",
   "countSorting": "Count what each sorter sorts",
-  "countSortingHint": "Only if you pay by the kg or piece. Sorting then asks who sorted each pile, and their pay is worked out from it."
+  "countSortingHint": "Only if you pay by the kg or piece. Sorting then asks who sorted each pile, and their pay is worked out from it.",
+  "att": {
+   "title": "Attendance",
+   "day": "Day",
+   "month": "Month",
+   "before": "Earlier",
+   "after": "Later",
+   "none": "No employees to mark. Add them first:",
+   "allPresent": "Mark the other {n} present",
+   "notMarked": "{n} not marked",
+   "s": {
+    "PRESENT": "Present",
+    "ABSENT": "Absent",
+    "HALF_DAY": "Half day",
+    "LEAVE": "Leave",
+    "HOLIDAY": "Holiday"
+   }
+  },
+  "absentN": "absent {n} days"
  },
  "move": {
   "pick": "Or pick from stock",
