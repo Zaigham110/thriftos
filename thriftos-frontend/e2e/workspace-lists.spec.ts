@@ -379,18 +379,44 @@ test('finance: record an expense, close the day, cash book and profit and loss',
   await page.getByRole('button', { name: 'Bank', exact: true }).click();
   await expect(page.locator('ws-data-grid tbody')).toContainText('Transport · Loader rickshaw');
 
-  await page.goto('/finance/pnl');
-  await expect(page.getByRole('heading', { name: 'Profit and loss' })).toBeVisible();
-  await expect(page.locator('ws-data-grid tbody tr').filter({ hasText: 'Net profit' })).toBeVisible();
-  // P&L in sections (owner, 2026-11-12): buying, running expenses with their kinds, the total, and an amount opens what is behind it.
-  await expect(page.locator('ws-data-grid tbody tr').filter({ hasText: 'Buying: cost of goods sold' })).toBeVisible();
+  // Three money reports (owner, 2026-11-17). Trading: buying and selling only.
+  const line = (text: string | RegExp) => page.locator('ws-data-grid').first().locator('tbody tr').filter({ hasText: text });
+  await page.goto('/finance/trading');
+  await expect(page.getByRole('heading', { name: 'Trading', exact: true })).toBeVisible();
+  await expect(line('Cost of goods sold')).toBeVisible();
+  await expect(line('Gross profit')).toBeVisible();
+  await expect(line('Running expenses')).toHaveCount(0);
+  await expect(line('Net profit')).toHaveCount(0);
+  // What stands behind it: the stock account, what is owed, and profit by lot, supplier, customer and item.
+  const stock = page.getByRole('region', { name: 'Stock account' });
+  await expect(stock).toContainText('Stock at the start');
+  await expect(stock).toContainText('Stock now');
+  await expect(page.getByRole('region', { name: 'Owed' })).toContainText('You owe suppliers now');
+  await page.getByRole('tab', { name: 'By customer' }).click();
+  await expect(page.getByRole('tab', { name: 'By customer' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByText('For the period picked above.')).toBeVisible();
+  await page.getByRole('tab', { name: 'By item' }).click();
+  await expect(page.locator('ws-data-grid').last().locator('thead')).toContainText('Kg sold');
+
+  // Running costs: everything else, in sections with their kinds; an amount opens what is behind it.
+  await page.goto('/finance/costs');
+  await expect(page.getByRole('heading', { name: 'Running costs', exact: true })).toBeVisible();
   await expect(page.locator('ws-data-grid tbody tr.strong').filter({ hasText: 'Running expenses' })).toBeVisible();
-  // "All expenses" shows only when more than one section has something to add up (v2 review); net profit is not a link.
+  await expect(line('Cost of goods sold')).toHaveCount(0);
+  // "All expenses" shows only when more than one section has something to add up (v2 review); the page's total is not a link.
   const sections = await page.locator('ws-data-grid tbody tr.strong').filter({ hasText: /^(Employee costs|Running expenses|Petty cash)/ }).count();
   await expect(page.locator('ws-data-grid tbody tr.strong').filter({ hasText: 'All expenses' })).toHaveCount(sections > 1 ? 1 : 0);
-  await expect(page.locator('ws-data-grid tbody tr').filter({ hasText: 'Net profit' })).not.toHaveClass(/clickable/);
+  await expect(page.locator('ws-data-grid tbody tr.strong').filter({ hasText: /^Running costs/ })).not.toHaveClass(/clickable/);
   await page.locator('ws-data-grid tbody tr').filter({ hasText: 'Transport' }).locator('td').last().click();
   await expect(page).toHaveURL(/\/finance\/expenses\?v=.*TRANSPORT/);
+
+  // Summary: the two halves and net profit; a half opens its own report.
+  await page.goto('/finance/pnl');
+  await expect(page.getByRole('heading', { name: 'Profit summary' })).toBeVisible();
+  await expect(page.locator('ws-data-grid tbody tr')).toHaveCount(3);
+  await expect(line('Net profit')).not.toHaveClass(/clickable/);
+  await line('Trading profit').locator('td').last().click();
+  await expect(page).toHaveURL(/\/finance\/trading$/);
 });
 
 test('sales extras: price list for a group, keyboard sale entry suggests the list price, sales by month', async ({ page, request }) => {

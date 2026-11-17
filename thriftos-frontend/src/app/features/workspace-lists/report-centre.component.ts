@@ -12,7 +12,10 @@ interface Section { key: string; reports: Report[] }
 
 /** Every report, grouped like the menu; each has filters, a chart and a table, CSV export and print. */
 const SECTIONS: Section[] = [
-  { key: 'overview', reports: [{ key: 'dashboard', path: '/home', icon: BarChart3 }, { key: 'pnl', path: '/finance/pnl', icon: TrendingUp, permission: 'cost.view' }] },
+  { key: 'overview', reports: [{ key: 'dashboard', path: '/home', icon: BarChart3 }, 
+    // The three money reports (owner, 2026-11-17): buying and selling; everything else; the two together.
+    { key: 'trading', path: '/finance/trading', icon: TrendingUp, permission: 'cost.view', module: 'PNL' }, { key: 'costs', path: '/finance/costs', icon: Receipt, permission: 'cost.view', module: 'PNL' },
+    { key: 'pnl', path: '/finance/pnl', icon: TrendingUp, permission: 'cost.view' }] },
   { key: 'sales', reports: [{ key: 'salesAnalytics', path: '/sell/analytics', icon: ShoppingCart }, { key: 'collections', path: '/khata/records', icon: BookOpen }] },
   { key: 'purchasing', reports: [{ key: 'scorecard', path: '/receive/scorecard', icon: Factory }, { key: 'yield', path: '/sort/yield', icon: Gauge, permission: 'SORTING_STAGE1_VIEW' },
     // What is owed to each supplier, and who sorts how much (v2 review: neither was on the list).

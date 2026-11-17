@@ -2,17 +2,26 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TPipe } from '../../core/i18n/t.pipe';
 import { WsBarChartComponent, WsColumn, WsDataGridComponent, WsKpiCardComponent, WsPageHeaderComponent, WsReportActionsComponent, WsRow, WsStateComponent } from '../../shared/ui/workspace';
 import { EXPENSE_SECTIONS, EXPENSE_SECTION_KEYS } from './lists';
+import { TradingDetailComponent } from './trading-detail.component';
+
+/**
+ * The three money reports (owner, 2026-11-17): Trading is buying and selling only; Running costs is everything
+ * else the business costs; Summary puts the two together into net profit.
+ */
+export type PnlView = 'trading' | 'costs' | 'summary';
 
 type Money = string;
 type Apart = 'ownerOut' | 'ownerIn' | 'bankOut' | 'bankIn' | 'otherOut' | 'otherIn';
 interface Totals {
   revenue: Money; cost: Money; grossProfit: Money; marginPercent: number | null; writeOffs: Money; cashDifference: Money;
   expenses: Record<string, Money>; expenseTotal: Money; netProfit: Money;
+  /** Gross profit less stock written off; and expenses plus cash short. Net profit = the first less the second. */
+  tradingProfit: Money; runningCosts: Money;
   /** Expenses by section: employee costs, running expenses, petty cash. */
   sections: Record<(typeof EXPENSE_SECTION_KEYS)[number], Money>;
   /** Stock bought in the month, and cash moved that is not a cost: shown apart, not in profit. */
@@ -51,11 +60,11 @@ const lastDay = (month: string) => {
 @Component({
   selector: 'app-pnl',
   standalone: true,
-  imports: [FormsModule, TPipe, WsBarChartComponent, WsDataGridComponent, WsKpiCardComponent, WsPageHeaderComponent, WsReportActionsComponent, WsStateComponent],
+  imports: [FormsModule, TPipe, TradingDetailComponent, WsBarChartComponent, WsDataGridComponent, WsKpiCardComponent, WsPageHeaderComponent, WsReportActionsComponent, WsStateComponent],
   template: `
     <div class="page">
-      <ws-page-header [heading]="'ws.pnl.title' | t" [subtitle]="'ws.pnl.subtitle' | t">
-        <ws-report-actions actions [columns]="columns()" [rows]="rows()" filename="thriftos-profit-and-loss" />
+      <ws-page-header [heading]="'ws.pnl.view.' + view + '.title' | t" [subtitle]="'ws.pnl.view.' + view + '.subtitle' | t">
+        <ws-report-actions actions [columns]="columns()" [rows]="rows()" [filename]="'thriftos-' + view" />
         <label actions class="select">{{ 'ws.pnl.period' | t }}
           <select [ngModel]="months()" (ngModelChange)="months.set($event)">
             @for (n of periods; track n) { <option [ngValue]="n">{{ 'ws.pnl.lastMonths' | t: { n } }}</option> }
@@ -66,10 +75,18 @@ const lastDay = (month: string) => {
         <ws-state kind="error" [heading]="'ws.pnl.loadFailed' | t" (retry)="load()" />
       } @else if (data(); as p) {
         <section class="kpis">
-          <ws-kpi-card [label]="'ws.pnl.revenue' | t" [value]="rs(p.totals.revenue)" [delta]="delta(p.totals.revenue, p.previous?.revenue)" />
-          <ws-kpi-card [label]="'ws.pnl.gross' | t" [value]="rs(p.totals.grossProfit)" [delta]="delta(p.totals.grossProfit, p.previous?.grossProfit)" [hint]="share(p.totals.grossProfit, p.totals.revenue, 'ws.pnl.margin')" />
-          <ws-kpi-card [label]="'ws.pnl.expenses' | t" [value]="rs(p.totals.expenseTotal)" [delta]="delta(p.totals.expenseTotal, p.previous?.expenseTotal)" [higherIsBetter]="false" />
-          <ws-kpi-card [label]="'ws.pnl.net' | t" [value]="rs(p.totals.netProfit)" [delta]="delta(p.totals.netProfit, p.previous?.netProfit)" [hint]="share(p.totals.netProfit, p.totals.revenue, 'ws.pnl.netMargin')" />
+          @if (view === 'trading') {
+            <ws-kpi-card [label]="'ws.pnl.revenue' | t" [value]="rs(p.totals.revenue)" [delta]="delta(p.totals.revenue, p.previous?.revenue)" />
+            <ws-kpi-card [label]="'ws.pnl.cost' | t" [value]="rs(p.totals.cost)" [delta]="delta(p.totals.cost, p.previous?.cost)" [higherIsBetter]="false" />
+            <ws-kpi-card [label]="'ws.pnl.trading' | t" [value]="rs(p.totals.tradingProfit)" [delta]="delta(p.totals.tradingProfit, p.previous?.tradingProfit)" [hint]="share(p.totals.tradingProfit, p.totals.revenue, 'ws.pnl.margin')" />
+          } @else if (view === 'costs') {
+            @for (k of sectionKeys; track k) { <ws-kpi-card [label]="'ws.pnl.section.' + k | t" [value]="rs(p.totals.sections[k])" [delta]="delta(p.totals.sections[k], p.previous?.sections?.[k])" [higherIsBetter]="false" /> }
+            <ws-kpi-card [label]="'ws.pnl.running' | t" [value]="rs(p.totals.runningCosts)" [delta]="delta(p.totals.runningCosts, p.previous?.runningCosts)" [higherIsBetter]="false" />
+          } @else {
+            <ws-kpi-card [label]="'ws.pnl.trading' | t" [value]="rs(p.totals.tradingProfit)" [delta]="delta(p.totals.tradingProfit, p.previous?.tradingProfit)" />
+            <ws-kpi-card [label]="'ws.pnl.running' | t" [value]="rs(p.totals.runningCosts)" [delta]="delta(p.totals.runningCosts, p.previous?.runningCosts)" [higherIsBetter]="false" />
+            <ws-kpi-card [label]="'ws.pnl.net' | t" [value]="rs(p.totals.netProfit)" [delta]="delta(p.totals.netProfit, p.previous?.netProfit)" [hint]="share(p.totals.netProfit, p.totals.revenue, 'ws.pnl.netMargin')" />
+          }
         </section>
         @if (p.previous || p.current) {
           <p class="note">
@@ -77,12 +94,12 @@ const lastDay = (month: string) => {
             @if (p.current; as c) { <span>{{ 'ws.pnl.notOver' | t: { month: monthName(c.month), days: c.days, of: c.of } }}</span> }
           </p>
         }
-        <ws-bar-chart [heading]="'ws.pnl.chart' | t" [categories]="labels()" [series]="series()" format="money" />
+        <ws-bar-chart [heading]="'ws.pnl.view.' + view + '.chart' | t" [categories]="labels()" [series]="series()" format="money" />
         <div class="desk">
-          <ws-data-grid [caption]="'ws.pnl.title' | t" [columns]="columns()" [rows]="rows()" [clickable]="true" (cellClick)="open($event.row['id'] + '', $event.key)" />
+          <ws-data-grid [caption]="'ws.pnl.view.' + view + '.title' | t" [columns]="columns()" [rows]="rows()" [clickable]="true" (cellClick)="open($event.row['id'] + '', $event.key)" />
           <p class="tip">{{ 'ws.pnl.tapTip' | t }}@if (hasApart()) { {{ 'ws.pnl.apartNote' | t }} }</p>
         </div>
-        <section class="phone" [attr.aria-label]="'ws.pnl.title' | t">
+        <section class="phone" [attr.aria-label]="'ws.pnl.view.' + view + '.title' | t">
           <div class="chips" role="radiogroup" [attr.aria-label]="'ws.pnl.month' | t">
             @for (m of p.months; track m.month) {
               <label class="chip" [class.on]="m.month === picked()"><input type="radio" name="pnl-month" [value]="m.month" [ngModel]="picked()" (ngModelChange)="pick.set($event)" />{{ monthLabel(m.month) }}</label>
@@ -103,6 +120,7 @@ const lastDay = (month: string) => {
             @if (hasApart()) { <p class="tip">{{ 'ws.pnl.apartNote' | t }}</p> }
           }
         </section>
+        @if (view === 'trading') { <app-trading-detail [months]="months()" /> }
       } @else {
         <ws-state kind="loading" />
       }
@@ -143,6 +161,9 @@ export class PnlComponent {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  /** Which of the three reports this is (from the route). */
+  protected readonly view: PnlView = (inject(ActivatedRoute).snapshot.data['view'] as PnlView) ?? 'summary';
+  protected readonly sectionKeys = EXPENSE_SECTION_KEYS;
   protected readonly periods = [3, 6, 12, 24];
   protected readonly months = signal(6);
   protected readonly data = signal<Pnl | null>(null);
@@ -165,9 +186,15 @@ export class PnlComponent {
   protected readonly series = computed(() => {
     const m = this.data()?.months ?? [];
     const r = (v: string) => Math.round(Number(v));
+    if (this.view === 'trading') return [
+      { label: this.i18n.t('ws.pnl.revenue'), values: m.map((x) => r(x.revenue)) },
+      { label: this.i18n.t('ws.pnl.cost'), values: m.map((x) => r(x.cost)) },
+      { label: this.i18n.t('ws.pnl.trading'), values: m.map((x) => r(x.tradingProfit)) },
+    ];
+    if (this.view === 'costs') return EXPENSE_SECTION_KEYS.map((k) => ({ label: this.i18n.t(`ws.pnl.section.${k}`), values: m.map((x) => r(x.sections[k])) }));
     return [
-      { label: this.i18n.t('ws.pnl.gross'), values: m.map((x) => r(x.grossProfit)) },
-      { label: this.i18n.t('ws.pnl.expenses'), values: m.map((x) => r(x.expenseTotal)) },
+      { label: this.i18n.t('ws.pnl.trading'), values: m.map((x) => r(x.tradingProfit)) },
+      { label: this.i18n.t('ws.pnl.running'), values: m.map((x) => r(x.runningCosts)) },
       { label: this.i18n.t('ws.pnl.net'), values: m.map((x) => r(x.netProfit)) },
     ];
   });
@@ -180,11 +207,24 @@ export class PnlComponent {
     const t = (k: string) => this.i18n.t(k);
     const apart: Apart[] = ['ownerOut', 'ownerIn', 'bankOut', 'bankIn', 'otherOut', 'otherIn'];
     const sections = EXPENSE_SECTION_KEYS.filter((k) => any((m) => m.sections[k]));
-    return [
+    const boughtLine: Line[] = any((m) => m.bought) ? [{ id: 'apart-bought', label: t('ws.pnl.apart.bought'), pick: (m: Totals) => m.bought, apart: true }] : [];
+    // Trading: buying and selling only. Stock written off is goods lost, so it is a trading loss.
+    if (this.view === 'trading') return [
       { id: 'revenue', label: t('ws.pnl.revenue'), pick: (m) => m.revenue },
-      // Buying: what the goods sold had cost (their price, transport and labour).
+      // What the goods sold had cost: their price and the charges put on the lot (freight, transport, loading).
       { id: 'cost', label: t('ws.pnl.section.buying'), pick: (m) => m.cost, negate: true },
       { id: 'gross', label: t('ws.pnl.gross'), pick: (m) => m.grossProfit, strong: true },
+      ...(any((m) => m.writeOffs) ? [{ id: 'writeOffs', label: t('ws.pnl.writeOffs'), pick: (m: Totals) => m.writeOffs }, { id: 'trading', label: t('ws.pnl.trading'), pick: (m: Totals) => m.tradingProfit, strong: true }] : []),
+      ...boughtLine,
+    ];
+    // Summary: the two halves and what is left.
+    if (this.view === 'summary') return [
+      { id: 'trading', label: t('ws.pnl.trading'), pick: (m) => m.tradingProfit },
+      { id: 'running', label: t('ws.pnl.running'), pick: (m) => m.runningCosts, negate: true },
+      { id: 'net', label: t('ws.pnl.net'), pick: (m) => m.netProfit, strong: true },
+    ];
+    // Running costs: everything the business costs besides the goods.
+    return [
       // Expenses in three sections, each with its kinds under it (only those the period has).
       ...sections.flatMap((k): Line[] => {
         const kinds = EXPENSE_SECTIONS[k].filter((c) => any((m) => m.expenses[c] ?? '0'));
@@ -197,12 +237,11 @@ export class PnlComponent {
       }),
       // "All expenses" only when it adds something up: with one section it would repeat that section's figure.
       ...(sections.length > 1 ? [{ id: 'expenses', label: t('ws.pnl.allExpenses'), pick: (m: Totals) => m.expenseTotal, negate: true, strong: true }] : []),
+      // Cash the drawer was short adds to the costs; cash over takes off (shown as it was counted).
       ...(any((m) => m.cashDifference) ? [{ id: 'cash', label: t('ws.pnl.section.drawer'), pick: (m: Totals) => m.cashDifference }] : []),
-      ...(any((m) => m.writeOffs) ? [{ id: 'writeOffs', label: t('ws.pnl.writeOffs'), pick: (m: Totals) => m.writeOffs }] : []),
-      { id: 'net', label: t('ws.pnl.net'), pick: (m) => m.netProfit, strong: true },
-      // Not in profit: money that moved but is neither earned nor spent, and stock bought (a cost when it is sold).
+      { id: 'running', label: t('ws.pnl.running'), pick: (m) => m.runningCosts, negate: true, strong: true },
+      // Not in profit: money that moved but is neither earned nor spent.
       ...apart.filter((k) => any((m) => m.notInProfit[k])).map((k): Line => ({ id: `apart-${k}`, label: t(`ws.pnl.apart.${k}`), pick: (m) => m.notInProfit[k], apart: true })),
-      ...(any((m) => m.bought) ? [{ id: 'apart-bought', label: t('ws.pnl.apart.bought'), pick: (m: Totals) => m.bought, apart: true }] : []),
     ];
   });
   protected readonly hasApart = computed(() => this.lines().some((l) => l.apart));
@@ -223,7 +262,7 @@ export class PnlComponent {
     if (!p) return [];
     return this.lines().map((l) => ({
       // Net profit opens nothing (it is the sum of the page), so its row is not shown as clickable.
-      id: l.id, line: l.apart ? this.i18n.t('ws.pnl.apart.prefix', { what: l.label }) : l.label, _strong: !!l.strong, _sub: !!l.sub, _plain: l.id === 'net',
+      id: l.id, line: l.apart ? this.i18n.t('ws.pnl.apart.prefix', { what: l.label }) : l.label, _strong: !!l.strong, _sub: !!l.sub, _plain: l.id === 'net' || (l.id === 'trading' && this.view === 'trading') || (l.id === 'running' && this.view === 'costs'),
       ...Object.fromEntries(p.months.map((m) => [m.month, this.value(l, m)])),
       total: this.value(l, p.totals),
     }));
@@ -264,6 +303,9 @@ export class PnlComponent {
   protected open(line: string, key: string): void {
     const p = this.data();
     if (!p || line === 'net' || !p.months.length) return;
+    // On the summary each half opens its own report; on its own report it is the sum of the page.
+    if (line === 'trading') return void (this.view === 'summary' && this.router.navigate(['/finance/trading']));
+    if (line === 'running') return void (this.view === 'summary' && this.router.navigate(['/finance/costs']));
     const month = p.months.find((m) => m.month === key);
     const from = `${(month ?? p.months[0]).month}-01`;
     const to = lastDay((month ?? p.months[p.months.length - 1]).month);

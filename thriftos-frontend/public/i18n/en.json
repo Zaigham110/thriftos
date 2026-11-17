@@ -219,7 +219,7 @@
    "s1": "Start a new expense.",
    "s2": "Pick what it was for (rent, electricity, tea, transport and so on) and write the amount.",
    "s3": "Choose how it was paid: cash from the drawer, or the bank.",
-   "s4": "Save. It shows in Cash and bank and in Profit and loss.",
+   "s4": "Save. It shows in Cash and bank and in Running costs.",
    "go": "New expense"
   },
   "close": {
@@ -243,7 +243,7 @@
    "s1": "Open Sorter pay and add each worker once, with how they are paid.",
    "s2": "While sorting, pick the worker. Their kg are counted by themselves.",
    "s3": "Make a pay sheet for the days you are paying. Advances already given are taken off.",
-   "s4": "Check the amounts and mark it paid. It shows in Profit and loss under employee costs.",
+   "s4": "Check the amounts and mark it paid. It shows in Running costs under employee costs.",
    "go": "Open Sorter pay"
   },
   "prices": {
@@ -1652,7 +1652,7 @@
    "expenses": "Expenses",
    "home": "Home",
    "inventory": "Inventory",
-   "pnl": "Profit and loss",
+   "pnl": "Profit summary",
    "prices": "Price lists",
    "purchasing": "Purchasing",
    "receivables": "Receivables",
@@ -1667,7 +1667,9 @@
    "yield": "Sorting results",
    "payroll": "Sorter pay",
    "moveStock": "Move between godowns",
-   "customers": "Customers"
+   "customers": "Customers",
+   "trading": "Trading",
+   "costs": "Running costs"
   },
   "new": {
    "bale": "Make a bale",
@@ -1717,9 +1719,9 @@
    "period": "Period",
    "revenue": "Sales",
    "subtitle": "Sales less cost, expenses, stock written off and cash short, by month",
-   "title": "Profit and loss",
+   "title": "Profit summary",
    "writeOffs": "Stock written off",
-   "loadFailed": "Profit and loss could not be loaded. Check the internet and try again.",
+   "loadFailed": "The report could not be loaded. Check the internet and try again.",
    "netMargin": "{n}% of sales",
    "compared": "Up or down: compared with the {n} months before.",
    "notOver": "{month} is not over: {days} of {of} days so far. Rent and salaries are for the whole month, sales only so far.",
@@ -1728,7 +1730,7 @@
    "soFar": "{month} (so far)",
    "was": "{month}: {amount}",
    "section": {
-    "buying": "Buying: cost of goods sold",
+    "buying": "Cost of goods sold",
     "employee": "Employee costs",
     "running": "Running expenses",
     "petty": "Petty cash",
@@ -1745,7 +1747,26 @@
     "bankIn": "Drawn from the bank",
     "bought": "Stock bought"
    },
-   "apartNote": "\"Not in profit\" lines are money that moved but was neither earned nor spent: cash the owner took out or put in, cash to or from the bank, other cash taken out or put in (setting the drawer right, for one), and stock bought (it becomes a cost when it is sold)."
+   "apartNote": "\"Not in profit\" lines are money that moved but was neither earned nor spent: cash the owner took out or put in, cash to or from the bank, other cash taken out or put in, and stock bought (it becomes a cost when it is sold).",
+   "trading": "Trading profit",
+   "running": "Running costs",
+   "view": {
+    "trading": {
+     "title": "Trading",
+     "subtitle": "Buying and selling only: sales, what the goods cost, and what they earned. No wages, rent or other expenses.",
+     "chart": "Sales, cost of goods sold and trading profit"
+    },
+    "costs": {
+     "title": "Running costs",
+     "subtitle": "Everything the business costs besides the goods: staff, rent and bills, daily expenses and the cash drawer.",
+     "chart": "Employee costs, running expenses and petty cash"
+    },
+    "summary": {
+     "title": "Profit summary",
+     "subtitle": "Trading profit less running costs is the net profit. Click a line to open its report.",
+     "chart": "Trading profit, running costs and net profit"
+    }
+   }
   },
   "prices": {
    "pricesN": "{n} prices",
@@ -1877,8 +1898,8 @@
      "name": "Lots and sorting"
     },
     "pnl": {
-     "hint": "By month, after cost, write-offs and expenses",
-     "name": "Profit and loss"
+     "hint": "Trading profit less running costs: the net profit, by month",
+     "name": "Profit summary"
     },
     "suppliersOwed": {
      "hint": "Balance with each supplier, and what was bought and paid",
@@ -1907,6 +1928,14 @@
     "yield": {
      "hint": "Sorted % and waste by supplier, origin or month",
      "name": "Sorting results"
+    },
+    "trading": {
+     "name": "Trading",
+     "hint": "Buying and selling: sales, cost of goods, profit by lot, supplier, customer and item, stock and what is owed"
+    },
+    "costs": {
+     "name": "Running costs",
+     "hint": "Staff, rent and bills, daily expenses and the cash drawer, by month"
     }
    },
    "section": {
@@ -2519,6 +2548,42 @@
     "ACTIVE": "Active",
     "INACTIVE": "Not active"
    }
+  },
+  "tr": {
+   "stock": "Stock account",
+   "opening": "Stock at the start",
+   "bought": "Bought",
+   "soldAtCost": "Sold, at cost",
+   "closing": "Stock now",
+   "closingParts": "Stock now: waiting to be sorted {waiting}, sorted {sorted}, ready to sell {ready}.",
+   "openingNote": "The stock at the start is worked back from the stock there is now.",
+   "owed": "Owed",
+   "toSuppliers": "You owe suppliers now",
+   "paidToSuppliers": "Paid to suppliers in this period",
+   "byCustomers": "Customers owe you now",
+   "received": "Received from customers in this period",
+   "profitBy": "Profit by",
+   "tab": {
+    "lot": "By lot or container",
+    "supplier": "By supplier",
+    "customer": "By customer",
+    "item": "By item"
+   },
+   "none": "Nothing to show yet",
+   "toDate": "Lots and suppliers are to date: a lot bought earlier still sells now.",
+   "inPeriod": "For the period picked above.",
+   "col": {
+    "lot": "Lot or container",
+    "boughtOn": "Bought on",
+    "boughtFor": "Bought for",
+    "soldFor": "Sold for",
+    "costSold": "Cost of what sold",
+    "notSold": "Not sold yet",
+    "lots": "Lots",
+    "margin": "Margin",
+    "kgSold": "Kg sold"
+   },
+   "notSoldInfo": "What was paid for it, less the cost of what has sold: still in stock, waste, or written off."
   }
  },
  "billing": {
@@ -2671,7 +2736,7 @@
   "noWork": "Nobody sorted in these days.",
   "whoSorted": "Who sorted it",
   "lotLabour": "Sorter pay",
-  "lotLabourHint": "From paid pay sheets; taken off the profit."
+  "lotLabourHint": "From paid pay sheets. A running cost: not part of this lot's profit."
  },
  "move": {
   "pick": "Or pick from stock",

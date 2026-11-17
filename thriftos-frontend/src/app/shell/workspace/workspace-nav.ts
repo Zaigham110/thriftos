@@ -20,6 +20,8 @@ import {
   Vault,
   Wallet,
   Users,
+  Scale,
+  ReceiptText,
 } from 'lucide-angular';
 import { TenantModule } from '../../core/tenant/tenant.service';
 
@@ -82,7 +84,9 @@ export const WS_NAV: WsNavGroup[] = [
       { label: 'ws.nav.expenses', path: '/finance/expenses', icon: Receipt, module: 'EXPENSES', permission: 'finance.view', keywords: 'kharcha expense rent bijli labour transport' },
       { label: 'ws.nav.book', path: '/finance/book', icon: Wallet, module: ['CASH_CLOSE', 'EXPENSES'], permission: 'finance.view', keywords: 'cash book bank jazzcash easypaisa raast' },
       { label: 'ws.nav.close', path: '/finance/close', icon: Vault, module: 'CASH_CLOSE', permission: 'finance.view', keywords: 'cash close galla hisaab day end' },
-      { label: 'ws.nav.pnl', path: '/finance/pnl', icon: TrendingUp, module: 'PNL', permission: 'cost.view', keywords: 'profit loss munafa nuqsan p&l' },
+      { label: 'ws.nav.trading', path: '/finance/trading', icon: Scale, module: 'PNL', permission: 'cost.view', keywords: 'trading buying selling purchase sale profit lot supplier khareed farokht' },
+      { label: 'ws.nav.costs', path: '/finance/costs', icon: ReceiptText, module: 'PNL', permission: 'cost.view', keywords: 'running costs expenses salary rent kharche' },
+      { label: 'ws.nav.pnl', path: '/finance/pnl', icon: TrendingUp, module: 'PNL', permission: 'cost.view', keywords: 'profit loss summary net munafa nuqsan p&l' },
       { label: 'ws.nav.payroll', path: '/payroll', icon: HandCoins, module: 'PAYROLL', permission: 'tenant.update', keywords: 'tankhwah mazdoori payroll wages salary sorter advance' },
     ],
   },
@@ -119,6 +123,8 @@ export const WS_CRUMBS: Record<string, string> = {
   reports: 'ws.nav.reports',
   settings: 'ws.nav.settings',
   customers: 'ws.nav.customers',
+  trading: 'ws.nav.trading',
+  costs: 'ws.nav.costs',
   help: 'help.title',
   new: 'ws.crumb.new',
   create: 'ws.crumb.new',

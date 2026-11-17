@@ -194,7 +194,10 @@ export const routes: Routes = [
           { path: 'expenses/:id', canActivate: [moduleGuard], data: { module: 'EXPENSES' }, loadComponent: () => import('./features/workspace-lists/expense.component').then((m) => m.ExpenseComponent), title: 'ThriftOS' },
           { path: 'book', canActivate: [moduleGuard], data: { module: ['CASH_CLOSE', 'EXPENSES'] }, loadComponent: () => import('./features/workspace-lists/finance-book.component').then((m) => m.FinanceBookComponent), title: 'ThriftOS' },
           { path: 'close', canActivate: [moduleGuard], data: { module: 'CASH_CLOSE' }, loadComponent: () => import('./features/workspace-lists/cash-close.component').then((m) => m.CashCloseComponent), title: 'ThriftOS' },
-          { path: 'pnl', canActivate: [moduleGuard], data: { module: 'PNL' }, loadComponent: () => import('./features/workspace-lists/pnl.component').then((m) => m.PnlComponent), title: 'ThriftOS' },
+          // Three money reports (owner, 2026-11-17): buying and selling; everything else; and the two together.
+          { path: 'trading', canActivate: [moduleGuard], data: { module: 'PNL', view: 'trading' }, loadComponent: () => import('./features/workspace-lists/pnl.component').then((m) => m.PnlComponent), title: 'ThriftOS' },
+          { path: 'costs', canActivate: [moduleGuard], data: { module: 'PNL', view: 'costs' }, loadComponent: () => import('./features/workspace-lists/pnl.component').then((m) => m.PnlComponent), title: 'ThriftOS' },
+          { path: 'pnl', canActivate: [moduleGuard], data: { module: 'PNL', view: 'summary' }, loadComponent: () => import('./features/workspace-lists/pnl.component').then((m) => m.PnlComponent), title: 'ThriftOS' },
         ],
       },
       // Phase 8: sorter pay (owners).

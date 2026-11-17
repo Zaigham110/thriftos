@@ -446,6 +446,9 @@ export class FinanceService {
         writeOffs: r.writeOffs, cashDifference: r.cashDifference, cashDays: r.cashDays, expenses: r.expenses, expenseTotal,
         sections: sectionsOf(r.expenses), bought: r.bought,
         notInProfit: { ownerOut: r.ownerOut, ownerIn: r.ownerIn, bankOut: r.bankOut, bankIn: r.bankIn, otherOut: r.otherOut, otherIn: r.otherIn },
+        // The two halves, kept apart (owner, 2026-11-17): buying and selling; and everything else the business costs.
+        tradingProfit: tradingProfit({ grossProfit: gross, writeOffs: r.writeOffs }),
+        runningCosts: runningCosts({ cashDifference: r.cashDifference, expenseTotal }),
         netProfit: netProfit({ grossProfit: gross, writeOffs: r.writeOffs, cashDifference: r.cashDifference, expenseTotal }),
       };
     };
@@ -456,6 +459,7 @@ export class FinanceService {
       return {
         revenue, cost: sum('cost'), grossProfit, writeOffs: sum('writeOffs'), cashDifference: sum('cashDifference'),
         expenseTotal: sum('expenseTotal'), netProfit: sum('netProfit'),
+        tradingProfit: list.reduce((t, r) => t.add(r.tradingProfit), ZERO), runningCosts: list.reduce((t, r) => t.add(r.runningCosts), ZERO),
         marginPercent: revenue.isZero() ? null : grossProfit.div(revenue).mul(100).toDecimalPlaces(1).toNumber(),
         expenses: Object.fromEntries(Object.values(ExpenseCategory).map((c) => [c, list.reduce((t, r) => t.add(r.expenses[c]), ZERO)])),
         sections: Object.fromEntries(EXPENSE_SECTION_KEYS.map((k) => [k, list.reduce((t, r) => t.add(r.sections[k]), ZERO)])) as Record<ExpenseSection, Prisma.Decimal>,
@@ -479,7 +483,17 @@ export class FinanceService {
 /** Net profit, the same everywhere (P&L and dashboard): gross profit, less stock written off (a negative cost
  * change) and cash short (a negative difference), less expenses. */
 export function netProfit(p: { grossProfit: Prisma.Decimal; writeOffs: Prisma.Decimal; cashDifference: Prisma.Decimal; expenseTotal: Prisma.Decimal }): Prisma.Decimal {
-  return p.grossProfit.add(p.writeOffs).add(p.cashDifference).sub(p.expenseTotal);
+  return tradingProfit(p).sub(runningCosts(p));
+}
+
+/** Trading profit: what buying and selling earned. Gross profit, less stock written off (goods lost are a trading loss). */
+export function tradingProfit(p: { grossProfit: Prisma.Decimal; writeOffs: Prisma.Decimal }): Prisma.Decimal {
+  return p.grossProfit.add(p.writeOffs);
+}
+
+/** Running costs: every expense, and cash the drawer was short (cash over takes off). Nothing from buying or selling. */
+export function runningCosts(p: { cashDifference: Prisma.Decimal; expenseTotal: Prisma.Decimal }): Prisma.Decimal {
+  return p.expenseTotal.sub(p.cashDifference);
 }
 
 /** Stock written off and cash short or over in a period (business days from..to, inclusive). */

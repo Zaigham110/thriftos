@@ -13,6 +13,7 @@ import { CreditLimitDto, PromiseDto, ReceivablesService, ReminderDto, StatementQ
 import { SortingRecordsService, YieldQueryDto } from './sorting-records.service';
 import { AnalyticsService, PeriodDto, SalesAnalyticsQueryDto, ScorecardQueryDto } from './analytics.service';
 import { PriceEntryDto, PriceGroupDto, PriceGroupRenameDto, PriceListsService } from './price-lists.service';
+import { TradingService } from './trading.service';
 import { BookQueryDto, CancelExpenseDto, CashMoveDto, CloseDto, CloseQueryDto, ExpenseDto, ExpenseUpdateDto, FinanceService, PnlQueryDto, ReopenDto } from './finance.service';
 import { StockCountDto, StockDecisionDto, StockRecordsService, StockTransferDto, StockTransferManyDto, StockPriceDto, StockKindPriceDto } from './stock-records.service';
 
@@ -27,6 +28,7 @@ export class WorkspaceController {
     private readonly receivables: ReceivablesService,
     private readonly sorting: SortingRecordsService,
     private readonly finance: FinanceService,
+    private readonly tradingReport: TradingService,
     private readonly prices: PriceListsService,
     private readonly analytics: AnalyticsService,
   ) {}
@@ -314,6 +316,17 @@ export class WorkspaceController {
   @RequirePermissions('finance.view', 'cost.view')
   pnl(@TenantId() tenantId: string, @Query() q: PnlQueryDto) {
     return this.finance.pnl(tenantId, q);
+  }
+
+  /**
+   * Trading (owner, 2026-11-17): what stands behind buying and selling: the stock account, profit by lot,
+   * supplier, customer and item, and what is owed to suppliers and by customers. Same people as Profit and loss.
+   */
+  @RequireModule('PNL')
+  @Get('finance/trading')
+  @RequirePermissions('finance.view', 'cost.view')
+  trading(@TenantId() tenantId: string, @Query() q: PnlQueryDto) {
+    return this.tradingReport.trading(tenantId, q);
   }
 
   // ---- Receivables (E3.5): for people who sell, take payments or keep the books, like the khata (audit H1/H2); profit needs cost.view ----

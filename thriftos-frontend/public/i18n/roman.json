@@ -219,7 +219,7 @@
    "s1": "Naya kharcha shuru karein.",
    "s2": "Chunein ke kis cheez ka tha (kiraya, bijli, chai, transport waghera) aur raqam likhein.",
    "s3": "Chunein ke adaigi kaise hui: galle se cash, ya bank.",
-   "s4": "Save karein. Yeh Cash aur bank mein aur Munafa nuqsan mein dikhta hai.",
+   "s4": "Save karein. Yeh Cash aur bank mein aur Chalane ke kharche mein dikhta hai.",
    "go": "Naya kharcha"
   },
   "close": {
@@ -243,7 +243,7 @@
    "s1": "Chhantai walon ki tankhwah kholein aur har mazdoor ko ek baar shamil karein, us ki ujrat ke tareeqe ke saath.",
    "s2": "Chhantai karte waqt mazdoor chunein. Us ke kg khud gine jate hain.",
    "s3": "Jin dinon ki adaigi karni hai un ki tankhwah sheet banayein. Pehle diya hua advance khud kat jata hai.",
-   "s4": "Raqmein dekhein aur ada shuda karein. Yeh Munafa nuqsan mein mulazimeen ke kharch mein dikhta hai.",
+   "s4": "Raqmein dekhein aur ada shuda karein. Yeh Chalane ke kharche mein staff ke kharch mein dikhta hai.",
    "go": "Tankhwah kholein"
   },
   "prices": {
@@ -1652,7 +1652,7 @@
    "expenses": "Kharche",
    "home": "Home",
    "inventory": "Stock",
-   "pnl": "Munafa nuqsan",
+   "pnl": "Munafa ka khulasa",
    "prices": "Rate list",
    "purchasing": "Kharidari",
    "receivables": "Khata / udhaar",
@@ -1667,7 +1667,9 @@
    "yield": "Chhantai ka nateeja",
    "payroll": "Chhantai walon ki tankhwah",
    "moveStock": "Godamon mein muntaqli",
-   "customers": "Customer"
+   "customers": "Customer",
+   "trading": "Kharid farokht",
+   "costs": "Chalane ke kharche"
   },
   "new": {
    "bale": "Gaanth banayein",
@@ -1717,9 +1719,9 @@
    "period": "Muddat",
    "revenue": "Sale",
    "subtitle": "Sale minus laagat, kharche, khatam kiya stock aur cash ki kami, mahine ke hisaab se",
-   "title": "Munafa nuqsan",
+   "title": "Munafa ka khulasa",
    "writeOffs": "Khatam kiya stock",
-   "loadFailed": "Munafa nuqsan load nahi hua. Internet check kar ke dobara koshish karein.",
+   "loadFailed": "Report nahi khul saki. Internet check karein aur dobara koshish karein.",
    "netMargin": "Sale ka {n}%",
    "compared": "Kam ya zyada: pichle {n} mahinon ke muqable mein.",
    "notOver": "{month} abhi khatam nahi hua: {of} mein se {days} din. Kiraya aur tankhwah poore mahine ki hai, sale sirf ab tak ki.",
@@ -1728,7 +1730,7 @@
    "soFar": "{month} (ab tak)",
    "was": "{month}: {amount}",
    "section": {
-    "buying": "Khareedari: bikay hue maal ki laagat",
+    "buying": "Beche gaye maal ki laagat",
     "employee": "Mulazimeen ka kharcha",
     "running": "Chalane ke akhrajaat",
     "petty": "Chhota naqd kharcha",
@@ -1745,7 +1747,26 @@
     "bankIn": "Bank se nikaale",
     "bought": "Khareeda gaya maal"
    },
-   "apartNote": "\"Munafay mein shamil nahi\" woh raqam hai jo sirf muntaqil hui, na kamai gayi na kharch: maalik ke nikaale ya daale paise, bank mein jama ya bank se nikaale paise, aur khareeda gaya maal (bikne par laagat banta hai)."
+   "apartNote": "\"Munafe mein nahi\" wali linein woh raqam hain jo aayi ya gayi magar na kamayi na kharch: malik ne nikali ya daali, bank mein gayi ya aayi, doosri nikali ya daali raqam, aur kharida hua maal (bikne par laagat banta hai).",
+   "trading": "Kharid farokht ka munafa",
+   "running": "Chalane ke kharche",
+   "view": {
+    "trading": {
+     "title": "Kharid farokht",
+     "subtitle": "Sirf kharid farokht: sale, maal ki laagat aur us ka munafa. Tankhwah, kiraya ya doosre kharche is mein nahi.",
+     "chart": "Sale, beche maal ki laagat aur munafa"
+    },
+    "costs": {
+     "title": "Chalane ke kharche",
+     "subtitle": "Maal ke ilawa karobar ka har kharch: staff, kiraya aur bill, roz ke kharche aur galla.",
+     "chart": "Staff ka kharch, chalane ke kharche aur chhote kharche"
+    },
+    "summary": {
+     "title": "Munafa ka khulasa",
+     "subtitle": "Kharid farokht ke munafe mein se chalane ke kharche nikal kar khalis munafa. Kisi line par click karein to us ki report khulti hai.",
+     "chart": "Kharid farokht ka munafa, chalane ke kharche aur khalis munafa"
+    }
+   }
   },
   "prices": {
    "pricesN": "{n} qeematein",
@@ -1877,8 +1898,8 @@
      "name": "Lot aur chhantai"
     },
     "pnl": {
-     "hint": "Mahine ke hisaab se, laagat, khatam stock aur kharchon ke baad",
-     "name": "Munafa nuqsan"
+     "hint": "Kharid farokht ke munafe mein se chalane ke kharche: khalis munafa, mahine ke hisaab se",
+     "name": "Munafa ka khulasa"
     },
     "suppliersOwed": {
      "hint": "Har supplier ka baqi, khareedari aur adaigi",
@@ -1907,6 +1928,14 @@
     "yield": {
      "hint": "Supplier, mulk ya mahine ke hisaab se chhantai % aur waste",
      "name": "Chhantai ka nateeja"
+    },
+    "trading": {
+     "name": "Kharid farokht",
+     "hint": "Kharid farokht: sale, maal ki laagat, lot, supplier, customer aur cheez ke hisaab se munafa, stock aur baqaya"
+    },
+    "costs": {
+     "name": "Chalane ke kharche",
+     "hint": "Staff, kiraya aur bill, roz ke kharche aur galla, mahine ke hisaab se"
     }
    },
    "section": {
@@ -2519,6 +2548,42 @@
     "ACTIVE": "Active",
     "INACTIVE": "Band"
    }
+  },
+  "tr": {
+   "stock": "Stock ka hisaab",
+   "opening": "Shuru ka stock",
+   "bought": "Kharida",
+   "soldAtCost": "Bika, laagat par",
+   "closing": "Ab ka stock",
+   "closingParts": "Ab ka stock: chhantai ke intezar mein {waiting}, chhanta hua {sorted}, bechne ko tayyar {ready}.",
+   "openingNote": "Shuru ka stock ab ke stock se peeche hisaab laga kar nikala gaya hai.",
+   "owed": "Baqaya",
+   "toSuppliers": "Supplier ko ab dena hai",
+   "paidToSuppliers": "Is muddat mein supplier ko ada kiya",
+   "byCustomers": "Customer se ab lena hai",
+   "received": "Is muddat mein customer se wasool",
+   "profitBy": "Munafa ba-lihaaz",
+   "tab": {
+    "lot": "Lot ya container ke hisaab se",
+    "supplier": "Supplier ke hisaab se",
+    "customer": "Customer ke hisaab se",
+    "item": "Cheez ke hisaab se"
+   },
+   "none": "Abhi dikhane ko kuch nahi",
+   "toDate": "Lot aur supplier ke adaad aaj tak ke hain: pehle kharidi lot ab bhi bikti hai.",
+   "inPeriod": "Upar chuni gayi muddat ke liye.",
+   "col": {
+    "lot": "Lot ya container",
+    "boughtOn": "Kharid ki tareekh",
+    "boughtFor": "Kharid ki raqam",
+    "soldFor": "Sale ki raqam",
+    "costSold": "Bike maal ki laagat",
+    "notSold": "Abhi nahi bika",
+    "lots": "Lotein",
+    "margin": "Margin",
+    "kgSold": "Bike kg"
+   },
+   "notSoldInfo": "Jo raqam di gayi us mein se bike maal ki laagat nikal kar: abhi stock mein, zaya ya write off."
   }
  },
  "billing": {
@@ -2671,7 +2736,7 @@
   "noWork": "In dinon kisi ne nahi chhanta.",
   "whoSorted": "Kis ne chhanta",
   "lotLabour": "Chhantai walon ki tankhwah",
-  "lotLabourHint": "Ada shuda tankhwah sheeton se; munafe se minha."
+  "lotLabourHint": "Ada shuda tankhwah sheets se. Yeh chalane ka kharch hai: is lot ke munafe mein shamil nahi."
  },
  "move": {
   "pick": "Ya stock se chunein",

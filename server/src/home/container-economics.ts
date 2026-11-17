@@ -18,7 +18,10 @@ export interface ContainerEconomics {
   graded: { rank: number; kg: Prisma.Decimal }[];
   /** Rank of the business's top grade (A), if it has grades. */
   topRank: number | null;
-  /** Phase 8: sorter pay put on it (paid pay sheets); already taken off `profit`. */
+  /**
+   * Sorter pay put on it (paid pay sheets), for information. It is no longer taken off `profit` (owner,
+   * 2026-11-17): a lot's cost is its price and the charges put on it; wages are a running cost.
+   */
   labour: Prisma.Decimal;
 }
 
@@ -63,7 +66,7 @@ async function economics(prisma: PrismaClient | Prisma.TransactionClient, tenant
       select: { weightKg: true, grade: { select: { rank: true } }, gradeBucket: { select: { gradeSession: { select: { categoryOutput: { select: { containerId: true, ragId: true } } } } } } },
     }),
     topGradeOf(prisma, tenantId),
-    // Profit = sales − landed cost − labour (Phase 8.4).
+    // Sorter pay put on a lot: shown, never part of its profit (profit = sales − price and charges).
     prisma.labourCost.findMany({ where: { tenantId, ...own }, select: { containerId: true, ragId: true, amount: true } }),
   ]);
 
@@ -98,7 +101,6 @@ async function economics(prisma: PrismaClient | Prisma.TransactionClient, tenant
     const e = out.get(keyOf(l) ?? '');
     if (!e) continue;
     e.labour = e.labour.add(l.amount);
-    e.profit = e.profit.sub(l.amount);
   }
   return out;
 }
