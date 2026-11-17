@@ -14,7 +14,9 @@ import { HardwarePage } from './pages/hardware.page';
 import { LoginPage } from './pages/login.page';
 import { ManagePage } from './pages/manage.page';
 import { ReportsPage } from './pages/reports.page';
-import { BranchesPage, MyPinPage, ShopSettingsPage, StaffPage } from './pages/settings.pages';
+import { BranchesPage, CurrencyPage, MyPinPage, ShopSettingsPage, StaffPage } from './pages/settings.pages';
+import { StockAddPage } from './pages/stock-add.page';
+import { SupplierReturnsPage } from './pages/supplier-returns.page';
 import { ShipmentNewPage } from './pages/shipment-new.page';
 import { ShipmentPage } from './pages/shipment.page';
 import { ShipmentsPage } from './pages/shipments.page';
@@ -33,7 +35,9 @@ const routes: Routes = [
       { path: 'bills', component: BillsPage },
       { path: 'bills/:id', component: BillPage },
       { path: 'stock', component: StockPage },
+      { path: 'stock/add', component: StockAddPage, canActivate: [ownerOnly] },
       { path: 'stock/:id', component: BalePage },
+      { path: 'supplier-returns', component: SupplierReturnsPage, canActivate: [ownerOnly] },
       { path: 'stock-check', component: StockCheckPage },
       { path: 'customers', component: CustomersPage },
       { path: 'customers/:id', component: CustomerPage },
@@ -48,6 +52,7 @@ const routes: Routes = [
       { path: 'settings/hardware', component: HardwarePage },
       { path: 'settings/me', component: MyPinPage },
       { path: 'settings/shop', component: ShopSettingsPage, canActivate: [ownerOnly] },
+      { path: 'settings/currency', component: CurrencyPage, canActivate: [ownerOnly] },
       { path: 'settings/staff', component: StaffPage, canActivate: [ownerOnly] },
       { path: 'settings/branches', component: BranchesPage, canActivate: [ownerOnly] },
     ],

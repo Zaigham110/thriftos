@@ -91,7 +91,7 @@ const MOVE = { IN: 'Cash put in', OUT: 'Cash taken out', DROP: 'Taken to bank / 
           <h2>Open the drawer for this shift</h2>
           <p class="mt-1 text-sm text-stone-600">Count the cash that is in the drawer now. Sales, cash in and out are added to it, so at closing you know what should be there.</p>
           <form class="mt-4 flex gap-2" (ngSubmit)="open()">
-            <input class="input num text-xl font-bold" name="float" inputmode="decimal" [(ngModel)]="float" placeholder="Rs 0" aria-label="Cash in the drawer now" />
+            <input class="input num text-xl font-bold" name="float" inputmode="decimal" [(ngModel)]="float" placeholder="0" aria-label="Cash in the drawer now" />
             <button class="btn-primary shrink-0" [disabled]="busy()">Open drawer</button>
           </form>
         </div>

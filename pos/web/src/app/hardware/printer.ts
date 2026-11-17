@@ -1,6 +1,7 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { Api, Bale, Sale } from '../core';
 import { drawerBytes, receiptBytes, ReceiptModel, reportBytes } from './escpos';
+import { moneySign } from '../money-sign';
 import { receiptModel } from './receipt';
 import { labelBytes, labelData, LabelData } from './tspl';
 
@@ -102,7 +103,7 @@ export class Printer {
 
   async labels(bales: Bale[]) {
     const cfg = this.config().label;
-    const labels = bales.map(labelData);
+    const labels = bales.map((b) => labelData(b, moneySign.value));
     if (cfg.link === 'window') return this.window({ kind: 'labels', labels, widthMm: cfg.widthMm, heightMm: cfg.heightMm });
     await this.send('label', labelBytes(labels, cfg));
   }

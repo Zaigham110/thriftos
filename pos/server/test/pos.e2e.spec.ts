@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { createServer as createHttp } from 'node:http';
 import { createServer } from 'node:net';
 import request from 'supertest';
 
@@ -65,7 +66,7 @@ describe('Shop POS', () => {
     await app.init();
     prisma = app.get(PrismaService);
     // Children first: bills keep their bales and users, shipments keep their supplier.
-    for (const table of ['returnLine', 'saleReturn', 'salePayment', 'saleLine', 'customerEntry', 'sale', 'heldBill', 'cashMovement', 'shift', 'expense', 'transferLine', 'stockTransfer', 'stockCheckScan', 'stockCheck', 'auditLog', 'customer', 'bale', 'baleKind', 'shipment', 'supplier', 'user', 'till', 'branch', 'shop'] as const) {
+    for (const table of ['returnLine', 'saleReturn', 'salePayment', 'saleLine', 'customerEntry', 'sale', 'heldBill', 'cashMovement', 'shift', 'expense', 'transferLine', 'stockTransfer', 'stockCheckScan', 'stockCheck', 'supplierReturnLine', 'supplierReturn', 'auditLog', 'customer', 'bale', 'baleKind', 'shipment', 'supplier', 'user', 'till', 'branch', 'shop'] as const) {
       await (prisma[table] as unknown as { deleteMany(): Promise<unknown> }).deleteMany();
     }
   });
@@ -548,6 +549,179 @@ describe('Shop POS', () => {
     expect(await scan('DENIM-1-45')).toMatchObject({ again: true, kind: { counted: 3, total: 3 } });
     const done = (await api().post(`/api/stock-checks/${check.id}/finish`).set(as(manager)).expect(201)).body;
     expect(done.missing.some((b: { kindCode: string }) => b.kindCode === 'DENIM-1-45')).toBe(false);
+  });
+
+  // ---- Currency, stock by hand, exchange, returns to a supplier ----
+
+  it("keeps the shop's own currency and the suppliers' usual one", async () => {
+    const shop = (await api().patch('/api/shop').set(as(owner)).send({ currency: 'pkr', supplierCurrency: 'USD', rateMode: 'MANUAL' }).expect(200)).body;
+    expect(shop).toMatchObject({ currency: 'PKR', currencySign: 'Rs', supplierCurrency: 'USD', rateMode: 'MANUAL' });
+    expect((await api().patch('/api/shop').set(as(owner)).send({ currency: 'rupees' }).expect(400)).body.code).toBe('BAD_CURRENCY');
+    expect((await api().get('/api/auth/me').set(as(owner))).body.shop).toMatchObject({ currency: 'PKR', supplierCurrency: 'USD' });
+  });
+
+  it("fetches today's rate, and says so when it cannot", async () => {
+    const asked: string[] = [];
+    const rates = createHttp((req, res) => {
+      asked.push(req.url ?? '');
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ result: 'success', time_last_update_utc: 'Mon, 16 Nov 2026 00:02:31 +0000', rates: { USD: 1, PKR: 278.5, GBP: 0.79 } }));
+    });
+    await new Promise<void>((r) => rates.listen(9117, '127.0.0.1', r));
+    process.env.POS_RATES_URL = 'http://127.0.0.1:9117/latest';
+    expect((await api().get('/api/rates?from=usd').set(as(owner)).expect(200)).body).toMatchObject({ from: 'USD', to: 'PKR', rate: '278.5', at: '2026-11-16T00:02:31.000Z' });
+    expect((await api().get('/api/rates?from=USD&to=GBP').set(as(owner)).expect(200)).body.rate).toBe('0.79');
+    expect(asked).toEqual(['/latest/USD']); // kept for an hour: only the currency code was sent, once
+    expect((await api().get('/api/rates?from=PKR').set(as(owner)).expect(200)).body.rate).toBe('1');
+    await api().get('/api/rates?from=USD').set(as(cashier)).expect(403);
+    await api().get('/api/rates?from=dollars').set(as(owner)).expect(400);
+    await new Promise((r) => rates.close(r));
+    expect((await api().get('/api/rates?from=EUR').set(as(owner)).expect(502)).body.code).toBe('RATE_OFF');
+  });
+
+  const DOLLARS = ['Item,Category,Weight kg,Cost ($),Bale sale price', 'Shirts,Shirts,40,$100,45000', 'Shirts,Shirts,40,$120,45000'].join('\n');
+
+  it("reads a list in another currency and saves its costs in the shop's own", async () => {
+    const details = { supplierName: 'Dollar Traders', arrivedOn: '2026-11-16', freight: '2000' };
+    const seen = (await upload('/api/shipments/preview', owner, details, DOLLARS).expect(201)).body;
+    expect(seen.currency).toMatchObject({ detected: 'USD', list: 'USD', local: 'PKR', foreign: true, needsRate: true, goodsCostForeign: '220' });
+    expect((await upload('/api/shipments', owner, details, DOLLARS).expect(400)).body.code).toBe('NEEDS_RATE');
+    expect((await upload('/api/shipments/preview', owner, { ...details, rate: 'abc' }, DOLLARS).expect(400)).body.code).toBe('BAD_RATE');
+
+    const priced = (await upload('/api/shipments/preview', owner, { ...details, rate: '280' }, DOLLARS).expect(201)).body;
+    expect(priced.currency).toMatchObject({ needsRate: false, rate: '280' });
+    expect(priced.summary).toMatchObject({ goodsCost: '61600', charges: '2000', landedCost: '63600' });
+
+    const res = await upload('/api/shipments', owner, { ...details, rate: '280' }, DOLLARS).expect(201);
+    const saved = (await api().get(`/api/shipments/${res.body.id}`).set(as(owner))).body;
+    expect(saved).toMatchObject({ currency: 'USD', exchangeRate: '280', goodsCostForeign: '220', goodsCost: '61600', landedCost: '63600', manual: false });
+    // Costs are converted; charges and selling prices are the shop's own and are not.
+    expect(saved.bales.map((b: { cost: string; costForeign: string; landedCost: string; salePrice: string }) => [b.costForeign, b.cost, b.landedCost, b.salePrice])).toEqual([
+      ['100', '28000', '29000', '45000'],
+      ['120', '33600', '34600', '45000'],
+    ]);
+
+    // The owner can say the list is in the shop's own currency after all: nothing is converted.
+    const plain = (await upload('/api/shipments/preview', owner, { ...details, currency: 'PKR' }, DOLLARS).expect(201)).body;
+    expect(plain.currency).toMatchObject({ list: 'PKR', detected: 'USD', foreign: false, needsRate: false });
+    expect(plain.summary.goodsCost).toBe('220');
+  });
+
+  it('adds stock typed by hand, a quantity of each kind', async () => {
+    const towels = { item: 'Bath towels', category: 'Towels', grade: 'A', weightKg: 20, cost: 5000, salePrice: 7000, quantity: 3 };
+    await api().post('/api/shipments/manual').set(as(cashier)).send({ rows: [towels] }).expect(403);
+    expect((await api().post('/api/shipments/manual').set(as(owner)).send({ rows: [] }).expect(400)).body.code).toBe('NO_ROWS');
+    expect((await api().post('/api/shipments/manual').set(as(owner)).send({ rows: [{ ...towels, baleNo: 'X-1' }] }).expect(400)).body.code).toBe('BALE_NO_ONCE');
+    expect((await api().post('/api/shipments/manual').set(as(owner)).send({ rows: [{ ...towels, item: '' }] }).expect(400)).body.code).toBe('REQUIRED');
+    expect((await api().post('/api/shipments/manual').set(as(owner)).send({ rows: [towels], currency: 'GBP' }).expect(400)).body.code).toBe('NEEDS_RATE');
+
+    const res = (await api().post('/api/shipments/manual').set(as(owner)).send({ rows: [towels, { item: 'Belts', cost: '£10', quantity: 1 }], currency: 'GBP', rate: 350, transport: 400 }).expect(201)).body;
+    expect(res.bales).toBe(4);
+    const saved = (await api().get(`/api/shipments/${res.id}`).set(as(owner))).body;
+    expect(saved).toMatchObject({ manual: true, fileName: null, currency: 'GBP', exchangeRate: '350', baleCount: 4 });
+    expect(saved.supplier.name).toBe('Added by hand');
+    expect(saved.bales.map((b: { kindCode: string; cost: string; landedCost: string; status: string }) => [b.kindCode, b.cost, b.landedCost, b.status])).toEqual([
+      ['TOWELS-A-20', '1750000', '1750100', 'IN_STOCK'],
+      ['TOWELS-A-20', '1750000', '1750100', 'IN_STOCK'],
+      ['TOWELS-A-20', '1750000', '1750100', 'IN_STOCK'],
+      ['BELTS', '3500', '3600', 'IN_STOCK'],
+    ]);
+    expect((await bale('TOWELS-A-20')).kind.qty).toBe(3);
+  });
+
+  it('finds the bill by the goods when the customer has none, and lists the returns', async () => {
+    const towels = { kind: 'BALE', kindCode: 'TOWELS-A-20', unitPrice: '7000' };
+    const sale = (await sell(manager, { lines: [{ ...towels, quantity: 2 }], customerName: 'No Bill Bibi' }).expect(201)).body;
+    await api().get('/api/sales/by-goods/TOWELS-A-20').set(as(cashier)).expect(403);
+    const byKind = (await api().get('/api/sales/by-goods/towels-a-20').set(as(manager)).expect(200)).body;
+    expect(byKind.map((l: { sale: { code: string; customerName: string }; left: number }) => [l.sale.code, l.sale.customerName, l.left])).toEqual([[sale.code, 'No Bill Bibi', 1], [sale.code, 'No Bill Bibi', 1]]);
+    // The bale's own number finds the one line that sold that bale.
+    const byBale = (await api().get(`/api/sales/by-goods/${sale.lines[0].bale.code}`).set(as(manager)).expect(200)).body;
+    expect(byBale.map((l: { id: string }) => l.id)).toEqual([sale.lines[0].id]);
+    expect((await api().get('/api/sales/by-goods/NOPE-1').set(as(manager)).expect(200)).body).toEqual([]);
+
+    // "Exchange" cannot be asked for as a plain refund: it would give nothing back and sell nothing.
+    const back = (await api().post(`/api/sales/${sale.id}/returns`).set(as(manager)).send({ lines: [{ saleLineId: sale.lines[0].id, quantity: 1 }], refundTo: 'EXCHANGE' }).expect(201)).body;
+    expect(back.sale.returns[0]).toMatchObject({ code: back.code, refundTo: 'CASH', total: '7000' });
+    expect((await api().get('/api/sales/by-goods/TOWELS-A-20').set(as(manager))).body).toHaveLength(1);
+
+    const day = (await api().get('/api/sales/returns').set(as(manager)).expect(200)).body;
+    expect(day.returns[0]).toMatchObject({ code: back.code, total: '7000', refundTo: 'CASH', items: 1, userName: 'Sana', sale: { code: sale.code } });
+    expect(day.returns[0]).not.toHaveProperty('costBack');
+    await api().get('/api/sales/returns').set(as(cashier)).expect(403);
+  });
+
+  it('exchanges goods: what comes back pays for the new bill, all or nothing', async () => {
+    const old = (await api().get('/api/sales?search=No Bill Bibi').set(as(manager))).body.sales[0];
+    const towelBill = (await api().get(`/api/sales/${old.id}`).set(as(owner))).body;
+    const towelLine = towelBill.lines.find((l: { returnedQty: number }) => l.returnedQty === 0);
+    const exchange = { saleId: towelBill.id, lines: [{ saleLineId: towelLine.id, quantity: 1 }], reason: 'Wanted denim' };
+    const denimLine = { kind: 'BALE', kindCode: 'DENIM-1-45', quantity: 1, unitPrice: '2000' };
+
+    expect((await sell(cashier, { lines: [denimLine], exchange }).expect(403)).body.code).toBe('MANAGER_ONLY');
+    expect((await sell(manager, { lines: [denimLine], exchange, offline: { code: 'T1-000950', soldAt: new Date().toISOString() } }).expect(400)).body.code).toBe('EXCHANGE_ONLINE');
+    // The new bill fails (nothing in stock), so nothing comes back either.
+    await sell(manager, { lines: [{ ...denimLine, quantity: 9 }], exchange }).expect(409);
+    expect((await api().get(`/api/sales/${towelBill.id}`).set(as(owner))).body.returnedTotal).toBe('7000');
+
+    // A towel bale worth 7,000 comes back for denim worth 2,000: nothing to pay, 5,000 goes back in cash.
+    const bill = (await sell(manager, { lines: [denimLine], exchange }).expect(201)).body;
+    expect(bill).toMatchObject({ total: '2000', exchangeAmount: '2000', paidTotal: '0', changeGiven: '5000', creditAmount: '0' });
+    expect(bill.exchangeOf).toMatchObject({ total: '7000', sale: { code: towelBill.code } });
+    expect(bill.payments).toEqual([]);
+    const after = (await api().get(`/api/sales/${towelBill.id}`).set(as(owner))).body;
+    expect(after.returnedTotal).toBe('14000');
+    expect(after.returns[1]).toMatchObject({ refundTo: 'EXCHANGE', total: '7000', reason: 'Wanted denim' });
+    expect((await bale('TOWELS-A-20')).kind.qty).toBe(3); // both towel bales are back with the third
+    // The same goods cannot come back twice.
+    expect((await sell(manager, { lines: [denimLine], exchange }).expect(409)).body.code).toBe('TOO_MANY');
+
+    // The other way: denim worth 2,000 comes back for towels worth 7,000, and the customer pays 5,000.
+    const swap = { saleId: bill.id, lines: [{ saleLineId: bill.lines[0].id, quantity: 1 }] };
+    const towel = { kind: 'BALE', kindCode: 'TOWELS-A-20', quantity: 1, unitPrice: '7000' };
+    expect((await sell(manager, { lines: [towel], exchange: swap, payments: [{ method: 'CASH', amount: '1000' }] }).expect(400)).body.code).toBe('NEEDS_CUSTOMER');
+    const second = (await sell(manager, { lines: [towel], exchange: swap, payments: [{ method: 'CASH', amount: '6000' }] }).expect(201)).body;
+    expect(second).toMatchObject({ total: '7000', exchangeAmount: '2000', paidTotal: '5000', changeGiven: '1000' });
+    expect(second.payments).toEqual([expect.objectContaining({ method: 'CASH', amount: '5000' })]);
+    expect((await bale('DENIM-1-45')).kind.qty).toBe(3);
+
+    // An exchange bill is not cancelled (part of it was paid in goods); a return on it gives its full worth back.
+    expect((await api().post(`/api/sales/${second.id}/cancel`).set(as(manager)).send({ reason: 'x' }).expect(409)).body.code).toBe('IS_EXCHANGE');
+    const day = (await api().get('/api/sales/returns').set(as(manager))).body;
+    expect(day.summary.byRefund.EXCHANGE).toBe('9000'); // the two exchanges; cash refunds of the day are counted apart
+    expect(day.returns[0]).toMatchObject({ refundTo: 'EXCHANGE', exchangeSale: { code: second.code } });
+  });
+
+  it('sends bales back to the supplier, who then owes the shop for them', async () => {
+    const shirts = await prisma.bale.findMany({ where: { item: 'Shirts' }, orderBy: { code: 'asc' } });
+    const towel = await prisma.bale.findFirstOrThrow({ where: { kindCode: 'TOWELS-A-20', status: 'IN_STOCK' } });
+    const ids = shirts.map((b) => b.id);
+    await api().post('/api/supplier-returns').set(as(manager)).send({ baleIds: ids }).expect(403);
+    expect((await api().post('/api/supplier-returns').set(as(owner)).send({ baleIds: [...ids, towel.id] }).expect(400)).body.code).toBe('ONE_SUPPLIER');
+    expect((await api().post('/api/supplier-returns').set(as(owner)).send({ baleIds: [] }).expect(400)).body.code).toBe('NO_BALES');
+
+    // Left empty, the amount is what the bales cost, without the shop's own charges.
+    const made = (await api().post('/api/supplier-returns').set(as(owner)).send({ baleIds: ids, reason: 'Wet bales' }).expect(201)).body;
+    expect(made).toMatchObject({ code: 'SR-0001', bales: 2, amount: '61600' });
+    expect((await prisma.bale.findMany({ where: { id: { in: ids } } })).map((b) => b.status)).toEqual(['RETURNED_TO_SUPPLIER', 'RETURNED_TO_SUPPLIER']);
+    expect((await api().get('/api/bales/by-code/SHIRTS-40').set(as(owner)).expect(409)).body.code).toBe('NONE_IN_STOCK');
+    expect((await api().post('/api/supplier-returns').set(as(owner)).send({ baleIds: ids }).expect(409)).body.code).toBe('NOT_ON_SHELF');
+
+    const list = (await api().get('/api/supplier-returns').set(as(owner)).expect(200)).body;
+    expect(list.owed).toEqual([expect.objectContaining({ name: 'Dollar Traders', amount: '61600', returns: 1 })]);
+    const one = (await api().get(`/api/supplier-returns/${made.id}`).set(as(owner)).expect(200)).body;
+    expect(one.lines.map((l: { amount: string; bale: { kindCode: string } }) => [l.bale.kindCode, l.amount])).toEqual([['SHIRTS-40', '28000'], ['SHIRTS-40', '33600']]);
+
+    expect((await api().post(`/api/supplier-returns/${made.id}/settle`).set(as(owner)).send({ note: 'Taken off invoice 12' }).expect(201)).body.settledNote).toBe('Taken off invoice 12');
+    expect((await api().get('/api/supplier-returns').set(as(owner))).body.owed).toEqual([]);
+    await api().post(`/api/supplier-returns/${made.id}/undo`).set(as(owner)).expect(404);
+
+    // A typed amount is used as it is; a return made by mistake puts the bales back.
+    const other = (await api().post('/api/supplier-returns').set(as(owner)).send({ baleIds: [towel.id], amount: '4000' }).expect(201)).body;
+    expect(other).toMatchObject({ code: 'SR-0002', amount: '4000' });
+    await api().post(`/api/supplier-returns/${other.id}/undo`).set(as(owner)).expect(201);
+    expect((await prisma.bale.findUniqueOrThrow({ where: { id: towel.id } })).status).toBe('IN_STOCK');
+    expect(await prisma.supplierReturn.count()).toBe(1);
   });
 
   it('keeps kinds to their own business: another one cannot see, scan or sell them', async () => {

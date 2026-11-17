@@ -1,9 +1,10 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, effect, inject, OnInit, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { Api, MoneyPipe, today, typed } from '../core';
+import { RateBox } from '../ui/rate-box';
 
 interface PreviewRow {
   line: number;
@@ -14,6 +15,7 @@ interface PreviewRow {
   weightKg: string | null;
   pieces: number | null;
   cost: string;
+  costForeign: string | null;
   landedCost: string;
   salePrice: string | null;
   piecePrice: string | null;
@@ -22,6 +24,7 @@ interface PreviewRow {
 interface Preview {
   fileName: string;
   warnings: string[];
+  currency: { list: string; detected: string | null; local: string; foreign: boolean; rate: string | null; needsRate: boolean; goodsCostForeign: string | null };
   summary: { bales: number; bad: number; weightKg: string; pieces: number; goodsCost: string; charges: string; landedCost: string; chargesSharedBy: 'weight' | 'bale' };
   rows: PreviewRow[];
 }
@@ -36,7 +39,7 @@ const CHARGES = [
 
 /** One shipment: its details typed once, its bale list uploaded, checked on screen, then saved into stock. */
 @Component({
-  imports: [FormsModule, RouterLink, MoneyPipe],
+  imports: [FormsModule, RouterLink, MoneyPipe, RateBox],
   template: `
     <div class="screen max-w-5xl !pb-44 md:!pb-28">
       <a routerLink="/shipments" class="inline-flex min-h-[44px] items-center text-sm font-semibold text-brand-700">‹ Shipments</a>
@@ -88,15 +91,19 @@ const CHARGES = [
       <section class="card mt-4 p-5">
         <h2 class="font-semibold">2. What it cost</h2>
         <p class="mt-0.5 text-sm text-stone-600">Charges are shared between the bales, so every bale knows its full cost and your profit is right.</p>
+        <div class="mt-3">
+          <pos-rate-box [(currency)]="currency" [(rate)]="rate" [detected]="preview()?.currency?.detected ?? null" />
+          @if (currency() !== local) { <p class="hint mt-1">Only the supplier's costs are converted. Charges and your selling prices are already in {{ local }}.</p> }
+        </div>
         <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div class="sm:col-span-3 sm:max-w-xs">
-            <label class="label" for="goods">Cost of goods</label>
+            <label class="label" for="goods">Cost of goods{{ currency() !== local ? ' (' + currency() + ')' : '' }}</label>
             <input id="goods" class="input num" inputmode="decimal" [(ngModel)]="f.goodsCost" (ngModelChange)="stale()" placeholder="0" />
             <p class="hint">Leave empty when the file has a cost for each bale.</p>
           </div>
           @for (c of charges; track c.key) {
             <div>
-              <label class="label" [for]="c.key">{{ c.label }}</label>
+              <label class="label" [for]="c.key">{{ c.label }}{{ currency() !== local ? ' (' + local + ')' : '' }}</label>
               <input [id]="c.key" class="input num" inputmode="decimal" [(ngModel)]="f[c.key]" (ngModelChange)="stale()" placeholder="0" />
             </div>
           }
@@ -125,7 +132,7 @@ const CHARGES = [
           <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div class="rounded-lg bg-stone-50 p-3"><div class="text-xs text-stone-500">Bales</div><div class="num text-lg font-semibold">{{ p.summary.bales }}</div></div>
             <div class="rounded-lg bg-stone-50 p-3"><div class="text-xs text-stone-500">Weight</div><div class="num text-lg font-semibold">{{ +p.summary.weightKg ? p.summary.weightKg + ' kg' : '—' }}</div></div>
-            <div class="rounded-lg bg-stone-50 p-3"><div class="text-xs text-stone-500">Goods</div><div class="num text-lg font-semibold">{{ p.summary.goodsCost | money }}</div></div>
+            <div class="rounded-lg bg-stone-50 p-3"><div class="text-xs text-stone-500">Goods</div><div class="num text-lg font-semibold">{{ p.currency.needsRate ? p.currency.list + ' ' + (+p.currency.goodsCostForeign!).toLocaleString('en-US') : (p.summary.goodsCost | money) }}</div>@if (p.currency.foreign && p.currency.rate) { <div class="num text-xs text-stone-500">{{ p.currency.list }} {{ (+p.currency.goodsCostForeign!).toLocaleString('en-US') }} at {{ +p.currency.rate }}</div> }</div>
             <div class="rounded-lg bg-stone-50 p-3"><div class="text-xs text-stone-500">Total with charges</div><div class="num text-lg font-semibold">{{ p.summary.landedCost | money }}</div></div>
           </div>
           @if (+p.summary.charges) {
@@ -205,6 +212,20 @@ export class ShipmentNewPage implements OnInit {
   readonly fileError = signal('');
   private timer: ReturnType<typeof setTimeout> | undefined;
 
+  readonly local = this.api.shop()?.currency ?? 'PKR';
+  /** The currency the list's costs are in, and one unit of it in the shop's currency. */
+  readonly currency = signal(this.api.shop()?.supplierCurrency || this.local);
+  readonly rate = signal('');
+
+  constructor() {
+    // Another currency or rate: work the costs out again.
+    effect(() => {
+      this.currency();
+      this.rate();
+      untracked(() => this.stale());
+    });
+  }
+
   f: Record<string, string> = {
     supplierName: '', arrivedOn: today(), originCountry: '', containerNo: '', billOfLadingNo: '', invoiceNo: '', vessel: '', shippedOn: '',
     portOfLoading: '', portOfArrival: '', notes: '', goodsCost: '', freight: '', customsDuty: '', clearing: '', transport: '', otherCharges: '',
@@ -215,11 +236,12 @@ export class ShipmentNewPage implements OnInit {
     const rows = this.preview()?.rows ?? [];
     return [...rows.filter((r) => r.errors.length), ...rows.filter((r) => !r.errors.length)].slice(0, 200);
   });
-  readonly canSave = computed(() => !!this.preview() && this.preview()!.summary.bad === 0 && !this.reading());
+  readonly canSave = computed(() => !!this.preview() && this.preview()!.summary.bad === 0 && !this.preview()!.currency.needsRate && !this.reading());
   readonly hint = computed(() => {
     const p = this.preview();
     if (!p) return 'Choose the bale list file to see it here before saving.';
     if (p.summary.bad) return 'Fix the rows marked in red, then choose the file again.';
+    if (p.currency.needsRate) return `Give the ${p.currency.list} rate to see the costs in ${p.currency.local}.`;
     return `${p.summary.bales} bales, ${p.summary.pieces} pieces.`;
   });
 
@@ -237,6 +259,8 @@ export class ShipmentNewPage implements OnInit {
       const money = ['goodsCost', ...CHARGES.map((c) => c.key as string)].includes(key);
       if (value) data.append(key, money ? String(typed(value)) : value.trim());
     }
+    data.append('currency', this.currency());
+    if (this.currency() !== this.local && typed(this.rate()) > 0) data.append('rate', String(typed(this.rate())));
     data.append('file', this.file()!);
     return data;
   }

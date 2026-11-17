@@ -42,7 +42,7 @@ import { Sheet } from '../ui/sheet';
           <div><label class="label" for="n">Name</label><input id="n" class="input" name="name" [(ngModel)]="form.name" autofocus /></div>
           <div><label class="label" for="p">Phone</label><input id="p" class="input" name="phone" inputmode="tel" [(ngModel)]="form.phone" placeholder="0300 1234567" /></div>
           <div class="grid grid-cols-2 gap-3">
-            <div><label class="label" for="o">Already owes (old khata)</label><input id="o" class="input num" name="opening" inputmode="decimal" [(ngModel)]="form.openingBalance" placeholder="Rs 0" /></div>
+            <div><label class="label" for="o">Already owes (old khata)</label><input id="o" class="input num" name="opening" inputmode="decimal" [(ngModel)]="form.openingBalance" placeholder="0" /></div>
             <div><label class="label" for="l">Credit limit</label><input id="l" class="input num" name="limit" inputmode="decimal" [(ngModel)]="form.creditLimit" placeholder="No limit" /></div>
           </div>
           <button class="btn-big" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Save customer' }}</button>

@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { Api, Bale, Branch, money, MoneyPipe, shownCode, STATUS_LABEL, STATUS_TONE, typed } from '../core';
 import { Printer } from '../hardware/printer';
 import { Shelf } from '../offline/shelf';
+import { Ask } from '../ui/ask';
 import { Icon } from '../ui/icon';
 import { Sheet } from '../ui/sheet';
 
@@ -25,6 +26,7 @@ const SHELVES = [
   { key: 'FINISHED', label: 'Finished' },
   { key: 'IN_TRANSIT', label: 'On the way' },
   { key: 'WRITTEN_OFF', label: 'Written off' },
+  { key: 'RETURNED_TO_SUPPLIER', label: 'Back to supplier' },
 ];
 
 /**
@@ -39,6 +41,7 @@ const SHELVES = [
         <div><h1>Stock</h1><p class="text-sm text-stone-500">{{ status() === 'kinds' ? wholeCount() + ' whole · ' + total() + ' opened' : total() + (total() === 1 ? ' bale' : ' bales') }} · {{ api.branch()?.name }}</p></div>
         <div class="flex gap-2">
           @if (api.isManager()) { <a routerLink="/stock-check" class="btn-soft"><pos-icon name="count" /> Stock check</a> }
+          @if (api.isOwner()) { <a routerLink="/stock/add" class="btn-soft"><pos-icon name="plus" /> Add stock</a> }
           <button class="btn-soft" (click)="choose()">{{ picking() ? 'Done choosing' : 'Choose bales' }}</button>
         </div>
       </div>
@@ -127,6 +130,7 @@ const SHELVES = [
             <button class="btn-soft min-h-[44px]" [disabled]="!count()" (click)="pricing.set(true); bale = ''; piece = ''"><pos-icon name="wallet" /> Prices</button>
             @if (others().length) { <button class="btn-soft min-h-[44px]" [disabled]="!count()" (click)="sending.set(true); to = others()[0].id"><pos-icon name="truck" /> Send</button> }
           }
+          @if (api.isOwner()) { <button class="btn-soft min-h-[44px]" [disabled]="!count()" (click)="toSupplier()"><pos-icon name="back" /> Back to supplier</button> }
         </div>
       </div>
     }
@@ -156,6 +160,7 @@ export class StockPage implements OnInit {
   readonly api = inject(Api);
   private readonly printer = inject(Printer);
   private readonly shelf = inject(Shelf);
+  private readonly ask = inject(Ask);
   readonly shelves = SHELVES;
   readonly label = STATUS_LABEL;
   readonly tone = STATUS_TONE;
@@ -249,6 +254,24 @@ export class StockPage implements OnInit {
       await this.printer.labels(Object.values(this.picked()));
     } catch (e) {
       this.api.say(this.api.why(e), true);
+    }
+  }
+
+  /** Bad or wrong bales go back to the supplier: off the shelf, and the supplier owes the shop for them. */
+  async toSupplier() {
+    const answer = await this.ask.fields(`Send ${this.count()} ${this.count() === 1 ? 'bale' : 'bales'} back to the supplier?`, 'They leave the shelf. What the supplier owes you for them is kept until you settle it.', [
+      { key: 'reason', label: 'Why', placeholder: 'Wrong goods, wet, poor grade…', optional: true },
+      { key: 'amount', label: 'Amount the supplier owes (empty = what the bales cost)', placeholder: '0', optional: true },
+    ], 'Send them back', true);
+    if (!answer) return;
+    this.busy.set(true);
+    try {
+      const res = await this.api.post<{ code: string; bales: number; amount: string }>('/supplier-returns', { baleIds: Object.keys(this.picked()), reason: answer['reason'], ...(answer['amount']?.trim() ? { amount: typed(answer['amount']) } : {}) });
+      await this.done(`${res.bales} ${res.bales === 1 ? 'bale' : 'bales'} sent back (${res.code}). The supplier owes ${this.fmt(res.amount)}.`);
+    } catch (e) {
+      this.api.say(this.api.why(e), true);
+    } finally {
+      this.busy.set(false);
     }
   }
 

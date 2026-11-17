@@ -1,5 +1,6 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { Api, Bale, billMath, Branch, Customer, dayStart, Method, oldestFirst, round2, Sale, Shop, Till, today, uid } from '../core';
+import type { PendingExchange } from '../exchange';
 import { deviceDb, Waiting } from './db';
 
 export interface Snapshot {
@@ -39,6 +40,8 @@ export interface Checkout {
   customer: Customer | null;
   note: string;
   tenders: Tender[];
+  /** Goods of an earlier bill that come back and pay for this one. Needs the server. */
+  exchange?: PendingExchange | null;
 }
 
 /**
@@ -173,6 +176,7 @@ export class Shelf {
       customerId: checkout.customer?.id ?? null,
       note: checkout.note,
       payments: checkout.tenders.filter((t) => t.amount > 0),
+      ...(checkout.exchange ? { exchange: { saleId: checkout.exchange.saleId, lines: checkout.exchange.lines, reason: checkout.exchange.reason } } : {}),
     };
     const tendered = round2(payload.payments.reduce((a, t) => a + t.amount, 0));
     const change = Math.max(0, round2(tendered - math.total));
@@ -187,6 +191,7 @@ export class Shelf {
       if (till && Number.isInteger(n)) this.seq(till, n);
     } catch (e) {
       if (!this.api.unreachable(e)) throw e;
+      if (checkout.exchange) throw new Error('An exchange needs the shop server. Try again when the connection is back.');
       if (!till) throw new Error('This device has no till yet. Connect to the shop server once, then it can sell offline.');
       this.online.set(false);
       const code = `${till.code}-${String(this.seq(till, 0, true)).padStart(6, '0')}`;
@@ -300,4 +305,5 @@ interface SalePayload {
   customerId: string | null;
   note: string;
   payments: Tender[];
+  exchange?: { saleId: string; lines: { saleLineId: string; quantity: number; restock: boolean }[]; reason: string };
 }

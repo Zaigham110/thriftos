@@ -3,6 +3,7 @@ import { Component, computed, inject, input, OnInit, signal } from '@angular/cor
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { Api, billRows, methodLabel, money, MoneyPipe, round2, Sale, SaleLine, shownCode, whatsapp } from '../core';
+import { keepExchange } from '../exchange';
 import { Printer } from '../hardware/printer';
 import { receiptModel, receiptText } from '../hardware/receipt';
 import { Shelf } from '../offline/shelf';
@@ -62,7 +63,8 @@ import { Sheet } from '../ui/sheet';
             @for (p of s.payments; track $index) {
               <div class="flex justify-between"><span class="text-stone-500">{{ label(p.method) }}{{ p.reference ? ' · ' + p.reference : '' }}</span><span class="num">{{ p.amount | money }}</span></div>
             }
-            @if (+s.changeGiven) { <div class="flex justify-between"><span class="text-stone-500">Change given back</span><span class="num">{{ s.changeGiven | money }}</span></div> }
+            @if (+(s.exchangeAmount ?? 0)) { <div class="flex justify-between"><span class="text-stone-500">Paid by goods brought back{{ s.exchangeOf ? ' (' + s.exchangeOf.code + ' on ' + s.exchangeOf.sale.code + ')' : '' }}</span><span class="num">{{ s.exchangeAmount | money }}</span></div> }
+          @if (+s.changeGiven) { <div class="flex justify-between"><span class="text-stone-500">Change given back</span><span class="num">{{ s.changeGiven | money }}</span></div> }
             @if (+s.creditAmount) { <div class="flex justify-between font-semibold text-amber-800"><span>On khata</span><span class="num">{{ s.creditAmount | money }}</span></div> }
             @if (+s.returnedTotal) { <div class="flex justify-between font-semibold text-amber-800"><span>Returned</span><span class="num">-{{ s.returnedTotal | money }}</span></div> }
             @if (s.profit !== undefined && s.status === 'COMPLETED') { <div class="flex justify-between border-t border-stone-200 pt-1 font-semibold text-pay-700"><span>Profit</span><span class="num">{{ s.profit | money }}</span></div> }
@@ -71,7 +73,7 @@ import { Sheet } from '../ui/sheet';
         @if (s.note) { <p class="mt-3 text-sm text-stone-600">Note: {{ s.note }}</p> }
 
         @for (r of s.returns; track r.id) {
-          <div class="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900"><span class="num font-semibold">{{ r.code }}</span> · {{ r.createdAt | date: 'd MMM, h:mm a' }} · {{ r.total | money }} back to {{ label(r.refundTo).toLowerCase() }}{{ r.reason ? ' · ' + r.reason : '' }}</div>
+          <div class="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900"><span class="num font-semibold">{{ r.code }}</span> · {{ r.createdAt | date: 'd MMM, h:mm a' }} · {{ r.total | money }} {{ r.refundTo === 'EXCHANGE' ? 'exchanged for other goods' : 'back to ' + label(r.refundTo).toLowerCase() }}{{ r.reason ? ' · ' + r.reason : '' }} <button class="ml-1 font-semibold underline" (click)="slip(s, r)">Print slip</button></div>
         }
 
         <div class="mt-4 grid grid-cols-2 gap-2">
@@ -110,11 +112,13 @@ import { Sheet } from '../ui/sheet';
         <select id="rt" class="input" [(ngModel)]="refundTo">
           <option value="CASH">Cash</option><option value="BANK">Bank</option><option value="WALLET">Easypaisa / JazzCash</option>
           @if (s.customerId) { <option value="KHATA">Take it off {{ s.customerName }}'s khata</option> }
+          <option value="EXCHANGE">No money back: exchange for other goods</option>
         </select>
+        @if (refundTo === 'EXCHANGE') { <p class="hint">Next you choose the new goods on the till. The customer pays only the difference, or gets it back. Nothing is taken back until that bill is completed.</p> }
         <label class="label mt-3" for="rr">Reason</label>
         <input id="rr" class="input" [(ngModel)]="reason" placeholder="Wrong size, damaged…" />
-        <div class="mt-3 flex items-baseline justify-between rounded-2xl bg-stone-100 px-4 py-3"><span class="font-semibold">Give back</span><span class="num text-2xl font-extrabold">{{ refund(s) | money }}</span></div>
-        <button class="btn-big mt-3" [disabled]="busy() || !refund(s)" (click)="doReturn(s)">{{ busy() ? 'Saving…' : 'Save the return' }}</button>
+        <div class="mt-3 flex items-baseline justify-between rounded-2xl bg-stone-100 px-4 py-3"><span class="font-semibold">{{ refundTo === 'EXCHANGE' ? 'Worth' : 'Give back' }}</span><span class="num text-2xl font-extrabold">{{ refund(s) | money }}</span></div>
+        <button class="btn-big mt-3" [disabled]="busy() || !refund(s)" (click)="doReturn(s)">{{ busy() ? 'Saving…' : refundTo === 'EXCHANGE' ? 'Choose the new goods on the till' : 'Save the return' }}</button>
       </pos-sheet>
     }
   `,
@@ -140,6 +144,9 @@ export class BillPage implements OnInit {
   private readonly ask = inject(Ask);
   private readonly router = inject(Router);
   readonly id = input.required<string>();
+  /** Opened from "Take a return": go straight to the return sheet, with this line already chosen. */
+  readonly take = input<string>();
+  readonly line = input<string>();
   readonly sale = signal<Sale | null>(null);
   readonly error = signal('');
   readonly busy = signal(false);
@@ -162,7 +169,13 @@ export class BillPage implements OnInit {
       return void this.router.navigateByUrl('/bills'); // it has been sent meanwhile
     }
     try {
-      this.sale.set(await this.api.get<Sale>(`/sales/${this.id()}`));
+      const sale = await this.api.get<Sale>(`/sales/${this.id()}`);
+      this.sale.set(sale);
+      if (this.take() && this.api.isManager() && sale.status === 'COMPLETED' && this.canReturn(sale)) {
+        this.startReturn(sale);
+        const chosen = this.returnable(sale).find((l) => l.id === this.line());
+        if (chosen) this.back.set({ [chosen.id]: 1 });
+      }
     } catch (e) {
       this.error.set(this.api.why(e));
     }
@@ -196,13 +209,21 @@ export class BillPage implements OnInit {
   }
 
   async doReturn(s: Sale) {
+    const lines = Object.entries(this.back()).filter(([, q]) => q > 0).map(([saleLineId, quantity]) => ({ saleLineId, quantity, restock: !this.damaged()[saleLineId] }));
+    if (this.refundTo === 'EXCHANGE') {
+      // Nothing is saved yet: the till makes the new bill and the server takes the goods back with it.
+      const what = this.returnable(s).filter((l) => this.back()[l.id]).map((l) => `${this.back()[l.id]} × ${l.description}`).join(', ');
+      keepExchange({ saleId: s.id, saleCode: s.code, lines, reason: this.reason, worth: this.refund(s), what });
+      return void this.router.navigateByUrl('/');
+    }
     this.busy.set(true);
     try {
-      const lines = Object.entries(this.back()).filter(([, q]) => q > 0).map(([saleLineId, quantity]) => ({ saleLineId, quantity, restock: !this.damaged()[saleLineId] }));
-      const res = await this.api.post<{ sale: Sale }>(`/sales/${s.id}/returns`, { lines, refundTo: this.refundTo, reason: this.reason, tillId: this.api.till()?.id });
+      const res = await this.api.post<{ sale: Sale; code: string }>(`/sales/${s.id}/returns`, { lines, refundTo: this.refundTo, reason: this.reason, tillId: this.api.till()?.id });
       this.sale.set(res.sale);
       this.returning.set(null);
-      this.api.say('Return saved.');
+      this.api.say(`Return ${res.code} saved.`);
+      const made = res.sale.returns?.find((r) => r.code === res.code);
+      if (made && this.printer.config().receipt.auto) void this.slip(res.sale, made);
       if (this.refundTo === 'CASH') void this.printer.drawer().catch(() => undefined);
       void this.shelf.refresh();
     } catch (e) {
@@ -229,6 +250,23 @@ export class BillPage implements OnInit {
     try {
       this.sale.set(await this.api.post<Sale>(`/sales/${s.id}/reviewed`));
       void this.shelf.refresh();
+    } catch (e) {
+      this.api.say(this.api.why(e), true);
+    }
+  }
+
+  /** A slip for the customer (and the drawer): what came back and what was given for it. */
+  async slip(s: Sale, r: NonNullable<Sale['returns']>[number]) {
+    const lines = (r.lines ?? []).map((rl): [string, string] => {
+      const line = s.lines?.find((l) => l.id === rl.saleLineId);
+      return [`${rl.quantity} x ${line?.description ?? 'Item'}${line?.bale ? ' (' + shownCode(line.bale) + ')' : ''}`, money(rl.amount)];
+    });
+    try {
+      await this.printer.report(
+        this.api.shop()?.name ?? 'Return',
+        [`Return ${r.code}`, `On bill ${s.code}`, new Date(r.createdAt).toLocaleString([], { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }), s.customerName ?? ''].filter(Boolean),
+        [...lines, null, [r.refundTo === 'EXCHANGE' ? 'Exchanged for other goods' : `Given back: ${methodLabel(r.refundTo)}`, money(r.total)], ...(r.reason ? [['Reason', r.reason] as [string, string]] : [])],
+      );
     } catch (e) {
       this.api.say(this.api.why(e), true);
     }

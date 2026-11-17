@@ -1,4 +1,5 @@
 import { billRows } from '../kinds';
+import { moneySign } from '../money-sign';
 import type { Sale, Shop } from '../core';
 import type { ReceiptModel } from './escpos';
 
@@ -39,15 +40,16 @@ export function receiptModel(sale: Sale, shop: Shop, branch: { name: string; add
   if (Number(sale.discount) > 0 || tax > 0) totals.push({ label: 'Subtotal', value: num(sale.subtotal) });
   if (Number(sale.discount) > 0) totals.push({ label: 'Discount', value: `-${num(sale.discount)}` });
   if (tax > 0) totals.push({ label: `${sale.taxName ?? 'Tax'} ${num(sale.taxRate)}%${sale.taxInclusive ? ' (included)' : ''}`, value: num(sale.taxAmount) });
-  totals.push({ label: 'TOTAL', value: `Rs ${num(sale.total)}`, big: true });
+  totals.push({ label: 'TOTAL', value: `${moneySign.value} ${num(sale.total)}`, big: true });
 
   const payments: [string, string][] = (sale.payments ?? []).map((p) => [METHOD[p.method] ?? p.method, num(Number(p.amount) + (p.method === 'CASH' ? Number(sale.changeGiven) : 0))]);
   if (Number(sale.changeGiven) > 0) payments.push(['Give back', num(sale.changeGiven)]);
   if (Number(sale.creditAmount) > 0) payments.push(['On khata', num(sale.creditAmount)]);
 
   const notes: string[] = [];
+  if (Number(sale.exchangeAmount ?? 0) > 0) notes.push(`Paid by goods brought back${sale.exchangeOf ? ` (${sale.exchangeOf.code})` : ''}: ${moneySign.value} ${num(sale.exchangeAmount!)}`);
   if (sale.status === 'CANCELLED') notes.push('*** CANCELLED ***');
-  if (Number(sale.returnedTotal) > 0) notes.push(`Returned: Rs ${num(sale.returnedTotal)}`);
+  if (Number(sale.returnedTotal) > 0) notes.push(`Returned: ${moneySign.value} ${num(sale.returnedTotal)}`);
   if (sale.note) notes.push(sale.note);
 
   return { title: shop.name, header, meta, lines, totals, payments, notes, footer: [shop.billFooter || 'Thank you. Come again.'], barcode: sale.code };

@@ -18,7 +18,7 @@ import { Api, Bale, typed } from '../core';
           </div>
           <div>
             <label class="label" for="open-price">Price of one piece</label>
-            <input id="open-price" class="input num" name="price" inputmode="decimal" [(ngModel)]="price" placeholder="Rs" />
+            <input id="open-price" class="input num" name="price" inputmode="decimal" [(ngModel)]="price" placeholder="0" />
           </div>
         </div>
         @if (error()) {
