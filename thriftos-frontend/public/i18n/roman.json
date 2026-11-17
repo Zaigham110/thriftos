@@ -2788,7 +2788,23 @@
     "HOLIDAY": "Taateel"
    }
   },
-  "absentN": "{n} din ghair haazir"
+  "absentN": "{n} din ghair haazir",
+  "loan": "Qarz",
+  "loanRepay": "Qarz wapas mila",
+  "loanGive": "Qarz dein",
+  "loanAmount": "{name} ko qarz (Rs)",
+  "loanInstalment": "Har tankhwah se katauti (Rs)",
+  "loanHint": "Abhi galle se ada hoga. Yeh kharcha nahi: yeh wapas aata hai, har tankhwah sheet se thora ya naqd.",
+  "loanRepayAmount": "{name} naqd wapas kar raha hai (Rs) · {rs} baqi",
+  "loanRepayHint": "Aaj galle mein aaye ga aur qarz kam hoga.",
+  "loanGiven": "{name} ko {rs} qarz de diya.",
+  "loanRepaid": "{name} se {rs} wapas mil gaye.",
+  "loanLeft": "{rs} qarz baqi",
+  "lessLoan": "qarz ki katauti {rs}",
+  "loanOff": "Qarz ki mad mein",
+  "leaveAllowance": "Saal mein tankhwah wali chhuttiyan",
+  "leaveHint": "Haazri mein lagi chhutti is had tak rozana ujrat walon ko ada hoti hai. Na ho to khali chhorein.",
+  "leaveOf": "chhutti {of} mein se {taken}"
  },
  "move": {
   "pick": "Ya stock se chunein",

@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { AttendanceStatus, ExpenseCategory, PaySheetStatus, PaymentMethod, Prisma, WorkerPayType } from '@prisma/client';
+import { AttendanceStatus, CashMoveDirection, CashMoveKind, ExpenseCategory, PaySheetStatus, PaymentMethod, Prisma, WorkerPayType } from '@prisma/client';
 import { BUSINESS_UTC_OFFSET_MINUTES, localDayStart } from '../common/list/list-engine';
 import { toE164 } from '../common/phone/phone';
 import { PrismaService } from '../prisma/prisma.service';
@@ -18,6 +18,8 @@ const CASH_CLOSED = 'The cash for that day is already closed. Reopen the day fir
 export interface WorkerInput {
   name: string; phone?: string | null; payType: WorkerPayType; rate: number; isActive?: boolean;
   /** The employee record (owner, 2026-11-17): what they do, their CNIC, when they joined and left, where they live. */
+  /** Paid leave days a year (0 = none). */
+  leaveAllowance?: number;
   jobTitle?: string | null; cnic?: string | null; joinedOn?: string | null; leftOn?: string | null; address?: string | null; emergencyContact?: string | null; note?: string | null;
 }
 
@@ -35,12 +37,22 @@ export class PayrollService {
 
   // ── Workers ───────────────────────────────────────────────────────────────────────────────────────
 
-  workers(tenantId: string, all = false) {
-    return this.prisma.worker.findMany({
-      where: { tenantId, ...(all ? {} : { isActive: true }) },
-      orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
-      select: { id: true, name: true, phone: true, payType: true, rate: true, isActive: true, createdAt: true, ...EMPLOYEE_FIELDS },
-    });
+  async workers(tenantId: string, all = false, now = new Date()) {
+    const year = businessDay(now).slice(0, 4);
+    const [rows, loans, leave] = await Promise.all([
+      this.prisma.worker.findMany({
+        where: { tenantId, ...(all ? {} : { isActive: true }) },
+        orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+        select: { id: true, name: true, phone: true, payType: true, rate: true, isActive: true, createdAt: true, leaveAllowance: true, ...EMPLOYEE_FIELDS },
+      }),
+      this.prisma.employeeLoan.findMany({ where: { tenantId }, select: { workerId: true, amount: true, repaid: true } }),
+      this.prisma.attendance.groupBy({ by: ['workerId'], where: { tenantId, status: AttendanceStatus.LEAVE, day: { gte: dayDate(`${year}-01-01`), lte: dayDate(`${year}-12-31`) } }, _count: { _all: true } }),
+    ]);
+    const owed = new Map<string, Prisma.Decimal>();
+    for (const l of loans) owed.set(l.workerId, (owed.get(l.workerId) ?? ZERO).add(l.amount.sub(l.repaid)));
+    const taken = new Map(leave.map((l) => [l.workerId, l._count._all]));
+    // What is left of their loans, and the leave taken this year (against the yearly allowance).
+    return rows.map((r) => ({ ...r, loanLeft: owed.get(r.id) ?? ZERO, leaveTaken: taken.get(r.id) ?? 0 }));
   }
 
   /** Whether sorting asks who sorted each pile (optional: only a business that pays by what is sorted needs it). */
@@ -76,6 +88,7 @@ export class PayrollService {
       ...(dto.payType !== undefined && { payType: dto.payType }),
       ...(dto.rate !== undefined && { rate: new Prisma.Decimal(dto.rate) }),
       ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+      ...(dto.leaveAllowance !== undefined && { leaveAllowance: Math.max(0, Math.round(dto.leaveAllowance)) }),
       ...text('jobTitle'), ...text('cnic'), ...text('address'), ...text('emergencyContact'), ...text('note'), ...date('joinedOn'), ...date('leftOn'),
     };
   }
@@ -128,6 +141,65 @@ export class PayrollService {
       await tx.auditLog.create({ data: { tenantId, userId, action: 'WORKER_ADVANCE_GIVEN', entityType: 'Worker', entityId: workerId, metadataJson: { amount: a.amount.toString(), day, expenseId: expense.id } } });
       return { ...a, day };
     });
+  }
+
+  // ── Loans ─────────────────────────────────────────────────────────────────
+
+  /**
+   * Money lent to an employee: cash out of the drawer today that is not an expense (it comes back). It is repaid
+   * by an instalment taken off each pay sheet, or in cash.
+   */
+  async giveLoan(tenantId: string, workerId: string, dto: { amount: number; instalment: number; note?: string }, userId: string, now = new Date()) {
+    const w = await this.prisma.worker.findFirst({ where: { id: workerId, tenantId, isActive: true } });
+    if (!w) throw new NotFoundException('Worker not found');
+    if (!(dto.amount > 0)) throw new BadRequestException('Enter the amount');
+    if (!(dto.instalment > 0) || dto.instalment > dto.amount) throw new BadRequestException({ statusCode: 400, code: 'INSTALMENT', message: 'Enter how much comes off each pay: more than zero, not more than the loan' });
+    const day = businessDay(now);
+    return this.prisma.$transaction(async (tx) => {
+      await this.assertCashOpen(tx, tenantId, day);
+      const move = await tx.cashMove.create({ data: { tenantId, day: dayDate(day), direction: CashMoveDirection.OUT, kind: CashMoveKind.OTHER, amount: new Prisma.Decimal(dto.amount), note: `Loan to ${w.name}`, createdBy: userId } });
+      const loan = await tx.employeeLoan.create({ data: { tenantId, workerId, day: dayDate(day), amount: new Prisma.Decimal(dto.amount), instalment: new Prisma.Decimal(dto.instalment), note: dto.note?.trim() || null, cashMoveId: move.id, createdBy: userId } });
+      await tx.auditLog.create({ data: { tenantId, userId, action: 'EMPLOYEE_LOAN_GIVEN', entityType: 'Worker', entityId: workerId, metadataJson: { amount: loan.amount.toString(), instalment: loan.instalment.toString(), day } } });
+      return { ...loan, day };
+    });
+  }
+
+  /** The employee hands back cash towards their loans (oldest first): cash into the drawer today, not income. */
+  async repayLoan(tenantId: string, workerId: string, dto: { amount: number }, userId: string, now = new Date()) {
+    const w = await this.prisma.worker.findFirst({ where: { id: workerId, tenantId } });
+    if (!w) throw new NotFoundException('Worker not found');
+    if (!(dto.amount > 0)) throw new BadRequestException('Enter the amount');
+    const day = businessDay(now);
+    return this.prisma.$transaction(async (tx) => {
+      await this.assertCashOpen(tx, tenantId, day);
+      const amount = new Prisma.Decimal(dto.amount);
+      const left = (await tx.employeeLoan.findMany({ where: { tenantId, workerId }, select: { amount: true, repaid: true } })).reduce((t, l) => t.add(l.amount.sub(l.repaid)), ZERO);
+      if (amount.greaterThan(left)) throw new BadRequestException({ statusCode: 400, code: 'MORE_THAN_LOAN', message: `Only ${left.toString()} is left on their loans` });
+      const move = await tx.cashMove.create({ data: { tenantId, day: dayDate(day), direction: CashMoveDirection.IN, kind: CashMoveKind.OTHER, amount, note: `Loan repaid by ${w.name}`, createdBy: userId } });
+      await this.applyRepayment(tx, tenantId, workerId, amount, day, userId, { cashMoveId: move.id });
+      await tx.auditLog.create({ data: { tenantId, userId, action: 'EMPLOYEE_LOAN_REPAID', entityType: 'Worker', entityId: workerId, metadataJson: { amount: amount.toString(), day } } });
+      return { loanLeft: left.sub(amount) };
+    });
+  }
+
+  /** Puts a repayment on the employee's open loans, the oldest first. */
+  private async applyRepayment(tx: Tx, tenantId: string, workerId: string, amount: Prisma.Decimal, day: string, userId: string, from: { paySheetLineId?: string; cashMoveId?: string }) {
+    let left = amount;
+    const loans = await tx.employeeLoan.findMany({ where: { tenantId, workerId }, orderBy: [{ day: 'asc' }, { createdAt: 'asc' }] });
+    for (const l of loans) {
+      if (!left.greaterThan(0)) break;
+      const part = Prisma.Decimal.min(left, l.amount.sub(l.repaid));
+      if (!part.greaterThan(0)) continue;
+      await tx.employeeLoan.update({ where: { id: l.id }, data: { repaid: l.repaid.add(part) } });
+      await tx.loanRepayment.create({ data: { tenantId, loanId: l.id, paySheetLineId: from.paySheetLineId ?? null, day: dayDate(day), amount: part, cashMoveId: from.cashMoveId ?? null, createdBy: userId } });
+      left = left.sub(part);
+    }
+  }
+
+  /** An employee's loans with what is left on each, newest first. */
+  async loans(tenantId: string, workerId: string) {
+    const rows = await this.prisma.employeeLoan.findMany({ where: { tenantId, workerId }, orderBy: [{ day: 'desc' }, { createdAt: 'desc' }], select: { id: true, day: true, amount: true, instalment: true, repaid: true, note: true } });
+    return rows.map((l) => ({ ...l, day: ymd(l.day), left: l.amount.sub(l.repaid) }));
   }
 
   private async assertCashOpen(tx: Tx, tenantId: string, day: string) {
@@ -184,21 +256,26 @@ export class PayrollService {
         this.attended(tx, tenantId, start, end),
         tx.workerAdvance.findMany({ where: { tenantId, paySheetLineId: null, day: { lte: dayDate(end) } }, select: { id: true, workerId: true, amount: true } }),
       ]);
+      const loans = await tx.employeeLoan.findMany({ where: { tenantId }, select: { workerId: true, amount: true, repaid: true, instalment: true } });
       const sheet = await tx.paySheet.create({ data: { tenantId, periodStart: dayDate(start), periodEnd: dayDate(end), createdBy: userId } });
       let total = ZERO;
       for (const w of workers) {
         const did = work.get(w.id);
         const mine = advances.filter((a) => a.workerId === w.id);
         const adv = mine.reduce((t, a) => t.add(a.amount), ZERO);
-        if (!did && !mine.length && w.payType !== WorkerPayType.MONTH && w.payType !== WorkerPayType.DAY) continue;
+        // The instalments of their loans still open (never more than is left on each).
+        const due = loans.filter((l) => l.workerId === w.id && l.amount.greaterThan(l.repaid)).reduce((t, l) => t.add(Prisma.Decimal.min(l.instalment, l.amount.sub(l.repaid))), ZERO);
+        if (!did && !mine.length && due.isZero() && w.payType !== WorkerPayType.MONTH && w.payType !== WorkerPayType.DAY) continue;
         // Days paid for: from attendance when the person was marked in the period (a half day counts half), else
         // the days they have sorting entries on, as before.
         const marked = attendance.get(w.id);
         const facts = { kg: did?.kg ?? ZERO, pieces: did?.pieces ?? 0, days: marked ? marked.worked : did?.days.size ?? 0 };
         const gross = grossPay(w.payType, w.rate, facts, start, end);
-        const net = netPay(gross, adv, ZERO);
+        // A loan instalment comes off what is left after advances, never more than that.
+        const loan = Prisma.Decimal.min(due, netPay(gross, adv, ZERO));
+        const net = netPay(gross, adv, loan);
         const line = await tx.paySheetLine.create({
-          data: { tenantId, paySheetId: sheet.id, workerId: w.id, payType: w.payType, rate: w.rate, kg: facts.kg, pieces: facts.pieces, days: facts.days, absentDays: marked?.absent ?? 0, gross, advances: adv, net },
+          data: { tenantId, paySheetId: sheet.id, workerId: w.id, payType: w.payType, rate: w.rate, kg: facts.kg, pieces: facts.pieces, days: facts.days, absentDays: marked?.absent ?? 0, gross, advances: adv, loan, net },
         });
         if (mine.length) await tx.workerAdvance.updateMany({ where: { id: { in: mine.map((a) => a.id) }, paySheetLineId: null }, data: { paySheetLineId: line.id } });
         total = total.add(net);
@@ -219,7 +296,7 @@ export class PayrollService {
   }
 
   /** While not paid: days (for day-rate workers), deductions and a note; gross and net follow. */
-  async updateLine(tenantId: string, lineId: string, dto: { days?: number; deductions?: number; note?: string }, userId: string) {
+  async updateLine(tenantId: string, lineId: string, dto: { days?: number; deductions?: number; loan?: number; note?: string }, userId: string) {
     const line = await this.prisma.paySheetLine.findFirst({ where: { id: lineId, tenantId }, include: { sheet: true } });
     if (!line) throw new NotFoundException('Line not found');
     if (line.sheet.status !== PaySheetStatus.DRAFT) throw new ConflictException('This pay sheet is paid; it cannot change');
@@ -228,9 +305,18 @@ export class PayrollService {
     const days = dto.days ?? line.days.toNumber();
     const deductions = dto.deductions !== undefined ? new Prisma.Decimal(dto.deductions) : line.deductions;
     const gross = line.payType === WorkerPayType.DAY ? line.rate.mul(days).toDecimalPlaces(2) : line.gross;
-    const net = netPay(gross, line.advances, deductions);
+    let loan = line.loan;
+    if (dto.loan !== undefined) {
+      if (dto.loan < 0) throw new BadRequestException('A loan instalment cannot be below zero');
+      const left = (await this.prisma.employeeLoan.findMany({ where: { tenantId, workerId: line.workerId }, select: { amount: true, repaid: true } })).reduce((t, l) => t.add(l.amount.sub(l.repaid)), ZERO);
+      if (new Prisma.Decimal(dto.loan).greaterThan(left)) throw new BadRequestException({ statusCode: 400, code: 'MORE_THAN_LOAN', message: `Only ${left.toString()} is left on their loans` });
+      loan = new Prisma.Decimal(dto.loan);
+    }
+    // Never more than the pay has left after advances and deductions.
+    loan = Prisma.Decimal.min(loan, netPay(gross, line.advances, deductions));
+    const net = netPay(gross, line.advances, deductions.add(loan));
     await this.prisma.$transaction(async (tx) => {
-      await tx.paySheetLine.update({ where: { id: lineId }, data: { days, deductions, gross, net, ...(dto.note !== undefined && { note: dto.note.trim() || null }) } });
+      await tx.paySheetLine.update({ where: { id: lineId }, data: { days, deductions, loan, gross, net, ...(dto.note !== undefined && { note: dto.note.trim() || null }) } });
       const sum = await tx.paySheetLine.aggregate({ where: { paySheetId: line.paySheetId }, _sum: { net: true } });
       await tx.paySheet.update({ where: { id: line.paySheetId }, data: { total: sum._sum.net ?? ZERO } });
       await tx.auditLog.create({ data: { tenantId, userId, action: 'PAY_SHEET_LINE_CHANGED', entityType: 'PaySheet', entityId: line.paySheetId, metadataJson: { lineId, days, deductions: deductions.toString(), net: net.toString() } } });
@@ -269,9 +355,17 @@ export class PayrollService {
       if (claimed.count !== 1) throw new ConflictException('This pay sheet is already paid');
       const start = ymd(s.periodStart), end = ymd(s.periodEnd);
       const total = s.lines.reduce((t, l) => t.add(l.net), ZERO);
-      const expense = total.isZero()
+      // What went to loans is still wages earned: the expense is the cash handed over plus the loan instalments,
+      // and the instalments come back into the drawer as loans repaid (so the cash book shows what really moved).
+      const toLoans = s.lines.reduce((t, l) => t.add(l.loan), ZERO);
+      const wages = total.add(toLoans);
+      const expense = wages.isZero()
         ? null
-        : await tx.expense.create({ data: { tenantId, day: dayDate(today), category: s.lines.every((l) => l.payType === WorkerPayType.MONTH) ? ExpenseCategory.SALARY : ExpenseCategory.LABOUR, amount: total, method: PaymentMethod.CASH, paidTo: `${s.lines.length} employees`, note: `Pay sheet ${start} – ${end}`, createdBy: userId } });
+        : await tx.expense.create({ data: { tenantId, day: dayDate(today), category: s.lines.every((l) => l.payType === WorkerPayType.MONTH) ? ExpenseCategory.SALARY : ExpenseCategory.LABOUR, amount: wages, method: PaymentMethod.CASH, paidTo: `${s.lines.length} employees`, note: `Pay sheet ${start} – ${end}`, createdBy: userId } });
+      if (!toLoans.isZero()) {
+        const move = await tx.cashMove.create({ data: { tenantId, day: dayDate(today), direction: CashMoveDirection.IN, kind: CashMoveKind.OTHER, amount: toLoans, note: `Loans repaid from pay ${start} – ${end}`, createdBy: userId } });
+        for (const line of s.lines.filter((l) => l.loan.greaterThan(0))) await this.applyRepayment(tx, tenantId, line.workerId, line.loan, today, userId, { paySheetLineId: line.id, cashMoveId: move.id });
+      }
       const work = await this.work(tx, tenantId, start, end);
       for (const line of s.lines) {
         const cost = line.gross.sub(line.deductions);
@@ -294,11 +388,25 @@ export class PayrollService {
 
   /** Days worked and days absent per employee in a period, from attendance (a half day is half of each). */
   private async attended(db: Tx | PrismaService, tenantId: string, start: string, end: string) {
-    const rows = await db.attendance.findMany({ where: { tenantId, day: { gte: dayDate(start), lte: dayDate(end) } }, select: { workerId: true, status: true } });
+    const rows = await db.attendance.findMany({ where: { tenantId, day: { gte: dayDate(start), lte: dayDate(end) } }, orderBy: { day: 'asc' }, select: { workerId: true, status: true, day: true } });
+    // Leave is paid while the year's allowance lasts: the leave days of each year are counted in date order.
+    const [allowances, yearLeave] = await Promise.all([
+      db.worker.findMany({ where: { tenantId, leaveAllowance: { gt: 0 } }, select: { id: true, leaveAllowance: true } }),
+      db.attendance.findMany({ where: { tenantId, status: AttendanceStatus.LEAVE, day: { gte: dayDate(`${start.slice(0, 4)}-01-01`), lte: dayDate(end) } }, orderBy: { day: 'asc' }, select: { workerId: true, day: true } }),
+    ]);
+    const allowance = new Map(allowances.map((w) => [w.id, w.leaveAllowance]));
+    const paidLeave = new Set<string>();
+    const used = new Map<string, number>();
+    for (const l of yearLeave) {
+      const key = `${l.workerId}|${ymd(l.day).slice(0, 4)}`;
+      const n = (used.get(key) ?? 0) + 1;
+      used.set(key, n);
+      if (n <= (allowance.get(l.workerId) ?? 0)) paidLeave.add(`${l.workerId}|${ymd(l.day)}`);
+    }
     const by = new Map<string, { worked: number; absent: number }>();
     for (const r of rows) {
       const a = by.get(r.workerId) ?? { worked: 0, absent: 0 };
-      if (r.status === AttendanceStatus.PRESENT) a.worked += 1;
+      if (r.status === AttendanceStatus.PRESENT || (r.status === AttendanceStatus.LEAVE && paidLeave.has(`${r.workerId}|${ymd(r.day)}`))) a.worked += 1;
       else if (r.status === AttendanceStatus.HALF_DAY) { a.worked += 0.5; a.absent += 0.5; }
       else if (r.status === AttendanceStatus.ABSENT) a.absent += 1;
       by.set(r.workerId, a);

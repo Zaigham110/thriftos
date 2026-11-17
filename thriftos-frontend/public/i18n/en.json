@@ -2788,7 +2788,23 @@
     "HOLIDAY": "Holiday"
    }
   },
-  "absentN": "absent {n} days"
+  "absentN": "absent {n} days",
+  "loan": "Loan",
+  "loanRepay": "Loan paid back",
+  "loanGive": "Give the loan",
+  "loanAmount": "Loan to {name} (Rs)",
+  "loanInstalment": "Taken off each pay (Rs)",
+  "loanHint": "Paid from the cash drawer now. It is not an expense: it comes back, a little from each pay sheet or in cash.",
+  "loanRepayAmount": "Cash {name} is paying back (Rs) · {rs} left",
+  "loanRepayHint": "Goes into the cash drawer today and takes the loan down.",
+  "loanGiven": "Loan of {rs} given to {name}.",
+  "loanRepaid": "{rs} taken back from {name}.",
+  "loanLeft": "owes {rs} on a loan",
+  "lessLoan": "less loan {rs}",
+  "loanOff": "Towards the loan",
+  "leaveAllowance": "Paid leave days a year",
+  "leaveHint": "Leave marked in Attendance within this is paid to staff paid by the day. Leave it empty for none.",
+  "leaveOf": "leave {taken} of {of}"
  },
  "move": {
   "pick": "Or pick from stock",

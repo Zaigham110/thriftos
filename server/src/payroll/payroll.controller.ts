@@ -23,6 +23,16 @@ export class WorkerDto {
   @IsOptional() @IsString() @MaxLength(300) address?: string | null;
   @IsOptional() @IsString() @MaxLength(120) emergencyContact?: string | null;
   @IsOptional() @IsString() @MaxLength(500) note?: string | null;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(366) leaveAllowance?: number;
+}
+export class LoanDto {
+  @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(1) amount!: number;
+  /** Taken off each pay sheet until the loan is repaid. */
+  @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(1) instalment!: number;
+  @IsOptional() @IsString() @MaxLength(200) note?: string;
+}
+export class LoanRepayDto {
+  @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(1) amount!: number;
 }
 export class EmployeeSettingsDto {
   @IsBoolean() trackSorterWork!: boolean;
@@ -40,6 +50,7 @@ export class UpdateWorkerDto {
   @IsOptional() @IsString() @MaxLength(300) address?: string | null;
   @IsOptional() @IsString() @MaxLength(120) emergencyContact?: string | null;
   @IsOptional() @IsString() @MaxLength(500) note?: string | null;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(366) leaveAllowance?: number;
 }
 export class AdvanceDto {
   @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(1) amount!: number;
@@ -54,6 +65,8 @@ export class LineDto {
   /** Whole or half days. */
   @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 1 }) @Min(0) @Max(31) days?: number;
   @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) deductions?: number;
+  /** Towards the employee's loans, from this pay. */
+  @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) loan?: number;
   @IsOptional() @IsString() @MaxLength(200) note?: string;
 }
 export class AttendanceMarkDto {
@@ -126,6 +139,28 @@ export class PayrollController {
   @RequirePermissions('tenant.update')
   advance(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: AdvanceDto, @CurrentUser() user: CurrentUserData) {
     return this.payroll.giveAdvance(tenantId, id, dto, user.userId);
+  }
+
+  /** Loans (owner, 2026-11-17): lend, see what is left, take cash back. Instalments come off pay sheets. */
+  @Get('workers/:id/loans')
+  @RequirePermissions('tenant.update')
+  loans(@TenantId() tenantId: string, @Param('id') id: string) {
+    return this.payroll.loans(tenantId, id);
+  }
+
+  @Idempotent('EMPLOYEE_LOAN')
+  @Post('workers/:id/loans')
+  @RequirePermissions('tenant.update')
+  giveLoan(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: LoanDto, @CurrentUser() user: CurrentUserData) {
+    return this.payroll.giveLoan(tenantId, id, dto, user.userId);
+  }
+
+  @Idempotent('EMPLOYEE_LOAN_REPAY')
+  @Post('workers/:id/loans/repay')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('tenant.update')
+  repayLoan(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: LoanRepayDto, @CurrentUser() user: CurrentUserData) {
+    return this.payroll.repayLoan(tenantId, id, dto, user.userId);
   }
 
   @Get('sheets')

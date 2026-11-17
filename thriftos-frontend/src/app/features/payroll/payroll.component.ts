@@ -13,10 +13,12 @@ type PayType = 'KG' | 'PIECE' | 'DAY' | 'MONTH';
 interface Worker {
   id: string; name: string; phone: string | null; payType: PayType; rate: string; isActive: boolean;
   jobTitle?: string | null; cnic?: string | null; joinedOn?: string | null; leftOn?: string | null; address?: string | null; emergencyContact?: string | null; note?: string | null;
+  /** What is left on their loans; paid leave days a year and those taken this year. */
+  loanLeft?: string; leaveAllowance?: number; leaveTaken?: number;
 }
-interface WorkerForm { id: string | null; name: string; phone: string; payType: PayType; rate: number | null; isActive: boolean; jobTitle: string; cnic: string; joinedOn: string; leftOn: string; address: string; emergencyContact: string; note: string }
+interface WorkerForm { leaveAllowance: number | null; id: string | null; name: string; phone: string; payType: PayType; rate: number | null; isActive: boolean; jobTitle: string; cnic: string; joinedOn: string; leftOn: string; address: string; emergencyContact: string; note: string }
 interface SheetRow { id: string; periodStart: string; periodEnd: string; status: 'DRAFT' | 'PAID'; total: string; workers: number }
-interface Line { id: string; workerId: string; payType: PayType; rate: string; kg: string; pieces: number; days: string | number; absentDays?: string; gross: string; advances: string; deductions: string; net: string; note: string | null; worker: { id: string; name: string; phone: string | null } }
+interface Line { id: string; workerId: string; payType: PayType; rate: string; kg: string; pieces: number; days: string | number; absentDays?: string; loan?: string; gross: string; advances: string; deductions: string; net: string; note: string | null; worker: { id: string; name: string; phone: string | null } }
 interface Sheet { id: string; periodStart: string; periodEnd: string; status: 'DRAFT' | 'PAID'; total: string; paidAt: string | null; lines: Line[] }
 interface Prod { from: string; to: string; topGrade: string | null; workers: { id: string; name: string; kg: string; pieces: number; days: number; kgPerDay: string; piecesPerDay: number; topGradePercent: number | null }[] }
 type Tab = 'workers' | 'sheets' | 'productivity';
@@ -67,6 +69,7 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
               <label class="field">{{ 'pay.address' | t }}<input name="address" maxlength="300" [(ngModel)]="f.address" /></label>
               <label class="field">{{ 'pay.emergency' | t }}<input name="emergency" maxlength="120" [(ngModel)]="f.emergencyContact" /></label>
               <label class="field">{{ 'pay.note' | t }}<input name="wnote" maxlength="500" [(ngModel)]="f.note" /></label>
+              <label class="field">{{ 'pay.leaveAllowance' | t }}<input name="leave" type="number" min="0" max="366" step="1" [(ngModel)]="f.leaveAllowance" /><small class="hint">{{ 'pay.leaveHint' | t }}</small></label>
               @if (f.id && !f.isActive) { <label class="field">{{ 'pay.leftOn' | t }}<input name="left" type="date" [(ngModel)]="f.leftOn" /></label> }
             </details>
             @if (f.id) { <label class="check"><input name="active" type="checkbox" [(ngModel)]="f.isActive" /> {{ 'pay.active' | t }}</label> }
@@ -82,13 +85,34 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
             <li class="row worker" [class.off]="!w.isActive">
               <span>
                 <strong>{{ w.name }}</strong>
-                <small>@if (w.jobTitle) { {{ w.jobTitle }} · }{{ ('pay.rateText.' + w.payType) | t: { rs: i18n.money(w.rate) } }}@if (w.joinedOn && w.isActive) { · {{ 'pay.since' | t: { date: longDay(w.joinedOn) } }} }@if (w.leftOn && !w.isActive) { · {{ 'pay.left' | t: { date: longDay(w.leftOn) } }} }@if (w.phone) { · <span dir="ltr">{{ local(w.phone) }}</span> }@if (!w.isActive) { · {{ 'pay.inactive' | t }} }</small>
+                <small>@if (w.jobTitle) { {{ w.jobTitle }} · }{{ ('pay.rateText.' + w.payType) | t: { rs: i18n.money(w.rate) } }}@if (w.joinedOn && w.isActive) { · {{ 'pay.since' | t: { date: longDay(w.joinedOn) } }} }@if (w.leftOn && !w.isActive) { · {{ 'pay.left' | t: { date: longDay(w.leftOn) } }} }@if (w.phone) { · <span dir="ltr">{{ local(w.phone) }}</span> }@if (!w.isActive) { · {{ 'pay.inactive' | t }} }@if (w.leaveAllowance) { · {{ 'pay.leaveOf' | t: { taken: w.leaveTaken ?? 0, of: w.leaveAllowance } }} }@if (w.loanLeft && +w.loanLeft) { · <span class="owes">{{ 'pay.loanLeft' | t: { rs: i18n.money(w.loanLeft) } }}</span> }</small>
               </span>
               <span class="btns">
                 <button type="button" class="link" (click)="edit(w)">{{ 'pay.edit' | t }}</button>
                 @if (w.isActive) { <button type="button" class="link" (click)="startAdvance(w)">{{ 'pay.advance' | t }}</button> }
+                @if (w.isActive) { <button type="button" class="link" (click)="startLoan(w, 'give')">{{ 'pay.loan' | t }}</button> }
+                @if (w.loanLeft && +w.loanLeft) { <button type="button" class="link" (click)="startLoan(w, 'repay')">{{ 'pay.loanRepay' | t }}</button> }
               </span>
             </li>
+            @if (loanFor()?.id === w.id) {
+              <li>
+                <form class="card form" (ngSubmit)="saveLoan(w)">
+                  @if (loanFor()!.mode === 'give') {
+                    <label class="field">{{ 'pay.loanAmount' | t: { name: w.name } }}<input name="lamount" type="number" min="1" step="1" required [(ngModel)]="loanAmount" /></label>
+                    <label class="field">{{ 'pay.loanInstalment' | t }}<input name="linst" type="number" min="1" step="1" required [(ngModel)]="loanInstalment" /></label>
+                    <label class="field">{{ 'pay.note' | t }} · {{ 'common.optional' | t }}<input name="lnote" maxlength="200" [(ngModel)]="loanNote" /></label>
+                    <small class="hint">{{ 'pay.loanHint' | t }}</small>
+                  } @else {
+                    <label class="field">{{ 'pay.loanRepayAmount' | t: { name: w.name, rs: i18n.money(w.loanLeft ?? 0) } }}<input name="ramount" type="number" min="1" step="1" required [(ngModel)]="loanAmount" /></label>
+                    <small class="hint">{{ 'pay.loanRepayHint' | t }}</small>
+                  }
+                  <div class="row-btns">
+                    <button type="button" class="btn" (click)="loanFor.set(null)">{{ 'common.cancel' | t }}</button>
+                    <button type="submit" class="btn primary" [disabled]="busy() || !(loanAmount > 0) || (loanFor()!.mode === 'give' && !(loanInstalment > 0))">{{ (loanFor()!.mode === 'give' ? 'pay.loanGive' : 'pay.loanRepay') | t }}</button>
+                  </div>
+                </form>
+              </li>
+            }
             @if (advanceFor() === w.id) {
               <li>
                 <form class="card form" (ngSubmit)="giveAdvance(w)">
@@ -147,11 +171,12 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
                     <strong>{{ l.worker.name }}</strong>
                     <span class="amount">{{ i18n.money(l.net) }}</span>
                   </div>
-                  <small>{{ workText(l) }} = {{ i18n.money(l.gross) }}@if (l.absentDays && +l.absentDays) { · {{ 'pay.absentN' | t: { n: +l.absentDays } }} }@if (+l.advances) { · {{ 'pay.lessAdvance' | t: { rs: i18n.money(l.advances) } }} }@if (+l.deductions) { · {{ 'pay.lessDeduction' | t: { rs: i18n.money(l.deductions) } }} }@if (l.note) { · {{ l.note }} }</small>
+                  <small>{{ workText(l) }} = {{ i18n.money(l.gross) }}@if (l.absentDays && +l.absentDays) { · {{ 'pay.absentN' | t: { n: +l.absentDays } }} }@if (+l.advances) { · {{ 'pay.lessAdvance' | t: { rs: i18n.money(l.advances) } }} }@if (+l.deductions) { · {{ 'pay.lessDeduction' | t: { rs: i18n.money(l.deductions) } }} }@if (l.loan && +l.loan) { · {{ 'pay.lessLoan' | t: { rs: i18n.money(l.loan) } }} }@if (l.note) { · {{ l.note }} }</small>
                   @if (s.status === 'DRAFT') {
                     <div class="edit">
                       @if (l.payType === 'DAY') { <label>{{ 'pay.days' | t }}<input type="number" min="0" max="31" step="0.5" [value]="+l.days" (change)="saveLine(l, { days: +$any($event.target).value })" /></label> }
                       <label>{{ 'pay.deduction' | t }}<input type="number" min="0" [value]="+l.deductions || ''" (change)="saveLine(l, { deductions: +$any($event.target).value || 0 })" /></label>
+                      @if (l.loan && +l.loan) { <label>{{ 'pay.loanOff' | t }}<input type="number" min="0" [value]="+l.loan" (change)="saveLine(l, { loan: +$any($event.target).value || 0 })" /></label> }
                       <label>{{ 'pay.note' | t }}<input maxlength="200" [value]="l.note ?? ''" (change)="saveLine(l, { note: $any($event.target).value })" /></label>
                     </div>
                   } @else if (l.worker.phone) {
@@ -208,6 +233,7 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
     .check.count { align-items:flex-start; margin-top:14px; }
     .check.count span { display:grid; gap:2px; }
     .check.count small { color:var(--tos-ink-soft); font-weight:500; }
+    .owes { color:var(--tos-danger, #b3261e); font-weight:600; }
     details.more { display:grid; gap:10px; }
     details.more summary { cursor:pointer; font-weight:600; color:var(--tos-primary); min-height:36px; }
     details.more[open] summary { margin-bottom:10px; }
@@ -313,13 +339,13 @@ export class PayrollComponent {
 
   protected newWorker(): void {
     // Most staff are on a monthly wage; per kg or piece is for a business that counts sorting.
-    this.form.set({ id: null, name: '', phone: '', payType: this.counting() ? 'KG' : 'MONTH', rate: null, isActive: true, jobTitle: '', cnic: '', joinedOn: '', leftOn: '', address: '', emergencyContact: '', note: '' });
+    this.form.set({ id: null, name: '', phone: '', payType: this.counting() ? 'KG' : 'MONTH', rate: null, isActive: true, leaveAllowance: null, jobTitle: '', cnic: '', joinedOn: '', leftOn: '', address: '', emergencyContact: '', note: '' });
   }
 
   protected edit(w: Worker): void {
     this.form.set({
       id: w.id, name: w.name, phone: w.phone ? localPhone(w.phone) : '', payType: w.payType, rate: Number(w.rate), isActive: w.isActive,
-      jobTitle: w.jobTitle ?? '', cnic: w.cnic ?? '', joinedOn: (w.joinedOn ?? '').slice(0, 10), leftOn: (w.leftOn ?? '').slice(0, 10), address: w.address ?? '', emergencyContact: w.emergencyContact ?? '', note: w.note ?? '',
+      leaveAllowance: w.leaveAllowance || null, jobTitle: w.jobTitle ?? '', cnic: w.cnic ?? '', joinedOn: (w.joinedOn ?? '').slice(0, 10), leftOn: (w.leftOn ?? '').slice(0, 10), address: w.address ?? '', emergencyContact: w.emergencyContact ?? '', note: w.note ?? '',
     });
   }
 
@@ -330,6 +356,7 @@ export class PayrollComponent {
     this.error.set(null);
     const body = {
       name: f.name.trim(), phone: f.phone.trim() || null, payType: f.payType, rate: Number(f.rate),
+      leaveAllowance: Math.max(0, Math.round(Number(f.leaveAllowance) || 0)),
       jobTitle: f.jobTitle.trim() || null, cnic: f.cnic.trim() || null, address: f.address.trim() || null, emergencyContact: f.emergencyContact.trim() || null, note: f.note.trim() || null,
       ...(f.joinedOn ? { joinedOn: f.joinedOn } : f.id ? { joinedOn: null } : {}),
       ...(f.id ? { isActive: f.isActive, leftOn: !f.isActive && f.leftOn ? f.leftOn : null } : {}),
@@ -344,7 +371,43 @@ export class PayrollComponent {
   /** One key per entry: a double tap or a retry on a slow line saves it once (the server keeps the first answer). */
   private saveKey = crypto.randomUUID();
 
+  // Loans: lend (cash out, not an expense; an instalment comes off each pay) or take cash back.
+  protected readonly loanFor = signal<{ id: string; mode: 'give' | 'repay' } | null>(null);
+  protected loanAmount = 0;
+  protected loanInstalment = 0;
+  protected loanNote = '';
+
+  protected startLoan(w: Worker, mode: 'give' | 'repay'): void {
+    this.saveKey = crypto.randomUUID();
+    this.loanAmount = 0;
+    this.loanInstalment = 0;
+    this.loanNote = '';
+    this.advanceFor.set(null);
+    this.loanFor.set({ id: w.id, mode });
+  }
+
+  protected saveLoan(w: Worker): void {
+    const mode = this.loanFor()?.mode;
+    if (!mode) return;
+    this.busy.set(true);
+    this.error.set(null);
+    const headers = new HttpHeaders({ 'Idempotency-Key': this.saveKey });
+    const req = mode === 'give'
+      ? this.http.post(`/api/payroll/workers/${w.id}/loans`, { amount: Number(this.loanAmount), instalment: Number(this.loanInstalment), ...(this.loanNote.trim() ? { note: this.loanNote.trim() } : {}) }, { headers })
+      : this.http.post(`/api/payroll/workers/${w.id}/loans/repay`, { amount: Number(this.loanAmount) }, { headers });
+    req.subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.loanFor.set(null);
+        this.toast.show(this.i18n.t(mode === 'give' ? 'pay.loanGiven' : 'pay.loanRepaid', { rs: this.i18n.money(this.loanAmount), name: w.name }));
+        this.loadWorkers();
+      },
+      error: (e) => this.fail(e),
+    });
+  }
+
   protected startAdvance(w: Worker): void {
+    this.loanFor.set(null);
     this.saveKey = crypto.randomUUID();
     this.advance = 0;
     this.advanceNote = '';
@@ -389,7 +452,7 @@ export class PayrollComponent {
     this.http.get<Sheet>(`/api/payroll/sheets/${id}`).subscribe({ next: (s) => this.sheet.set(s), error: (e) => this.fail(e) });
   }
 
-  protected saveLine(l: Line, body: { days?: number; deductions?: number; note?: string }): void {
+  protected saveLine(l: Line, body: { days?: number; deductions?: number; loan?: number; note?: string }): void {
     this.error.set(null);
     this.http.patch<Sheet>(`/api/payroll/lines/${l.id}`, body).subscribe({ next: (s) => this.sheet.set(s), error: (e) => this.fail(e) });
   }
@@ -430,6 +493,7 @@ export class PayrollComponent {
       `${l.worker.name}: ${this.workText(l)} = ${this.i18n.money(l.gross)}`,
       ...(+l.advances ? [this.i18n.t('pay.lessAdvance', { rs: this.i18n.money(l.advances) })] : []),
       ...(+l.deductions ? [this.i18n.t('pay.lessDeduction', { rs: this.i18n.money(l.deductions) })] : []),
+      ...(l.loan && +l.loan ? [this.i18n.t('pay.lessLoan', { rs: this.i18n.money(l.loan) })] : []),
       this.i18n.t('pay.slipNet', { rs: this.i18n.money(l.net) }),
     ];
     return whatsappUrl(l.worker.phone!, lines.join('\n').replace(/[⁦-⁩]/g, ''));

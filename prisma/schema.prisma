@@ -1898,6 +1898,8 @@ model Worker {
   address          String?
   emergencyContact String?
   note             String?
+  /// Paid leave days a year (0 = none): leave marked in attendance within it is paid to staff paid by the day.
+  leaveAllowance   Int           @default(0)
   isActive         Boolean       @default(true)
   createdBy        String
   createdAt        DateTime      @default(now())
@@ -1905,6 +1907,7 @@ model Worker {
 
   outputs    CategoryOutput[]
   advances   WorkerAdvance[]
+  loans      EmployeeLoan[]
   attendance Attendance[]
   lines      PaySheetLine[]
 
@@ -1937,6 +1940,46 @@ enum AttendanceStatus {
   HALF_DAY
   LEAVE
   HOLIDAY
+}
+
+/// Money lent to an employee (owner, 2026-11-17: Employee Management): cash out that is not an expense, paid back
+/// a little from each pay (the instalment) or in cash.
+model EmployeeLoan {
+  id         String   @id @default(cuid())
+  tenantId   String
+  workerId   String
+  day        DateTime @db.Date
+  amount     Decimal  @db.Decimal(14, 2)
+  /// Taken off each pay sheet until the loan is repaid.
+  instalment Decimal  @db.Decimal(14, 2)
+  repaid     Decimal  @default(0) @db.Decimal(14, 2)
+  note       String?
+  cashMoveId String?
+  createdBy  String
+  createdAt  DateTime @default(now())
+
+  worker     Worker          @relation(fields: [workerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  repayments LoanRepayment[]
+
+  @@index([tenantId, workerId])
+}
+
+/// One repayment of a loan: from a paid pay sheet line, or handed back in cash.
+model LoanRepayment {
+  id             String   @id @default(cuid())
+  tenantId       String
+  loanId         String
+  paySheetLineId String?
+  day            DateTime @db.Date
+  amount         Decimal  @db.Decimal(14, 2)
+  cashMoveId     String?
+  createdBy      String
+  createdAt      DateTime @default(now())
+
+  loan EmployeeLoan  @relation(fields: [loanId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  line PaySheetLine? @relation(fields: [paySheetLineId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([tenantId, loanId])
 }
 
 model WorkerAdvance {
@@ -1994,13 +2037,16 @@ model PaySheetLine {
   gross      Decimal       @db.Decimal(14, 2)
   advances   Decimal       @default(0) @db.Decimal(14, 2)
   deductions Decimal       @default(0) @db.Decimal(14, 2)
+  /// Taken off this pay towards the employee's loans (repaid when the sheet is paid).
+  loan       Decimal       @default(0) @db.Decimal(14, 2)
   net        Decimal       @db.Decimal(14, 2)
   note       String?
 
-  sheet        PaySheet        @relation(fields: [paySheetId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  worker       Worker          @relation(fields: [workerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  advancesTook WorkerAdvance[]
-  labour       LabourCost[]
+  sheet          PaySheet        @relation(fields: [paySheetId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  worker         Worker          @relation(fields: [workerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  advancesTook   WorkerAdvance[]
+  loanRepayments LoanRepayment[]
+  labour         LabourCost[]
 
   @@index([tenantId])
   @@index([paySheetId])
