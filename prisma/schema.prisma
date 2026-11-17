@@ -256,6 +256,8 @@ model Tenant {
   setupCompletedAt  DateTime?
   /// Set when the owner hides the first-week checklist on Home (v2 6.4).
   firstWeekHiddenAt DateTime?
+  /// Sorting asks who sorted each pile, so staff paid per kg or piece are counted (optional; off unless turned on).
+  trackSorterWork   Boolean      @default(false)
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
@@ -1879,18 +1881,27 @@ enum PaySheetStatus {
 
 /// Phase 8: a sorter or helper paid by the business, without a login.
 model Worker {
-  id        String        @id @default(cuid())
-  tenantId  String
-  name      String
+  id               String        @id @default(cuid())
+  tenantId         String
+  name             String
   /// E.164, for the WhatsApp payslip.
-  phone     String?
-  payType   WorkerPayType
+  phone            String?
+  payType          WorkerPayType
   /// Rs per kg, per piece, per day, or a month's salary.
-  rate      Decimal       @db.Decimal(14, 2)
-  isActive  Boolean       @default(true)
-  createdBy String
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  rate             Decimal       @db.Decimal(14, 2)
+  // Employee records (owner, 2026-11-17: Employee Management replaces Sorter pay): everybody who works here,
+  // whether or not they sort and whether or not they sign in.
+  jobTitle         String?
+  cnic             String?
+  joinedOn         DateTime?     @db.Date
+  leftOn           DateTime?     @db.Date
+  address          String?
+  emergencyContact String?
+  note             String?
+  isActive         Boolean       @default(true)
+  createdBy        String
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   outputs  CategoryOutput[]
   advances WorkerAdvance[]

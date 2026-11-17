@@ -20,7 +20,7 @@ const SECTIONS: Section[] = [
   { key: 'purchasing', reports: [{ key: 'scorecard', path: '/receive/scorecard', icon: Factory }, { key: 'yield', path: '/sort/yield', icon: Gauge, permission: 'SORTING_STAGE1_VIEW' },
     // What is owed to each supplier, and who sorts how much (v2 review: neither was on the list).
     { key: 'suppliersOwed', path: '/receive/records/suppliers', icon: HandCoins, permission: 'cost.view' },
-    { key: 'productivity', path: '/payroll', query: { tab: 'productivity' }, icon: Users, permission: 'tenant.update', module: 'PAYROLL' }] },
+    { key: 'productivity', path: '/people', query: { tab: 'productivity' }, icon: Users, permission: 'tenant.update', module: 'PAYROLL' }] },
   { key: 'stock', reports: [{ key: 'stockValue', path: '/stock/value', icon: Coins, permission: 'INVENTORY_VIEW' }, { key: 'lots', path: '/sort/records', icon: Layers3, permission: 'SORTING_STAGE1_VIEW' }, { key: 'stockList', path: '/stock/items', icon: PackageSearch, permission: 'INVENTORY_VIEW' }] },
   { key: 'money', reports: [{ key: 'book', path: '/finance/book', icon: Wallet, permission: 'finance.view' }, { key: 'expenses', path: '/finance/expenses', icon: Receipt, permission: 'finance.view' }] },
 ];

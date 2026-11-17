@@ -2,7 +2,7 @@ import { Idempotent } from '../common/idempotency/idempotent.interceptor';
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { WorkerPayType } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
 import { RequireModule } from '../common/decorators/require-module.decorator';
@@ -16,6 +16,15 @@ export class WorkerDto {
   @IsOptional() @IsString() @MaxLength(30) phone?: string | null;
   @IsEnum(WorkerPayType) payType!: WorkerPayType;
   @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) rate!: number;
+  @IsOptional() @IsString() @MaxLength(80) jobTitle?: string | null;
+  @IsOptional() @IsString() @MaxLength(20) cnic?: string | null;
+  @IsOptional() @IsDateString() joinedOn?: string | null;
+  @IsOptional() @IsString() @MaxLength(300) address?: string | null;
+  @IsOptional() @IsString() @MaxLength(120) emergencyContact?: string | null;
+  @IsOptional() @IsString() @MaxLength(500) note?: string | null;
+}
+export class EmployeeSettingsDto {
+  @IsBoolean() trackSorterWork!: boolean;
 }
 export class UpdateWorkerDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(80) name?: string;
@@ -23,6 +32,13 @@ export class UpdateWorkerDto {
   @IsOptional() @IsEnum(WorkerPayType) payType?: WorkerPayType;
   @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) rate?: number;
   @IsOptional() @IsBoolean() isActive?: boolean;
+  @IsOptional() @IsString() @MaxLength(80) jobTitle?: string | null;
+  @IsOptional() @IsString() @MaxLength(20) cnic?: string | null;
+  @IsOptional() @ValidateIf((_o, v) => v !== null && v !== '') @IsDateString() joinedOn?: string | null;
+  @IsOptional() @ValidateIf((_o, v) => v !== null && v !== '') @IsDateString() leftOn?: string | null;
+  @IsOptional() @IsString() @MaxLength(300) address?: string | null;
+  @IsOptional() @IsString() @MaxLength(120) emergencyContact?: string | null;
+  @IsOptional() @IsString() @MaxLength(500) note?: string | null;
 }
 export class AdvanceDto {
   @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(1) amount!: number;
@@ -49,6 +65,19 @@ export class RangeQuery {
 @RequireModule('PAYROLL')
 export class PayrollController {
   constructor(private readonly payroll: PayrollService) {}
+
+  /** Employees (owner, 2026-11-17): whether sorting counts what each sorter sorts. */
+  @Get('settings')
+  @RequirePermissions('tenant.update')
+  settings(@TenantId() tenantId: string) {
+    return this.payroll.settings(tenantId);
+  }
+
+  @Patch('settings')
+  @RequirePermissions('tenant.update')
+  setSettings(@TenantId() tenantId: string, @Body() dto: EmployeeSettingsDto, @CurrentUser() user: CurrentUserData) {
+    return this.payroll.setSettings(tenantId, dto, user.userId);
+  }
 
   @Get('workers')
   @RequirePermissions('tenant.update')

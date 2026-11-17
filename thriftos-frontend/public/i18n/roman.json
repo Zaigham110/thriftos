@@ -239,12 +239,12 @@
    "go": "Supplier kholein"
   },
   "pay": {
-   "title": "Chhantai walon ko tankhwah dein",
-   "s1": "Chhantai walon ki tankhwah kholein aur har mazdoor ko ek baar shamil karein, us ki ujrat ke tareeqe ke saath.",
-   "s2": "Chhantai karte waqt mazdoor chunein. Us ke kg khud gine jate hain.",
-   "s3": "Jin dinon ki adaigi karni hai un ki tankhwah sheet banayein. Pehle diya hua advance khud kat jata hai.",
+   "title": "Staff ko tankhwah dein",
+   "s1": "Mulazimeen kholein aur har shakhs ko ek baar shamil karein, us ki tankhwah ke tareeqe ke saath: mahana, rozana, fi kg ya fi piece.",
+   "s2": "Jab maangein to mulazim ki line se advance dein; yeh agli tankhwah se kat jata hai.",
+   "s3": "Tankhwah kholein aur jin tareekhon ki adaigi karni hai un ki sheet banayein.",
    "s4": "Raqmein dekhein aur ada shuda karein. Yeh Chalane ke kharche mein staff ke kharch mein dikhta hai.",
-   "go": "Tankhwah kholein"
+   "go": "Mulazimeen kholein"
   },
   "prices": {
    "title": "Tay shuda qeematein lagayein",
@@ -1501,7 +1501,8 @@
    "month": "Mahina",
    "none": "Group nahi",
    "operations": "Kaam",
-   "sales": "Bikri aur paisa"
+   "sales": "Bikri aur paisa",
+   "people": "Log"
   },
   "groupBy": "Group karein",
   "info": {
@@ -1620,7 +1621,7 @@
    "BILLING": "Billing",
    "EXPORT": "Export",
    "KHATA": "Khata",
-   "PAYROLL": "Tankhwah",
+   "PAYROLL": "Mulazimeen",
    "PURCHASE_ORDERS": "Purchase order",
    "RECEIVE": "Kharidari",
    "REPORTS": "Report",
@@ -1667,11 +1668,12 @@
    "stockValue": "Stock ki qeemat",
    "suppliers": "Supplier",
    "yield": "Chhantai ka nateeja",
-   "payroll": "Chhantai walon ki tankhwah",
+   "payroll": "Mulazimeen",
    "moveStock": "Godamon mein muntaqli",
    "customers": "Customer",
    "trading": "Kharid farokht",
-   "costs": "Chalane ke kharche"
+   "costs": "Chalane ke kharche",
+   "pay": "Tankhwah"
   },
   "new": {
    "bale": "Gaanth banayein",
@@ -1909,7 +1911,7 @@
     },
     "productivity": {
      "hint": "Har worker ke rozana kg aur behtareen grade ka hissa",
-     "name": "Workers ki karkardagi"
+     "name": "Chhantai ka kaam"
     },
     "salesAnalytics": {
      "hint": "Customer, category, grade, shehar ya mahine ke hisaab se",
@@ -2677,13 +2679,13 @@
   "pay": "Abhi ada karein"
  },
  "pay": {
-  "title": "Chhantai walon ki tankhwah",
+  "title": "Mulazimeen",
   "tab": {
-   "workers": "Mazdoor",
-   "sheets": "Tankhwah sheet",
-   "productivity": "Karkardagi"
+   "workers": "Mulazimeen",
+   "sheets": "Tankhwah",
+   "productivity": "Chhantai ka kaam"
   },
-  "addWorker": "Mazdoor shamil karein",
+  "addWorker": "Mulazim shamil karein",
   "name": "Naam",
   "phone": "Phone (tankhwah ki parchi ke liye)",
   "paidBy": "Adaigi",
@@ -2707,13 +2709,13 @@
   },
   "active": "Abhi yahin kaam karta hai",
   "inactive": "chhor gaya",
-  "needWorkers": "Pehle worker shamil karein: pay sheet ke liye koi hona chahiye.",
-  "noWorkers": "Abhi koi mazdoor nahi. Chhantai walon ko shamil karein; phir chhantai ki screen har entry par poochay gi ke kis ne chhanta.",
+  "needWorkers": "Pehle mulazim shamil karein: pay sheet ke liye koi hona chahiye.",
+  "noWorkers": "Abhi koi mulazim nahi. Yahan kaam karne wale sab ko shamil karein: chhantai wale, loader, salesman, office staff.",
   "edit": "Badlein",
   "advance": "Advance",
   "advanceAmount": "{name} ke liye advance ({money})",
   "note": "Note",
-  "advanceHint": "Abhi galle se ada (mazdoori ka kharcha) aur agli tankhwah sheet se kate ga.",
+  "advanceHint": "Abhi galle se ada aur agli tankhwah sheet se kate ga.",
   "giveAdvance": "Advance dein",
   "advanceGiven": "{name} ko {rs} advance",
   "saved": "Mehfooz",
@@ -2725,7 +2727,7 @@
   "from": "Se",
   "to": "Tak",
   "makeSheet": "Tankhwah sheet banayein",
-  "workersN": "{n} mazdoor",
+  "workersN": "{n} mulazim",
   "paid": "Ada shuda",
   "draft": "Abhi ada nahi",
   "noSheets": "Abhi koi tankhwah sheet nahi.",
@@ -2740,9 +2742,9 @@
   "total": "Ada karna hai",
   "deleteSheet": "Mitayein",
   "markPaid": "Naqd ada: {rs}",
-  "markPaidHint": "Aaj ke galle se aik mazdoori ka kharcha; har mazdoor ki tankhwah us ki chhanti hui lots ke munafe mein jaye gi.",
-  "confirmPaid": "Abhi {rs} naqd ada karein? Aaj mazdoori ke kharche mein likha jaye ga.",
-  "paidDone": "Ada ho gaya. Mazdoori ke kharche mein likh diya.",
+  "markPaidHint": "Aaj ke galle se ek kharcha. Yeh Chalane ke kharche mein staff ke kharch mein dikhta hai.",
+  "confirmPaid": "Abhi {rs} naqd ada karein? Aaj kharche mein likha jaye ga.",
+  "paidDone": "Ada ho gaya. Kharche mein likh diya.",
   "confirmDelete": "Yeh tankhwah sheet mita dein? Is ke advance agli sheet ka intezar karein ge.",
   "daysN": "{n} din",
   "monthly": "Mahana {rs}",
@@ -2754,8 +2756,20 @@
   "topShare": "{topGrade} %",
   "noWork": "In dinon kisi ne nahi chhanta.",
   "whoSorted": "Kis ne chhanta",
-  "lotLabour": "Chhantai walon ki tankhwah",
-  "lotLabourHint": "Ada shuda tankhwah sheets se. Yeh chalane ka kharch hai: is lot ke munafe mein shamil nahi."
+  "lotLabour": "Chhantai ki ujrat",
+  "lotLabourHint": "Ada shuda tankhwah sheets se. Yeh chalane ka kharch hai: is lot ke munafe mein shamil nahi.",
+  "job": "Kaam",
+  "jobPlaceholder": "maslan Sorter, Loader, Salesman",
+  "cnic": "CNIC",
+  "joinedOn": "Kab se kaam par",
+  "leftOn": "Kab kaam chhora",
+  "address": "Pata",
+  "emergency": "Emergency rabta",
+  "more": "Mazeed tafseel",
+  "since": "{date} se",
+  "left": "{date} ko chhora",
+  "countSorting": "Har chhantai wale ka kaam ginein",
+  "countSortingHint": "Sirf tab agar aap fi kg ya fi piece ujrat dete hain. Phir chhantai har dher par poochti hai ke kis ne chhanta, aur ujrat usi se banti hai."
  },
  "move": {
   "pick": "Ya stock se chunein",

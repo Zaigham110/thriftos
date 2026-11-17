@@ -202,7 +202,10 @@ export const routes: Routes = [
         ],
       },
       // Phase 8: sorter pay (owners).
-      { path: 'payroll', canActivate: [moduleGuard], data: { module: 'PAYROLL' }, loadComponent: () => import('./features/payroll/payroll.component').then((m) => m.PayrollComponent), title: 'ThriftOS' },
+      // Employees (owner, 2026-11-17) took the place of Sorter pay; its old address still opens it.
+      { path: 'people', canActivate: [moduleGuard], data: { module: 'PAYROLL' }, loadComponent: () => import('./features/payroll/payroll.component').then((m) => m.PayrollComponent), title: 'ThriftOS' },
+      { path: 'people/pay', canActivate: [moduleGuard], data: { module: 'PAYROLL', tab: 'sheets' }, loadComponent: () => import('./features/payroll/payroll.component').then((m) => m.PayrollComponent), title: 'ThriftOS' },
+      { path: 'payroll', redirectTo: 'people' },
       {
         path: 'khata',
         canActivate: [moduleGuard],

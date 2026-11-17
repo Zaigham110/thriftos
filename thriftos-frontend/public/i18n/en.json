@@ -239,12 +239,12 @@
    "go": "Open Suppliers"
   },
   "pay": {
-   "title": "Pay your sorters",
-   "s1": "Open Sorter pay and add each worker once, with how they are paid.",
-   "s2": "While sorting, pick the worker. Their kg are counted by themselves.",
-   "s3": "Make a pay sheet for the days you are paying. Advances already given are taken off.",
+   "title": "Pay your staff",
+   "s1": "Open Employees and add each person once, with how they are paid: by month, day, kg or piece.",
+   "s2": "Give an advance from the employee's line when they ask; it comes off their next pay.",
+   "s3": "Open Pay and make a pay sheet for the dates you are paying.",
    "s4": "Check the amounts and mark it paid. It shows in Running costs under employee costs.",
-   "go": "Open Sorter pay"
+   "go": "Open Employees"
   },
   "prices": {
    "title": "Set agreed prices",
@@ -1501,7 +1501,8 @@
    "month": "Month",
    "none": "No grouping",
    "operations": "Operations",
-   "sales": "Sales and money"
+   "sales": "Sales and money",
+   "people": "People"
   },
   "groupBy": "Group by",
   "info": {
@@ -1620,7 +1621,7 @@
    "BILLING": "Billing",
    "EXPORT": "Export",
    "KHATA": "Receivables",
-   "PAYROLL": "Payroll",
+   "PAYROLL": "Employees",
    "PURCHASE_ORDERS": "Purchase orders",
    "RECEIVE": "Purchasing",
    "REPORTS": "Reports",
@@ -1667,11 +1668,12 @@
    "stockValue": "Stock value",
    "suppliers": "Suppliers",
    "yield": "Sorting results",
-   "payroll": "Sorter pay",
+   "payroll": "Employees",
    "moveStock": "Move between godowns",
    "customers": "Customers",
    "trading": "Trading",
-   "costs": "Running costs"
+   "costs": "Running costs",
+   "pay": "Pay"
   },
   "new": {
    "bale": "Make a bale",
@@ -1909,7 +1911,7 @@
     },
     "productivity": {
      "hint": "Kg a day and top grade share per sorter",
-     "name": "Sorter productivity"
+     "name": "Sorting work"
     },
     "salesAnalytics": {
      "hint": "By customer, category, grade, city or month",
@@ -2677,13 +2679,13 @@
   "pay": "Pay now"
  },
  "pay": {
-  "title": "Sorter pay",
+  "title": "Employees",
   "tab": {
-   "workers": "Workers",
-   "sheets": "Pay sheets",
-   "productivity": "Productivity"
+   "workers": "Employees",
+   "sheets": "Pay",
+   "productivity": "Sorting work"
   },
-  "addWorker": "Add a worker",
+  "addWorker": "Add an employee",
   "name": "Name",
   "phone": "Phone (for the payslip)",
   "paidBy": "Paid",
@@ -2707,13 +2709,13 @@
   },
   "active": "Still working here",
   "inactive": "left",
-  "needWorkers": "Add a worker first: a pay sheet needs somebody to pay.",
-  "noWorkers": "No workers yet. Add the people who sort; then the sorting screen asks who sorted each entry.",
+  "needWorkers": "Add an employee first: a pay sheet needs somebody to pay.",
+  "noWorkers": "No employees yet. Add everybody who works here: sorters, loaders, salesmen, office staff.",
   "edit": "Edit",
   "advance": "Advance",
   "advanceAmount": "Advance for {name} ({money})",
   "note": "Note",
-  "advanceHint": "Paid from the cash drawer now (a Labour expense) and taken off the next pay sheet.",
+  "advanceHint": "Paid from the cash drawer now and taken off the next pay sheet.",
   "giveAdvance": "Give advance",
   "advanceGiven": "{rs} advance to {name}",
   "saved": "Saved",
@@ -2725,7 +2727,7 @@
   "from": "From",
   "to": "To",
   "makeSheet": "Make pay sheet",
-  "workersN": "{n} workers",
+  "workersN": "{n} employees",
   "paid": "Paid",
   "draft": "Not paid yet",
   "noSheets": "No pay sheets yet.",
@@ -2740,9 +2742,9 @@
   "total": "To pay",
   "deleteSheet": "Delete",
   "markPaid": "Paid in cash: {rs}",
-  "markPaidHint": "One Labour expense from today’s cash; each worker’s pay goes into the profit of the lots they sorted.",
-  "confirmPaid": "Pay {rs} in cash now? It is recorded as a Labour expense today.",
-  "paidDone": "Paid. Recorded as a Labour expense.",
+  "markPaidHint": "One expense from today's cash. It shows in Running costs under employee costs.",
+  "confirmPaid": "Pay {rs} in cash now? It is recorded as an expense today.",
+  "paidDone": "Paid. Recorded as an expense.",
   "confirmDelete": "Delete this pay sheet? Its advances wait for the next one.",
   "daysN": "{n} days",
   "monthly": "Monthly {rs}",
@@ -2754,8 +2756,20 @@
   "topShare": "{topGrade} %",
   "noWork": "Nobody sorted in these days.",
   "whoSorted": "Who sorted it",
-  "lotLabour": "Sorter pay",
-  "lotLabourHint": "From paid pay sheets. A running cost: not part of this lot's profit."
+  "lotLabour": "Paid for sorting",
+  "lotLabourHint": "From paid pay sheets. A running cost: not part of this lot's profit.",
+  "job": "Job",
+  "jobPlaceholder": "e.g. Sorter, Loader, Salesman",
+  "cnic": "CNIC",
+  "joinedOn": "Joined on",
+  "leftOn": "Left on",
+  "address": "Address",
+  "emergency": "Emergency contact",
+  "more": "More about them",
+  "since": "since {date}",
+  "left": "left {date}",
+  "countSorting": "Count what each sorter sorts",
+  "countSortingHint": "Only if you pay by the kg or piece. Sorting then asks who sorted each pile, and their pay is worked out from it."
  },
  "move": {
   "pick": "Or pick from stock",

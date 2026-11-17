@@ -23,7 +23,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   { key: 'supplierPay', icon: Wallet, link: '/receive/records/suppliers', steps: 4 },
   { key: 'expense', icon: Receipt, link: '/finance/expenses/new', steps: 4, module: 'EXPENSES' },
   { key: 'close', icon: Banknote, link: '/finance/close', steps: 4, module: 'CASH_CLOSE' },
-  { key: 'pay', icon: HandCoins, link: '/payroll', steps: 4, module: 'PAYROLL' },
+  { key: 'pay', icon: HandCoins, link: '/people', steps: 4, module: 'PAYROLL' },
   { key: 'prices', icon: Tags, link: '/sell/prices', steps: 4, module: 'PRICE_LISTS' },
   { key: 'team', icon: UserPlus, link: '/settings/team', steps: 4, module: 'STAFF' },
   { key: 'import', icon: FileUp, link: '/settings/admin/import', steps: 4, module: 'IMPORT' },

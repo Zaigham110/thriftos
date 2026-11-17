@@ -87,7 +87,14 @@ export const WS_NAV: WsNavGroup[] = [
       { label: 'ws.nav.trading', path: '/finance/trading', icon: Scale, module: 'PNL', permission: 'cost.view', keywords: 'trading buying selling purchase sale profit lot supplier khareed farokht' },
       { label: 'ws.nav.costs', path: '/finance/costs', icon: ReceiptText, module: 'PNL', permission: 'cost.view', keywords: 'running costs expenses salary rent kharche' },
       { label: 'ws.nav.pnl', path: '/finance/pnl', icon: TrendingUp, module: 'PNL', permission: 'cost.view', keywords: 'profit loss summary net munafa nuqsan p&l' },
-      { label: 'ws.nav.payroll', path: '/payroll', icon: HandCoins, module: 'PAYROLL', permission: 'tenant.update', keywords: 'tankhwah mazdoori payroll wages salary sorter advance' },
+    ],
+  },
+  {
+    // Employee Management (owner, 2026-11-17): everybody who works here and what they are paid.
+    label: 'ws.group.people',
+    items: [
+      { label: 'ws.nav.payroll', path: '/people', icon: Users, module: 'PAYROLL', permission: 'tenant.update', keywords: 'employees staff mulazim workers sorter cnic' },
+      { label: 'ws.nav.pay', path: '/people/pay', icon: HandCoins, module: 'PAYROLL', permission: 'tenant.update', keywords: 'tankhwah mazdoori payroll wages salary advance pay sheet slip' },
     ],
   },
   {
@@ -157,6 +164,8 @@ export const WS_CRUMBS: Record<string, string> = {
   yield: 'ws.nav.yield',
   finance: 'ws.group.finance',
   payroll: 'ws.nav.payroll',
+  people: 'ws.nav.payroll',
+  pay: 'ws.nav.pay',
   expenses: 'ws.nav.expenses',
   book: 'ws.nav.book',
   close: 'ws.nav.close',

@@ -15,7 +15,13 @@ const dayDate = (ymd: string) => new Date(`${ymd}T00:00:00Z`);
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
 const CASH_CLOSED = 'The cash for that day is already closed. Reopen the day first, or pick another day.';
 
-export interface WorkerInput { name: string; phone?: string | null; payType: WorkerPayType; rate: number; isActive?: boolean }
+export interface WorkerInput {
+  name: string; phone?: string | null; payType: WorkerPayType; rate: number; isActive?: boolean;
+  /** The employee record (owner, 2026-11-17): what they do, their CNIC, when they joined and left, where they live. */
+  jobTitle?: string | null; cnic?: string | null; joinedOn?: string | null; leftOn?: string | null; address?: string | null; emergencyContact?: string | null; note?: string | null;
+}
+
+const EMPLOYEE_FIELDS = { jobTitle: true, cnic: true, joinedOn: true, leftOn: true, address: true, emergencyContact: true, note: true } as const;
 
 /**
  * Phase 8 sorter pay: workers without a login (per kg, piece, day or month), sorting entries that name their worker,
@@ -33,14 +39,27 @@ export class PayrollService {
     return this.prisma.worker.findMany({
       where: { tenantId, ...(all ? {} : { isActive: true }) },
       orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
-      select: { id: true, name: true, phone: true, payType: true, rate: true, isActive: true, createdAt: true },
+      select: { id: true, name: true, phone: true, payType: true, rate: true, isActive: true, createdAt: true, ...EMPLOYEE_FIELDS },
     });
+  }
+
+  /** Whether sorting asks who sorted each pile (optional: only a business that pays by what is sorted needs it). */
+  async settings(tenantId: string) {
+    const t = await this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { trackSorterWork: true } });
+    return { trackSorterWork: t.trackSorterWork };
+  }
+
+  async setSettings(tenantId: string, dto: { trackSorterWork: boolean }, userId: string) {
+    await this.prisma.tenant.update({ where: { id: tenantId }, data: { trackSorterWork: dto.trackSorterWork } });
+    await this.audit(tenantId, userId, 'SORTER_COUNTING_SET', 'Tenant', tenantId, { on: dto.trackSorterWork });
+    return this.settings(tenantId);
   }
 
   /** What the sorting screen needs: active workers by name. */
   async forSorting(tenantId: string) {
-    const t = await this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { enabledModules: true } });
-    if (!t?.enabledModules.includes('PAYROLL')) return [];
+    const t = await this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { enabledModules: true, trackSorterWork: true } });
+    // Only when the business has employees and chose to count what each sorter sorts.
+    if (!t?.enabledModules.includes('PAYROLL') || !t.trackSorterWork) return [];
     return this.prisma.worker.findMany({ where: { tenantId, isActive: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } });
   }
 
@@ -49,18 +68,22 @@ export class PayrollService {
     if (dto.phone?.trim() && !phone) throw new BadRequestException({ code: 'PHONE_INVALID', message: 'Enter a valid phone number, e.g. 0300 1234567' });
     if (dto.name !== undefined && !dto.name.trim()) throw new BadRequestException('Enter the name');
     if (dto.rate !== undefined && !(dto.rate >= 0)) throw new BadRequestException('Enter the rate');
+    const text = (k: 'jobTitle' | 'cnic' | 'address' | 'emergencyContact' | 'note') => (dto[k] === undefined ? {} : { [k]: dto[k]?.trim() || null });
+    const date = (k: 'joinedOn' | 'leftOn') => (dto[k] === undefined ? {} : { [k]: dto[k] ? dayDate(dto[k]!.slice(0, 10)) : null });
     return {
       ...(dto.name !== undefined && { name: dto.name.trim() }),
       ...(phone !== undefined && { phone }),
       ...(dto.payType !== undefined && { payType: dto.payType }),
       ...(dto.rate !== undefined && { rate: new Prisma.Decimal(dto.rate) }),
       ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+      ...text('jobTitle'), ...text('cnic'), ...text('address'), ...text('emergencyContact'), ...text('note'), ...date('joinedOn'), ...date('leftOn'),
     };
   }
 
   async addWorker(tenantId: string, dto: WorkerInput, userId: string) {
     const data = this.clean(dto);
-    const w = await this.prisma.worker.create({ data: { tenantId, name: data.name!, phone: data.phone ?? null, payType: dto.payType, rate: data.rate!, createdBy: userId } });
+    const { name: _n, phone: _p, payType: _t, rate: _r, isActive: _a, ...record } = data as Record<string, unknown>;
+    const w = await this.prisma.worker.create({ data: { ...record, tenantId, name: data.name!, phone: data.phone ?? null, payType: dto.payType, rate: data.rate!, createdBy: userId } });
     await this.audit(tenantId, userId, 'WORKER_ADDED', 'Worker', w.id, { name: w.name, payType: w.payType, rate: w.rate.toString() });
     return w;
   }
@@ -244,7 +267,7 @@ export class PayrollService {
       const total = s.lines.reduce((t, l) => t.add(l.net), ZERO);
       const expense = total.isZero()
         ? null
-        : await tx.expense.create({ data: { tenantId, day: dayDate(today), category: ExpenseCategory.LABOUR, amount: total, method: PaymentMethod.CASH, paidTo: `${s.lines.length} workers`, note: `Pay sheet ${start} – ${end}`, createdBy: userId } });
+        : await tx.expense.create({ data: { tenantId, day: dayDate(today), category: s.lines.every((l) => l.payType === WorkerPayType.MONTH) ? ExpenseCategory.SALARY : ExpenseCategory.LABOUR, amount: total, method: PaymentMethod.CASH, paidTo: `${s.lines.length} employees`, note: `Pay sheet ${start} – ${end}`, createdBy: userId } });
       const work = await this.work(tx, tenantId, start, end);
       for (const line of s.lines) {
         const cost = line.gross.sub(line.deductions);

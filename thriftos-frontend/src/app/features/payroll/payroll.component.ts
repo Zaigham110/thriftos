@@ -10,7 +10,11 @@ import { ToastService } from '../../shared/floor/toast.service';
 import { localPhone, whatsappUrl } from '../../shared/phone';
 
 type PayType = 'KG' | 'PIECE' | 'DAY' | 'MONTH';
-interface Worker { id: string; name: string; phone: string | null; payType: PayType; rate: string; isActive: boolean }
+interface Worker {
+  id: string; name: string; phone: string | null; payType: PayType; rate: string; isActive: boolean;
+  jobTitle?: string | null; cnic?: string | null; joinedOn?: string | null; leftOn?: string | null; address?: string | null; emergencyContact?: string | null; note?: string | null;
+}
+interface WorkerForm { id: string | null; name: string; phone: string; payType: PayType; rate: number | null; isActive: boolean; jobTitle: string; cnic: string; joinedOn: string; leftOn: string; address: string; emergencyContact: string; note: string }
 interface SheetRow { id: string; periodStart: string; periodEnd: string; status: 'DRAFT' | 'PAID'; total: string; workers: number }
 interface Line { id: string; workerId: string; payType: PayType; rate: string; kg: string; pieces: number; days: number; gross: string; advances: string; deductions: string; net: string; note: string | null; worker: { id: string; name: string; phone: string | null } }
 interface Sheet { id: string; periodStart: string; periodEnd: string; status: 'DRAFT' | 'PAID'; total: string; paidAt: string | null; lines: Line[] }
@@ -21,8 +25,10 @@ const PAY_TYPES: PayType[] = ['KG', 'PIECE', 'DAY', 'MONTH'];
 const ymd = (d: Date) => new Date(d.getTime() + 5 * 3_600_000).toISOString().slice(0, 10);
 
 /**
- * Sorter pay (Phase 8), for owners: workers without a login (paid per kg, piece, day or month), advances, pay
- * sheets for a week or a month (paid in cash as one Labour expense; each payslip to WhatsApp), and productivity.
+ * Employees (owner, 2026-11-17; it took the place of Sorter pay): everybody who works here, with or without a
+ * login: their record (job, CNIC, joining date, address), how they are paid (month, day, kg or piece), advances,
+ * pay sheets for a week or a month (paid in cash as one expense; each payslip to WhatsApp). Counting what each
+ * sorter sorts is a choice; with it on, pay by kg or piece is worked out from sorting and there is a tab for it.
  */
 const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
 
@@ -34,7 +40,7 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
     <section class="floor payroll">
       <header class="floor-head"><h1>{{ 'pay.title' | t }}</h1></header>
       <div class="seg tabs" role="tablist">
-        @for (t of tabs; track t) {
+        @for (t of shownTabs(); track t) {
           <button type="button" role="tab" [class.on]="tab() === t" [attr.aria-selected]="tab() === t" (click)="open(t)">{{ ('pay.tab.' + t) | t }}</button>
         }
       </div>
@@ -51,6 +57,18 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
               @for (p of payTypes; track p) { <button type="button" class="chip" [class.on]="f.payType === p" [attr.aria-pressed]="f.payType === p" (click)="f.payType = p">{{ ('pay.type.' + p) | t }}</button> }
             </div>
             <label class="field">{{ ('pay.rateOf.' + f.payType) | t }}<input name="rate" type="number" min="0" step="0.01" required [(ngModel)]="f.rate" /></label>
+            <label class="field">{{ 'pay.job' | t }} · {{ 'common.optional' | t }}<input name="job" maxlength="80" [(ngModel)]="f.jobTitle" [placeholder]="'pay.jobPlaceholder' | t" /></label>
+            <details class="more">
+              <summary>{{ 'pay.more' | t }}</summary>
+              <div class="two">
+                <label class="field">{{ 'pay.cnic' | t }}<input name="cnic" maxlength="20" dir="ltr" inputmode="numeric" [(ngModel)]="f.cnic" placeholder="42101-1234567-1" /></label>
+                <label class="field">{{ 'pay.joinedOn' | t }}<input name="joined" type="date" [(ngModel)]="f.joinedOn" /></label>
+              </div>
+              <label class="field">{{ 'pay.address' | t }}<input name="address" maxlength="300" [(ngModel)]="f.address" /></label>
+              <label class="field">{{ 'pay.emergency' | t }}<input name="emergency" maxlength="120" [(ngModel)]="f.emergencyContact" /></label>
+              <label class="field">{{ 'pay.note' | t }}<input name="wnote" maxlength="500" [(ngModel)]="f.note" /></label>
+              @if (f.id && !f.isActive) { <label class="field">{{ 'pay.leftOn' | t }}<input name="left" type="date" [(ngModel)]="f.leftOn" /></label> }
+            </details>
             @if (f.id) { <label class="check"><input name="active" type="checkbox" [(ngModel)]="f.isActive" /> {{ 'pay.active' | t }}</label> }
             <div class="row-btns">
               <button type="button" class="btn" (click)="form.set(null)">{{ 'common.cancel' | t }}</button>
@@ -64,7 +82,7 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
             <li class="row worker" [class.off]="!w.isActive">
               <span>
                 <strong>{{ w.name }}</strong>
-                <small>{{ ('pay.rateText.' + w.payType) | t: { rs: i18n.money(w.rate) } }}@if (w.phone) { · <span dir="ltr">{{ local(w.phone) }}</span> }@if (!w.isActive) { · {{ 'pay.inactive' | t }} }</small>
+                <small>@if (w.jobTitle) { {{ w.jobTitle }} · }{{ ('pay.rateText.' + w.payType) | t: { rs: i18n.money(w.rate) } }}@if (w.joinedOn && w.isActive) { · {{ 'pay.since' | t: { date: longDay(w.joinedOn) } }} }@if (w.leftOn && !w.isActive) { · {{ 'pay.left' | t: { date: longDay(w.leftOn) } }} }@if (w.phone) { · <span dir="ltr">{{ local(w.phone) }}</span> }@if (!w.isActive) { · {{ 'pay.inactive' | t }} }</small>
               </span>
               <span class="btns">
                 <button type="button" class="link" (click)="edit(w)">{{ 'pay.edit' | t }}</button>
@@ -86,6 +104,7 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
             }
           }
         </ul>
+        <label class="check count"><input type="checkbox" [checked]="counting()" [disabled]="busy()" (change)="setCounting($any($event.target).checked)" /> <span>{{ 'pay.countSorting' | t }}<small>{{ 'pay.countSortingHint' | t }}</small></span></label>
       }
 
       @if (tab() === 'sheets') {
@@ -184,6 +203,12 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
     .two { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; }
     .row-btns { display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; }
     .check { display:flex; gap:8px; align-items:center; font-weight:600; }
+    .check.count { align-items:flex-start; margin-top:14px; }
+    .check.count span { display:grid; gap:2px; }
+    .check.count small { color:var(--tos-ink-soft); font-weight:500; }
+    details.more { display:grid; gap:10px; }
+    details.more summary { cursor:pointer; font-weight:600; color:var(--tos-primary); min-height:36px; }
+    details.more[open] summary { margin-bottom:10px; }
     .worker.off { opacity:.6; }
     .worker .btns { display:flex; gap:12px; }
     .link { border:0; background:none; color:var(--tos-primary); font:inherit; font-weight:700; cursor:pointer; padding:0; display:inline-flex; gap:4px; align-items:center; text-decoration:none; }
@@ -214,14 +239,17 @@ export class PayrollComponent {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   /** ?tab= keeps the tab over a refresh or Back. */
-  protected readonly tab = signal<Tab>(((t) => (TABS.includes(t as Tab) ? (t as Tab) : 'workers'))(this.route.snapshot.queryParamMap.get('tab')));
+  protected readonly tab = signal<Tab>(((t) => (TABS.includes(t as Tab) ? (t as Tab) : 'workers'))(this.route.snapshot.queryParamMap.get('tab') ?? (this.route.snapshot.data['tab'] as string | undefined) ?? null));
+  /** Counting what each sorter sorts is a choice; its tab shows only with it on. */
+  protected readonly counting = signal(false);
+  protected readonly shownTabs = computed(() => this.tabs.filter((t) => t !== 'productivity' || this.counting()));
   /** A pay sheet needs somebody to pay. */
   protected readonly hasWorkers = computed(() => this.workers().some((w) => w.isActive !== false));
   protected readonly workers = signal<Worker[]>([]);
   protected readonly sheets = signal<SheetRow[]>([]);
   protected readonly sheet = signal<Sheet | null>(null);
   protected readonly prod = signal<Prod | null>(null);
-  protected readonly form = signal<{ id: string | null; name: string; phone: string; payType: PayType; rate: number | null; isActive: boolean } | null>(null);
+  protected readonly form = signal<WorkerForm | null>(null);
   protected readonly advanceFor = signal<string | null>(null);
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -235,6 +263,7 @@ export class PayrollComponent {
 
   constructor() {
     this.loadWorkers();
+    this.http.get<{ trackSorterWork: boolean }>('/api/payroll/settings').subscribe({ next: (s) => this.counting.set(s.trackSorterWork), error: () => undefined });
     this.period('lastWeek');
     if (this.tab() === 'sheets') this.loadSheets();
     if (this.tab() === 'productivity') this.loadProd();
@@ -242,7 +271,8 @@ export class PayrollComponent {
 
   protected open(t: Tab): void {
     this.tab.set(t);
-    void this.router.navigate([], { relativeTo: this.route, queryParams: { tab: t === 'workers' ? null : t }, queryParamsHandling: 'merge', replaceUrl: true });
+    // Employees and Pay have their own addresses (the menu has both); sorting work is a tab of Employees.
+    void this.router.navigate([t === 'sheets' ? '/people/pay' : '/people'], { queryParams: t === 'productivity' ? { tab: t } : {}, replaceUrl: true });
     this.error.set(null);
     if (t === 'sheets') this.loadSheets();
     if (t === 'productivity') this.loadProd();
@@ -252,6 +282,18 @@ export class PayrollComponent {
     this.busy.set(false);
     const m = e.error?.message;
     this.error.set(Array.isArray(m) ? m.join(', ') : m ?? this.i18n.t('common.couldNotSave'));
+  }
+
+  protected longDay(v: string): string {
+    return new Date(`${v.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  }
+
+  protected setCounting(on: boolean): void {
+    this.busy.set(true);
+    this.http.patch<{ trackSorterWork: boolean }>('/api/payroll/settings', { trackSorterWork: on }).subscribe({
+      next: (s) => { this.busy.set(false); this.counting.set(s.trackSorterWork); this.toast.show(this.i18n.t('pay.saved')); },
+      error: (e) => this.fail(e),
+    });
   }
 
   protected local(p: string): string {
@@ -268,11 +310,15 @@ export class PayrollComponent {
   }
 
   protected newWorker(): void {
-    this.form.set({ id: null, name: '', phone: '', payType: 'KG', rate: null, isActive: true });
+    // Most staff are on a monthly wage; per kg or piece is for a business that counts sorting.
+    this.form.set({ id: null, name: '', phone: '', payType: this.counting() ? 'KG' : 'MONTH', rate: null, isActive: true, jobTitle: '', cnic: '', joinedOn: '', leftOn: '', address: '', emergencyContact: '', note: '' });
   }
 
   protected edit(w: Worker): void {
-    this.form.set({ id: w.id, name: w.name, phone: w.phone ? localPhone(w.phone) : '', payType: w.payType, rate: Number(w.rate), isActive: w.isActive });
+    this.form.set({
+      id: w.id, name: w.name, phone: w.phone ? localPhone(w.phone) : '', payType: w.payType, rate: Number(w.rate), isActive: w.isActive,
+      jobTitle: w.jobTitle ?? '', cnic: w.cnic ?? '', joinedOn: (w.joinedOn ?? '').slice(0, 10), leftOn: (w.leftOn ?? '').slice(0, 10), address: w.address ?? '', emergencyContact: w.emergencyContact ?? '', note: w.note ?? '',
+    });
   }
 
   protected saveWorker(): void {
@@ -280,7 +326,12 @@ export class PayrollComponent {
     if (!f) return;
     this.busy.set(true);
     this.error.set(null);
-    const body = { name: f.name.trim(), phone: f.phone.trim() || null, payType: f.payType, rate: Number(f.rate), ...(f.id ? { isActive: f.isActive } : {}) };
+    const body = {
+      name: f.name.trim(), phone: f.phone.trim() || null, payType: f.payType, rate: Number(f.rate),
+      jobTitle: f.jobTitle.trim() || null, cnic: f.cnic.trim() || null, address: f.address.trim() || null, emergencyContact: f.emergencyContact.trim() || null, note: f.note.trim() || null,
+      ...(f.joinedOn ? { joinedOn: f.joinedOn } : f.id ? { joinedOn: null } : {}),
+      ...(f.id ? { isActive: f.isActive, leftOn: !f.isActive && f.leftOn ? f.leftOn : null } : {}),
+    };
     const req = f.id ? this.http.patch(`/api/payroll/workers/${f.id}`, body) : this.http.post('/api/payroll/workers', body);
     req.subscribe({
       next: () => { this.busy.set(false); this.form.set(null); this.toast.show(this.i18n.t('pay.saved')); this.loadWorkers(); },

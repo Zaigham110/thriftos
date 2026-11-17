@@ -44,7 +44,21 @@ describe('Phase 8 sorter pay: workers, pay sheet, labour cost, productivity (e2e
     const chacha = await add({ name: 'Chacha', payType: 'DAY', rate: 1500 });
     const munshi = await add({ name: 'Munshi', payType: 'MONTH', rate: 30000 });
     await api(app, a).post('/payroll/workers', { name: 'Bad phone', phone: '12', payType: 'KG', rate: 1 }).expect(400);
+    // Counting what each sorter sorts is a choice (owner, 2026-11-17): off, sorting asks for nobody.
+    expect((await api(app, a).get('/payroll/settings').expect(200)).body).toEqual({ trackSorterWork: false });
+    expect((await api(app, a).get('/sorting/workers').expect(200)).body).toEqual([]);
+    expect((await api(app, a).patch('/payroll/settings', { trackSorterWork: true }).expect(200)).body).toEqual({ trackSorterWork: true });
+    // Each business has its own setting.
+    expect((await api(app, b).get('/payroll/settings').expect(200)).body).toEqual({ trackSorterWork: false });
     expect((await api(app, a).get('/sorting/workers').expect(200)).body.map((w: any) => w.name)).toEqual(['Akram', 'Bilal', 'Chacha', 'Munshi']);
+    // An employee record: what they do, CNIC, when they joined, where they live; and when they left.
+    const clerk = await add({ name: 'Office Clerk', payType: 'MONTH', rate: 25000, jobTitle: 'Clerk', cnic: '42101-1234567-1', joinedOn: '2026-01-15', address: 'Shershah, Karachi', emergencyContact: 'Brother 0300 1112223', note: 'Keeps the register' });
+    expect(clerk).toMatchObject({ jobTitle: 'Clerk', cnic: '42101-1234567-1', address: 'Shershah, Karachi', emergencyContact: 'Brother 0300 1112223', note: 'Keeps the register' });
+    expect(String(clerk.joinedOn).slice(0, 10)).toBe('2026-01-15');
+    const left = (await api(app, a).patch(`/payroll/workers/${clerk.id}`, { isActive: false, leftOn: '2026-11-10', jobTitle: '' }).expect(200)).body;
+    expect([left.isActive, String(left.leftOn).slice(0, 10), left.jobTitle]).toEqual([false, '2026-11-10', null]);
+    await api(app, b).patch(`/payroll/workers/${clerk.id}`, { note: 'x' }).expect(404);
+    expect((await api(app, b).get('/payroll/workers?all=1').expect(200)).body).toEqual([]);
 
     // A container lot of 500 kg, sorted today by three of them.
     const { jeans, shirts, waste } = await seedSortableLot(app, a.tenantId);

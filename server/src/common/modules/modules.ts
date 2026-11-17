@@ -127,9 +127,10 @@ export const MODULES: readonly ModuleInfo[] = [
     hint: { en: 'Bring in customers, suppliers and opening stock from a register.', ur: 'رجسٹر سے گاہک، سپلائر اور ابتدائی اسٹاک لائیں۔', roman: 'Register se gahak, supplier aur ibtidai stock layein.' },
   },
   {
+    // Employee Management (owner, 2026-11-17) took the place of Sorter pay; the key stays, so no business's set-up changes.
     key: 'PAYROLL', group: 'money', byDefault: false,
-    name: { en: 'Sorter pay', ur: 'چھانٹنے والوں کی تنخواہ', roman: 'Chhantai walon ki tankhwah' },
-    hint: { en: 'Workers paid per kg, piece, day or month; pay sheets, advances, labour cost in profit.', ur: 'فی کلو، فی پیس، روزانہ یا ماہانہ مزدوری؛ تنخواہ شیٹ، ایڈوانس، منافع میں مزدوری کی لاگت۔', roman: 'Fi kilo, fi piece, rozana ya mahana mazdoori; tankhwah sheet, advance, munafa mein mazdoori ki laagat.' },
+    name: { en: 'Employees', ur: 'ملازمین', roman: 'Mulazimeen' },
+    hint: { en: 'Employee records, pay by month, day, kg or piece, advances and pay slips.', ur: 'ملازمین کا ریکارڈ، ماہانہ، روزانہ، فی کلو یا فی پیس تنخواہ، ایڈوانس اور تنخواہ کی پرچی۔', roman: 'Mulazimeen ka record, mahana, rozana, fi kg ya fi piece tankhwah, advance aur tankhwah ki parchi.' },
   },
 ];
 
