@@ -1,3 +1,4 @@
+import { customerBase } from './customer-base';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
@@ -165,7 +166,7 @@ export class StatementComponent {
   }
 
   protected back(): void {
-    this.nav.back(['/khata/records', this.id()]);
+    this.nav.back([customerBase(this.router.url), this.id()]);
   }
 
   /** The statement's totals as a WhatsApp message to the customer (a PDF can follow from Print). */

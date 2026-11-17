@@ -1666,7 +1666,8 @@
    "suppliers": "Supplier",
    "yield": "Chhantai ka nateeja",
    "payroll": "Chhantai walon ki tankhwah",
-   "moveStock": "Godamon mein muntaqli"
+   "moveStock": "Godamon mein muntaqli",
+   "customers": "Customer"
   },
   "new": {
    "bale": "Gaanth banayein",
@@ -2494,6 +2495,29 @@
     "report_worker": "Karigaron ki reports",
     "sale_create": "Bikri karna",
     "payment_create": "Wasooli lena"
+   }
+  },
+  "customers": {
+   "title": "Customer",
+   "count": "{n} customer",
+   "countOne": "{n} customer",
+   "search": "Naam, phone ya shehar talash karein",
+   "emptyHeading": "Koi customer nahi mila",
+   "emptyNewHeading": "Abhi koi customer nahi",
+   "emptyNewMessage": "Jin ko aap bechte hain unhein shamil karein, ya sale karte waqt shamil karein.",
+   "new": "Naya customer",
+   "col": {
+    "priceGroup": "Rate group",
+    "bills": "Bill",
+    "bought": "Kharidari",
+    "lastSale": "Aakhri sale",
+    "balance": "Aap ka baqaya",
+    "since": "Kab se customer"
+   },
+   "balanceInfo": "Customer par is waqt aap ka kitna baqaya hai: purana baqaya aur bill, minus jo ada kiya. Minus raqam ka matlab advance hai.",
+   "status": {
+    "ACTIVE": "Active",
+    "INACTIVE": "Band"
    }
   }
  },

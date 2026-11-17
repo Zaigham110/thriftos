@@ -19,6 +19,7 @@ import {
   Truck,
   Vault,
   Wallet,
+  Users,
 } from 'lucide-angular';
 import { TenantModule } from '../../core/tenant/tenant.service';
 
@@ -70,6 +71,7 @@ export const WS_NAV: WsNavGroup[] = [
     label: 'ws.group.sales',
     items: [
       { label: 'ws.nav.sales', path: '/sell/records', icon: ShoppingCart, module: 'SELL', anyOf: SEE_SALES, keywords: 'becho sale invoice bill' },
+      { label: 'ws.nav.customers', path: '/sell/customers', icon: Users, module: 'SELL', anyOf: SEE_SALES, keywords: 'customers gahak buyers party' },
       { label: 'ws.nav.prices', path: '/sell/prices', icon: Tags, module: 'PRICE_LISTS', permission: 'price.manage', keywords: 'price list rate wholesale retail group' },
       { label: 'ws.nav.receivables', path: '/khata/records', icon: BookOpen, module: 'KHATA', anyOf: SEE_SALES, keywords: 'khata udhaar customers payments' },
     ],
@@ -116,6 +118,7 @@ export const WS_CRUMBS: Record<string, string> = {
   khata: 'ws.nav.receivables',
   reports: 'ws.nav.reports',
   settings: 'ws.nav.settings',
+  customers: 'ws.nav.customers',
   help: 'help.title',
   new: 'ws.crumb.new',
   create: 'ws.crumb.new',

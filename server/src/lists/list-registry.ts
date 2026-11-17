@@ -1,5 +1,6 @@
 import type { ListResource } from '../common/list/list-engine';
 import { SALE_LABELS, SALES_LIST } from '../sales/sales.list';
+import { CUSTOMER_LABELS, CUSTOMERS_LIST } from '../sales/customers.list';
 import { SEE_SALES } from '../sales/sales-access';
 import { LOT_LABELS, LOTS_LIST } from '../sorting/sorting.lists';
 import { EXPENSE_LABELS, EXPENSES_LIST } from '../workspace/finance.lists';
@@ -19,6 +20,8 @@ export interface RegisteredList {
 /** Every workspace list, by URL name (/api/lists/:name). E3 adds containers, stock, customers… */
 export const LISTS: Record<string, RegisteredList> = {
   sales: { resource: SALES_LIST, labels: SALE_LABELS, permission: SEE_SALES },
+  // Everybody the business sells to (owner, 2026-11-17); the same people as may see sales.
+  customers: { resource: CUSTOMERS_LIST, labels: CUSTOMER_LABELS, permission: SEE_SALES, module: 'SELL' },
   containers: { resource: CONTAINERS_LIST, labels: CONTAINER_LABELS, permission: 'container.read', module: 'RECEIVE' },
   'purchase-lots': { resource: PURCHASE_LOTS_LIST, labels: PURCHASE_LOT_LABELS, permission: 'rag.read', module: 'RECEIVE' },
   suppliers: { resource: SUPPLIERS_LIST, labels: SUPPLIER_LABELS, permission: 'vendor.read', module: 'RECEIVE' },

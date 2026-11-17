@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { HelpLinkComponent } from '../help/help-link.component';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { LucideAngularModule, Plus } from 'lucide-angular';
+import { LucideAngularModule, Plus, Users } from 'lucide-angular';
 import { I18N } from '../../core/i18n/t.pipe';
 import { SaleListItem } from '../../modules/sales/sales.models';
 import { SalesService } from '../../modules/sales/sales.service';
@@ -27,6 +27,7 @@ import { SalesService } from '../../modules/sales/sales.service';
         </ul>
       </section>
       <footer class="action-bar">
+        <a class="btn" routerLink="/sell/customers"><lucide-icon [img]="icons.Users" [size]="20" /> {{ 'ws.nav.customers' | t }}</a>
         <a class="btn primary" routerLink="/sell/new"><lucide-icon [img]="icons.Plus" [size]="20" /> {{ 'sell.new' | t }}</a>
       </footer>
     </section>
@@ -34,7 +35,7 @@ import { SalesService } from '../../modules/sales/sales.service';
 })
 export class SellHomeComponent implements OnInit {
   private readonly salesService = inject(SalesService);
-  protected readonly icons = { Plus };
+  protected readonly icons = { Plus, Users };
   protected readonly sales = signal<SaleListItem[]>([]);
 
   ngOnInit(): void {

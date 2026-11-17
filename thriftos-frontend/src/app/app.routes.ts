@@ -174,6 +174,8 @@ export const routes: Routes = [
           { path: '', canActivate: [desktopRedirect('/sell/records')], loadComponent: () => import('./features/sell/sell-home.component').then((m) => m.SellHomeComponent), title: 'ThriftOS' },
           { path: 'new', canActivate: [desktopRedirect('/sell/records/new')], loadComponent: () => import('./features/sell/sale.component').then((m) => m.SaleComponent), title: 'ThriftOS' },
           { path: 'records', loadChildren: () => import('./modules/sales/sales.routes').then((m) => m.SALES_ROUTES) },
+          // Customers (owner, 2026-11-17): everybody the business sells to, for any business that sells.
+          { path: 'customers', loadChildren: () => import('./features/workspace-lists/customers.routes').then((m) => m.CUSTOMERS_ROUTES) },
           { path: 'analytics', loadComponent: () => import('./features/workspace-lists/sales-analytics.component').then((m) => m.SalesAnalyticsComponent), title: 'ThriftOS' },
           { path: 'prices', canActivate: [moduleGuard], data: { module: 'PRICE_LISTS' }, loadComponent: () => import('./features/workspace-lists/price-lists.component').then((m) => m.PriceListsComponent), title: 'ThriftOS' },
         ],

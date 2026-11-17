@@ -1,3 +1,5 @@
+import { moduleOn } from '../../core/tenant/module-on';
+import { customerBase } from './customer-base';
 import { HttpClient } from '@angular/common/http';
 import { NavService } from '../../core/nav/nav.service';
 import { Component, computed, inject, input, signal, effect } from '@angular/core';
@@ -73,15 +75,15 @@ const METHODS: readonly PaymentMethod[] = ['CASH', 'JAZZCASH', 'EASYPAISA', 'RAA
         <div class="main">
           <ws-page-header [heading]="d.customer.name" [subtitle]="subtitle()">
             <ng-container actions>
-              <button type="button" class="ws-btn primary" (click)="sheet.set('payment')"><lucide-icon [img]="icons.Wallet" [size]="16" aria-hidden="true" />{{ 'ws.customer.receive' | t }}</button>
-              @if (d.customer.phone && +d.account.balance > 0) {
+              @if (on('KHATA')) { <button type="button" class="ws-btn primary" (click)="sheet.set('payment')"><lucide-icon [img]="icons.Wallet" [size]="16" aria-hidden="true" />{{ 'ws.customer.receive' | t }}</button> }
+              @if (on('KHATA') && d.customer.phone && +d.account.balance > 0) {
                 <button type="button" class="ws-btn" (click)="remind()"><lucide-icon [img]="icons.MessageCircle" [size]="16" aria-hidden="true" />{{ 'ws.customer.remind' | t }}</button>
               }
-              <button type="button" class="ws-btn" (click)="sheet.set('promise')"><lucide-icon [img]="icons.CalendarCheck" [size]="16" aria-hidden="true" />{{ 'ws.customer.promise' | t }}</button>
+              @if (on('KHATA')) { <button type="button" class="ws-btn" (click)="sheet.set('promise')"><lucide-icon [img]="icons.CalendarCheck" [size]="16" aria-hidden="true" />{{ 'ws.customer.promise' | t }}</button> }
               @if (can('price.manage')) {
                 <button type="button" class="ws-btn" (click)="openGroup()"><lucide-icon [img]="icons.Tags" [size]="16" aria-hidden="true" />{{ d.customer.priceGroup ? ('ws.saleEntry.list' | t: { group: d.customer.priceGroup }) : ('ws.customer.priceList' | t) }}</button>
               }
-              <button type="button" class="ws-btn" (click)="go('statement')"><lucide-icon [img]="icons.FileText" [size]="16" aria-hidden="true" />{{ 'ws.customer.statement' | t }}</button>
+              @if (on('KHATA')) { <button type="button" class="ws-btn" (click)="go('statement')"><lucide-icon [img]="icons.FileText" [size]="16" aria-hidden="true" />{{ 'ws.customer.statement' | t }}</button> }
               <button type="button" class="ws-btn" (click)="go('edit')"><lucide-icon [img]="icons.Pencil" [size]="16" aria-hidden="true" />{{ 'ws.crumb.edit' | t }}</button>
             </ng-container>
           </ws-page-header>
@@ -221,6 +223,8 @@ export class CustomerRecordComponent {
   private readonly toast = inject(ToastService);
   readonly id = input.required<string>();
   private readonly tabRoute = inject(ActivatedRoute);
+  /** Credit work (payments, reminders, promises, statement) only for a business that sells on credit. */
+  protected readonly on = moduleOn();
   /** The tab goes into the address (?tab=), so Back from a row opens this tab again. */
   protected pickTab(tab: string): void {
     void this.router.navigate([], { relativeTo: this.tabRoute, queryParams: { tab }, queryParamsHandling: 'merge', replaceUrl: true });
@@ -462,7 +466,7 @@ export class CustomerRecordComponent {
 
   /** The statement and the edit form sit under this customer, so Back and the breadcrumb lead here. */
   protected go(page: 'statement' | 'edit'): void {
-    void this.nav.open(['/khata/records', this.id(), page]);
+    void this.nav.open([customerBase(this.router.url), this.id(), page]);
   }
 
   protected can(code: string): boolean {

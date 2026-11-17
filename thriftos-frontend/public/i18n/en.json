@@ -1666,7 +1666,8 @@
    "suppliers": "Suppliers",
    "yield": "Sorting results",
    "payroll": "Sorter pay",
-   "moveStock": "Move between godowns"
+   "moveStock": "Move between godowns",
+   "customers": "Customers"
   },
   "new": {
    "bale": "Make a bale",
@@ -2494,6 +2495,29 @@
     "report_worker": "Worker reports",
     "sale_create": "Make sales",
     "payment_create": "Take payments"
+   }
+  },
+  "customers": {
+   "title": "Customers",
+   "count": "{n} customers",
+   "countOne": "{n} customer",
+   "search": "Search name, phone or city",
+   "emptyHeading": "No customers match",
+   "emptyNewHeading": "No customers yet",
+   "emptyNewMessage": "Add the people you sell to, or add them while making a sale.",
+   "new": "New customer",
+   "col": {
+    "priceGroup": "Price group",
+    "bills": "Bills",
+    "bought": "Bought",
+    "lastSale": "Last sale",
+    "balance": "Owes you",
+    "since": "Customer since"
+   },
+   "balanceInfo": "What the customer owes you now: old balance and bills, less what they paid. A minus is money paid ahead.",
+   "status": {
+    "ACTIVE": "Active",
+    "INACTIVE": "Not active"
    }
   }
  },

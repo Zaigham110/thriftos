@@ -1,5 +1,7 @@
+import { customerBase } from './customer-base';
 import { HttpClient } from '@angular/common/http';
 import { Component, HostListener, inject, input, OnInit, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -75,6 +77,8 @@ export class CustomerFormComponent implements OnInit, HasUnsavedChanges {
   private readonly http = inject(HttpClient);
   private readonly toast = inject(ToastService);
   private readonly nav = inject(NavService);
+  /** Customers or Receivables: where this form was opened from. */
+  private readonly base = customerBase(inject(Router).url);
   /** Absent on "New customer"; the customer's id on its edit page. */
   readonly id = input<string | undefined>();
 
@@ -126,7 +130,7 @@ export class CustomerFormComponent implements OnInit, HasUnsavedChanges {
 
   protected cancel(): void {
     this.touched = false;
-    this.nav.back(this.id() ? ['/khata/records', this.id()] : ['/khata/records']);
+    this.nav.back(this.id() ? [this.base, this.id()] : [this.base]);
   }
 
   protected async save(): Promise<void> {
@@ -146,12 +150,12 @@ export class CustomerFormComponent implements OnInit, HasUnsavedChanges {
         await firstValueFrom(this.http.patch(`/api/customers/${this.id()}`, body));
         this.touched = false;
         this.toast.show(this.i18n.t('ws.rc.saved'));
-        this.nav.back(['/khata/records', this.id()]);
+        this.nav.back([this.base, this.id()]);
       } else {
         const c = await firstValueFrom(this.http.post<{ id: string }>('/api/customers', body));
         this.touched = false;
         this.toast.show(this.i18n.t('ws.rc.saved'));
-        void this.nav.replace(['/khata/records', c.id]);
+        void this.nav.replace([this.base, c.id]);
       }
     } catch (e: any) {
       this.toast.error(e?.error?.message || this.i18n.t('common.couldNotSave'));
