@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, SortStatus } from '@prisma/client';
+import { Prisma, RagSourceType, SortStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service';
 import { costPerKg, landedCost, lotCosts, money, openLotCost, outputCosts, sum, takeCost } from './costing';
@@ -89,6 +89,13 @@ export class CostingService {
     if (!lot) throw new NotFoundException('Lot not found');
     if (lot.containerId) return this.recalculateContainerTx(tx, tenantId, lot.containerId, userId);
     const result = emptyResult();
+    // A mix costs what its lots cost together (each kept in step below); it has no price of its own.
+    if (lot.sourceType === RagSourceType.MIXED) {
+      const parts = await tx.lotMixSource.aggregate({ where: { tenantId, mixRagId: lot.id }, _sum: { cost: true } });
+      await this.recalculateLotTx(tx, tenantId, lot, money(parts._sum.cost ?? 0), result);
+      await this.logAdjustments(tx, tenantId, result.adjustments, userId);
+      return result;
+    }
     // A loose lot costs its purchase price plus its charges (transport, labour…); one without a price keeps its cost.
     const charges = await tx.lotCharge.aggregate({ where: { ragId: lot.id, tenantId }, _sum: { amount: true } });
     const cost = lot.purchaseCost ? money(lot.purchaseCost.add(charges._sum.amount ?? 0)) : lot.allocatedCost;
@@ -120,6 +127,18 @@ export class CostingService {
     if (!lotCost.equals(lot.allocatedCost)) {
       await tx.rag.update({ where: { id: lot.id }, data: { allocatedCost: lotCost } });
       result.changed.lots += 1;
+    }
+    // A lot that went into a mix: its new cost goes into the mix, and the mix is costed again down its chain
+    // (a freight bill added to a container after its lots were mixed, for one).
+    const mixed = await tx.lotMixSource.findUnique({ where: { sourceRagId: lot.id }, select: { id: true, cost: true, mixRagId: true } });
+    if (mixed) {
+      if (!mixed.cost.equals(lotCost)) await tx.lotMixSource.update({ where: { id: mixed.id }, data: { cost: lotCost } });
+      const [mix, parts] = await Promise.all([
+        tx.rag.findFirst({ where: { id: mixed.mixRagId, tenantId } }),
+        tx.lotMixSource.aggregate({ where: { tenantId, mixRagId: mixed.mixRagId }, _sum: { cost: true } }),
+      ]);
+      if (mix) await this.recalculateLotTx(tx, tenantId, mix, money(parts._sum.cost ?? 0), result);
+      return;
     }
     const outputs = await tx.categoryOutput.findMany({
       where: { tenantId, ragId: lot.id },

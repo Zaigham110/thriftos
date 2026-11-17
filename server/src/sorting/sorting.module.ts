@@ -1,3 +1,4 @@
+import { LotMixService } from './lot-mix.service';
 import { Module } from '@nestjs/common';
 import { StockModule } from '../stock/stock.module';
 import { GradeSessionService } from './grade-session.service';
@@ -11,7 +12,7 @@ import { SortingWasteService } from './sorting-waste.service';
 @Module({
   imports: [StockModule],
   controllers: [SortingStage1Controller, SortingStage2Controller, SortingOutputsController],
-  providers: [SortSessionService, GradeSessionService, SortingWasteService, SortingOutputsService, GradesService],
+  providers: [LotMixService, SortSessionService, GradeSessionService, SortingWasteService, SortingOutputsService, GradesService],
   exports: [GradesService, SortingOutputsService],
 })
 export class SortingModule {}

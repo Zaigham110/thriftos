@@ -1576,7 +1576,8 @@
   "lotStatus": {
    "IN_SORTING": "Chhantai",
    "NOT_STARTED": "Intezar",
-   "SORTED": "Chhant gaya"
+   "SORTED": "Chhant gaya",
+   "MIXED": "Mila di gayi"
   },
   "lots": {
    "col": {
@@ -1599,7 +1600,8 @@
    "sortNext": "Agla lot chhantein",
    "source": {
     "CONTAINER": "Container",
-    "LOOSE_BALE": "Khula lot"
+    "LOOSE_BALE": "Khula lot",
+    "MIXED": "Mix"
    },
    "title": "Chhantai",
    "emptyNewHeading": "Abhi koi lot nahi",
@@ -2584,6 +2586,23 @@
     "kgSold": "Bike kg"
    },
    "notSoldInfo": "Jo raqam di gayi us mein se bike maal ki laagat nikal kar: abhi stock mein, zaya ya write off."
+  },
+  "mix": {
+   "title": "Lotein milayein",
+   "subtitle": "Do ya zyada intezar wali lotein mila kar ek lot ki tarah chhantein.",
+   "waiting": "Chhantai ke intezar mein lotein",
+   "needTwo": "Milane ke liye chhantai ke intezar mein do ya zyada lotein chahiye.",
+   "pickTwo": "Do ya zyada lotein chunein.",
+   "summary": "{n} lotein, kul {kg}",
+   "costPerKg": "{amount} fi kg",
+   "shareHint": "Mili hui lot se jo nikle aur jitne mein bike, woh har lot ko us ke wazan ke hisaab se milta hai. Har lot ki apni laagat rehti hai.",
+   "do": "Mila kar ek saath chhantein",
+   "done": "{code} ban gayi.",
+   "madeFrom": "In loton se bani",
+   "undo": "Lotein alag karein",
+   "undone": "Lotein dobara alag ho gayin.",
+   "wentInto": "Yeh lot (mix ka {share}%) is mix mein gayi:",
+   "wentIntoHint": "Yeh usi mix ke saath chhanti aur bechi jati hai; is ka hissa is ke supplier aur container par dikhta hai."
   }
  },
  "billing": {

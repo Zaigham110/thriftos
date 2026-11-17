@@ -1576,7 +1576,8 @@
   "lotStatus": {
    "IN_SORTING": "Sorting",
    "NOT_STARTED": "Waiting",
-   "SORTED": "Sorted"
+   "SORTED": "Sorted",
+   "MIXED": "Mixed"
   },
   "lots": {
    "col": {
@@ -1599,7 +1600,8 @@
    "sortNext": "Sort next lot",
    "source": {
     "CONTAINER": "Container",
-    "LOOSE_BALE": "Loose lot"
+    "LOOSE_BALE": "Loose lot",
+    "MIXED": "Mix"
    },
    "title": "Sorting",
    "emptyNewHeading": "No lots yet",
@@ -2584,6 +2586,23 @@
     "kgSold": "Kg sold"
    },
    "notSoldInfo": "What was paid for it, less the cost of what has sold: still in stock, waste, or written off."
+  },
+  "mix": {
+   "title": "Mix lots",
+   "subtitle": "Put two or more waiting lots together and sort them as one.",
+   "waiting": "Lots waiting to be sorted",
+   "needTwo": "Mixing needs two or more lots waiting to be sorted.",
+   "pickTwo": "Tick two or more lots.",
+   "summary": "{n} lots, {kg} together",
+   "costPerKg": "{amount} per kg",
+   "shareHint": "What the mix gives and sells for is shared back to each lot by its weight. Each lot keeps its own cost.",
+   "do": "Mix and sort together",
+   "done": "{code} made.",
+   "madeFrom": "Made from these lots",
+   "undo": "Take the mix apart",
+   "undone": "The lots are apart again.",
+   "wentInto": "This lot ({share}% of it) went into the mix",
+   "wentIntoHint": "It is sorted and sold as part of that mix; its share shows on its supplier and container."
   }
  },
  "billing": {

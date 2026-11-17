@@ -85,6 +85,9 @@ export class SortSessionService {
       }
       await tx.rag.update({ where: { id: rag.id }, data: { status: RagStatus.IN_SORTING } });
       if (rag.containerId) await this.containerInUse(tx, tenantId, rag.containerId, userId);
+      // A mix: the containers its lots came from are in use now too.
+      const mixed = await tx.lotMixSource.findMany({ where: { tenantId, mixRagId: rag.id }, select: { source: { select: { containerId: true } } } });
+      for (const id of new Set(mixed.map((m) => m.source.containerId).filter((x): x is string => !!x))) await this.containerInUse(tx, tenantId, id, userId);
       return tx.sortSession.create({
         data: {
           tenantId,

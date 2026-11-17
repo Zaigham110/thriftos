@@ -303,6 +303,8 @@ export const LOTS_LIST: ListConfig = {
   rowLink: (id) => ['/sort/records', id],
   // Sorting's own job: open the lot being sorted, else the oldest waiting (buying a lot is Purchasing's).
   create: { label: 'ws.lots.sortNext', link: '/sort/next' },
+  // Two or more waiting lots put together and sorted as one (owner, 2026-11-17).
+  related: { label: 'ws.mix.title', link: '/sort/mix' },
   board: { field: 'status', values: LOT_STATUSES, prefix: 'ws.lotStatus.', title: 'code', lines: ['container', 'kg', 'yield'] },
 };
 

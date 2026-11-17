@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { InventoryStatus, Prisma, RagStatus, StockAdjustmentStatus, StockSource } from '@prisma/client';
+import { InventoryStatus, Prisma, RagSourceType, RagStatus, StockAdjustmentStatus, StockSource } from '@prisma/client';
 import { localDayStart } from '../common/list/list-engine';
 import { combine, containerEconomics, ContainerEconomics, lotEconomics } from '../home/container-economics';
 import { PrismaService } from '../prisma/prisma.service';
@@ -45,7 +45,8 @@ export class TradingService {
       }),
       this.prisma.stockAdjustment.aggregate({ where: { tenantId, status: StockAdjustmentStatus.APPROVED, decidedAt: { gte: start } }, _sum: { costChange: true } }),
       this.prisma.rag.findMany({
-        where: { tenantId, containerId: null },
+        // A mix is not something bought: what it earned is shared back to the lots it was made from.
+        where: { tenantId, containerId: null, sourceType: { not: RagSourceType.MIXED } },
         orderBy: { createdAt: 'desc' },
         select: { id: true, ragCode: true, createdAt: true, allocatedCost: true, weightKg: true, vendorId: true, vendor: { select: { name: true } } },
       }),

@@ -1,3 +1,4 @@
+import { LotMixService, MixLotsDto } from './lot-mix.service';
 import { RequireModule } from '../common/decorators/require-module.decorator';
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { WasteStage } from '@prisma/client';
@@ -29,7 +30,31 @@ export class SortingStage1Controller {
   constructor(
     private readonly sessions: SortSessionService,
     private readonly waste: SortingWasteService,
+    private readonly mixes: LotMixService,
   ) {}
+
+  /** Puts two or more waiting lots together to be sorted as one (owner, 2026-11-17). */
+  @Idempotent('LOTS_MIX')
+  @Post('mix')
+  @RequirePermissions('SORTING_STAGE1_CREATE')
+  mix(@TenantId() tenantId: string, @Body() dto: MixLotsDto, @CurrentUser() user: CurrentUserData) {
+    return this.mixes.mix(tenantId, dto, user.userId);
+  }
+
+  /** A mix with the lots it was made from and their shares. */
+  @Get('mix/:id')
+  @RequirePermissions('SORTING_STAGE1_VIEW')
+  mixView(@TenantId() tenantId: string, @Param('id') id: string) {
+    return this.mixes.view(tenantId, id);
+  }
+
+  /** Takes a mix apart again, while nobody has started sorting it. */
+  @Post('mix/:id/undo')
+  @HttpCode(200)
+  @RequirePermissions('SORTING_STAGE1_CREATE')
+  unmix(@TenantId() tenantId: string, @Param('id') id: string, @CurrentUser() user: CurrentUserData) {
+    return this.mixes.unmix(tenantId, id, user.userId);
+  }
 
   @Get('queue')
   @RequirePermissions('SORTING_STAGE1_VIEW')

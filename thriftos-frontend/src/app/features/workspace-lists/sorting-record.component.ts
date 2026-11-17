@@ -1,3 +1,4 @@
+import { ToastService } from '../../shared/floor/toast.service';
 import { HttpClient } from '@angular/common/http';
 import { TenantService } from '../../core/tenant/tenant.service';
 import { NavService } from '../../core/nav/nav.service';
@@ -25,7 +26,9 @@ import { withTones } from '../../shared/ui/workspace/status-tone';
 type Money = string | null;
 /** GET /api/workspace/sorting/:lotId (money is null without cost.view). */
 export interface SortingRecord {
-  lot: { id: string; code: string; status: 'NOT_STARTED' | 'IN_SORTING' | 'SORTED'; kg: string; createdAt: string; source: string; origin: string | null; rawCategory: string | null; container: { id: string; number: string } | null; supplier: { id: string; name: string } | null; cost: Money; costPerKg: Money; labour?: Money };
+  lot: { id: string; code: string; status: 'NOT_STARTED' | 'IN_SORTING' | 'SORTED' | 'MIXED'; kg: string;
+    /** Mixing (owner, 2026-11-17): the lots a mix was made from, and the mix a lot went into. */
+    mixedFrom?: { id: string; code: string; container: string | null; supplier: string | null; kg: string; sharePercent: number; cost: Money }[]; mixedInto?: { id: string; code: string; status: string; sharePercent: number } | null; createdAt: string; source: string; origin: string | null; rawCategory: string | null; container: { id: string; number: string } | null; supplier: { id: string; name: string } | null; cost: Money; costPerKg: Money; labour?: Money };
   /** A loose lot's price and extra charges (only for people who may see cost). */
   purchase: { price: string; ratePerKg: string | null; pieces?: number | null; ratePerPiece?: string | null; charges: { kind: string; amount: string; note: string | null }[]; total: string } | null;
   session: { id: string; status: string; worker: string; supervisor: string; startTime: string; endTime: string | null; inputKg: string; outputKg: string; wasteKg: string } | null;
@@ -58,7 +61,7 @@ const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
             @if (d.lot.source === 'LOOSE_BALE' && can('rag.create')) {
               <a actions class="ws-btn" [routerLink]="['/receive/records/lots', d.lot.id, 'edit']" [state]="nav.trailState()"><lucide-icon [img]="icons.Pencil" [size]="16" aria-hidden="true" />{{ 'ws.container.edit' | t }}</a>
             }
-            @if (d.lot.status !== 'SORTED') {
+            @if (d.lot.status !== 'SORTED' && d.lot.status !== 'MIXED') {
               <a actions class="ws-btn primary" [routerLink]="['/sort', d.lot.id]" [state]="nav.trailState()"><lucide-icon [img]="icons.Play" [size]="16" aria-hidden="true" />{{ (d.lot.status === 'NOT_STARTED' ? 'ws.sortRecord.start' : 'ws.sortRecord.continue') | t }}</a>
             }
           </ws-page-header>
@@ -83,6 +86,21 @@ const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
               @if (d.sold.profit !== null) { <ws-smart-button [label]="'ws.containers.col.profit' | t" [value]="rs(d.sold.profit)" [icon]="icons.Coins" [tone]="+d.sold.profit < 0 ? 'bad' : 'plain'" [link]="[]" /> }
             }
           </section>
+          @if (d.lot.mixedInto; as m) {
+            <p class="mixed">{{ 'ws.mix.wentInto' | t: { share: i18n.num(m.sharePercent, 1) } }} <a [routerLink]="['/sort/records', m.id]" class="ltr">{{ m.code }}</a>. {{ 'ws.mix.wentIntoHint' | t }}</p>
+          }
+          @if (d.lot.mixedFrom?.length) {
+            <section class="paid" [attr.aria-label]="'ws.mix.madeFrom' | t">
+              <h2>{{ 'ws.mix.madeFrom' | t }}</h2>
+              <dl>
+                @for (s of d.lot.mixedFrom; track s.id) {
+                  <div><dt><a [routerLink]="['/sort/records', s.id]" class="ltr">{{ s.code }}</a><small>{{ [s.supplier, s.container].filter(isText).join(' · ') }}</small></dt><dd>{{ i18n.kg(s.kg) }} · {{ i18n.num(s.sharePercent, 1) }}%@if (s.cost !== null) { · {{ i18n.money(s.cost) }} }</dd></div>
+                }
+              </dl>
+              <p class="hint">{{ 'ws.mix.shareHint' | t }}</p>
+              @if (d.lot.status === 'NOT_STARTED' && canSort()) { <button type="button" class="ws-btn" [disabled]="busy()" (click)="unmix(d.lot.id)">{{ 'ws.mix.undo' | t }}</button> }
+            </section>
+          }
           @if (d.purchase; as p) {
             <section class="paid" [attr.aria-label]="'ws.sortRecord.paid' | t">
               <h2>{{ 'ws.sortRecord.paid' | t }}</h2>
@@ -136,6 +154,8 @@ const STEPS = ['NOT_STARTED', 'IN_SORTING', 'SORTED'] as const;
     .side { position:sticky; top:calc(var(--ws-topbar-h) + var(--ws-4)); }
     .paid { padding:var(--ws-4); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg, 12px); background:var(--ws-surface); }
     .paid h2 { margin:0 0 var(--ws-2); font-size:var(--ws-text-md, 15px); }
+    .paid .ws-btn { margin-block-start:var(--ws-2); justify-self:start; }
+    .mixed { margin:0; padding:var(--ws-3) var(--ws-4); border:1px solid var(--ws-line); border-radius:var(--ws-r-lg, 12px); background:var(--ws-surface); }
     .paid dl { display:grid; gap:6px; margin:0; }
     .paid dl > div { display:flex; justify-content:space-between; gap:var(--ws-3); }
     .paid dt { display:grid; color:var(--ws-ink-2, inherit); }
@@ -172,10 +192,23 @@ export class SortingRecordComponent {
   protected readonly icons = { Clock, Coins, Layers3, Pencil, Percent, Play, Scale, Trash2 };
   protected readonly data = signal<SortingRecord | null>(null);
   protected readonly failed = signal(false);
+  private readonly toast = inject(ToastService);
   private readonly reloads = signal(0);
+  protected readonly busy = signal(false);
+  protected readonly isText = (v: string | null): v is string => !!v;
+  protected readonly canSort = computed(() => this.auth.isSuperAdmin() || this.auth.permissions().includes('SORTING_STAGE1_CREATE'));
+
+  /** Takes a mix apart again (only while nobody has started sorting it): its lots wait to be sorted as before. */
+  protected unmix(id: string): void {
+    this.busy.set(true);
+    this.http.post(`/api/sorting/stage-1/mix/${id}/undo`, {}).subscribe({
+      next: () => { this.busy.set(false); this.toast.show(this.i18n.t('ws.mix.undone')); void this.router.navigate(['/sort/records']); },
+      error: (e: { error?: { message?: string } }) => { this.busy.set(false); this.toast.error(e.error?.message ?? this.i18n.t('common.couldNotSave')); },
+    });
+  }
 
   protected readonly steps = computed(() => STEPS.map((s) => this.i18n.t(`ws.lotStatus.${s}`)));
-  protected readonly stepIndex = computed(() => Math.max(0, STEPS.indexOf(this.data()?.lot.status ?? 'NOT_STARTED')));
+  protected readonly stepIndex = computed(() => Math.max(0, STEPS.indexOf((this.data()?.lot.status ?? 'NOT_STARTED') as (typeof STEPS)[number])));
   protected readonly subtitle = computed(() => {
     const d = this.data();
     if (!d) return '';

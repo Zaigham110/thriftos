@@ -17,6 +17,7 @@ import { FloorDataService, GradeQueueItem, Lot } from '../../shared/floor/floor-
       <header class="floor-head"><h1>{{ 'sort.title' | t }}</h1></header>
       <section class="card">
         <h2>{{ 'sort.pickLot' | t }}</h2>
+        @if (lots().length > 1) { <a class="btn" routerLink="/sort/mix">{{ 'ws.mix.title' | t }}</a> }
         <ul class="list">
           @for (lot of lots(); track lot.id) {
             <li><a class="row" [routerLink]="['/sort', lot.id]">

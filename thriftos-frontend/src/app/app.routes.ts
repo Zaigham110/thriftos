@@ -144,6 +144,7 @@ export const routes: Routes = [
           { path: 'records', loadComponent: () => import('./features/workspace-lists/list-page.component').then((m) => m.ListPageComponent), data: { list: LOTS_LIST }, title: 'ThriftOS' },
           { path: 'records/:id', loadComponent: () => import('./features/workspace-lists/sorting-record.component').then((m) => m.SortingRecordComponent), title: 'ThriftOS' },
           { path: 'yield', loadComponent: () => import('./features/workspace-lists/yield.component').then((m) => m.YieldComponent), title: 'ThriftOS' },
+          { path: 'mix', loadComponent: () => import('./features/workspace-lists/mix-lots.component').then((m) => m.MixLotsComponent), title: 'ThriftOS' },
           { path: 'next', canActivate: [nextLotGuard], children: [] },
           { path: 'grade/:id', loadComponent: () => import('./features/sort/sort-work.component').then((m) => m.SortWorkComponent), data: { stage: 2 }, title: 'ThriftOS' },
           { path: ':id', loadComponent: () => import('./features/sort/sort-work.component').then((m) => m.SortWorkComponent), data: { stage: 1 }, title: 'ThriftOS' },

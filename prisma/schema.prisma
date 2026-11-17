@@ -217,11 +217,13 @@ enum RagStatus {
   NOT_STARTED // Available for sorting selection
   IN_SORTING // Currently being processed - locked
   SORTED // Permanently closed - cannot be reopened
+  MIXED // Went into a mix with other lots (owner, 2026-11-17): sorted as part of that mix, never on its own
 }
 
 enum RagSourceType {
   CONTAINER // Rag originated from a container
   LOOSE_BALE // Standalone bale (containerId = null)
+  MIXED // Two or more lots put together to be sorted as one; its cost and weight are theirs added up
 }
 
 enum RagBaleType {
@@ -986,6 +988,10 @@ model Rag {
 
   // One-to-one with SortSession: Each Rag can only be sorted ONCE
   sortSession SortSession?
+  /// The lots this mix was made from (only for sourceType MIXED).
+  mixSources  LotMixSource[] @relation("MixSources")
+  /// The mix this lot went into (only for status MIXED).
+  mixedInto   LotMixSource?  @relation("MixedInto")
   /// Transport, labour and other costs of a loose lot (part of its cost).
   charges     LotCharge[]
 
@@ -1012,6 +1018,26 @@ model Rag {
 // - ragId is UNIQUE: One Rag = One Sorting Session (one-time processing)
 // - All downstream data MUST reference source chain
 // =============================================================
+
+/// A lot that went into a mix (owner, 2026-11-17: "received two containers or loose lots and mix those for
+/// workers to sort"). The mix is sorted as one lot; what it gives is shared back to each source by weight, and
+/// each source keeps its own cost.
+model LotMixSource {
+  id          String   @id @default(cuid())
+  tenantId    String
+  mixRagId    String
+  sourceRagId String   @unique
+  /// The source lot's kg and cost when it was mixed (its cost is kept in step if a charge is added later).
+  weightKg    Decimal  @db.Decimal(10, 2)
+  cost        Decimal  @db.Decimal(14, 2)
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  mix    Rag @relation("MixSources", fields: [mixRagId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  source Rag @relation("MixedInto", fields: [sourceRagId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([tenantId, mixRagId])
+}
 
 model SortSession {
   id       String @id @default(cuid())

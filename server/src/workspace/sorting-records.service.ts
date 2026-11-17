@@ -80,6 +80,16 @@ export class SortingRecordsService {
         },
       }),
     ]);
+    // Mixing (owner, 2026-11-17): a mix lists the lots it was made from; a lot that went into one says which.
+    const [madeFrom, wentInto] = await Promise.all([
+      this.prisma.lotMixSource.findMany({
+        where: { tenantId, mixRagId: ragId },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        select: { weightKg: true, cost: true, source: { select: { id: true, ragCode: true, vendor: { select: { name: true } }, container: { select: { containerNumber: true, vendor: { select: { name: true } } } } } } },
+      }),
+      this.prisma.lotMixSource.findUnique({ where: { sourceRagId: ragId }, select: { weightKg: true, mix: { select: { id: true, ragCode: true, weightKg: true, status: true } } } }),
+    ]);
+    const shareOf = (kg: Prisma.Decimal, total: Prisma.Decimal) => (total.isZero() ? 0 : kg.div(total).mul(100).toDecimalPlaces(1).toNumber());
     const topRank = (await topGradeOf(this.prisma, tenantId))?.rank ?? null;
     // What the lot has earned so far (v2 review): the sale lines of its bales and loose stock, less sorter pay.
     const earned = (await lotEconomics(this.prisma, tenantId, [ragId])).get(ragId)!;
@@ -102,6 +112,11 @@ export class SortingRecordsService {
         supplier: r.container?.vendor ?? r.vendor ?? null, cost: money(canSeeCost, r.allocatedCost),
         costPerKg: money(canSeeCost, r.weightKg.isZero() ? ZERO : r.allocatedCost.div(r.weightKg).toDecimalPlaces(2)),
         labour: money(canSeeCost, labour),
+        mixedFrom: madeFrom.map((s) => ({
+          id: s.source.id, code: s.source.ragCode, container: s.source.container?.containerNumber ?? null, supplier: s.source.container?.vendor?.name ?? s.source.vendor?.name ?? null,
+          kg: s.weightKg, sharePercent: shareOf(s.weightKg, r.weightKg), cost: money(canSeeCost, s.cost),
+        })),
+        mixedInto: wentInto && wentInto.mix.id !== ragId ? { id: wentInto.mix.id, code: wentInto.mix.ragCode, status: wentInto.mix.status, sharePercent: shareOf(wentInto.weightKg, wentInto.mix.weightKg) } : null,
         pieces: r.pieces,
         costPerPiece: lotPieces ? money(canSeeCost, r.allocatedCost.div(lotPieces).toDecimalPlaces(2)) : null,
       },

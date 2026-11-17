@@ -123,6 +123,7 @@ export const WS_CRUMBS: Record<string, string> = {
   reports: 'ws.nav.reports',
   settings: 'ws.nav.settings',
   customers: 'ws.nav.customers',
+  mix: 'ws.mix.title',
   trading: 'ws.nav.trading',
   costs: 'ws.nav.costs',
   help: 'help.title',
@@ -211,7 +212,7 @@ const HEADING_SEGMENTS = new Set(['finance']);
 export function crumbsFor(url: string, names: Record<string, string> = {}): Crumb[] {
   const path = url.split(/[?#]/)[0];
   // The sorting screen of a lot sits under the lot's page: Sorting › LOT-2026-011 › Sorting now.
-  const sorting = /^\/sort\/(?!records$|records\/|yield$|grade\/|next$)([^/]+)$/.exec(path);
+  const sorting = /^\/sort\/(?!records$|records\/|yield$|grade\/|next$|mix$)([^/]+)$/.exec(path);
   if (sorting) {
     const id = decodeURIComponent(sorting[1]);
     return [

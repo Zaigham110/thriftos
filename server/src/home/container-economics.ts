@@ -2,6 +2,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { KHATA_SALE_STATUSES } from '../sales/khata.service';
 import { byContainer, LineSource, percent, topGradePercent } from './home';
 import { topGrade as topGradeOf } from '../sorting/top-grade';
+import { mixSources, shareOut } from '../sorting/lot-shares';
 
 const ZERO = new Prisma.Decimal(0);
 
@@ -102,7 +103,42 @@ async function economics(prisma: PrismaClient | Prisma.TransactionClient, tenant
     if (!e) continue;
     e.labour = e.labour.add(l.amount);
   }
+  await addMixShares(prisma, tenantId, out, byLot);
   return out;
+}
+
+/**
+ * Lots that went into a mix (owner, 2026-11-17): the mix was sorted and sold as one lot, and each lot (or its
+ * container) gets its share of that. What the mix gave and sold for is shared by weight; the cost of what sold
+ * by each lot's own cost, so a dearer lot shows less profit. The parts add up to the mix to the paisa.
+ */
+async function addMixShares(prisma: PrismaClient | Prisma.TransactionClient, tenantId: string, out: Map<string, ContainerEconomics>, byLot: boolean): Promise<void> {
+  const ids = [...out.keys()];
+  const mine = await mixSources(prisma, tenantId, byLot ? { sourceRagIds: ids } : { containerIds: ids });
+  if (!mine.length) return;
+  const mixIds = [...new Set(mine.map((s) => s.mixRagId))];
+  const [figures, all] = await Promise.all([economics(prisma, tenantId, mixIds, true), mixSources(prisma, tenantId, { mixRagIds: mixIds })]);
+  for (const mixId of mixIds) {
+    const m = figures.get(mixId);
+    const parts = all.filter((s) => s.mixRagId === mixId);
+    if (!m || !parts.length) continue;
+    const revenue = shareOut(m.revenue, parts, 'weight');
+    const costSold = shareOut(m.revenue.sub(m.profit), parts, 'cost');
+    const sortedKg = shareOut(m.outputKg, parts, 'weight');
+    const labour = shareOut(m.labour, parts, 'weight');
+    const totalKg = parts.reduce((t, p) => t.add(p.weightKg), ZERO);
+    for (const p of parts) {
+      const e = out.get((byLot ? p.sourceRagId : p.containerId) ?? '');
+      if (!e) continue;
+      const r = revenue.get(p.sourceRagId) ?? ZERO;
+      e.revenue = e.revenue.add(r);
+      e.profit = e.profit.add(r.sub(costSold.get(p.sourceRagId) ?? ZERO));
+      e.outputKg = e.outputKg.add(sortedKg.get(p.sourceRagId) ?? ZERO);
+      e.labour = e.labour.add(labour.get(p.sourceRagId) ?? ZERO);
+      // Grades are a percent, so an even share by weight is enough.
+      if (!totalKg.isZero()) for (const g of m.graded) e.graded.push({ rank: g.rank, kg: g.kg.mul(p.weightKg).div(totalKg) });
+    }
+  }
 }
 
 /** Totals for a group of containers (a supplier, a country): profit per kg and top-grade % over all of them. */

@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { CashMoveDirection, CashMoveKind, ExpenseCategory, PaymentMethod, Prisma, StockAdjustmentStatus, StockSource } from '@prisma/client';
+import { CashMoveDirection, CashMoveKind, ExpenseCategory, PaymentMethod, Prisma, RagSourceType, StockAdjustmentStatus, StockSource } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { localDayStart } from '../common/list/list-engine';
@@ -392,7 +392,7 @@ export class FinanceService {
       // Not in profit, shown apart: cash the owner took out or put in, and cash to or from the bank.
       this.prisma.cashMove.findMany({ where: { tenantId, cancelledAt: null, day: { gte: firstDay } }, select: { day: true, kind: true, direction: true, amount: true } }),
       // Stock bought in the month (information: it becomes a cost when it is sold): loose lots, containers, ready stock.
-      this.prisma.rag.findMany({ where: { tenantId, containerId: null, createdAt: { gte: start } }, select: { createdAt: true, allocatedCost: true } }),
+      this.prisma.rag.findMany({ where: { tenantId, containerId: null, sourceType: { not: RagSourceType.MIXED }, createdAt: { gte: start } }, select: { createdAt: true, allocatedCost: true } }),
       this.prisma.container.findMany({ where: { tenantId, createdAt: { gte: start } }, select: { createdAt: true, landedCostPKR: true } }),
       this.prisma.inventoryItem.findMany({ where: { tenantId, source: StockSource.PURCHASED, createdAt: { gte: start } }, select: { createdAt: true, totalCost: true } }),
     ]);
