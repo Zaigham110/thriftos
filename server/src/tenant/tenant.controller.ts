@@ -126,9 +126,10 @@ export class TenantController {
     @CurrentUser() user: CurrentUserData,
     @Req() req: Request,
     @Query('type') type?: RagBaleType,
+    @Query('all') all?: string,
   ) {
     const tenantId = (req as any).tenantId || user.tenantId;
-    return this.tenantService.getRawCategories(tenantId, type);
+    return this.tenantService.getRawCategories(tenantId, type, all === 'true');
   }
 
   @Post('raw-categories')

@@ -116,6 +116,7 @@ export const WS_CRUMBS: Record<string, string> = {
   khata: 'ws.nav.receivables',
   reports: 'ws.nav.reports',
   settings: 'ws.nav.settings',
+  help: 'help.title',
   new: 'ws.crumb.new',
   create: 'ws.crumb.new',
   edit: 'ws.crumb.edit',

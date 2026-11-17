@@ -50,7 +50,7 @@ function parts(code: string): { obj: string; verb: string } {
               <span>{{ 'ws.roles.chosen' | t: { n: chosen().size } }}</span>
               <span class="btns">
                 <a class="ws-btn" routerLink="/settings/admin/roles">{{ 'common.cancel' | t }}</a>
-                <button type="button" class="ws-btn ws-btn-primary" (click)="save(r)" [disabled]="busy() || !canEdit()">{{ 'common.save' | t }}</button>
+                <button type="button" class="ws-btn primary" (click)="save(r)" [disabled]="busy() || !canEdit()">{{ 'common.save' | t }}</button>
               </span>
             </div>
           }
@@ -76,7 +76,7 @@ function parts(code: string): { obj: string; verb: string } {
         @if (canCreate()) {
           <form class="add" (ngSubmit)="create()">
             <label>{{ 'ws.roles.newName' | t }}<input name="newName" [(ngModel)]="newName" maxlength="60" /></label>
-            <button type="submit" class="ws-btn ws-btn-primary" [disabled]="newName.trim().length < 2 || busy()">{{ 'ws.roles.add' | t }}</button>
+            <button type="submit" class="ws-btn primary" [disabled]="newName.trim().length < 2 || busy()">{{ 'ws.roles.add' | t }}</button>
           </form>
         }
         @if (failed()) {

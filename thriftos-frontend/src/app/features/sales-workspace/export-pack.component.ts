@@ -44,7 +44,7 @@ const FIELDS = ['destinationCountry', 'portOfLoading', 'portOfDischarge', 'vesse
             <label>{{ ('xp.f.' + f) | t }}<input [name]="f" maxlength="120" [(ngModel)]="edit[f]" /></label>
           }
         </div>
-        <div class="row"><button type="submit" class="ws-btn ws-btn-primary" [disabled]="busy()">{{ 'xp.makeExport' | t }}</button></div>
+        <div class="row"><button type="submit" class="ws-btn primary" [disabled]="busy()">{{ 'xp.makeExport' | t }}</button></div>
       </form>
     } @else if (pack(); as p) {
       <form class="ship" (ngSubmit)="saveShipment()">

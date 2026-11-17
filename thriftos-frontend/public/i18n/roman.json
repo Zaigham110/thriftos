@@ -141,9 +141,9 @@
  "help": {
   "container": {
    "go": "Naya container",
-   "s1": "Maal aya kholein aur naya container shuru karein.",
+   "s1": "Naya container shuru karein.",
    "s2": "Supplier chunein, invoice ka wazan kg mein aur kharid ki laagat likhein.",
-   "s3": "Jo kharche diye (freight, clearing, mazdoori) chunein aur har raqam likhein. Baad mein bhi daal sakte hain.",
+   "s3": "Jo kharche diye (freight, clearing, mazdoori) woh raqam ke saath daalein. Baad mein bhi daal sakte hain.",
    "s4": "Save karein. Fi kg laagat khud nikal aati hai, aur bechte hue Home par container ka munafa dikhta hai.",
    "title": "Container darj karein"
   },
@@ -153,21 +153,21 @@
    "s1": "Settings kholein, phir Apna register le aayein.",
    "s2": "Sheet download karein aur customer un ke udhaar ke saath, supplier ya stock bharein.",
    "s3": "File chunein aur lines check karein. Laal line theek karein.",
-   "s4": "Shamil karein dabayein. Wohi file dobara daalne se kuch do baar nahi judta.",
+   "s4": "Shamil karein chunein. Wohi file dobara daalne se kuch do baar nahi judta.",
    "title": "Kaghaz ka register le aayein"
   },
   "intro": "Chhoti guide, har ek mein ek kaam.",
   "khata": {
-   "go": "Open Khata",
+   "go": "Khata kholein",
    "s1": "Har udhaar sale khud customer ke khate mein likhi jati hai.",
-   "s2": "Khata kholein aur customer dabayein.",
-   "s3": "Paise aayein to Paise mil gaye dabayein, raqam likh kar save karein. Raseed print kar sakte hain.",
-   "s4": "Baqaya WhatsApp par bhejne ke liye Yaad dilayein dabayein.",
+   "s2": "Khata kholein aur customer chunein.",
+   "s3": "Paise aayein to Paise mil gaye chunein, raqam likh kar save karein. Raseed print kar sakte hain.",
+   "s4": "Baqaya WhatsApp par bhejne ke liye Yaad dilayein chunein.",
    "title": "Udhaar aur wasooli"
   },
   "sale": {
    "go": "Nayi sale",
-   "s1": "Becho kholein aur Nayi sale dabayein.",
+   "s1": "Nayi sale shuru karein.",
    "s2": "Customer chunein, ya naam aur phone se naya daalein.",
    "s3": "Stock chunein, tadaad aur qeemat likhein.",
    "s4": "Cash ya udhaar chunein aur save karein. Bill WhatsApp par bhejein ya print karein.",
@@ -175,37 +175,86 @@
   },
   "sorting": {
    "go": "Chhantai kholein",
-   "s1": "Chhantai kholein aur intezar wala lot dabayein.",
-   "s2": "Category dabayein, kg likhein, save karein. Har dher ke liye yehi karein.",
-   "s3": "Lot khatam ho to Lot band karein dabayein. Jo bacha woh waste mein jata hai.",
-   "s4": "Chhanta hua kg khud Stock mein chala jata hai, apni fi kg laagat ke saath.",
+   "s1": "Chhantai kholein aur intezar wali lot chunein.",
+   "s2": "Category chunein, kg likhein, save karein. Har dher ke liye yehi karein. Wahin gaanthein bhi bana sakte hain.",
+   "s3": "Lot khatam ho to use band karein. Jo bache woh waste mein gina jata hai.",
+   "s4": "Chhanta hua maal fi kg laagat ke saath khud stock mein chala jata hai.",
    "title": "Lot ki chhantai"
   },
   "stock": {
    "go": "Gaanth banayein",
-   "s1": "Stock kholein aur Gaanth banayein dabayein.",
+   "s1": "Gaanth banayein shuru karein.",
    "s2": "Qism chunein aur gaanth ka wazan kg mein likhein.",
-   "s3": "Save karein, phir QR sticker ke liye Label print karein dabayein.",
-   "s4": "Bechte waqt sticker scan karein, gaanth khud chun li jati hai.",
+   "s3": "Save karein, phir sticker print karein. Ek hi qism aur wazan ki gaanthon ka code ek hota hai.",
+   "s4": "Bechte waqt sticker scan karein ya code likhein aur tadaad likhein. Sab se purani gaanthein pehle nikalti hain.",
    "title": "Gaanth aur us ka sticker banayein"
   },
   "supplier": {
-   "go": "Naya container",
-   "s1": "Maal aya kholein aur naya container shuru karein.",
-   "s2": "Kaun sa supplier? ke neeche + Naya supplier dabayein.",
-   "s3": "Naam likhein aur mulk dabayein. Bas.",
-   "s4": "Agli baar aap ka supplier pehla tile hoga. Har supplier ka munafa report mein dikhta hai.",
-   "title": "Supplier daalein"
+   "go": "Naya supplier",
+   "s1": "Supplier kholein aur Naya supplier chunein.",
+   "s2": "Naam likhein aur mulk chunein. Phone number ho to baad mein call ya WhatsApp kar sakte hain.",
+   "s3": "Agar un ka pehle se udhaar baqi hai to use shuru ka baqaya likhein.",
+   "s4": "Save karein. Kharidte waqt yeh supplier samne aata hai, aur us ke page par kharid, baqaya aur munafa dikhta hai.",
+   "title": "Supplier shamil karein"
   },
   "team": {
    "go": "Team kholein",
    "s1": "Settings kholein, phir Team.",
-   "s2": "Staff daalein dabayein, naam aur phone number likhein, aur un ka kaam chunein: manager, khareedar, chhantai wala, salesman ya cashier.",
-   "s3": "4 number ka PIN chunein aur unhein bata dein.",
+   "s2": "Staff shamil karein chunein, naam aur phone number likhein, aur kaam chunein: manager, buyer, sorter, salesman ya cashier.",
+   "s3": "4 hindson ka PIN chunein aur unhein bata dein.",
    "s4": "Woh phone aur PIN se sign in karte hain aur sirf apne kaam ki cheezein dekhte hain, aap ka munafa nahi.",
-   "title": "Apna staff daalein"
+   "title": "Apna staff shamil karein"
   },
-  "title": "Madad"
+  "title": "Madad",
+  "lot": {
+   "title": "Gaari / lot kharidein",
+   "s1": "Nayi lot shuru karein.",
+   "s2": "Supplier chunein, wazan kg mein (ya piece) aur kharid ki raqam likhein.",
+   "s3": "Agar raqam de di hai to Abhi ada kiya chunein. Warna yeh udhaar rehta hai aur supplier ke page par dikhta hai.",
+   "s4": "Save karein. Lot apni fi kg laagat ke saath Chhantai mein intezar karti hai.",
+   "go": "Nayi lot"
+  },
+  "expense": {
+   "title": "Kharcha likhein",
+   "s1": "Naya kharcha shuru karein.",
+   "s2": "Chunein ke kis cheez ka tha (kiraya, bijli, chai, transport waghera) aur raqam likhein.",
+   "s3": "Chunein ke adaigi kaise hui: galle se cash, ya bank.",
+   "s4": "Save karein. Yeh Cash aur bank mein aur Munafa nuqsan mein dikhta hai.",
+   "go": "Naya kharcha"
+  },
+  "close": {
+   "title": "Din ka galla band karein",
+   "s1": "Din ke aakhir mein Galla band kholein.",
+   "s2": "Yeh dikhata hai ke galle mein kitna hona chahiye: sale aur wasooli aayi, kharche aur nikali hui raqam gayi.",
+   "s3": "Cash ginein aur jo gina woh likhein.",
+   "s4": "Save karein. Farq kam ya zyada cash ke taur par likha jata hai, aur din band ho jata hai.",
+   "go": "Galla band kholein"
+  },
+  "supplierPay": {
+   "title": "Supplier ko adaigi karein",
+   "s1": "Supplier kholein. List mein har ek ka baqaya likha hai.",
+   "s2": "Supplier kholein aur Supplier ko adaigi chunein.",
+   "s3": "Raqam aur adaigi ka tareeqa likhein.",
+   "s4": "Save karein. Baqaya kam ho jata hai aur adaigi Cash aur bank mein dikhti hai.",
+   "go": "Supplier kholein"
+  },
+  "pay": {
+   "title": "Chhantai walon ko tankhwah dein",
+   "s1": "Chhantai walon ki tankhwah kholein aur har mazdoor ko ek baar shamil karein, us ki ujrat ke tareeqe ke saath.",
+   "s2": "Chhantai karte waqt mazdoor chunein. Us ke kg khud gine jate hain.",
+   "s3": "Jin dinon ki adaigi karni hai un ki tankhwah sheet banayein. Pehle diya hua advance khud kat jata hai.",
+   "s4": "Raqmein dekhein aur ada shuda karein. Yeh Munafa nuqsan mein mulazimeen ke kharch mein dikhta hai.",
+   "go": "Tankhwah kholein"
+  },
+  "prices": {
+   "title": "Tay shuda qeematein lagayein",
+   "s1": "Rate list kholein.",
+   "s2": "Qeemat ka group banayein, maslan Wholesale, aur har cheez ki qeemat likhein.",
+   "s3": "Customer ke page par use is group mein daalein.",
+   "s4": "Sale par group ki qeemat khud aa jati hai. Bill par aap use badal bhi sakte hain.",
+   "go": "Rate list kholein"
+  },
+  "backToSettings": "Settings"
  },
  "home": {
   "basis": "Is mahine becha: qeemat − laagat",
@@ -831,7 +880,7 @@
      "name": "Categories"
     },
     "godowns": {
-     "hint": "Stock kahan rakha hai; godown ke darmiyan stock le jayein",
+     "hint": "Maal kahan rakha hai",
      "name": "Godown"
     },
     "grades": {
@@ -848,7 +897,7 @@
     },
     "rawCategories": {
      "hint": "Container aur lot mein kya aata hai",
-     "name": "Maal ki qism"
+     "name": "Kachay maal ki qismein"
     },
     "roles": {
      "hint": "Har role kya dekh aur kar sakta hai",
@@ -2311,7 +2360,7 @@
    "turnedOff": "{name} band ho gaya.",
    "turnedOn": "{name} chalu ho gaya.",
    "mainSaved": "{name} ab markazi godown hai.",
-   "taken": "Yeh naam pehle se maujood hai, ya abhi istemal mein hai.",
+   "taken": "Yeh naam pehle se maujood hai.",
    "notAllowed": "Aap ko yeh badalne ki ijazat nahi.",
    "baleKg": "Ek bale ka aam wazan (kg)",
    "comesAs": "Kaise aata hai",
@@ -2351,7 +2400,11 @@
     "title": "Godown",
     "hint": "Maal kahan rakha hai. Naya maal markazi godown mein jata hai.",
     "placeholder": "maslan Shershah godown"
-   }
+   },
+   "keepOne": "Ek ka chalu rehna zaroori hai. Pehle doosra chalu karein ya use markazi banayein.",
+   "hasStock": "Is godown mein abhi {n} maal maujood hai. Pehle use doosre godown mein le jayein.",
+   "oneGodown": "Aap ke plan mein maal ek godown mein rehta hai. Doosra godown izafi sahulat hai.",
+   "seePlan": "Plan aur adaigi dekhein"
   },
   "roles": {
    "peopleOne": "{n} fard",

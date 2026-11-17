@@ -36,12 +36,76 @@ export function exportTables(dmmf = Prisma.dmmf): ExportTable[] {
   return tables;
 }
 
+/**
+ * What each file is called (v2 review: the files were named after database tables, "Rag.csv", "Vendor.csv").
+ * A table not listed here is named after itself in words ("Repack input allocation").
+ */
+const FILE_NAMES: Record<string, string> = {
+  Tenant: 'Business', Customer: 'Customers', Vendor: 'Suppliers', Rag: 'Lots', Container: 'Containers', ContainerCharge: 'Container charges',
+  LotCharge: 'Lot charges', PurchaseOrder: 'Purchase orders', Sale: 'Sales', SaleLine: 'Sale lines', Payment: 'Customer payments',
+  PaymentPromise: 'Payment promises', SupplierPayment: 'Supplier payments', Expense: 'Expenses', CashClose: 'Cash closes', CashMove: 'Cash moves',
+  Category: 'Categories', Grade: 'Grades', RawCategory: 'Raw types', WasteCategory: 'Waste types', Warehouse: 'Godowns',
+  InventoryItem: 'Stock items', RepackUnit: 'Bales', BaleKind: 'Bale codes', QRLabel: 'Bale stickers', StockMovement: 'Stock movements',
+  StockAdjustment: 'Stock counts', SortSession: 'Sorting sessions', CategoryOutput: 'Sorted output', PriceListEntry: 'Price lists',
+  User: 'People', Role: 'Roles', UserRole: 'People and roles', RolePermission: 'Role permissions', AuditLog: 'Activity log',
+  Worker: 'Workers', WorkerAdvance: 'Worker advances', PaySheet: 'Pay sheets', PaySheetLine: 'Pay sheet lines', LabourCost: 'Labour cost',
+  SubscriptionPayment: 'Plan payments', Attachment: 'Attached files (list)', RecordNote: 'Notes',
+};
+export const fileName = (model: string): string => FILE_NAMES[model] ?? model.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^(.)(.*)$/, (_m, a: string, b: string) => a + b.toLowerCase());
+
+/**
+ * Id columns that get a readable column beside them (v2 review: Sale.csv showed a customer id, not a name):
+ * the id column → the table it points to, the field that names a row there, and what the new column is called.
+ */
+export const NAMED_IDS: Record<string, { model: string; field: string; column: string }> = {
+  customerId: { model: 'Customer', field: 'name', column: 'customer' },
+  vendorId: { model: 'Vendor', field: 'name', column: 'supplier' },
+  categoryId: { model: 'Category', field: 'name', column: 'category' },
+  gradeId: { model: 'Grade', field: 'name', column: 'grade' },
+  rawCategoryId: { model: 'RawCategory', field: 'name', column: 'rawType' },
+  wasteCategoryId: { model: 'WasteCategory', field: 'name', column: 'wasteType' },
+  warehouseId: { model: 'Warehouse', field: 'name', column: 'godown' },
+  saleId: { model: 'Sale', field: 'saleNumber', column: 'sale' },
+  ragId: { model: 'Rag', field: 'ragCode', column: 'lot' },
+  ragBaleId: { model: 'Rag', field: 'ragCode', column: 'lot' },
+  containerId: { model: 'Container', field: 'containerNumber', column: 'container' },
+  repackUnitId: { model: 'RepackUnit', field: 'unitCode', column: 'baleNumber' },
+  baleKindId: { model: 'BaleKind', field: 'code', column: 'baleCode' },
+  workerId: { model: 'Worker', field: 'name', column: 'worker' },
+  roleId: { model: 'Role', field: 'name', column: 'role' },
+  userId: { model: 'User', field: 'name', column: 'person' },
+  createdBy: { model: 'User', field: 'name', column: 'createdByName' },
+  receivedBy: { model: 'User', field: 'name', column: 'receivedByName' },
+  requestedBy: { model: 'User', field: 'name', column: 'requestedByName' },
+  decidedBy: { model: 'User', field: 'name', column: 'decidedByName' },
+  cancelledBy: { model: 'User', field: 'name', column: 'cancelledByName' },
+};
+
+/**
+ * Adds the readable columns: each named id column is followed by the name it stands for. `lookups` maps a table
+ * to its rows' names by id (built from the same export, so only this business's rows).
+ */
+export function withNames(columns: string[], rows: Record<string, unknown>[], lookups: Map<string, Map<string, string>>): { columns: string[]; rows: Record<string, unknown>[] } {
+  const named = columns.filter((c) => NAMED_IDS[c] && lookups.has(NAMED_IDS[c].model) && !columns.includes(NAMED_IDS[c].column));
+  if (!named.length) return { columns, rows };
+  const out = columns.flatMap((c) => (named.includes(c) ? [c, NAMED_IDS[c].column] : [c]));
+  return {
+    columns: out,
+    rows: rows.map((r) => {
+      const copy = { ...r };
+      for (const c of named) copy[NAMED_IDS[c].column] = lookups.get(NAMED_IDS[c].model)!.get(String(r[c] ?? '')) ?? null;
+      return copy;
+    }),
+  };
+}
+
 function cell(v: unknown): string {
   if (v === null || v === undefined) return '';
   const s =
     v instanceof Date ? v.toISOString() : Prisma.Decimal.isDecimal(v) ? (v as Prisma.Decimal).toString() : typeof v === 'object' ? JSON.stringify(v) : String(v);
   // Quote when needed; a leading = + - @ is prefixed so spreadsheets do not run it as a formula.
-  const safe = /^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s) ? `'${s}` : s;
+  // A phone number (+923001234567) is not a formula: it stays as written (v2 review: it came out as '+92…).
+  const safe = /^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s) && !/^\+\d[\d ]*$/.test(s) ? `'${s}` : s;
   return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 

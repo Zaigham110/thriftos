@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RagBaleType } from '@prisma/client';
 import { CreateRawCategoryDto, UpdateRawCategoryDto } from './dto/raw-category.dto';
@@ -389,22 +389,40 @@ export class TenantService {
     });
   }
 
-  async getRawCategories(tenantId: string, type?: RagBaleType) {
+  /** Raw types that are on (what the buying forms offer); `all` adds the ones turned off, for Settings. */
+  async getRawCategories(tenantId: string, type?: RagBaleType, all = false) {
     return this.prisma.rawCategory.findMany({
       where: {
         tenantId,
-        isActive: true,
+        ...(all ? {} : { isActive: true }),
         ...(type && { rawType: type }),
       },
       orderBy: { sortOrder: 'asc' },
     });
   }
 
+  /** One name, one raw type: "Mixed" in bales and "Mixed" loose side by side only confuse (v2 review). */
+  private async assertRawNameFree(tenantId: string, name: string, exceptId?: string) {
+    const taken = await this.prisma.rawCategory.findFirst({
+      where: { tenantId, name: { equals: name, mode: 'insensitive' }, ...(exceptId ? { id: { not: exceptId } } : {}) },
+      select: { id: true },
+    });
+    if (taken) throw new ConflictException('A raw type with this name already exists');
+  }
+
+  /** The buying forms need something to offer: the last raw type that is on stays on. */
+  private async assertNotLastRaw(tenantId: string, id: string) {
+    const others = await this.prisma.rawCategory.count({ where: { tenantId, isActive: true, id: { not: id } } });
+    if (!others) throw new ConflictException({ statusCode: 409, code: 'LAST_ONE', message: 'Keep at least one raw type' });
+  }
+
   async createRawCategory(tenantId: string, dto: CreateRawCategoryDto) {
+    const name = dto.name.trim();
+    await this.assertRawNameFree(tenantId, name);
     return this.prisma.rawCategory.create({
       data: {
         tenantId,
-        name: dto.name,
+        name,
         rawType: dto.rawType,
         sortOrder: dto.sortOrder ?? 0,
       },
@@ -419,16 +437,25 @@ export class TenantService {
     if (!category) {
       throw new NotFoundException('Raw category not found');
     }
+    const name = dto.name?.trim();
+    if (name && name.toLowerCase() !== category.name.toLowerCase()) await this.assertRawNameFree(tenantId, name, id);
+    if (dto.isActive === false && category.isActive) await this.assertNotLastRaw(tenantId, id);
 
     return this.prisma.rawCategory.update({
       where: { id },
       data: {
-        ...(dto.name && { name: dto.name }),
+        ...(name && { name }),
         ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
+        ...(dto.rawType && { rawType: dto.rawType }),
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
       },
     });
   }
 
+  /**
+   * Removing a raw type that lots were bought as only turns it off: those lots keep saying what they were
+   * (v2 review: it was deleted and six lots lost it). One nothing used is deleted.
+   */
   async deleteRawCategory(tenantId: string, id: string) {
     const category = await this.prisma.rawCategory.findFirst({
       where: { id, tenantId },
@@ -437,6 +464,9 @@ export class TenantService {
     if (!category) {
       throw new NotFoundException('Raw category not found');
     }
+    if (category.isActive) await this.assertNotLastRaw(tenantId, id);
+    const used = await this.prisma.rag.count({ where: { tenantId, rawCategoryId: id } });
+    if (used) return this.prisma.rawCategory.update({ where: { id }, data: { isActive: false } });
 
     return this.prisma.rawCategory.delete({
       where: { id },
@@ -538,6 +568,12 @@ export class TenantService {
       });
       if (otherActiveCount === 0) {
         throw new BadRequestException('Cannot deactivate the last active warehouse.');
+      }
+
+      // Stock inside would sit in a godown that is offered nowhere (v2 review: 21 items were left in one).
+      const inside = await this.prisma.inventoryItem.count({ where: { tenantId, warehouseId: id, status: 'AVAILABLE' } });
+      if (inside) {
+        throw new ConflictException({ statusCode: 409, code: 'HAS_STOCK', count: inside, message: `This godown still holds ${inside} stock items. Move them to another godown first.` });
       }
     }
 

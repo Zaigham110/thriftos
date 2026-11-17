@@ -2,6 +2,7 @@ import { Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ArrowLeft, ChevronRight, LucideAngularModule } from 'lucide-angular';
 import { I18N } from '../../core/i18n/t.pipe';
+import { moduleOn } from '../../core/tenant/module-on';
 import { HELP_TOPICS, helpTopic } from './help-topics';
 
 /**
@@ -28,10 +29,13 @@ import { HELP_TOPICS, helpTopic } from './help-topics';
           <a class="btn primary" [routerLink]="t.link">{{ 'help.' + t.key + '.go' | t }}</a>
         </footer>
       } @else {
-        <header class="floor-head"><h1>{{ 'help.title' | t }}</h1></header>
+        <header class="floor-head">
+          <a class="icon-btn back" routerLink="/settings" [attr.aria-label]="'help.backToSettings' | t"><lucide-icon [img]="icons.ArrowLeft" [size]="22" /></a>
+          <h1>{{ 'help.title' | t }}</h1>
+        </header>
         <p class="intro">{{ 'help.intro' | t }}</p>
         <ul class="topics">
-          @for (t of topics; track t.key) {
+          @for (t of topics(); track t.key) {
             <li><a class="card topic" [routerLink]="['/help', t.key]">
               <lucide-icon [img]="t.icon" [size]="22" class="ic" />
               <strong>{{ 'help.' + t.key + '.title' | t }}</strong>
@@ -43,6 +47,8 @@ import { HELP_TOPICS, helpTopic } from './help-topics';
     </section>
   `,
   styles: [`
+    /* As wide as the other Settings pages on a laptop (v2 review). */
+    .help { max-width:960px; }
     .help .intro { margin:0 0 4px; color:var(--tos-ink-soft); }
     .help .steps, .help .topics { display:grid; gap:10px; margin:0; padding:0; list-style:none; }
     .help .steps li { display:flex; gap:14px; align-items:flex-start; flex-direction:row; }
@@ -59,7 +65,9 @@ export class HelpComponent {
   /** From the route `/help/:topic`. */
   readonly key = input<string>('', { alias: 'topic' });
   protected readonly topic = computed(() => helpTopic(this.key()));
-  protected readonly topics = HELP_TOPICS;
+  private readonly on = moduleOn();
+  /** Only the guides for what this business has. */
+  protected readonly topics = computed(() => HELP_TOPICS.filter((t) => !t.module || this.on(t.module)));
   protected readonly numbers = [1, 2, 3, 4];
   protected readonly icons = { ArrowLeft, ChevronRight };
 }

@@ -4,7 +4,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Observable, forkJoin } from 'rxjs';
 import { AuthService } from '../../core/auth';
 import { API_BASE_URL } from '../../core/config/api.config';
@@ -19,7 +19,9 @@ export type NamesKind = 'categories' | 'grades' | 'raw' | 'waste' | 'warehouses'
 
 /** Each list: where it lives on the server, what else it keeps besides the name, and who may change it. */
 interface Kind {
-  url: string; update: 'patch' | 'put'; remove: 'off' | 'delete'; extras: Extra[];
+  url: string; update: 'patch' | 'put'; extras: Extra[];
+  /** Added to the list address so Settings also gets the ones turned off. */
+  listQuery?: string;
   create: string; edit: string; order?: (a: Row, b: Row) => number;
   /** Adding more needs this module (v2 modules: a second godown is "More than one godown"). */
   module?: TenantModule;
@@ -36,24 +38,25 @@ const codeOf = (name: string, rows: Row[]) => {
 
 const KINDS: Record<NamesKind, Kind> = {
   categories: {
-    url: '/admin/categories', update: 'patch', remove: 'off', create: 'category.create', edit: 'category.update',
+    url: '/admin/categories', update: 'patch', create: 'category.create', edit: 'category.update',
     extras: [{ key: 'baleWeightKg', type: 'number', label: 'ws.names.baleKg'}],
     order: (a, b) => Number(a['sortOrder'] ?? 0) - Number(b['sortOrder'] ?? 0),
     body: (name, x, rows) => ({ name, sortOrder: rows.length, baleWeightKg: num(x['baleWeightKg']) }),
   },
   grades: {
-    url: '/admin/grades', update: 'patch', remove: 'off', create: 'grade.create', edit: 'grade.update', extras: [],
+    url: '/admin/grades', update: 'patch', create: 'grade.create', edit: 'grade.update', extras: [],
     order: (a, b) => Number(a['rank'] ?? 0) - Number(b['rank'] ?? 0),
     body: (name, _x, rows) => ({ name, rank: Math.max(0, ...rows.map((r) => Number(r['rank'] ?? 0))) + 1 }),
   },
   raw: {
-    url: '/tenant/raw-categories', update: 'put', remove: 'delete', create: 'category.create', edit: 'category.update',
+    // Turned off, never deleted: the lots bought as it keep saying so (v2 review).
+    url: '/tenant/raw-categories', update: 'put', listQuery: '?all=true', create: 'category.create', edit: 'category.update',
     extras: [{ key: 'rawType', type: 'select', options: ['BALE', 'RAG', 'BOTH'], optionPrefix: 'ws.names.rawType.', label: 'ws.names.comesAs' }],
     order: (a, b) => Number(a['sortOrder'] ?? 0) - Number(b['sortOrder'] ?? 0),
     body: (name, x, rows) => ({ name, rawType: x['rawType'] || 'BALE', sortOrder: rows.length }),
   },
   waste: {
-    url: '/admin/waste-categories', update: 'patch', remove: 'off', create: 'category.create', edit: 'category.update',
+    url: '/admin/waste-categories', update: 'patch', create: 'category.create', edit: 'category.update',
     extras: [
       { key: 'unitType', type: 'select', options: ['KG', 'PCS'], optionPrefix: 'ws.names.unit.', label: 'ws.names.soldBy' },
       { key: 'defaultResalePrice', type: 'number', label: 'ws.names.resalePrice'},
@@ -61,7 +64,7 @@ const KINDS: Record<NamesKind, Kind> = {
     body: (name, x) => ({ name, unitType: x['unitType'] || 'KG', defaultResalePrice: num(x['defaultResalePrice']) ?? 0 }),
   },
   warehouses: {
-    url: '/admin/warehouses', update: 'patch', remove: 'off', create: 'warehouse.create', edit: 'warehouse.update', module: 'WAREHOUSES',
+    url: '/admin/warehouses', update: 'patch', create: 'warehouse.create', edit: 'warehouse.update', module: 'WAREHOUSES',
     extras: [{ key: 'location', type: 'text', label: 'ws.names.location' }],
     body: (name, x, rows) => ({ name, code: codeOf(name, rows), ...(x['location'] ? { location: String(x['location']).trim() } : {}) }),
   },
@@ -75,7 +78,7 @@ const KINDS: Record<NamesKind, Kind> = {
 @Component({
   selector: 'app-names-list',
   standalone: true,
-  imports: [FormsModule, NgTemplateOutlet, TPipe, WsPageHeaderComponent, WsStateComponent],
+  imports: [FormsModule, NgTemplateOutlet, RouterLink, TPipe, WsPageHeaderComponent, WsStateComponent],
   template: `
     <div class="page">
       <ws-page-header [heading]="'ws.names.' + kindKey() + '.title' | t" [subtitle]="'ws.names.' + kindKey() + '.hint' | t" />
@@ -93,9 +96,10 @@ const KINDS: Record<NamesKind, Kind> = {
               }
             </label>
           }
-          <button type="submit" class="ws-btn ws-btn-primary" [disabled]="!newName.trim() || busy()">{{ 'ws.names.add' | t }}</button>
+          <button type="submit" class="ws-btn primary" [disabled]="!newName.trim() || busy()">{{ 'ws.names.add' | t }}</button>
         </form>
       }
+      @if (needsModule()) { <p class="note">{{ 'ws.names.oneGodown' | t }} <a routerLink="/settings/billing">{{ 'ws.names.seePlan' | t }}</a></p> }
       @if (failed()) {
         <ws-state kind="error" [heading]="'common.couldNotLoad' | t" (retry)="load()" />
       } @else if (loaded()) {
@@ -132,7 +136,7 @@ const KINDS: Record<NamesKind, Kind> = {
             }
             <span class="btns">
               <button type="button" class="ws-btn" (click)="editing.set(null)">{{ 'common.cancel' | t }}</button>
-              <button type="submit" class="ws-btn ws-btn-primary" [disabled]="!eName.trim() || busy()">{{ 'common.save' | t }}</button>
+              <button type="submit" class="ws-btn primary" [disabled]="!eName.trim() || busy()">{{ 'common.save' | t }}</button>
             </span>
           </form>
         } @else {
@@ -147,7 +151,7 @@ const KINDS: Record<NamesKind, Kind> = {
                 @if (kind().order && canMove(r, 1)) { <button type="button" class="ws-btn" [disabled]="busy()" [attr.aria-label]="('ws.names.moveDown' | t) + ': ' + r.name" [title]="'ws.names.moveDown' | t" (click)="move(r, 1)">↓</button> }
                 <button type="button" class="ws-btn" (click)="edit(r)">{{ 'ws.names.change' | t }}</button>
                 @if (kindKey() === 'warehouses' && !r.isDefault) { <button type="button" class="ws-btn" (click)="makeMain(r)">{{ 'ws.names.makeMain' | t }}</button> }
-                @if (canTurnOff(r)) { <button type="button" class="ws-btn" (click)="turnOff(r)">{{ (kind().remove === 'delete' ? 'ws.names.remove' : 'ws.names.turnOff') | t }}</button> }
+                @if (canTurnOff(r)) { <button type="button" class="ws-btn" (click)="turnOff(r)">{{ 'ws.names.turnOff' | t }}</button> }
               } @else {
                 <button type="button" class="ws-btn" (click)="turnOn(r)">{{ 'ws.names.turnOn' | t }}</button>
               }
@@ -174,6 +178,7 @@ const KINDS: Record<NamesKind, Kind> = {
     .btns { display:flex; flex-wrap:wrap; gap:var(--ws-2); }
     .empty { color:var(--ws-ink-2); }
     h2 { margin:0; color:var(--ws-ink-2); font-size:var(--ws-text-sm); font-weight:600; }
+    .note { margin:0; color:var(--ws-ink-2); font-size:var(--ws-text-sm); }
   `],
 })
 export class NamesListComponent implements OnInit {
@@ -192,6 +197,8 @@ export class NamesListComponent implements OnInit {
   protected readonly off = computed(() => this.sorted().filter((r) => r.isActive === false));
   private readonly on = moduleOn();
   protected readonly canCreate = computed(() => this.auth.hasPermission(this.kind().create) && (!this.kind().module || this.on(this.kind().module!)));
+  /** A business with one godown: say why there is no way to add another (v2 review: the page said nothing). */
+  protected readonly needsModule = computed(() => !!this.kind().module && !this.on(this.kind().module!) && this.auth.hasPermission(this.kind().create));
   protected readonly canEdit = computed(() => this.auth.hasPermission(this.kind().edit));
   protected newName = '';
   protected newExtra: Record<string, unknown> = {};
@@ -254,7 +261,8 @@ export class NamesListComponent implements OnInit {
    */
   protected canTurnOff(r: Row): boolean {
     if (r.isDefault) return false;
-    if (this.kindKey() === 'waste') return this.rows().filter((x) => x.isActive !== false).length > 1;
+    // One waste type and one raw type stay on: sorting and buying need something to offer.
+    if (this.kindKey() === 'waste' || this.kindKey() === 'raw') return this.rows().filter((x) => x.isActive !== false).length > 1;
     return !r.isSystemGenerated;
   }
 
@@ -281,20 +289,16 @@ export class NamesListComponent implements OnInit {
     const first = this.kindKey() === 'grades' ? 1 : 0;
     const changed = list.map((x, n) => ({ x, value: n + first })).filter(({ x, value }) => Number(x[field] ?? -1) !== value);
     const verb = this.kind().update.toUpperCase();
-    this.run(forkJoin(changed.map(({ x, value }) => this.http.request(verb, `${this.url()}/${x.id}`, { body: this.kindKey() === 'raw' ? { name: x.name, rawType: x['rawType'], [field]: value } : { [field]: value } }))), () => this.toast.show(this.i18n.t('ws.names.orderSaved')));
+    this.run(forkJoin(changed.map(({ x, value }) => this.http.request(verb, `${this.url()}/${x.id}`, { body: { [field]: value } }))), () => this.toast.show(this.i18n.t('ws.names.orderSaved')));
   }
 
   protected turnOff(r: Row): void {
-    if (this.kind().remove === 'delete') {
-      if (!confirm(this.i18n.t('ws.names.removeConfirm', { name: r.name }))) return;
-      this.run(this.http.delete(`${this.url()}/${r.id}`), () => this.toast.show(this.i18n.t('ws.names.removed', { name: r.name })));
-    } else {
-      this.run(this.http.patch(`${this.url()}/${r.id}`, { isActive: false }), () => this.toast.show(this.i18n.t('ws.names.turnedOff', { name: r.name })));
-    }
+    // Turning off can be undone (Turn on), so it asks nothing.
+    this.run(this.http.request(this.kind().update.toUpperCase(), `${this.url()}/${r.id}`, { body: { isActive: false } }), () => this.toast.show(this.i18n.t('ws.names.turnedOff', { name: r.name })));
   }
 
   protected turnOn(r: Row): void {
-    this.run(this.http.patch(`${this.url()}/${r.id}`, { isActive: true }), () => this.toast.show(this.i18n.t('ws.names.turnedOn', { name: r.name })));
+    this.run(this.http.request(this.kind().update.toUpperCase(), `${this.url()}/${r.id}`, { body: { isActive: true } }), () => this.toast.show(this.i18n.t('ws.names.turnedOn', { name: r.name })));
   }
 
   protected makeMain(r: Row): void {
@@ -303,7 +307,9 @@ export class NamesListComponent implements OnInit {
 
   protected load(): void {
     this.failed.set(false);
-    this.http.get<Row[] | { data: Row[] }>(this.url()).subscribe({
+    // Always from the server: the installed app keeps these lists for five minutes for the buying and sorting
+    // screens, and a name just added here would not show (v2 review).
+    this.http.get<Row[] | { data: Row[] }>(`${this.url()}${this.kind().listQuery ?? ''}`, { headers: { 'ngsw-bypass': 'true' } }).subscribe({
       next: (r) => {
         this.rows.set(Array.isArray(r) ? r : (r?.data ?? []));
         this.loaded.set(true);
@@ -330,7 +336,16 @@ export class NamesListComponent implements OnInit {
       },
       error: (e: HttpErrorResponse) => {
         this.busy.set(false);
-        this.toast.error(this.i18n.t(e.status === 409 || /exist/i.test(String(e.error?.message ?? '')) ? 'ws.names.taken' : e.status === 403 ? 'ws.names.notAllowed' : 'common.couldNotSave'));
+        // Say what is wrong (v2 review: every refusal read "that name is already there").
+        const code = e.error?.code as string | undefined;
+        const text = String(e.error?.message ?? '');
+        this.toast.error(
+          code === 'HAS_STOCK' ? this.i18n.t('ws.names.hasStock', { n: this.i18n.num(e.error?.count ?? 0) })
+          : code === 'LAST_ONE' || /last active|default warehouse/i.test(text) ? this.i18n.t('ws.names.keepOne')
+          : e.status === 409 || /exist/i.test(text) ? this.i18n.t('ws.names.taken')
+          : e.status === 403 ? this.i18n.t('ws.names.notAllowed')
+          : this.i18n.t('common.couldNotSave'),
+        );
       },
     });
   }

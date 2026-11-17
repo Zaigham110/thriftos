@@ -133,9 +133,9 @@ export class TenantBootstrapService {
       const defaultWarehouse = await tx.warehouse.create({
         data: {
           tenantId,
-          name: 'Main Warehouse',
+          // The app says godown everywhere; where it is, the owner writes (v2 review: "Default Location").
+          name: 'Main godown',
           code: 'WH-001',
-          location: 'Default Location',
         },
       });
       result.warehouses = 1;
