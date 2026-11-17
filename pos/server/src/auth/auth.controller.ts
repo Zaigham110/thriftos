@@ -5,6 +5,7 @@ import { Shop, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { Actor, Me, Public } from '../common/auth.guard';
 import { PrismaService } from '../common/prisma.service';
+import { sign } from '../common/currency';
 import { fail, optText, phoneDigits, pin, text } from '../common/util';
 
 export function checkPassword(value: unknown, min: number): string {
@@ -15,8 +16,8 @@ export function checkPassword(value: unknown, min: number): string {
 
 /** What every screen may know about the shop (bill header, tax, limits). */
 export function shopView(shop: Shop) {
-  const { id, name, phone, city, address, currency, billFooter, taxName, taxRate, taxInclusive, ntn, strn, cashierMaxDiscountPct, managerSeesCost } = shop;
-  return { id, name, phone, city, address, currency, billFooter, taxName, taxRate, taxInclusive, ntn, strn, cashierMaxDiscountPct, managerSeesCost };
+  const { id, name, phone, city, address, currency, supplierCurrency, rateMode, billFooter, taxName, taxRate, taxInclusive, ntn, strn, cashierMaxDiscountPct, managerSeesCost } = shop;
+  return { id, name, phone, city, address, currency, currencySign: sign(currency), supplierCurrency, rateMode, billFooter, taxName, taxRate, taxInclusive, ntn, strn, cashierMaxDiscountPct, managerSeesCost };
 }
 
 /** Wrong PIN tries per person. A 4-digit PIN must not be guessable from a signed-in till. */

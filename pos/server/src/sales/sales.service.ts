@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { BaleStatus, KhataKind, LineKind, PayMethod, Prisma, RefundTo, SaleStatus, UserRole } from '@prisma/client';
 import { audit, khata, openShift } from '../common/audit';
 import { Actor, isManager } from '../common/auth.guard';
+import { sign } from '../common/currency';
 import { PrismaService } from '../common/prisma.service';
 import { amount, D, Dec, fail, moment, optText, pad, range, spread, text, wholeNumber, ZERO } from '../common/util';
 
@@ -83,6 +84,11 @@ export class SalesService {
       if (before) return this.get(me, before.id);
     }
 
+    // An exchange: goods of an earlier bill come back and pay for (part of) this one.
+    const exchange = body.exchange && typeof body.exchange === 'object' ? (body.exchange as Record<string, unknown>) : null;
+    if (exchange && offline) fail('EXCHANGE_ONLINE', 'An exchange needs the shop server. Try again when the connection is back.');
+    if (exchange && !isManager(me)) fail('MANAGER_ONLY', 'A manager or the owner makes an exchange.', 403);
+
     const review: string[] = [];
     const refuse = (code: string, message: string, status = 400) => {
       if (!offline) fail(code, message, status);
@@ -138,21 +144,36 @@ export class SalesService {
     // Money taken now. Change comes out of cash only; what is not paid goes on the customer's khata.
     const customer = body.customerId ? await this.prisma.customer.findFirst({ where: { id: String(body.customerId), tenantId } }) : null;
     if (body.customerId && !customer) fail('NOT_FOUND', 'This customer was not found.', 404);
-    const tenders = this.payments(body.payments) ?? [{ method: PayMethod.CASH, amount: total, reference: null }];
+    // What the returned goods are worth pays first; if they are worth more than this bill, the rest goes back in cash.
+    let exchangeWorth = ZERO;
+    if (exchange) {
+      const old = await this.prisma.sale.findFirst({ where: { id: String(exchange.saleId ?? ''), tenantId, status: SaleStatus.COMPLETED }, include: { lines: true } });
+      if (!old) fail('NOT_FOUND', 'The bill of the returned goods was not found or is cancelled.', 404);
+      exchangeWorth = this.worth(old, this.asked(exchange.lines)).total;
+    }
+    const exchanged = exchangeWorth.greaterThan(total) ? total : exchangeWorth;
+    const exchangeBack = exchangeWorth.minus(exchanged);
+    const due = total.minus(exchanged);
+    const tenders = this.payments(body.payments) ?? [{ method: PayMethod.CASH, amount: due, reference: null }];
     const tendered = tenders.reduce((sum, p) => sum.plus(p.amount), ZERO);
     const cashTendered = tenders.filter((p) => p.method === PayMethod.CASH).reduce((sum, p) => sum.plus(p.amount), ZERO);
-    const change = tendered.greaterThan(total) ? tendered.minus(total) : ZERO;
+    const change = tendered.greaterThan(due) ? tendered.minus(due) : ZERO;
     if (change.greaterThan(cashTendered)) fail('OVERPAID', 'Bank and wallet payments together are more than the bill.');
     const paid = tendered.minus(change);
-    const credit = total.minus(paid);
+    const credit = due.minus(paid);
+    const money = sign(shop.currency);
     if (credit.greaterThan(0)) {
-      if (!customer) refuse('NEEDS_CUSTOMER', `Rs ${credit.toFixed(0)} is not paid. Choose a customer to put it on khata, or take the full amount.`);
+      if (!customer) refuse('NEEDS_CUSTOMER', `${money} ${credit.toFixed(0)} is not paid. Choose a customer to put it on khata, or take the full amount.`);
       else if (customer.creditLimit && customer.balance.plus(credit).greaterThan(customer.creditLimit) && !isManager(me)) {
-        refuse('OVER_LIMIT', `${customer.name} would owe Rs ${customer.balance.plus(credit).toFixed(0)}, over the limit of Rs ${customer.creditLimit.toFixed(0)}. Ask a manager.`, 403);
+        refuse('OVER_LIMIT', `${customer.name} would owe ${money} ${customer.balance.plus(credit).toFixed(0)}, over the limit of ${money} ${customer.creditLimit.toFixed(0)}. Ask a manager.`, 403);
       }
     }
 
     const saleId = await this.prisma.$transaction(async (tx) => {
+      // The returned goods come back first (in this same step, so an exchange is all or nothing).
+      const taken = exchange ? await this.refundIn(tx, me, String(exchange.saleId), { ...exchange, refundTo: RefundTo.EXCHANGE, tillId: till.id }, true) : null;
+      if (taken && !taken.total.equals(exchangeWorth)) fail('EXCHANGE_CHANGED', 'The bill of the returned goods changed meanwhile. Start the exchange again.', 409);
+
       const prepared: Prisma.SaleLineCreateManySaleInput[] = [];
       // Bales named one by one on this bill are theirs: a kind line never takes one of them.
       const named = lines.filter((l) => l.baleId).map((l) => l.baleId!);
@@ -291,8 +312,10 @@ export class SalesService {
           total,
           costTotal: prepared.reduce((sum, l) => sum.plus(l.costTotal as Dec), ZERO),
           paidTotal: paid,
-          changeGiven: change,
+          changeGiven: change.plus(exchangeBack),
           creditAmount: credit.greaterThan(0) ? credit : ZERO,
+          exchangeAmount: exchanged,
+          exchangeReturnId: taken?.id ?? null,
           note: optText(body.note, 'Note', 300),
           madeOffline: !!offline,
           needsReview: review.length > 0,
@@ -312,6 +335,14 @@ export class SalesService {
       if (credit.greaterThan(0) && customer) {
         await khata(tx, me, customer.id, { kind: KhataKind.SALE, amount: credit, saleId: sale.id, shiftId: shift?.id, note: `Bill ${code}` });
       }
+      if (taken) {
+        await tx.saleReturn.update({ where: { id: taken.id }, data: { exchangeSaleId: sale.id } });
+        // Returned goods worth more than the new bill: the difference leaves the drawer.
+        if (exchangeBack.greaterThan(0) && shift) {
+          await tx.cashMovement.create({ data: { tenantId, shiftId: shift.id, kind: 'OUT', amount: exchangeBack, reason: `Exchange ${taken.code}: difference given back`, userId: me.id, userName: me.name } });
+        }
+        await audit(tx, me, 'Exchange', `${taken.code} for bill ${code}: goods worth ${money} ${exchangeWorth.toFixed(0)} came back`);
+      }
       return sale.id;
     });
     return this.get(me, saleId);
@@ -327,11 +358,13 @@ export class SalesService {
       });
       if (done.count !== 1) fail('NOT_CANCELLABLE', 'This bill was not found, is already cancelled, or has a return on it.', 409);
       const sale = await tx.sale.findUniqueOrThrow({ where: { id }, include: { lines: true } });
+      // Part of an exchange bill was paid with goods; cancelling it would lose that. A return gives it back properly.
+      if (sale.exchangeAmount.greaterThan(0)) fail('IS_EXCHANGE', 'This bill is an exchange and cannot be cancelled. Take a return on it instead.', 409);
       for (const line of sale.lines) await this.putBack(tx, tenantId, line, line.quantity, true);
       if (sale.creditAmount.greaterThan(0) && sale.customerId) {
         await khata(tx, me, sale.customerId, { kind: KhataKind.CANCEL, amount: sale.creditAmount.negated(), saleId: id, note: `Bill ${sale.code} cancelled` });
       }
-      await audit(tx, me, 'Bill cancelled', `${sale.code}, Rs ${sale.total.toFixed(0)}${reason ? `: ${reason}` : ''}`);
+      await audit(tx, me, 'Bill cancelled', `${sale.code}, ${sale.total.toFixed(0)}${reason ? `: ${reason}` : ''}`);
     });
     return this.get(me, id);
   }
@@ -349,69 +382,122 @@ export class SalesService {
     }
   }
 
+  /** What a screen asks to return: lines of a bill and how many of each. */
+  private asked(raw: unknown): { saleLineId: string; quantity: number; restock: boolean }[] {
+    const list = Array.isArray(raw) ? (raw as Record<string, unknown>[]) : [];
+    if (!list.length) fail('NO_LINES', 'Choose what is coming back.');
+    return list.map((a) => ({ saleLineId: String(a?.saleLineId ?? ''), quantity: wholeNumber(a?.quantity ?? 1, 'Quantity'), restock: a?.restock !== false }));
+  }
+
+  /** What the asked lines are worth today: each piece carries its share of the bill's discount and tax. */
+  private worth(sale: { subtotal: Dec; total: Dec; returnedTotal: Dec; lines: { id: string; quantity: number; returnedQty: number; lineTotal: Dec; description: string }[] }, asked: { saleLineId: string; quantity: number }[]) {
+    const factor = sale.subtotal.isZero() ? ZERO : sale.total.dividedBy(sale.subtotal);
+    let total = ZERO;
+    const amounts = asked.map((ask) => {
+      const line = sale.lines.find((l) => l.id === ask.saleLineId);
+      if (!line) fail('BAD_LINE', 'A line is not on this bill.');
+      if (ask.quantity > line.quantity - line.returnedQty) fail('TOO_MANY', `Only ${line.quantity - line.returnedQty} of "${line.description}" can still come back.`, 409);
+      const lineAmount = line.lineTotal.times(factor).times(ask.quantity).dividedBy(line.quantity).toDecimalPlaces(2);
+      total = total.plus(lineAmount);
+      return lineAmount;
+    });
+    const left = sale.total.minus(sale.returnedTotal);
+    if (total.greaterThan(left)) total = left; // rounding never refunds more than was billed
+    return { total, amounts };
+  }
+
   /** A customer brings something back: some lines or pieces of one bill. */
   async refund(me: Actor, saleId: string, body: Record<string, unknown>) {
+    const ret = await this.prisma.$transaction((tx) => this.refundIn(tx, me, saleId, body, false));
+    return { returnId: ret.id, code: ret.code, total: ret.total, sale: await this.get(me, saleId) };
+  }
+
+  /** `exchange`: the money is not paid out; it pays for the other goods on the exchange bill (see `create`). */
+  private async refundIn(tx: Prisma.TransactionClient, me: Actor, saleId: string, body: Record<string, unknown>, exchange: boolean) {
     const tenantId = me.tenantId;
-    const refundTo = String(body.refundTo) in RefundTo ? (String(body.refundTo) as RefundTo) : RefundTo.CASH;
-    const asked = Array.isArray(body.lines) ? (body.lines as Record<string, unknown>[]) : [];
-    if (!asked.length) fail('NO_LINES', 'Choose what is coming back.');
+    const refundTo = exchange ? RefundTo.EXCHANGE : String(body.refundTo) in RefundTo && body.refundTo !== RefundTo.EXCHANGE ? (String(body.refundTo) as RefundTo) : RefundTo.CASH;
+    const asked = this.asked(body.lines);
 
-    const returnId = await this.prisma.$transaction(async (tx) => {
-      const sale = await tx.sale.findFirst({ where: { id: saleId, tenantId, status: SaleStatus.COMPLETED }, include: { lines: true } });
-      if (!sale) fail('NOT_FOUND', 'This bill was not found or is cancelled.', 404);
-      if (refundTo === RefundTo.KHATA && !sale.customerId) fail('NEEDS_CUSTOMER', 'This bill has no customer, so the refund cannot go to khata.');
-      // Each piece carries its share of the bill's discount and tax.
-      const factor = sale.subtotal.isZero() ? ZERO : sale.total.dividedBy(sale.subtotal);
-      let total = ZERO;
-      let costBack = ZERO;
-      const rows: Prisma.ReturnLineCreateManyRetInput[] = [];
-      for (const ask of asked) {
-        const line = sale.lines.find((l) => l.id === String(ask.saleLineId ?? ''));
-        if (!line) fail('BAD_LINE', 'A line is not on this bill.');
-        const quantity = wholeNumber(ask.quantity ?? 1, 'Quantity');
-        const restock = ask.restock !== false;
-        const moved = await tx.saleLine.updateMany({ where: { id: line.id, returnedQty: { lte: line.quantity - quantity } }, data: { returnedQty: { increment: quantity } } });
-        if (moved.count !== 1) fail('TOO_MANY', `Only ${line.quantity - line.returnedQty} of "${line.description}" can still come back.`, 409);
-        const lineAmount = line.lineTotal.times(factor).times(quantity).dividedBy(line.quantity).toDecimalPlaces(2);
-        total = total.plus(lineAmount);
-        if (restock && !line.conflict) costBack = costBack.plus(line.unitCost.times(quantity)).toDecimalPlaces(2);
-        await this.putBack(tx, tenantId, line, quantity, restock);
-        rows.push({ tenantId, saleLineId: line.id, quantity, amount: lineAmount, restock });
-      }
-      const left = sale.total.minus(sale.returnedTotal);
-      if (total.greaterThan(left)) total = left; // rounding never refunds more than was billed
+    const sale = await tx.sale.findFirst({ where: { id: saleId, tenantId, status: SaleStatus.COMPLETED }, include: { lines: true } });
+    if (!sale) fail('NOT_FOUND', 'This bill was not found or is cancelled.', 404);
+    if (refundTo === RefundTo.KHATA && !sale.customerId) fail('NEEDS_CUSTOMER', 'This bill has no customer, so the refund cannot go to khata.');
+    const { total, amounts } = this.worth(sale, asked);
+    let costBack = ZERO;
+    const rows: Prisma.ReturnLineCreateManyRetInput[] = [];
+    for (const [i, ask] of asked.entries()) {
+      const line = sale.lines.find((l) => l.id === ask.saleLineId)!;
+      const moved = await tx.saleLine.updateMany({ where: { id: line.id, returnedQty: { lte: line.quantity - ask.quantity } }, data: { returnedQty: { increment: ask.quantity } } });
+      if (moved.count !== 1) fail('TOO_MANY', `Only ${line.quantity - line.returnedQty} of "${line.description}" can still come back.`, 409);
+      if (ask.restock && !line.conflict) costBack = costBack.plus(line.unitCost.times(ask.quantity)).toDecimalPlaces(2);
+      await this.putBack(tx, tenantId, line, ask.quantity, ask.restock);
+      rows.push({ tenantId, saleLineId: line.id, quantity: ask.quantity, amount: amounts[i], restock: ask.restock });
+    }
 
-      const shop = await tx.shop.update({ where: { id: tenantId }, data: { returnSeq: { increment: 1 } } });
-      const shift = sale.tillId ? await openShift(tx, tenantId, String(body.tillId ?? sale.tillId)) : null;
-      const ret = await tx.saleReturn.create({
-        data: {
-          tenantId,
-          branchId: me.branchId,
-          shiftId: shift?.id ?? null,
-          code: `R-${pad(shop.returnSeq, 5)}`,
-          saleId,
-          total,
-          costBack,
-          refundTo,
-          reason: optText(body.reason, 'Reason', 200),
-          userId: me.id,
-          lines: { createMany: { data: rows } },
-        },
-      });
-      await tx.sale.update({ where: { id: saleId }, data: { returnedTotal: { increment: total }, returnedCost: { increment: costBack } } });
-      if (refundTo === RefundTo.KHATA) {
-        await khata(tx, me, sale.customerId!, { kind: KhataKind.RETURN, amount: total.negated(), saleId, shiftId: shift?.id, note: `Return ${ret.code} on bill ${sale.code}` });
-      }
-      await audit(tx, me, 'Return', `${ret.code} on ${sale.code}, Rs ${total.toFixed(0)} to ${refundTo.toLowerCase()}`);
-      return ret.id;
+    const shop = await tx.shop.update({ where: { id: tenantId }, data: { returnSeq: { increment: 1 } } });
+    const shift = sale.tillId ? await openShift(tx, tenantId, String(body.tillId ?? sale.tillId)) : null;
+    const ret = await tx.saleReturn.create({
+      data: {
+        tenantId,
+        branchId: me.branchId,
+        shiftId: shift?.id ?? null,
+        code: `R-${pad(shop.returnSeq, 5)}`,
+        saleId,
+        total,
+        costBack,
+        refundTo,
+        reason: optText(body.reason, 'Reason', 200),
+        userId: me.id,
+        lines: { createMany: { data: rows } },
+      },
     });
-    return { returnId, sale: await this.get(me, saleId) };
+    await tx.sale.update({ where: { id: saleId }, data: { returnedTotal: { increment: total }, returnedCost: { increment: costBack } } });
+    if (refundTo === RefundTo.KHATA) {
+      await khata(tx, me, sale.customerId!, { kind: KhataKind.RETURN, amount: total.negated(), saleId, shiftId: shift?.id, note: `Return ${ret.code} on bill ${sale.code}` });
+    }
+    await audit(tx, me, 'Return', `${ret.code} on ${sale.code}, ${total.toFixed(0)} ${exchange ? 'exchanged for other goods' : `to ${refundTo.toLowerCase()}`}`);
+    return ret;
+  }
+
+  /** Returns taken in this branch in a day or a range, newest first, with what was given back and how. */
+  async returns(me: Actor, q: Record<string, string>) {
+    const list = await this.prisma.saleReturn.findMany({
+      where: { tenantId: me.tenantId, branchId: me.branchId, createdAt: range(q) },
+      include: { sale: { select: { id: true, code: true, customerName: true } }, lines: { select: { quantity: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 300,
+    });
+    const names = await this.prisma.user.findMany({ where: { tenantId: me.tenantId, id: { in: [...new Set(list.map((r) => r.userId))] } }, select: { id: true, name: true } });
+    const exchanges = await this.prisma.sale.findMany({ where: { tenantId: me.tenantId, id: { in: list.map((r) => r.exchangeSaleId).filter((x): x is string => !!x) } }, select: { id: true, code: true } });
+    const byRefund = Object.fromEntries(Object.values(RefundTo).map((to) => [to, list.filter((r) => r.refundTo === to).reduce((a, r) => a.plus(r.total), ZERO)]));
+    return {
+      summary: { returns: list.length, total: list.reduce((a, r) => a.plus(r.total), ZERO), byRefund },
+      returns: list.map(({ costBack: _c, lines, userId, ...r }) => ({ ...r, items: lines.reduce((a, l) => a + l.quantity, 0), userName: names.find((u) => u.id === userId)?.name ?? '', exchangeSale: exchanges.find((e) => e.id === r.exchangeSaleId) ?? null })),
+    };
+  }
+
+  /**
+   * The customer has no bill: find the bills by what they brought back. A sticker's shared code finds bills that
+   * sold that kind (whole bales or pieces); a bale's own number finds the bill that sold that bale. Newest first.
+   */
+  async byGoods(me: Actor, codeRaw: string) {
+    const code = codeRaw.trim();
+    if (!code) fail('REQUIRED', 'Scan or type the code on the goods.');
+    const same = { equals: code, mode: 'insensitive' as const };
+    const lines = await this.prisma.saleLine.findMany({
+      where: { tenantId: me.tenantId, conflict: false, sale: { tenantId: me.tenantId, branchId: me.branchId, status: SaleStatus.COMPLETED }, bale: { OR: [{ kindCode: same }, { code: same }, { baleNo: same }] } },
+      select: { id: true, kind: true, description: true, quantity: true, returnedQty: true, unitPrice: true, lineTotal: true, bale: { select: { code: true, kindCode: true } }, sale: { select: { id: true, code: true, soldAt: true, customerName: true, customerPhone: true } } },
+      orderBy: { sale: { soldAt: 'desc' } },
+      take: 200,
+    });
+    return lines.filter((l) => l.returnedQty < l.quantity).slice(0, 40).map((l) => ({ ...l, left: l.quantity - l.returnedQty }));
   }
 
   async get(me: Actor, id: string) {
     const sale = await this.prisma.sale.findFirst({ where: { id, tenantId: me.tenantId }, include: SALE_FULL });
     if (!sale) fail('NOT_FOUND', 'This bill was not found.', 404);
-    return this.view(me, sale);
+    // An exchange bill says which return paid for part of it; a return says which bill it was exchanged for.
+    const exchangeOf = sale.exchangeReturnId ? await this.prisma.saleReturn.findFirst({ where: { id: sale.exchangeReturnId, tenantId: me.tenantId }, select: { code: true, total: true, sale: { select: { id: true, code: true } } } }) : null;
+    return this.view(me, { ...sale, exchangeOf });
   }
 
   /** The owner has looked at an offline bill that did not fit. */

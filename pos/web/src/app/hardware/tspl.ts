@@ -21,26 +21,26 @@ export interface LabelBale {
   salePrice: string | null;
 }
 
-const rupees = (v: string) => `Rs ${Math.round(Number(v)).toLocaleString('en-US')}`;
+const amount = (v: string, sign: string) => `${sign} ${Math.round(Number(v)).toLocaleString('en-US')}`;
 
 /**
  * Every sticker of a kind is the same: the shared code, what the kind is, and the price. Nothing of the one bale
  * is on it. (A bale saved before shared codes, with only its own number, keeps the old sticker.)
  */
-export function labelData(b: LabelBale): LabelData {
+export function labelData(b: LabelBale, sign = 'Rs'): LabelData {
   if (b.kindCode) {
     return {
       code: b.kindCode,
       item: b.category || b.item,
       detail: [b.grade ? `Grade ${b.grade}` : '', b.weightKg ? `${+b.weightKg} kg` : ''].filter(Boolean).join(' - '),
-      price: b.salePrice ? rupees(b.salePrice) : '',
+      price: b.salePrice ? amount(b.salePrice, sign) : '',
     };
   }
   return {
     code: b.code,
     item: b.item,
     detail: [b.grade ? `Grade ${b.grade}` : '', b.weightKg ? `${b.weightKg} kg` : '', b.baleNo ?? ''].filter(Boolean).join(' - '),
-    price: b.salePrice ? rupees(b.salePrice) : '',
+    price: b.salePrice ? amount(b.salePrice, sign) : '',
   };
 }
 

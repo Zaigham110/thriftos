@@ -27,14 +27,15 @@ connection is down, and talks to the shop's receipt printer, cash drawer, sticke
 | | |
 |---|---|
 | Khata | Customers, what each owes, credit limit, receive payment, statement, WhatsApp reminder |
-| Bills | The day's bills, search any bill, print again, **return** some lines or pieces (back on the shelf or damaged; refund by cash, bank, wallet or off the khata), cancel a bill |
+| Bills | The day's bills, search any bill, print again, cancel a bill. **Take a return**: by the bill, or by the goods when the customer has no bill; money back, off the khata, or an exchange for other goods. The day's returns and a return slip |
 | Cash drawer | Open with the cash inside, cash in / out / to bank, count and close; expected against counted, shift report |
 | Expenses | What was spent, from the drawer or not |
 | Stock | One row per code with quantity, kg and value; a row opens the bales behind it. Find any bale, open / close / finish, lost or damaged, new prices for many bales, stickers for many bales, **stock check** (scan the shelf, see what is missing) |
-| Shipments | Type the shipment once, upload its bale list (Excel / CSV), see what each shipment cost and earned |
+| Shipments | Type the shipment once, upload its bale list (Excel / CSV) in the supplier's currency, see what each shipment cost and earned. Or add a few bales by hand, without a list |
 | Between branches | Send bales to another branch; they are "on the way" until that branch receives them |
 | Reports | Sales, profit, by day / category / grade / cashier / payment, tax, khata, expenses; stock value and age; every shipment; shifts. CSV export |
-| Settings | Bill header, sales tax (inside the price or on top, NTN / STRN), discount limit, staff, branches and tills, this device's printer and scanner |
+| Back to supplier | Bad bales sent back to the supplier, and what each supplier still owes for them |
+| Settings | Currency (the shop's own, the suppliers' usual one, live or typed rates), bill header, sales tax (inside the price or on top, NTN / STRN), discount limit, staff, branches and tills, this device's printer and scanner |
 
 **People:** the **owner** (everything, every branch), **managers** (one branch: returns, cancelling, expenses,
 reports, prices, sending stock; cost and profit only if the owner allows) and **cashiers** (sell, khata payments,
@@ -82,6 +83,41 @@ own record behind it, with its own number (`B-00012`), cost and shipment.
 - Stock check: each scan of a shared code counts the next bale of that kind.
 - Bales saved before this get their code when the server starts, by the same rule.
 
+## Currency
+
+Every price, bill and report is in the shop's own currency, set once in **Manage → Currency** (PKR to start with).
+
+- A supplier's list is often in another currency. On import the app reads which one from the file (`$`, `£`,
+  `GBP`, a header such as "Cost (USD)", a line such as "All prices in GBP"); the owner can choose another.
+- The rate into the shop's currency is today's rate, fetched with one tap (or by itself, when Currency is set to
+  "Today's rate"), or typed by hand: the rate actually paid. A list in another currency cannot be saved without one.
+- Only the supplier's costs are converted. Charges (freight, duty…) and selling prices are typed in the shop's
+  currency. Each bale keeps its cost as it was on the list, and the shipment keeps the currency and the rate.
+- Today's rate comes from the public service open.er-api.com, through the shop server, kept for an hour. Only the
+  currency code is sent. If it cannot be reached, the rate is typed by hand. (`POS_RATES_URL` points the server at
+  another service with the same answer shape.)
+
+## Stock by hand
+
+**Stock → Add stock**: for a local purchase, opening stock or a few bales without a list. One row is one kind of
+bale and how many of it; currency, rate, shared codes and costs work as for an imported list. It is saved as a
+shipment marked "by hand".
+
+## Returns, exchanges, back to the supplier
+
+- **Take a return** (Bills, or "Return" on the till; managers and the owner): scan or type the bill number. With no
+  bill, scan the sticker on the goods: the app lists the bills that sold that kind (or that very bale, for a
+  bale's own number), newest first, and the right one is chosen with the customer.
+- On the bill: choose what comes back, whether it goes back on the shelf or is damaged, and how it is settled:
+  cash, bank, wallet, off the khata, or **an exchange for other goods**.
+- **Exchange**: the new goods are chosen on the till. What came back pays first; the customer pays only the
+  difference, or gets it back in cash. The return and the new bill are saved together or not at all. An exchange
+  needs the connection, and an exchange bill is not cancelled (a return on it gives its worth back).
+- Bills → Returns lists the day's returns with what was given back and how; each return prints a slip.
+- **Back to supplier** (owner): Stock → Choose bales → Back to supplier. The bales leave the shelf and the supplier
+  owes the shop for them (what they cost, or an amount typed) until it is settled in Manage → Back to supplier. A
+  return made by mistake can be undone while it is not settled.
+
 ## Working offline
 
 - The app can be installed (browser menu → Install / Add to Home Screen) and opens with no connection.
@@ -90,7 +126,7 @@ own record behind it, with its own number (`B-00012`), cost and shipment.
 - Every till numbers its own bills (`T1-000147`), so a bill printed offline keeps its number.
 - When the server is back the waiting bills are sent in order, each exactly once. A bill that no longer fits (the
   bale was sold at another till meanwhile) is **kept** and shown to the owner under Bills → "Offline bills to check".
-- Needs the server: returns, cancelling, new customers, imports, transfers, closing the drawer, reports.
+- Needs the server: returns and exchanges, live rates, cancelling, new customers, imports, transfers, closing the drawer, reports.
 - Browsers allow installing and offline use only on an https address, or on the shop computer itself
   (`http://localhost`). See "https" below.
 
@@ -172,7 +208,7 @@ cd ../web && npm install && npm start      # screens on :4300, /api goes to :310
 ```
 
 - `cd server && npm test`: reading bale lists, sharing costs, and whole shop days against a real database (setup,
-  import, shared codes and selling a quantity of a kind, bale and piece sales, split payments, khata, tax, drawer shift, returns, cancelling, held bills, branches
+  import (also in another currency, and by hand), live rates, shared codes and selling a quantity of a kind, exchanges, returns to a supplier, bale and piece sales, split payments, khata, tax, drawer shift, returns, cancelling, held bills, branches
   and transfers, offline bills, stock check, reports, network printing, PINs, roles). **They empty the database
   first**, so they refuse to run on a database whose name does not end in `_test`.
 - `cd web && npm run test:hardware`: receipt (ESC/POS) and sticker (TSPL) bytes, scanner detection, stickers and bill rows of

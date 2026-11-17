@@ -305,3 +305,97 @@ export class MyPinPage {
     }
   }
 }
+
+interface Currency {
+  code: string;
+  name: string;
+  sign: string;
+}
+
+/** Setup: the shop's own currency, the currency suppliers' lists usually come in, and where the rate comes from. */
+@Component({
+  imports: [FormsModule, RouterLink, Icon],
+  template: `
+    <div class="screen max-w-2xl">
+      ${BACK}
+      <h1>Currency</h1>
+      <form class="mt-4 grid grid-cols-1 gap-4" (ngSubmit)="save()">
+        <section class="card grid grid-cols-1 gap-3 p-4">
+          <h2>Your shop's currency</h2>
+          <div>
+            <label class="label" for="cl">Prices, bills and reports are in</label>
+            <select id="cl" class="input" name="currency" [(ngModel)]="currency">@for (c of list(); track c.code) { <option [value]="c.code">{{ c.code }} · {{ c.name }} ({{ c.sign }})</option> }</select>
+            <p class="hint">Set this once. Changing it later only changes the sign; amounts already saved are not converted.</p>
+          </div>
+        </section>
+        <section class="card grid grid-cols-1 gap-3 p-4">
+          <h2>Suppliers' lists</h2>
+          <div>
+            <label class="label" for="cs">Lists usually come in</label>
+            <select id="cs" class="input" name="supplier" [(ngModel)]="supplierCurrency"><option value="">The same as the shop</option>@for (c of list(); track c.code) { <option [value]="c.code">{{ c.code }} · {{ c.name }}</option> }</select>
+            <p class="hint">When a list names its currency ($, GBP, "Cost (USD)") that is used. This is for lists that do not say.</p>
+          </div>
+          <div>
+            <span class="label">The rate when a list is imported</span>
+            <div class="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Rate">
+              <button type="button" class="chip justify-center" [class.chip-on]="rateMode === 'LIVE'" (click)="rateMode = 'LIVE'" role="radio" [attr.aria-checked]="rateMode === 'LIVE'">Today's rate</button>
+              <button type="button" class="chip justify-center" [class.chip-on]="rateMode === 'MANUAL'" (click)="rateMode = 'MANUAL'" role="radio" [attr.aria-checked]="rateMode === 'MANUAL'">I type the rate</button>
+            </div>
+            <p class="hint">@if (rateMode === 'LIVE') { Today's rate is fetched and filled in. You can still change it for each shipment. } @else { You type the rate you paid for each shipment. Today's rate is one tap away. }</p>
+          </div>
+          @if (supplierCurrency && supplierCurrency !== currency) {
+            <div class="rounded-xl bg-stone-100 px-3 py-2.5 text-sm">
+              @if (rate(); as r) { <span class="num font-semibold">1 {{ supplierCurrency }} = {{ r.rate }} {{ currency }}</span> <span class="text-stone-500">· today's rate</span> }
+              @else { <button type="button" class="font-semibold text-brand-700 underline" (click)="check()">@if (checking()) { Fetching… } @else { See today's {{ supplierCurrency }} rate }</button> }
+            </div>
+          }
+        </section>
+        <button class="btn-big" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Save' }}</button>
+      </form>
+    </div>
+  `,
+})
+export class CurrencyPage implements OnInit {
+  private readonly api = inject(Api);
+  readonly busy = signal(false);
+  readonly checking = signal(false);
+  readonly list = signal<Currency[]>([]);
+  readonly rate = signal<{ rate: string } | null>(null);
+  currency = this.api.shop()?.currency ?? 'PKR';
+  supplierCurrency = this.api.shop()?.supplierCurrency ?? '';
+  rateMode: 'LIVE' | 'MANUAL' = this.api.shop()?.rateMode ?? 'LIVE';
+
+  async ngOnInit() {
+    try {
+      this.list.set(await this.api.get<Currency[]>('/rates/currencies'));
+    } catch (e) {
+      this.api.say(this.api.why(e), true);
+    }
+  }
+
+  async check() {
+    this.checking.set(true);
+    try {
+      this.rate.set(await this.api.get<{ rate: string }>('/rates', { from: this.supplierCurrency, to: this.currency }));
+    } catch (e) {
+      this.api.say(this.api.why(e), true);
+    } finally {
+      this.checking.set(false);
+    }
+  }
+
+  async save() {
+    this.busy.set(true);
+    try {
+      const changed = this.currency !== this.api.shop()?.currency;
+      await this.api.patch('/shop', { currency: this.currency, supplierCurrency: this.supplierCurrency || null, rateMode: this.rateMode });
+      await this.api.reloadSession();
+      this.api.say('Saved.');
+      if (changed) setTimeout(() => location.reload(), 600); // every amount on screen takes the new sign
+    } catch (e) {
+      this.api.say(this.api.why(e), true);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+}

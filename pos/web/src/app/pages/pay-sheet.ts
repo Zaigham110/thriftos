@@ -1,5 +1,6 @@
 import { Component, computed, HostListener, inject, input, OnDestroy, OnInit, output, signal } from '@angular/core';
 import { Api, Customer, Method, METHODS, money, MoneyPipe, round2, Sale, typed, whatsapp } from '../core';
+import type { PendingExchange } from '../exchange';
 import { Printer } from '../hardware/printer';
 import { receiptModel, receiptText } from '../hardware/receipt';
 import { Scanner } from '../hardware/scanner';
@@ -43,8 +44,9 @@ import { Sheet } from '../ui/sheet';
         <div class="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_280px] md:gap-5">
           <div class="min-w-0">
             <div class="rounded-2xl bg-brand-950 px-5 py-4 text-white">
-              <div class="text-xs font-semibold uppercase tracking-widest text-brand-300">To pay</div>
-              <div class="num text-4xl font-extrabold tracking-tight">{{ total() | money }}</div>
+              <div class="text-xs font-semibold uppercase tracking-widest text-brand-300">{{ exchange() && owed() ? 'Give back' : 'To pay' }}</div>
+              <div class="num text-4xl font-extrabold tracking-tight">{{ (owed() || total()) | money }}</div>
+              @if (exchange(); as x) { <div class="mt-1 text-sm text-brand-200">Exchange: goods from {{ x.saleCode }} worth {{ fmt(x.worth) }} come back</div> }
               @if (customer(); as c) {
                 <div class="mt-1 text-sm text-brand-200">{{ c.name }}{{ +c.balance > 0 ? ' · owes ' + fmt(c.balance) : '' }}</div>
               }
@@ -104,11 +106,17 @@ export class PaySheet implements OnInit, OnDestroy {
 
   readonly lines = input.required<CartLine[]>();
   readonly discount = input.required<number>();
+  /** What is still to pay (after goods brought back in an exchange). */
   readonly total = input.required<number>();
+  readonly exchange = input<PendingExchange | null>(null);
+  /** In an exchange: what the customer gets back when the returned goods are worth more than the new bill. */
+  readonly owed = input(0);
   readonly customer = input<Customer | null>(null);
   readonly note = input('');
   readonly closed = output<void>();
   readonly finished = output<void>();
+  /** The bill is saved (the "New sale" screen is showing). */
+  readonly saved = output<void>();
   readonly pickCustomer = output<void>();
 
   readonly methods = METHODS;
@@ -191,8 +199,9 @@ export class PaySheet implements OnInit, OnDestroy {
     this.busy.set(true);
     this.error.set('');
     try {
-      const sale = await this.shelf.sell({ lines: this.lines(), discount: this.discount(), customer: this.customer(), note: this.note(), tenders });
+      const sale = await this.shelf.sell({ lines: this.lines(), discount: this.discount(), customer: this.customer(), note: this.note(), tenders, exchange: this.exchange() });
       this.sale.set(sale);
+      this.saved.emit();
       const cash = tenders.some((t) => t.method === 'CASH');
       const auto = this.printer.config().receipt.auto;
       // The drawer opens with the bill when it prints; otherwise it is opened on its own for cash.

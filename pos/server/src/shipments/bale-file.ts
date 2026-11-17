@@ -1,4 +1,5 @@
 import { Workbook } from 'exceljs';
+import { currencyIn } from '../common/currency';
 import { D, Dec, fail } from '../common/util';
 
 /**
@@ -52,6 +53,26 @@ export interface BaleFile {
   rows: BaleRow[];
   /** Headers in the file that matched nothing, so the person knows they were not read. */
   ignoredHeaders: string[];
+  /** The currency the list's costs are written in, when the file says so ($, GBP, "Cost (USD)"); otherwise null. */
+  currency: string | null;
+}
+
+/**
+ * Which currency a list is in. The Cost column's header and a "Currency: USD" line above the list count most; then
+ * the signs in the cost cells themselves. Null when the file does not say.
+ */
+export function detectCurrency(grid: string[][], headerAt: number, costCol: number): string | null {
+  const votes = new Map<string, number>();
+  const vote = (text: string, weight: number) => {
+    const code = text ? currencyIn(text) : null;
+    if (code) votes.set(code, (votes.get(code) ?? 0) + weight);
+  };
+  for (let i = 0; i < headerAt; i++) for (const cell of grid[i]) if (/currency|amounts? in|prices? in|all (prices|amounts)/i.test(cell)) vote(cell, 50);
+  if (costCol >= 0) {
+    vote(grid[headerAt][costCol] ?? '', 100);
+    for (let i = headerAt + 1; i < grid.length; i++) vote(grid[i][costCol] ?? '', 1);
+  }
+  return [...votes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 }
 
 export function norm(value: string): string {
@@ -68,7 +89,8 @@ function matchHeaders(headers: string[]): Map<number, BaleColumn['key']> {
   for (const exactOnly of [true, false]) {
     headers.forEach((header, index) => {
       if (map.has(index)) return;
-      const h = norm(header);
+      // "Cost (USD)" and "Amount $" are still the Cost column.
+      const h = norm(header.replace(/\(.*?\)|[$£€₹₨¥₩]|\b(usd|gbp|eur|aed|sar|pkr|cad|aud|cny|rmb|inr|rs)\b\.?/gi, ' ')) || norm(header);
       if (!h) return;
       const spec = BALE_COLUMNS.find((c) => !taken.has(c.key) && (exactOnly ? [c.label, c.key] : c.aliases).some((w) => norm(w) === h));
       if (spec) {
@@ -219,7 +241,8 @@ export async function readBaleFile(buffer: Buffer, fileName: string): Promise<Ba
   }
   if (rows.length === 0) fail('EMPTY_FILE', 'No bales were found under the header row.');
   if (rows.length > MAX_BALES) fail('TOO_MANY', `A file can hold ${MAX_BALES} bales at most. Split it in two.`);
-  return { rows, ignoredHeaders };
+  const costCol = [...columns.entries()].find(([, key]) => key === 'cost')?.[0] ?? -1;
+  return { rows, ignoredHeaders, currency: detectCurrency(grid, headerAt, costCol) };
 }
 
 /** The sample file a shop downloads, fills and uploads. */

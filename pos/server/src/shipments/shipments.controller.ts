@@ -38,14 +38,20 @@ export class ShipmentsController {
   /** Reads the file and shows what would be saved; saves nothing. */
   @Post('preview')
   @UseInterceptors(FILE)
-  preview(@Body() body: Record<string, unknown>, @UploadedFile() file: Upload | undefined) {
-    return this.shipments.preview(body, file);
+  preview(@Me() me: Actor, @Body() body: Record<string, unknown>, @UploadedFile() file: Upload | undefined) {
+    return this.shipments.preview(me, body, file);
   }
 
   @Post()
   @UseInterceptors(FILE)
   create(@Me() me: Actor, @Body() body: Record<string, unknown>, @UploadedFile() file: Upload | undefined) {
     return this.shipments.create(me, body, file);
+  }
+
+  /** Stock typed by hand, without a file. */
+  @Post('manual')
+  manual(@Me() me: Actor, @Body() body: Record<string, unknown>) {
+    return this.shipments.createManual(me, body);
   }
 
   @Get(':id')

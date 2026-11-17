@@ -1,7 +1,8 @@
 import { Component, computed, effect, ElementRef, HostListener, inject, input, OnDestroy, OnInit, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { Api, Bale, billMath, Customer, kindName, money, MoneyPipe, oldestFirst, round2, shownCode, typed, uid } from '../core';
+import { Api, Bale, billMath, Customer, kindName, money, moneySign, MoneyPipe, oldestFirst, round2, shownCode, typed, uid } from '../core';
+import { keepExchange, PendingExchange, readExchange } from '../exchange';
 import { CameraScan } from '../hardware/camera-scan';
 import { Scanner } from '../hardware/scanner';
 import { CartLine, Shelf } from '../offline/shelf';
@@ -66,6 +67,7 @@ const SHOWN = 120;
               <button class="chip" [class.chip-on]="filter() === f.key" (click)="filter.set(f.key)" role="tab" [attr.aria-selected]="filter() === f.key">{{ f.label }}</button>
             }
             <button class="chip border-dashed" (click)="startItem()"><pos-icon name="plus" size="h-4 w-4" /> Other item</button>
+            @if (api.isManager()) { <a class="chip border-dashed" routerLink="/bills" [queryParams]="{ take: 1 }"><pos-icon name="swap" size="h-4 w-4" /> Return</a> }
           </div>
         </header>
 
@@ -166,13 +168,19 @@ const SHOWN = 120;
               }
             </div>
           }
+          @if (exchange(); as x) {
+            <div class="mb-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              <div class="flex items-start justify-between gap-2"><span class="min-w-0"><b>Exchange</b> · back from {{ x.saleCode }}: {{ x.what }}</span><span class="num shrink-0 font-bold">-{{ fmt(x.worth) }}</span></div>
+              <button class="mt-1 font-semibold underline" (click)="cancelExchange()">Not an exchange after all</button>
+            </div>
+          }
           <div class="mt-2 flex items-baseline justify-between">
-            <span class="text-base font-semibold">Total</span>
-            <span class="num text-3xl font-extrabold tracking-tight">{{ math().total | money }}</span>
+            <span class="text-base font-semibold">{{ exchange() ? (owed() ? 'Give back' : 'To pay') : 'Total' }}</span>
+            <span class="num text-3xl font-extrabold tracking-tight">{{ (exchange() ? owed() || due() : math().total) | money }}</span>
           </div>
           <div class="mt-3 flex gap-2">
             <button class="btn-quiet min-h-[60px] px-5" [disabled]="!cart().length" (click)="hold()" aria-label="Hold this bill"><pos-icon name="hold" /> Hold</button>
-            <button class="btn-pay flex-1" [disabled]="!cart().length" (click)="pay()">Pay {{ cart().length ? fmt(math().total) : '' }}</button>
+            <button class="btn-pay flex-1" [disabled]="!cart().length" (click)="pay()">{{ exchange() ? (owed() ? 'Exchange · give back ' + fmt(owed()) : 'Exchange · pay ' + fmt(due())) : 'Pay ' + (cart().length ? fmt(math().total) : '') }}</button>
           </div>
         </div>
       </aside>
@@ -212,7 +220,7 @@ const SHOWN = 120;
           <button class="chip justify-center" [class.chip-on]="draftDiscount().mode === 'amount'" (click)="draftDiscount.set({ mode: 'amount', value: '' })">Rupees</button>
           <button class="chip justify-center" [class.chip-on]="draftDiscount().mode === 'percent'" (click)="draftDiscount.set({ mode: 'percent', value: '' })">Percent</button>
         </div>
-        <div class="num my-3 rounded-2xl bg-stone-100 px-4 py-3 text-right text-3xl font-extrabold">{{ draftDiscount().mode === 'amount' ? 'Rs ' : '' }}{{ draftDiscount().value || '0' }}{{ draftDiscount().mode === 'percent' ? '%' : '' }}</div>
+        <div class="num my-3 rounded-2xl bg-stone-100 px-4 py-3 text-right text-3xl font-extrabold">{{ draftDiscount().mode === 'amount' ? sign.value + ' ' : '' }}{{ draftDiscount().value || '0' }}{{ draftDiscount().mode === 'percent' ? '%' : '' }}</div>
         @if (api.role() === 'CASHIER') {
           <p class="hint mb-2">A cashier can give {{ api.shop()?.cashierMaxDiscountPct }}% at most. A manager can give more.</p>
         }
@@ -256,7 +264,7 @@ const SHOWN = 120;
         <form class="grid grid-cols-1 gap-3" (ngSubmit)="addItem()">
           <div><label class="label" for="in">What is it</label><input id="in" class="input" name="name" [(ngModel)]="itemName" placeholder="Bag, delivery, hanger…" autofocus /></div>
           <div class="grid grid-cols-2 gap-3">
-            <div><label class="label" for="ip">Price</label><input id="ip" class="input num" name="price" inputmode="decimal" [(ngModel)]="itemPrice" placeholder="Rs" /></div>
+            <div><label class="label" for="ip">Price</label><input id="ip" class="input num" name="price" inputmode="decimal" [(ngModel)]="itemPrice" placeholder="0" /></div>
             <div><label class="label" for="iq">How many</label><input id="iq" class="input num" name="qty" inputmode="numeric" [(ngModel)]="itemQty" /></div>
           </div>
           <button class="btn-primary">Add to bill</button>
@@ -286,7 +294,7 @@ const SHOWN = 120;
       <pos-camera-scan (closed)="camera.set(false)" (scanned)="camera.set(false); scan($event)" />
     }
     @if (paying()) {
-      <pos-pay-sheet [lines]="cart()" [discount]="math().discount" [total]="math().total" [customer]="customer()" [note]="note()" (closed)="paying.set(false)" (finished)="paying.set(false); clear(false)" (pickCustomer)="customers.set(true)" />
+      <pos-pay-sheet [lines]="cart()" [discount]="math().discount" [total]="due()" [exchange]="exchange()" [owed]="owed()" [customer]="customer()" [note]="note()" (closed)="paying.set(false)" (saved)="sold()" (finished)="paying.set(false); dropExchange(); clear(false)" (pickCustomer)="customers.set(true)" />
     }
   `,
 })
@@ -377,6 +385,10 @@ export class TillPage implements OnInit, OnDestroy {
     return d.mode === 'percent' ? round2((subtotal * d.value) / 100) : d.value;
   });
   readonly math = computed(() => billMath(this.cart().map((l) => ({ quantity: l.quantity, unitPrice: l.price, discount: l.discount })), this.discountAmount(), this.api.shop()));
+  /** Goods of an earlier bill coming back on this bill (chosen on that bill's page). */
+  readonly exchange = signal<PendingExchange | null>(readExchange());
+  readonly due = computed(() => Math.max(0, round2(this.math().total - (this.exchange()?.worth ?? 0))));
+  readonly owed = computed(() => (this.exchange() ? Math.max(0, round2(this.exchange()!.worth - this.math().total)) : 0));
   readonly pieces = computed(() => this.cart().reduce((a, l) => a + l.quantity, 0));
 
   constructor() {
@@ -384,6 +396,7 @@ export class TillPage implements OnInit, OnDestroy {
     effect(() => {
       const parked = this.park();
       if (!this.restored()) return; // do not wipe the kept bill before it has been read back
+      if (this.justSold()) return localStorage.removeItem(CART); // a saved bill must not come back if the till is left now
       if (parked.lines.length) localStorage.setItem(CART, JSON.stringify(parked));
       else localStorage.removeItem(CART);
     });
@@ -450,6 +463,7 @@ export class TillPage implements OnInit, OnDestroy {
   lineTotal(l: CartLine) {
     return round2(l.quantity * l.price - l.discount);
   }
+  readonly sign = moneySign;
   readonly code = shownCode;
   readonly name = kindName;
   /** A whole bale saved before shared codes: it has only its own number and sells one at a time. */
@@ -576,6 +590,7 @@ export class TillPage implements OnInit, OnDestroy {
   async clear(ask: boolean) {
     if (ask && this.cart().length > 1 && !(await this.ask.confirm('Clear this bill?', `${this.cart().length} lines will be taken off.`, 'Clear the bill', true))) return;
     this.cart.set([]);
+    this.justSold.set(false);
     this.discount.set({ mode: 'amount', value: 0 });
     this.customer.set(null);
     this.note.set('');
@@ -591,7 +606,7 @@ export class TillPage implements OnInit, OnDestroy {
 
   fields(l: CartLine): { key: 'price' | 'quantity' | 'discount'; label: string }[] {
     const price = { key: 'price' as const, label: l.kind === 'BALE' ? 'Bale price' : 'Price each' };
-    const less = { key: 'discount' as const, label: 'Less (Rs)' };
+    const less = { key: 'discount' as const, label: `Less (${moneySign.value})` };
     return l.kind === 'BALE' && !l.kindCode ? [price, less] : [price, { key: 'quantity' as const, label: l.kindCode ? 'Bales' : l.kind === 'PIECE' ? 'Pieces' : 'How many' }, less];
   }
   edit(l: CartLine) {
@@ -688,6 +703,21 @@ export class TillPage implements OnInit, OnDestroy {
       return this.edit(unpriced);
     }
     this.paying.set(true);
+  }
+
+  /** The bill on the till has just been saved: nothing of it may come back after a reload or a walk to another screen. */
+  private readonly justSold = signal(false);
+  sold() {
+    this.justSold.set(true);
+    keepExchange(null);
+  }
+
+  dropExchange() {
+    keepExchange(null);
+    this.exchange.set(null);
+  }
+  async cancelExchange() {
+    if (await this.ask.confirm('Not an exchange?', `Nothing was taken back from bill ${this.exchange()!.saleCode}. This bill becomes an ordinary sale.`, 'Ordinary sale')) this.dropExchange();
   }
 
   private park(): Parked {

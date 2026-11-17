@@ -114,7 +114,7 @@ export class DrawerController {
       data: { closedAt: new Date(), closedById: me.id, closedByName: me.name, countedCash, expectedCash: summary.expectedCash, difference, note: optText(body.note, 'Note', 300) },
     });
     if (done.count !== 1) fail('NO_SHIFT', 'This drawer was already closed.', 409);
-    if (!difference.isZero()) await audit(this.prisma, me, 'Drawer difference', `${till.name}: counted Rs ${countedCash.toFixed(0)}, expected Rs ${summary.expectedCash.toFixed(0)}`);
+    if (!difference.isZero()) await audit(this.prisma, me, 'Drawer difference', `${till.name}: counted ${countedCash.toFixed(0)}, expected ${summary.expectedCash.toFixed(0)}`);
     return this.one(me, shift.id);
   }
 

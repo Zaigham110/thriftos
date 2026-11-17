@@ -9,7 +9,9 @@ import { PrismaService } from './common/prisma.service';
 import { CustomersController } from './customers/customers.controller';
 import { DeviceController } from './device/device.controller';
 import { DrawerController } from './drawer/drawer.controller';
+import { RatesController } from './rates/rates.controller';
 import { ReportsController } from './reports/reports.controller';
+import { SupplierReturnsController } from './stock/supplier-returns.controller';
 import { StockController } from './stock/stock.controller';
 import { SalesController } from './sales/sales.controller';
 import { SalesService } from './sales/sales.service';
@@ -29,7 +31,7 @@ function jwtSecret(): string {
     JwtModule.registerAsync({ useFactory: () => ({ secret: jwtSecret(), signOptions: { expiresIn: '30d' } }) }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
   ],
-  controllers: [AuthController, ShopController, ShipmentsController, BalesController, SalesController, CustomersController, DrawerController, StockController, ReportsController, DeviceController],
+  controllers: [AuthController, ShopController, ShipmentsController, BalesController, SalesController, CustomersController, DrawerController, StockController, ReportsController, DeviceController, RatesController, SupplierReturnsController],
   providers: [PrismaService, ShipmentsService, SalesService, { provide: APP_GUARD, useClass: AuthGuard }],
 })
 export class AppModule {}

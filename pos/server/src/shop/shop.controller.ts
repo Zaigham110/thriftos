@@ -3,6 +3,7 @@ import { UserRole } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { checkPassword, shopView } from '../auth/auth.controller';
 import { Actor, Me, OwnerOnly } from '../common/auth.guard';
+import { currencyCode } from '../common/currency';
 import { PrismaService } from '../common/prisma.service';
 import { fail, optText, percent, phoneDigits, pin, text, wholeNumber } from '../common/util';
 
@@ -32,6 +33,10 @@ export class ShopController {
         ...(has('strn') ? { strn: optText(body.strn, 'STRN', 30) } : {}),
         ...(has('cashierMaxDiscountPct') ? { cashierMaxDiscountPct: Math.min(wholeNumber(body.cashierMaxDiscountPct, 'Cashier discount limit', 0), 100) } : {}),
         ...(has('managerSeesCost') ? { managerSeesCost: body.managerSeesCost === true } : {}),
+        // The shop's own currency: every price, bill and report is in it. Changing it does not convert old amounts.
+        ...(has('currency') ? { currency: currencyCode(body.currency, 'The shop currency') } : {}),
+        ...(has('supplierCurrency') ? { supplierCurrency: body.supplierCurrency ? currencyCode(body.supplierCurrency, 'The supplier currency') : null } : {}),
+        ...(has('rateMode') ? { rateMode: body.rateMode === 'MANUAL' ? 'MANUAL' : 'LIVE' } : {}),
       },
     });
     return shopView(shop);

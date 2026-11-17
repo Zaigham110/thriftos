@@ -1,3 +1,4 @@
+import { moneySign } from './money-sign';
 import { HttpClient, HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { computed, inject, Injectable, Pipe, PipeTransform, signal } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
@@ -20,6 +21,11 @@ export interface Shop {
   strn: string | null;
   cashierMaxDiscountPct: number;
   managerSeesCost: boolean;
+  /** The sign of the shop's own currency (`currency`): every price, bill and report is in it. */
+  currencySign: string;
+  /** The currency suppliers' lists usually come in. */
+  supplierCurrency: string | null;
+  rateMode: 'LIVE' | 'MANUAL';
 }
 export interface Till {
   id: string;
@@ -45,7 +51,7 @@ export interface Session {
   branches: Branch[];
 }
 
-export type BaleStatus = 'IN_STOCK' | 'OPENED' | 'SOLD' | 'FINISHED' | 'IN_TRANSIT' | 'WRITTEN_OFF';
+export type BaleStatus = 'IN_STOCK' | 'OPENED' | 'SOLD' | 'FINISHED' | 'IN_TRANSIT' | 'WRITTEN_OFF' | 'RETURNED_TO_SUPPLIER';
 export interface Bale {
   id: string;
   code: string; // this bale's own number
@@ -111,6 +117,9 @@ export interface Sale {
   paidTotal: string;
   changeGiven: string;
   creditAmount: string;
+  /** Paid by goods brought back on this bill (an exchange), and the return that paid it. */
+  exchangeAmount?: string;
+  exchangeOf?: { code: string; total: string; sale: { id: string; code: string } } | null;
   returnedTotal: string;
   profit?: string;
   note: string | null;
@@ -123,7 +132,7 @@ export interface Sale {
   user?: { name: string };
   lines?: SaleLine[];
   payments?: { method: Method; amount: string; reference?: string | null }[];
-  returns?: { id: string; code: string; total: string; refundTo: string; reason: string | null; createdAt: string }[];
+  returns?: { id: string; code: string; total: string; refundTo: string; reason: string | null; createdAt: string; lines?: { saleLineId: string; quantity: number; amount: string }[] }[];
   _count?: { lines: number };
   /** Made on this device while the server could not be reached; not sent yet. */
   waiting?: boolean;
@@ -134,9 +143,9 @@ export const METHODS: { key: Method; label: string; short: string }[] = [
   { key: 'BANK', label: 'Bank / card', short: 'Bank' },
   { key: 'WALLET', label: 'Easypaisa / JazzCash', short: 'Wallet' },
 ];
-export const methodLabel = (m: string) => (m === 'KHATA' ? 'Khata' : (METHODS.find((x) => x.key === m)?.label ?? m));
+export const methodLabel = (m: string) => (m === 'KHATA' ? 'Khata' : m === 'EXCHANGE' ? 'Exchanged for other goods' : (METHODS.find((x) => x.key === m)?.label ?? m));
 
-export const STATUS_LABEL: Record<BaleStatus, string> = { IN_STOCK: 'Closed bale', OPENED: 'Opened', SOLD: 'Sold', FINISHED: 'Finished', IN_TRANSIT: 'On the way', WRITTEN_OFF: 'Written off' };
+export const STATUS_LABEL: Record<BaleStatus, string> = { IN_STOCK: 'Closed bale', OPENED: 'Opened', SOLD: 'Sold', FINISHED: 'Finished', IN_TRANSIT: 'On the way', WRITTEN_OFF: 'Written off', RETURNED_TO_SUPPLIER: 'Back to supplier' };
 export const STATUS_TONE: Record<BaleStatus, string> = {
   IN_STOCK: 'bg-emerald-50 text-emerald-800',
   OPENED: 'bg-amber-50 text-amber-800',
@@ -144,6 +153,7 @@ export const STATUS_TONE: Record<BaleStatus, string> = {
   FINISHED: 'bg-stone-100 text-stone-600',
   IN_TRANSIT: 'bg-sky-50 text-sky-800',
   WRITTEN_OFF: 'bg-red-50 text-red-800',
+  RETURNED_TO_SUPPLIER: 'bg-stone-100 text-stone-600',
 };
 export const ROLE_LABEL: Record<Role, string> = { OWNER: 'Owner', MANAGER: 'Manager', CASHIER: 'Cashier' };
 
@@ -195,6 +205,7 @@ export class Api {
   private load(): Session | null {
     try {
       const s = JSON.parse(localStorage.getItem(KEY) ?? 'null') as Session | null;
+      if (s?.shop?.currencySign) moneySign.value = s.shop.currencySign;
       return s && Array.isArray(s.branches) ? s : null; // a session saved by the older app is not enough
     } catch {
       return null;
@@ -202,6 +213,7 @@ export class Api {
   }
 
   signIn(session: Session) {
+    moneySign.value = session.shop?.currencySign || 'Rs';
     localStorage.setItem(KEY, JSON.stringify(session));
     this.session.set(session);
   }
@@ -291,11 +303,11 @@ export const managerUp: CanActivateFn = () => (inject(Api).isManager() ? true : 
 
 // ---- Money, numbers, dates ----
 
-/** Rs 125,000, with paisa only when there is some. */
+/** Rs 125,000 (or the shop's own currency sign), with paisa only when there is some. */
 export function money(value: string | number | null | undefined): string {
   if (value === null || value === undefined || value === '') return '—';
   const n = Number(value);
-  return `${n < 0 ? '-' : ''}Rs ${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })}`;
+  return `${n < 0 ? '-' : ''}${moneySign.value} ${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })}`;
 }
 
 @Pipe({ name: 'money' })
@@ -360,3 +372,5 @@ export function uid(): string {
 }
 
 export { billRows, kindName, oldestFirst, shownCode } from './kinds';
+
+export { moneySign } from './money-sign';

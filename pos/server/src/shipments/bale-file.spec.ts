@@ -78,4 +78,21 @@ describe('sharing a cost between bales', () => {
     expect(spread(new D('900'), [new D(10), null, new D(50)]).map(String)).toEqual(['300', '300', '300']);
     expect(spread(new D('0'), [null, null]).map(String)).toEqual(['0', '0']);
   });
+
+  it('finds the currency a list is written in', async () => {
+    const of = async (text: string) => (await csv(text)).currency;
+    expect(await of('Item,Cost\nJeans,100')).toBeNull();
+    expect(await of('Item,Cost (USD)\nJeans,100')).toBe('USD');
+    expect(await of('Item,Amount $\nJeans,100')).toBe('USD');
+    expect(await of('Item,Cost\nJeans,"$1,250.50"\nTops,$90')).toBe('USD');
+    expect(await of('Item,Cost\nJeans,£45\nTops,£50')).toBe('GBP');
+    expect(await of('Item,Cost\nJeans,AED 300')).toBe('AED');
+    expect(await of('Item,Cost\nJeans,"Rs 28,000"')).toBe('PKR');
+    expect(await of('PACKING LIST,\nAll prices in GBP,\nDescription,Amount\nJeans,45')).toBe('GBP');
+    // The header says more than a stray sign in one cell, and the selling price column does not count.
+    expect(await of('Item,Cost (EUR),Bale sale price\nJeans,$40,Rs 9000')).toBe('EUR');
+    const file = await csv('Item,Cost (USD),Pcs\nJeans,"$1,250.50",120');
+    expect(file.ignoredHeaders).toEqual([]);
+    expect(file.rows[0].cost!.toString()).toBe('1250.5');
+  });
 });

@@ -17,6 +17,20 @@ export class SalesController {
     return this.sales.create(me, body);
   }
 
+  /** The day's returns (or a range). */
+  @ManagerUp()
+  @Get('returns')
+  returns(@Me() me: Actor, @Query() q: Record<string, string>) {
+    return this.sales.returns(me, q);
+  }
+
+  /** A return without the bill: the bills that sold the goods with this code. */
+  @ManagerUp()
+  @Get('by-goods/:code')
+  byGoods(@Me() me: Actor, @Param('code') code: string) {
+    return this.sales.byGoods(me, code);
+  }
+
   @Get(':id')
   get(@Me() me: Actor, @Param('id') id: string) {
     return this.sales.get(me, id);
