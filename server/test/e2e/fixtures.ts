@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { randomUUID } from 'crypto';
+import { appendFileSync } from 'fs';
 import * as bcrypt from 'bcrypt';
 import * as request from 'supertest';
 import { AppModule } from '../../src/app.module';
@@ -12,6 +13,10 @@ export async function createTestApp(): Promise<INestApplication> {
   const app = moduleRef.createNestApplication();
   configureApp(app);
   await app.init();
+  // Listen once, on 127.0.0.1 only. Left to itself supertest opens a new port on every address for each request;
+  // on a Mac the system may hand out a port that another program already holds on 127.0.0.1 alone, and that
+  // program then answers the request ("404 not found", 401). Found 2026-11-17: about one stray failure per run.
+  await app.listen(0, '127.0.0.1');
   return app;
 }
 
@@ -75,15 +80,29 @@ export async function login(app: INestApplication, email: string, password: stri
   return { tenantId: res.body.user.tenantId, userId: res.body.user.id, email, token: res.body.accessToken };
 }
 
+/**
+ * With TEST_HTTP_LOG set to a file, every answer of 400 or above is written there with its body: a status alone
+ * ("expected 200, got 404") does not say what was not found.
+ */
+function traced<T extends request.Test>(t: T): T {
+  const file = process.env.TEST_HTTP_LOG;
+  if (file) {
+    t.on('response', (res: { status: number; text?: string; req?: { method?: string; path?: string } }) => {
+      if (res.status >= 400) appendFileSync(file, `${new Date().toISOString()} ${res.req?.method} ${res.req?.path} -> ${res.status} ${(res.text ?? '').slice(0, 300)}\n`);
+    });
+  }
+  return t;
+}
+
 export function api(app: INestApplication, tenant: TestTenant) {
   const server = app.getHttpServer();
   const auth = { Authorization: `Bearer ${tenant.token}` };
   return {
-    get: (url: string) => request(server).get(`/api${url}`).set(auth),
-    post: (url: string, body?: object) => request(server).post(`/api${url}`).set(auth).send(body),
-    patch: (url: string, body?: object) => request(server).patch(`/api${url}`).set(auth).send(body),
-    put: (url: string, body?: object) => request(server).put(`/api${url}`).set(auth).send(body),
-    delete: (url: string, body?: object) => (body ? request(server).delete(`/api${url}`).set(auth).send(body) : request(server).delete(`/api${url}`).set(auth)),
+    get: (url: string) => traced(request(server).get(`/api${url}`).set(auth)),
+    post: (url: string, body?: object) => traced(request(server).post(`/api${url}`).set(auth).send(body)),
+    patch: (url: string, body?: object) => traced(request(server).patch(`/api${url}`).set(auth).send(body)),
+    put: (url: string, body?: object) => traced(request(server).put(`/api${url}`).set(auth).send(body)),
+    delete: (url: string, body?: object) => traced(body ? request(server).delete(`/api${url}`).set(auth).send(body) : request(server).delete(`/api${url}`).set(auth)),
   };
 }
 
