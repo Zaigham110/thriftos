@@ -310,8 +310,8 @@ export class SalesService {
                     inputAllocations: {
                       select: {
                         amountUsed: true, measurementType: true,
-                        categoryOutput: { select: { createdAt: true, category: { select: { name: true } }, grade: { select: { name: true } }, worker: { select: { name: true } }, rag: { select: { ragCode: true, originCountry: true, vendor: { select: { name: true } }, container: { select: { containerNumber: true, originCountry: true, vendor: { select: { name: true } } } } } } } },
-                        gradingOutput: { select: { createdAt: true, grade: { select: { name: true } }, gradeBucket: { select: { gradeSession: { select: { endTime: true, categoryOutput: { select: { category: { select: { name: true } }, rag: { select: { ragCode: true, originCountry: true, vendor: { select: { name: true } }, container: { select: { containerNumber: true, originCountry: true, vendor: { select: { name: true } } } } } } } } } } } } } },
+                        categoryOutput: { select: { createdAt: true, category: { select: { name: true } }, grade: { select: { name: true } }, worker: { select: { name: true } }, rag: { select: { id: true, ragCode: true, originCountry: true, vendor: { select: { name: true } }, container: { select: { containerNumber: true, originCountry: true, vendor: { select: { name: true } } } } } } } },
+                        gradingOutput: { select: { createdAt: true, grade: { select: { name: true } }, gradeBucket: { select: { gradeSession: { select: { endTime: true, categoryOutput: { select: { category: { select: { name: true } }, rag: { select: { id: true, ragCode: true, originCountry: true, vendor: { select: { name: true } }, container: { select: { containerNumber: true, originCountry: true, vendor: { select: { name: true } } } } } } } } } } } } } },
                       },
                     },
                   },
@@ -348,15 +348,31 @@ export class SalesService {
       const add = (f: (r: (typeof rows)[number]) => Prisma.Decimal | number | null) => (rows.every((r) => f(r) === null) ? null : rows.reduce((t, r) => t.add(f(r) ?? 0), new Prisma.Decimal(0)));
       return { ...rows[0], quantity: g.quantity, kg: add((r) => r.kg), pieces: add((r) => r.pieces)?.toNumber() ?? null, total: g.lineTotal };
     });
+    // A bale made from a mix (owner, 2026-11-17/18): its record names each lot that went into the mix, with its share of
+    // the kg by weight, so a buyer's trace still reaches the real lot, container, supplier and origin.
+    const mixRagIds = [...new Set(sale.lines.flatMap((l) => (l.inventoryItem.repackUnit?.inputAllocations ?? []).map((a) => (a.categoryOutput?.rag ?? a.gradingOutput?.gradeBucket.gradeSession.categoryOutput.rag)?.id).filter((x): x is string => !!x)))];
+    const mixParts = mixRagIds.length
+      ? await this.prisma.lotMixSource.findMany({
+          where: { tenantId, mixRagId: { in: mixRagIds } },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          select: { mixRagId: true, weightKg: true, source: { select: { ragCode: true, originCountry: true, vendor: { select: { name: true } }, container: { select: { containerNumber: true, originCountry: true, vendor: { select: { name: true } } } } } } },
+        })
+      : [];
     const records = sale.lines
       .filter((l) => l.inventoryItem.repackUnit)
       .map((l) => {
         const u = l.inventoryItem.repackUnit!;
-        const from = u.inputAllocations.map((a) => {
+        const from = u.inputAllocations.flatMap((a) => {
           const co = a.categoryOutput;
           const go = a.gradingOutput;
-          const rag = co?.rag ?? go?.gradeBucket.gradeSession.categoryOutput.rag ?? null;
-          return {
+          const taken = co?.rag ?? go?.gradeBucket.gradeSession.categoryOutput.rag ?? null;
+          const parts = taken ? mixParts.filter((p) => p.mixRagId === taken.id) : [];
+          const total = parts.reduce((t, p) => t.add(p.weightKg), new Prisma.Decimal(0));
+          const lots = parts.length && !total.isZero()
+            ? parts.map((p) => ({ rag: p.source, mix: taken!.ragCode, amount: a.amountUsed.mul(p.weightKg).div(total).toDecimalPlaces(2) }))
+            : [{ rag: taken, mix: null as string | null, amount: a.amountUsed }];
+          return lots.map(({ rag, mix, amount }) => ({
+            mix,
             lot: rag?.ragCode ?? null,
             container: rag?.container?.containerNumber ?? null,
             supplier: rag?.container?.vendor?.name ?? rag?.vendor?.name ?? null,
@@ -366,9 +382,9 @@ export class SalesService {
             sortedAt: co?.createdAt ?? null,
             gradedAt: go?.gradeBucket.gradeSession.endTime ?? (co?.grade ? co.createdAt : null),
             sortedBy: co?.worker?.name ?? null,
-            amount: a.amountUsed,
+            amount,
             measure: a.measurementType,
-          };
+          }));
         });
         // `code` is the kind's shared code as on the packing list; `number` the bale's own, for tracing one bale.
         return { code: l.inventoryItem.baleKind?.code ?? u.unitCode, number: u.unitCode, item: name(l.inventoryItem), madeAt: u.createdAt, kg: u.weightKg.isZero() ? null : u.weightKg, pieces: u.pcsCount || null, from };

@@ -2923,6 +2923,7 @@
   "makeTitle": "Make this an export sale",
   "makeHint": "This sale was saved as a local sale. Fill in the shipment and make it an export sale to get the packing list, commercial invoice and bale sorting records.",
   "makeExport": "Make it an export sale",
-  "made": "Now an export sale"
+  "made": "Now an export sale",
+  "inMix": "sorted in mix {mix}"
  }
 }

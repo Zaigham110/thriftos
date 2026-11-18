@@ -23,6 +23,9 @@ describe('Mixing lots for sorting (e2e)', () => {
   let mixId: string;
   let vendor1: string;
   let vendor2: string;
+  let wasteId: string;
+  let sessionId: string;
+  let baleIds: string[];
 
   beforeAll(async () => {
     app = await createTestApp();
@@ -36,6 +39,7 @@ describe('Mixing lots for sorting (e2e)', () => {
     await prisma.rag.delete({ where: { id: seeded.lot.id } });
     jeansId = seeded.jeans.id;
     gradeId = seeded.gradeA.id;
+    wasteId = seeded.waste.id;
     vendor1 = (await api(app, a).post('/procurement/vendors', { name: 'Loose Supplier', originCountry: 'Pakistan' }).expect(201)).body.id;
     vendor2 = (await api(app, a).post('/procurement/vendors', { name: 'Container Supplier', originCountry: 'USA' }).expect(201)).body.id;
     // A loose lot: 60 kg for 6,000. A container with one lot: 40 kg for 8,000 (dearer per kg).
@@ -84,6 +88,8 @@ describe('Mixing lots for sorting (e2e)', () => {
   it('the mix is sorted and sold as one lot; each lot, container and supplier gets its share by weight, at its own cost', async () => {
     const session = (await api(app, a).post('/sorting/stage-1/start', { ragId: mixId }).expect(201)).body.session;
     const made = (await api(app, a).post('/sorting/stage-1/allocate', { sessionId: session.id, categoryId: jeansId, gradeId, bales: 2, baleWeightKg: 50 }).expect(200)).body;
+    sessionId = session.id;
+    baleIds = made.baleIds;
     // Sorting has started: the mix stays together.
     expect((await api(app, a).post(`/sorting/stage-1/mix/${mixId}/undo`, {}).expect(409)).body.code).toBe('SORTING_STARTED');
     const item = await prisma.inventoryItem.findFirstOrThrow({ where: { repackUnitId: made.baleIds[0] } });
@@ -109,6 +115,39 @@ describe('Mixing lots for sorting (e2e)', () => {
     // The monthly lines are untouched by the sharing: one sale, its real cost.
     const p = (await api(app, a).get('/workspace/finance/pnl?months=1').expect(200)).body.totals;
     expect([p.revenue, p.cost, p.grossProfit, p.bought]).toEqual(['10000', '7500', '2500', '15000']);
+  });
+
+  it('yield, each lot\'s and container\'s page and export bale records show the mix under the lots it came from', async () => {
+    await api(app, a).patch(`/sorting/stage-1/${sessionId}/seal`, { wasteCategoryId: wasteId }).expect(200);
+    // Yield by supplier: each supplier's share of the mix by weight.
+    const y = (await api(app, a).get('/workspace/sorting/yield?by=supplier').expect(200)).body;
+    const row = (k: string) => y.rows.find((r: any) => r.key === k);
+    expect([row('Loose Supplier').inputKg, row('Loose Supplier').outputKg, row('Loose Supplier').lots]).toEqual(['60', '60', 1]);
+    expect([row('Container Supplier').inputKg, row('Container Supplier').outputKg]).toEqual(['40', '40']);
+    // By month the mix is one lot, sorted once.
+    expect((await api(app, a).get('/workspace/sorting/yield?by=month').expect(200)).body.rows[0]).toMatchObject({ lots: 1, inputKg: '100' });
+
+    // The loose lot's page lists the mix's bales with its share: 30 of each 50 kg, 40% of the cost (6,000 of 15,000).
+    const lot = (await api(app, a).get(`/workspace/sorting/${looseId}`).expect(200)).body;
+    expect(lot.bales.map((b: any) => [b.kg, b.cost])).toEqual([['30', '3000'], ['30', '3000']]);
+    // The container's page: the bales at its share of the cost, and the sale at its share by weight.
+    const cont = (await api(app, a).get(`/workspace/containers/${containerId}`).expect(200)).body;
+    expect(cont.bales.map((b: any) => b.costFromHere)).toEqual(['4500', '4500']);
+    expect(cont.sales.map((x: any) => [x.revenue, x.profit])).toEqual([['4000', '-500']]);
+
+    // An export sale of the other bale: its record names both lots, inside the mix, with their kg.
+    const row2 = await prisma.tenant.findUniqueOrThrow({ where: { id: a.tenantId }, select: { enabledModules: true } });
+    await prisma.tenant.update({ where: { id: a.tenantId }, data: { enabledModules: [...new Set([...row2.enabledModules, 'EXPORT'])] } });
+    const item = await prisma.inventoryItem.findFirstOrThrow({ where: { repackUnitId: baleIds[1] } });
+    const buyer = (await api(app, a).post('/customers', { name: 'Export Buyer', phone: '+971501110001' }).expect(201)).body;
+    const sale = (await api(app, a).post('/sales', { customerId: buyer.id, type: 'EXPORT', paymentMode: 'CASH', paymentMethod: 'CASH', lines: [{ inventoryItemId: item.id, unit: 'BALE', quantity: 1, unitPrice: 9000 }] }).expect(201)).body;
+    const pack = (await api(app, a).get(`/sales/${sale.id}/export-pack`).expect(200)).body;
+    const lots = await prisma.rag.findMany({ where: { id: { in: [looseId, containerLotId] } }, select: { id: true, ragCode: true } });
+    const code = (id: string) => lots.find((l) => l.id === id)!.ragCode;
+    expect(pack.records[0].from.map((f: any) => [f.lot, f.supplier, f.amount, !!f.mix])).toEqual([
+      [code(looseId), 'Loose Supplier', '30', true],
+      [code(containerLotId), 'Container Supplier', '20', true],
+    ]);
   });
 
   it('a mix nobody has started sorting can be taken apart; lots without a weight and mixes cannot be mixed', async () => {

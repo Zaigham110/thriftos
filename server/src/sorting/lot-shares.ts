@@ -41,3 +41,28 @@ export function shareOut(amount: Prisma.Decimal, sources: MixSource[], by: 'weig
   const usable = parts.some((p) => p.weight.greaterThan(0)) ? parts : sources.map((s) => ({ key: s.sourceRagId, weight: s.weightKg }));
   return new Map(allocateByWeight(amount.abs(), usable).map((a) => [a.key, a.amount.mul(sign)]));
 }
+
+/**
+ * The mixes some lots (or a container's lots) went into, with how much of each mix is theirs: by weight (kg it gave)
+ * and by cost (what its bales cost). Used to show a mix's bales and sales under each lot and container it came from.
+ */
+export async function partsOfMixes(prisma: Db, tenantId: string, where: { sourceRagIds?: string[]; containerIds?: string[] }): Promise<Array<{ mixRagId: string; weightShare: Prisma.Decimal; costShare: Prisma.Decimal }>> {
+  const mine = await mixSources(prisma, tenantId, where);
+  if (!mine.length) return [];
+  const mixIds = [...new Set(mine.map((s) => s.mixRagId))];
+  const all = await mixSources(prisma, tenantId, { mixRagIds: mixIds });
+  const ZERO = new Prisma.Decimal(0);
+  return mixIds.map((mixRagId) => {
+    const parts = all.filter((s) => s.mixRagId === mixRagId);
+    const ours = mine.filter((s) => s.mixRagId === mixRagId);
+    const kg = parts.reduce((t, p) => t.add(p.weightKg), ZERO);
+    const cost = parts.reduce((t, p) => t.add(p.cost), ZERO);
+    const share = (part: Prisma.Decimal, whole: Prisma.Decimal) => (whole.isZero() ? ZERO : part.div(whole));
+    return {
+      mixRagId,
+      weightShare: share(ours.reduce((t, p) => t.add(p.weightKg), ZERO), kg),
+      // All free: by weight, so nothing is lost.
+      costShare: cost.isZero() ? share(ours.reduce((t, p) => t.add(p.weightKg), ZERO), kg) : share(ours.reduce((t, p) => t.add(p.cost), ZERO), cost),
+    };
+  });
+}

@@ -6,6 +6,19 @@ import { percent, topGradePercent } from '../home/home';
 import { PrismaService } from '../prisma/prisma.service';
 import { topGrade as topGradeOf } from '../sorting/top-grade';
 import { lotEconomics } from '../home/container-economics';
+import { partsOfMixes } from '../sorting/lot-shares';
+
+/** A bale's take from a lot: kg, cost, and the bale (for the lot page's bale list). */
+const ALLOCATION_SELECT = {
+  amountUsed: true, allocatedCost: true,
+  repackUnit: {
+    select: {
+      id: true, unitCode: true, weightKg: true,
+      category: { select: { name: true } }, grade: { select: { name: true } },
+      inventoryItems: { select: { id: true, quantity: true, usedQuantity: true, baleKind: { select: { code: true } } } },
+    },
+  },
+} satisfies Prisma.RepackInputAllocationSelect;
 
 const ZERO = new Prisma.Decimal(0);
 const DAY = 86_400_000;
@@ -68,16 +81,7 @@ export class SortingRecordsService {
       // Bales made from this lot (v2 review): its kg in each bale and what the bale became.
       this.prisma.repackInputAllocation.findMany({
         where: { tenantId, ragBaleId: ragId },
-        select: {
-          amountUsed: true, allocatedCost: true,
-          repackUnit: {
-            select: {
-              id: true, unitCode: true, weightKg: true,
-              category: { select: { name: true } }, grade: { select: { name: true } },
-              inventoryItems: { select: { id: true, quantity: true, usedQuantity: true, baleKind: { select: { code: true } } } },
-            },
-          },
-        },
+        select: ALLOCATION_SELECT,
       }),
     ]);
     // Mixing (owner, 2026-11-17): a mix lists the lots it was made from; a lot that went into one says which.
@@ -90,6 +94,14 @@ export class SortingRecordsService {
       this.prisma.lotMixSource.findUnique({ where: { sourceRagId: ragId }, select: { weightKg: true, mix: { select: { id: true, ragCode: true, weightKg: true, status: true } } } }),
     ]);
     const shareOf = (kg: Prisma.Decimal, total: Prisma.Decimal) => (total.isZero() ? 0 : kg.div(total).mul(100).toDecimalPlaces(1).toNumber());
+    // A lot that went into a mix: the mix's bales show here too, with this lot's share of their kg and cost
+    // (owner, 2026-11-18: gaps, 4 of 4).
+    const [part] = wentInto ? await partsOfMixes(this.prisma, tenantId, { sourceRagIds: [ragId] }) : [];
+    const fromMix: Allocation[] = part
+      ? (await this.prisma.repackInputAllocation.findMany({ where: { tenantId, ragBaleId: part.mixRagId }, select: ALLOCATION_SELECT })).map((a) => ({
+          ...a, amountUsed: a.amountUsed.mul(part.weightShare).toDecimalPlaces(2), allocatedCost: a.allocatedCost.mul(part.costShare).toDecimalPlaces(2),
+        }))
+      : [];
     const topRank = (await topGradeOf(this.prisma, tenantId))?.rank ?? null;
     // What the lot has earned so far (v2 review): the sale lines of its bales and loose stock, less sorter pay.
     const earned = (await lotEconomics(this.prisma, tenantId, [ragId])).get(ragId)!;
@@ -152,7 +164,7 @@ export class SortingRecordsService {
           wasteKg: waste.filter((w) => w.stage === WasteStage.STAGE_2 && w.categoryOutputId && ids.has(w.categoryOutputId) && w.unitType === WasteUnitType.KG).reduce((t, w) => t.add(w.amount), ZERO),
         };
       }),
-      bales: baleRows(allocations, canSeeCost),
+      bales: baleRows([...allocations, ...fromMix], canSeeCost),
       sold: { revenue: earned.revenue, profit: money(canSeeCost, earned.profit) },
       grades: aggregateGrades(allGraded, canSeeCost),
       waste: waste.map((w) => ({ stage: w.stage, category: w.wasteCategory.name, amount: w.amount, unit: w.unitType, value: money(canSeeCost, w.estimatedValue) })),
@@ -205,25 +217,44 @@ export class SortingRecordsService {
       topGradeOf(this.prisma, tenantId),
       this.prisma.wasteLineItem.findMany({ where: { tenantId, ragId: { in: ragIds }, unitType: WasteUnitType.KG }, select: { stage: true, amount: true, estimatedValue: true, wasteCategory: { select: { name: true } } } }),
     ]);
-    const keyOf = (s: (typeof sessions)[number]): string => {
+    type LotFacts = { originCountry: string | null; rawCategory: { name: string } | null; vendor: { name: string } | null; container: { containerNumber: string; vendor: { name: string } | null } | null };
+    const keyOf = (lot: LotFacts, endTime: Date): string => {
       switch (by) {
-        case 'origin': return s.rag.originCountry ?? '';
-        case 'rawCategory': return s.rag.rawCategory?.name ?? '';
-        case 'container': return s.rag.container?.containerNumber ?? '';
-        case 'month': return new Date(s.endTime!.getTime() + 5 * 3_600_000).toISOString().slice(0, 7);
-        default: return s.rag.container?.vendor?.name ?? s.rag.vendor?.name ?? '';
+        case 'origin': return lot.originCountry ?? '';
+        case 'rawCategory': return lot.rawCategory?.name ?? '';
+        case 'container': return lot.container?.containerNumber ?? '';
+        case 'month': return new Date(endTime.getTime() + 5 * 3_600_000).toISOString().slice(0, 7);
+        default: return lot.container?.vendor?.name ?? lot.vendor?.name ?? '';
       }
     };
-    const groups = new Map<string, { key: string; lots: number; inputKg: Prisma.Decimal; outputKg: Prisma.Decimal; wasteKg: Prisma.Decimal; ragIds: Set<string> }>();
-    for (const s of sessions) {
-      const k = keyOf(s);
-      const g = groups.get(k) ?? { key: k, lots: 0, inputKg: ZERO, outputKg: ZERO, wasteKg: ZERO, ragIds: new Set<string>() };
+    // A mix (owner, 2026-11-17) is sorted as one lot; here each lot that went into it counts under its own supplier,
+    // origin, raw type and container, with its share of the mix by weight (owner, 2026-11-18: gaps, 4 of 4).
+    const sources = await this.prisma.lotMixSource.findMany({
+      where: { tenantId, mixRagId: { in: ragIds } },
+      select: { mixRagId: true, weightKg: true, source: { select: { originCountry: true, rawCategory: { select: { name: true } }, vendor: { select: { name: true } }, container: { select: { containerNumber: true, vendor: { select: { name: true } } } } } } },
+    });
+    const groups = new Map<string, { key: string; lots: number; inputKg: Prisma.Decimal; outputKg: Prisma.Decimal; wasteKg: Prisma.Decimal; ragIds: Map<string, Prisma.Decimal> }>();
+    const add = (k: string, ragId: string, share: Prisma.Decimal, s: (typeof sessions)[number]) => {
+      const g = groups.get(k) ?? { key: k, lots: 0, inputKg: ZERO, outputKg: ZERO, wasteKg: ZERO, ragIds: new Map<string, Prisma.Decimal>() };
       g.lots += 1;
-      g.inputKg = g.inputKg.add(s.totalInputWeight);
-      g.outputKg = g.outputKg.add(s.totalOutputWeight);
-      g.wasteKg = g.wasteKg.add(s.wasteWeight);
-      g.ragIds.add(s.rag.id);
+      g.inputKg = g.inputKg.add(s.totalInputWeight.mul(share));
+      g.outputKg = g.outputKg.add(s.totalOutputWeight.mul(share));
+      g.wasteKg = g.wasteKg.add(s.wasteWeight.mul(share));
+      g.ragIds.set(ragId, (g.ragIds.get(ragId) ?? ZERO).add(share));
       groups.set(k, g);
+    };
+    const ONE = new Prisma.Decimal(1);
+    for (const s of sessions) {
+      const parts = sources.filter((x) => x.mixRagId === s.rag.id);
+      const total = parts.reduce((t, p) => t.add(p.weightKg), ZERO);
+      // By month a mix stays one lot (it was sorted once); by anything a lot carries, it is split back.
+      if (!parts.length || total.isZero() || by === 'month') add(keyOf(s.rag, s.endTime!), s.rag.id, ONE, s);
+      else for (const p of parts) add(keyOf(p.source, s.endTime!), s.rag.id, p.weightKg.div(total), s);
+    }
+    for (const g of groups.values()) {
+      g.inputKg = g.inputKg.toDecimalPlaces(2);
+      g.outputKg = g.outputKg.toDecimalPlaces(2);
+      g.wasteKg = g.wasteKg.toDecimalPlaces(2);
     }
     // Graded kg per lot: grades given while sorting plus a separate grading afterwards (counted once).
     const graded = [
@@ -235,7 +266,7 @@ export class SortingRecordsService {
       .map((g) => ({
         key: g.key, lots: g.lots, inputKg: g.inputKg, outputKg: g.outputKg, wasteKg: g.wasteKg,
         yieldPercent: percent(g.outputKg, g.inputKg),
-        topGradePercent: top === null ? null : topGradePercent(graded.filter((x) => g.ragIds.has(x.ragId)).map((x) => ({ rank: x.grade.rank, kg: x.weightKg })), top),
+        topGradePercent: top === null ? null : topGradePercent(graded.filter((x) => g.ragIds.has(x.ragId)).map((x) => ({ rank: x.grade.rank, kg: x.weightKg.mul(g.ragIds.get(x.ragId)!) })), top),
       }))
       .sort((a, b) => (by === 'month' ? a.key.localeCompare(b.key) : (b.yieldPercent ?? -1) - (a.yieldPercent ?? -1) || b.inputKg.comparedTo(a.inputKg)));
 

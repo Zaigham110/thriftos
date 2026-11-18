@@ -1,3 +1,4 @@
+import { partsOfMixes } from '../sorting/lot-shares';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PaymentMethod, Prisma } from '@prisma/client';
 import { Type } from 'class-transformer';
@@ -67,6 +68,22 @@ export class WorkspaceRecordsService {
       }),
     ]);
     const e = econ.get(id)!;
+    // Lots of this container that went into a mix (owner, 2026-11-17/18): the mix's bales and sales count here
+    // too, at this container's share of the mix's cost.
+    const parts = await partsOfMixes(this.prisma, tenantId, { containerIds: [id] });
+    const shareOfMix = new Map(parts.map((p) => [p.mixRagId, p.costShare]));
+    // What a mix sold for is shared by weight, what it cost by cost (as on Trading and the supplier pages).
+    const weightOfMix = new Map(parts.map((p) => [p.mixRagId, p.weightShare]));
+    const mixIds = [...shareOfMix.keys()];
+    const fromMixes = mixIds.length
+      ? await this.prisma.repackInputAllocation.findMany({
+          where: { tenantId, ragBaleId: { in: mixIds } },
+          select: {
+            allocatedCost: true, ragBaleId: true,
+            repackUnit: { select: { id: true, unitCode: true, weightKg: true, totalCost: true, category: { select: { name: true } }, grade: { select: { name: true } }, inventoryItems: { select: { id: true, status: true, quantity: true, usedQuantity: true, baleKind: { select: { code: true } } } } } },
+          },
+        })
+      : [];
     const categories = await this.prisma.category.findMany({ where: { tenantId, id: { in: outputs.map((o) => o.categoryId) } }, select: { id: true, name: true } });
     const catName = new Map(categories.map((x) => [x.id, x.name]));
 
@@ -81,7 +98,8 @@ export class WorkspaceRecordsService {
 
     // Bales made (in part) from this container; one row per bale.
     const bales = new Map<string, { id: string; itemId: string | null; code: string; category: string | null; grade: string | null; kg: Prisma.Decimal; sold: boolean; costFromHere: Prisma.Decimal; totalCost: Prisma.Decimal }>();
-    for (const a of allocations) {
+    const takes = [...allocations, ...fromMixes.map((a) => ({ ...a, allocatedCost: a.allocatedCost.mul(shareOfMix.get(a.ragBaleId ?? '') ?? ZERO).toDecimalPlaces(2) }))];
+    for (const a of takes) {
       const u = a.repackUnit;
       const item = u.inventoryItems[0];
       const cur = bales.get(u.id) ?? {
@@ -96,23 +114,30 @@ export class WorkspaceRecordsService {
     const lines = await this.prisma.saleLine.findMany({
       where: {
         sale: { tenantId, status: { in: KHATA_SALE_STATUSES } },
-        inventoryItem: { tenantId, OR: [{ containerId: id }, { repackUnit: { inputAllocations: { some: { containerId: id } } } }] },
+        inventoryItem: { tenantId, OR: [{ containerId: id }, { repackUnit: { inputAllocations: { some: { containerId: id } } } }, ...(mixIds.length ? [{ ragId: { in: mixIds } }, { repackUnit: { inputAllocations: { some: { ragBaleId: { in: mixIds } } } } }] : [])] },
       },
       select: {
         lineTotal: true, profit: true,
         sale: { select: { id: true, saleNumber: true, createdAt: true, customer: { select: { name: true } } } },
-        inventoryItem: { select: { containerId: true, repackUnit: { select: { inputAllocations: { select: { containerId: true, allocatedCost: true } } } } } },
+        inventoryItem: { select: { containerId: true, ragId: true, repackUnit: { select: { inputAllocations: { select: { containerId: true, ragBaleId: true, allocatedCost: true } } } } } },
       },
     });
     const sales = new Map<string, { id: string; number: string; date: Date; customer: string; revenue: Prisma.Decimal; profit: Prisma.Decimal }>();
     for (const l of lines) {
       const allocs = l.inventoryItem.repackUnit?.inputAllocations ?? [];
       const total = allocs.reduce((s, a) => s.add(a.allocatedCost), ZERO);
-      const mine = allocs.filter((a) => a.containerId === id).reduce((s, a) => s.add(a.allocatedCost), ZERO);
-      const share = allocs.length ? (total.isZero() ? ZERO : mine.div(total)) : new Prisma.Decimal(l.inventoryItem.containerId === id ? 1 : 0);
+      // This container's part of a line: by each take's cost; a take from a mix counts at this container's share of
+      // the mix, by weight for what it sold for and by cost for what it cost.
+      const of = (pick: Map<string, Prisma.Decimal>) => {
+        if (!allocs.length) return l.inventoryItem.containerId === id ? new Prisma.Decimal(1) : pick.get(l.inventoryItem.ragId ?? '') ?? ZERO;
+        if (total.isZero()) return ZERO;
+        return allocs.reduce((s, a) => s.add(a.containerId === id ? a.allocatedCost : a.allocatedCost.mul(pick.get(a.ragBaleId ?? '') ?? ZERO)), ZERO).div(total);
+      };
+      const revenue = l.lineTotal.mul(of(weightOfMix));
+      const cost = l.lineTotal.sub(l.profit).mul(of(shareOfMix));
       const cur = sales.get(l.sale.id) ?? { id: l.sale.id, number: l.sale.saleNumber, date: l.sale.createdAt, customer: l.sale.customer.name, revenue: ZERO, profit: ZERO };
-      cur.revenue = cur.revenue.add(l.lineTotal.mul(share));
-      cur.profit = cur.profit.add(l.profit.mul(share));
+      cur.revenue = cur.revenue.add(revenue);
+      cur.profit = cur.profit.add(revenue.sub(cost));
       sales.set(l.sale.id, cur);
     }
 

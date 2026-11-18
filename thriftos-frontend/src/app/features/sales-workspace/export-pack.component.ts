@@ -8,7 +8,9 @@ import { ToastService } from '../../shared/floor/toast.service';
 
 type Shipment = Record<(typeof FIELDS)[number], string | null>;
 interface PackRow { code: string | null; item: string | null; unit: 'KG' | 'BALE' | 'PIECE'; quantity: string; kg: string | null; pieces: number | null; unitPrice: string; total: string }
-interface FromRow { lot: string | null; container: string | null; supplier: string | null; origin: string | null; category: string | null; grade: string | null; sortedAt: string | null; gradedAt: string | null; sortedBy: string | null }
+interface FromRow {
+  /** The mix the lot went into, when the bale was made from a mix (the lot is then one of the mix's). */
+  mix?: string | null; lot: string | null; container: string | null; supplier: string | null; origin: string | null; category: string | null; grade: string | null; sortedAt: string | null; gradedAt: string | null; sortedBy: string | null }
 interface BaleRecord { code: string; item: string | null; madeAt: string; kg: string | null; pieces: number | null; from: FromRow[] }
 interface Pack {
   sale: { id: string; number: string; date: string; currency: string; total: string };
@@ -103,7 +105,7 @@ const FIELDS = ['destinationCountry', 'portOfLoading', 'portOfDischarge', 'vesse
               <div class="rec">
                 <strong class="ltr">{{ b.code }}</strong> · {{ b.item ?? '—' }}@if (b.kg) { · {{ i18n.kg(b.kg) }} }@if (b.pieces) { · {{ 'ws.lf.piecesN' | t: { n: b.pieces } }} } · {{ 'xp.baled' | t: { date: day(b.madeAt) } }}
                 @for (f of b.from; track $index) {
-                  <small>{{ 'xp.from' | t: { lot: f.lot ?? '—', origin: f.origin ?? '—', supplier: f.supplier ?? '—' } }}@if (f.container) { · {{ 'xp.container' | t: { n: f.container } }} } · {{ [f.category, f.grade].filter(isText).join(' · ') }}@if (f.sortedAt) { · {{ 'xp.sorted' | t: { date: day(f.sortedAt) } }} }@if (f.gradedAt) { · {{ 'xp.graded' | t: { date: day(f.gradedAt) } }} }@if (f.sortedBy) { · {{ 'xp.by' | t: { name: f.sortedBy } }} }</small>
+                  <small>{{ 'xp.from' | t: { lot: f.lot ?? '—', origin: f.origin ?? '—', supplier: f.supplier ?? '—' } }}@if (f.container) { · {{ 'xp.container' | t: { n: f.container } }} }@if (f.mix) { · {{ 'xp.inMix' | t: { mix: f.mix } }} } · {{ [f.category, f.grade].filter(isText).join(' · ') }}@if (f.sortedAt) { · {{ 'xp.sorted' | t: { date: day(f.sortedAt) } }} }@if (f.gradedAt) { · {{ 'xp.graded' | t: { date: day(f.gradedAt) } }} }@if (f.sortedBy) { · {{ 'xp.by' | t: { name: f.sortedBy } }} }</small>
                 }
               </div>
             }
