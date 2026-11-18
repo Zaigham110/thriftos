@@ -296,7 +296,7 @@ export class PayrollService {
   }
 
   /** While not paid: days (for day-rate workers), deductions and a note; gross and net follow. */
-  async updateLine(tenantId: string, lineId: string, dto: { days?: number; deductions?: number; loan?: number; note?: string }, userId: string) {
+  async updateLine(tenantId: string, lineId: string, dto: { days?: number; deductions?: number; loan?: number; bonus?: number; bonusNote?: string; note?: string }, userId: string) {
     const line = await this.prisma.paySheetLine.findFirst({ where: { id: lineId, tenantId }, include: { sheet: true } });
     if (!line) throw new NotFoundException('Line not found');
     if (line.sheet.status !== PaySheetStatus.DRAFT) throw new ConflictException('This pay sheet is paid; it cannot change');
@@ -305,6 +305,10 @@ export class PayrollService {
     const days = dto.days ?? line.days.toNumber();
     const deductions = dto.deductions !== undefined ? new Prisma.Decimal(dto.deductions) : line.deductions;
     const gross = line.payType === WorkerPayType.DAY ? line.rate.mul(days).toDecimalPlaces(2) : line.gross;
+    if (dto.bonus !== undefined && dto.bonus < 0) throw new BadRequestException('A bonus cannot be below zero');
+    const bonus = dto.bonus !== undefined ? new Prisma.Decimal(dto.bonus) : line.bonus;
+    // What they earned: the pay and anything added on top (bonus, allowance, overtime).
+    const earned = gross.add(bonus);
     let loan = line.loan;
     if (dto.loan !== undefined) {
       if (dto.loan < 0) throw new BadRequestException('A loan instalment cannot be below zero');
@@ -313,10 +317,10 @@ export class PayrollService {
       loan = new Prisma.Decimal(dto.loan);
     }
     // Never more than the pay has left after advances and deductions.
-    loan = Prisma.Decimal.min(loan, netPay(gross, line.advances, deductions));
-    const net = netPay(gross, line.advances, deductions.add(loan));
+    loan = Prisma.Decimal.min(loan, netPay(earned, line.advances, deductions));
+    const net = netPay(earned, line.advances, deductions.add(loan));
     await this.prisma.$transaction(async (tx) => {
-      await tx.paySheetLine.update({ where: { id: lineId }, data: { days, deductions, loan, gross, net, ...(dto.note !== undefined && { note: dto.note.trim() || null }) } });
+      await tx.paySheetLine.update({ where: { id: lineId }, data: { days, deductions, loan, gross, bonus, net, ...(dto.bonusNote !== undefined && { bonusNote: dto.bonusNote.trim() || null }), ...(dto.note !== undefined && { note: dto.note.trim() || null }) } });
       const sum = await tx.paySheetLine.aggregate({ where: { paySheetId: line.paySheetId }, _sum: { net: true } });
       await tx.paySheet.update({ where: { id: line.paySheetId }, data: { total: sum._sum.net ?? ZERO } });
       await tx.auditLog.create({ data: { tenantId, userId, action: 'PAY_SHEET_LINE_CHANGED', entityType: 'PaySheet', entityId: line.paySheetId, metadataJson: { lineId, days, deductions: deductions.toString(), net: net.toString() } } });

@@ -2804,7 +2804,15 @@
   "loanOff": "Qarz ki mad mein",
   "leaveAllowance": "Saal mein tankhwah wali chhuttiyan",
   "leaveHint": "Haazri mein lagi chhutti is had tak rozana ujrat walon ko ada hoti hai. Na ho to khali chhorein.",
-  "leaveOf": "chhutti {of} mein se {taken}"
+  "leaveOf": "chhutti {of} mein se {taken}",
+  "bonus": "Bonus ya allowance",
+  "bonusFor": "Kis liye",
+  "bonusForHint": "maslan Eid bonus, kiraya, overtime",
+  "plusBonus": "jama {what} {rs}",
+  "printSlips": "Tankhwah ki parchiyan print karein",
+  "slipTitle": "Tankhwah ki parchi",
+  "slipAdvance": "Pehle diya advance",
+  "slipSign": "Upar ki raqam poori wasool ki · dastakhat"
  },
  "move": {
   "pick": "Ya stock se chunein",

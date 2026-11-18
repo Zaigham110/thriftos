@@ -61,10 +61,28 @@ test('employees: add one with their record, count their sorting, pay sheet, paid
     await line.getByLabel('Deduction').fill('200');
     await line.getByLabel('Deduction').press('Tab');
     await expect(line.locator('.amount')).toContainText(loose('Rs 1,000'));
+    // A bonus on top, with what it is for (owner, 2026-11-18).
+    await line.getByLabel('Bonus or allowance').fill('300');
+    await line.getByLabel('Bonus or allowance').press('Tab');
+    await expect(line.locator('.amount')).toContainText(loose('Rs 1,300'));
+    await line.getByLabel('For', { exact: true }).fill('Eid bonus');
+    await line.getByLabel('For', { exact: true }).press('Tab');
+    await expect(line).toContainText(loose('plus Eid bonus Rs 300'));
     page.once('dialog', (d) => void d.accept());
     await page.getByRole('button', { name: /^Paid in cash/ }).click();
     await expect(page.getByText(/^Paid on /)).toBeVisible();
     await expect(line.getByRole('link', { name: 'Send payslip on WhatsApp' })).toHaveAttribute('href', /^https:\/\/wa\.me\/923001234567\?text=/);
+    // Printed payslips: one per employee, with the bonus and a line to sign; the screen itself is not printed.
+    await page.evaluate(() => { (window as unknown as { print: () => void }).print = () => undefined; });
+    await page.getByRole('button', { name: 'Print payslips' }).click();
+    await page.emulateMedia({ media: 'print' });
+    const slip = page.locator('.slip', { hasText: name });
+    await expect(slip).toBeVisible();
+    await expect(slip).toContainText('Eid bonus');
+    await expect(slip).toContainText(loose('Rs 1,300'));
+    await expect(slip).toContainText('signature');
+    await expect(page.locator('.floor.payroll')).toBeHidden();
+    await page.emulateMedia({ media: 'screen' });
 
     // The lot page shows the labour; productivity lists the worker.
     await page.goto(`/sort/records/${lot.id}`);

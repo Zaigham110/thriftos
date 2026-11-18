@@ -2035,6 +2035,9 @@ model PaySheetLine {
   /// Days marked absent in the period (half day = 0.5), for the owner to see beside a monthly salary.
   absentDays Decimal       @default(0) @db.Decimal(5, 1)
   gross      Decimal       @db.Decimal(14, 2)
+  /// Added on top of the pay: a bonus, an allowance (travel, food) or overtime, with what it is for in `bonusNote`.
+  bonus      Decimal       @default(0) @db.Decimal(14, 2)
+  bonusNote  String?
   advances   Decimal       @default(0) @db.Decimal(14, 2)
   deductions Decimal       @default(0) @db.Decimal(14, 2)
   /// Taken off this pay towards the employee's loans (repaid when the sheet is paid).

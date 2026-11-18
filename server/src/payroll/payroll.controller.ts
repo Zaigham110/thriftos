@@ -65,6 +65,9 @@ export class LineDto {
   /** Whole or half days. */
   @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 1 }) @Min(0) @Max(31) days?: number;
   @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) deductions?: number;
+  /** Added on top of the pay (bonus, allowance, overtime) and what it is for. */
+  @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) bonus?: number;
+  @IsOptional() @IsString() @MaxLength(80) bonusNote?: string;
   /** Towards the employee's loans, from this pay. */
   @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) loan?: number;
   @IsOptional() @IsString() @MaxLength(200) note?: string;

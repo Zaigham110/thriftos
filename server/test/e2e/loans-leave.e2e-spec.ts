@@ -65,11 +65,16 @@ describe('Employees: loans and leave (e2e)', () => {
     const less = (await api(app, a).patch(`/payroll/lines/${line.id}`, { loan: 1000 }).expect(200)).body.lines[0];
     expect([less.loan, Number(less.net)]).toEqual(['1000', Number(line.gross) - 1000]);
 
+    // A bonus or allowance goes on top, with what it is for; the loan instalment and the expense follow.
+    const withBonus = (await api(app, a).patch(`/payroll/lines/${line.id}`, { bonus: 500, bonusNote: 'Eid bonus' }).expect(200)).body.lines[0];
+    expect([withBonus.bonus, withBonus.bonusNote, Number(withBonus.net)]).toEqual(['500', 'Eid bonus', Number(line.gross) + 500 - 1000]);
+    await api(app, a).patch(`/payroll/lines/${line.id}`, { bonus: -1 }).expect(400);
+    await api(app, b).patch(`/payroll/lines/${line.id}`, { bonus: 900 }).expect(404);
     const paid = (await api(app, a).post(`/payroll/sheets/${sheet.id}/pay`, {}).expect(200)).body;
     expect(paid.status).toBe('PAID');
     // The whole wage is the expense; the instalment came back into the drawer as a loan repaid.
     const expense = await prisma.expense.findFirstOrThrow({ where: { tenantId: a.tenantId } });
-    expect(expense.amount.toString()).toBe(line.gross);
+    expect(expense.amount.toString()).toBe(String(Number(line.gross) + 500));
     const moves = await prisma.cashMove.findMany({ where: { tenantId: a.tenantId }, orderBy: { createdAt: 'asc' }, select: { direction: true, amount: true } });
     expect(moves.map((m) => [m.direction, m.amount.toString()])).toEqual([['OUT', '5000'], ['IN', '1000']]);
     expect((await api(app, a).get(`/payroll/workers/${loader}/loans`).expect(200)).body[0]).toMatchObject({ amount: '5000', repaid: '1000', left: '4000' });

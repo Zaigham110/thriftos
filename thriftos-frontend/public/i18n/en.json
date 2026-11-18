@@ -2804,7 +2804,15 @@
   "loanOff": "Towards the loan",
   "leaveAllowance": "Paid leave days a year",
   "leaveHint": "Leave marked in Attendance within this is paid to staff paid by the day. Leave it empty for none.",
-  "leaveOf": "leave {taken} of {of}"
+  "leaveOf": "leave {taken} of {of}",
+  "bonus": "Bonus or allowance",
+  "bonusFor": "For",
+  "bonusForHint": "e.g. Eid bonus, travel, overtime",
+  "plusBonus": "plus {what} {rs}",
+  "printSlips": "Print payslips",
+  "slipTitle": "Payslip",
+  "slipAdvance": "Advance already given",
+  "slipSign": "Received the above in full · signature"
  },
  "move": {
   "pick": "Or pick from stock",

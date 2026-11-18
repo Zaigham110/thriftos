@@ -18,7 +18,7 @@ interface Worker {
 }
 interface WorkerForm { leaveAllowance: number | null; id: string | null; name: string; phone: string; payType: PayType; rate: number | null; isActive: boolean; jobTitle: string; cnic: string; joinedOn: string; leftOn: string; address: string; emergencyContact: string; note: string }
 interface SheetRow { id: string; periodStart: string; periodEnd: string; status: 'DRAFT' | 'PAID'; total: string; workers: number }
-interface Line { id: string; workerId: string; payType: PayType; rate: string; kg: string; pieces: number; days: string | number; absentDays?: string; loan?: string; gross: string; advances: string; deductions: string; net: string; note: string | null; worker: { id: string; name: string; phone: string | null } }
+interface Line { id: string; workerId: string; payType: PayType; rate: string; kg: string; pieces: number; days: string | number; absentDays?: string; loan?: string; bonus?: string; bonusNote?: string | null; gross: string; advances: string; deductions: string; net: string; note: string | null; worker: { id: string; name: string; phone: string | null } }
 interface Sheet { id: string; periodStart: string; periodEnd: string; status: 'DRAFT' | 'PAID'; total: string; paidAt: string | null; lines: Line[] }
 interface Prod { from: string; to: string; topGrade: string | null; workers: { id: string; name: string; kg: string; pieces: number; days: number; kgPerDay: string; piecesPerDay: number; topGradePercent: number | null }[] }
 type Tab = 'workers' | 'sheets' | 'productivity';
@@ -171,10 +171,12 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
                     <strong>{{ l.worker.name }}</strong>
                     <span class="amount">{{ i18n.money(l.net) }}</span>
                   </div>
-                  <small>{{ workText(l) }} = {{ i18n.money(l.gross) }}@if (l.absentDays && +l.absentDays) { · {{ 'pay.absentN' | t: { n: +l.absentDays } }} }@if (+l.advances) { · {{ 'pay.lessAdvance' | t: { rs: i18n.money(l.advances) } }} }@if (+l.deductions) { · {{ 'pay.lessDeduction' | t: { rs: i18n.money(l.deductions) } }} }@if (l.loan && +l.loan) { · {{ 'pay.lessLoan' | t: { rs: i18n.money(l.loan) } }} }@if (l.note) { · {{ l.note }} }</small>
+                  <small>{{ workText(l) }} = {{ i18n.money(l.gross) }}@if (l.bonus && +l.bonus) { · {{ 'pay.plusBonus' | t: { what: l.bonusNote || ('pay.bonus' | t), rs: i18n.money(l.bonus) } }} }@if (l.absentDays && +l.absentDays) { · {{ 'pay.absentN' | t: { n: +l.absentDays } }} }@if (+l.advances) { · {{ 'pay.lessAdvance' | t: { rs: i18n.money(l.advances) } }} }@if (+l.deductions) { · {{ 'pay.lessDeduction' | t: { rs: i18n.money(l.deductions) } }} }@if (l.loan && +l.loan) { · {{ 'pay.lessLoan' | t: { rs: i18n.money(l.loan) } }} }@if (l.note) { · {{ l.note }} }</small>
                   @if (s.status === 'DRAFT') {
                     <div class="edit">
                       @if (l.payType === 'DAY') { <label>{{ 'pay.days' | t }}<input type="number" min="0" max="31" step="0.5" [value]="+l.days" (change)="saveLine(l, { days: +$any($event.target).value })" /></label> }
+                      <label>{{ 'pay.bonus' | t }}<input type="number" min="0" [value]="+(l.bonus ?? 0) || ''" (change)="saveLine(l, { bonus: +$any($event.target).value || 0 })" /></label>
+                      @if (l.bonus && +l.bonus) { <label>{{ 'pay.bonusFor' | t }}<input maxlength="80" [value]="l.bonusNote ?? ''" [placeholder]="'pay.bonusForHint' | t" (change)="saveLine(l, { bonusNote: $any($event.target).value })" /></label> }
                       <label>{{ 'pay.deduction' | t }}<input type="number" min="0" [value]="+l.deductions || ''" (change)="saveLine(l, { deductions: +$any($event.target).value || 0 })" /></label>
                       @if (l.loan && +l.loan) { <label>{{ 'pay.loanOff' | t }}<input type="number" min="0" [value]="+l.loan" (change)="saveLine(l, { loan: +$any($event.target).value || 0 })" /></label> }
                       <label>{{ 'pay.note' | t }}<input maxlength="200" [value]="l.note ?? ''" (change)="saveLine(l, { note: $any($event.target).value })" /></label>
@@ -186,6 +188,7 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
               }
             </ul>
             <div class="total"><span>{{ 'pay.total' | t }}</span><strong>{{ i18n.money(s.total) }}</strong></div>
+            <button type="button" class="btn print" (click)="printSlips()">{{ 'pay.printSlips' | t }}</button>
             @if (s.status === 'DRAFT') {
               <div class="row-btns">
                 <button type="button" class="btn" [disabled]="busy()" (click)="deleteSheet(s)">{{ 'pay.deleteSheet' | t }}</button>
@@ -215,8 +218,45 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
         }
       }
     </section>
+    <!-- Payslips to print: one per employee, each with a line to sign for the cash (owner, 2026-11-18). -->
+    @if (tab() === 'sheets' && sheet(); as s) {
+      <section class="slips" aria-hidden="true">
+        @for (l of s.lines; track l.id) {
+          <article class="slip">
+            <header><strong>{{ business() }}</strong><span>{{ 'pay.slipTitle' | t }} · {{ day(s.periodStart) }} – {{ day(s.periodEnd) }}</span></header>
+            <h2>{{ l.worker.name }}</h2>
+            <dl>
+              <div><dt>{{ workText(l) }}</dt><dd>{{ i18n.money(l.gross) }}</dd></div>
+              @if (l.bonus && +l.bonus) { <div><dt>+ {{ l.bonusNote || ('pay.bonus' | t) }}</dt><dd>{{ i18n.money(l.bonus) }}</dd></div> }
+              @if (+l.advances) { <div><dt>− {{ 'pay.slipAdvance' | t }}</dt><dd>{{ i18n.money(l.advances) }}</dd></div> }
+              @if (+l.deductions) { <div><dt>− {{ 'pay.deduction' | t }}@if (l.note) { ({{ l.note }}) }</dt><dd>{{ i18n.money(l.deductions) }}</dd></div> }
+              @if (l.loan && +l.loan) { <div><dt>− {{ 'pay.loanOff' | t }}</dt><dd>{{ i18n.money(l.loan) }}</dd></div> }
+              <div class="net"><dt>{{ 'pay.total' | t }}</dt><dd>{{ i18n.money(l.net) }}</dd></div>
+            </dl>
+            @if (l.absentDays && +l.absentDays) { <p class="small">{{ 'pay.absentN' | t: { n: +l.absentDays } }}</p> }
+            <p class="sign">{{ 'pay.slipSign' | t }}</p>
+          </article>
+        }
+      </section>
+    }
   `,
   styles: [`
+    .slips { display:none; }
+    @media print {
+      .floor.payroll { display:none !important; }
+      .slips { display:grid; grid-template-columns:1fr 1fr; gap:6mm; color:#000; font-size:11pt; }
+      .slip { break-inside:avoid; border:1px solid #000; border-radius:2mm; padding:5mm; display:grid; gap:2mm; }
+      .slip header { display:grid; gap:1mm; border-bottom:1px solid #000; padding-bottom:2mm; }
+      .slip h2 { margin:0; font-size:13pt; }
+      .slip dl { margin:0; display:grid; gap:1mm; }
+      .slip dl > div { display:flex; justify-content:space-between; gap:4mm; }
+      .slip dd { margin:0; font-variant-numeric:tabular-nums; }
+      .slip .net { border-top:1px solid #000; padding-top:1mm; font-weight:700; }
+      .slip .small { margin:0; font-size:9pt; }
+      .slip .sign { margin:6mm 0 0; padding-top:1mm; border-top:1px dashed #000; font-size:9pt; }
+      @page { size:A4; margin:12mm; }
+    }
+    .btn.print { justify-self:start; margin-top:8px; }
     /* On a laptop the screen uses the page, not a phone-width column (v2 review). */
     @media (min-width: 1024px) { .floor.payroll { max-width:960px; } .payroll .btn.primary.add, .payroll form .btn.primary { justify-self:start; width:auto; padding-inline:20px; } }
     /* An empty list is a quiet line, not a green success box. */
@@ -372,6 +412,11 @@ export class PayrollComponent {
   private saveKey = crypto.randomUUID();
 
   // Loans: lend (cash out, not an expense; an instalment comes off each pay) or take cash back.
+  /** The payslips of the sheet open, two to an A4 page. */
+  protected printSlips(): void {
+    window.print();
+  }
+
   protected readonly loanFor = signal<{ id: string; mode: 'give' | 'repay' } | null>(null);
   protected loanAmount = 0;
   protected loanInstalment = 0;
@@ -452,7 +497,7 @@ export class PayrollComponent {
     this.http.get<Sheet>(`/api/payroll/sheets/${id}`).subscribe({ next: (s) => this.sheet.set(s), error: (e) => this.fail(e) });
   }
 
-  protected saveLine(l: Line, body: { days?: number; deductions?: number; loan?: number; note?: string }): void {
+  protected saveLine(l: Line, body: { days?: number; deductions?: number; loan?: number; bonus?: number; bonusNote?: string; note?: string }): void {
     this.error.set(null);
     this.http.patch<Sheet>(`/api/payroll/lines/${l.id}`, body).subscribe({ next: (s) => this.sheet.set(s), error: (e) => this.fail(e) });
   }
@@ -491,6 +536,7 @@ export class PayrollComponent {
     const lines = [
       this.i18n.t('pay.slipHead', { business: this.business(), from: this.day(s.periodStart), to: this.day(s.periodEnd) }),
       `${l.worker.name}: ${this.workText(l)} = ${this.i18n.money(l.gross)}`,
+      ...(l.bonus && +l.bonus ? [this.i18n.t('pay.plusBonus', { what: l.bonusNote || this.i18n.t('pay.bonus'), rs: this.i18n.money(l.bonus) })] : []),
       ...(+l.advances ? [this.i18n.t('pay.lessAdvance', { rs: this.i18n.money(l.advances) })] : []),
       ...(+l.deductions ? [this.i18n.t('pay.lessDeduction', { rs: this.i18n.money(l.deductions) })] : []),
       ...(l.loan && +l.loan ? [this.i18n.t('pay.lessLoan', { rs: this.i18n.money(l.loan) })] : []),
