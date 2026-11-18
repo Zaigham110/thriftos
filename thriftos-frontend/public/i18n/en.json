@@ -2812,7 +2812,37 @@
   "printSlips": "Print payslips",
   "slipTitle": "Payslip",
   "slipAdvance": "Advance already given",
-  "slipSign": "Received the above in full · signature"
+  "slipSign": "Received the above in full · signature",
+  "lv": {
+   "tab": "Leave",
+   "new": "Leave asked for",
+   "pick": "Pick an employee",
+   "reason": "Reason",
+   "giveNow": "Give it now",
+   "ask": "Save, decide later",
+   "give": "Give the leave",
+   "asked": "Saved. It waits for your yes or no.",
+   "given": "Leave given. The days are marked in Attendance.",
+   "days": "{n} days",
+   "approve": "Give",
+   "reject": "Refuse",
+   "cancel": "Cancel",
+   "none": "No leave asked for yet.",
+   "s": {
+    "PENDING": "Waiting",
+    "APPROVED": "Given",
+    "REJECTED": "Refused",
+    "CANCELLED": "Cancelled"
+   },
+   "done": {
+    "approve": "Leave given. The days are marked in Attendance.",
+    "reject": "Leave refused.",
+    "cancel": "Leave cancelled. Its days are cleared from Attendance."
+   },
+   "waitingN": "{n} leave waiting",
+   "carry": "Unused paid leave carried to next year (days, at most)",
+   "carryHint": "0 = none carried. Only last year's unused days carry; they do not carry again."
+  }
  },
  "move": {
   "pick": "Or pick from stock",

@@ -14,7 +14,7 @@ interface Worker {
   id: string; name: string; phone: string | null; payType: PayType; rate: string; isActive: boolean;
   jobTitle?: string | null; cnic?: string | null; joinedOn?: string | null; leftOn?: string | null; address?: string | null; emergencyContact?: string | null; note?: string | null;
   /** What is left on their loans; paid leave days a year and those taken this year. */
-  loanLeft?: string; leaveAllowance?: number; leaveTaken?: number;
+  loanLeft?: string; leaveAllowance?: number; leaveTaken?: number; leaveThisYear?: number; leaveAsked?: number;
 }
 interface WorkerForm { leaveAllowance: number | null; id: string | null; name: string; phone: string; payType: PayType; rate: number | null; isActive: boolean; jobTitle: string; cnic: string; joinedOn: string; leftOn: string; address: string; emergencyContact: string; note: string }
 interface SheetRow { id: string; periodStart: string; periodEnd: string; status: 'DRAFT' | 'PAID'; total: string; workers: number }
@@ -85,7 +85,7 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
             <li class="row worker" [class.off]="!w.isActive">
               <span>
                 <strong>{{ w.name }}</strong>
-                <small>@if (w.jobTitle) { {{ w.jobTitle }} · }{{ ('pay.rateText.' + w.payType) | t: { rs: i18n.money(w.rate) } }}@if (w.joinedOn && w.isActive) { · {{ 'pay.since' | t: { date: longDay(w.joinedOn) } }} }@if (w.leftOn && !w.isActive) { · {{ 'pay.left' | t: { date: longDay(w.leftOn) } }} }@if (w.phone) { · <span dir="ltr">{{ local(w.phone) }}</span> }@if (!w.isActive) { · {{ 'pay.inactive' | t }} }@if (w.leaveAllowance) { · {{ 'pay.leaveOf' | t: { taken: w.leaveTaken ?? 0, of: w.leaveAllowance } }} }@if (w.loanLeft && +w.loanLeft) { · <span class="owes">{{ 'pay.loanLeft' | t: { rs: i18n.money(w.loanLeft) } }}</span> }</small>
+                <small>@if (w.jobTitle) { {{ w.jobTitle }} · }{{ ('pay.rateText.' + w.payType) | t: { rs: i18n.money(w.rate) } }}@if (w.joinedOn && w.isActive) { · {{ 'pay.since' | t: { date: longDay(w.joinedOn) } }} }@if (w.leftOn && !w.isActive) { · {{ 'pay.left' | t: { date: longDay(w.leftOn) } }} }@if (w.phone) { · <span dir="ltr">{{ local(w.phone) }}</span> }@if (!w.isActive) { · {{ 'pay.inactive' | t }} }@if (w.leaveAllowance) { · {{ 'pay.leaveOf' | t: { taken: w.leaveTaken ?? 0, of: w.leaveThisYear ?? w.leaveAllowance } }} }@if (w.leaveAsked) { · <a routerLink="/people/attendance" class="asked">{{ 'pay.lv.waitingN' | t: { n: w.leaveAsked } }}</a> }@if (w.loanLeft && +w.loanLeft) { · <span class="owes">{{ 'pay.loanLeft' | t: { rs: i18n.money(w.loanLeft) } }}</span> }</small>
               </span>
               <span class="btns">
                 <button type="button" class="link" (click)="edit(w)">{{ 'pay.edit' | t }}</button>
@@ -129,6 +129,7 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
           }
         </ul>
         <a class="btn att" routerLink="/people/attendance">{{ 'pay.att.title' | t }}</a>
+        <label class="field carry">{{ 'pay.lv.carry' | t }}<input type="number" min="0" max="366" step="1" [value]="carryMax()" [disabled]="busy()" (change)="setCarry(+$any($event.target).value || 0)" /><small class="hint">{{ 'pay.lv.carryHint' | t }}</small></label>
         <label class="check count"><input type="checkbox" [checked]="counting()" [disabled]="busy()" (change)="setCounting($any($event.target).checked)" /> <span>{{ 'pay.countSorting' | t }}<small>{{ 'pay.countSortingHint' | t }}</small></span></label>
       }
 
@@ -274,6 +275,8 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
     .check.count span { display:grid; gap:2px; }
     .check.count small { color:var(--tos-ink-soft); font-weight:500; }
     .owes { color:var(--tos-danger, #b3261e); font-weight:600; }
+    .asked { color:var(--tos-primary); font-weight:600; }
+    .field.carry { margin-top:14px; max-width:420px; }
     details.more { display:grid; gap:10px; }
     details.more summary { cursor:pointer; font-weight:600; color:var(--tos-primary); min-height:36px; }
     details.more[open] summary { margin-bottom:10px; }
@@ -310,6 +313,8 @@ export class PayrollComponent {
   protected readonly tab = signal<Tab>(((t) => (TABS.includes(t as Tab) ? (t as Tab) : 'workers'))(this.route.snapshot.queryParamMap.get('tab') ?? (this.route.snapshot.data['tab'] as string | undefined) ?? null));
   /** Counting what each sorter sorts is a choice; its tab shows only with it on. */
   protected readonly counting = signal(false);
+  /** Unused paid leave carried into the next year, at most this many days. */
+  protected readonly carryMax = signal(0);
   protected readonly shownTabs = computed(() => this.tabs.filter((t) => t !== 'productivity' || this.counting()));
   /** A pay sheet needs somebody to pay. */
   protected readonly hasWorkers = computed(() => this.workers().some((w) => w.isActive !== false));
@@ -331,7 +336,7 @@ export class PayrollComponent {
 
   constructor() {
     this.loadWorkers();
-    this.http.get<{ trackSorterWork: boolean }>('/api/payroll/settings').subscribe({ next: (s) => this.counting.set(s.trackSorterWork), error: () => undefined });
+    this.http.get<{ trackSorterWork: boolean; leaveCarryMax: number }>('/api/payroll/settings').subscribe({ next: (s) => { this.counting.set(s.trackSorterWork); this.carryMax.set(s.leaveCarryMax); }, error: () => undefined });
     this.period('lastWeek');
     if (this.tab() === 'sheets') this.loadSheets();
     if (this.tab() === 'productivity') this.loadProd();
@@ -354,6 +359,14 @@ export class PayrollComponent {
 
   protected longDay(v: string): string {
     return new Date(`${v.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  }
+
+  protected setCarry(days: number): void {
+    this.busy.set(true);
+    this.http.patch<{ leaveCarryMax: number }>('/api/payroll/settings', { leaveCarryMax: Math.max(0, Math.round(days)) }).subscribe({
+      next: (s) => { this.busy.set(false); this.carryMax.set(s.leaveCarryMax); this.toast.show(this.i18n.t('pay.saved')); this.loadWorkers(); },
+      error: (e) => this.fail(e),
+    });
   }
 
   protected setCounting(on: boolean): void {

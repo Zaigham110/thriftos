@@ -9,7 +9,9 @@ import { ToastService } from '../../shared/floor/toast.service';
 type Status = 'PRESENT' | 'ABSENT' | 'HALF_DAY' | 'LEAVE' | 'HOLIDAY';
 interface DayRow { id: string; name: string; jobTitle: string | null; status: Status | null; note: string | null }
 interface MonthRow { id: string; name: string; jobTitle: string | null; counts: Record<Status, number> }
-type View = 'day' | 'month';
+type View = 'day' | 'month' | 'leave';
+interface LeaveRow { id: string; workerId: string; fromDay: string; toDay: string; days: number; reason: string | null; status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'; worker: { name: string; jobTitle: string | null } }
+interface Staff { id: string; name: string; isActive: boolean }
 
 const STATUSES: Status[] = ['PRESENT', 'ABSENT', 'HALF_DAY', 'LEAVE', 'HOLIDAY'];
 /** Today in Pakistan, YYYY-MM-DD. */
@@ -32,12 +34,15 @@ const shift = (day: string, by: number) => new Date(Date.parse(`${day}T00:00:00Z
         <div class="seg" role="tablist">
           <button type="button" role="tab" [class.on]="view() === 'day'" [attr.aria-selected]="view() === 'day'" (click)="show('day')">{{ 'pay.att.day' | t }}</button>
           <button type="button" role="tab" [class.on]="view() === 'month'" [attr.aria-selected]="view() === 'month'" (click)="show('month')">{{ 'pay.att.month' | t }}</button>
+          <button type="button" role="tab" [class.on]="view() === 'leave'" [attr.aria-selected]="view() === 'leave'" (click)="show('leave')">{{ 'pay.lv.tab' | t }}@if (waiting()) { ({{ waiting() }}) }</button>
         </div>
+        @if (view() !== 'leave') {
         <div class="when">
           <button type="button" class="btn" [attr.aria-label]="'pay.att.before' | t" (click)="move(-1)">‹</button>
           <input type="date" [attr.aria-label]="'ws.col.date' | t" [max]="max" [ngModel]="day()" (ngModelChange)="pick($event)" />
           <button type="button" class="btn" [attr.aria-label]="'pay.att.after' | t" [disabled]="day() >= max" (click)="move(1)">›</button>
         </div>
+        }
       </div>
       @if (error(); as e) { <p class="notice error" role="alert">{{ e }}</p> }
 
@@ -62,6 +67,38 @@ const shift = (day: string, by: number) => new Date(Date.parse(`${day}T00:00:00Z
             </ul>
           }
         }
+      } @else if (view() === 'leave') {
+        <form class="card form" (ngSubmit)="askLeave()">
+          <span class="field-label">{{ 'pay.lv.new' | t }}</span>
+          <label class="field">{{ 'pay.name' | t }}
+            <select name="who" required [(ngModel)]="lvWho">
+              <option value="" disabled>{{ 'pay.lv.pick' | t }}</option>
+              @for (s of staff(); track s.id) { <option [value]="s.id">{{ s.name }}</option> }
+            </select>
+          </label>
+          <div class="two">
+            <label class="field">{{ 'pay.from' | t }}<input name="lfrom" type="date" required [(ngModel)]="lvFrom" /></label>
+            <label class="field">{{ 'pay.to' | t }}<input name="lto" type="date" required [(ngModel)]="lvTo" /></label>
+          </div>
+          <label class="field">{{ 'pay.lv.reason' | t }} · {{ 'common.optional' | t }}<input name="lreason" maxlength="200" [(ngModel)]="lvReason" /></label>
+          <label class="check"><input type="checkbox" name="lnow" [(ngModel)]="lvNow" /> {{ 'pay.lv.giveNow' | t }}</label>
+          <button type="submit" class="btn primary" [disabled]="busy() || !lvWho || !lvFrom || !lvTo">{{ (lvNow ? 'pay.lv.give' : 'pay.lv.ask') | t }}</button>
+        </form>
+        <ul class="list" [attr.aria-label]="'pay.lv.tab' | t">
+          @for (r of leaves(); track r.id) {
+            <li class="row emp leave" [attr.data-status]="r.status">
+              <span class="who"><strong>{{ r.worker.name }}</strong><small>{{ span(r) }} · {{ 'pay.lv.days' | t: { n: r.days } }}@if (r.reason) { · {{ r.reason }} }</small></span>
+              <span class="chips">
+                <span class="ws-status" [attr.data-tone]="tone(r.status)">{{ ('pay.lv.s.' + r.status) | t }}</span>
+                @if (r.status === 'PENDING') {
+                  <button type="button" class="btn primary" [disabled]="busy()" (click)="decide(r, 'approve')">{{ 'pay.lv.approve' | t }}</button>
+                  <button type="button" class="btn" [disabled]="busy()" (click)="decide(r, 'reject')">{{ 'pay.lv.reject' | t }}</button>
+                }
+                @if (r.status === 'APPROVED') { <button type="button" class="btn" [disabled]="busy()" (click)="decide(r, 'cancel')">{{ 'pay.lv.cancel' | t }}</button> }
+              </span>
+            </li>
+          } @empty { <li class="notice empty">{{ 'pay.lv.none' | t }}</li> }
+        </ul>
       } @else if (month(); as m) {
         <table class="table">
           <caption class="sr-only">{{ 'pay.att.month' | t }}</caption>
@@ -91,6 +128,10 @@ const shift = (day: string, by: number) => new Date(Date.parse(`${day}T00:00:00Z
     .who small { color:var(--tos-ink-soft); }
     .chips { display:flex; flex-wrap:wrap; gap:6px; }
     .chip.on[data-s='ABSENT'] { background:var(--tos-danger, #b3261e); border-color:var(--tos-danger, #b3261e); color:#fff; }
+    .form { display:grid; gap:10px; margin-bottom:12px; }
+    .two { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; }
+    .check { display:flex; gap:8px; align-items:center; font-weight:600; }
+    .leave[data-status='REJECTED'], .leave[data-status='CANCELLED'] { opacity:.65; }
     .notice.empty { padding-inline:0; background:transparent; color:var(--tos-ink-soft); font-weight:500; }
     .table { width:100%; border-collapse:collapse; background:var(--tos-card); border:1px solid var(--tos-line); border-radius:12px; }
     .table th, .table td { padding:10px 12px; border-bottom:1px solid var(--tos-line); text-align:start; }
@@ -110,6 +151,14 @@ export class AttendanceComponent {
   protected readonly month = signal<MonthRow[] | null>(null);
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly leaves = signal<LeaveRow[]>([]);
+  protected readonly staff = signal<Staff[]>([]);
+  protected readonly waiting = computed(() => this.leaves().filter((l) => l.status === 'PENDING').length);
+  protected lvWho = '';
+  protected lvFrom = '';
+  protected lvTo = '';
+  protected lvReason = '';
+  protected lvNow = false;
   protected readonly unmarked = computed(() => (this.rows() ?? []).filter((r) => !r.status).length);
   /** "6 present · 1 absent · 2 not marked". */
   protected readonly summary = computed(() => {
@@ -121,6 +170,49 @@ export class AttendanceComponent {
 
   constructor() {
     this.load();
+    this.loadLeave();
+  }
+
+  protected tone(s: LeaveRow['status']): string {
+    return s === 'APPROVED' ? 'good' : s === 'PENDING' ? 'warn' : 'muted';
+  }
+
+  /** "18 Nov – 22 Nov". */
+  protected span(r: LeaveRow): string {
+    const d = (v: string) => new Date(`${v}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+    return r.fromDay === r.toDay ? d(r.fromDay) : `${d(r.fromDay)} – ${d(r.toDay)}`;
+  }
+
+  private loadLeave(): void {
+    this.http.get<LeaveRow[]>('/api/payroll/leave').subscribe({ next: (r) => this.leaves.set(r), error: (e) => this.fail(e) });
+  }
+
+  /** Leave asked for over days: it waits, or is given at once. */
+  protected askLeave(): void {
+    this.busy.set(true);
+    this.error.set(null);
+    this.http.post('/api/payroll/leave', { workerId: this.lvWho, fromDay: this.lvFrom, toDay: this.lvTo, ...(this.lvReason.trim() ? { reason: this.lvReason.trim() } : {}), approve: this.lvNow }).subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.toast.show(this.i18n.t(this.lvNow ? 'pay.lv.given' : 'pay.lv.asked'));
+        this.lvWho = '';
+        this.lvFrom = '';
+        this.lvTo = '';
+        this.lvReason = '';
+        this.lvNow = false;
+        this.loadLeave();
+      },
+      error: (e) => this.fail(e),
+    });
+  }
+
+  protected decide(r: LeaveRow, decision: 'approve' | 'reject' | 'cancel'): void {
+    this.busy.set(true);
+    this.error.set(null);
+    this.http.post(`/api/payroll/leave/${r.id}/${decision}`, {}).subscribe({
+      next: () => { this.busy.set(false); this.toast.show(this.i18n.t(`pay.lv.done.${decision}`)); this.loadLeave(); },
+      error: (e) => this.fail(e),
+    });
   }
 
   protected show(v: View): void {
@@ -151,6 +243,11 @@ export class AttendanceComponent {
 
   protected load(): void {
     this.error.set(null);
+    if (this.view() === 'leave') {
+      this.loadLeave();
+      if (!this.staff().length) this.http.get<Staff[]>('/api/payroll/workers').subscribe({ next: (w) => this.staff.set(w), error: (e) => this.fail(e) });
+      return;
+    }
     if (this.view() === 'day') {
       this.http.get<{ employees: DayRow[] }>('/api/payroll/attendance', { params: { day: this.day() } }).subscribe({ next: (r) => this.rows.set(r.employees), error: (e) => this.fail(e) });
     } else {

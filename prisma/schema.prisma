@@ -258,6 +258,8 @@ model Tenant {
   firstWeekHiddenAt DateTime?
   /// Sorting asks who sorted each pile, so staff paid per kg or piece are counted (optional; off unless turned on).
   trackSorterWork   Boolean      @default(false)
+  /// Unused paid leave carried into the next year, at most this many days (0 = none carried).
+  leaveCarryMax     Int          @default(0)
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
@@ -1905,11 +1907,12 @@ model Worker {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
-  outputs    CategoryOutput[]
-  advances   WorkerAdvance[]
-  loans      EmployeeLoan[]
-  attendance Attendance[]
-  lines      PaySheetLine[]
+  outputs       CategoryOutput[]
+  advances      WorkerAdvance[]
+  loans         EmployeeLoan[]
+  leaveRequests LeaveRequest[]
+  attendance    Attendance[]
+  lines         PaySheetLine[]
 
   @@index([tenantId])
 }
@@ -1917,16 +1920,46 @@ model Worker {
 /// Money given to a worker before pay day (a cash Labour expense when given), taken off their next pay sheet.
 /// One employee's day (owner, 2026-11-17: Employee Management): present, absent, half day, on leave or a holiday.
 /// Days present feed the pay of staff paid by the day; absences show beside a monthly salary.
-model Attendance {
-  id        String           @id @default(cuid())
+/// Leave asked for over a span of days (owner, 2026-11-18: "leave requests with dates and approval"). Approving it
+/// marks those days as leave in Attendance; cancelling an approved one clears them again.
+model LeaveRequest {
+  id        String      @id @default(cuid())
   tenantId  String
   workerId  String
-  day       DateTime         @db.Date
-  status    AttendanceStatus
-  note      String?
-  markedBy  String
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  fromDay   DateTime    @db.Date
+  toDay     DateTime    @db.Date
+  reason    String?
+  status    LeaveStatus @default(PENDING)
+  decidedBy String?
+  decidedAt DateTime?
+  createdBy String
+  createdAt DateTime    @default(now())
+
+  worker Worker @relation(fields: [workerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([tenantId, status])
+  @@index([tenantId, workerId])
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model Attendance {
+  id             String           @id @default(cuid())
+  tenantId       String
+  workerId       String
+  day            DateTime         @db.Date
+  status         AttendanceStatus
+  note           String?
+  /// Set by an approved leave request; cancelling the request clears these marks.
+  leaveRequestId String?
+  markedBy       String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   worker Worker @relation(fields: [workerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 

@@ -45,11 +45,11 @@ describe('Phase 8 sorter pay: workers, pay sheet, labour cost, productivity (e2e
     const munshi = await add({ name: 'Munshi', payType: 'MONTH', rate: 30000 });
     await api(app, a).post('/payroll/workers', { name: 'Bad phone', phone: '12', payType: 'KG', rate: 1 }).expect(400);
     // Counting what each sorter sorts is a choice (owner, 2026-11-17): off, sorting asks for nobody.
-    expect((await api(app, a).get('/payroll/settings').expect(200)).body).toEqual({ trackSorterWork: false });
+    expect((await api(app, a).get('/payroll/settings').expect(200)).body).toMatchObject({ trackSorterWork: false });
     expect((await api(app, a).get('/sorting/workers').expect(200)).body).toEqual([]);
-    expect((await api(app, a).patch('/payroll/settings', { trackSorterWork: true }).expect(200)).body).toEqual({ trackSorterWork: true });
+    expect((await api(app, a).patch('/payroll/settings', { trackSorterWork: true }).expect(200)).body).toMatchObject({ trackSorterWork: true });
     // Each business has its own setting.
-    expect((await api(app, b).get('/payroll/settings').expect(200)).body).toEqual({ trackSorterWork: false });
+    expect((await api(app, b).get('/payroll/settings').expect(200)).body).toMatchObject({ trackSorterWork: false });
     expect((await api(app, a).get('/sorting/workers').expect(200)).body.map((w: any) => w.name)).toEqual(['Akram', 'Bilal', 'Chacha', 'Munshi']);
     // An employee record: what they do, CNIC, when they joined, where they live; and when they left.
     const clerk = await add({ name: 'Office Clerk', payType: 'MONTH', rate: 25000, jobTitle: 'Clerk', cnic: '42101-1234567-1', joinedOn: '2026-01-15', address: 'Shershah, Karachi', emergencyContact: 'Brother 0300 1112223', note: 'Keeps the register' });

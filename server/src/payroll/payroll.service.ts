@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { AttendanceStatus, CashMoveDirection, CashMoveKind, ExpenseCategory, PaySheetStatus, PaymentMethod, Prisma, WorkerPayType } from '@prisma/client';
+import { AttendanceStatus, LeaveStatus, CashMoveDirection, CashMoveKind, ExpenseCategory, PaySheetStatus, PaymentMethod, Prisma, WorkerPayType } from '@prisma/client';
 import { BUSINESS_UTC_OFFSET_MINUTES, localDayStart } from '../common/list/list-engine';
 import { toE164 } from '../common/phone/phone';
 import { PrismaService } from '../prisma/prisma.service';
@@ -39,7 +39,7 @@ export class PayrollService {
 
   async workers(tenantId: string, all = false, now = new Date()) {
     const year = businessDay(now).slice(0, 4);
-    const [rows, loans, leave] = await Promise.all([
+    const [rows, loans, leave, allowance, pending] = await Promise.all([
       this.prisma.worker.findMany({
         where: { tenantId, ...(all ? {} : { isActive: true }) },
         orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
@@ -47,24 +47,57 @@ export class PayrollService {
       }),
       this.prisma.employeeLoan.findMany({ where: { tenantId }, select: { workerId: true, amount: true, repaid: true } }),
       this.prisma.attendance.groupBy({ by: ['workerId'], where: { tenantId, status: AttendanceStatus.LEAVE, day: { gte: dayDate(`${year}-01-01`), lte: dayDate(`${year}-12-31`) } }, _count: { _all: true } }),
+      this.leaveAllowances(this.prisma, tenantId, [year]),
+      this.prisma.leaveRequest.groupBy({ by: ['workerId'], where: { tenantId, status: LeaveStatus.PENDING }, _count: { _all: true } }),
     ]);
+    const asked = new Map(pending.map((p) => [p.workerId, p._count._all]));
     const owed = new Map<string, Prisma.Decimal>();
     for (const l of loans) owed.set(l.workerId, (owed.get(l.workerId) ?? ZERO).add(l.amount.sub(l.repaid)));
     const taken = new Map(leave.map((l) => [l.workerId, l._count._all]));
     // What is left of their loans, and the leave taken this year (against the yearly allowance).
-    return rows.map((r) => ({ ...r, loanLeft: owed.get(r.id) ?? ZERO, leaveTaken: taken.get(r.id) ?? 0 }));
+    // This year's paid leave counts what was carried from last year.
+    return rows.map((r) => ({ ...r, loanLeft: owed.get(r.id) ?? ZERO, leaveTaken: taken.get(r.id) ?? 0, leaveThisYear: allowance.get(`${r.id}|${year}`) ?? r.leaveAllowance, leaveAsked: asked.get(r.id) ?? 0 }));
   }
 
   /** Whether sorting asks who sorted each pile (optional: only a business that pays by what is sorted needs it). */
   async settings(tenantId: string) {
-    const t = await this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { trackSorterWork: true } });
-    return { trackSorterWork: t.trackSorterWork };
+    const t = await this.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { trackSorterWork: true, leaveCarryMax: true } });
+    return { trackSorterWork: t.trackSorterWork, leaveCarryMax: t.leaveCarryMax };
   }
 
-  async setSettings(tenantId: string, dto: { trackSorterWork: boolean }, userId: string) {
-    await this.prisma.tenant.update({ where: { id: tenantId }, data: { trackSorterWork: dto.trackSorterWork } });
-    await this.audit(tenantId, userId, 'SORTER_COUNTING_SET', 'Tenant', tenantId, { on: dto.trackSorterWork });
+  /** Whether sorting counts each sorter's work, and how many unused paid leave days carry into the next year. */
+  async setSettings(tenantId: string, dto: { trackSorterWork?: boolean; leaveCarryMax?: number }, userId: string) {
+    await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: { ...(dto.trackSorterWork !== undefined && { trackSorterWork: dto.trackSorterWork }), ...(dto.leaveCarryMax !== undefined && { leaveCarryMax: Math.max(0, Math.round(dto.leaveCarryMax)) }) },
+    });
+    await this.audit(tenantId, userId, 'EMPLOYEE_SETTINGS_SET', 'Tenant', tenantId, { ...dto });
     return this.settings(tenantId);
+  }
+
+  /**
+   * Paid leave days each employee has in each of these years: their yearly allowance plus what they did not use the
+   * year before, up to the business's carry-over limit (only one year back: unused carried days do not carry again).
+   */
+  private async leaveAllowances(db: Tx | PrismaService, tenantId: string, years: string[]): Promise<Map<string, number>> {
+    const out = new Map<string, number>();
+    const [workers, tenant] = await Promise.all([
+      db.worker.findMany({ where: { tenantId, leaveAllowance: { gt: 0 } }, select: { id: true, leaveAllowance: true } }),
+      db.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { leaveCarryMax: true } }),
+    ]);
+    if (!workers.length) return out;
+    for (const year of years) {
+      const before = String(Number(year) - 1);
+      const taken = tenant.leaveCarryMax
+        ? await db.attendance.groupBy({ by: ['workerId'], where: { tenantId, status: AttendanceStatus.LEAVE, day: { gte: dayDate(`${before}-01-01`), lte: dayDate(`${before}-12-31`) } }, _count: { _all: true } })
+        : [];
+      const tookBefore = new Map(taken.map((t) => [t.workerId, t._count._all]));
+      for (const w of workers) {
+        const carried = Math.min(tenant.leaveCarryMax, Math.max(0, w.leaveAllowance - (tookBefore.get(w.id) ?? 0)));
+        out.set(`${w.id}|${year}`, w.leaveAllowance + carried);
+      }
+    }
+    return out;
   }
 
   /** What the sorting screen needs: active workers by name. */
@@ -394,18 +427,18 @@ export class PayrollService {
   private async attended(db: Tx | PrismaService, tenantId: string, start: string, end: string) {
     const rows = await db.attendance.findMany({ where: { tenantId, day: { gte: dayDate(start), lte: dayDate(end) } }, orderBy: { day: 'asc' }, select: { workerId: true, status: true, day: true } });
     // Leave is paid while the year's allowance lasts: the leave days of each year are counted in date order.
-    const [allowances, yearLeave] = await Promise.all([
-      db.worker.findMany({ where: { tenantId, leaveAllowance: { gt: 0 } }, select: { id: true, leaveAllowance: true } }),
+    const years = [...new Set([start.slice(0, 4), end.slice(0, 4)])];
+    const [allowance, yearLeave] = await Promise.all([
+      this.leaveAllowances(db, tenantId, years),
       db.attendance.findMany({ where: { tenantId, status: AttendanceStatus.LEAVE, day: { gte: dayDate(`${start.slice(0, 4)}-01-01`), lte: dayDate(end) } }, orderBy: { day: 'asc' }, select: { workerId: true, day: true } }),
     ]);
-    const allowance = new Map(allowances.map((w) => [w.id, w.leaveAllowance]));
     const paidLeave = new Set<string>();
     const used = new Map<string, number>();
     for (const l of yearLeave) {
       const key = `${l.workerId}|${ymd(l.day).slice(0, 4)}`;
       const n = (used.get(key) ?? 0) + 1;
       used.set(key, n);
-      if (n <= (allowance.get(l.workerId) ?? 0)) paidLeave.add(`${l.workerId}|${ymd(l.day)}`);
+      if (n <= (allowance.get(key) ?? 0)) paidLeave.add(`${l.workerId}|${ymd(l.day)}`);
     }
     const by = new Map<string, { worked: number; absent: number }>();
     for (const r of rows) {
@@ -473,6 +506,65 @@ export class PayrollService {
       // Everybody working now, and anybody else who was marked that month.
       employees: workers.filter((w) => w.isActive || by.has(w.id)).map((w) => ({ id: w.id, name: w.name, jobTitle: w.jobTitle, counts: by.get(w.id)?.counts ?? blank(), days: by.get(w.id)?.days ?? {} })),
     };
+  }
+
+  // ── Leave requests ─────────────────────────────────────────────────────────
+
+  /** Leave asked for, newest first: waiting ones, or all of them. */
+  async leaveRequests(tenantId: string, status?: LeaveStatus) {
+    const rows = await this.prisma.leaveRequest.findMany({
+      where: { tenantId, ...(status && { status }) },
+      orderBy: [{ fromDay: 'desc' }, { createdAt: 'desc' }],
+      take: 200,
+      select: { id: true, workerId: true, fromDay: true, toDay: true, reason: true, status: true, decidedAt: true, createdAt: true, worker: { select: { name: true, jobTitle: true } } },
+    });
+    return rows.map((r) => ({ ...r, fromDay: ymd(r.fromDay), toDay: ymd(r.toDay), days: periodDays(ymd(r.fromDay), ymd(r.toDay)) }));
+  }
+
+  /** Leave asked for from one day to another (60 days at most); `approve` decides it at once. */
+  async askLeave(tenantId: string, dto: { workerId: string; fromDay: string; toDay: string; reason?: string; approve?: boolean }, userId: string) {
+    const from = dto.fromDay.slice(0, 10), to = dto.toDay.slice(0, 10);
+    if (to < from) throw new BadRequestException('The leave ends before it starts');
+    if (periodDays(from, to) > 60) throw new BadRequestException('Leave is asked for 60 days at most at a time');
+    const w = await this.prisma.worker.findFirst({ where: { id: dto.workerId, tenantId, isActive: true }, select: { id: true } });
+    if (!w) throw new NotFoundException('Worker not found');
+    const overlap = await this.prisma.leaveRequest.findFirst({ where: { tenantId, workerId: w.id, status: { in: [LeaveStatus.PENDING, LeaveStatus.APPROVED] }, fromDay: { lte: dayDate(to) }, toDay: { gte: dayDate(from) } }, select: { id: true } });
+    if (overlap) throw new ConflictException({ statusCode: 409, code: 'OVERLAP', message: 'There is already leave asked for or given on some of these days' });
+    const r = await this.prisma.leaveRequest.create({ data: { tenantId, workerId: w.id, fromDay: dayDate(from), toDay: dayDate(to), reason: dto.reason?.trim() || null, createdBy: userId } });
+    await this.audit(tenantId, userId, 'LEAVE_ASKED', 'LeaveRequest', r.id, { workerId: w.id, from, to });
+    return dto.approve ? this.decideLeave(tenantId, r.id, 'approve', userId) : { ...r, fromDay: from, toDay: to };
+  }
+
+  /**
+   * Approve: the days are marked as leave in Attendance (a day already marked present or a holiday keeps its mark).
+   * Refuse: nothing is marked. Cancel an approved one: the leave marks it made are cleared.
+   */
+  async decideLeave(tenantId: string, id: string, decision: 'approve' | 'reject' | 'cancel', userId: string) {
+    const r = await this.prisma.leaveRequest.findFirst({ where: { id, tenantId } });
+    if (!r) throw new NotFoundException('Leave not found');
+    const allowed: LeaveStatus[] = decision === 'cancel' ? [LeaveStatus.PENDING, LeaveStatus.APPROVED] : [LeaveStatus.PENDING];
+    if (!allowed.includes(r.status)) throw new ConflictException({ statusCode: 409, code: 'DECIDED', message: 'This leave is already decided' });
+    const status = decision === 'approve' ? LeaveStatus.APPROVED : decision === 'reject' ? LeaveStatus.REJECTED : LeaveStatus.CANCELLED;
+    await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.leaveRequest.updateMany({ where: { id, tenantId, status: r.status }, data: { status, decidedBy: userId, decidedAt: new Date() } });
+      if (claimed.count !== 1) throw new ConflictException({ statusCode: 409, code: 'DECIDED', message: 'This leave is already decided' });
+      if (decision === 'approve') {
+        const kept = await tx.attendance.findMany({ where: { tenantId, workerId: r.workerId, day: { gte: r.fromDay, lte: r.toDay }, status: { in: [AttendanceStatus.PRESENT, AttendanceStatus.HOLIDAY] } }, select: { day: true } });
+        const keep = new Set(kept.map((k) => ymd(k.day)));
+        for (let d = ymd(r.fromDay); d <= ymd(r.toDay); d = ymd(new Date(dayDate(d).getTime() + DAY))) {
+          if (keep.has(d)) continue;
+          await tx.attendance.upsert({
+            where: { workerId_day: { workerId: r.workerId, day: dayDate(d) } },
+            create: { tenantId, workerId: r.workerId, day: dayDate(d), status: AttendanceStatus.LEAVE, note: r.reason, leaveRequestId: r.id, markedBy: userId },
+            update: { status: AttendanceStatus.LEAVE, note: r.reason, leaveRequestId: r.id, markedBy: userId },
+          });
+        }
+      }
+      if (decision === 'cancel' && r.status === LeaveStatus.APPROVED) await tx.attendance.deleteMany({ where: { tenantId, leaveRequestId: r.id, status: AttendanceStatus.LEAVE } });
+    });
+    await this.audit(tenantId, userId, `LEAVE_${status}`, 'LeaveRequest', id, { workerId: r.workerId, from: ymd(r.fromDay), to: ymd(r.toDay) });
+    const [out] = (await this.leaveRequests(tenantId)).filter((x) => x.id === id);
+    return out;
   }
 
   // ── Productivity (owner) ──────────────────────────────────────────────────────────────────────────

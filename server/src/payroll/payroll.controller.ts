@@ -1,6 +1,6 @@
 import { Idempotent } from '../common/idempotency/idempotent.interceptor';
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
-import { AttendanceStatus, WorkerPayType } from '@prisma/client';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, NotFoundException, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { AttendanceStatus, LeaveStatus, WorkerPayType } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { ArrayMaxSize, ArrayMinSize, IsArray, Matches, ValidateNested } from 'class-validator';
 import { IsBoolean, IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
@@ -35,7 +35,20 @@ export class LoanRepayDto {
   @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(1) amount!: number;
 }
 export class EmployeeSettingsDto {
-  @IsBoolean() trackSorterWork!: boolean;
+  @IsOptional() @IsBoolean() trackSorterWork?: boolean;
+  /** Unused paid leave carried into the next year, at most this many days (0 = none). */
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(366) leaveCarryMax?: number;
+}
+export class LeaveDto {
+  @IsString() workerId!: string;
+  @IsDateString() fromDay!: string;
+  @IsDateString() toDay!: string;
+  @IsOptional() @IsString() @MaxLength(200) reason?: string;
+  /** Give it at once instead of leaving it waiting. */
+  @IsOptional() @IsBoolean() approve?: boolean;
+}
+export class LeaveQuery {
+  @IsOptional() @IsEnum(LeaveStatus) status?: LeaveStatus;
 }
 export class UpdateWorkerDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(80) name?: string;
@@ -214,6 +227,28 @@ export class PayrollController {
   @RequirePermissions('tenant.update')
   markAttendance(@TenantId() tenantId: string, @Body() dto: AttendanceDto, @CurrentUser() user: CurrentUserData) {
     return this.payroll.markAttendance(tenantId, dto, user.userId);
+  }
+
+  /** Leave (owner, 2026-11-18): asked for over days, then given or refused; given leave marks Attendance. */
+  @Get('leave')
+  @RequirePermissions('tenant.update')
+  leave(@TenantId() tenantId: string, @Query() q: LeaveQuery) {
+    return this.payroll.leaveRequests(tenantId, q.status);
+  }
+
+  @Idempotent('LEAVE_ASK')
+  @Post('leave')
+  @RequirePermissions('tenant.update')
+  askLeave(@TenantId() tenantId: string, @Body() dto: LeaveDto, @CurrentUser() user: CurrentUserData) {
+    return this.payroll.askLeave(tenantId, dto, user.userId);
+  }
+
+  @Post('leave/:id/:decision')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('tenant.update')
+  decideLeave(@TenantId() tenantId: string, @Param('id') id: string, @Param('decision') decision: string, @CurrentUser() user: CurrentUserData) {
+    if (decision !== 'approve' && decision !== 'reject' && decision !== 'cancel') throw new NotFoundException();
+    return this.payroll.decideLeave(tenantId, id, decision, user.userId);
   }
 
   @Get('attendance/month')

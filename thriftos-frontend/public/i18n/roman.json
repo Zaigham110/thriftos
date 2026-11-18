@@ -2812,7 +2812,37 @@
   "printSlips": "Tankhwah ki parchiyan print karein",
   "slipTitle": "Tankhwah ki parchi",
   "slipAdvance": "Pehle diya advance",
-  "slipSign": "Upar ki raqam poori wasool ki · dastakhat"
+  "slipSign": "Upar ki raqam poori wasool ki · dastakhat",
+  "lv": {
+   "tab": "Chhutti",
+   "new": "Chhutti ki darkhwast",
+   "pick": "Mulazim chunein",
+   "reason": "Wajah",
+   "giveNow": "Abhi manzoor karein",
+   "ask": "Save karein, baad mein faisla",
+   "give": "Chhutti dein",
+   "asked": "Save ho gayi. Aap ki haan ya na ka intezar hai.",
+   "given": "Chhutti manzoor. Din haazri mein lag gaye.",
+   "days": "{n} din",
+   "approve": "Manzoor",
+   "reject": "Na-manzoor",
+   "cancel": "Mansookh karein",
+   "none": "Abhi koi chhutti nahi maangi gayi.",
+   "s": {
+    "PENDING": "Intezar mein",
+    "APPROVED": "Manzoor",
+    "REJECTED": "Na-manzoor",
+    "CANCELLED": "Mansookh"
+   },
+   "done": {
+    "approve": "Chhutti manzoor. Din haazri mein lag gaye.",
+    "reject": "Chhutti na-manzoor.",
+    "cancel": "Chhutti mansookh. Us ke din haazri se hat gaye."
+   },
+   "waitingN": "{n} chhutti intezar mein",
+   "carry": "Bachi hui chhuttiyan agle saal (zyada se zyada din)",
+   "carryHint": "0 = kuch nahi jata. Sirf pichle saal ke bache din aate hain; woh dobara aage nahi jate."
+  }
  },
  "move": {
   "pick": "Ya stock se chunein",

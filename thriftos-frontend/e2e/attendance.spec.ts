@@ -34,6 +34,30 @@ test('attendance: mark a day with one tap each, all the rest present, and see th
     await expect(cells(clerk.name).nth(3)).toHaveText('1');
     // A day that has not come cannot be picked.
     await expect(page.getByRole('button', { name: 'Later' })).toBeDisabled();
+
+    // Leave asked for over days, then given: the days are marked; cancelled, they are cleared (owner, 2026-11-18).
+    await page.getByRole('tab', { name: /^Leave/ }).click();
+    const today = new Date(Date.now() + 5 * 3_600_000).toISOString().slice(0, 10);
+    const later = new Date(Date.now() + 5 * 3_600_000 + 2 * 86_400_000).toISOString().slice(0, 10);
+    await page.getByLabel('Name').selectOption({ label: loader.name });
+    await page.getByLabel('From').fill(today);
+    await page.getByLabel('To').fill(later);
+    await page.getByLabel(/^Reason/).fill('Family wedding');
+    await page.getByRole('button', { name: 'Save, decide later' }).click();
+    const leave = page.locator('li.leave').filter({ hasText: loader.name });
+    await expect(leave).toContainText('Waiting');
+    await expect(leave).toContainText('3 days');
+    await expect(page.getByRole('tab', { name: 'Leave (1)' })).toBeVisible();
+    await leave.getByRole('button', { name: 'Give' }).click();
+    await expect(leave).toContainText('Given');
+    await page.getByRole('tab', { name: 'Day' }).click();
+    await expect(row(loader.name).getByRole('radio', { name: 'Leave' })).toHaveAttribute('aria-checked', 'true');
+    await page.getByRole('tab', { name: /^Leave/ }).click();
+    await leave.getByRole('button', { name: 'Cancel' }).click();
+    await expect(leave).toContainText('Cancelled');
+    await page.getByRole('tab', { name: 'Day' }).click();
+    await expect(row(loader.name).getByRole('radio', { name: 'Absent' })).toHaveAttribute('aria-checked', 'false');
+    await expect(row(loader.name).getByRole('radio', { name: 'Leave' })).toHaveAttribute('aria-checked', 'false');
   } finally {
     await undo();
   }
