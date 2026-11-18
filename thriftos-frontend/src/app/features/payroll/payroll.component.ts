@@ -1,3 +1,4 @@
+import { AuthService } from '../../core/auth';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
@@ -49,7 +50,7 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
       @if (error(); as e) { <p class="notice error" role="alert">{{ e }}</p> }
 
       @if (tab() === 'workers') {
-        <button type="button" class="btn primary add" (click)="newWorker()"><lucide-icon [img]="icons.Plus" [size]="18" /> {{ 'pay.addWorker' | t }}</button>
+        @if (canManage()) { <button type="button" class="btn primary add" (click)="newWorker()"><lucide-icon [img]="icons.Plus" [size]="18" /> {{ 'pay.addWorker' | t }}</button> }
         @if (form(); as f) {
           <form class="card form" (ngSubmit)="saveWorker()">
             <label class="field">{{ 'pay.name' | t }}<input name="name" maxlength="80" required [(ngModel)]="f.name" /></label>
@@ -88,10 +89,10 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
                 <small>@if (w.jobTitle) { {{ w.jobTitle }} · }{{ ('pay.rateText.' + w.payType) | t: { rs: i18n.money(w.rate) } }}@if (w.joinedOn && w.isActive) { · {{ 'pay.since' | t: { date: longDay(w.joinedOn) } }} }@if (w.leftOn && !w.isActive) { · {{ 'pay.left' | t: { date: longDay(w.leftOn) } }} }@if (w.phone) { · <span dir="ltr">{{ local(w.phone) }}</span> }@if (!w.isActive) { · {{ 'pay.inactive' | t }} }@if (w.leaveAllowance) { · {{ 'pay.leaveOf' | t: { taken: w.leaveTaken ?? 0, of: w.leaveThisYear ?? w.leaveAllowance } }} }@if (w.leaveAsked) { · <a routerLink="/people/attendance" class="asked">{{ 'pay.lv.waitingN' | t: { n: w.leaveAsked } }}</a> }@if (w.loanLeft && +w.loanLeft) { · <span class="owes">{{ 'pay.loanLeft' | t: { rs: i18n.money(w.loanLeft) } }}</span> }</small>
               </span>
               <span class="btns">
-                <button type="button" class="link" (click)="edit(w)">{{ 'pay.edit' | t }}</button>
-                @if (w.isActive) { <button type="button" class="link" (click)="startAdvance(w)">{{ 'pay.advance' | t }}</button> }
-                @if (w.isActive) { <button type="button" class="link" (click)="startLoan(w, 'give')">{{ 'pay.loan' | t }}</button> }
-                @if (w.loanLeft && +w.loanLeft) { <button type="button" class="link" (click)="startLoan(w, 'repay')">{{ 'pay.loanRepay' | t }}</button> }
+                @if (canManage()) { <button type="button" class="link" (click)="edit(w)">{{ 'pay.edit' | t }}</button> }
+                @if (w.isActive && canPay()) { <button type="button" class="link" (click)="startAdvance(w)">{{ 'pay.advance' | t }}</button> }
+                @if (w.isActive && canPay()) { <button type="button" class="link" (click)="startLoan(w, 'give')">{{ 'pay.loan' | t }}</button> }
+                @if (canPay() && w.loanLeft && +w.loanLeft) { <button type="button" class="link" (click)="startLoan(w, 'repay')">{{ 'pay.loanRepay' | t }}</button> }
               </span>
             </li>
             @if (loanFor()?.id === w.id) {
@@ -128,9 +129,11 @@ const TABS: Tab[] = ['workers', 'sheets', 'productivity'];
             }
           }
         </ul>
-        <a class="btn att" routerLink="/people/attendance">{{ 'pay.att.title' | t }}</a>
+        @if (canManage()) { <a class="btn att" routerLink="/people/attendance">{{ 'pay.att.title' | t }}</a> }
+        @if (canPay()) {
         <label class="field carry">{{ 'pay.lv.carry' | t }}<input type="number" min="0" max="366" step="1" [value]="carryMax()" [disabled]="busy()" (change)="setCarry(+$any($event.target).value || 0)" /><small class="hint">{{ 'pay.lv.carryHint' | t }}</small></label>
         <label class="check count"><input type="checkbox" [checked]="counting()" [disabled]="busy()" (change)="setCounting($any($event.target).checked)" /> <span>{{ 'pay.countSorting' | t }}<small>{{ 'pay.countSortingHint' | t }}</small></span></label>
+        }
       }
 
       @if (tab() === 'sheets') {
@@ -315,7 +318,14 @@ export class PayrollComponent {
   protected readonly counting = signal(false);
   /** Unused paid leave carried into the next year, at most this many days. */
   protected readonly carryMax = signal(0);
-  protected readonly shownTabs = computed(() => this.tabs.filter((t) => t !== 'productivity' || this.counting()));
+  protected readonly shownTabs = computed(() => this.tabs.filter((t) => (t !== 'productivity' || this.counting()) && (t !== 'sheets' || this.canPay())));
+  private readonly auth = inject(AuthService);
+  private can(code: string): boolean {
+    return this.auth.isSuperAdmin() || this.auth.permissions().includes(code);
+  }
+  /** Records, attendance and leave (the Manager has it); paying, advances, loans and settings (the owner's unless given). */
+  protected readonly canManage = computed(() => this.can('employee.manage'));
+  protected readonly canPay = computed(() => this.can('payroll.run'));
   /** A pay sheet needs somebody to pay. */
   protected readonly hasWorkers = computed(() => this.workers().some((w) => w.isActive !== false));
   protected readonly workers = signal<Worker[]>([]);

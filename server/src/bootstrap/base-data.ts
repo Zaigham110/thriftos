@@ -137,6 +137,10 @@ export const PERMISSIONS = [
   { code: 'expense.create', name: 'Finance - Record and cancel expenses', group: 'Finance' },
   { code: 'cash.close', name: 'Finance - Close the day\'s cash', group: 'Finance' },
 
+  // Employees (owner, 2026-11-18: rights for managers): the records, attendance and leave; and paying people.
+  { code: 'employee.manage', name: 'Employees - Records, attendance and leave', group: 'Employees' },
+  { code: 'payroll.run', name: 'Employees - Pay sheets, advances and loans', group: 'Employees' },
+
   // Sales (enterprise E3.4)
   { code: 'price.manage', name: 'Sales - Manage price lists', group: 'Sales' },
   // v2 staff roles: making a sale and taking a payment are their own permissions (Salesman, Cashier).

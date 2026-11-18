@@ -2471,7 +2471,8 @@
     "Configuration": "Settings aur fehristein",
     "UserManagement": "Team",
     "RoleManagement": "Role",
-    "SuperAdmin": "Karobar"
+    "SuperAdmin": "Karobar",
+    "Employees": "Mulazimeen"
    },
    "verb": {
     "create": "shamil karna",
@@ -2528,7 +2529,9 @@
     "report_sorting": "Chhantai ki reports",
     "report_worker": "Karigaron ki reports",
     "sale_create": "Bikri karna",
-    "payment_create": "Wasooli lena"
+    "payment_create": "Wasooli lena",
+    "employee_manage": "Mulazimeen: record, haazri aur chhutti",
+    "payroll_run": "Mulazimeen: tankhwah sheet, advance aur qarz"
    }
   },
   "customers": {

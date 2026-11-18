@@ -13,6 +13,8 @@ const NOT_FOR_MANAGER = new Set([
   'user.create', 'user.update', 'user.delete',
   'role.create', 'role.update', 'role.delete',
   'data.export', 'data.import',
+  // Paying people is the owner's unless they give it (owner, 2026-11-18); the manager keeps records and attendance.
+  'payroll.run',
 ]);
 
 const FLOOR_STOCK = ['INVENTORY_VIEW', 'REPACK_VIEW'];

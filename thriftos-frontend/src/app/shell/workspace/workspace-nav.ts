@@ -94,9 +94,9 @@ export const WS_NAV: WsNavGroup[] = [
     // Employee Management (owner, 2026-11-17): everybody who works here and what they are paid.
     label: 'ws.group.people',
     items: [
-      { label: 'ws.nav.payroll', path: '/people', icon: Users, module: 'PAYROLL', permission: 'tenant.update', keywords: 'employees staff mulazim workers sorter cnic' },
-      { label: 'ws.nav.attendance', path: '/people/attendance', icon: CalendarCheck, module: 'PAYROLL', permission: 'tenant.update', keywords: 'attendance haazri present absent leave chhutti' },
-      { label: 'ws.nav.pay', path: '/people/pay', icon: HandCoins, module: 'PAYROLL', permission: 'tenant.update', keywords: 'tankhwah mazdoori payroll wages salary advance pay sheet slip' },
+      { label: 'ws.nav.payroll', path: '/people', icon: Users, module: 'PAYROLL', anyOf: ['employee.manage', 'payroll.run'], keywords: 'employees staff mulazim workers sorter cnic' },
+      { label: 'ws.nav.attendance', path: '/people/attendance', icon: CalendarCheck, module: 'PAYROLL', permission: 'employee.manage', keywords: 'attendance haazri present absent leave chhutti' },
+      { label: 'ws.nav.pay', path: '/people/pay', icon: HandCoins, module: 'PAYROLL', permission: 'payroll.run', keywords: 'tankhwah mazdoori payroll wages salary advance pay sheet slip' },
     ],
   },
   {

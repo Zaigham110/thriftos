@@ -2471,7 +2471,8 @@
     "Configuration": "Settings and lists",
     "UserManagement": "Team",
     "RoleManagement": "Roles",
-    "SuperAdmin": "Business"
+    "SuperAdmin": "Business",
+    "Employees": "Employees"
    },
    "verb": {
     "create": "add",
@@ -2528,7 +2529,9 @@
     "report_sorting": "Sorting reports",
     "report_worker": "Worker reports",
     "sale_create": "Make sales",
-    "payment_create": "Take payments"
+    "payment_create": "Take payments",
+    "employee_manage": "Employees: records, attendance and leave",
+    "payroll_run": "Employees: pay sheets, advances and loans"
    }
   },
   "customers": {

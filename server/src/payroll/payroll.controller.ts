@@ -5,7 +5,8 @@ import { Type } from 'class-transformer';
 import { ArrayMaxSize, ArrayMinSize, IsArray, Matches, ValidateNested } from 'class-validator';
 import { IsBoolean, IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
 import { CurrentUser, CurrentUserData } from '../common/decorators/current-user.decorator';
-import { RequirePermissions } from '../common/decorators/permissions.decorator';
+import { RequireAnyPermission, RequirePermissions } from '../common/decorators/permissions.decorator';
+import { Can } from '../common/decorators/can.decorator';
 import { RequireModule } from '../common/decorators/require-module.decorator';
 import { TenantId } from '../common/decorators/tenant-id.decorator';
 import { PermissionGuard } from '../common/guards/permission.guard';
@@ -106,7 +107,10 @@ export class RangeQuery {
   @IsDateString() to!: string;
 }
 
-/** Phase 8 sorter pay (owners): workers, advances, pay sheets, productivity. */
+/**
+ * Employees (owner, 2026-11-17/18): records, attendance and leave need "employee.manage" (the Manager has it); pay
+ * sheets, advances, loans and the settings need "payroll.run" (the owner's unless given).
+ */
 @Controller('payroll')
 @UseGuards(TenantGuard, PermissionGuard)
 @RequireModule('PAYROLL')
@@ -115,58 +119,60 @@ export class PayrollController {
 
   /** Employees (owner, 2026-11-17): whether sorting counts what each sorter sorts. */
   @Get('settings')
-  @RequirePermissions('tenant.update')
+  @RequireAnyPermission('employee.manage', 'payroll.run')
   settings(@TenantId() tenantId: string) {
     return this.payroll.settings(tenantId);
   }
 
   @Patch('settings')
-  @RequirePermissions('tenant.update')
+  @RequirePermissions('payroll.run')
   setSettings(@TenantId() tenantId: string, @Body() dto: EmployeeSettingsDto, @CurrentUser() user: CurrentUserData) {
     return this.payroll.setSettings(tenantId, dto, user.userId);
   }
 
   @Get('workers')
-  @RequirePermissions('tenant.update')
-  workers(@TenantId() tenantId: string, @Query('all') all?: string) {
-    return this.payroll.workers(tenantId, all === '1' || all === 'true');
+  @RequireAnyPermission('employee.manage', 'payroll.run')
+  async workers(@TenantId() tenantId: string, @Can('payroll.run') canPay: boolean, @Query('all') all?: string) {
+    const rows = await this.payroll.workers(tenantId, all === '1' || all === 'true');
+    // What someone owes on a loan is for the people who pay.
+    return canPay ? rows : rows.map((r) => ({ ...r, loanLeft: null }));
   }
 
   @Post('workers')
-  @RequirePermissions('tenant.update')
+  @RequirePermissions('employee.manage')
   addWorker(@TenantId() tenantId: string, @Body() dto: WorkerDto, @CurrentUser() user: CurrentUserData) {
     return this.payroll.addWorker(tenantId, dto, user.userId);
   }
 
   @Get('workers/:id')
-  @RequirePermissions('tenant.update')
+  @RequireAnyPermission('employee.manage', 'payroll.run')
   worker(@TenantId() tenantId: string, @Param('id') id: string) {
     return this.payroll.worker(tenantId, id);
   }
 
   @Patch('workers/:id')
-  @RequirePermissions('tenant.update')
+  @RequirePermissions('employee.manage')
   updateWorker(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: UpdateWorkerDto, @CurrentUser() user: CurrentUserData) {
     return this.payroll.updateWorker(tenantId, id, dto, user.userId);
   }
 
   @Idempotent('WORKER_ADVANCE')
   @Post('workers/:id/advances')
-  @RequirePermissions('tenant.update')
+  @RequirePermissions('payroll.run')
   advance(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: AdvanceDto, @CurrentUser() user: CurrentUserData) {
     return this.payroll.giveAdvance(tenantId, id, dto, user.userId);
   }
 
   /** Loans (owner, 2026-11-17): lend, see what is left, take cash back. Instalments come off pay sheets. */
   @Get('workers/:id/loans')
-  @RequirePermissions('tenant.update')
+  @RequirePermissions('payroll.run')
   loans(@TenantId() tenantId: string, @Param('id') id: string) {
     return this.payroll.loans(tenantId, id);
   }
 
   @Idempotent('EMPLOYEE_LOAN')
   @Post('workers/:id/loans')
-  @RequirePermissions('tenant.update')
+  @RequirePermissions('payroll.run')
   giveLoan(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: LoanDto, @CurrentUser() user: CurrentUserData) {
     return this.payroll.giveLoan(tenantId, id, dto, user.userId);
   }
@@ -174,91 +180,91 @@ export class PayrollController {
   @Idempotent('EMPLOYEE_LOAN_REPAY')
   @Post('workers/:id/loans/repay')
   @HttpCode(HttpStatus.OK)
-  @RequirePermissions('tenant.update')
+  @RequirePermissions('payroll.run')
   repayLoan(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: LoanRepayDto, @CurrentUser() user: CurrentUserData) {
     return this.payroll.repayLoan(tenantId, id, dto, user.userId);
   }
 
   @Get('sheets')
-  @RequirePermissions('tenant.update')
+  @RequirePermissions('payroll.run')
   sheets(@TenantId() tenantId: string) {
     return this.payroll.sheets(tenantId);
   }
 
   @Post('sheets')
-  @RequirePermissions('tenant.update')
+  @RequirePermissions('payroll.run')
   createSheet(@TenantId() tenantId: string, @Body() dto: PeriodDto, @CurrentUser() user: CurrentUserData) {
     return this.payroll.createSheet(tenantId, dto, user.userId);
   }
 
   @Get('sheets/:id')
-  @RequirePermissions('tenant.update')
+  @RequirePermissions('payroll.run')
   sheet(@TenantId() tenantId: string, @Param('id') id: string) {
     return this.payroll.sheet(tenantId, id);
   }
 
   @Patch('lines/:id')
-  @RequirePermissions('tenant.update')
+  @RequirePermissions('payroll.run')
   updateLine(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: LineDto, @CurrentUser() user: CurrentUserData) {
     return this.payroll.updateLine(tenantId, id, dto, user.userId);
   }
 
   @Post('sheets/:id/pay')
   @HttpCode(HttpStatus.OK)
-  @RequirePermissions('tenant.update')
+  @RequirePermissions('payroll.run')
   pay(@TenantId() tenantId: string, @Param('id') id: string, @CurrentUser() user: CurrentUserData) {
     return this.payroll.paySheet(tenantId, id, user.userId);
   }
 
   @Delete('sheets/:id')
-  @RequirePermissions('tenant.update')
+  @RequirePermissions('payroll.run')
   deleteSheet(@TenantId() tenantId: string, @Param('id') id: string, @CurrentUser() user: CurrentUserData) {
     return this.payroll.deleteSheet(tenantId, id, user.userId);
   }
 
   /** Attendance (owner, 2026-11-17): one day's marks, marking, and a month at a glance. */
   @Get('attendance')
-  @RequirePermissions('tenant.update')
+  @RequirePermissions('employee.manage')
   attendanceDay(@TenantId() tenantId: string, @Query() q: DayQuery) {
     return this.payroll.attendanceDay(tenantId, q.day);
   }
 
   @Put('attendance')
-  @RequirePermissions('tenant.update')
+  @RequirePermissions('employee.manage')
   markAttendance(@TenantId() tenantId: string, @Body() dto: AttendanceDto, @CurrentUser() user: CurrentUserData) {
     return this.payroll.markAttendance(tenantId, dto, user.userId);
   }
 
   /** Leave (owner, 2026-11-18): asked for over days, then given or refused; given leave marks Attendance. */
   @Get('leave')
-  @RequirePermissions('tenant.update')
+  @RequirePermissions('employee.manage')
   leave(@TenantId() tenantId: string, @Query() q: LeaveQuery) {
     return this.payroll.leaveRequests(tenantId, q.status);
   }
 
   @Idempotent('LEAVE_ASK')
   @Post('leave')
-  @RequirePermissions('tenant.update')
+  @RequirePermissions('employee.manage')
   askLeave(@TenantId() tenantId: string, @Body() dto: LeaveDto, @CurrentUser() user: CurrentUserData) {
     return this.payroll.askLeave(tenantId, dto, user.userId);
   }
 
   @Post('leave/:id/:decision')
   @HttpCode(HttpStatus.OK)
-  @RequirePermissions('tenant.update')
+  @RequirePermissions('employee.manage')
   decideLeave(@TenantId() tenantId: string, @Param('id') id: string, @Param('decision') decision: string, @CurrentUser() user: CurrentUserData) {
     if (decision !== 'approve' && decision !== 'reject' && decision !== 'cancel') throw new NotFoundException();
     return this.payroll.decideLeave(tenantId, id, decision, user.userId);
   }
 
   @Get('attendance/month')
-  @RequirePermissions('tenant.update')
+  @RequirePermissions('employee.manage')
   attendanceMonth(@TenantId() tenantId: string, @Query() q: MonthQuery) {
     return this.payroll.attendanceMonth(tenantId, q.month);
   }
 
   @Get('productivity')
-  @RequirePermissions('tenant.update')
+  @RequireAnyPermission('employee.manage', 'payroll.run')
   productivity(@TenantId() tenantId: string, @Query() q: RangeQuery) {
     return this.payroll.productivity(tenantId, q.from, q.to);
   }

@@ -45,7 +45,7 @@ const NAV: NavItem[] = [
   { label: 'nav.khata', path: '/khata', module: 'KHATA', anyOf: ['payment.create', 'finance.view'], icon: BookOpen },
   { label: 'nav.stock', path: '/stock', module: 'STOCK', anyOf: ['INVENTORY_VIEW'], icon: PackageSearch },
   { label: 'nav.reports', path: '/reports', module: 'REPORTS', icon: BarChart3 },
-  { label: 'ws.nav.payroll', path: '/people', module: 'PAYROLL', anyOf: ['tenant.update'], icon: HandCoins },
+  { label: 'ws.nav.payroll', path: '/people', module: 'PAYROLL', anyOf: ['employee.manage', 'payroll.run'], icon: HandCoins },
   { label: 'nav.settings', path: '/settings', icon: Settings2 },
 ];
 

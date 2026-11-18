@@ -2471,7 +2471,8 @@
     "Configuration": "سیٹنگز اور فہرستیں",
     "UserManagement": "ٹیم",
     "RoleManagement": "رول",
-    "SuperAdmin": "کاروبار"
+    "SuperAdmin": "کاروبار",
+    "Employees": "ملازمین"
    },
    "verb": {
     "create": "شامل کرنا",
@@ -2528,7 +2529,9 @@
     "report_sorting": "چھانٹی کی رپورٹس",
     "report_worker": "کاریگروں کی رپورٹس",
     "sale_create": "بِکری کرنا",
-    "payment_create": "وصولی لینا"
+    "payment_create": "وصولی لینا",
+    "employee_manage": "ملازمین: ریکارڈ، حاضری اور چھٹی",
+    "payroll_run": "ملازمین: تنخواہ شیٹ، ایڈوانس اور قرض"
    }
   },
   "customers": {
