@@ -1,3 +1,4 @@
+import { assertChargeOpen, chargePaid } from '../charge-payment';
 import { Injectable, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../audit/audit.service';
@@ -186,7 +187,7 @@ export class ContainerService {
       });
       for (const charge of dto.charges ?? []) {
         await tx.containerCharge.create({
-          data: { containerId: created.id, chargeType: charge.chargeType, description: charge.chargeType, amount: new Prisma.Decimal(charge.amount) },
+          data: { containerId: created.id, chargeType: charge.chargeType, description: charge.chargeType, amount: new Prisma.Decimal(charge.amount), ...(await chargePaid(tx, tenantId, charge.paidFrom)) },
         });
       }
       if (lotCode) {
@@ -526,6 +527,7 @@ export class ContainerService {
           chargeType: dto.chargeType,
           description: dto.description?.trim() || dto.chargeType,
           amount: new Prisma.Decimal(dto.amount),
+          ...(await chargePaid(tx, tenantId, dto.paidFrom)),
         },
       });
       await this.costing.recalculateContainerTx(tx, tenantId, containerId, userId);
@@ -567,9 +569,13 @@ export class ContainerService {
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const type = dto.chargeType ?? charge.chargeType;
+      // A new amount or a new way of paying: paid today, from where it says (a closed day's cash charge stays).
+      const repaid = dto.amount !== undefined && !charge.amount.equals(dto.amount) || (dto.paidFrom !== undefined && dto.paidFrom !== charge.paidFrom);
+      if (repaid) await assertChargeOpen(tx, tenantId, charge);
       const row = await tx.containerCharge.update({
         where: { id: chargeId },
         data: {
+          ...(repaid ? await chargePaid(tx, tenantId, dto.paidFrom ?? charge.paidFrom) : {}),
           ...(dto.chargeType !== undefined && { chargeType: dto.chargeType }),
           ...(dto.amount !== undefined && { amount: new Prisma.Decimal(dto.amount) }),
           ...(dto.description !== undefined || dto.chargeType !== undefined ? { description: dto.description?.trim() || (charge.description !== charge.chargeType ? charge.description : type) } : {}),
@@ -610,6 +616,7 @@ export class ContainerService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      await assertChargeOpen(tx, tenantId, charge);
       await tx.containerCharge.delete({ where: { id: chargeId } });
       await this.costing.recalculateContainerTx(tx, tenantId, containerId, userId);
     });

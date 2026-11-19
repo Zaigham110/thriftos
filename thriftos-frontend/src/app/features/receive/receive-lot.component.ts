@@ -58,6 +58,12 @@ const today = () => new Date(Date.now() + 5 * 3_600_000).toISOString().slice(0, 
           <tos-number label="ws.lf.kind.TRANSPORT" unit="unit.money" [(value)]="transport" />
           <tos-number label="ws.lf.kind.LABOUR" unit="unit.money" [(value)]="labour" />
           <tos-number label="ws.lf.kind.OTHER" unit="unit.money" [(value)]="other" />
+          @if (chargesTotal() > 0) {
+            <span class="field-label">{{ 'ws.lf.paidFrom' | t }}</span>
+            <div class="chips" role="radiogroup" [attr.aria-label]="'ws.lf.paidFrom' | t">
+              @for (m of chargeMethods; track m) { <button type="button" class="chip" role="radio" [class.on]="chargePaidFrom() === m" [attr.aria-checked]="chargePaidFrom() === m" (click)="chargePaidFrom.set(m)">{{ ('method.' + m) | t }}</button> }
+            </div>
+          }
         </section>
         <section class="card">
           <h2>{{ 'ws.lf.billPhoto' | t }} · {{ 'common.optional' | t }}</h2>
@@ -89,7 +95,7 @@ const today = () => new Date(Date.now() + 5 * 3_600_000).toISOString().slice(0, 
       }
     </section>
   `,
-  styles: [`.done { justify-items:center; text-align:center; } .missing { margin:0; padding-block-end:96px; }
+  styles: [`.done { justify-items:center; text-align:center; } .field-label { display:block; font-size:15px; font-weight:700; margin-block:12px 6px; } .missing { margin:0; padding-block-end:96px; }
     .pick { position:relative; } .pick input { position:absolute; inset:0; opacity:0; }
     .file { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0; } .file span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }`],
 })
@@ -121,7 +127,10 @@ export class ReceiveLotComponent implements OnInit {
       ? this.pieces() && this.pieceRate() !== null ? Math.round(this.pieces()! * this.pieceRate()! * 100) / 100 : null
       : this.byRate() ? (this.weightKg() && this.rate() !== null ? Math.round(this.weightKg()! * this.rate()! * 100) / 100 : null) : this.cost(),
   );
-  private readonly chargesTotal = computed(() => (this.transport() ?? 0) + (this.labour() ?? 0) + (this.other() ?? 0));
+  /** The charges were paid from the drawer (or the bank) now: they leave that book (owner, 2026-11-19). */
+  protected readonly chargePaidFrom = signal<'CASH' | 'BANK'>('CASH');
+  protected readonly chargeMethods = ['CASH', 'BANK'] as const;
+  protected readonly chargesTotal = computed(() => (this.transport() ?? 0) + (this.labour() ?? 0) + (this.other() ?? 0));
   protected readonly supplier = signal<Supplier | null>(null);
   protected readonly saving = signal(false);
   protected readonly done = signal<{ code: string; lotId: string | null; saved: boolean } | null>(null);
@@ -160,7 +169,7 @@ export class ReceiveLotComponent implements OnInit {
       ragBaleType: 'BALE', ...(this.weightKg() ? { weightKg: this.weightKg() } : {}),
       ...(this.byPiece() ? { pieces: this.pieces(), ratePerPiece: this.pieceRate() } : this.byRate() ? { ratePerKg: this.rate() } : { purchaseCost: this.cost() }),
       charges: ([['TRANSPORT', this.transport()], ['LABOUR', this.labour()], ['OTHER', this.other()]] as const)
-        .filter(([, a]) => (a ?? 0) > 0).map(([kind, amount]) => ({ kind, amount })),
+        .filter(([, a]) => (a ?? 0) > 0).map(([kind, amount]) => ({ kind, amount, paidFrom: this.chargePaidFrom() })),
       ...(s ? { vendorId: supplierRef(this.queue, s.id) } : {}),
       ...(this.rawType() ? { rawCategoryId: this.rawType() } : {}),
       ...(this.date && this.date !== today() ? { receivedAt: this.date } : {}),

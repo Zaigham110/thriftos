@@ -1001,7 +1001,8 @@
    "receipt": "{party} se {ref}",
    "short": "Galla band par cash kam",
    "subtitle": "Har tareeqe se paisa aaya aur gaya",
-   "title": "Cash aur bank ki kitaab"
+   "title": "Cash aur bank ki kitaab",
+   "charge": "{on} ka {what}"
   },
   "breadcrumbs": "Aap yahan hain",
   "cf": {
@@ -1572,7 +1573,10 @@
    "needPieces": "kitne piece",
    "needPieceRate": "fi piece rate",
    "piecesN": "{n} piece",
-   "weightOptional": "Agar wazan nahi kiya to khali chhor dein: lot phir piece mein gini jaye gi."
+   "weightOptional": "Agar wazan nahi kiya to khali chhor dein: lot phir piece mein gini jaye gi.",
+   "paidFrom": "Kahan se diye",
+   "paidFromN": "{how} se diye",
+   "paidOutside": "Pehle diye (kisi khaate mein nahin)"
   },
   "lotStatus": {
    "IN_SORTING": "Chhantai",

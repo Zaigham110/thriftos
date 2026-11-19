@@ -1,5 +1,5 @@
 import { IsOptional, IsString, IsNotEmpty, IsEnum, IsNumber, Min, MaxLength } from 'class-validator';
-import { ChargeType } from '@prisma/client';
+import { ChargeType, PaymentMethod } from '@prisma/client';
 
 export class CreateContainerChargeDto {
   @IsEnum(ChargeType)
@@ -13,6 +13,11 @@ export class CreateContainerChargeDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   amount: number;
+
+  /** Paid from the drawer, the bank… today (it then leaves that book). */
+  @IsEnum(PaymentMethod)
+  @IsOptional()
+  paidFrom?: PaymentMethod;
 }
 
 
@@ -31,4 +36,9 @@ export class UpdateContainerChargeDto {
   @Min(0)
   @IsOptional()
   amount?: number;
+
+  /** Paid from the drawer, the bank… today (it then leaves that book). */
+  @IsEnum(PaymentMethod)
+  @IsOptional()
+  paidFrom?: PaymentMethod;
 }

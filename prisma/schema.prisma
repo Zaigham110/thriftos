@@ -932,13 +932,17 @@ model Container {
 }
 
 model ContainerCharge {
-  id          String     @id @default(cuid())
+  id          String         @id @default(cuid())
   containerId String
   description String
-  amount      Decimal    @db.Decimal(14, 2)
+  amount      Decimal        @db.Decimal(14, 2)
   chargeType  ChargeType
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  /// How it was paid (owner, 2026-11-19): cash from the drawer, bank, JazzCash… on `paidOn`; it then shows as money
+  /// out in that book. Null: paid outside ThriftOS (every charge entered before this), so in no book.
+  paidFrom    PaymentMethod?
+  paidOn      DateTime?      @db.Date
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   // Relations
   container Container @relation(fields: [containerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -1792,15 +1796,19 @@ model ImportedRow {
 
 /// A cost of bringing a loose lot in on top of its price (transport, labour, loading…); part of the lot's cost.
 model LotCharge {
-  id        String   @id @default(cuid())
+  id        String         @id @default(cuid())
   tenantId  String
   ragId     String
   /// TRANSPORT, LABOUR, LOADING or OTHER
   kind      String
-  amount    Decimal  @db.Decimal(14, 2)
+  amount    Decimal        @db.Decimal(14, 2)
   note      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  /// How it was paid (owner, 2026-11-19): cash from the drawer, bank, JazzCash… on `paidOn`; it then shows as money
+  /// out in that book. Null: paid outside ThriftOS (every charge entered before this), so in no book.
+  paidFrom  PaymentMethod?
+  paidOn    DateTime?      @db.Date
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   rag    Rag    @relation(fields: [ragId], references: [id], onDelete: Cascade, onUpdate: Cascade)

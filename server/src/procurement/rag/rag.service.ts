@@ -1,3 +1,4 @@
+import { assertChargeOpen, chargePaid } from '../charge-payment';
 import { assertModule } from '../../common/modules/module-check';
 import { Injectable, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -10,7 +11,7 @@ import { defaultRawCategoryId } from '../shared/default-raw-category';
 import { TenantSequenceService } from '../shared/tenant-sequence.service';
 import { recordSupplierPayment } from '../supplier-khata';
 
-const CHARGE_SELECT = { id: true, kind: true, amount: true, note: true } as const;
+const CHARGE_SELECT = { id: true, kind: true, amount: true, note: true, paidFrom: true, paidOn: true } as const;
 
 /**
  * A loose lot's price: the total typed, else kg × rate per kg, else pieces × rate per piece (to the paisa), else 0.
@@ -152,7 +153,7 @@ export class RagService {
           pieces: !container && dto.pieces !== undefined ? dto.pieces : null,
           ratePerPiece: !container && dto.ratePerPiece !== undefined && dto.purchaseCost === undefined ? new Prisma.Decimal(dto.ratePerPiece) : null,
           allocatedCost: lotCost ?? 0,
-          ...(charges.length ? { charges: { create: charges.map((c) => ({ tenantId, kind: c.kind, amount: new Prisma.Decimal(c.amount), note: c.note?.trim() || null })) } } : {}),
+          ...(charges.length ? { charges: { create: await Promise.all(charges.map(async (c) => ({ tenantId, kind: c.kind, amount: new Prisma.Decimal(c.amount), note: c.note?.trim() || null, ...(await chargePaid(tx, tenantId, c.paidFrom)) }))) } } : {}),
           notes: dto.notes,
           ...(boughtAt && { createdAt: boughtAt }),
         },
@@ -333,10 +334,20 @@ export class RagService {
 
     const updated = await this.prisma.$transaction(async (tx) => {
       if (dto.charges !== undefined) {
-        await tx.lotCharge.deleteMany({ where: { ragId: id, tenantId } });
-        if (dto.charges.length) {
-          await tx.lotCharge.createMany({ data: dto.charges.map((c) => ({ tenantId, ragId: id, kind: c.kind, amount: new Prisma.Decimal(c.amount), note: c.note?.trim() || null })) });
+        // A charge kept as it was keeps how and when it was paid; a new or changed one is paid today (owner,
+        // 2026-11-19). A cash charge of a closed day cannot change or go: that day's cash would change.
+        const before = await tx.lotCharge.findMany({ where: { ragId: id, tenantId }, orderBy: { createdAt: 'asc' } });
+        const left = [...before];
+        const rows = [];
+        for (const c of dto.charges) {
+          const note = c.note?.trim() || null;
+          const i = left.findIndex((o) => o.kind === c.kind && o.amount.equals(c.amount) && o.note === note && (c.paidFrom === undefined || c.paidFrom === o.paidFrom));
+          const kept = i >= 0 ? left.splice(i, 1)[0] : null;
+          rows.push({ tenantId, ragId: id, kind: c.kind, amount: new Prisma.Decimal(c.amount), note, ...(kept ? { paidFrom: kept.paidFrom, paidOn: kept.paidOn } : await chargePaid(tx, tenantId, c.paidFrom)) });
         }
+        for (const gone of left) await assertChargeOpen(tx, tenantId, gone);
+        await tx.lotCharge.deleteMany({ where: { ragId: id, tenantId } });
+        if (rows.length) await tx.lotCharge.createMany({ data: rows });
       }
       await tx.rag.update({
         where: { id },

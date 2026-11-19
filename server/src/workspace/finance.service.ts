@@ -91,7 +91,7 @@ export class PnlQueryDto {
 }
 
 /** One book line. MOVE: cash out of / into the drawer (ref = OUT:BANK, IN:OWNER, …; party = the note). */
-type BookLine = { at: Date; day: string; kind: 'RECEIPT' | 'EXPENSE' | 'MOVE' | 'CLOSE' | 'SUPPLIER'; id: string; ref: string | null; party: string | null; in: Prisma.Decimal; out: Prisma.Decimal; createdAt?: Date; /** The record a click opens: the bill, the customer or the supplier. */ link?: { type: 'sale' | 'customer' | 'supplier'; id: string } };
+type BookLine = { at: Date; day: string; kind: 'RECEIPT' | 'EXPENSE' | 'MOVE' | 'CLOSE' | 'SUPPLIER' | 'CHARGE'; id: string; ref: string | null; party: string | null; in: Prisma.Decimal; out: Prisma.Decimal; createdAt?: Date; /** The record a click opens: the bill, the customer or the supplier. */ link?: { type: 'sale' | 'customer' | 'supplier' | 'lot' | 'container'; id: string } };
 
 const ymd = (s: string) => s.slice(0, 10);
 const dayDate = (s: string) => new Date(ymd(s) + 'T00:00:00Z');
@@ -187,7 +187,7 @@ export class FinanceService {
   }
 
   private async lines(tenantId: string, method: PaymentMethod, until?: Date): Promise<BookLine[]> {
-    const [payments, expenses, closes, moves, supplierPayments] = await Promise.all([
+    const [payments, expenses, closes, moves, supplierPayments, lotCharges, containerCharges] = await Promise.all([
       this.prisma.payment.findMany({
         where: { tenantId, method, ...(until ? { receivedAt: { lt: until } } : {}) },
         select: { id: true, amount: true, receivedAt: true, createdAt: true, reference: true, customerId: true, customer: { select: { name: true } }, sale: { select: { id: true, saleNumber: true } } },
@@ -200,6 +200,10 @@ export class FinanceService {
         : Promise.resolve([]),
       // Supplier khata: money paid to suppliers leaves the book it was paid from.
       this.prisma.supplierPayment.findMany({ where: { tenantId, method, cancelledAt: null }, select: { id: true, day: true, amount: true, note: true, vendorId: true, vendor: { select: { name: true } } } }),
+      // Charges of a lot or container paid from this book (owner, 2026-11-19): money out, part of the goods' cost,
+      // not an expense.
+      this.prisma.lotCharge.findMany({ where: { tenantId, paidFrom: method, paidOn: { not: null } }, select: { id: true, kind: true, amount: true, paidOn: true, rag: { select: { id: true, ragCode: true } } } }),
+      this.prisma.containerCharge.findMany({ where: { container: { tenantId }, paidFrom: method, paidOn: { not: null } }, select: { id: true, chargeType: true, amount: true, paidOn: true, container: { select: { id: true, containerNumber: true } } } }),
     ]);
     // An expense day / close day sits at the end of that business day for ordering (after the day's receipts).
     const endOf = (d: Date) => new Date(localDayStart(dayOf(d)).getTime() + DAY - 1);
@@ -212,6 +216,8 @@ export class FinanceService {
       }),
       ...expenses.map((e) => ({ at: new Date(endOf(e.day).getTime() - 1), day: dayOf(e.day), kind: 'EXPENSE' as const, id: e.id, ref: e.category, party: e.paidTo, in: ZERO, out: e.amount })),
       ...supplierPayments.map((p) => ({ at: new Date(endOf(p.day).getTime() - 1), day: dayOf(p.day), kind: 'SUPPLIER' as const, id: p.id, ref: p.note, party: p.vendor.name, in: ZERO, out: p.amount, link: { type: 'supplier' as const, id: p.vendorId } })),
+      ...lotCharges.map((c) => ({ at: new Date(endOf(c.paidOn!).getTime() - 1), day: dayOf(c.paidOn!), kind: 'CHARGE' as const, id: c.id, ref: `LOT:${c.kind}`, party: c.rag.ragCode, in: ZERO, out: c.amount, link: { type: 'lot' as const, id: c.rag.id } })),
+      ...containerCharges.map((c) => ({ at: new Date(endOf(c.paidOn!).getTime() - 1), day: dayOf(c.paidOn!), kind: 'CHARGE' as const, id: c.id, ref: `CONTAINER:${c.chargeType}`, party: c.container.containerNumber, in: ZERO, out: c.amount, link: { type: 'container' as const, id: c.container.id } })),
       ...closes.map((c) => ({ at: endOf(c.day), day: dayOf(c.day), kind: 'CLOSE' as const, id: c.id, ref: null, party: null, in: c.difference.isPositive() ? c.difference : ZERO, out: c.difference.isNegative() ? c.difference.neg() : ZERO })),
     ];
     return out.filter((l) => !until || l.at < until).sort((a, b) => a.at.getTime() - b.at.getTime() || a.kind.localeCompare(b.kind));

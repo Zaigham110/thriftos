@@ -1,4 +1,5 @@
-import { IsIn, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { PaymentMethod } from '@prisma/client';
+import { IsEnum, IsIn, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 export const LOT_CHARGE_KINDS = ['TRANSPORT', 'LABOUR', 'LOADING', 'OTHER'] as const;
 export type LotChargeKind = (typeof LOT_CHARGE_KINDS)[number];
@@ -16,4 +17,9 @@ export class LotChargeDto {
   @MaxLength(120)
   @IsOptional()
   note?: string;
+
+  /** Paid from the drawer, the bank… today (it then leaves that book); left out: paid outside ThriftOS. */
+  @IsEnum(PaymentMethod)
+  @IsOptional()
+  paidFrom?: PaymentMethod;
 }

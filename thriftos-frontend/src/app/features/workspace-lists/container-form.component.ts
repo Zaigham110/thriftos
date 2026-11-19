@@ -18,7 +18,7 @@ const CURRENCIES = ['PKR', 'USD', 'EUR', 'GBP'];
 const CONTAINER_TYPES = ['20ft', '40ft', '40HC', '45HC'];
 
 interface Option { id: string; name: string; originCountry?: string | null; country?: string | null; rawType?: string }
-interface ChargeLine { type: string; amount: number | null }
+interface ChargeLine { type: string; amount: number | null; paidFrom: string }
 /** GET /api/procurement/containers/:id (the fields this form uses). */
 interface ContainerRow {
   id: string; containerNumber: string; status: string; vendorId: string | null; originCountry: string | null; createdAt: string; arrivedAt: string | null;
@@ -158,6 +158,9 @@ const num = (v: string | null | undefined) => (v === null || v === undefined || 
                       @for (t of chargeTypes; track t) { <option [value]="t">{{ 'receive.charge.' + t | t }}</option> }
                     </select>
                     <input [name]="'ca' + i" type="number" min="0" step="0.01" [(ngModel)]="c.amount" [attr.aria-label]="'ws.sale.amount' | t" placeholder="Rs" />
+                    <select [name]="'cp' + i" [(ngModel)]="c.paidFrom" [attr.aria-label]="'ws.lf.paidFrom' | t" [title]="'ws.lf.paidFrom' | t">
+                      @for (m of chargeMethods; track m) { <option [value]="m">{{ 'ws.lf.paidFromN' | t: { how: ('method.' + m | t) } }}</option> }
+                    </select>
                     <button type="button" class="ws-btn" (click)="removeCharge(i)" [attr.aria-label]="'common.remove' | t">×</button>
                   </div>
                 }
@@ -233,7 +236,7 @@ const num = (v: string | null | undefined) => (v === null || v === undefined || 
     .opt.on { background:var(--ws-surface); color:var(--ws-ink); font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08); }
     .opt:has(input:focus-visible) { outline:2px solid var(--ws-focus, var(--ws-brand)); }
     .static { margin:0; font-weight:600; }
-    .charge { display:grid; grid-template-columns:minmax(0, 1fr) 160px auto; gap:var(--ws-2); margin-block-end:var(--ws-2); }
+    .charge { display:grid; grid-template-columns:minmax(0, 1fr) 140px 150px auto; gap:var(--ws-2); margin-block-end:var(--ws-2); }
     details summary { cursor:pointer; font-weight:600; }
     details[open] summary { margin-block-end:var(--ws-3); }
     .side { position:sticky; top:calc(var(--ws-topbar-h) + var(--ws-4)); display:grid; gap:var(--ws-3); }
@@ -292,6 +295,7 @@ export class ContainerFormComponent implements OnInit, HasUnsavedChanges {
   protected paidNow: number | null = null;
   protected paidMethod: string = 'CASH';
   protected readonly methods = PAYMENT_METHODS;
+  protected readonly chargeMethods = PAYMENT_METHODS.filter((m) => m !== 'OTHER');
   private _vendorId = '';
   private _kg: number | null = null;
   private _kanta: number | null = null;
@@ -453,7 +457,7 @@ export class ContainerFormComponent implements OnInit, HasUnsavedChanges {
   protected addCharge(): void {
     this.touched = true;
     const used = new Set(this._charges.map((c) => c.type));
-    const line: ChargeLine = { type: CONTAINER_CHARGES.find((t) => !used.has(t)) ?? 'MISC', amount: null };
+    const line: ChargeLine = { type: CONTAINER_CHARGES.find((t) => !used.has(t)) ?? 'MISC', amount: null, paidFrom: 'CASH' };
     // Each line tells the summary when its amount changes.
     const tick = this.tick;
     let amount: number | null = null;
@@ -506,7 +510,7 @@ export class ContainerFormComponent implements OnInit, HasUnsavedChanges {
             ...(Number(this.paidNow) > 0 ? { paidNow: Number(this.paidNow), paidMethod: this.paidMethod } : {}),
             ...(this._kanta ? { weighbridgeKg: Number(this._kanta) } : {}),
             ...(this.number.trim() ? { containerNumber: this.number.trim() } : {}),
-            charges: this._charges.filter((c) => Number(c.amount) > 0).map((c) => ({ chargeType: c.type, amount: Number(c.amount) })),
+            charges: this._charges.filter((c) => Number(c.amount) > 0).map((c) => ({ chargeType: c.type, amount: Number(c.amount), paidFrom: c.paidFrom })),
             withLot: true,
           }),
         );

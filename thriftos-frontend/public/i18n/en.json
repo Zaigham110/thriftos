@@ -1001,7 +1001,8 @@
    "receipt": "From {party} {ref}",
    "short": "Cash short at close",
    "subtitle": "Money in and out for each way of paying",
-   "title": "Cash and bank book"
+   "title": "Cash and bank book",
+   "charge": "{what} for {on}"
   },
   "breadcrumbs": "You are here",
   "cf": {
@@ -1572,7 +1573,10 @@
    "needPieces": "how many pieces",
    "needPieceRate": "the rate per piece",
    "piecesN": "{n} pcs",
-   "weightOptional": "Leave empty if it was not weighed: the lot is then counted in pieces."
+   "weightOptional": "Leave empty if it was not weighed: the lot is then counted in pieces.",
+   "paidFrom": "Paid from",
+   "paidFromN": "Paid from {how}",
+   "paidOutside": "Paid before (not in a book)"
   },
   "lotStatus": {
    "IN_SORTING": "Sorting",

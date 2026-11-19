@@ -160,7 +160,7 @@ export class WorkspaceRecordsService {
       cost: canSeeCost
         ? {
             purchase: c.purchaseCost, purchasePKR,
-            charges: c.containerCharges.map((x) => ({ id: x.id, type: x.chargeType, description: x.description, amount: x.amount })),
+            charges: c.containerCharges.map((x) => ({ id: x.id, type: x.chargeType, description: x.description, amount: x.amount, paidFrom: x.paidFrom })),
             chargesTotal: charges, landed: c.landedCostPKR, perKg: c.landedCostPerKg,
           }
         : null,

@@ -24,7 +24,7 @@ import {
 } from '../../shared/ui/workspace';
 import { PAYMENT_METHODS } from './lists';
 
-export interface BookLine { at: string; day: string; kind: 'RECEIPT' | 'EXPENSE' | 'MOVE' | 'CLOSE' | 'SUPPLIER'; id: string; ref: string | null; party: string | null; link?: { type: 'sale' | 'customer' | 'supplier'; id: string } | null; in: string; out: string; balance?: string }
+export interface BookLine { at: string; day: string; kind: 'RECEIPT' | 'EXPENSE' | 'MOVE' | 'CLOSE' | 'SUPPLIER' | 'CHARGE'; id: string; ref: string | null; party: string | null; link?: { type: 'sale' | 'customer' | 'supplier' | 'lot' | 'container'; id: string } | null; in: string; out: string; balance?: string }
 /** GET /api/workspace/finance/book */
 export interface Book { method: string; opening: string; in: string; out: string; closing: string; lines: BookLine[] }
 
@@ -33,6 +33,11 @@ export function lineDetails(i18n: I18nService, l: BookLine): string {
   if (l.kind === 'RECEIPT') return i18n.t('ws.book.receipt', { party: l.party ?? '—', ref: l.ref ?? '' }).trim();
   if (l.kind === 'SUPPLIER') return i18n.t('ws.book.supplier', { party: l.party ?? '—', ref: l.ref ?? '' }).trim();
   if (l.kind === 'EXPENSE') return [i18n.t(`ws.expenseCategory.${l.ref}`), l.party].filter(Boolean).join(' · ');
+  // A charge put on a lot or container, paid from this book: "Transport for LOT-12".
+  if (l.kind === 'CHARGE') {
+    const [on, type] = (l.ref ?? '').split(':');
+    return i18n.t('ws.book.charge', { what: i18n.t(on === 'LOT' ? `ws.lf.kind.${type}` : `receive.charge.${type}`), on: l.party ?? '—' });
+  }
   // Cash out of the drawer or into it (v2 review): "Paid into the bank · Meezan Bank".
   if (l.kind === 'MOVE') return [i18n.t(`ws.close.move.${(l.ref ?? '').replace(':', '.')}`), l.party].filter(Boolean).join(' · ');
   return i18n.t(+l.in > 0 ? 'ws.book.over' : 'ws.book.short');
@@ -187,6 +192,8 @@ export class FinanceBookComponent {
     if (link?.type === 'sale') void this.nav.open(['/sell/records', link.id]);
     if (link?.type === 'customer') void this.nav.open(['/khata/records', link.id]);
     if (link?.type === 'supplier') void this.nav.open(['/receive/records/suppliers', link.id], { queryParams: { tab: 'payments' } });
+    if (link?.type === 'lot') void this.nav.open(['/receive/records/lots', link.id]);
+    if (link?.type === 'container') void this.nav.open(['/receive/records/containers', link.id]);
     if (kind === 'EXPENSE') void this.nav.open(['/finance/expenses', id]);
     if (kind === 'CLOSE' || kind === 'MOVE') void this.nav.open(['/finance/close']);
   }

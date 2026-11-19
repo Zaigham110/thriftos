@@ -17,10 +17,11 @@ interface Option { id: string; name: string; originCountry?: string | null; coun
 interface LotRow {
   id: string; ragCode: string; status: string; containerId: string | null; vendorId: string | null; rawCategoryId: string | null;
   weightKg: string; purchaseCost: string | null; ratePerKg: string | null; pieces?: number | null; ratePerPiece?: string | null; notes: string | null; createdAt: string;
-  charges?: { kind: ChargeKind; amount: string; note: string | null }[];
+  charges?: { kind: ChargeKind; amount: string; note: string | null; paidFrom?: string | null }[];
 }
 type ChargeKind = 'TRANSPORT' | 'LABOUR' | 'LOADING' | 'OTHER';
-interface Charge { kind: ChargeKind; amount: number | null; note: string }
+/** `paidFrom`: from the drawer, the bank… today (it leaves that book); '' = paid outside ThriftOS (old charges). */
+interface Charge { kind: ChargeKind; amount: number | null; note: string; paidFrom: string }
 const CHARGE_KINDS: ChargeKind[] = ['TRANSPORT', 'LABOUR', 'LOADING', 'OTHER'];
 /** What can be attached to a lot (the server checks the same: photos, PDF, Excel, Word; 10 MB each). */
 const DOC_TYPES = 'image/*,application/pdf,.xlsx,.xls,.csv,.docx';
@@ -138,6 +139,10 @@ const day = (v: string) => new Date(new Date(v).getTime() + 5 * 3_600_000).toISO
                       </select>
                       <input [name]="'amount' + i" type="number" min="0.01" step="0.01" [ngModel]="c.amount" (ngModelChange)="setCharge(i, { amount: $event })" [attr.aria-label]="'ws.lf.chargeAmount' | t" [placeholder]="'ws.lf.chargeAmount' | t" />
                       <input [name]="'note' + i" maxlength="120" [ngModel]="c.note" (ngModelChange)="setCharge(i, { note: $event })" [attr.aria-label]="'ws.customer.note' | t" [placeholder]="'ws.lf.chargeNote' | t" />
+                      <select [name]="'paid' + i" [ngModel]="c.paidFrom" (ngModelChange)="setCharge(i, { paidFrom: $event })" [attr.aria-label]="'ws.lf.paidFrom' | t" [title]="'ws.lf.paidFrom' | t">
+                        @for (m of chargeMethods; track m) { <option [value]="m">{{ 'ws.lf.paidFromN' | t: { how: ('method.' + m | t) } }}</option> }
+                        @if (!c.paidFrom) { <option value="">{{ 'ws.lf.paidOutside' | t }}</option> }
+                      </select>
                       <button type="button" class="ws-btn" (click)="removeCharge(i)" [attr.aria-label]="'ws.lf.removeCharge' | t">×</button>
                     </li>
                   }
@@ -215,7 +220,7 @@ const day = (v: string) => new Date(new Date(v).getTime() + 5 * 3_600_000).toISO
     .seg button { padding:4px var(--ws-3); border:0; border-radius:var(--ws-r-sm, 6px); background:transparent; color:var(--ws-ink-2); font:inherit; font-size:var(--ws-text-sm); cursor:pointer; }
     .seg button.on { background:var(--ws-surface); color:var(--ws-brand); font-weight:600; box-shadow:var(--ws-shadow-1); }
     .charges, .files { list-style:none; margin:0 0 var(--ws-3); padding:0; display:grid; gap:var(--ws-2); }
-    .charges li { display:grid; grid-template-columns:160px 140px minmax(0, 1fr) auto; gap:var(--ws-2); align-items:center; }
+    .charges li { display:grid; grid-template-columns:150px 120px minmax(0, 1fr) 170px auto; gap:var(--ws-2); align-items:center; }
     .files li { display:flex; align-items:center; gap:var(--ws-2); font-size:var(--ws-text-sm); }
     .files li span { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .pick { position:relative; display:inline-flex; width:max-content; cursor:pointer; }
@@ -268,6 +273,8 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
   protected paidNow: number | null = null;
   protected paidMethod: string = 'CASH';
   protected readonly methods = PAYMENT_METHODS;
+  /** How a charge can be paid: the books ThriftOS keeps. */
+  protected readonly chargeMethods = PAYMENT_METHODS.filter((m) => m !== 'OTHER');
   protected rawCategoryId = '';
   protected date = today();
   protected notes = '';
@@ -314,7 +321,8 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
   });
 
   protected addCharge(kind: ChargeKind): void {
-    this.charges.update((l) => [...l, { kind, amount: null, note: '' }]);
+    // Paid from the drawer today unless picked otherwise (owner, 2026-11-19).
+    this.charges.update((l) => [...l, { kind, amount: null, note: '', paidFrom: 'CASH' }]);
     this.touched = true;
   }
   protected setCharge(i: number, change: Partial<Charge>): void {
@@ -388,7 +396,7 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
         this.byPiece.set(r.ratePerPiece !== null && r.ratePerPiece !== undefined);
         this.pieceRate.set(r.ratePerPiece === null || r.ratePerPiece === undefined ? null : Number(r.ratePerPiece));
         this.pieces.set(r.pieces ?? null);
-        this.charges.set((r.charges ?? []).map((c) => ({ kind: c.kind, amount: Number(c.amount), note: c.note ?? '' })));
+        this.charges.set((r.charges ?? []).map((c) => ({ kind: c.kind, amount: Number(c.amount), note: c.note ?? '', paidFrom: c.paidFrom ?? '' })));
         this.notes = r.notes ?? '';
         this.locked.set(r.status !== 'NOT_STARTED');
         this.loading.set(false);
@@ -435,7 +443,7 @@ export class LotFormComponent implements OnInit, HasUnsavedChanges {
         : this.byRate()
           ? { ratePerKg: Number(this.rate()) }
           : { purchaseCost: Number(this.cost()) }),
-      charges: this.charges().map((c) => ({ kind: c.kind, amount: Number(c.amount), ...(c.note.trim() ? { note: c.note.trim() } : {}) })),
+      charges: this.charges().map((c) => ({ kind: c.kind, amount: Number(c.amount), ...(c.note.trim() ? { note: c.note.trim() } : {}), ...(c.paidFrom ? { paidFrom: c.paidFrom } : {}) })),
       receivedAt: this.date,
       notes: this.notes.trim(),
       ...(this.locked() ? {} : { ...(Number(this.kg()) > 0 ? { weightKg: Number(this.kg()) } : {}), ...(this.rawCategoryId ? { rawCategoryId: this.rawCategoryId } : {}) }),

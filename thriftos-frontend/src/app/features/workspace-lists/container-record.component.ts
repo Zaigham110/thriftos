@@ -39,7 +39,7 @@ export interface ContainerOverview {
       forwarder: string | null; portOfLoading: string | null; portOfDischarge: string | null; etd: string | null; eta: string | null;
     };
   };
-  cost: { purchase: string; purchasePKR: string; charges: { id: string; type: string; description: string | null; amount: string }[]; chargesTotal: string; landed: string; perKg: string } | null;
+  cost: { purchase: string; purchasePKR: string; charges: { id: string; type: string; description: string | null; amount: string; paidFrom: string | null }[]; chargesTotal: string; landed: string; perKg: string } | null;
   lots: { id: string; code: string; kg: string; status: string; rawType: string | null; cost: Money }[];
   sorting: { categories: { name: string; kg: string; cost: Money }[]; sortedKg: string; wasteKg: string; yieldPercent: number | null };
   grades: { name: string; kg: string }[];
@@ -173,6 +173,12 @@ interface RawType { id: string; name: string; rawType?: string }
             <select name="ctype" [(ngModel)]="chargeType">@for (t of chargeTypes; track t) { <option [value]="t">{{ 'receive.charge.' + t | t }}</option> }</select>
           </label>
           <label>{{ 'ws.sale.amount' | t }}<input name="camount" type="number" min="0" step="0.01" required [(ngModel)]="chargeAmount" /></label>
+          <label>{{ 'ws.lf.paidFrom' | t }}
+            <select name="cpaid" [(ngModel)]="chargePaidFrom">
+              @for (m of chargeMethods; track m) { <option [value]="m">{{ 'method.' + m | t }}</option> }
+              @if (!chargePaidFrom) { <option value="">{{ 'ws.lf.paidOutside' | t }}</option> }
+            </select>
+          </label>
           <label>{{ 'ws.customer.note' | t }} · {{ 'common.optional' | t }}<input name="cnote" maxlength="200" [(ngModel)]="chargeNote" /></label>
         </form>
         <ng-container footer>
@@ -274,6 +280,9 @@ export class ContainerRecordComponent {
   protected chargeType: string = 'DUTY';
   protected chargeAmount: number | null = null;
   protected chargeNote = '';
+  /** Where the charge was paid from ('' = paid outside ThriftOS, charges entered before this choice). */
+  protected chargePaidFrom = 'CASH';
+  protected readonly chargeMethods = ['CASH', 'JAZZCASH', 'EASYPAISA', 'RAAST', 'BANK'] as const;
   protected lotRaw = '';
   protected lotKg: number | null = null;
   protected readonly data = signal<ContainerOverview | null>(null);
@@ -355,9 +364,10 @@ export class ContainerRecordComponent {
   protected readonly chargeColumns = computed<WsColumn[]>(() => [
     { key: 'type', label: this.i18n.t('ws.col.type') },
     ...(this.chargeRows().some((c) => c['description']) ? [{ key: 'description', label: this.i18n.t('ws.customer.note') }] : []),
+    { key: 'paid', label: this.i18n.t('ws.lf.paidFrom') },
     { key: 'amount', label: this.i18n.t('ws.sale.amount'), format: 'money', total: true },
   ]);
-  protected readonly chargeRows = computed<WsRow[]>(() => (this.data()?.cost?.charges ?? []).map((c) => ({ ...c, chargeType: c.type, type: this.i18n.t(`receive.charge.${c.type}`), description: c.description === c.type ? null : c.description })));
+  protected readonly chargeRows = computed<WsRow[]>(() => (this.data()?.cost?.charges ?? []).map((c) => ({ ...c, chargeType: c.type, type: this.i18n.t(`receive.charge.${c.type}`), paid: c.paidFrom ? this.i18n.t(`method.${c.paidFrom}`) : this.i18n.t('ws.lf.paidOutside'), description: c.description === c.type ? null : c.description })));
   protected readonly categoryColumns = computed<WsColumn[]>(() => [
     { key: 'name', label: this.i18n.t('ws.container.category') },
     { key: 'kg', label: this.i18n.t('ws.containers.col.kg'), format: 'kg', total: true },
@@ -460,13 +470,14 @@ export class ContainerRecordComponent {
     this.chargeType = row ? String(row['chargeType']) : 'DUTY';
     this.chargeAmount = row ? Number(row['amount']) : null;
     this.chargeNote = row ? String(row['description'] ?? '') : '';
+    this.chargePaidFrom = row ? String(row['paidFrom'] ?? '') : 'CASH';
     this.sheet.set('charge');
   }
 
   protected async saveCharge(): Promise<void> {
     const id = this.data()?.container.id;
     if (!id || this.chargeAmount === null || this.chargeAmount < 0) return;
-    const body = { chargeType: this.chargeType, amount: Number(this.chargeAmount), description: this.chargeNote.trim() };
+    const body = { chargeType: this.chargeType, amount: Number(this.chargeAmount), description: this.chargeNote.trim(), ...(this.chargePaidFrom ? { paidFrom: this.chargePaidFrom } : {}) };
     await this.run(
       this.chargeId
         ? this.http.patch(`/api/procurement/containers/${id}/charges/${this.chargeId}`, body)

@@ -72,6 +72,12 @@ interface SavedContainer {
           @for (c of chargeTypes; track c) {
             @if (charges()[c] !== undefined) { <tos-number [label]="'receive.charge.' + c" unit="unit.money" [value]="charges()[c] ?? null" (valueChange)="setCharge(c, $event)" /> }
           }
+          @if (chargesTotal() > 0) {
+            <span class="field-label">{{ 'ws.lf.paidFrom' | t }}</span>
+            <div class="chips" role="radiogroup" [attr.aria-label]="'ws.lf.paidFrom' | t">
+              @for (m of chargeMethods; track m) { <button type="button" class="chip" role="radio" [class.on]="chargePaidFrom() === m" [attr.aria-checked]="chargePaidFrom() === m" (click)="chargePaidFrom.set(m)">{{ ('method.' + m) | t }}</button> }
+            </div>
+          }
           <p class="hint">{{ 'receive.chargesLater' | t }}</p>
         </section>
 
@@ -106,7 +112,7 @@ interface SavedContainer {
       }
     </section>
   `,
-  styles: [`.done { justify-items:center; text-align:center; } .done h2 { font-size:20px; } .missing { margin:0; padding-block-end:96px; }`],
+  styles: [`.done { justify-items:center; text-align:center; } .field-label { display:block; font-size:15px; font-weight:700; margin-block:12px 6px; } .done h2 { font-size:20px; } .missing { margin:0; padding-block-end:96px; }`],
 })
 export class ReceiveContainerComponent implements OnInit {
   private readonly http = inject(HttpClient);
@@ -134,6 +140,10 @@ export class ReceiveContainerComponent implements OnInit {
   protected readonly fxRate = signal<number | null>(null);
   protected readonly origin = signal<string | null>(null);
   protected readonly charges = signal<Partial<Record<ChargeType, number | null>>>({});
+  /** Where the charges were paid from (they leave that book today). */
+  protected readonly chargePaidFrom = signal<'CASH' | 'BANK'>('CASH');
+  protected readonly chargeMethods = ['CASH', 'BANK'] as const;
+  protected readonly chargesTotal = computed(() => Object.values(this.charges()).reduce<number>((s, a) => s + (a ?? 0), 0));
   protected readonly saving = signal(false);
   protected readonly done = signal<{ code: string; perKg: number; lotId: string | null; saved: boolean } | null>(null);
   protected containerNumber = '';
@@ -204,7 +214,7 @@ export class ReceiveContainerComponent implements OnInit {
       ...(this.containerNumber.trim() ? { containerNumber: this.containerNumber.trim() } : {}),
       charges: Object.entries(this.charges())
         .filter(([, amount]) => (amount ?? 0) > 0)
-        .map(([chargeType, amount]) => ({ chargeType, amount })),
+        .map(([chargeType, amount]) => ({ chargeType, amount, paidFrom: this.chargePaidFrom() })),
       withLot: true,
       status: 'ARRIVED',
       ...(this.date && this.date !== today() ? { receivedAt: this.date } : {}),

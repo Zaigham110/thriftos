@@ -10,6 +10,11 @@ export class ContainerChargeLineDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsPositive()
   amount: number;
+
+  /** Paid from the drawer, the bank… today (it then leaves that book); left out: paid outside ThriftOS. */
+  @IsEnum(PaymentMethod)
+  @IsOptional()
+  paidFrom?: PaymentMethod;
 }
 
 export class CreateContainerDto {
