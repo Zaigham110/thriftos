@@ -72,4 +72,9 @@ else
 fi
 
 date -u +%Y-%m-%dT%H:%M:%SZ > backups/.last-backup
+# Heartbeat for the alarm "ThriftOS backup missed" (CloudWatch, this Region): it emails the owner when no
+# backup has finished for 26 hours. A failed heartbeat does not undo the backup.
+AWS_MOUNTS=()
+aws cloudwatch put-metric-data --namespace ThriftOS --metric-name BackupSucceeded --value 1 --unit Count \
+  || echo "   could not send the heartbeat (the backup itself is done)"
 echo "Backup $day done."
