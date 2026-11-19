@@ -20,8 +20,11 @@ loose AS (
   FROM "Rag" r WHERE r."containerId" IS NULL AND r."purchaseCost" IS NOT NULL
 ),
 categories AS (
+  -- Only a lot whose sorting is finished: while it is still being sorted, what came out so far carries only
+  -- its share of the lot's cost (the rest is still in the unsorted kg).
   SELECT r.id, r."tenantId", r."ragCode" AS ref, r."allocatedCost" AS expected, SUM(co."allocatedCost") AS stored
   FROM "Rag" r JOIN "CategoryOutput" co ON co."ragId" = r.id
+  WHERE r.status = 'SORTED'
   GROUP BY r.id
 ),
 grades AS (

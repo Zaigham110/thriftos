@@ -1,4 +1,6 @@
 import { INestApplication } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { api, createTenantWithOwner, createTestApp, seedSortableLot, TestTenant } from './fixtures';
 
@@ -79,6 +81,10 @@ describe('Sorting screen: lot details, entries, remove one, finished lot (e2e)',
     const session = (await api(app, a).post('/sorting/stage-1/start', { ragId: lot.id }).expect(201)).body.session ?? (await api(app, a).get(`/sorting/stage-1/summary?ragId=${lot.id}`).expect(200)).body.session;
     await api(app, a).post('/sorting/stage-1/allocate', { sessionId: session.id, categoryId: shirts.id, amountKg: 40 }).expect(200);
     await api(app, a).post('/sorting/stage-1/allocate', { sessionId: session.id, categoryId: jeans.id, gradeId: gradeA.id, amountKg: 10 }).expect(200);
+    // The cost check leaves a lot still being sorted alone: what came out so far carries only its share of the cost.
+    const check = fs.readFileSync(path.resolve(__dirname, '../../../prisma/checks/cost-chain-check.sql'), 'utf8');
+    const flagged = (await prisma.$queryRawUnsafe<{ tenantId: string; ref: string }[]>(check)).filter((r) => r.tenantId === a.tenantId && r.ref === lot.ragCode);
+    expect(flagged).toEqual([]);
     const s = (await api(app, a).get(`/sorting/stage-1/summary?ragId=${lot.id}`).expect(200)).body;
     const shirtsId = s.entries.find((e: any) => e.categoryName === 'Shirts').id;
     const jeansId = s.entries.find((e: any) => e.categoryName === 'Jeans').id;
